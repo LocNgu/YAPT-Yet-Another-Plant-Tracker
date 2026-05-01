@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.settings
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -8,13 +9,18 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(private val dataStore: DataStore<Preferences>) : ViewModel() {
+class SettingsViewModel(
+    private val dataStore: DataStore<Preferences>,
+    private val context: Context
+) : ViewModel() {
 
     companion object {
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
@@ -37,6 +43,14 @@ class SettingsViewModel(private val dataStore: DataStore<Preferences>) : ViewMod
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
+            if (enabled) {
+                val prefs = dataStore.data.first()
+                val hour = prefs[KEY_REMINDER_HOUR] ?: 9
+                val minute = prefs[KEY_REMINDER_MINUTE] ?: 0
+                ReminderScheduler.schedule(context, hour, minute)
+            } else {
+                ReminderScheduler.cancel(context)
+            }
         }
     }
 
@@ -46,12 +60,19 @@ class SettingsViewModel(private val dataStore: DataStore<Preferences>) : ViewMod
                 it[KEY_REMINDER_HOUR] = hour
                 it[KEY_REMINDER_MINUTE] = minute
             }
+            val enabled = dataStore.data.first()[KEY_NOTIFICATIONS_ENABLED] ?: true
+            if (enabled) {
+                ReminderScheduler.schedule(context, hour, minute)
+            }
         }
     }
 
-    class Factory(private val dataStore: DataStore<Preferences>) : ViewModelProvider.Factory {
+    class Factory(
+        private val dataStore: DataStore<Preferences>,
+        private val context: Context
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(dataStore) as T
+            SettingsViewModel(dataStore, context) as T
     }
 }
