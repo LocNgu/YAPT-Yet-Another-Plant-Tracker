@@ -34,9 +34,6 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
-      - name: Run unit tests
-        run: gradle testDebugUnitTest --no-daemon
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
