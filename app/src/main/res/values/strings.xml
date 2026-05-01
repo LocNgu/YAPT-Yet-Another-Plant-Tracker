@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YAPT</string>
+    <string name="my_plants">My Plants</string>
+    <string name="add_plant">Add Plant</string>
+    <string name="edit_plant">Edit Plant</string>
+    <string name="plant_name">Plant Name *</string>
+    <string name="species">Species</string>
+    <string name="location">Location / Room</string>
+    <string name="notes">Notes</string>
+    <string name="watering_every">Watering every</string>
+    <string name="fertilizing_every">Fertilizing every</string>
+    <string name="days">days</string>
+    <string name="log_care">Log Care</string>
+    <string name="care_history">Care History</string>
+    <string name="settings">Settings</string>
+    <string name="delete_plant">Delete Plant</string>
+    <string name="delete_plant_confirm">Delete this plant and all its care history?</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="save">Save</string>
+    <string name="notifications_enabled">Enable Reminders</string>
+    <string name="reminder_time">Daily Reminder Time</string>
+    <string name="no_plants_yet">No plants yet!\nTap + to add your first plant.</string>
+    <string name="no_care_logs">No care logged yet.\nTap the button below to log your first care event.</string>
+    <string name="channel_name">Plant Care Reminders</string>
+    <string name="channel_description">Reminders to water and care for your plants</string>
+</resources>
