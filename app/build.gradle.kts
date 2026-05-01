@@ -13,7 +13,9 @@ android {
         applicationId = "com.yapt.planttracker"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        versionCode = providers.exec {
+            commandLine("git", "rev-list", "--count", "HEAD")
+        }.standardOutput.asText.get().trim().toIntOrNull() ?: 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
