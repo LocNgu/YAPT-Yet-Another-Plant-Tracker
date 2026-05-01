@@ -107,6 +107,20 @@ Additional:
 
 ---
 
+## Git Workflow
+
+**One branch and one PR per feature or bug fix.** Never mix unrelated changes on the same branch.
+
+- Branch off `develop`: `git checkout -b claude/<kebab-description> origin/develop`
+- All commits for the task go on that branch
+- PR targets `develop`
+- Go back to `develop` before starting anything new
+
+Branch naming convention: `claude/<kebab-case-description>`
+Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claude/fix-5-enum-valueof`
+
+---
+
 ## What's Been Completed
 
 - Full Room database (PlantEntity, CareLogEntity, DAOs, migrations via `fallbackToDestructiveMigration` for v1)

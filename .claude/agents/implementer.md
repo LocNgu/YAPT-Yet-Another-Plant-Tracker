@@ -32,6 +32,17 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 - Do not call `CareType.valueOf()` / `WateringFeedback.valueOf()` without a `runCatching` wrapper.
 - Do not modify the git history or push unless explicitly instructed.
 
+## Git workflow
+
+**Each feature or bug fix gets its own branch and PR.** Never stack unrelated work on the same branch.
+
+1. Branch off `develop`: `git checkout -b claude/<short-description> origin/develop`
+2. Make all commits for this feature/fix on that branch.
+3. Push and open a PR targeting `develop`.
+4. Return to `develop` before starting the next task.
+
+Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`).
+
 ## When finished
 
 Summarise:
@@ -39,3 +50,4 @@ Summarise:
 - Any new dependencies added (name + version)
 - Any DB schema changes that require a migration bump
 - Anything the reviewer should pay special attention to
+- The branch name and PR URL (or instructions to open the PR)
