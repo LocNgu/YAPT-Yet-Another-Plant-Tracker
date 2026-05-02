@@ -21,6 +21,8 @@
     <string name="save">Save</string>
     <string name="notifications_enabled">Enable Reminders</string>
     <string name="reminder_time">Daily Reminder Time</string>
+    <string name="reminder_time_dialog_title">Set reminder time</string>
+    <string name="ok">OK</string>
     <string name="no_plants_yet">No plants yet!\nTap + to add your first plant.</string>
     <string name="no_care_logs">No care logged yet.\nTap the button below to log your first care event.</string>
     <string name="channel_name">Plant Care Reminders</string>

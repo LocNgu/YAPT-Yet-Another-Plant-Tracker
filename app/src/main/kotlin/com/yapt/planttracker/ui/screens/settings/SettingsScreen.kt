@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yapt.planttracker.R
 import com.yapt.planttracker.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,11 +48,13 @@ fun SettingsScreen(
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     var showTimePicker by remember { mutableStateOf(false) }
-    val timePickerState = rememberTimePickerState(
-        initialHour = reminderHour,
-        initialMinute = reminderMinute,
-        is24Hour = true
-    )
+    val timePickerState = key(reminderHour, reminderMinute) {
+        rememberTimePickerState(
+            initialHour = reminderHour,
+            initialMinute = reminderMinute,
+            is24Hour = true
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -95,7 +99,10 @@ fun SettingsScreen(
                 }
                 Switch(
                     checked = notificationsEnabled,
-                    onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                    onCheckedChange = {
+                        viewModel.setNotificationsEnabled(it)
+                        if (!it) showTimePicker = false
+                    }
                 )
             }
 
@@ -124,16 +131,16 @@ fun SettingsScreen(
             if (showTimePicker) {
                 AlertDialog(
                     onDismissRequest = { showTimePicker = false },
-                    title = { Text("Set reminder time") },
+                    title = { Text(stringResource(R.string.reminder_time_dialog_title)) },
                     text = { TimePicker(state = timePickerState) },
                     confirmButton = {
                         TextButton(onClick = {
                             viewModel.setReminderTime(timePickerState.hour, timePickerState.minute)
                             showTimePicker = false
-                        }) { Text("OK") }
+                        }) { Text(stringResource(R.string.ok)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                        TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
                     }
                 )
             }
