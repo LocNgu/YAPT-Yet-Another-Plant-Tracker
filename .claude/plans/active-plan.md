@@ -51,8 +51,13 @@
 
 ---
 
-## Workflow (for every new feature)
+## Workflow (for every new feature or bug fix)
 
-1. Update this file — move item from "Upcoming" to "Completed" when done
-2. Update `CLAUDE.md` "What's Been Completed" and "Known Issues" to match
-3. One branch per feature: `claude/<kebab-description>` off `develop`, PR targets `develop`
+1. **Spec** — run the spec agent; it interviews the human and posts clarifications as a comment on the GitHub issue
+2. **Implement** — run the implementer agent; it reads the spec and writes code on a `claude/<kebab-description>` branch, then opens a PR targeting `develop`
+3. **Review** — run the reviewer agent (max 2 rounds of REQUEST CHANGES):
+   - BLOCKING findings must be fixed; NON-BLOCKING findings are filed as new GitHub issues
+   - After round 2 the reviewer must APPROVE; remaining concerns become new issues
+4. **QA** — run the qa agent; it validates build, tests, lint, and every acceptance criterion
+5. **Merge** — human merges the PR; Claude never merges
+6. **Update docs** — implementer updates this file (move to Completed) and `CLAUDE.md` (What's Been Completed + Known Issues)

@@ -103,6 +103,19 @@ Tracked as GitHub issues:
 
 ---
 
+## Development Workflow
+
+Every feature and bug fix follows these steps in order:
+
+1. **Spec** (`spec` agent) — interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
+2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
+3. **Review** (`reviewer` agent) — max 2 rounds of REQUEST CHANGES:
+   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
+   - After round 2 the reviewer must APPROVE; remaining concerns become new GitHub issues
+4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
+5. **Merge** — **human merges only**; Claude never merges a PR
+6. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
+
 ## Git Workflow
 
 **One branch and one PR per feature or bug fix.** Never mix unrelated changes on the same branch.
