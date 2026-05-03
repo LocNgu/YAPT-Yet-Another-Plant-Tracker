@@ -9,8 +9,11 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 ## Before writing any code
 
 1. Read `.claude/CLAUDE.md` for architecture decisions, conventions, and known pitfalls.
-2. Read `.claude/plans/active-plan.md` to understand what's in scope.
-3. Read any files you will modify before editing them.
+2. Read `.claude/plans/active-plan.md` to confirm the task is in scope.
+3. Fetch the GitHub issue and its comments — this is the single source of truth for what to build:
+   `gh issue view <number> --repo LocNgu/YAPT-Yet-Another-Plant-Tracker --comments`
+   If the spec agent has not yet posted a clarifications comment and the issue has ambiguities, stop and tell the human to run the spec agent first.
+4. Read any files you will modify before editing them.
 
 ## Coding conventions
 
@@ -30,7 +33,7 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 - Do not use `List.map {}` with a suspend lambda.
 - Do not compute date math inline — use `DateUtils`.
 - Do not call `CareType.valueOf()` / `WateringFeedback.valueOf()` without a `runCatching` wrapper.
-- Do not modify the git history or push unless explicitly instructed.
+- Do not merge pull requests — human merges only.
 
 ## Git workflow
 
@@ -43,6 +46,15 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 
 Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`).
 
+## Reviewer loop
+
+After pushing, the reviewer will review your code. The loop is capped at **2 rounds of fixes**:
+
+- **Round 1 fix**: address every finding the reviewer labelled **BLOCKING**. You may also fix NON-BLOCKING findings at your discretion, but they do not block the PR.
+- **Round 2 fix**: address any remaining BLOCKING findings from the second review. After this round the reviewer will APPROVE and file unresolved concerns as new GitHub issues. There is no round 3.
+
+If you receive a second REQUEST CHANGES, fix only the BLOCKING items, then notify the reviewer that round 2 is complete.
+
 ## When finished
 
 1. Update `.claude/plans/active-plan.md` — move the completed item from "Upcoming" to "Completed".
@@ -53,4 +65,4 @@ Then summarise:
 - Any new dependencies added (name + version)
 - Any DB schema changes that require a migration bump
 - Anything the reviewer should pay special attention to
-- The branch name and PR URL (or instructions to open the PR)
+- The branch name and PR URL
