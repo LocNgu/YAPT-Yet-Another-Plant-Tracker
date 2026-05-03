@@ -35,12 +35,14 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
 private fun CareLogEntity.toDomain() = CareLog(
     id = id,
     plantId = plantId,
-    careType = CareType.valueOf(careType),
+    careType = runCatching { CareType.valueOf(careType) }.getOrDefault(CareType.NOTE),
     loggedAt = loggedAt,
     notes = notes,
     photoUri = photoUri,
     amount = amount,
-    wateringFeedback = wateringFeedback?.let { WateringFeedback.valueOf(it) }
+    wateringFeedback = wateringFeedback?.let {
+        runCatching { WateringFeedback.valueOf(it) }.getOrNull()
+    }
 )
 
 private fun CareLog.toEntity() = CareLogEntity(
