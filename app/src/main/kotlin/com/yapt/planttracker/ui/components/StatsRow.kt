@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.util.DateUtils
 
 @Composable
 fun StatsRow(
@@ -34,8 +35,7 @@ fun StatsRow(
         StatChip(
             label = "Last fertilized",
             value = status.lastFertilizedAt?.let {
-                val days = (System.currentTimeMillis() - it) / 86_400_000
-                "${days}d ago"
+                DateUtils.formatRelative(it)
             } ?: "Never",
             modifier = Modifier.weight(1f)
         )
