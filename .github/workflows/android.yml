@@ -2,7 +2,7 @@ name: Android CI/CD
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    branches: [ main, develop, "claude/**" ]
   pull_request:
     branches: [ main ]
 
@@ -30,15 +30,6 @@ jobs:
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
-
-      - name: Restore debug keystore
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            mkdir -p ~/.android
-            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
-          fi
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
