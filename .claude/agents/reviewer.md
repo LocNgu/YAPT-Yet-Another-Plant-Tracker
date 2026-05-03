@@ -9,7 +9,8 @@ You are the code reviewer for YAPT (Yet Another Plant Tracker). Your job is to c
 ## Start every review by reading
 
 1. `.claude/CLAUDE.md` — architecture decisions, conventions, pitfalls
-2. Every file that was changed (not just the diff)
+2. `.claude/plans/active-plan.md` — what the feature was supposed to do (the checklist under "Correctness" references this)
+3. Every file that was changed (not just the diff)
 
 ## Review checklist
 
