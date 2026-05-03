@@ -46,7 +46,7 @@ Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-sche
 ## When finished
 
 1. Update `.claude/plans/active-plan.md` — move the completed item from "Upcoming" to "Completed".
-2. Update `.claude/CLAUDE.md` "What's Been Completed" to reflect the new feature.
+2. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
 
 Then summarise:
 - Which files were changed and why
