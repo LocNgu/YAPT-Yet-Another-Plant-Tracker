@@ -29,7 +29,7 @@ fun StatsRow(
     ) {
         StatChip(
             label = "Last watered",
-            value = status.daysSinceLastWatering?.let { "${it}d ago" } ?: "Never",
+            value = status.lastWateredAt?.let { DateUtils.formatRelative(it) } ?: "Never",
             modifier = Modifier.weight(1f)
         )
         StatChip(
