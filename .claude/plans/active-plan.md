@@ -1,73 +1,58 @@
 # YAPT – Active Plan
 
-## Status: Post-Initial-Development
-
-The initial implementation is complete and pushed to `claude/android-plant-tracker-qpjzl`. A PR review identified 8 issues; the critical reminder-time bug was fixed immediately. The remaining issues are tracked below.
+## Status: Feature development phase (as of 2026-05-03)
 
 ---
 
-## Completed Features
+## Completed
 
 - [x] Plant library (add / edit / delete with cover photo)
 - [x] Care logging (WATER, FERTILIZE, PRUNE, MIST, REPOT, NOTE, PHOTO)
-- [x] Adaptive watering intervals (Too Soon / Just Right / Too Late → Snackbar suggestion)
+- [x] Adaptive watering intervals (feedback → Snackbar suggestion)
 - [x] Care history timeline per plant
 - [x] Photo gallery (horizontal scroll of care-log photos)
 - [x] Stats row (days since watering/fertilizing, total logs)
 - [x] Room/location grouping with filter chips on home screen
 - [x] Daily care reminders via WorkManager (fires at user-configured time)
-- [x] Notification channel + permission check
 - [x] BootReceiver honours stored reminder time
-- [x] Settings screen (notifications toggle, reminder time display)
+- [x] Settings screen — notifications toggle + time picker dialog (PR #15, issue #10)
 - [x] DataStore preferences
 - [x] Nature-themed Material 3 light + dark theme
-- [x] GitHub Actions CI/CD (debug + release APKs)
+- [x] GitHub Actions CI/CD (debug APK on push to `main`, `develop`, `claude/**`; release APK on `main`)
+- [x] Consistent debug keystore committed to repo — in-place APK upgrades work (PR #17)
 - [x] README
 
 ---
 
-## Next Up (Prioritized)
+## Upcoming features (GitHub issues)
 
-### P1 — Bug fixes (open issues)
-
-1. **#5 Enum valueOf crash** — `CareType.valueOf()` and `WateringFeedback.valueOf()` throw on unrecognised DB values. Wrap with `runCatching` + fallback in `CareLogRepository`.
-
-2. **#2 Fertilizing reminders** — `ReminderWorker` hard-codes `lastFertilizedAt = null`. Query last fertilizing log and include fertilizing-overdue plants in notifications.
-
-3. **#3 StatsRow DateUtils** — Replace inline `(now - ts) / 86_400_000` with `DateUtils.formatRelative()` in `StatsRow.kt`.
-
-### P2 — UX improvements
-
-4. **Settings: Add time picker** — The reminder time is displayed but not editable. Add a `TimePickerDialog` triggered by tapping the reminder time row. Wire the result to `viewModel.setReminderTime(hour, minute)`.
-
-5. **#7 Notification grouping** — Replace the single-ID notification with `NotificationCompat.InboxStyle` or `BigTextStyle` so multiple overdue plants don't collapse into one.
-
-6. **#6 PhotoGallery signature** — Change parameter from `List<CareLog>` to `List<String>` (pre-filtered URIs). Minor refactor, filter at call site in `PlantDetailScreen`.
-
-### P3 — Quality / pre-release
-
-7. **#9 Unit tests for CareSchedule** — Add `CareScheduleTest.kt` covering `computeSuggestedInterval` (all three feedback values, clamping to 1) and `computeStatus` (overdue, due-soon, not due, no interval).
-
-8. **#4 Release minification** — Enable `isMinifyEnabled = true` + `isShrinkResources = true` in release build type. Add ProGuard keep rules for Room entities, WorkManager workers, DataStore.
-
-9. **#8 Room migrations** — Before the next schema change, replace `fallbackToDestructiveMigration()` with an explicit `Migration` object. Commit the exported schema JSON from `app/schemas/`.
+| # | Feature | Priority |
+|---|---|---|
+| [#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19) | Quick water / fertilize buttons on plant list | P1 |
+| [#20](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/20) | Custom date on care log + edit existing entries | P1 |
+| [#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21) | Sort and filter options on plant list | P2 |
+| [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |
+| [#22](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/22) | Local backup and restore (export / import) | P2 |
 
 ---
 
-## Open Questions / Blockers
+## Open bug / tech debt issues
 
-- **Time picker UI**: Use Material 3 `TimeInput` composable (available in M3 1.1+) or a classic `TimePickerDialog` from `android.app`? M3 `TimePicker` is the on-brand choice.
-- **Notification scope**: Should fertilizing reminders be a separate notification from watering reminders, or combined into one "plants need care" notification?
-- **Search**: No search/filter beyond room chips. Worth adding a search bar on the plant list?
-- **Plant deletion confirmation**: Currently shows an `AlertDialog` — UX is functional but could be improved with a slide-to-delete gesture on the plant list.
-- **Schema version**: Currently version 1 with `fallbackToDestructiveMigration`. Any schema change requires a migration before shipping to users.
+| # | Description | Severity |
+|---|---|---|
+| [#2](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/2) | Fertilizing reminders silently skipped in ReminderWorker | Bug |
+| [#3](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/3) | StatsRow computes days-since-fertilized inline instead of DateUtils | Bug |
+| [#5](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/5) | Enum valueOf() throws on unknown DB value | Bug |
+| [#4](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/4) | Release build has minification disabled | Enhancement |
+| [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
+| [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
+| [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration → explicit migrations | Tech debt |
+| [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
 
 ---
 
-## Workflow (for every new feature going forward)
+## Workflow (for every new feature)
 
-1. Update this file with the feature under "Next Up"
-2. Assign to **implementer** subagent for coding
-3. Route completed code to **reviewer** subagent for sign-off
-4. Route to **qa** subagent to validate behaviour
-5. Commit only after reviewer signs off; update this file to move feature to "Completed"
+1. Update this file — move item from "Upcoming" to "Completed" when done
+2. Update `CLAUDE.md` "What's Been Completed" and "Known Issues" to match
+3. One branch per feature: `claude/<kebab-description>` off `develop`, PR targets `develop`

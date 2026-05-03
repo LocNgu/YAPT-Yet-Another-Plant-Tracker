@@ -101,10 +101,6 @@ Tracked as GitHub issues:
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
 
-Additional:
-- Settings screen displays reminder time but has no time picker — `setReminderTime()` is wired but never called from the UI
-- `isMinifyEnabled = false` in release build type
-
 ---
 
 ## Git Workflow
@@ -134,5 +130,7 @@ Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claud
 - DataStore preferences for notifications toggle + reminder time
 - Nature-themed Material 3 dark/light theme
 - Android PhotoPicker integration with `takePersistableUriPermission`
-- GitHub Actions CI/CD (debug APK on push, release APK on main)
+- GitHub Actions CI/CD (debug APK on push, release APK on main; triggers on `main`, `develop`, and `claude/**`)
+- Consistent debug keystore committed to repo — in-place APK upgrades work across local and CI builds (PR #17)
+- Settings time picker — reminder hour/minute configurable via Material 3 TimePicker dialog (PR #15, issue #10)
 - README
