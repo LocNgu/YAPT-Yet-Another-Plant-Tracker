@@ -15,7 +15,6 @@ You are the QA agent for YAPT (Yet Another Plant Tracker). Your job is to valida
 
 ### Build check
 ```bash
-cd /home/user/YAPT-Yet-Another-Plant-Tracker
 ./gradlew assembleDebug --no-daemon 2>&1 | tail -30
 ```
 The build must succeed with zero errors. Warnings are acceptable but should be noted.
