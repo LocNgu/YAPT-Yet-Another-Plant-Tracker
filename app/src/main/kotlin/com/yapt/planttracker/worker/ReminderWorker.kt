@@ -52,7 +52,8 @@ class ReminderWorker(
                 now = now
             )
             val fertilizingOverdue = plant.fertilizingIntervalDays != null &&
-                (now - (lastFertilizing?.loggedAt ?: 0L)) >=
+                lastFertilizing != null &&
+                (now - lastFertilizing.loggedAt) >=
                 TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
 
             if (wateringStatus.isOverdue || wateringStatus.isDueSoon || fertilizingOverdue) {
