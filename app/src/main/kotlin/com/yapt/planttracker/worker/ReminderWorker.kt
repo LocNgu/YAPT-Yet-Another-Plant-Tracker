@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
 import kotlinx.coroutines.flow.first
+import java.util.concurrent.TimeUnit
 
 class ReminderWorker(
     private val context: Context,
@@ -36,16 +37,26 @@ class ReminderWorker(
         val overduePlants = mutableListOf<String>()
 
         for (plant in plants) {
-            val interval = plant.wateringIntervalDays ?: continue
-            val lastWatering = app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
-            val status = CareSchedule.computeStatus(
+            val lastWatering = if (plant.wateringIntervalDays != null) {
+                app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
+            } else null
+            val lastFertilizing = if (plant.fertilizingIntervalDays != null) {
+                app.careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
+            } else null
+
+            val wateringStatus = CareSchedule.computeStatus(
                 plant = plant,
                 lastWateredAt = lastWatering?.loggedAt,
-                lastFertilizedAt = null,
+                lastFertilizedAt = lastFertilizing?.loggedAt,
                 totalLogs = 0,
                 now = now
             )
-            if (status.isOverdue || status.isDueSoon) {
+            val fertilizingOverdue = plant.fertilizingIntervalDays != null &&
+                lastFertilizing != null &&
+                (now - lastFertilizing.loggedAt) >=
+                TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
+
+            if (wateringStatus.isOverdue || wateringStatus.isDueSoon || fertilizingOverdue) {
                 overduePlants.add(plant.name)
             }
         }
@@ -53,12 +64,12 @@ class ReminderWorker(
         if (overduePlants.isEmpty()) return Result.success()
 
         val title = if (overduePlants.size == 1) {
-            "${overduePlants[0]} needs watering!"
+            "${overduePlants[0]} needs care!"
         } else {
-            "${overduePlants.size} plants need watering"
+            "${overduePlants.size} plants need care"
         }
         val body = if (overduePlants.size == 1) {
-            "Don't forget to water your plant today."
+            "Don't forget to water or fertilize your plant today."
         } else {
             overduePlants.joinToString(", ")
         }
