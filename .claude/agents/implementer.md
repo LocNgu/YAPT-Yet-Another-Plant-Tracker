@@ -45,7 +45,10 @@ Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-sche
 
 ## When finished
 
-Summarise:
+1. Update `.claude/plans/active-plan.md` — move the completed item from "Upcoming" to "Completed".
+2. Update `.claude/CLAUDE.md` "What's Been Completed" to reflect the new feature.
+
+Then summarise:
 - Which files were changed and why
 - Any new dependencies added (name + version)
 - Any DB schema changes that require a migration bump
