@@ -8,5 +8,8 @@ data class PlantCareStatus(
     val nextWateringDueAt: Long?,
     val isOverdue: Boolean,
     val isDueSoon: Boolean,
+    val nextFertilizingDueAt: Long?,
+    val isFertilizingOverdue: Boolean,
+    val isFertilizingDueSoon: Boolean,
     val totalCareLogs: Int
 )
