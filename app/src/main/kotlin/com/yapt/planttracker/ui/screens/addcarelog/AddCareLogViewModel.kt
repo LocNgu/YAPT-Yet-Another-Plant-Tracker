@@ -20,8 +20,11 @@ import kotlinx.coroutines.launch
 class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
-    private val plantId: Long
+    private val plantId: Long,
+    private val careLogId: Long = 0L
 ) : ViewModel() {
+
+    val isEditMode = careLogId != 0L
 
     var selectedCareType by mutableStateOf(CareType.WATER)
     var notes by mutableStateOf("")
@@ -33,9 +36,24 @@ class AddCareLogViewModel(
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
+    init {
+        if (isEditMode) {
+            viewModelScope.launch {
+                val log = careLogRepository.getLogById(careLogId) ?: return@launch
+                selectedCareType = log.careType
+                notes = log.notes ?: ""
+                amount = log.amount ?: ""
+                photoUri = log.photoUri
+                selectedFeedback = log.wateringFeedback
+                loggedAt = log.loggedAt
+            }
+        }
+    }
+
     fun saveLog() {
         viewModelScope.launch {
             val log = CareLog(
+                id = careLogId,
                 plantId = plantId,
                 careType = selectedCareType,
                 loggedAt = loggedAt,
@@ -46,7 +64,7 @@ class AddCareLogViewModel(
             )
             careLogRepository.addLog(log)
 
-            val suggestedInterval = computeSuggestedInterval()
+            val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
             _events.emit(Event.Saved(suggestedInterval))
         }
     }
@@ -77,10 +95,11 @@ class AddCareLogViewModel(
     class Factory(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
-        private val plantId: Long
+        private val plantId: Long,
+        private val careLogId: Long = 0L
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddCareLogViewModel(careLogRepository, plantRepository, plantId) as T
+            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId) as T
     }
 }

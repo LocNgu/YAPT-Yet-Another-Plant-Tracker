@@ -25,6 +25,9 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     suspend fun getCareLogCount(plantId: Long): Int =
         careLogDao.getCareLogCount(plantId)
 
+    suspend fun getLogById(id: Long): CareLog? =
+        careLogDao.getLogById(id)?.toDomain()
+
     suspend fun addLog(log: CareLog): Long =
         careLogDao.insertLog(log.toEntity())
 

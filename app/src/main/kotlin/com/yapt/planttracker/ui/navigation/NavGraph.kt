@@ -101,20 +101,28 @@ fun YaptNavGraph(app: YaptApplication) {
                 },
                 onNavigateToAddLog = {
                     navController.navigate(Screen.AddCareLog.createRoute(plantId))
+                },
+                onNavigateToEditLog = { careLogId ->
+                    navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
                 }
             )
         }
 
         composable(
             route = Screen.AddCareLog.route,
-            arguments = listOf(navArgument("plantId") { type = NavType.LongType })
+            arguments = listOf(
+                navArgument("plantId") { type = NavType.LongType },
+                navArgument("careLogId") { type = NavType.LongType; defaultValue = 0L }
+            )
         ) { backStackEntry ->
             val plantId = backStackEntry.arguments!!.getLong("plantId")
+            val careLogId = backStackEntry.arguments!!.getLong("careLogId")
             val vm: AddCareLogViewModel = viewModel(
                 factory = AddCareLogViewModel.Factory(
                     app.careLogRepository,
                     app.plantRepository,
-                    plantId
+                    plantId,
+                    careLogId
                 )
             )
             AddCareLogScreen(
