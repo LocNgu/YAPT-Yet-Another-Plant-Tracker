@@ -43,6 +43,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,9 +55,9 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PlantPhoto
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.yapt.planttracker.util.DateUtils
+import java.util.Calendar
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +67,12 @@ fun AddCareLogScreen(
 ) {
     val context = LocalContext.current
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // Keyed on isLoaded so in edit mode the picker re-initializes once the async
+    // load completes, picking up the log's original loggedAt instead of "now".
+    val datePickerState = key(viewModel.isLoaded) {
+        rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -90,14 +97,22 @@ fun AddCareLogScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = viewModel.loggedAt
-        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { viewModel.loggedAt = it }
+                    datePickerState.selectedDateMillis?.let { utcMidnightMs ->
+                        // selectedDateMillis is UTC midnight; convert to local date
+                        // preserving the existing time-of-day from loggedAt.
+                        val pickerCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                        pickerCal.timeInMillis = utcMidnightMs
+                        val localCal = Calendar.getInstance()
+                        localCal.timeInMillis = viewModel.loggedAt
+                        localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
+                        localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
+                        localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))
+                        viewModel.loggedAt = localCal.timeInMillis
+                    }
                     showDatePicker = false
                 }) { Text("OK") }
             },
@@ -147,8 +162,7 @@ fun AddCareLogScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                            .format(Date(viewModel.loggedAt)),
+                        text = DateUtils.formatDate(viewModel.loggedAt),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Icon(

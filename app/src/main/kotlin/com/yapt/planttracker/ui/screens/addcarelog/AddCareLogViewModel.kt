@@ -32,6 +32,8 @@ class AddCareLogViewModel(
     var amount by mutableStateOf("")
     var loggedAt by mutableStateOf(System.currentTimeMillis())
     var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
+    // false until async load completes in edit mode; used to key DatePickerState
+    var isLoaded by mutableStateOf(!isEditMode)
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
@@ -46,6 +48,7 @@ class AddCareLogViewModel(
                 photoUri = log.photoUri
                 selectedFeedback = log.wateringFeedback
                 loggedAt = log.loggedAt
+                isLoaded = true
             }
         }
     }
