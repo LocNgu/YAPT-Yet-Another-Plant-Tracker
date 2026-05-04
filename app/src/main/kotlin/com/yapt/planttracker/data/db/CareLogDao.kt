@@ -28,6 +28,9 @@ interface CareLogDao {
     @Query("SELECT * FROM care_logs WHERE photoUri IS NOT NULL AND plantId = :plantId ORDER BY loggedAt DESC")
     fun getPhotoLogsForPlant(plantId: Long): Flow<List<CareLogEntity>>
 
+    @Query("SELECT * FROM care_logs WHERE id = :id LIMIT 1")
+    suspend fun getLogById(id: Long): CareLogEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: CareLogEntity): Long
 

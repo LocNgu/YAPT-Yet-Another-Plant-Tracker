@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -119,6 +120,35 @@ fun PlantCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = waterColor
                         )
+                    }
+
+                    if (status.plant.fertilizingIntervalDays != null) {
+                        val fertColor = when {
+                            status.isFertilizingOverdue -> OverdueRed
+                            status.isFertilizingDueSoon -> WarnOrange
+                            else -> OkGreen
+                        }
+                        val fertLabel = when {
+                            status.isFertilizingOverdue -> "Fertilizing overdue!"
+                            status.isFertilizingDueSoon -> "Fertilizing due today"
+                            status.lastFertilizedAt != null ->
+                                "Fert ${DateUtils.formatRelative(status.lastFertilizedAt)}"
+                            else -> "Never fertilized"
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Filled.Spa,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = fertColor
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = fertLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = fertColor
+                            )
+                        }
                     }
                 }
             }

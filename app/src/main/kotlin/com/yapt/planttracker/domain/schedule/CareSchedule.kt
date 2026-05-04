@@ -29,6 +29,13 @@ object CareSchedule {
         val isDueSoon = nextDueAt != null && !isOverdue &&
             (nextDueAt - now) <= ONE_DAY_MS
 
+        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays != null && lastFertilizedAt != null) {
+            lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
+        } else null
+        val isFertilizingOverdue = nextFertilizingDueAt != null && nextFertilizingDueAt < now
+        val isFertilizingDueSoon = nextFertilizingDueAt != null && !isFertilizingOverdue &&
+            (nextFertilizingDueAt - now) <= ONE_DAY_MS
+
         return PlantCareStatus(
             plant = plant,
             lastWateredAt = lastWateredAt,
@@ -37,6 +44,9 @@ object CareSchedule {
             nextWateringDueAt = nextDueAt,
             isOverdue = isOverdue,
             isDueSoon = isDueSoon,
+            nextFertilizingDueAt = nextFertilizingDueAt,
+            isFertilizingOverdue = isFertilizingOverdue,
+            isFertilizingDueSoon = isFertilizingDueSoon,
             totalCareLogs = totalLogs
         )
     }

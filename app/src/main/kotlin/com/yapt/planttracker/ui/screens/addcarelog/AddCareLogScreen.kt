@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,18 +24,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +55,9 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.util.DateUtils
+import java.util.Calendar
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +66,13 @@ fun AddCareLogScreen(
     onNavigateBack: (suggestedInterval: Int?) -> Unit
 ) {
     val context = LocalContext.current
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    // Keyed on isLoaded so in edit mode the picker re-initializes once the async
+    // load completes, picking up the log's original loggedAt instead of "now".
+    val datePickerState = key(viewModel.isLoaded) {
+        rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -70,14 +92,48 @@ fun AddCareLogScreen(
             when (event) {
                 is AddCareLogViewModel.Event.Saved ->
                     onNavigateBack(event.suggestedWateringInterval)
+                is AddCareLogViewModel.Event.NavigateBack ->
+                    onNavigateBack(null)
             }
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { utcMidnightMs ->
+                        // selectedDateMillis is UTC midnight; convert to local date.
+                        // For edits, preserve the original time-of-day from loggedAt.
+                        // For new logs, use the current wall-clock time so the
+                        // timestamp reflects when the user confirmed, not screen-open time.
+                        val pickerCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                        pickerCal.timeInMillis = utcMidnightMs
+                        val localCal = Calendar.getInstance()
+                        localCal.timeInMillis =
+                            if (viewModel.isEditMode) viewModel.loggedAt
+                            else System.currentTimeMillis()
+                        localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
+                        localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
+                        localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))
+                        viewModel.loggedAt = localCal.timeInMillis
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Log Care") },
+                title = { Text(if (viewModel.isEditMode) "Edit Care Log" else "Log Care") },
                 navigationIcon = {
                     IconButton(onClick = { onNavigateBack(null) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -99,6 +155,32 @@ fun AddCareLogScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (!viewModel.isEditMode || viewModel.isLoaded) {
+                OutlinedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = DateUtils.formatDate(viewModel.loggedAt),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Icon(
+                            Icons.Filled.DateRange,
+                            contentDescription = "Pick date",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Text(
                 text = "What did you do?",
                 style = MaterialTheme.typography.titleMedium

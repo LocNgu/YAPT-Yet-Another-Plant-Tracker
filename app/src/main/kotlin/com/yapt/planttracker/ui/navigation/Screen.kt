@@ -13,7 +13,8 @@ sealed class Screen(val route: String) {
         fun createRoute(plantId: Long) = "plant_detail/$plantId"
     }
 
-    object AddCareLog : Screen("add_care_log/{plantId}") {
-        fun createRoute(plantId: Long) = "add_care_log/$plantId"
+    object AddCareLog : Screen("add_care_log/{plantId}?careLogId={careLogId}") {
+        fun createRoute(plantId: Long, careLogId: Long = 0L) =
+            "add_care_log/$plantId?careLogId=$careLogId"
     }
 }
