@@ -129,8 +129,8 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
-                            status.isFertilizingOverdue -> "Fert overdue!"
-                            status.isFertilizingDueSoon -> "Fert due today"
+                            status.isFertilizingOverdue -> "Fertilizing overdue!"
+                            status.isFertilizingDueSoon -> "Fertilizing due today"
                             status.lastFertilizedAt != null ->
                                 "Fert ${DateUtils.formatRelative(status.lastFertilizedAt)}"
                             else -> "Never fertilized"
