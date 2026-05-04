@@ -101,8 +101,8 @@ fun PlantCard(
                     val waterLabel = when {
                         status.isOverdue -> "Overdue!"
                         status.isDueSoon -> "Due today"
-                        status.daysSinceLastWatering != null ->
-                            "${status.daysSinceLastWatering}d ago"
+                        status.lastWateredAt != null ->
+                            DateUtils.formatRelative(status.lastWateredAt)
                         else -> "Never watered"
                     }
 
