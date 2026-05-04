@@ -92,6 +92,8 @@ fun AddCareLogScreen(
             when (event) {
                 is AddCareLogViewModel.Event.Saved ->
                     onNavigateBack(event.suggestedWateringInterval)
+                is AddCareLogViewModel.Event.NavigateBack ->
+                    onNavigateBack(null)
             }
         }
     }
@@ -102,12 +104,16 @@ fun AddCareLogScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { utcMidnightMs ->
-                        // selectedDateMillis is UTC midnight; convert to local date
-                        // preserving the existing time-of-day from loggedAt.
+                        // selectedDateMillis is UTC midnight; convert to local date.
+                        // For edits, preserve the original time-of-day from loggedAt.
+                        // For new logs, use the current wall-clock time so the
+                        // timestamp reflects when the user confirmed, not screen-open time.
                         val pickerCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
                         pickerCal.timeInMillis = utcMidnightMs
                         val localCal = Calendar.getInstance()
-                        localCal.timeInMillis = viewModel.loggedAt
+                        localCal.timeInMillis =
+                            if (viewModel.isEditMode) viewModel.loggedAt
+                            else System.currentTimeMillis()
                         localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
                         localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
                         localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))
@@ -149,27 +155,29 @@ fun AddCareLogScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true }
-            ) {
-                Row(
+            if (!viewModel.isEditMode || viewModel.isLoaded) {
+                OutlinedCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable { showDatePicker = true }
                 ) {
-                    Text(
-                        text = DateUtils.formatDate(viewModel.loggedAt),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Icon(
-                        Icons.Filled.DateRange,
-                        contentDescription = "Pick date",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = DateUtils.formatDate(viewModel.loggedAt),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Icon(
+                            Icons.Filled.DateRange,
+                            contentDescription = "Pick date",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 

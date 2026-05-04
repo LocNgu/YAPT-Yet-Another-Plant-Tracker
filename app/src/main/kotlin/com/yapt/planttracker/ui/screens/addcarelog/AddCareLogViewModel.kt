@@ -41,7 +41,10 @@ class AddCareLogViewModel(
     init {
         if (isEditMode) {
             viewModelScope.launch {
-                val log = careLogRepository.getLogById(careLogId) ?: return@launch
+                val log = careLogRepository.getLogById(careLogId) ?: run {
+                    _events.emit(Event.NavigateBack)
+                    return@launch
+                }
                 selectedCareType = log.careType
                 notes = log.notes ?: ""
                 amount = log.amount ?: ""
@@ -93,6 +96,7 @@ class AddCareLogViewModel(
 
     sealed class Event {
         data class Saved(val suggestedWateringInterval: Int?) : Event()
+        data object NavigateBack : Event()
     }
 
     class Factory(
