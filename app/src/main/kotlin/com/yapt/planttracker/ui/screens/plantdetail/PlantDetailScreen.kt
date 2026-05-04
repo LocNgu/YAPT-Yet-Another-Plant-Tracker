@@ -47,7 +47,8 @@ fun PlantDetailScreen(
     viewModel: PlantDetailViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
-    onNavigateToAddLog: () -> Unit
+    onNavigateToAddLog: () -> Unit,
+    onNavigateToEditLog: (careLogId: Long) -> Unit
 ) {
     val plant by viewModel.plant.collectAsStateWithLifecycle()
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
@@ -189,6 +190,7 @@ fun PlantDetailScreen(
                 items(careLogs, key = { it.id }) { log ->
                     CareLogItem(
                         log = log,
+                        onEdit = { onNavigateToEditLog(log.id) },
                         onDelete = { viewModel.deleteLog(log) }
                     )
                 }
