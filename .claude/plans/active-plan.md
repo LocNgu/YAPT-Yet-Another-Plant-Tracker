@@ -26,6 +26,8 @@
 - [x] Fix #5: guard CareType / WateringFeedback valueOf against unknown DB values (PR #23)
 - [x] README
 - [x] Local backup and restore — export/import .yapt ZIP (PR for issue #22)
+- [x] Fix #30: default watering feedback chip to JUST_RIGHT (PR #42)
+- [x] Fix #37: navigate to PlantList with Snackbar after successful restore
 
 ---
 
@@ -34,7 +36,6 @@
 | # | Feature | Priority |
 |---|---|---|
 | [#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19) | Quick water / fertilize buttons on plant list | P1 |
-| [#30](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/30) | Default watering feedback to "timing just right" | P1 |
 | [#32](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/32) | Next watering / fertilizing countdown on plant detail | P1 |
 | [#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21) | Sort and filter options on plant list | P2 |
 | [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |

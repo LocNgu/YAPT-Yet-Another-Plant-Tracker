@@ -100,7 +100,6 @@ Tracked as GitHub issues:
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
 | [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
-| [#37](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/37) | After successful restore, navigate back to PlantList | Enhancement |
 | [#38](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/38) | Backup error message grammar ("not compatible File") | Enhancement |
 | [#39](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/39) | Hardcoded UI strings in backup/restore | Enhancement |
 | [#40](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/40) | Dangling zip-path URI on partial photo export failure | Enhancement |
@@ -157,3 +156,5 @@ Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claud
 - CareType / WateringFeedback `valueOf()` guarded with `runCatching` against unknown DB values (PR #23, issue #5)
 - README
 - Local backup and restore — export/import `.yapt` ZIP via SAF, optional photo inclusion, settings round-trip, Room transaction wrapping full DB replace, and forward-compatibility warning dialog (PR #34, issue #22); new dep `kotlinx-serialization-json:1.6.3`; converter script at `scripts/convert_third_party_log.py`
+- Default watering-feedback chip pre-selected to JUST_RIGHT on new WATER logs; resets to JUST_RIGHT when switching care type back to WATER (PR #42, issue #30)
+- Fix #37: after successful restore, navigate to PlantList (clearing back-stack) and show a Snackbar with plant and log count
