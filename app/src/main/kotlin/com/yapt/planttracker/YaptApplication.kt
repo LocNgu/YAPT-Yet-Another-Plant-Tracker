@@ -14,7 +14,7 @@ val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class YaptApplication : Application() {
 
-    private val database by lazy { PlantDatabase.getInstance(this) }
+    val database by lazy { PlantDatabase.getInstance(this) }
 
     val plantRepository by lazy { PlantRepository(database.plantDao()) }
     val careLogRepository by lazy { CareLogRepository(database.careLogDao()) }

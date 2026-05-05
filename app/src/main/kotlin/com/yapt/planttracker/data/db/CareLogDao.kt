@@ -36,4 +36,10 @@ interface CareLogDao {
 
     @Delete
     suspend fun deleteLog(log: CareLogEntity)
+
+    @Query("DELETE FROM care_logs")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(logs: List<CareLogEntity>): List<Long>
 }
