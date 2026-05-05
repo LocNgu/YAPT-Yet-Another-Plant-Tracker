@@ -1,6 +1,6 @@
 # YAPT – Active Plan
 
-## Status: Feature development phase (as of 2026-05-03)
+## Status: Feature development phase (as of 2026-05-04)
 
 ---
 
@@ -20,7 +20,12 @@
 - [x] Nature-themed Material 3 light + dark theme
 - [x] GitHub Actions CI/CD (debug APK on push to `main`, `develop`, `claude/**`; release APK on `main`)
 - [x] Consistent debug keystore committed to repo — in-place APK upgrades work (PR #17)
+- [x] Custom date on care log + edit existing care log entries (PR #28, issue #20)
+- [x] Fix #2: include fertilizing-overdue plants in care reminders (PR #24)
+- [x] Fix #3: use DateUtils.formatRelative for last-fertilized in StatsRow (PR #25)
+- [x] Fix #5: guard CareType / WateringFeedback valueOf against unknown DB values (PR #23)
 - [x] README
+- [x] Local backup and restore — export/import .yapt ZIP (PR for issue #22)
 
 ---
 
@@ -29,10 +34,13 @@
 | # | Feature | Priority |
 |---|---|---|
 | [#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19) | Quick water / fertilize buttons on plant list | P1 |
-| [#20](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/20) | Custom date on care log + edit existing entries | P1 |
+| [#30](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/30) | Default watering feedback to "timing just right" | P1 |
+| [#32](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/32) | Next watering / fertilizing countdown on plant detail | P1 |
 | [#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21) | Sort and filter options on plant list | P2 |
 | [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |
-| [#22](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/22) | Local backup and restore (export / import) | P2 |
+| [#29](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/29) | Larger plant images on overview and detail screens | P2 |
+| [#31](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/31) | Snooze fertilizing reminder until next watering / auto-sync | P2 |
+| [#33](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/33) | Skip watering / "too soon" action without logging a watering | P2 |
 
 ---
 
@@ -40,14 +48,12 @@
 
 | # | Description | Severity |
 |---|---|---|
-| [#2](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/2) | Fertilizing reminders silently skipped in ReminderWorker | Bug |
-| [#3](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/3) | StatsRow computes days-since-fertilized inline instead of DateUtils | Bug |
-| [#5](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/5) | Enum valueOf() throws on unknown DB value | Bug |
 | [#4](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/4) | Release build has minification disabled | Enhancement |
 | [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration → explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
+| [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 
 ---
 
