@@ -140,7 +140,7 @@ fun YaptNavGraph(app: YaptApplication) {
 
         composable(Screen.Settings.route) {
             val vm: SettingsViewModel = viewModel(
-                factory = SettingsViewModel.Factory(app.settingsDataStore, app)
+                factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database)
             )
             SettingsScreen(
                 viewModel = vm,

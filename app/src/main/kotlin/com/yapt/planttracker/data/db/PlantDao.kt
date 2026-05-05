@@ -24,4 +24,10 @@ interface PlantDao {
 
     @Query("SELECT DISTINCT room FROM plants WHERE room IS NOT NULL ORDER BY room ASC")
     fun getAllRooms(): Flow<List<String>>
+
+    @Query("DELETE FROM plants")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(plants: List<PlantEntity>): List<Long>
 }

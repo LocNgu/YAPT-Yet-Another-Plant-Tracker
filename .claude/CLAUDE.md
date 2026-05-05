@@ -92,14 +92,12 @@ Tracked as GitHub issues:
 
 | # | Description | Severity |
 |---|---|---|
-| [#2](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/2) | Fertilizing reminders silently skipped in ReminderWorker | Bug |
-| [#3](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/3) | StatsRow computes days-since-fertilized inline instead of DateUtils | Bug |
 | [#4](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/4) | Release build has minification disabled | Enhancement |
-| [#5](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/5) | Enum valueOf() throws on unknown DB value | Bug |
 | [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
+| [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 
 ---
 
@@ -146,4 +144,9 @@ Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claud
 - GitHub Actions CI/CD (debug APK on push, release APK on main; triggers on `main`, `develop`, and `claude/**`)
 - Consistent debug keystore committed to repo — in-place APK upgrades work across local and CI builds (PR #17)
 - Settings time picker — reminder hour/minute configurable via Material 3 TimePicker dialog (PR #15, issue #10)
+- Custom date on care log entry + edit existing care log entries (PR #28, issue #20)
+- Fertilizing reminders fixed: include fertilizing-overdue plants in ReminderWorker (PR #24, issue #2)
+- StatsRow uses `DateUtils.formatRelative` for last-fertilized display (PR #25, issue #3)
+- CareType / WateringFeedback `valueOf()` guarded with `runCatching` against unknown DB values (PR #23, issue #5)
 - README
+- Local backup and restore — export/import `.yapt` ZIP via SAF, optional photo inclusion, settings round-trip, Room transaction wrapping full DB replace, and forward-compatibility warning dialog (PR for issue #22); new dep `kotlinx-serialization-json:1.6.3`
