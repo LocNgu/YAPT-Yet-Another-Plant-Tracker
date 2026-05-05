@@ -98,6 +98,13 @@ Tracked as GitHub issues:
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
+| [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
+| [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
+| [#37](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/37) | After successful restore, navigate back to PlantList | Enhancement |
+| [#38](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/38) | Backup error message grammar ("not compatible File") | Enhancement |
+| [#39](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/39) | Hardcoded UI strings in backup/restore | Enhancement |
+| [#40](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/40) | Dangling zip-path URI on partial photo export failure | Enhancement |
+| [#41](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/41) | ReminderWorker not rescheduled after backup restore | Enhancement |
 
 ---
 
@@ -149,4 +156,4 @@ Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claud
 - StatsRow uses `DateUtils.formatRelative` for last-fertilized display (PR #25, issue #3)
 - CareType / WateringFeedback `valueOf()` guarded with `runCatching` against unknown DB values (PR #23, issue #5)
 - README
-- Local backup and restore — export/import `.yapt` ZIP via SAF, optional photo inclusion, settings round-trip, Room transaction wrapping full DB replace, and forward-compatibility warning dialog (PR for issue #22); new dep `kotlinx-serialization-json:1.6.3`
+- Local backup and restore — export/import `.yapt` ZIP via SAF, optional photo inclusion, settings round-trip, Room transaction wrapping full DB replace, and forward-compatibility warning dialog (PR #34, issue #22); new dep `kotlinx-serialization-json:1.6.3`; converter script at `scripts/convert_third_party_log.py`
