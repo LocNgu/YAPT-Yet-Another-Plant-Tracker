@@ -9,7 +9,7 @@ import androidx.room.withTransaction
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
-import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -54,9 +54,9 @@ class BackupManager(
             }
 
             val prefs = dataStore.data.first()
-            val notificationsEnabled = prefs[SettingsViewModel.KEY_NOTIFICATIONS_ENABLED] ?: true
-            val reminderHour = prefs[SettingsViewModel.KEY_REMINDER_HOUR] ?: 9
-            val reminderMinute = prefs[SettingsViewModel.KEY_REMINDER_MINUTE] ?: 0
+            val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
+            val reminderHour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
+            val reminderMinute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -197,7 +197,7 @@ class BackupManager(
 
         val zipPathToLocalPath = mutableMapOf<String, String>()
         for ((zipPath, bytes) in photoEntries) {
-            val filename = zipPath.removePrefix(PHOTOS_DIR)
+            val filename = File(zipPath.removePrefix(PHOTOS_DIR)).name
             val destFile = File(restoredPhotosDir, filename)
             destFile.writeBytes(bytes)
             zipPathToLocalPath[zipPath] = destFile.absolutePath
@@ -239,9 +239,9 @@ class BackupManager(
         }
 
         dataStore.edit { prefs ->
-            prefs[SettingsViewModel.KEY_NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
-            prefs[SettingsViewModel.KEY_REMINDER_HOUR] = backup.settings.reminderHour
-            prefs[SettingsViewModel.KEY_REMINDER_MINUTE] = backup.settings.reminderMinute
+            prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
+            prefs[SettingsKeys.REMINDER_HOUR] = backup.settings.reminderHour
+            prefs[SettingsKeys.REMINDER_MINUTE] = backup.settings.reminderMinute
         }
 
         BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)

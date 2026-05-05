@@ -4,15 +4,14 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,22 +29,16 @@ class SettingsViewModel(
     private val database: PlantDatabase
 ) : ViewModel() {
 
-    companion object {
-        val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
-        val KEY_REMINDER_HOUR = intPreferencesKey("reminder_hour")
-        val KEY_REMINDER_MINUTE = intPreferencesKey("reminder_minute")
-    }
-
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
-        .map { it[KEY_NOTIFICATIONS_ENABLED] ?: true }
+        .map { it[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val reminderHour: StateFlow<Int> = dataStore.data
-        .map { it[KEY_REMINDER_HOUR] ?: 9 }
+        .map { it[SettingsKeys.REMINDER_HOUR] ?: 9 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
 
     val reminderMinute: StateFlow<Int> = dataStore.data
-        .map { it[KEY_REMINDER_MINUTE] ?: 0 }
+        .map { it[SettingsKeys.REMINDER_MINUTE] ?: 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _backupResult = MutableSharedFlow<BackupResult>()
@@ -55,11 +48,11 @@ class SettingsViewModel(
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
+            dataStore.edit { it[SettingsKeys.NOTIFICATIONS_ENABLED] = enabled }
             if (enabled) {
                 val prefs = dataStore.data.first()
-                val hour = prefs[KEY_REMINDER_HOUR] ?: 9
-                val minute = prefs[KEY_REMINDER_MINUTE] ?: 0
+                val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
+                val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
                 ReminderScheduler.schedule(context, hour, minute)
             } else {
                 ReminderScheduler.cancel(context)
@@ -70,10 +63,10 @@ class SettingsViewModel(
     fun setReminderTime(hour: Int, minute: Int) {
         viewModelScope.launch {
             dataStore.edit {
-                it[KEY_REMINDER_HOUR] = hour
-                it[KEY_REMINDER_MINUTE] = minute
+                it[SettingsKeys.REMINDER_HOUR] = hour
+                it[SettingsKeys.REMINDER_MINUTE] = minute
             }
-            val enabled = dataStore.data.first()[KEY_NOTIFICATIONS_ENABLED] ?: true
+            val enabled = dataStore.data.first()[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
             if (enabled) {
                 ReminderScheduler.schedule(context, hour, minute)
             }
