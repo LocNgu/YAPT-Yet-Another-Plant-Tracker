@@ -59,7 +59,8 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit
 ) {
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
@@ -110,9 +111,7 @@ fun SettingsScreen(
                         "Backup saved (${result.plantCount} plants, ${result.logCount} logs)"
                     )
                 is BackupResult.ImportSuccess ->
-                    snackbarHostState.showSnackbar(
-                        "Restored ${result.plantCount} plants and ${result.logCount} logs"
-                    )
+                    onRestoreSuccess(result.plantCount, result.logCount)
                 is BackupResult.FutureSchemaWarning -> {
                     futureSchemaVersion = result.schemaVersion
                     pendingFutureSchemaImport = result.onProceed
