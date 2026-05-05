@@ -170,7 +170,7 @@ class BackupManager(
                         zip.closeEntry()
                         entry = zip.nextEntry
                     }
-                    if (!foundJson) error("backup.json not found in archive")
+                    if (!foundJson) error("not compatible File")
                     jsonBytes = jsonHolder[0]
                 }
             } ?: error("Could not open input stream for URI: $sourceUri")
