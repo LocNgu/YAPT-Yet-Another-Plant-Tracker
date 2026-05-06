@@ -46,6 +46,27 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 
 Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`).
 
+## Autonomy
+
+Act without prompting within these bounds (enforced by `settings.local.json`):
+- Read any file
+- All read-only git commands (`status`, `log`, `diff`, `show`, `fetch`, `branch`, `remote`)
+- `git add`, `git commit`, `git stash`, `git cherry-pick`, `git merge`
+- `git checkout claude/*` or `git checkout -b claude/*`
+- `git push origin claude/*` (any push to a feature branch)
+- All `gh issue *`, `gh pr create/view/list/diff/checks/comment/ready`, and `gh api *` commands
+- `./gradlew *`
+- Shell utilities: `find`, `grep`, `ls`, `cat`, `mkdir`, `echo`, `python3`
+
+Ask before: `git checkout develop` — a permission prompt will appear; this is intentional.
+
+Never (forbidden — hard-blocked by settings):
+- `git push --force` / `git push -f` in any form
+- `git push origin main` or `git push origin develop`
+- `git checkout main`
+- `git reset --hard`
+- Merging PRs (`gh pr merge`) — human merges only
+
 ## Reviewer loop
 
 After pushing, the reviewer will review your code. The loop is capped at **2 rounds of fixes**:
