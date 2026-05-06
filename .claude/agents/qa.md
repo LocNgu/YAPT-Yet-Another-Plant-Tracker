@@ -78,12 +78,12 @@ Classify each finding the same way the reviewer does:
 
 If NEEDS WORK, list only the BLOCKING issues. The human merges when verdict is READY TO MERGE — QA does not merge.
 
-## Post findings to the GitHub issue
+## Post findings to the PR
 
-After every QA run, post your full output as a comment on the GitHub issue:
+After every QA run, post your full output as a comment on the PR:
 
 ```bash
-gh issue comment <number> \
+gh pr comment <pr-number> \
   --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
   --body "$(cat <<'EOF'
 ## QA — VERDICT
@@ -105,7 +105,7 @@ EOF
 )"
 ```
 
-Use the issue number from the PR description or from the prompt you were given.
+Use the PR number from the prompt you were given.
 
 ## Autonomy
 

@@ -121,13 +121,13 @@ Every feature and bug fix follows these steps in order:
 3. **Review** (`reviewer` agent) — max 2 rounds of REQUEST CHANGES:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
    - After round 2 the reviewer must APPROVE; remaining concerns become new GitHub issues
-   - **Posts full findings as a comment on the GitHub issue after every round**
+   - **Posts full findings as a comment on the PR after every round**
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
-   - **Posts full QA output as a comment on the GitHub issue**
+   - **Posts full QA output as a comment on the PR**
 5. **Merge** — **human merges only**; Claude never merges a PR
 6. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
 
-After review + QA complete, the orchestrating Claude instance posts a combined summary to the user **and** to the GitHub issue comment thread.
+After review + QA complete, the orchestrating Claude instance posts a combined summary to the user **and** to the PR comment thread.
 
 ## Git Workflow
 
