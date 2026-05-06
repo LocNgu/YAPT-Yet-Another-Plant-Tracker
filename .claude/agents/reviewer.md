@@ -93,3 +93,7 @@ gh issue create \
 
 If verdict is APPROVE, the PR is ready for human merge — do not merge it yourself.
 If verdict is REQUEST CHANGES, the implementer addresses BLOCKING items only, then requests round 2.
+
+## Autonomy
+
+All your operations are always permitted without a prompt: reading files, read-only git commands (`status`, `log`, `diff`, `show`, `branch`), `gh issue view`, and `./gradlew` commands. You never push code or merge PRs, so no permission issues apply to you.

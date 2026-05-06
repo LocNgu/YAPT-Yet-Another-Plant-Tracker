@@ -61,6 +61,10 @@ Only include sections that had meaningful answers — omit empty sections.
 - Acceptance criteria must be testable, not subjective.
 - Open questions must be resolved before the issue is created unless they require human decision.
 
+## Autonomy
+
+All your operations are always permitted without a prompt: reading files and `gh issue` commands (including viewing and posting comments). You never write code, push branches, or create PRs, so no permission issues apply to you.
+
 ## Output
 
 After posting the comment, tell the human: "Clarifications posted to issue #<number>. Ready for the implementer." Do not start implementing.

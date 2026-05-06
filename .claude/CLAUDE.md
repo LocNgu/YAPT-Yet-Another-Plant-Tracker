@@ -134,6 +134,30 @@ Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claud
 
 ---
 
+## Autonomy & Permission Model
+
+Agents and Claude operate under this permission model to minimise interruptions during normal feature-branch work. `settings.local.json` enforces the hard rules mechanically; instructions cover the rest.
+
+| Action | Permission |
+|--------|-----------|
+| Read any file | Always allowed — no prompt |
+| Read-only git (`status`, `log`, `diff`, `show`, `fetch`, `branch`, `remote`) | Always allowed — no prompt |
+| `git add`, `git commit`, `git stash`, `git cherry-pick` | Always allowed — no prompt |
+| `git checkout claude/*` / `git checkout -b claude/*` | Always allowed — no prompt |
+| `git push origin claude/*` (any push to a `claude/` branch) | Always allowed — no prompt |
+| `gh issue *`, `gh pr create/view/list/diff/checks/comment/ready`, `gh api *` | Always allowed — no prompt |
+| `./gradlew *` (build, test, lint) | Always allowed — no prompt |
+| `git checkout develop` | Requires permission — a prompt will appear |
+| `git checkout main` | **Forbidden** — blocked by `settings.local.json` |
+| `git push --force` / `git push -f` | **Forbidden** — blocked by `settings.local.json` |
+| `git push origin main` / `git push origin develop` | **Forbidden** — blocked by `settings.local.json` |
+| `git reset --hard` | **Forbidden** — blocked by `settings.local.json` |
+| `gh pr merge` or merging PRs any other way | **Forbidden** — human merges only |
+
+When a prompt appears for `git checkout develop`, it is intentional — approve it when the agent needs to refresh `develop` before branching.
+
+---
+
 ## What's Been Completed
 
 - Full Room database (PlantEntity, CareLogEntity, DAOs, migrations via `fallbackToDestructiveMigration` for v1)

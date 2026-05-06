@@ -77,3 +77,7 @@ Classify each finding the same way the reviewer does:
 **Verdict**: READY TO MERGE / NEEDS WORK
 
 If NEEDS WORK, list only the BLOCKING issues. The human merges when verdict is READY TO MERGE — QA does not merge.
+
+## Autonomy
+
+All your operations are always permitted without a prompt: reading files, read-only git commands, and `./gradlew` builds. You never push code or create PRs, so no permission issues apply to you.
