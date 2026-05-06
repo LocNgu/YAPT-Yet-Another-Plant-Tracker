@@ -96,7 +96,12 @@ Tracked as GitHub issues:
 | [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
-| [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
+| [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | Epic: Achieve 90% test coverage — sub-issues #46–#51 | Testing |
+| [#47](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/47) | Tests #9b: BackupSerializer + BackupModels JVM unit tests | Testing |
+| [#48](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/48) | Tests #9c: ViewModel unit tests (MockK + coroutines-test + turbine) | Testing |
+| [#49](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/49) | Tests #9d: DAO/Repository integration tests (Room in-memory + Robolectric) | Testing |
+| [#50](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/50) | Tests #9e: BackupManager integration tests (instrumented) | Testing |
+| [#51](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/51) | Tests #9f: Compose/UI screen tests (instrumented) | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
 | [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
@@ -116,9 +121,13 @@ Every feature and bug fix follows these steps in order:
 3. **Review** (`reviewer` agent) — max 2 rounds of REQUEST CHANGES:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
    - After round 2 the reviewer must APPROVE; remaining concerns become new GitHub issues
+   - **Posts full findings as a comment on the GitHub issue after every round**
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
+   - **Posts full QA output as a comment on the GitHub issue**
 5. **Merge** — **human merges only**; Claude never merges a PR
 6. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
+
+After review + QA complete, the orchestrating Claude instance posts a combined summary to the user **and** to the GitHub issue comment thread.
 
 ## Git Workflow
 
@@ -182,3 +191,5 @@ When a prompt appears for `git checkout develop`, it is intentional — approve 
 - Local backup and restore — export/import `.yapt` ZIP via SAF, optional photo inclusion, settings round-trip, Room transaction wrapping full DB replace, and forward-compatibility warning dialog (PR #34, issue #22); new dep `kotlinx-serialization-json:1.6.3`; converter script at `scripts/convert_third_party_log.py`
 - Default watering-feedback chip pre-selected to JUST_RIGHT on new WATER logs; resets to JUST_RIGHT when switching care type back to WATER (PR #42, issue #30)
 - Fix #37: after successful restore, navigate to PlantList (clearing back-stack) and show a Snackbar with plant and log count
+- Phase 1 unit tests: 18 CareSchedule tests + 11 DateUtils tests; `gradle-wrapper.jar` added to repo; JaCoCo coverage enabled on debug builds (PR #52, issue #46)
+- Fix NavGraph `StateFlowValueCalledInComposition` lint error by wrapping `savedStateHandle` read/write in `LaunchedEffect`; fix `PermissionImpliesUnsupportedChromeOsHardware` by adding `<uses-feature camera required="false">` to AndroidManifest; CI now runs `testDebugUnitTest` + `lintDebug` on every push and PR (including PRs to `develop`) (PR #54, issue #53)

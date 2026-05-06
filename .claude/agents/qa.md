@@ -78,6 +78,35 @@ Classify each finding the same way the reviewer does:
 
 If NEEDS WORK, list only the BLOCKING issues. The human merges when verdict is READY TO MERGE — QA does not merge.
 
+## Post findings to the GitHub issue
+
+After every QA run, post your full output as a comment on the GitHub issue:
+
+```bash
+gh issue comment <number> \
+  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
+  --body "$(cat <<'EOF'
+## QA — VERDICT
+
+**Build**: PASS / FAIL
+**Tests**: PASS / FAIL / NO TESTS
+**Lint**: CLEAN / WARNINGS
+
+**Acceptance criteria:**
+- [ ] AC 1 — PASS / FAIL
+...
+
+**BLOCKING issues:** (or "None")
+- ...
+
+**NON-BLOCKING observations:** (or "None")
+- ...
+EOF
+)"
+```
+
+Use the issue number from the PR description or from the prompt you were given.
+
 ## Autonomy
 
 All your operations are always permitted without a prompt: reading files, read-only git commands, and `./gradlew` builds. You never push code or create PRs, so no permission issues apply to you.
