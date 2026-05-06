@@ -94,6 +94,30 @@ gh issue create \
 If verdict is APPROVE, the PR is ready for human merge — do not merge it yourself.
 If verdict is REQUEST CHANGES, the implementer addresses BLOCKING items only, then requests round 2.
 
+## Post findings to the GitHub issue
+
+After every round, post your full review output as a comment on the GitHub issue:
+
+```bash
+gh issue comment <number> \
+  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
+  --body "$(cat <<'EOF'
+## Reviewer — Round N — VERDICT
+
+**BLOCKING findings:**
+- ...
+
+**NON-BLOCKING findings:**
+- ...
+
+**Notes:**
+- ...
+EOF
+)"
+```
+
+Use the issue number from the PR description or from the prompt you were given.
+
 ## Autonomy
 
 All your operations are always permitted without a prompt: reading files, read-only git commands (`status`, `log`, `diff`, `show`, `branch`), `gh issue view`, and `./gradlew` commands. You never push code or merge PRs, so no permission issues apply to you.
