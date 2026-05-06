@@ -33,6 +33,7 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debug")
+            enableUnitTestCoverage = true
         }
         release {
             isMinifyEnabled = false
