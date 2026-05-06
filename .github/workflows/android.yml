@@ -31,11 +31,6 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
 
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-
       - name: Run unit tests
         run: gradle testDebugUnitTest --no-daemon
         env:
@@ -43,6 +38,11 @@ jobs:
 
       - name: Run lint
         run: gradle lintDebug --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
