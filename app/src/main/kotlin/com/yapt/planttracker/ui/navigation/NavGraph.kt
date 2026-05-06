@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -99,10 +100,12 @@ fun YaptNavGraph(app: YaptApplication) {
             )
 
             val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-            val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
-            if (suggestedInterval != null) {
-                vm.suggestedWateringInterval.value = suggestedInterval
-                savedStateHandle.remove<Int>("suggestedWateringInterval")
+            LaunchedEffect(savedStateHandle) {
+                val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
+                if (suggestedInterval != null) {
+                    vm.suggestedWateringInterval.value = suggestedInterval
+                    savedStateHandle.remove<Int>("suggestedWateringInterval")
+                }
             }
 
             PlantDetailScreen(
