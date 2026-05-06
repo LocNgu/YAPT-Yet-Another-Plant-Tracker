@@ -77,6 +77,7 @@ class AddCareLogViewModel(
 
     private suspend fun computeSuggestedInterval(): Int? {
         val feedback = selectedFeedback ?: return null
+        if (feedback == WateringFeedback.JUST_RIGHT) return null
         if (selectedCareType != CareType.WATER) return null
 
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
