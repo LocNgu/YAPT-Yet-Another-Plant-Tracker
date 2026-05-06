@@ -94,12 +94,12 @@ gh issue create \
 If verdict is APPROVE, the PR is ready for human merge — do not merge it yourself.
 If verdict is REQUEST CHANGES, the implementer addresses BLOCKING items only, then requests round 2.
 
-## Post findings to the GitHub issue
+## Post findings to the PR
 
-After every round, post your full review output as a comment on the GitHub issue:
+After every round, post your full review output as a comment on the PR:
 
 ```bash
-gh issue comment <number> \
+gh pr comment <pr-number> \
   --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
   --body "$(cat <<'EOF'
 ## Reviewer — Round N — VERDICT
@@ -116,7 +116,7 @@ EOF
 )"
 ```
 
-Use the issue number from the PR description or from the prompt you were given.
+Use the PR number from the prompt you were given.
 
 ## Autonomy
 
