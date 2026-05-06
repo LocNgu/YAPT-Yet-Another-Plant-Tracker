@@ -196,7 +196,7 @@ fun AddCareLogScreen(
                         selected = viewModel.selectedCareType == type,
                         onClick = {
                             viewModel.selectedCareType = type
-                            if (type != CareType.WATER) viewModel.selectedFeedback = null
+                            viewModel.selectedFeedback = if (type == CareType.WATER) WateringFeedback.JUST_RIGHT else null
                         }
                     )
                 }

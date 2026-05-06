@@ -31,7 +31,7 @@ class AddCareLogViewModel(
     var photoUri by mutableStateOf<String?>(null)
     var amount by mutableStateOf("")
     var loggedAt by mutableStateOf(System.currentTimeMillis())
-    var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
+    var selectedFeedback by mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT)
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
 
@@ -77,6 +77,7 @@ class AddCareLogViewModel(
 
     private suspend fun computeSuggestedInterval(): Int? {
         val feedback = selectedFeedback ?: return null
+        if (feedback == WateringFeedback.JUST_RIGHT) return null
         if (selectedCareType != CareType.WATER) return null
 
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
