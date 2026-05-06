@@ -1,0 +1,126 @@
+package com.yapt.planttracker.ui.screens.plantdetail
+
+import app.cash.turbine.test
+import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.util.MainDispatcherRule
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.just
+import io.mockk.runs
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Rule
+import org.junit.Test
+
+class PlantDetailViewModelTest {
+
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private val plantRepo: PlantRepository = mockk()
+    private val careLogRepo: CareLogRepository = mockk()
+
+    private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
+        id = id,
+        name = name,
+        createdAt = 0L,
+        updatedAt = 0L
+    )
+
+    private fun makeVm(plantId: Long = 1L): PlantDetailViewModel {
+        every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plantId) } returns flowOf(emptyList())
+        return PlantDetailViewModel(plantRepo, careLogRepo, plantId)
+    }
+
+    @Test
+    fun `plant exists emits the plant in StateFlow`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.plant.test {
+            val emitted = awaitItem()
+            assertNotNull(emitted)
+            assertEquals("Monstera", emitted?.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `no plant found emits null careStatus`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(null)
+        val vm = makeVm()
+
+        vm.careStatus.test {
+            assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySuggestedInterval updates plant via repo and emits IntervalUpdated event`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+
+            vm.events.test {
+                vm.applySuggestedInterval(14)
+                assertEquals(PlantDetailViewModel.Event.IntervalUpdated, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 14 }) }
+    }
+
+    @Test
+    fun `clearSuggestedInterval sets suggestedWateringInterval to null`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.suggestedWateringInterval.value = 10
+        vm.clearSuggestedInterval()
+
+        vm.suggestedWateringInterval.test {
+            assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `plant with watering interval and no logs has no overdue status`() = runTest {
+        val plantWithInterval = Plant(
+            id = 2L,
+            name = "Fern",
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        every { plantRepo.getPlantById(2L) } returns flowOf(plantWithInterval)
+        every { careLogRepo.getLogsForPlant(2L) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(2L) } returns flowOf(emptyList())
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, 2L)
+
+        vm.careStatus.test {
+            val status = awaitItem()
+            assertNotNull(status)
+            assertEquals(false, status?.isOverdue)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}
