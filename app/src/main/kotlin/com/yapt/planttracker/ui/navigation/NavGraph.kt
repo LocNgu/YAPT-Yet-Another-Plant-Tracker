@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -28,7 +29,17 @@ fun YaptNavGraph(app: YaptApplication) {
         navController = navController,
         startDestination = Screen.PlantList.route
     ) {
-        composable(Screen.PlantList.route) {
+        composable(
+            route = Screen.PlantList.route,
+            arguments = listOf(
+                navArgument("restoreMessage") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val restoreMessage = backStackEntry.arguments?.getString("restoreMessage")
             val vm: PlantListViewModel = viewModel(
                 factory = PlantListViewModel.Factory(
                     app.plantRepository,
@@ -37,6 +48,7 @@ fun YaptNavGraph(app: YaptApplication) {
             )
             PlantListScreen(
                 viewModel = vm,
+                restoreMessage = restoreMessage,
                 onNavigateToPlant = { plantId ->
                     navController.navigate(Screen.PlantDetail.createRoute(plantId))
                 },
@@ -144,7 +156,13 @@ fun YaptNavGraph(app: YaptApplication) {
             )
             SettingsScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onRestoreSuccess = { plantCount, logCount ->
+                    val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
+                    navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }

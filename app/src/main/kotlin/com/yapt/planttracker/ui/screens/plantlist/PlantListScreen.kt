@@ -20,11 +20,15 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,6 +39,7 @@ import com.yapt.planttracker.ui.components.PlantCard
 @Composable
 fun PlantListScreen(
     viewModel: PlantListViewModel,
+    restoreMessage: String? = null,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
     onNavigateToSettings: () -> Unit
@@ -42,8 +47,16 @@ fun PlantListScreen(
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val selectedRoom by viewModel.selectedRoom.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(restoreMessage) {
+        if (restoreMessage != null) {
+            snackbarHostState.showSnackbar(restoreMessage)
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("My Plants") },
