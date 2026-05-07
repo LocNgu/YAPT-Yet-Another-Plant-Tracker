@@ -31,47 +31,64 @@ fun StatsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val waterColor = when {
-            status.isOverdue -> OverdueRed
-            status.isDueSoon -> WarnOrange
-            else -> OkGreen
-        }
-        val waterValue = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it) }
-            ?: status.lastWateredAt?.let { DateUtils.formatRelative(it) }
-            ?: "Never"
-        val waterLabel = if (status.nextWateringDueAt != null) "Next watering" else "Last watered"
-
         StatChip(
-            label = waterLabel,
-            value = waterValue,
-            valueColor = if (status.nextWateringDueAt != null) waterColor else null,
+            label = "Last watered",
+            value = status.lastWateredAt?.let { DateUtils.formatRelative(it) } ?: "Never",
             modifier = Modifier.weight(1f)
         )
-
-        if (status.plant.fertilizingIntervalDays != null) {
-            val fertColor = when {
-                status.isFertilizingOverdue -> OverdueRed
-                status.isFertilizingDueSoon -> WarnOrange
-                else -> OkGreen
-            }
-            val fertValue = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it) }
-                ?: status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
-                ?: "Never"
-            val fertLabel = if (status.nextFertilizingDueAt != null) "Next fertilizing" else "Last fertilized"
-
-            StatChip(
-                label = fertLabel,
-                value = fertValue,
-                valueColor = if (status.nextFertilizingDueAt != null) fertColor else null,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
+        StatChip(
+            label = "Last fertilized",
+            value = status.lastFertilizedAt?.let { DateUtils.formatRelative(it) } ?: "Never",
+            modifier = Modifier.weight(1f)
+        )
         StatChip(
             label = "Total logs",
             value = "${status.totalCareLogs}",
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+fun CareCountdownChips(
+    status: PlantCareStatus,
+    modifier: Modifier = Modifier
+) {
+    if (status.nextWateringDueAt == null && status.nextFertilizingDueAt == null) return
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        status.nextWateringDueAt?.let { dueAt ->
+            val color = when {
+                status.isOverdue -> OverdueRed
+                status.isDueSoon -> WarnOrange
+                else -> OkGreen
+            }
+            StatChip(
+                label = "Next watering",
+                value = DateUtils.formatCountdown(dueAt),
+                valueColor = color,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        status.nextFertilizingDueAt?.let { dueAt ->
+            val color = when {
+                status.isFertilizingOverdue -> OverdueRed
+                status.isFertilizingDueSoon -> WarnOrange
+                else -> OkGreen
+            }
+            StatChip(
+                label = "Next fertilizing",
+                value = DateUtils.formatCountdown(dueAt),
+                valueColor = color,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

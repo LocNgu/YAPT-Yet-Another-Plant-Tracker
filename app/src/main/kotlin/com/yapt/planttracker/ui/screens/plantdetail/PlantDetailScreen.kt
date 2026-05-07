@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.yapt.planttracker.ui.components.CareCountdownChips
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoGallery
@@ -150,6 +151,8 @@ fun PlantDetailScreen(
             careStatus?.let { status ->
                 item {
                     StatsRow(status = status)
+                    Spacer(Modifier.height(8.dp))
+                    CareCountdownChips(status = status)
                     Spacer(Modifier.height(16.dp))
                 }
             }
