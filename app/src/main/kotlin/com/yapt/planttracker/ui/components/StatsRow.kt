@@ -31,61 +31,38 @@ fun StatsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        StatChip(
-            label = "Last watered",
-            value = status.lastWateredAt?.let { DateUtils.formatRelative(it) } ?: "Never",
-            modifier = Modifier.weight(1f)
-        )
-        StatChip(
-            label = "Last fertilized",
-            value = status.lastFertilizedAt?.let { DateUtils.formatRelative(it) } ?: "Never",
-            modifier = Modifier.weight(1f)
-        )
-        StatChip(
-            label = "Total logs",
-            value = "${status.totalCareLogs}",
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-fun CareCountdownChips(
-    status: PlantCareStatus,
-    modifier: Modifier = Modifier
-) {
-    if (status.nextWateringDueAt == null && status.nextFertilizingDueAt == null) return
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        status.nextWateringDueAt?.let { dueAt ->
-            val color = when {
-                status.isOverdue -> OverdueRed
-                status.isDueSoon -> WarnOrange
-                else -> OkGreen
-            }
-            StatChip(
-                label = "Next watering",
-                value = DateUtils.formatCountdown(dueAt),
-                valueColor = color,
-                modifier = Modifier.weight(1f)
-            )
+        val waterColor = when {
+            status.isOverdue -> OverdueRed
+            status.isDueSoon -> WarnOrange
+            else -> OkGreen
         }
+        StatChip(
+            label = "Watering",
+            value = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it) }
+                ?: status.lastWateredAt?.let { DateUtils.formatRelative(it) }
+                ?: "Never",
+            valueColor = if (status.nextWateringDueAt != null) waterColor else null,
+            subValue = if (status.nextWateringDueAt != null) {
+                status.lastWateredAt?.let { DateUtils.formatRelative(it) }
+            } else null,
+            modifier = Modifier.weight(1f)
+        )
 
-        status.nextFertilizingDueAt?.let { dueAt ->
-            val color = when {
+        if (status.plant.fertilizingIntervalDays != null) {
+            val fertColor = when {
                 status.isFertilizingOverdue -> OverdueRed
                 status.isFertilizingDueSoon -> WarnOrange
                 else -> OkGreen
             }
             StatChip(
-                label = "Next fertilizing",
-                value = DateUtils.formatCountdown(dueAt),
-                valueColor = color,
+                label = "Fertilizing",
+                value = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it) }
+                    ?: status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
+                    ?: "Never",
+                valueColor = if (status.nextFertilizingDueAt != null) fertColor else null,
+                subValue = if (status.nextFertilizingDueAt != null) {
+                    status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
+                } else null,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -97,6 +74,7 @@ private fun StatChip(
     label: String,
     value: String,
     valueColor: Color? = null,
+    subValue: String? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -114,6 +92,13 @@ private fun StatChip(
                 style = MaterialTheme.typography.labelLarge,
                 color = valueColor ?: MaterialTheme.colorScheme.primary
             )
+            subValue?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
