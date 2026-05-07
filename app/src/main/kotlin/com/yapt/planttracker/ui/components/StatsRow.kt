@@ -12,8 +12,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.ui.theme.OkGreen
+import com.yapt.planttracker.ui.theme.OverdueRed
+import com.yapt.planttracker.ui.theme.WarnOrange
 import com.yapt.planttracker.util.DateUtils
 
 @Composable
@@ -27,18 +31,42 @@ fun StatsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        val waterColor = when {
+            status.isOverdue -> OverdueRed
+            status.isDueSoon -> WarnOrange
+            else -> OkGreen
+        }
+        val waterValue = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it) }
+            ?: status.lastWateredAt?.let { DateUtils.formatRelative(it) }
+            ?: "Never"
+        val waterLabel = if (status.nextWateringDueAt != null) "Next watering" else "Last watered"
+
         StatChip(
-            label = "Last watered",
-            value = status.lastWateredAt?.let { DateUtils.formatRelative(it) } ?: "Never",
+            label = waterLabel,
+            value = waterValue,
+            valueColor = if (status.nextWateringDueAt != null) waterColor else null,
             modifier = Modifier.weight(1f)
         )
-        StatChip(
-            label = "Last fertilized",
-            value = status.lastFertilizedAt?.let {
-                DateUtils.formatRelative(it)
-            } ?: "Never",
-            modifier = Modifier.weight(1f)
-        )
+
+        if (status.plant.fertilizingIntervalDays != null) {
+            val fertColor = when {
+                status.isFertilizingOverdue -> OverdueRed
+                status.isFertilizingDueSoon -> WarnOrange
+                else -> OkGreen
+            }
+            val fertValue = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it) }
+                ?: status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
+                ?: "Never"
+            val fertLabel = if (status.nextFertilizingDueAt != null) "Next fertilizing" else "Last fertilized"
+
+            StatChip(
+                label = fertLabel,
+                value = fertValue,
+                valueColor = if (status.nextFertilizingDueAt != null) fertColor else null,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         StatChip(
             label = "Total logs",
             value = "${status.totalCareLogs}",
@@ -51,6 +79,7 @@ fun StatsRow(
 private fun StatChip(
     label: String,
     value: String,
+    valueColor: Color? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -66,7 +95,7 @@ private fun StatChip(
             Text(
                 text = value,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = valueColor ?: MaterialTheme.colorScheme.primary
             )
             Text(
                 text = label,
