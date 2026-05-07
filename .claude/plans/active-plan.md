@@ -29,6 +29,8 @@
 - [x] Fix #30: default watering feedback chip to JUST_RIGHT (PR #42)
 - [x] Fix #37: navigate to PlantList with Snackbar after successful restore
 - [x] Tests #9c: ViewModel unit tests with MockK + coroutines-test + turbine (PR #62, issue #48)
+- [x] Tests #9e: BackupManager instrumented integration tests (PR #67, issue #50)
+- [x] Tests #9f: Compose/UI screen tests (instrumented) (PR #70, issue #51)
 
 ---
 
