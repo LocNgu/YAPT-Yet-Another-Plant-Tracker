@@ -118,8 +118,8 @@ Every feature and bug fix follows these steps in order:
    - **Posts full findings as a comment on the PR after every round**
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - **Posts full QA output as a comment on the PR**
-5. **Merge** — **human merges only**; Claude never merges a PR
-6. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
+5. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
+6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a combined summary to the user **and** to the PR comment thread.
 
