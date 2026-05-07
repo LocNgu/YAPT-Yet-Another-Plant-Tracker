@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
@@ -77,31 +76,14 @@ fun PlantCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    status.plant.room?.let { room ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.LocationOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Text(
-                                text = room,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
                     val waterColor = when {
                         status.isOverdue -> OverdueRed
                         status.isDueSoon -> WarnOrange
                         else -> OkGreen
                     }
                     val waterLabel = when {
-                        status.isOverdue -> "Overdue!"
-                        status.isDueSoon -> "Due today"
+                        status.nextWateringDueAt != null ->
+                            DateUtils.formatCountdown(status.nextWateringDueAt)
                         status.lastWateredAt != null ->
                             DateUtils.formatRelative(status.lastWateredAt)
                         else -> "Never watered"
@@ -129,10 +111,10 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
-                            status.isFertilizingOverdue -> "Fertilizing overdue!"
-                            status.isFertilizingDueSoon -> "Fertilizing due today"
+                            status.nextFertilizingDueAt != null ->
+                                DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
-                                "Fert ${DateUtils.formatRelative(status.lastFertilizedAt)}"
+                                "Fertilizing ${DateUtils.formatRelative(status.lastFertilizedAt)}"
                             else -> "Never fertilized"
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
