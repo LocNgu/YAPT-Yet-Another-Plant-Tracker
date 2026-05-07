@@ -75,4 +75,47 @@ class DateUtilsTest {
         val result = DateUtils.formatMonthYear(now)
         assertTrue(result.isNotEmpty())
     }
+
+    // formatCountdown
+
+    @Test
+    fun `formatCountdown due in future same day returns Due today`() {
+        val dueAt = now + TimeUnit.HOURS.toMillis(12)
+        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown due exactly now returns Due today`() {
+        assertEquals("Due today", DateUtils.formatCountdown(now, now))
+    }
+
+    @Test
+    fun `formatCountdown overdue less than 24h returns Due today`() {
+        val dueAt = now - TimeUnit.HOURS.toMillis(6)
+        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown overdue exactly 1 day returns singular`() {
+        val dueAt = now - TimeUnit.DAYS.toMillis(1)
+        assertEquals("Overdue by 1 day", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown overdue multiple days returns plural`() {
+        val dueAt = now - TimeUnit.DAYS.toMillis(5)
+        assertEquals("Overdue by 5 days", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown due in exactly 1 day returns singular`() {
+        val dueAt = now + TimeUnit.DAYS.toMillis(1)
+        assertEquals("In 1 day", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown due in multiple days returns plural`() {
+        val dueAt = now + TimeUnit.DAYS.toMillis(7)
+        assertEquals("In 7 days", DateUtils.formatCountdown(dueAt, now))
+    }
 }
