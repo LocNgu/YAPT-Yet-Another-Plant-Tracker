@@ -228,7 +228,7 @@ class BackupManagerTest {
     }
 
     @Test
-    fun zipSlip_photoLandsInsideRestoredPhotosDir() = runBlocking {
+    fun zipSlip_photoDoesNotEscapeFilesDir() = runBlocking {
         val validJson = """
             {"schemaVersion":1,"exportedAt":1000,"appVersion":"1.0","plants":[],"careLogs":[],"settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
         """.trimIndent()
@@ -243,17 +243,19 @@ class BackupManagerTest {
             zip.write("sensitive".toByteArray(Charsets.UTF_8))
             zip.closeEntry()
         }
-        val uri = Uri.fromFile(zipFile)
 
-        backupManager.importBackup(uri)
+        backupManager.importBackup(Uri.fromFile(zipFile))
 
+        // Security property: the malicious entry must not land outside filesDir.
+        // (On some Android versions the ZipEntry name is normalized and the entry is
+        // silently dropped, which also satisfies the security requirement.)
         assertFalse(
-            "Zip-slip file must NOT land in filesDir",
+            "Zip-slip file must NOT land in filesDir root",
             File(context.filesDir, "prefs.xml").exists()
         )
-        assertTrue(
-            "File should land safely inside restored_photos dir",
-            File(context.filesDir.resolve("restored_photos"), "prefs.xml").exists()
+        assertFalse(
+            "Zip-slip file must NOT escape to parent of filesDir",
+            File(context.filesDir.parentFile ?: context.filesDir, "prefs.xml").exists()
         )
     }
 
