@@ -100,7 +100,6 @@ Tracked as GitHub issues:
 | [#47](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/47) | Tests #9b: BackupSerializer + BackupModels JVM unit tests | Testing |
 | [#48](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/48) | Tests #9c: ViewModel unit tests (MockK + coroutines-test + turbine) | Testing |
 | [#49](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/49) | Tests #9d: DAO/Repository integration tests (Room in-memory + Robolectric) | Testing |
-| [#50](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/50) | Tests #9e: BackupManager integration tests (instrumented) | Testing |
 | [#51](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/51) | Tests #9f: Compose/UI screen tests (instrumented) | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
@@ -193,3 +192,5 @@ When a prompt appears for `git checkout develop`, it is intentional — approve 
 - Fix #37: after successful restore, navigate to PlantList (clearing back-stack) and show a Snackbar with plant and log count
 - Phase 1 unit tests: 18 CareSchedule tests + 11 DateUtils tests; `gradle-wrapper.jar` added to repo; JaCoCo coverage enabled on debug builds (PR #52, issue #46)
 - Fix NavGraph `StateFlowValueCalledInComposition` lint error by wrapping `savedStateHandle` read/write in `LaunchedEffect`; fix `PermissionImpliesUnsupportedChromeOsHardware` by adding `<uses-feature camera required="false">` to AndroidManifest; CI now runs `testDebugUnitTest` + `lintDebug` on every push and PR (including PRs to `develop`) (PR #54, issue #53)
+- Tests #9c: ViewModel unit tests for all 5 ViewModels (PlantList, PlantDetail, AddCareLog, AddEditPlant, Settings) using MockK + coroutines-test + turbine; MainDispatcherRule added (PR #62, issue #48); new test deps: mockk:1.13.12, coroutines-test:1.9.0, turbine:1.2.0
+- Tests #9e: BackupManager instrumented integration tests — 9 androidTest cases covering export/import round-trips (with/without photos), empty DB, future schema warning + proceed, corrupt ZIP, missing backup.json, zip-slip containment, settings round-trip, and photo SHA-256 integrity (PR #67, issue #50); no new dependencies required
