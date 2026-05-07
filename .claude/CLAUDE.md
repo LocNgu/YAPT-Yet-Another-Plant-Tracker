@@ -98,7 +98,6 @@ Tracked as GitHub issues:
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | Epic: Achieve 90% test coverage — sub-issues #46–#51 | Testing |
 | [#47](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/47) | Tests #9b: BackupSerializer + BackupModels JVM unit tests | Testing |
-| [#48](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/48) | Tests #9c: ViewModel unit tests (MockK + coroutines-test + turbine) | Testing |
 | [#49](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/49) | Tests #9d: DAO/Repository integration tests (Room in-memory + Robolectric) | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
