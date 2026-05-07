@@ -100,8 +100,8 @@ fun PlantCard(
                         else -> OkGreen
                     }
                     val waterLabel = when {
-                        status.isOverdue -> "Overdue!"
-                        status.isDueSoon -> "Due today"
+                        status.nextWateringDueAt != null ->
+                            DateUtils.formatCountdown(status.nextWateringDueAt)
                         status.lastWateredAt != null ->
                             DateUtils.formatRelative(status.lastWateredAt)
                         else -> "Never watered"
@@ -129,10 +129,10 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
-                            status.isFertilizingOverdue -> "Fertilizing overdue!"
-                            status.isFertilizingDueSoon -> "Fertilizing due today"
+                            status.nextFertilizingDueAt != null ->
+                                DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
-                                "Fert ${DateUtils.formatRelative(status.lastFertilizedAt)}"
+                                "Fertilizing ${DateUtils.formatRelative(status.lastFertilizedAt)}"
                             else -> "Never fertilized"
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
