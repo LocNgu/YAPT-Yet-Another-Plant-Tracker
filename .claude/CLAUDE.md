@@ -96,9 +96,6 @@ Tracked as GitHub issues:
 | [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
-| [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | Epic: Achieve 90% test coverage — sub-issues #46–#51 | Testing |
-| [#47](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/47) | Tests #9b: BackupSerializer + BackupModels JVM unit tests | Testing |
-| [#49](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/49) | Tests #9d: DAO/Repository integration tests (Room in-memory + Robolectric) | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
 | [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
