@@ -99,6 +99,7 @@ class BackupManagerTest {
         val exportResult = backupManager.exportBackup(exportUri, includePhotos = false)
         assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
         assertEquals(1, (exportResult as BackupResult.ExportSuccess).plantCount)
+        assertEquals(1, (exportResult as BackupResult.ExportSuccess).logCount)
 
         db.careLogDao().deleteAll()
         db.plantDao().deleteAll()
@@ -107,6 +108,7 @@ class BackupManagerTest {
         val importResult = backupManager.importBackup(exportUri)
         assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
         assertEquals(1, (importResult as BackupResult.ImportSuccess).plantCount)
+        assertEquals(1, (importResult as BackupResult.ImportSuccess).logCount)
 
         val restoredPlants = db.plantDao().getAllPlants().first()
         assertEquals(1, restoredPlants.size)
