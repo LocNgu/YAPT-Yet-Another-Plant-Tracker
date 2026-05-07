@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 object DateUtils {
 
@@ -17,6 +18,17 @@ object DateUtils {
             days < 30L -> "${days / 7} week${if (days / 7 > 1) "s" else ""} ago"
             else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
                 .format(Date(timestampMs))
+        }
+    }
+
+    fun formatCountdown(dueAtMs: Long, now: Long = System.currentTimeMillis()): String {
+        val diffMs = dueAtMs - now
+        val absDays = TimeUnit.MILLISECONDS.toDays(abs(diffMs))
+        return when {
+            diffMs < 0 && absDays == 0L -> "Due today"
+            diffMs < 0 -> "Overdue by $absDays day${if (absDays == 1L) "" else "s"}"
+            absDays == 0L -> "Due today"
+            else -> "In $absDays day${if (absDays == 1L) "" else "s"}"
         }
     }
 
