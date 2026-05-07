@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -45,7 +46,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Ficus").assertIsDisplayed()
+        // Plant name appears in both the TopAppBar title and the content body; asserting at least one is displayed.
+        composeTestRule.onAllNodesWithText("Ficus")[0].assertIsDisplayed()
     }
 
     @Test
