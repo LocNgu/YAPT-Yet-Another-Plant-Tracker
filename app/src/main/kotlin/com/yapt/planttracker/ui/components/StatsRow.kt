@@ -10,7 +10,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -38,13 +37,9 @@ fun StatsRow(
         }
         StatChip(
             label = "Watering",
-            value = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it) }
-                ?: status.lastWateredAt?.let { DateUtils.formatRelative(it) }
-                ?: "Never",
-            valueColor = if (status.nextWateringDueAt != null) waterColor else null,
-            subValue = if (status.nextWateringDueAt != null) {
-                status.lastWateredAt?.let { DateUtils.formatRelative(it) }
-            } else null,
+            nextLine = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
+            nextColor = if (status.nextWateringDueAt != null) waterColor else null,
+            lastLine = status.lastWateredAt?.let { DateUtils.formatRelative(it).lowercase() },
             modifier = Modifier.weight(1f)
         )
 
@@ -56,13 +51,9 @@ fun StatsRow(
             }
             StatChip(
                 label = "Fertilizing",
-                value = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it) }
-                    ?: status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
-                    ?: "Never",
-                valueColor = if (status.nextFertilizingDueAt != null) fertColor else null,
-                subValue = if (status.nextFertilizingDueAt != null) {
-                    status.lastFertilizedAt?.let { DateUtils.formatRelative(it) }
-                } else null,
+                nextLine = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
+                nextColor = if (status.nextFertilizingDueAt != null) fertColor else null,
+                lastLine = status.lastFertilizedAt?.let { DateUtils.formatRelative(it).lowercase() },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -72,9 +63,9 @@ fun StatsRow(
 @Composable
 private fun StatChip(
     label: String,
-    value: String,
-    valueColor: Color? = null,
-    subValue: String? = null,
+    nextLine: String?,
+    nextColor: Color?,
+    lastLine: String?,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -83,27 +74,34 @@ private fun StatChip(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = value,
-                style = MaterialTheme.typography.labelLarge,
-                color = valueColor ?: MaterialTheme.colorScheme.primary
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            subValue?.let {
+            if (nextLine == null && lastLine == null) {
                 Text(
-                    text = it,
+                    text = "never",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            } else {
+                nextLine?.let {
+                    Text(
+                        text = "next: $it",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = nextColor ?: MaterialTheme.colorScheme.primary
+                    )
+                }
+                lastLine?.let {
+                    Text(
+                        text = "last: $it",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
