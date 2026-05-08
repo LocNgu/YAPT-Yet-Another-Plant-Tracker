@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +32,8 @@ import com.yapt.planttracker.util.DateUtils
 fun PlantCard(
     status: PlantCareStatus,
     onClick: () -> Unit,
+    onQuickWater: () -> Unit,
+    onQuickFertilize: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -132,6 +135,34 @@ fun PlantCard(
                             )
                         }
                     }
+                }
+            }
+
+            Column(
+                verticalArrangement = Arrangement.Bottom,
+                horizontalAlignment = Alignment.End
+            ) {
+                IconButton(
+                    onClick = onQuickWater,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.WaterDrop,
+                        contentDescription = "Quick water",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = onQuickFertilize,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Spa,
+                        contentDescription = "Quick fertilize",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

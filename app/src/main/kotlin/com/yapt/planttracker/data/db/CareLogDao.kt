@@ -42,4 +42,7 @@ interface CareLogDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(logs: List<CareLogEntity>): List<Long>
+
+    @Query("SELECT COUNT(*) FROM care_logs")
+    fun observeLogCount(): Flow<Int>
 }

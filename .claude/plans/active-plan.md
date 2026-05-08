@@ -38,7 +38,7 @@
 
 | # | Feature | Priority |
 |---|---|---|
-| [#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19) | Quick water / fertilize buttons on plant list | P1 |
+| ~~[#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19)~~ | ~~Quick water / fertilize buttons on plant list~~ | P1 — PR #82 open |
 | [#32](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/32) | Next watering / fertilizing countdown on plant detail | P1 |
 | ~~[#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21)~~ | ~~Sort and filter options on plant list~~ | P2 — PR #76 open |
 | [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |
