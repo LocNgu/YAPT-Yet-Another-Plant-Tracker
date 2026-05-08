@@ -1,8 +1,12 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
@@ -13,11 +17,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
 class PlantListViewModel(
     private val plantRepository: PlantRepository,
-    private val careLogRepository: CareLogRepository
+    private val careLogRepository: CareLogRepository,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
@@ -25,8 +34,23 @@ class PlantListViewModel(
 
     val selectedRoom = MutableStateFlow<String?>(null)
 
-    private val _sortOrder = MutableStateFlow(SortOrder())
+    private val _sortOrder = MutableStateFlow(DEFAULT_SORT)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            dataStore.data.first().let { prefs ->
+                val option = runCatching {
+                    SortOption.valueOf(prefs[SettingsKeys.SORT_OPTION]!!)
+                }.getOrNull() ?: DEFAULT_SORT.option
+                val ascending = prefs[SettingsKeys.SORT_ASCENDING] ?: (DEFAULT_SORT.direction == SortDirection.ASC)
+                _sortOrder.value = SortOrder(
+                    option = option,
+                    direction = if (ascending) SortDirection.ASC else SortDirection.DESC
+                )
+            }
+        }
+    }
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         plantRepository.getAllPlants(),
@@ -47,7 +71,7 @@ class PlantListViewModel(
 
     fun toggleSort(option: SortOption) {
         val current = _sortOrder.value
-        _sortOrder.value = if (option == current.option) {
+        val newOrder = if (option == current.option) {
             when (option) {
                 SortOption.RECENTLY_ADDED -> current
                 else -> current.copy(
@@ -61,6 +85,13 @@ class PlantListViewModel(
                 SortOption.RECENTLY_ADDED -> SortDirection.DESC
             }
             SortOrder(option = option, direction = defaultDirection)
+        }
+        _sortOrder.value = newOrder
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[SettingsKeys.SORT_OPTION] = newOrder.option.name
+                prefs[SettingsKeys.SORT_ASCENDING] = newOrder.direction == SortDirection.ASC
+            }
         }
     }
 
@@ -127,10 +158,11 @@ class PlantListViewModel(
 
     class Factory(
         private val plantRepository: PlantRepository,
-        private val careLogRepository: CareLogRepository
+        private val careLogRepository: CareLogRepository,
+        private val dataStore: DataStore<Preferences>
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantListViewModel(plantRepository, careLogRepository) as T
+            PlantListViewModel(plantRepository, careLogRepository, dataStore) as T
     }
 }
