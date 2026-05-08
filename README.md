@@ -10,8 +10,11 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Care history timeline** — Full chronological log per plant with photos
 - **Care reminders** — Daily local notifications for overdue or due-today plants
 - **Room grouping** — Assign plants to rooms and filter the home screen by room
-- **Stats** — Days since last watering/fertilizing and total care log count per plant
+- **Countdown labels** — Each plant card shows "In X days", "Due today", or "Overdue by X days" for watering and fertilizing, colour-coded green/orange/red
+- **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
+- **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
 - **Photo gallery** — Scrollable thumbnail gallery of all care photos per plant
+- **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
 - **Offline-first** — No account, no cloud, no network calls. All data stays on device
 
 ## Screenshots
@@ -60,7 +63,7 @@ Or open the project in Android Studio and run it directly on a device or emulato
 
 ## CI/CD
 
-GitHub Actions builds a debug APK on every push to `main` and `claude/**` branches. A release APK is built automatically when code lands on `main`. Artifacts are available for download from the Actions tab.
+GitHub Actions builds a debug APK on every push to `main`, `develop`, and `claude/**` branches. A release APK is built automatically when code lands on `main`. Artifacts are available for download from the Actions tab.
 
 [![Android CI/CD](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/actions/workflows/android.yml/badge.svg)](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/actions/workflows/android.yml)
 
