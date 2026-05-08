@@ -8,8 +8,10 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
@@ -134,6 +136,52 @@ class PlantListViewModelTest {
             assertEquals(1, items.size)
             assertEquals(5, items[0].totalCareLogs)
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `quickLog water emits correct snackbar message`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.WATER)
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("Watered Monstera", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+        }
+    }
+
+    @Test
+    fun `quickLog fertilize emits correct snackbar message`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.FERTILIZE)
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("Fertilized Monstera", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.wateringFeedback == null })
         }
     }
 }
