@@ -44,7 +44,8 @@ fun YaptNavGraph(app: YaptApplication) {
             val vm: PlantListViewModel = viewModel(
                 factory = PlantListViewModel.Factory(
                     app.plantRepository,
-                    app.careLogRepository
+                    app.careLogRepository,
+                    app.settingsDataStore
                 )
             )
             PlantListScreen(
