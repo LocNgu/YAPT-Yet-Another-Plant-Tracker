@@ -5,6 +5,6 @@ enum class SortOption { ALPHABETICAL, WATERING_DUE, FERTILIZING_DUE, RECENTLY_AD
 enum class SortDirection { ASC, DESC }
 
 data class SortOrder(
-    val option: SortOption = SortOption.RECENTLY_ADDED,
-    val direction: SortDirection = SortDirection.DESC
+    val option: SortOption = SortOption.ALPHABETICAL,
+    val direction: SortDirection = SortDirection.ASC
 )
