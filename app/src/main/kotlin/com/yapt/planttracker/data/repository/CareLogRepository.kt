@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.map
 
 class CareLogRepository(private val careLogDao: CareLogDao) {
 
+    val logCount: Flow<Int> = careLogDao.observeLogCount()
+
     fun getLogsForPlant(plantId: Long): Flow<List<CareLog>> =
         careLogDao.getLogsForPlant(plantId).map { list -> list.map { it.toDomain() } }
 

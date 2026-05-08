@@ -60,9 +60,10 @@ class PlantListViewModel(
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         plantRepository.getAllPlants(),
+        careLogRepository.logCount,
         selectedRoom,
         _sortOrder
-    ) { plants, room, sort ->
+    ) { plants, _, room, sort ->
         val filtered = if (room == null) plants else plants.filter { it.room == room }
         val result = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
