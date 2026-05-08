@@ -43,6 +43,7 @@ class PlantListViewModelTest {
 
     @Before
     fun setup() {
+        every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
     }
