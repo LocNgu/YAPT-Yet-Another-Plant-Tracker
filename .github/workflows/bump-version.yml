@@ -1,0 +1,70 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version component to bump'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump ${{ inputs.bump }} version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Read current version
+        id: current
+        run: |
+          MAJOR=$(grep '^MAJOR=' version.properties | cut -d= -f2)
+          MINOR=$(grep '^MINOR=' version.properties | cut -d= -f2)
+          PATCH=$(grep '^PATCH=' version.properties | cut -d= -f2)
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
+      - name: Compute new version
+        id: next
+        run: |
+          MAJOR=${{ steps.current.outputs.major }}
+          MINOR=${{ steps.current.outputs.minor }}
+          PATCH=${{ steps.current.outputs.patch }}
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
+      - name: Write version.properties
+        run: |
+          printf 'MAJOR=%s\nMINOR=%s\nPATCH=%s\n' \
+            ${{ steps.next.outputs.major }} \
+            ${{ steps.next.outputs.minor }} \
+            ${{ steps.next.outputs.patch }} > version.properties
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.properties
+          git commit -m "chore: bump version ${{ steps.current.outputs.version }} → ${{ steps.next.outputs.version }}"
+          git push origin develop

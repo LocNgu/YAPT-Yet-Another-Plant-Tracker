@@ -1,9 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
+}
+
+val versionProps = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
 }
 
 android {
@@ -17,7 +23,7 @@ android {
         versionCode = providers.exec {
             commandLine("git", "rev-list", "--count", "HEAD")
         }.standardOutput.asText.get().trim().toIntOrNull() ?: 1
-        versionName = "1.0"
+        versionName = "${versionProps["MAJOR"]}.${versionProps["MINOR"]}.${versionProps["PATCH"]}"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
