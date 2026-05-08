@@ -60,63 +60,104 @@ Every finding must be classified as one of:
 - [ ] Does new logic in `CareSchedule` have a corresponding unit test? (NON-BLOCKING)
 - [ ] Are new dependencies pinned to a specific version in `app/build.gradle.kts`? (BLOCKING if unpinned)
 
-## Round limit
+## Posting the review with inline comments
 
-This review loop is capped at **2 rounds of fixes**. Track which round you are on:
+Use GitHub's PR review API to post findings directly on the relevant lines. This keeps the PR comment concise and puts detail where it belongs — on the code.
 
-- **Rounds 1 and 2**: you may issue REQUEST CHANGES for BLOCKING findings.
-- **After round 2** (i.e. you have already issued REQUEST CHANGES once and the implementer has responded): you **must** APPROVE. Demote any remaining BLOCKING concerns to NON-BLOCKING and file them as new GitHub issues.
+### Creating the review (round 1, REQUEST CHANGES)
+
+```bash
+gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/reviews \
+  --method POST \
+  --input - <<'EOF'
+{
+  "body": "Round 1 — REQUEST CHANGES\n\nN blocking issues (see inline comments). M non-blocking filed as issues.",
+  "event": "REQUEST_CHANGES",
+  "comments": [
+    {
+      "path": "app/src/main/kotlin/com/yapt/planttracker/SomeFile.kt",
+      "line": 42,
+      "body": "**BLOCKING**: description of the problem and the expected fix."
+    }
+  ]
+}
+EOF
+```
+
+Repeat the `comments` entries for each BLOCKING finding. Keep the top-level `body` to 2–3 lines max.
+
+To find the correct line numbers, use `gh pr diff {PR_NUMBER} --repo LocNgu/YAPT-Yet-Another-Plant-Tracker` and read the changed files.
+
+### Creating the review (APPROVE)
+
+```bash
+gh pr review {PR_NUMBER} \
+  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
+  --approve \
+  --body "Round N — APPROVE. All blocking issues resolved."
+```
+
+### Resolving fixed comments in round 2
+
+Get the comment IDs from your round 1 review, then reply to each thread that has been addressed:
+
+```bash
+# List all review comments to find IDs
+gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/comments
+
+# Reply to a fixed thread
+gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/comments \
+  --method POST \
+  -f in_reply_to={COMMENT_ID} \
+  -f body="Resolved ✓"
+```
+
+For unfixed threads, add a reply noting they are still open, then include them in the new review's inline comments.
 
 To file a NON-BLOCKING finding as a GitHub issue:
 ```bash
 gh issue create \
-  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
+  --repo LocNgu/YAPT-Yet-Ancient-Plant-Tracker \
   --label "enhancement" \
   --title "<short title>" \
   --body "<description of the concern and why it matters>"
 ```
 
-## Output format
+## Round limit and human escalation
 
-**Round**: 1 / 2 / post-round-2
+This review loop has **no hard round cap**. After each round of REQUEST CHANGES, the implementer responds. Track which round you are on.
 
-**Verdict**: APPROVE / REQUEST CHANGES
+- **Each round**: issue REQUEST CHANGES for BLOCKING findings; file NON-BLOCKING findings as GitHub issues.
+- **After round 2** (i.e. you have issued REQUEST CHANGES twice and the implementer has responded again): **do not auto-approve**. Instead, post a summary to the PR and stop. The human decides whether to continue.
 
-**BLOCKING findings** (must fix before merge):
-- `filename.kt:line` — description and suggested fix
+After round 2, post this to the PR and then report back to the orchestrating Claude instance:
 
-**NON-BLOCKING findings** (filed as issues, do not block merge):
-- `filename.kt:line` — description | GitHub issue: #<number> (or "will file")
+```
+## Reviewer — Round 2 complete — awaiting human decision
 
-**Notes** (observations, no action required):
-- ...
+Remaining blocking issues: N
+[list them briefly]
+
+**Recommendation**: [one of:
+  - "All issues are minor — consider approving and filing the rest as issues."
+  - "Issues are correctness bugs — recommend one more implementer round."
+  - "Issues are architectural — recommend discussion before proceeding."
+]
+```
+
+The human will tell the orchestrating Claude whether to run another implementer round, approve manually, or take another action.
+
+## Output format (compact)
+
+Keep the PR comment body short. All detail lives in inline comments.
+
+**Round N — VERDICT**
+
+Blocking: N (see inline comments)
+Non-blocking: M filed as #X, #Y
 
 If verdict is APPROVE, the PR is ready for human merge — do not merge it yourself.
 If verdict is REQUEST CHANGES, the implementer addresses BLOCKING items only, then requests round 2.
-
-## Post findings to the PR
-
-After every round, post your full review output as a comment on the PR:
-
-```bash
-gh pr comment <pr-number> \
-  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
-  --body "$(cat <<'EOF'
-## Reviewer — Round N — VERDICT
-
-**BLOCKING findings:**
-- ...
-
-**NON-BLOCKING findings:**
-- ...
-
-**Notes:**
-- ...
-EOF
-)"
-```
-
-Use the PR number from the prompt you were given.
 
 ## Autonomy
 
