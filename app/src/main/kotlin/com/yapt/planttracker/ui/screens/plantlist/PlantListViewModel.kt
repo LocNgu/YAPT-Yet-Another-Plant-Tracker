@@ -9,12 +9,18 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -54,16 +60,40 @@ class PlantListViewModel(
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         plantRepository.getAllPlants(),
+        careLogRepository.logCount,
         selectedRoom,
         _sortOrder
-    ) { plants, room, sort ->
+    ) { plants, _, room, sort ->
         val filtered = if (room == null) plants else plants.filter { it.room == room }
-        val result = mutableListOf<PlantCareStatus>()
+        val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            result.add(buildStatus(plant))
+            statusList.add(buildStatus(plant))
         }
-        applySortOrder(result, sort)
+        applySortOrder(statusList, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _quickLogEvent = MutableSharedFlow<String>()
+    val quickLogEvent: SharedFlow<String> = _quickLogEvent.asSharedFlow()
+
+    fun quickLog(plantId: Long, careType: CareType) {
+        viewModelScope.launch {
+            val plantName = plantsWithStatus.value
+                .firstOrNull { it.plant.id == plantId }
+                ?.plant?.name ?: return@launch
+            val log = CareLog(
+                plantId = plantId,
+                careType = careType,
+                wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null
+            )
+            careLogRepository.addLog(log)
+            val message = when (careType) {
+                CareType.WATER -> "Watered $plantName"
+                CareType.FERTILIZE -> "Fertilized $plantName"
+                else -> "${careType.displayName} $plantName"
+            }
+            _quickLogEvent.emit(message)
+        }
+    }
 
     fun selectRoom(room: String?) {
         selectedRoom.value = room
@@ -141,12 +171,8 @@ class PlantListViewModel(
     }
 
     private suspend fun buildStatus(plant: Plant): PlantCareStatus {
-        val lastWatering = careLogRepository.getLastLogOfType(
-            plant.id, com.yapt.planttracker.domain.model.CareType.WATER
-        )
-        val lastFertilizing = careLogRepository.getLastLogOfType(
-            plant.id, com.yapt.planttracker.domain.model.CareType.FERTILIZE
-        )
+        val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
+        val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
         return CareSchedule.computeStatus(
             plant = plant,
