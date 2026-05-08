@@ -22,20 +22,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class PlantListViewModel(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
@@ -65,42 +58,19 @@ class PlantListViewModel(
         }
     }
 
-    private data class Snapshot(
-        val orderedIds: List<Long>,
-        val items: List<PlantCareStatus>
-    )
-
-    val plantsWithStatus: StateFlow<List<PlantCareStatus>> =
-        combine(selectedRoom, _sortOrder) { room, sort -> Pair(room, sort) }
-            .distinctUntilChanged()
-            .flatMapLatest { (room, sort) ->
-                combine(plantRepository.getAllPlants(), careLogRepository.logCount) { plants, _ -> plants }
-                    .runningFold<List<Plant>, Snapshot?>(null) { prev, plants ->
-                        val filtered = if (room == null) plants else plants.filter { it.room == room }
-                        val currentIds = filtered.map { it.id }.toSet()
-                        val prevIds = prev?.orderedIds?.toSet()
-
-                        if (prev == null || currentIds != prevIds) {
-                            val statusList = mutableListOf<PlantCareStatus>()
-                            for (plant in filtered) {
-                                statusList.add(buildStatus(plant))
-                            }
-                            val sorted = applySortOrder(statusList, sort)
-                            Snapshot(orderedIds = sorted.map { it.plant.id }, items = sorted)
-                        } else {
-                            val byId = filtered.associateBy { it.id }
-                            val recomputedList = mutableListOf<PlantCareStatus>()
-                            for (id in prev.orderedIds) {
-                                val plant = byId[id] ?: continue
-                                recomputedList.add(buildStatus(plant))
-                            }
-                            Snapshot(orderedIds = prev.orderedIds, items = recomputedList)
-                        }
-                    }
-                    .filterNotNull()
-                    .map { snapshot -> snapshot.items }
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+        plantRepository.getAllPlants(),
+        careLogRepository.logCount,
+        selectedRoom,
+        _sortOrder
+    ) { plants, _, room, sort ->
+        val filtered = if (room == null) plants else plants.filter { it.room == room }
+        val statusList = mutableListOf<PlantCareStatus>()
+        for (plant in filtered) {
+            statusList.add(buildStatus(plant))
+        }
+        applySortOrder(statusList, sort)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _quickLogEvent = MutableSharedFlow<String>()
     val quickLogEvent: SharedFlow<String> = _quickLogEvent.asSharedFlow()

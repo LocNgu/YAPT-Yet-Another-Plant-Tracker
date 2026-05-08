@@ -163,7 +163,7 @@ fun PlantListScreen(
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp)
                 ) {
-                    items(plantsWithStatus, key = { it.plant.id }) { status ->
+                    items(plantsWithStatus) { status ->
                         PlantCard(
                             status = status,
                             onClick = { onNavigateToPlant(status.plant.id) },
