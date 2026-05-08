@@ -7,6 +7,25 @@ on:
     branches: [ main, develop ]
 
 jobs:
+  changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      instrumented: ${{ steps.filter.outputs.instrumented }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            instrumented:
+              - 'app/src/androidTest/**'
+              - 'app/src/main/**'
+              - 'app/build.gradle.kts'
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -66,8 +85,13 @@ jobs:
   instrumented:
     name: Instrumented Tests
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    needs: [build, changes]
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+      (github.event_name == 'pull_request' && needs.changes.outputs.instrumented == 'true')
+    concurrency:
+      group: instrumented-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
