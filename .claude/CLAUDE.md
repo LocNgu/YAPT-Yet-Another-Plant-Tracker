@@ -154,13 +154,13 @@ Agents and Claude operate under this permission model to minimise interruptions 
 | `git checkout develop` | Requires permission — a prompt will appear |
 | `git push origin develop` | Requires permission — a prompt will appear |
 | `git checkout main` | **Forbidden** — blocked by `settings.local.json` |
-| `git push --force origin claude/*` | Always allowed — no prompt |
+| `git push --force origin claude/*` | Requires permission — a prompt will appear |
 | `git push --force origin main` / `git push --force origin develop` | **Forbidden** — blocked by `settings.local.json` |
 | `git push origin main` | **Forbidden** — blocked by `settings.local.json` |
 | `git reset --hard` | **Forbidden** — blocked by `settings.local.json` |
 | `gh pr merge` or merging PRs any other way | **Forbidden** — human merges only |
 
-When a prompt appears for `git checkout develop` or `git push origin develop`, it is intentional — approve it when the agent needs to update `develop` directly.
+When a prompt appears for `git checkout develop`, `git push origin develop`, or `git push --force origin claude/*`, it is intentional — approve when appropriate.
 
 ---
 

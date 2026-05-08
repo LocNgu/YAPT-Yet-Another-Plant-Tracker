@@ -31,6 +31,7 @@
 - [x] Tests #9c: ViewModel unit tests with MockK + coroutines-test + turbine (PR #62, issue #48)
 - [x] Tests #9e: BackupManager instrumented integration tests (PR #67, issue #50)
 - [x] Tests #9f: Compose/UI screen tests (instrumented) (PR #70, issue #51)
+- [x] Quick water/fertilize buttons on plant list: compact WaterDrop + Spa IconButtons on each PlantCard; `PlantListViewModel.quickLog()` inserts a CareLog and emits a SharedFlow Snackbar event; list reorders correctly after quick-log; scroll position stays fixed by pixel offset (LazyColumn without key); unit tests for quickLog WATER + FERTILIZE (PR #82, issue #19)
 
 ---
 
@@ -38,9 +39,8 @@
 
 | # | Feature | Priority |
 |---|---|---|
-| ~~[#19](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/19)~~ | ~~Quick water / fertilize buttons on plant list~~ | P1 — PR #82 open |
 | [#32](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/32) | Next watering / fertilizing countdown on plant detail | P1 |
-| ~~[#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21)~~ | ~~Sort and filter options on plant list~~ | P2 — PR #76 open |
+| ~~[#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21)~~ | ~~Sort and filter options on plant list~~ | P2 — merged |
 | [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |
 | [#29](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/29) | Larger plant images on overview and detail screens | P2 |
 | [#31](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/31) | Snooze fertilizing reminder until next watering / auto-sync | P2 |

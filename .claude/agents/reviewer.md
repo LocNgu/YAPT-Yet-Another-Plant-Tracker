@@ -99,25 +99,40 @@ gh pr review {PR_NUMBER} \
 
 ### Resolving fixed comments in round 2
 
-Get the comment IDs from your round 1 review, then reply to each thread that has been addressed:
+Use the GraphQL API to query thread IDs and resolve the ones that are addressed:
 
 ```bash
-# List all review comments to find IDs
-gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/comments
+# 1. Get all review thread IDs and their first comment body
+gh api graphql -f query='
+{
+  repository(owner: "LocNgu", name: "YAPT-Yet-Another-Plant-Tracker") {
+    pullRequest(number: {PR_NUMBER}) {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) { nodes { body } }
+        }
+      }
+    }
+  }
+}'
 
-# Reply to a fixed thread
-gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/comments \
-  --method POST \
-  -f in_reply_to={COMMENT_ID} \
-  -f body="Resolved ✓"
+# 2. For each fixed thread, resolve it
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input: { threadId: "{THREAD_NODE_ID}" }) {
+    thread { isResolved }
+  }
+}'
 ```
 
-For unfixed threads, add a reply noting they are still open, then include them in the new review's inline comments.
+Match thread IDs to your round 1 findings by comparing the comment body. Leave unfixed threads open and re-include them as inline comments in the new round's review.
 
 To file a NON-BLOCKING finding as a GitHub issue:
 ```bash
 gh issue create \
-  --repo LocNgu/YAPT-Yet-Ancient-Plant-Tracker \
+  --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
   --label "enhancement" \
   --title "<short title>" \
   --body "<description of the concern and why it matters>"
