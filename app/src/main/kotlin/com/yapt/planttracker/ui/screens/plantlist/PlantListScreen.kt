@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantCard
 
@@ -62,6 +63,12 @@ fun PlantListScreen(
     LaunchedEffect(restoreMessage) {
         if (restoreMessage != null) {
             snackbarHostState.showSnackbar(restoreMessage)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.quickLogEvent.collect { message ->
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -159,7 +166,9 @@ fun PlantListScreen(
                     items(plantsWithStatus, key = { it.plant.id }) { status ->
                         PlantCard(
                             status = status,
-                            onClick = { onNavigateToPlant(status.plant.id) }
+                            onClick = { onNavigateToPlant(status.plant.id) },
+                            onQuickWater = { viewModel.quickLog(status.plant.id, CareType.WATER) },
+                            onQuickFertilize = { viewModel.quickLog(status.plant.id, CareType.FERTILIZE) }
                         )
                     }
                     item { Spacer(Modifier.height(8.dp)) }
