@@ -1,6 +1,6 @@
 # YAPT – Active Plan
 
-## Status: Feature development phase (as of 2026-05-04)
+## Status: Feature development phase (as of 2026-05-10)
 
 ---
 
@@ -34,6 +34,7 @@
 - [x] Quick water/fertilize buttons on plant list: compact WaterDrop + Spa IconButtons on each PlantCard; `PlantListViewModel.quickLog()` inserts a CareLog and emits a SharedFlow Snackbar event; list reorders correctly after quick-log; scroll position stays fixed by pixel offset (LazyColumn without key); unit tests for quickLog WATER + FERTILIZE (PR #82, issue #19)
 - [x] Fix #4: enable R8 minification (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`) on the release build type; add WorkManager Worker/CoroutineWorker keep rules to proguard-rules.pro (PR #106)
 - [x] Fix #6: PhotoGallery parameter changed from `List<CareLog>` to `List<String>` (photoUris); call site derives URIs via `mapNotNull { it.photoUri }` (PR #107)
+- [x] Watering history chart (PR #108, issue #18): bar chart visualization of watering intervals with time range selector (1/3/6/12 months), last watering date and average interval statistics, Material 3 theme integration using SageGreen and OkGreen; 8 unit tests for interval computation; Vico 2.0.0 M3 Compose dependency added
 
 ---
 
@@ -43,7 +44,7 @@
 |---|---|---|
 | [#32](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/32) | Next watering / fertilizing countdown on plant detail | P1 |
 | ~~[#21](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/21)~~ | ~~Sort and filter options on plant list~~ | P2 — merged |
-| [#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18) | Watering history line chart in plant detail | P2 |
+| ~~[#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18)~~ | ~~Watering history line chart in plant detail~~ | P2 — merged |
 | [#29](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/29) | Larger plant images on overview and detail screens | P2 |
 | [#31](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/31) | Snooze fertilizing reminder until next watering / auto-sync | P2 |
 | [#33](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/33) | Skip watering / "too soon" action without logging a watering | P2 |
