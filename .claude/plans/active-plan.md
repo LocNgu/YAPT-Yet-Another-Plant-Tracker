@@ -65,9 +65,9 @@
 
 1. **Spec** — run the spec agent; it interviews the human and posts clarifications as a comment on the GitHub issue
 2. **Implement** — run the implementer agent; it reads the spec and writes code on a `claude/<kebab-description>` branch, then opens a PR targeting `develop`
-3. **Review** — run the reviewer agent (max 2 rounds of REQUEST CHANGES):
-   - BLOCKING findings must be fixed; NON-BLOCKING findings are filed as new GitHub issues
-   - After round 2 the reviewer must APPROVE; remaining concerns become new issues
-4. **QA** — run the qa agent; it validates build, tests, lint, and every acceptance criterion
+3. **Review** — run the reviewer agent (iterative rounds of REQUEST CHANGES):
+   - BLOCKING findings posted as inline PR review comments; NON-BLOCKING findings filed as new GitHub issues
+   - After round 2 the reviewer escalates to the human with a recommendation instead of auto-approving
+4. **QA** — run the qa agent; it validates build, tests, lint, and every acceptance criterion (compact checklist comment)
 5. **Merge** — human merges the PR; Claude never merges
 6. **Update docs** — implementer updates this file (move to Completed) and `CLAUDE.md` (What's Been Completed + Known Issues)
