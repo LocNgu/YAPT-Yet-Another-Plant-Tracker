@@ -151,9 +151,9 @@ private fun BarColumn(
     modifier: Modifier = Modifier
 ) {
     val normalizedHeight = if (range > 0) {
-        ((value - minValue) / range).coerceIn(0f, 1f)
+        ((value - minValue) / range).coerceIn(0f, 0.99f)
     } else {
-        if (value > 0) 1f else 0.5f
+        if (value > 0) 0.99f else 0.5f
     }
 
     Column(
