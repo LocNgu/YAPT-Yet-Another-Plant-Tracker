@@ -37,6 +37,7 @@ class PlantListScreenTest {
         }
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { plantRepo.getAllRooms() } returns flowOf(rooms)
+        every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
