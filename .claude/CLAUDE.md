@@ -92,7 +92,6 @@ Tracked as GitHub issues:
 
 | # | Description | Severity |
 |---|---|---|
-| [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
@@ -197,3 +196,4 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Quick water/fertilize buttons on plant list: each PlantCard has compact WaterDrop + Spa IconButtons (20dp, onSurfaceVariant tint) in the bottom-right; tapping calls `PlantListViewModel.quickLog()` which inserts a CareLog (WATER: JUST_RIGHT feedback, FERTILIZE: no feedback) and emits a `SharedFlow<String>` Snackbar event; status badges refresh reactively via Room Flow; card body click still navigates to PlantDetail (PR #82, issue #19)
 - CI: instrumented tests now run on PRs when `app/src/main/**`, `app/src/androidTest/**`, or `app/build.gradle.kts` change (path-filtered via `dorny/paths-filter`); concurrency group auto-cancels stacked runs on the same PR; always run on direct push to main/develop (PR #93, issue #87)
 - Release build minification enabled: `isMinifyEnabled = true` and `isShrinkResources = true` on the release build type; WorkManager `Worker`/`CoroutineWorker` keep rules added to `proguard-rules.pro` (PR #106, issue #4)
+- Fix #6: `PhotoGallery` parameter changed from `photoLogs: List<CareLog>` to `photoUris: List<String>`; `CareLog` import removed; null guard inside `items {}` removed; `PlantDetailScreen` derives URIs via `mapNotNull { it.photoUri }` at the call site (PR #107)
