@@ -94,6 +94,8 @@ Repeat the `comments` entries for each BLOCKING finding. Keep the top-level `bod
 
 To find the correct line numbers, use `gh pr diff {PR_NUMBER} --repo LocNgu/YAPT-Yet-Another-Plant-Tracker` and read the changed files.
 
+**Important**: the GitHub API only accepts `line` values that appear in the diff for this PR. If a finding is on a line that was not changed (e.g. a pre-existing bug in surrounding code), omit the `comments` entry for it and include it in the review `body` instead, clearly marked with the file and line number: `File.kt:42 — **BLOCKING**: description`. The review will still be REQUEST CHANGES; the finding just lives in the body rather than as an inline thread.
+
 ### Creating the review (APPROVE)
 
 ```bash
@@ -148,7 +150,8 @@ gh issue create \
 
 This review loop has **no hard round cap**. After each round of REQUEST CHANGES, the implementer responds. Track which round you are on.
 
-- **Each round**: issue REQUEST CHANGES for BLOCKING findings; file NON-BLOCKING findings as GitHub issues.
+- **If a round produces zero BLOCKING findings**: issue APPROVE immediately — do not wait for further rounds. Emit `NEXT: qa | PR: <N>`.
+- **Each round with BLOCKING findings**: issue REQUEST CHANGES; file NON-BLOCKING findings as GitHub issues.
 - **After round 2** (i.e. you have issued REQUEST CHANGES twice and the implementer has responded again): **do not auto-approve**. Instead, post a summary to the PR and stop. The human decides whether to continue.
 
 After round 2, post this to the PR and then report back to the orchestrating Claude instance:
