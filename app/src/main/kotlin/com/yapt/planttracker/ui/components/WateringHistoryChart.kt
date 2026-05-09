@@ -77,7 +77,7 @@ fun WateringHistoryChart(
             }
         }
 
-        if (intervals.size < 2) {
+        if (intervals.isEmpty()) {
             Text(
                 text = stringResource(R.string.insufficient_watering_logs),
                 style = MaterialTheme.typography.bodyMedium,
@@ -151,7 +151,7 @@ private fun BarColumn(
     modifier: Modifier = Modifier
 ) {
     val normalizedHeight = if (range > 0) {
-        (value - minValue) / range
+        ((value - minValue) / range).coerceIn(0f, 1f)
     } else {
         if (value > 0) 1f else 0.5f
     }
