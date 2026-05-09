@@ -33,6 +33,7 @@
 - [x] Tests #9f: Compose/UI screen tests (instrumented) (PR #70, issue #51)
 - [x] Quick water/fertilize buttons on plant list: compact WaterDrop + Spa IconButtons on each PlantCard; `PlantListViewModel.quickLog()` inserts a CareLog and emits a SharedFlow Snackbar event; list reorders correctly after quick-log; scroll position stays fixed by pixel offset (LazyColumn without key); unit tests for quickLog WATER + FERTILIZE (PR #82, issue #19)
 - [x] Fix #4: enable R8 minification (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`) on the release build type; add WorkManager Worker/CoroutineWorker keep rules to proguard-rules.pro (PR #106)
+- [x] Fix #6: PhotoGallery parameter changed from `List<CareLog>` to `List<String>` (photoUris); call site derives URIs via `mapNotNull { it.photoUri }` (PR #107)
 
 ---
 
@@ -53,8 +54,6 @@
 
 | # | Description | Severity |
 |---|---|---|
-| ~~[#4](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/4)~~ | ~~Release build has minification disabled~~ | merged |
-| [#6](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/6) | PhotoGallery takes full CareLog list instead of just URIs | Enhancement |
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration → explicit migrations | Tech debt |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
