@@ -47,7 +47,7 @@ fun WateringHistoryChart(
         .sortedBy { it.loggedAt }
 
     val now = System.currentTimeMillis()
-    val rangeStartMs = now - (selectedRange.daysBack * 24 * 60 * 60 * 1000)
+    val rangeStartMs = now - (selectedRange.daysBack.toLong() * 24 * 60 * 60 * 1000)
 
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
 
