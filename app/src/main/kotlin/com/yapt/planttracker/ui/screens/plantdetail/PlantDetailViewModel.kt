@@ -10,6 +10,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.ui.components.TimeRange
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -48,11 +49,17 @@ class PlantDetailViewModel(
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
+    val selectedTimeRange = MutableStateFlow(TimeRange.ONE_MONTH)
+
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
     fun clearSuggestedInterval() {
         suggestedWateringInterval.value = null
+    }
+
+    fun setTimeRange(range: TimeRange) {
+        selectedTimeRange.value = range
     }
 
     fun applySuggestedInterval(newInterval: Int) {

@@ -43,6 +43,8 @@ import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.StatsRow
+import com.yapt.planttracker.ui.components.TimeRange
+import com.yapt.planttracker.ui.components.WateringHistoryChart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +60,7 @@ fun PlantDetailScreen(
     val photoLogs by viewModel.photoLogs.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
+    val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -155,6 +158,14 @@ fun PlantDetailScreen(
                     StatsRow(status = status)
                     Spacer(Modifier.height(16.dp))
                 }
+            }
+
+            item {
+                WateringHistoryChart(
+                    careLogs = careLogs,
+                    selectedRange = selectedTimeRange,
+                    onRangeSelected = { viewModel.setTimeRange(it) }
+                )
             }
 
             val photoUris = photoLogs.mapNotNull { it.photoUri }
