@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.theme.OkGreen
@@ -23,11 +25,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-enum class TimeRange(val label: String, val daysBack: Int) {
-    ONE_MONTH("1M", 30),
-    THREE_MONTHS("3M", 90),
-    SIX_MONTHS("6M", 180),
-    TWELVE_MONTHS("12M", 365)
+enum class TimeRange(val labelRes: Int, val daysBack: Int) {
+    ONE_MONTH(R.string.time_range_1m, 30),
+    THREE_MONTHS(R.string.time_range_3m, 90),
+    SIX_MONTHS(R.string.time_range_6m, 180),
+    TWELVE_MONTHS(R.string.time_range_12m, 365)
 }
 
 data class WateringInterval(
@@ -56,7 +58,7 @@ fun WateringHistoryChart(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Watering History",
+            text = stringResource(R.string.watering_history),
             style = MaterialTheme.typography.titleMedium
         )
 
@@ -70,14 +72,14 @@ fun WateringHistoryChart(
                 FilterChip(
                     selected = range == selectedRange,
                     onClick = { onRangeSelected(range) },
-                    label = { Text(range.label) }
+                    label = { Text(stringResource(range.labelRes)) }
                 )
             }
         }
 
         if (intervals.size < 2) {
             Text(
-                text = "Need at least 2 watering logs to display history.",
+                text = stringResource(R.string.insufficient_watering_logs),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 32.dp)
@@ -98,7 +100,7 @@ private fun ChartContent(intervals: List<WateringInterval>) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Days between waterings",
+            text = stringResource(R.string.days_between_waterings),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -224,14 +226,14 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
             val dateStr = dateFormatter.format(Instant.ofEpochMilli(lastInterval.timestamp))
 
             Text(
-                text = "Last watering: $dateStr",
+                text = stringResource(R.string.last_watering, dateStr),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             val avgInterval = intervals.map { it.daysSincePrevious }.average()
             Text(
-                text = "Average interval: %.1f days".format(avgInterval),
+                text = stringResource(R.string.average_interval, avgInterval),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
