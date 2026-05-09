@@ -13,33 +13,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.yapt.planttracker.domain.model.CareLog
 
 @Composable
 fun PhotoGallery(
-    photoLogs: List<CareLog>,
+    photoUris: List<String>,
     onPhotoClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (photoLogs.isEmpty()) return
+    if (photoUris.isEmpty()) return
 
     LazyRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
-        items(photoLogs, key = { it.id }) { log ->
-            log.photoUri?.let { uri ->
-                AsyncImage(
-                    model = uri,
-                    contentDescription = "Care log photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onPhotoClick(uri) }
-                )
-            }
+        items(photoUris, key = { it }) { uri ->
+            AsyncImage(
+                model = uri,
+                contentDescription = "Care log photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onPhotoClick(uri) }
+            )
         }
     }
 }

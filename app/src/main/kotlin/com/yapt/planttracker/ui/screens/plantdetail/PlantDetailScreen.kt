@@ -157,7 +157,8 @@ fun PlantDetailScreen(
                 }
             }
 
-            if (photoLogs.isNotEmpty()) {
+            val photoUris = photoLogs.mapNotNull { it.photoUri }
+            if (photoUris.isNotEmpty()) {
                 item {
                     Text(
                         text = "Photos",
@@ -165,7 +166,7 @@ fun PlantDetailScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                     PhotoGallery(
-                        photoLogs = photoLogs,
+                        photoUris = photoUris,
                         onPhotoClick = {}
                     )
                     Spacer(Modifier.height(16.dp))
