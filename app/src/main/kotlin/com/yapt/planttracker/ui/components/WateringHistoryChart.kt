@@ -26,6 +26,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
@@ -131,10 +132,10 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
             val monthIntervals = intervals.filter {
                 it.timestamp >= monthStartMs && it.timestamp < monthEndMs
             }
-            val y = if (monthIntervals.isEmpty()) Float.NaN
-                    else monthIntervals.map { it.daysSincePrevious }.average().toFloat()
-
-            points.add(monthIndex.toFloat() to y)
+            if (monthIntervals.isNotEmpty()) {
+                val y = monthIntervals.map { it.daysSincePrevious }.average().toFloat()
+                points.add(monthIndex.toFloat() to y)
+            }
             indexToZdt.add(monthStart)
 
             monthIndex++
@@ -196,9 +197,17 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        val totalMonths = monthLabels.size
+        val rangeProvider = remember(totalMonths) {
+            CartesianLayerRangeProvider.fixed(
+                minX = 0.0,
+                maxX = (totalMonths - 1).coerceAtLeast(0).toDouble()
+            )
+        }
+
         CartesianChartHost(
             chart = rememberCartesianChart(
-                rememberLineCartesianLayer(),
+                rememberLineCartesianLayer(rangeProvider = rangeProvider),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = dayFormatter
                 ),
