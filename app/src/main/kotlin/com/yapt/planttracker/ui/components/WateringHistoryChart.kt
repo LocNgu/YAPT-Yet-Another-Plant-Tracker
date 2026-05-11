@@ -21,6 +21,8 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -129,7 +131,7 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
             val monthIntervals = intervals.filter {
                 it.timestamp >= monthStartMs && it.timestamp < monthEndMs
             }
-            val y = if (monthIntervals.isEmpty()) 0f
+            val y = if (monthIntervals.isEmpty()) Float.NaN
                     else monthIntervals.map { it.daysSincePrevious }.average().toFloat()
 
             points.add(monthIndex.toFloat() to y)
@@ -207,7 +209,9 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp)
+                .height(250.dp),
+            scrollState = rememberVicoScrollState(scrollEnabled = false),
+            zoomState = rememberVicoZoomState(zoomEnabled = false),
         )
     }
 
