@@ -23,6 +23,7 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
@@ -223,6 +224,8 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
             scrollState = rememberVicoScrollState(
                 scrollEnabled = true,
                 initialScroll = Scroll.Absolute.End,
+                autoScroll = Scroll.Absolute.End,
+                autoScrollCondition = AutoScrollCondition { _, _ -> true },
             ),
             zoomState = rememberVicoZoomState(zoomEnabled = false),
         )
