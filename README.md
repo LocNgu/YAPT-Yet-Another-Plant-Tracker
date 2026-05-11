@@ -11,7 +11,9 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Care reminders** — Daily local notifications for overdue or due-today plants
 - **Room grouping** — Assign plants to rooms and filter the home screen by room
 - **Countdown labels** — Each plant card shows "In X days", "Due today", or "Overdue by X days" for watering and fertilizing, colour-coded green/orange/red
+- **Quick log buttons** — One-tap water and fertilize buttons on each plant card; no need to open the detail screen
 - **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
+- **Watering history chart** — Line chart on the plant detail screen showing average days between waterings per calendar month; selectable time ranges (1M / 3M / 6M / 12M / All)
 - **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
 - **Photo gallery** — Scrollable thumbnail gallery of all care photos per plant
 - **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
