@@ -61,13 +61,16 @@ data class WateringInterval(
 @Composable
 fun WateringHistoryChart(
     careLogs: List<CareLog>,
-    selectedRange: TimeRange = TimeRange.ONE_MONTH,
+    selectedRange: TimeRange = TimeRange.TWELVE_MONTHS,
     onRangeSelected: (TimeRange) -> Unit
 ) {
     val wateringLogs = careLogs.filter { it.careType == CareType.WATER }
         .sortedBy { it.loggedAt }
 
-    val now = System.currentTimeMillis()
+    // Capture once so it stays stable across recompositions — using a fresh
+    // System.currentTimeMillis() each recomposition would defeat the
+    // remember-keys on the month-aggregation block below.
+    val now = remember { System.currentTimeMillis() }
     val rangeStartMs = when (selectedRange) {
         TimeRange.ALL_TIME -> wateringLogs.minByOrNull { it.loggedAt }?.loggedAt ?: now
         else -> now - (selectedRange.daysBack.toLong() * DAY_IN_MS)
@@ -225,7 +228,13 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
                 scrollEnabled = true,
                 initialScroll = Scroll.Absolute.End,
                 autoScroll = Scroll.Absolute.End,
-                autoScrollCondition = AutoScrollCondition { _, _ -> true },
+                // Fire only when the data's x-extent changes — which happens on
+                // a time-range switch or a new watering at the right edge — so
+                // unrelated CareLog emissions (fertilize, prune, photo) don't
+                // yank the chart away while the user is scrolling history.
+                autoScrollCondition = AutoScrollCondition { old, new ->
+                    old?.models?.firstOrNull()?.maxX != new?.models?.firstOrNull()?.maxX
+                },
             ),
             zoomState = rememberVicoZoomState(zoomEnabled = false),
         )
