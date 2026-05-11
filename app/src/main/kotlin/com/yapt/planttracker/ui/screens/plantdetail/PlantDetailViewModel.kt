@@ -49,7 +49,7 @@ class PlantDetailViewModel(
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
-    val selectedTimeRange = MutableStateFlow(TimeRange.ONE_MONTH)
+    val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events

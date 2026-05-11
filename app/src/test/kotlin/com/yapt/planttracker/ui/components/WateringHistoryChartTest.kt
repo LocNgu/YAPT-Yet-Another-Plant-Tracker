@@ -126,4 +126,54 @@ class WateringHistoryChartTest {
         val result = computeWateringIntervals(listOf(log1, log2), 0L, timestamp + 1)
         assertEquals(timestamp, result[0].timestamp)
     }
+
+    @Test
+    fun computeWateringIntervals_allTimeRange() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 3)
+        )
+        val result = computeWateringIntervals(logs, 0L, 100L + dayInMs * 4)
+        assertEquals(2, result.size)
+        assertEquals(1f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(2f, result[1].daysSincePrevious, 0.01f)
+    }
+
+    @Test
+    fun computeWateringIntervals_sameDayDifferentTimes() {
+        val hourInMs = 60 * 60 * 1000L
+        val baseTime = 1712102400000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = baseTime),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + hourInMs),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + (hourInMs * 2))
+        )
+        val result = computeWateringIntervals(logs, baseTime - 86400000, baseTime + (hourInMs * 3))
+        assertEquals(2, result.size)
+        assertEquals(baseTime + hourInMs, result[0].timestamp)
+        assertEquals(baseTime + (hourInMs * 2), result[1].timestamp)
+        val expectedInterval = (1.0f / 24.0f)
+        assertEquals(expectedInterval, result[0].daysSincePrevious, 0.01f)
+        assertEquals(expectedInterval, result[1].daysSincePrevious, 0.01f)
+    }
+
+    @Test
+    fun computeWateringIntervals_xAxisSpreadsMultipleDates() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val hourInMs = 60 * 60 * 1000L
+        val baseTime = 1712102400000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = baseTime),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + dayInMs),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + (dayInMs * 2))
+        )
+        val result = computeWateringIntervals(logs, 0L, baseTime + (dayInMs * 3))
+        assertEquals(2, result.size)
+        val xValues = result.map { it.timestamp / 1_000f }
+        assertTrue("X values should be different across days", xValues[0] != xValues[1])
+        assertEquals(1f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(1f, result[1].daysSincePrevious, 0.01f)
+    }
 }
