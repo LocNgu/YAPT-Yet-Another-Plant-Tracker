@@ -175,8 +175,9 @@ fun PlantCard(
             }
 
             Column(
-                verticalArrangement = Arrangement.Bottom,
-                horizontalAlignment = Alignment.End
+                modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 IconButton(
                     onClick = onQuickWater,
