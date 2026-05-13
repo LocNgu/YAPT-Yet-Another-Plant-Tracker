@@ -63,7 +63,7 @@ fun PlantCard(
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(80.dp)
+                    .width(90.dp)
                     .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
             ) {
                 if (status.plant.coverPhotoUri != null) {

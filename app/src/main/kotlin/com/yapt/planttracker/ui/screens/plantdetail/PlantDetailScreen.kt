@@ -259,7 +259,7 @@ fun PlantDetailScreen(
             IconButton(
                 onClick = onNavigateBack,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.30f)
+                    containerColor = Color.Black.copy(alpha = 0.60f)
                 )
             ) {
                 Icon(
@@ -272,7 +272,7 @@ fun PlantDetailScreen(
             IconButton(
                 onClick = onNavigateToEdit,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.30f)
+                    containerColor = Color.Black.copy(alpha = 0.60f)
                 )
             ) {
                 Icon(
