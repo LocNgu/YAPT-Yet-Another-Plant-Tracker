@@ -35,6 +35,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,11 +89,11 @@ fun PlantDetailScreen(
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
+        Box(Modifier.fillMaxSize()) {
         if (plant != null) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -257,7 +258,9 @@ fun PlantDetailScreen(
         ) {
             IconButton(
                 onClick = onNavigateBack,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = Color.Black.copy(alpha = 0.30f)
+                )
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
@@ -268,7 +271,9 @@ fun PlantDetailScreen(
             Spacer(Modifier.weight(1f))
             IconButton(
                 onClick = onNavigateToEdit,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent)
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = Color.Black.copy(alpha = 0.30f)
+                )
             ) {
                 Icon(
                     Icons.Filled.Edit,
@@ -294,5 +299,6 @@ fun PlantDetailScreen(
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
         )
+        }
     }
 }
