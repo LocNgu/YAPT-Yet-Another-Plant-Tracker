@@ -72,7 +72,9 @@ fun PlantDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val iconTint = if (plant?.coverPhotoUri != null) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
+    val hasPhoto = plant?.coverPhotoUri != null
+    val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
+    val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
     LaunchedEffect(suggestedInterval) {
         suggestedInterval?.let { interval ->
@@ -259,7 +261,7 @@ fun PlantDetailScreen(
             IconButton(
                 onClick = onNavigateBack,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.60f)
+                    containerColor = iconContainerColor
                 )
             ) {
                 Icon(
@@ -272,7 +274,7 @@ fun PlantDetailScreen(
             IconButton(
                 onClick = onNavigateToEdit,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.60f)
+                    containerColor = iconContainerColor
                 )
             ) {
                 Icon(
