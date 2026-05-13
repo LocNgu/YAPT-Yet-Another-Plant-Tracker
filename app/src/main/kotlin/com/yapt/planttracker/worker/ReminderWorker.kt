@@ -37,8 +37,8 @@ class ReminderWorker(
         val now = System.currentTimeMillis()
         val notificationManager = context.getSystemService(NotificationManager::class.java)
 
-        // Cancel existing plant notifications before re-posting
-        plants.forEach { plant -> notificationManager.cancel(plant.id.toInt()) }
+        // Cancel all existing notifications (covers deleted plants whose IDs are no longer in `plants`)
+        notificationManager.cancelAll()
 
         for (plant in plants) {
             val lastWatering = if (plant.wateringIntervalDays != null) {
@@ -94,21 +94,15 @@ class ReminderWorker(
         val parts = mutableListOf<String>()
 
         if (status.isOverdue) {
-            val days = ((now - status.nextWateringDueAt!!) / dayMs).toInt()
-            parts.add(
-                if (days <= 0) "Watering due today"
-                else "Watering overdue by $days ${if (days == 1) "day" else "days"}"
-            )
+            val days = ((now - status.nextWateringDueAt!!) / dayMs).toInt().coerceAtLeast(1)
+            parts.add("Watering overdue by $days ${if (days == 1) "day" else "days"}")
         } else if (status.isDueSoon) {
             parts.add("Watering due today")
         }
 
         if (status.isFertilizingOverdue) {
-            val days = ((now - status.nextFertilizingDueAt!!) / dayMs).toInt()
-            parts.add(
-                if (days <= 0) "Fertilizing due today"
-                else "Fertilizing overdue by $days ${if (days == 1) "day" else "days"}"
-            )
+            val days = ((now - status.nextFertilizingDueAt!!) / dayMs).toInt().coerceAtLeast(1)
+            parts.add("Fertilizing overdue by $days ${if (days == 1) "day" else "days"}")
         } else if (status.isFertilizingDueSoon) {
             parts.add("Fertilizing due today")
         }
