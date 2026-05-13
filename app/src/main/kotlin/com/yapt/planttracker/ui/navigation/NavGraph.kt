@@ -23,8 +23,19 @@ import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 
 @Composable
-fun YaptNavGraph(app: YaptApplication) {
+fun YaptNavGraph(
+    app: YaptApplication,
+    initialPlantId: Long? = null,
+    onDeepLinkConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(initialPlantId) {
+        if (initialPlantId != null) {
+            navController.navigate(Screen.PlantDetail.createRoute(initialPlantId))
+            onDeepLinkConsumed()
+        }
+    }
 
     NavHost(
         navController = navController,
