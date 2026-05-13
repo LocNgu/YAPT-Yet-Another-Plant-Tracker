@@ -52,7 +52,7 @@ fun PlantCard(
         ) {
             PlantPhoto(
                 uri = status.plant.coverPhotoUri,
-                size = 64.dp,
+                size = 80.dp,
                 rounded = true
             )
 
