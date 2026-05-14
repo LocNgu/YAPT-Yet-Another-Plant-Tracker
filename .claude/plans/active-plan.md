@@ -35,6 +35,7 @@
 - [x] Fix #4: enable R8 minification (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`) on the release build type; add WorkManager Worker/CoroutineWorker keep rules to proguard-rules.pro (PR #106)
 - [x] Fix #6: PhotoGallery parameter changed from `List<CareLog>` to `List<String>` (photoUris); call site derives URIs via `mapNotNull { it.photoUri }` (PR #107)
 - [x] Watering history chart (PR #108, issue #18): bar chart visualization of watering intervals with time range selector (1/3/6/12 months), last watering date and average interval statistics, Material 3 theme integration using SageGreen and OkGreen; 8 unit tests for interval computation; Vico 2.0.0 M3 Compose dependency added
+- [x] Fix #8: remove `fallbackToDestructiveMigration()` — Room hard-crashes on missing migration path; `1.json` baseline committed; future schema changes must ship with explicit `Migration` objects (PR #123)
 
 ---
 
@@ -56,7 +57,7 @@
 | # | Description | Severity |
 |---|---|---|
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
-| [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration → explicit migrations | Tech debt |
+| ~~[#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8)~~ | ~~fallbackToDestructiveMigration → explicit migrations~~ | ~~Tech debt~~ — merged PR #123 |
 | [#9](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/9) | No unit tests for CareSchedule | Testing |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 

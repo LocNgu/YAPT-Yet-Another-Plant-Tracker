@@ -93,7 +93,6 @@ Tracked as GitHub issues:
 | # | Description | Severity |
 |---|---|---|
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
-| [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
 | [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
@@ -164,7 +163,7 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 
 ## What's Been Completed
 
-- Full Room database (PlantEntity, CareLogEntity, DAOs, migrations via `fallbackToDestructiveMigration` for v1)
+- Full Room database (PlantEntity, CareLogEntity, DAOs, explicit migrations required — hard-crash on missing migration path, baseline schema `1.json` committed)
 - PlantRepository + CareLogRepository with domain mapping
 - All domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus
 - CareSchedule: `computeStatus()` and `computeSuggestedInterval()` pure functions
