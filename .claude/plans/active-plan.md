@@ -35,6 +35,7 @@
 - [x] Fix #4: enable R8 minification (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`) on the release build type; add WorkManager Worker/CoroutineWorker keep rules to proguard-rules.pro (PR #106)
 - [x] Fix #6: PhotoGallery parameter changed from `List<CareLog>` to `List<String>` (photoUris); call site derives URIs via `mapNotNull { it.photoUri }` (PR #107)
 - [x] Watering history chart (PR #108, issue #18): bar chart visualization of watering intervals with time range selector (1/3/6/12 months), last watering date and average interval statistics, Material 3 theme integration using SageGreen and OkGreen; 8 unit tests for interval computation; Vico 2.0.0 M3 Compose dependency added
+- [x] Fix #105: correct adaptive interval for JUST_RIGHT and TOO_SOON feedback (PR #124) — removed unconditional JUST_RIGHT early return so actual gap is surfaced as a suggestion when it differs from stored interval; TOO_SOON now uses stored interval as base when user watered early (actual < stored), extending beyond the stored value instead of collapsing toward the actual gap; 4 new CareScheduleTest cases + updated AddCareLogViewModelTest
 
 ---
 
