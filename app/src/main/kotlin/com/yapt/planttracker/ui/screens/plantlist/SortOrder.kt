@@ -1,6 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
-enum class SortOption { ALPHABETICAL, WATERING_DUE, FERTILIZING_DUE, RECENTLY_ADDED }
+enum class SortOption { ALPHABETICAL, WATERING_DUE, FERTILIZING_DUE, RECENTLY_ADDED, BOTH_DUE }
 
 enum class SortDirection { ASC, DESC }
 
