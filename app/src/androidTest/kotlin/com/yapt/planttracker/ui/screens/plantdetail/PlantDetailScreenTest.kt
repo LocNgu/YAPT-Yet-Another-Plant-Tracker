@@ -48,7 +48,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // Plant name appears in both the TopAppBar title and the content body; asserting at least one is displayed.
+        // Plant name appears in the content body.
         composeTestRule.onAllNodesWithText("Ficus")[0].assertIsDisplayed()
     }
 
