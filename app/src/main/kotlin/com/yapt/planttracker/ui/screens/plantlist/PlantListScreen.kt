@@ -156,8 +156,13 @@ fun PlantListScreen(
             }
 
             if (plantsWithStatus.isEmpty()) {
+                val emptyMessage = if (sortOrder.option == SortOption.BOTH_DUE) {
+                    "No plants need both watering\nand fertilizing right now."
+                } else {
+                    "No plants yet!\nTap + to add your first plant."
+                }
                 EmptyStateView(
-                    message = "No plants yet!\nTap + to add your first plant.",
+                    message = emptyMessage,
                     icon = Icons.Filled.LocalFlorist
                 )
             } else {

@@ -172,14 +172,7 @@ class PlantListViewModel(
                     .filter { s ->
                         (s.isOverdue || s.isDueSoon) && (s.isFertilizingOverdue || s.isFertilizingDueSoon)
                     }
-                    .sortedWith(
-                        compareBy<PlantCareStatus> { status ->
-                            minOf(
-                                status.nextWateringDueAt ?: Long.MAX_VALUE,
-                                status.nextFertilizingDueAt ?: Long.MAX_VALUE
-                            )
-                        }.then(tiebreak)
-                    )
+                    .sortedWith(compareBy<PlantCareStatus> { it.plant.name.lowercase() }.then(tiebreak))
             }
         }
     }
