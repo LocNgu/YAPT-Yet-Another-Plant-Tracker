@@ -208,4 +208,27 @@ class CareScheduleTest {
         val later = now + TimeUnit.DAYS.toMillis(5)
         assertEquals(5, CareSchedule.daysBetween(earlier, later))
     }
+
+    @Test
+    fun `TOO_SOON with early watering extends beyond stored interval`() {
+        // actual=7, stored=14 → user watered early; interval should grow past 14
+        assertEquals(15, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, 14))
+    }
+
+    @Test
+    fun `TOO_SOON with on-schedule or late watering uses actual interval`() {
+        // actual=9, stored=7 → user watered late; base is actual
+        assertEquals(10, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 9, 7))
+    }
+
+    @Test
+    fun `TOO_SOON with no current interval uses actual interval`() {
+        assertEquals(8, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, null))
+    }
+
+    @Test
+    fun `JUST_RIGHT with early watering returns actual interval`() {
+        // actual=7, stored=14 → suggestion is 7 (ViewModel will surface this as a change)
+        assertEquals(7, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 7, 14))
+    }
 }
