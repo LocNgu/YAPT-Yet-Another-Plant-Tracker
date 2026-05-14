@@ -107,7 +107,7 @@ class ReminderWorker(
             parts.add("Fertilizing due today")
         }
 
-        return parts.joinToString(" · ")
+        return if (parts.size > 1) "Watering and fertilizing due" else parts.firstOrNull() ?: ""
     }
 
     companion object {
