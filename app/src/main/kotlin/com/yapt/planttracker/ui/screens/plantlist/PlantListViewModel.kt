@@ -168,11 +168,21 @@ class PlantListViewModel(
                 list.sortedWith(tiebreak)
             }
             SortOption.BOTH_DUE -> {
+                val nullsLast = Comparator<PlantCareStatus> { a, b ->
+                    val aVal = a.nextWateringDueAt
+                    val bVal = b.nextWateringDueAt
+                    when {
+                        aVal == null && bVal == null -> 0
+                        aVal == null -> 1
+                        bVal == null -> -1
+                        else -> aVal.compareTo(bVal)
+                    }
+                }
                 list
                     .filter { s ->
                         (s.isOverdue || s.isDueSoon) && (s.isFertilizingOverdue || s.isFertilizingDueSoon)
                     }
-                    .sortedWith(compareBy<PlantCareStatus> { it.plant.name.lowercase() }.then(tiebreak))
+                    .sortedWith(nullsLast.then(tiebreak))
             }
         }
     }
