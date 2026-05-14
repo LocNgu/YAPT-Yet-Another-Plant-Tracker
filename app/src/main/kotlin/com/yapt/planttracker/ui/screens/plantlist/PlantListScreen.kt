@@ -96,6 +96,7 @@ fun PlantListScreen(
                                     SortOption.WATERING_DUE -> "Watering due"
                                     SortOption.FERTILIZING_DUE -> "Fertilizing due"
                                     SortOption.RECENTLY_ADDED -> "Recently added"
+                                    SortOption.BOTH_DUE -> "Water + Fertilize due"
                                 }
                                 DropdownMenuItem(
                                     text = {
