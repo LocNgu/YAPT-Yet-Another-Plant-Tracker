@@ -92,4 +92,8 @@ app/src/main/kotlin/com/yapt/planttracker/
 
 ## License
 
-MIT
+Copyright © 2026 LocNgu. All rights reserved.
+
+The source code is publicly available for viewing and reference only.
+Redistribution, modification, and commercial use are prohibited without
+explicit written permission from the author.
