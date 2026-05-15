@@ -93,7 +93,6 @@ Tracked as GitHub issues:
 | # | Description | Severity |
 |---|---|---|
 | [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
-| [#8](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/8) | fallbackToDestructiveMigration should become explicit migrations | Tech debt |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
 | [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
@@ -164,7 +163,7 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 
 ## What's Been Completed
 
-- Full Room database (PlantEntity, CareLogEntity, DAOs, migrations via `fallbackToDestructiveMigration` for v1)
+- Full Room database (PlantEntity, CareLogEntity, DAOs, explicit migrations required — hard-crash on missing migration path, baseline schema `1.json` committed)
 - PlantRepository + CareLogRepository with domain mapping
 - All domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus
 - CareSchedule: `computeStatus()` and `computeSuggestedInterval()` pure functions
@@ -202,3 +201,4 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Unique notification IDs per plant (issue #7): `ReminderWorker` posts one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications at start of each run before re-posting; title = plant name, body = care items joined with " · " (e.g. "Watering overdue by 2 days · Fertilizing due today"); tapping deep-links to PlantDetailScreen via `MainActivity` intent extra `plantId`; `MainActivity` reads the extra in `onCreate` (when `savedInstanceState==null`) and `onNewIntent`, passes to `YaptNavGraph` which navigates via `LaunchedEffect`. No `NOTIFICATION_ID = 1001` constant — removed.
 - "Water + Fertilize due" filter in sort dropdown (PR #121, issue #78): new `BOTH_DUE` SortOption filters the plant list to only plants where both watering AND fertilizing are due or overdue (`isOverdue || isDueSoon` for each); results sorted by `nextWateringDueAt` ascending (watering urgency takes priority); empty state shows "No plants need both watering and fertilizing right now." instead of the default copy; no direction toggle; persists via existing `SORT_OPTION` DataStore key with no new keys or DB changes.
 - Fix #105: correct adaptive interval for JUST_RIGHT and TOO_SOON feedback (PR #124): removed unconditional `JUST_RIGHT` early return in `AddCareLogViewModel` so the actual gap is surfaced as a suggestion when it differs from the stored interval; `CareSchedule.computeSuggestedInterval` accepts optional `currentIntervalDays` — when `TOO_SOON` and `actual < stored`, uses stored as the base so the suggestion extends beyond the stored interval rather than collapsing toward the actual gap; 4 new `CareScheduleTest` cases + updated `AddCareLogViewModelTest` (6 tests total).
+- Fix #8: replaced `fallbackToDestructiveMigration()` with hard-crash behavior — Room now throws at startup if a DB version bump ships without an explicit `Migration` object; `app/schemas/.../1.json` baseline committed; future migrations must be registered via `.addMigrations(...)` before bumping `version` in `PlantDatabase`
