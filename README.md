@@ -63,6 +63,28 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 Or open the project in Android Studio and run it directly on a device or emulator (API 26+).
 
+### Debug keystore
+
+The debug keystore is not committed to the repo. Without it, Android Studio falls back to its own default keystore at `~/.android/debug.keystore`, which works fine for local development.
+
+If you need to install CI-built APKs over locally-built ones (or vice versa) without uninstalling first, you need the exact same keystore that CI uses. Decode it from the `DEBUG_KEYSTORE_BASE64` secret:
+
+```bash
+echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
+```
+
+Alternatively, generate a local-only debug keystore (different identity from CI — in-place upgrades between local and CI builds will require an uninstall):
+
+```bash
+keytool -genkey -v \
+  -keystore app/debug.keystore \
+  -alias androiddebugkey \
+  -keyalg RSA -keysize 2048 \
+  -validity 10000 \
+  -storepass android -keypass android \
+  -dname "CN=Android Debug, O=Android, C=US"
+```
+
 ## CI/CD
 
 GitHub Actions builds a debug APK on every push to `main`, `develop`, and `claude/**` branches. A release APK is built automatically when code lands on `main`. Artifacts are available for download from the Actions tab.
@@ -92,4 +114,8 @@ app/src/main/kotlin/com/yapt/planttracker/
 
 ## License
 
-MIT
+Copyright © 2026 LocNgu. All rights reserved.
+
+The source code is publicly available for viewing and reference only.
+Redistribution, modification, and commercial use are prohibited without
+explicit written permission from the author.

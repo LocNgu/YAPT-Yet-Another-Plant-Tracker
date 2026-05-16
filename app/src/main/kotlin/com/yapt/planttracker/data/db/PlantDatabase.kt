@@ -28,7 +28,6 @@ abstract class PlantDatabase : RoomDatabase() {
                     PlantDatabase::class.java,
                     "yapt_database"
                 )
-                    .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
             }
