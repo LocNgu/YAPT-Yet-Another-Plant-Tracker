@@ -63,6 +63,22 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 Or open the project in Android Studio and run it directly on a device or emulator (API 26+).
 
+### Debug keystore
+
+The debug keystore is not committed to the repo. To build locally with a consistent signing identity (required for in-place APK upgrades between local and CI builds), generate it once:
+
+```bash
+keytool -genkey -v \
+  -keystore app/debug.keystore \
+  -alias androiddebugkey \
+  -keyalg RSA -keysize 2048 \
+  -validity 10000 \
+  -storepass android -keypass android \
+  -dname "CN=Android Debug, O=Android, C=US"
+```
+
+Without this file, Android Studio falls back to its own default debug keystore at `~/.android/debug.keystore`, which works fine for development but produces APKs with a different signature than CI builds.
+
 ## CI/CD
 
 GitHub Actions builds a debug APK on every push to `main`, `develop`, and `claude/**` branches. A release APK is built automatically when code lands on `main`. Artifacts are available for download from the Actions tab.
