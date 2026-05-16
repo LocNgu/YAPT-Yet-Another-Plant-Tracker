@@ -65,7 +65,15 @@ Or open the project in Android Studio and run it directly on a device or emulato
 
 ### Debug keystore
 
-The debug keystore is not committed to the repo. To build locally with a consistent signing identity (required for in-place APK upgrades between local and CI builds), generate it once:
+The debug keystore is not committed to the repo. Without it, Android Studio falls back to its own default keystore at `~/.android/debug.keystore`, which works fine for local development.
+
+If you need to install CI-built APKs over locally-built ones (or vice versa) without uninstalling first, you need the exact same keystore that CI uses. Decode it from the `DEBUG_KEYSTORE_BASE64` secret:
+
+```bash
+echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
+```
+
+Alternatively, generate a local-only debug keystore (different identity from CI — in-place upgrades between local and CI builds will require an uninstall):
 
 ```bash
 keytool -genkey -v \
@@ -76,8 +84,6 @@ keytool -genkey -v \
   -storepass android -keypass android \
   -dname "CN=Android Debug, O=Android, C=US"
 ```
-
-Without this file, Android Studio falls back to its own default debug keystore at `~/.android/debug.keystore`, which works fine for development but produces APKs with a different signature than CI builds.
 
 ## CI/CD
 
