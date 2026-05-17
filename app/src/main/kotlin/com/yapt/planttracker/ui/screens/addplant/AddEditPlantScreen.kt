@@ -255,7 +255,7 @@ fun AddEditPlantScreen(
                 maxLines = 6
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(72.dp))
         }
     }
 }
