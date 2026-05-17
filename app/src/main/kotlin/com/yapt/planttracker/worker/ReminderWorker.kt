@@ -17,8 +17,9 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.util.toLocalDate
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.TimeUnit
 
 class ReminderWorker(
     private val context: Context,
@@ -90,18 +91,18 @@ class ReminderWorker(
     }
 
     private fun buildCareBody(status: PlantCareStatus, now: Long): String {
-        val dayMs = TimeUnit.DAYS.toMillis(1)
         val parts = mutableListOf<String>()
+        val nowDate = now.toLocalDate()
 
         if (status.isOverdue) {
-            val days = ((now - status.nextWateringDueAt!!) / dayMs).toInt().coerceAtLeast(1)
+            val days = ChronoUnit.DAYS.between(status.nextWateringDueAt!!.toLocalDate(), nowDate).toInt()
             parts.add("Watering overdue by $days ${if (days == 1) "day" else "days"}")
         } else if (status.isDueSoon) {
             parts.add("Watering due today")
         }
 
         if (status.isFertilizingOverdue) {
-            val days = ((now - status.nextFertilizingDueAt!!) / dayMs).toInt().coerceAtLeast(1)
+            val days = ChronoUnit.DAYS.between(status.nextFertilizingDueAt!!.toLocalDate(), nowDate).toInt()
             parts.add("Fertilizing overdue by $days ${if (days == 1) "day" else "days"}")
         } else if (status.isFertilizingDueSoon) {
             parts.add("Fertilizing due today")

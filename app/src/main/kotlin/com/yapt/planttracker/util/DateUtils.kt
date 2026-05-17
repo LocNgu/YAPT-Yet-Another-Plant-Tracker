@@ -1,10 +1,16 @@
 package com.yapt.planttracker.util
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
+
+internal fun Long.toLocalDate(): LocalDate =
+    Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
 
 object DateUtils {
 
@@ -22,13 +28,11 @@ object DateUtils {
     }
 
     fun formatCountdown(dueAtMs: Long, now: Long = System.currentTimeMillis()): String {
-        val diffMs = dueAtMs - now
-        val absDays = TimeUnit.MILLISECONDS.toDays(abs(diffMs))
+        val diffDays = ChronoUnit.DAYS.between(now.toLocalDate(), dueAtMs.toLocalDate())
         return when {
-            diffMs < 0 && absDays == 0L -> "Overdue"
-            diffMs < 0 -> "Overdue by $absDays day${if (absDays == 1L) "" else "s"}"
-            absDays == 0L -> "Due today"
-            else -> "In $absDays day${if (absDays == 1L) "" else "s"}"
+            diffDays < 0 -> "Overdue by ${-diffDays} day${if (-diffDays == 1L) "" else "s"}"
+            diffDays == 0L -> "Due today"
+            else -> "In $diffDays day${if (diffDays == 1L) "" else "s"}"
         }
     }
 
