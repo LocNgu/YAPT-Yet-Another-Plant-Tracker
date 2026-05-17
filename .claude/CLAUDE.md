@@ -121,7 +121,7 @@ Every feature and bug fix follows these steps in order:
    - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - **Posts a compact checklist comment on the PR** (under 15 lines for a passing run)
-5. **Update docs** — implementer updates `active-plan.md`, this file, and `CHANGELOG.md` (`[Unreleased]` section) to reflect completion
+5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
 6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread.
@@ -208,3 +208,4 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Fix #8: replaced `fallbackToDestructiveMigration()` with hard-crash behavior — Room now throws at startup if a DB version bump ships without an explicit `Migration` object; `app/schemas/.../1.json` baseline committed; future migrations must be registered via `.addMigrations(...)` before bumping `version` in `PlantDatabase`
 - Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen scrollable Column modifier chains (after `verticalScroll`, before inner `padding(16.dp)`); bottom Spacer reduced from 72 dp to 16 dp on both screens so the soft keyboard no longer obscures the Notes field
 - CHANGELOG.md created at repo root using Keep a Changelog format; backfilled releases 0.1.0–0.4.2; implementer now adds `[Unreleased]` entries as part of dev workflow step 5 (issue #143)
+- What's New bottom sheet (issue #147): `ModalBottomSheet` shown on first launch after each update (and fresh install); compares `BuildConfig.VERSION_CODE` vs. `LAST_SEEN_VERSION_CODE` in DataStore; content in `WhatsNewContent.kt` updated by implementer each PR; `buildConfig = true` enabled in build.gradle.kts
