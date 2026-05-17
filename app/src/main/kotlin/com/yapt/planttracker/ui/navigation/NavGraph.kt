@@ -3,13 +3,21 @@ package com.yapt.planttracker.ui.navigation
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.yapt.planttracker.BuildConfig
 import com.yapt.planttracker.YaptApplication
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
@@ -21,6 +29,9 @@ import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
+import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Composable
 fun YaptNavGraph(
@@ -29,6 +40,15 @@ fun YaptNavGraph(
     onDeepLinkConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val scope = rememberCoroutineScope()
+    var showWhatsNew by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val lastSeen = app.settingsDataStore.data.first()[SettingsKeys.LAST_SEEN_VERSION_CODE] ?: 0
+        if (BuildConfig.VERSION_CODE > lastSeen) {
+            showWhatsNew = true
+        }
+    }
 
     LaunchedEffect(initialPlantId) {
         if (initialPlantId != null) {
@@ -180,5 +200,16 @@ fun YaptNavGraph(
                 }
             )
         }
+    }
+
+    if (showWhatsNew) {
+        WhatsNewSheet(onDismiss = {
+            showWhatsNew = false
+            scope.launch {
+                app.settingsDataStore.edit {
+                    it[SettingsKeys.LAST_SEEN_VERSION_CODE] = BuildConfig.VERSION_CODE
+                }
+            }
+        })
     }
 }

@@ -10,4 +10,5 @@ object SettingsKeys {
     val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
     val SORT_OPTION = stringPreferencesKey("sort_option")
     val SORT_ASCENDING = booleanPreferencesKey("sort_ascending")
+    val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
 }
