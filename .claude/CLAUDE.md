@@ -84,6 +84,11 @@ After saving a WATER log, `AddCareLogViewModel` queries the last two waterings t
 - **Enums stored as String** in Room — use `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` when reading, not plain `.valueOf()`
 - **No libs.versions.toml** — dependency versions are inlined in `app/build.gradle.kts`; the Compose BOM handles Compose artifact versions
 
+### CHANGELOG.md
+Format: [Keep a Changelog](https://keepachangelog.com/). File lives at repo root alongside `README.md`.
+Implementer adds entries to `[Unreleased]` in every PR (dev workflow step 5).
+Human promotes `[Unreleased]` → a versioned heading when cutting a release.
+
 ---
 
 ## Known Issues / Technical Debt
@@ -202,4 +207,5 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - "Water + Fertilize due" filter in sort dropdown (PR #121, issue #78): new `BOTH_DUE` SortOption filters the plant list to only plants where both watering AND fertilizing are due or overdue (`isOverdue || isDueSoon` for each); results sorted by `nextWateringDueAt` ascending (watering urgency takes priority); empty state shows "No plants need both watering and fertilizing right now." instead of the default copy; no direction toggle; persists via existing `SORT_OPTION` DataStore key with no new keys or DB changes.
 - Fix #8: replaced `fallbackToDestructiveMigration()` with hard-crash behavior — Room now throws at startup if a DB version bump ships without an explicit `Migration` object; `app/schemas/.../1.json` baseline committed; future migrations must be registered via `.addMigrations(...)` before bumping `version` in `PlantDatabase`
 - Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen scrollable Column modifier chains (after `verticalScroll`, before inner `padding(16.dp)`); bottom Spacer reduced from 72 dp to 16 dp on both screens so the soft keyboard no longer obscures the Notes field
+- CHANGELOG.md created at repo root using Keep a Changelog format; backfilled releases 0.1.0–0.4.2; implementer now adds `[Unreleased]` entries as part of dev workflow step 5 (issue #143)
 - What's New bottom sheet (issue #147): `ModalBottomSheet` shown on first launch after each update (and fresh install); compares `BuildConfig.VERSION_CODE` vs. `LAST_SEEN_VERSION_CODE` in DataStore; content in `WhatsNewContent.kt` updated by implementer each PR; `buildConfig = true` enabled in build.gradle.kts
