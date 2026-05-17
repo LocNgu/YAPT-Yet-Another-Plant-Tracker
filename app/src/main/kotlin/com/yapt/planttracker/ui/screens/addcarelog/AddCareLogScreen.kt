@@ -280,7 +280,7 @@ fun AddCareLogScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(72.dp))
         }
     }
 }
