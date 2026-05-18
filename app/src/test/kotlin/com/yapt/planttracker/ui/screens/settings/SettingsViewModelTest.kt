@@ -32,6 +32,7 @@ class SettingsViewModelTest {
     @Before
     fun setup() {
         every { mockDataStore.data } returns flowOf(mockPrefs)
+        every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
     }
 
     @Test
@@ -95,6 +96,33 @@ class SettingsViewModelTest {
 
         vm.reminderHour.test {
             assertEquals(20, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `keepScreenOn defaults to false when key absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+
+        vm.keepScreenOn.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `keepScreenOn reflects stored value`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns true
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+
+        vm.keepScreenOn.test {
+            assertEquals(true, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
