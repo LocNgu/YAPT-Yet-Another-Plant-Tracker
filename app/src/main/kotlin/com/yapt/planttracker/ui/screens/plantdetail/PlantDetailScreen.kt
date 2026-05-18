@@ -20,32 +20,35 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -70,25 +73,59 @@ fun PlantDetailScreen(
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
-    LaunchedEffect(suggestedInterval) {
-        suggestedInterval?.let { interval ->
-            val result = snackbarHostState.showSnackbar(
-                message = "Suggested: water every $interval days",
-                actionLabel = "Apply",
-                duration = SnackbarDuration.Long
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.applySuggestedInterval(interval)
-            } else {
-                viewModel.clearSuggestedInterval()
-            }
+    var intervalFieldText by remember(suggestedInterval) {
+        mutableStateOf(suggestedInterval?.toString().orEmpty())
+    }
+    val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it >= 1 }
+
+    LaunchedEffect(suggestedInterval, plant?.wateringIntervalDays) {
+        val s = suggestedInterval
+        val current = plant?.wateringIntervalDays
+        if (s != null && current != null && s == current) {
+            viewModel.clearSuggestedInterval()
         }
+    }
+
+    val showDialog = suggestedInterval != null &&
+        plant != null &&
+        suggestedInterval != plant?.wateringIntervalDays
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearSuggestedInterval() },
+            title = { Text("Adjust watering interval?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Suggested: water every $suggestedInterval days (currently ${plant!!.wateringIntervalDays} days)"
+                    )
+                    OutlinedTextField(
+                        value = intervalFieldText,
+                        onValueChange = { intervalFieldText = it.filter(Char::isDigit) },
+                        label = { Text("Days") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { parsedInterval?.let { viewModel.applySuggestedInterval(it) } },
+                    enabled = parsedInterval != null
+                ) {
+                    Text("Apply")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
+                    Text("Dismiss")
+                }
+            }
+        )
     }
 
     Surface(
@@ -295,12 +332,6 @@ fun PlantDetailScreen(
             Icon(Icons.Filled.Add, contentDescription = "Log care")
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-        )
         }
     }
 }
