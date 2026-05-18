@@ -25,7 +25,7 @@ object DateUtils {
         val diffMs = dueAtMs - now
         val absDays = TimeUnit.MILLISECONDS.toDays(abs(diffMs))
         return when {
-            diffMs < 0 && absDays == 0L -> "Due today"
+            diffMs < 0 && absDays == 0L -> "Overdue"
             diffMs < 0 -> "Overdue by $absDays day${if (absDays == 1L) "" else "s"}"
             absDays == 0L -> "Due today"
             else -> "In $absDays day${if (absDays == 1L) "" else "s"}"

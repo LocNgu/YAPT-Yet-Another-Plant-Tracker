@@ -90,9 +90,9 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatCountdown overdue less than 24h returns Due today`() {
+    fun `formatCountdown overdue less than 24h returns Overdue`() {
         val dueAt = now - TimeUnit.HOURS.toMillis(6)
-        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+        assertEquals("Overdue", DateUtils.formatCountdown(dueAt, now))
     }
 
     @Test
