@@ -8,7 +8,7 @@
 
 - [x] Plant library (add / edit / delete with cover photo)
 - [x] Care logging (WATER, FERTILIZE, PRUNE, MIST, REPOT, NOTE, PHOTO)
-- [x] Adaptive watering intervals (feedback → Snackbar suggestion)
+- [x] Adaptive watering intervals (feedback → AlertDialog suggestion with editable TextField; PR #150, issue #138)
 - [x] Care history timeline per plant
 - [x] Photo gallery (horizontal scroll of care-log photos)
 - [x] Stats row (days since watering/fertilizing, total logs)
