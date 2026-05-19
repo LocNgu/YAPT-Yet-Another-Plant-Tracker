@@ -301,4 +301,28 @@ class CareScheduleTest {
         // actual=7, stored=14 → suggestion is 7 (ViewModel will surface this as a change)
         assertEquals(7, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 7, 14))
     }
+
+    @Test
+    fun `TOO_LATE with actual greater than stored uses stored as base`() {
+        // stored=14, actual=20 → user watered late; clamp base to stored so interval shrinks from 14
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 20, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with actual equal to stored decreases stored by 1`() {
+        // stored=14, actual=14 → base is actual (== stored); result is 13
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with actual less than stored uses actual as base`() {
+        // stored=14, actual=7 → user watered early but still too late; base is actual
+        assertEquals(6, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 7, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with no current interval falls back to actual minus 1`() {
+        // currentIntervalDays=null → base is actualIntervalDays
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, null))
+    }
 }

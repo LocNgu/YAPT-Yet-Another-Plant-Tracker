@@ -59,7 +59,11 @@ object CareSchedule {
         currentIntervalDays: Int? = null
     ): Int {
         return when (feedback) {
-            WateringFeedback.TOO_LATE -> max(1, actualIntervalDays - 1)
+            WateringFeedback.TOO_LATE -> {
+                val base = if (currentIntervalDays != null && actualIntervalDays > currentIntervalDays)
+                    currentIntervalDays else actualIntervalDays
+                max(1, base - 1)
+            }
             WateringFeedback.JUST_RIGHT -> actualIntervalDays
             WateringFeedback.TOO_SOON -> {
                 val base = if (currentIntervalDays != null && actualIntervalDays < currentIntervalDays)
