@@ -57,6 +57,7 @@ class BackupManager(
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
             val reminderHour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
             val reminderMinute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+            val keepScreenOn = prefs[SettingsKeys.KEEP_SCREEN_ON] ?: false
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -115,7 +116,8 @@ class BackupManager(
                 settings = BackupSettings(
                     notificationsEnabled = notificationsEnabled,
                     reminderHour = reminderHour,
-                    reminderMinute = reminderMinute
+                    reminderMinute = reminderMinute,
+                    keepScreenOn = keepScreenOn
                 )
             )
 
@@ -242,6 +244,7 @@ class BackupManager(
             prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
             prefs[SettingsKeys.REMINDER_HOUR] = backup.settings.reminderHour
             prefs[SettingsKeys.REMINDER_MINUTE] = backup.settings.reminderMinute
+            prefs[SettingsKeys.KEEP_SCREEN_ON] = backup.settings.keepScreenOn
         }
 
         BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)

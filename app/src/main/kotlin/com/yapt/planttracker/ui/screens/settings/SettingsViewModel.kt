@@ -33,6 +33,10 @@ class SettingsViewModel(
         .map { it[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val keepScreenOn: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val reminderHour: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_HOUR] ?: 9 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
@@ -45,6 +49,12 @@ class SettingsViewModel(
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
 
     private val backupManager = BackupManager(context, database, dataStore)
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.KEEP_SCREEN_ON] = enabled }
+        }
+    }
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {

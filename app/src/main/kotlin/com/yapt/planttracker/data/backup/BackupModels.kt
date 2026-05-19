@@ -32,7 +32,8 @@ data class BackupCareLog(
 data class BackupSettings(
     val notificationsEnabled: Boolean,
     val reminderHour: Int,
-    val reminderMinute: Int
+    val reminderMinute: Int,
+    val keepScreenOn: Boolean = false
 )
 
 @Serializable
