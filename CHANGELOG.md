@@ -12,7 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] - 2026-05-20
+
 ### Added
+- What's New bottom sheet — shown on first launch after each update, summarising changes for that version (issue #147)
+- Interval suggestion shown as an editable AlertDialog instead of a Snackbar — tap Apply or adjust the value before confirming (issue #138)
 - `CHANGELOG.md` — feature history now tracked per release (issue #143)
 - MIT License file and README license section
 - Keep screen on toggle in Settings — screen stays awake while the app is in the foreground; preference persists and round-trips through backup/restore (issue #140)
@@ -21,8 +27,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Keystores managed via GitHub Actions secrets; release signing set up in CI (issue #127)
 
 ### Fixed
+- Overdue plants always show "Overdue" (not "Due today") when the due date has passed, regardless of time of day (issue #136)
+- Adaptive watering interval suggestions (JUST_RIGHT / TOO_SOON) now correctly reflect the actual vs. stored gap (issue #105)
+- TOO_LATE feedback: suggestion base is clamped to the stored interval when the user waters late, keeping the suggestion within the expected range (issue #159)
+- StatChip no longer shows a "next:" prefix when care is overdue (issue #151)
 - Soft keyboard no longer obscures the Notes field on AddEditPlant and AddCareLog screens (issue #135)
-- Due-date comparisons now use calendar-day granularity — a plant watered at 08:00 no longer goes overdue at 08:01 on day 7; it becomes overdue at the start of day 8 (issue #141)
+- Due-date comparisons now use calendar-day granularity — a plant watered at 08:00 no longer goes overdue at 08:01 on day 7 (issue #141)
 
 ---
 
