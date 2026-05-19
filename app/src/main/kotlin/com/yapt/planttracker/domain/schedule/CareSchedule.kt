@@ -3,6 +3,7 @@ package com.yapt.planttracker.domain.schedule
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.util.toLocalDate
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -25,16 +26,17 @@ object CareSchedule {
             lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
         } else null
 
-        val isOverdue = nextDueAt != null && nextDueAt < now
-        val isDueSoon = nextDueAt != null && !isOverdue &&
-            (nextDueAt - now) <= ONE_DAY_MS
+        val nowDate = now.toLocalDate()
+        val isOverdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)
+        val isDueSoon = nextDueAt != null && !isOverdue && nextDueAt.toLocalDate() == nowDate
 
         val nextFertilizingDueAt = if (plant.fertilizingIntervalDays != null && lastFertilizedAt != null) {
             lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
         } else null
-        val isFertilizingOverdue = nextFertilizingDueAt != null && nextFertilizingDueAt < now
+        val isFertilizingOverdue = nextFertilizingDueAt != null &&
+            nextFertilizingDueAt.toLocalDate().isBefore(nowDate)
         val isFertilizingDueSoon = nextFertilizingDueAt != null && !isFertilizingOverdue &&
-            (nextFertilizingDueAt - now) <= ONE_DAY_MS
+            nextFertilizingDueAt.toLocalDate() == nowDate
 
         return PlantCareStatus(
             plant = plant,

@@ -3,12 +3,19 @@ package com.yapt.planttracker.util
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 class DateUtilsTest {
 
-    private val now = 1_700_000_000_000L
+    private val now = 1_700_000_000_000L // 2023-11-14 22:13:20 UTC
+
+    @Before
+    fun setUp() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
 
     @Test
     fun `formatRelative 0 days returns Today`() {
@@ -79,8 +86,9 @@ class DateUtilsTest {
     // formatCountdown
 
     @Test
-    fun `formatCountdown due in future same day returns Due today`() {
-        val dueAt = now + TimeUnit.HOURS.toMillis(12)
+    fun `formatCountdown due later same calendar day returns Due today`() {
+        // now = 22:13 UTC, +1h = 23:13 UTC — still same calendar day
+        val dueAt = now + TimeUnit.HOURS.toMillis(1)
         assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
     }
 
@@ -90,9 +98,17 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatCountdown overdue less than 24h returns Overdue`() {
+    fun `formatCountdown overdue earlier same calendar day returns Due today`() {
+        // now = 22:13 UTC, -6h = 16:13 UTC — still same calendar day
         val dueAt = now - TimeUnit.HOURS.toMillis(6)
-        assertEquals("Overdue", DateUtils.formatCountdown(dueAt, now))
+        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown overdue on previous calendar day returns Overdue even if less than 24h ago`() {
+        // now = 22:13 UTC, -23h = 23:13 UTC previous day — different calendar day
+        val dueAt = now - TimeUnit.HOURS.toMillis(23)
+        assertEquals("Overdue by 1 day", DateUtils.formatCountdown(dueAt, now))
     }
 
     @Test
@@ -105,6 +121,13 @@ class DateUtilsTest {
     fun `formatCountdown overdue multiple days returns plural`() {
         val dueAt = now - TimeUnit.DAYS.toMillis(5)
         assertEquals("Overdue by 5 days", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    @Test
+    fun `formatCountdown due tomorrow returns In 1 day`() {
+        // now = 22:13 UTC, +2h = 00:13 UTC next day
+        val dueAt = now + TimeUnit.HOURS.toMillis(2)
+        assertEquals("In 1 day", DateUtils.formatCountdown(dueAt, now))
     }
 
     @Test

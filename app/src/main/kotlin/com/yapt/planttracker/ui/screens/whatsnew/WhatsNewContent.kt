@@ -16,7 +16,8 @@ object WhatsNewContent {
             "Keep screen on toggle in Settings — screen stays awake while you water your plants"
         ),
         fixed = listOf(
-            "Keyboard no longer covers the Notes field when editing a plant or care log"
+            "Keyboard no longer covers the Notes field when editing a plant or care log",
+            "Due dates now compare by calendar day — \"due today\" stays correct throughout the day"
         )
     )
 }
