@@ -39,6 +39,7 @@
 - [x] Fix #105: correct adaptive interval for JUST_RIGHT and TOO_SOON feedback — removed unconditional JUST_RIGHT early return so actual gap is surfaced as a suggestion when it differs from stored interval; TOO_SOON now uses stored interval as base when user watered early (actual < stored), extending beyond the stored value instead of collapsing toward the actual gap; 4 new CareScheduleTest cases + updated AddCareLogViewModelTest
 - [x] Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen so the soft keyboard no longer obscures the Notes field; bottom Spacer reduced from 72 dp to 16 dp on both screens
 - [x] Fix #136: `formatCountdown` returns `"Overdue"` for same-day-overdue (diffMs < 0 && absDays == 0L) so the PlantCard chip shows red correctly; unit test updated
+- [x] Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` clamps base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases
 
 ---
 
