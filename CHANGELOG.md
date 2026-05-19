@@ -15,6 +15,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - `CHANGELOG.md` — feature history now tracked per release (issue #143)
 - MIT License file and README license section
+- Keep screen on toggle in Settings — screen stays awake while the app is in the foreground; preference persists and round-trips through backup/restore (issue #140)
 
 ### Changed
 - Keystores managed via GitHub Actions secrets; release signing set up in CI (issue #127)

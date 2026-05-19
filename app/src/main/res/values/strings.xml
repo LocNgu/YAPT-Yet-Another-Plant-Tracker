@@ -27,6 +27,8 @@
     <string name="no_care_logs">No care logged yet.\nTap the button below to log your first care event.</string>
     <string name="channel_name">Plant Care Reminders</string>
     <string name="channel_description">Reminders to water and care for your plants</string>
+    <string name="keep_screen_on">Keep screen on</string>
+    <string name="keep_screen_on_subtitle">Screen stays awake while the app is open</string>
     <string name="watering_history">Watering History</string>
     <string name="insufficient_watering_logs">Need at least 2 watering logs to display watering history.</string>
     <string name="days_between_waterings">Days between waterings</string>
