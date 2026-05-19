@@ -46,8 +46,14 @@ class AddCareLogViewModelTest {
     )
 
     @Test
-    fun `save WATER log with JUST_RIGHT feedback emits Saved with null interval`() = runTest {
+    fun `save WATER log with JUST_RIGHT feedback emits Saved with null interval when gap matches stored`() = runTest {
+        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = now),
+            waterLog(loggedAt = sevenDaysAgo)
+        )
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -57,6 +63,27 @@ class AddCareLogViewModelTest {
             val event = awaitItem()
             assertTrue(event is AddCareLogViewModel.Event.Saved)
             assertNull((event as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `save WATER log with JUST_RIGHT feedback emits Saved with suggested interval when gap differs from stored`() = runTest {
+        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = now),
+            waterLog(loggedAt = sevenDaysAgo)
+        )
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            assertEquals(7, event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
     }

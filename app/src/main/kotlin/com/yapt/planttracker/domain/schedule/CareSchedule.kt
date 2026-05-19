@@ -51,11 +51,19 @@ object CareSchedule {
         )
     }
 
-    fun computeSuggestedInterval(feedback: WateringFeedback, actualIntervalDays: Int): Int {
+    fun computeSuggestedInterval(
+        feedback: WateringFeedback,
+        actualIntervalDays: Int,
+        currentIntervalDays: Int? = null
+    ): Int {
         return when (feedback) {
             WateringFeedback.TOO_LATE -> max(1, actualIntervalDays - 1)
             WateringFeedback.JUST_RIGHT -> actualIntervalDays
-            WateringFeedback.TOO_SOON -> actualIntervalDays + 1
+            WateringFeedback.TOO_SOON -> {
+                val base = if (currentIntervalDays != null && actualIntervalDays < currentIntervalDays)
+                    currentIntervalDays else actualIntervalDays
+                base + 1
+            }
         }
     }
 

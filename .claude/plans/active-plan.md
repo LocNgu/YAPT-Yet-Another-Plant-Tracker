@@ -36,6 +36,7 @@
 - [x] Fix #6: PhotoGallery parameter changed from `List<CareLog>` to `List<String>` (photoUris); call site derives URIs via `mapNotNull { it.photoUri }` (PR #107)
 - [x] Watering history chart (PR #108, issue #18): bar chart visualization of watering intervals with time range selector (1/3/6/12 months), last watering date and average interval statistics, Material 3 theme integration using SageGreen and OkGreen; 8 unit tests for interval computation; Vico 2.0.0 M3 Compose dependency added
 - [x] Fix #8: remove `fallbackToDestructiveMigration()` — Room hard-crashes on missing migration path; `1.json` baseline committed; future schema changes must ship with explicit `Migration` objects (PR #123)
+- [x] Fix #105: correct adaptive interval for JUST_RIGHT and TOO_SOON feedback — removed unconditional JUST_RIGHT early return so actual gap is surfaced as a suggestion when it differs from stored interval; TOO_SOON now uses stored interval as base when user watered early (actual < stored), extending beyond the stored value instead of collapsing toward the actual gap; 4 new CareScheduleTest cases + updated AddCareLogViewModelTest
 - [x] Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen so the soft keyboard no longer obscures the Notes field; bottom Spacer reduced from 72 dp to 16 dp on both screens
 - [x] Fix #136: `formatCountdown` returns `"Overdue"` for same-day-overdue (diffMs < 0 && absDays == 0L) so the PlantCard chip shows red correctly; unit test updated
 
