@@ -110,7 +110,7 @@ private fun StatChip(
             } else {
                 nextLine?.let {
                     Text(
-                        text = "next: $it",
+                        text = if (it.startsWith("overdue")) it else "next: $it",
                         style = MaterialTheme.typography.labelSmall,
                         color = nextColor ?: MaterialTheme.colorScheme.primary
                     )

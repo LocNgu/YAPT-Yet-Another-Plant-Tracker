@@ -64,7 +64,7 @@ Every ViewModel has an inner `Factory` class. Compose screens obtain them via `v
 `PlantListViewModel.buildStatus()` is a `suspend` function called inside a `combine {}` block. Kotlin's `List.map {}` takes a non-suspend lambda, so the code uses a `for` loop with `mutableListOf` to accumulate results. Do not refactor to `.map {}` without making it suspendable.
 
 ### Adaptive watering interval
-After saving a WATER log, `AddCareLogViewModel` queries the last two waterings to compute `actualIntervalDays`, applies `CareSchedule.computeSuggestedInterval(feedback, actualDays)`, and passes the result back to `PlantDetailScreen` via `savedStateHandle["suggestedWateringInterval"]`. The detail screen shows a Snackbar with an "Apply" action.
+After saving a WATER log, `AddCareLogViewModel` queries the last two waterings to compute `actualIntervalDays`, applies `CareSchedule.computeSuggestedInterval(feedback, actualDays, currentInterval)`, and passes the result back to `PlantDetailScreen` via `savedStateHandle["suggestedWateringInterval"]`. The detail screen shows a Snackbar with an "Apply" action. `JUST_RIGHT` produces a suggestion when `actualIntervalDays != currentInterval`; `TOO_SOON` uses `currentInterval` as the base when the user watered early (`actual < stored`) so the suggestion extends beyond the stored interval.
 
 ### DataStore delegate
 `val Context.settingsDataStore by preferencesDataStore(name = "settings")` is declared at **file top-level** in `YaptApplication.kt` (not inside the class). This is required by the AndroidX DataStore API.
@@ -83,6 +83,11 @@ After saving a WATER log, `AddCareLogViewModel` queries the last two waterings t
 - **`DateUtils.formatRelative()`** for all date display — never compute `(now - ts) / 86_400_000` inline
 - **Enums stored as String** in Room — use `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` when reading, not plain `.valueOf()`
 - **No libs.versions.toml** — dependency versions are inlined in `app/build.gradle.kts`; the Compose BOM handles Compose artifact versions
+
+### CHANGELOG.md
+Format: [Keep a Changelog](https://keepachangelog.com/). File lives at repo root alongside `README.md`.
+Implementer adds entries to `[Unreleased]` in every PR (dev workflow step 5).
+Human promotes `[Unreleased]` → a versioned heading when cutting a release.
 
 ---
 
@@ -116,7 +121,7 @@ Every feature and bug fix follows these steps in order:
    - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - **Posts a compact checklist comment on the PR** (under 15 lines for a passing run)
-5. **Update docs** — implementer updates `active-plan.md` and this file to reflect completion
+5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
 6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread.
@@ -201,3 +206,12 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Unique notification IDs per plant (issue #7): `ReminderWorker` posts one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications at start of each run before re-posting; title = plant name, body = care items joined with " · " (e.g. "Watering overdue by 2 days · Fertilizing due today"); tapping deep-links to PlantDetailScreen via `MainActivity` intent extra `plantId`; `MainActivity` reads the extra in `onCreate` (when `savedInstanceState==null`) and `onNewIntent`, passes to `YaptNavGraph` which navigates via `LaunchedEffect`. No `NOTIFICATION_ID = 1001` constant — removed.
 - "Water + Fertilize due" filter in sort dropdown (PR #121, issue #78): new `BOTH_DUE` SortOption filters the plant list to only plants where both watering AND fertilizing are due or overdue (`isOverdue || isDueSoon` for each); results sorted by `nextWateringDueAt` ascending (watering urgency takes priority); empty state shows "No plants need both watering and fertilizing right now." instead of the default copy; no direction toggle; persists via existing `SORT_OPTION` DataStore key with no new keys or DB changes.
 - Fix #8: replaced `fallbackToDestructiveMigration()` with hard-crash behavior — Room now throws at startup if a DB version bump ships without an explicit `Migration` object; `app/schemas/.../1.json` baseline committed; future migrations must be registered via `.addMigrations(...)` before bumping `version` in `PlantDatabase`
+- Fix #105: correct adaptive interval for JUST_RIGHT and TOO_SOON feedback: removed unconditional `JUST_RIGHT` early return in `AddCareLogViewModel` so the actual gap is surfaced as a suggestion when it differs from the stored interval; `CareSchedule.computeSuggestedInterval` accepts optional `currentIntervalDays` — when `TOO_SOON` and `actual < stored`, uses stored as the base so the suggestion extends beyond the stored interval rather than collapsing toward the actual gap; 4 new `CareScheduleTest` cases + updated `AddCareLogViewModelTest` (6 tests total).
+- Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen scrollable Column modifier chains (after `verticalScroll`, before inner `padding(16.dp)`); bottom Spacer reduced from 72 dp to 16 dp on both screens so the soft keyboard no longer obscures the Notes field
+- CHANGELOG.md created at repo root using Keep a Changelog format; backfilled releases 0.1.0–0.4.2; implementer now adds `[Unreleased]` entries as part of dev workflow step 5 (issue #143)
+- What's New bottom sheet (issue #147): `ModalBottomSheet` shown on first launch after each update (and fresh install); compares `BuildConfig.VERSION_CODE` vs. `LAST_SEEN_VERSION_CODE` in DataStore; content in `WhatsNewContent.kt` updated by implementer each PR; `buildConfig = true` enabled in build.gradle.kts
+- Fix #136: `formatCountdown` returns `"Overdue"` (not `"Due today"`) when `diffMs < 0 && absDays == 0L` (overdue by less than 24 h), so the chip on PlantCard correctly shows red for any overdue timestamp; unit test updated to match — **superseded by fix #141**
+- Replace interval suggestion Snackbar with AlertDialog (PR #150, issue #138): `PlantDetailScreen` shows a modal `AlertDialog` with pre-filled editable numeric `TextField`; Apply button disabled when field is empty or non-positive; Dismiss/back/scrim tap permanently discard suggestion; if suggested == current interval no dialog shown and suggestion cleared; `SnackbarHost` removed entirely from `PlantDetailScreen`
+- Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` now clamps the base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases covering actual>stored, actual==stored, actual<stored, and null currentIntervalDays
+- Keep screen on toggle in Settings (issue #140): `KEEP_SCREEN_ON` DataStore key; `SettingsViewModel.keepScreenOn` StateFlow + `setKeepScreenOn()`; "Display" section in SettingsScreen with `BrightnessMedium` icon; `MainActivity` collects the flow in `setContent` and applies/clears `FLAG_KEEP_SCREEN_ON` via `LaunchedEffect`; preference round-trips through backup/restore; 2 new `SettingsViewModelTest` cases
+- Fix #141: due-date comparisons normalised to calendar-day granularity — `internal fun Long.toLocalDate()` extension added to `DateUtils.kt` (shared via import by `CareSchedule` and `ReminderWorker`); `isOverdue`/`isDueSoon` and fertilizing equivalents in `CareSchedule.computeStatus()` use `LocalDate.isBefore()` / `==` instead of millisecond subtraction; `formatCountdown` uses `ChronoUnit.DAYS.between(toLocalDate(), toLocalDate())` — eliminates "overdue by <24 h" edge case (plants remain "Due today" throughout the due calendar day); `ReminderWorker.buildCareBody()` likewise uses `ChronoUnit.DAYS`; unit tests pin JVM timezone to UTC via `@Before`; supersedes the millisecond workaround in fix #136 (PR #152)

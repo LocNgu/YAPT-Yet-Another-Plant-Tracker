@@ -6,12 +6,19 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 class CareScheduleTest {
 
-    private val now = 1_700_000_000_000L
+    private val now = 1_700_000_000_000L // 2023-11-14 22:13:20 UTC
+
+    @Before
+    fun setUp() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
 
     private fun plantWith(
         wateringIntervalDays: Int? = null,
@@ -65,8 +72,9 @@ class CareScheduleTest {
     }
 
     @Test
-    fun `due soon within one day`() {
-        val lastWateredAt = now - TimeUnit.DAYS.toMillis(7) + TimeUnit.HOURS.toMillis(1)
+    fun `isDueSoon when nextDue falls on same calendar day as now`() {
+        // nextDueAt = now exactly → same calendar day
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(7)
         val status = CareSchedule.computeStatus(
             plant = plantWith(wateringIntervalDays = 7),
             lastWateredAt = lastWateredAt,
@@ -75,6 +83,53 @@ class CareScheduleTest {
             now = now
         )
         assertTrue(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
+    fun `isDueSoon when nextDue is earlier same calendar day`() {
+        // nextDueAt = 6h before now, still same UTC day (now is 22:13, nextDue = 16:13)
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(6)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
+    fun `isOverdue when nextDue was yesterday even if less than 24h ago`() {
+        // nextDueAt is 23h ago; with ms logic this was "due today", with day logic it is overdue
+        // now = 22:13 UTC, nextDueAt = 23:13 UTC previous day (23h before now)
+        val nextDueAt = now - TimeUnit.HOURS.toMillis(23)
+        val lastWateredAt = nextDueAt - TimeUnit.DAYS.toMillis(7)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isOverdue)
+        assertFalse(status.isDueSoon)
+    }
+
+    @Test
+    fun `not isDueSoon when nextDue is tomorrow`() {
+        // nextDueAt = now + 2h → next UTC day (now is 22:13, +2h = 00:13 next day)
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(7) + TimeUnit.HOURS.toMillis(2)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertFalse(status.isDueSoon)
         assertFalse(status.isOverdue)
     }
 
@@ -144,8 +199,8 @@ class CareScheduleTest {
     }
 
     @Test
-    fun `fertilizing due soon`() {
-        val lastFertilizedAt = now - TimeUnit.DAYS.toMillis(14) + TimeUnit.HOURS.toMillis(1)
+    fun `fertilizing isDueSoon when nextDue falls on same calendar day`() {
+        val lastFertilizedAt = now - TimeUnit.DAYS.toMillis(14)
         val status = CareSchedule.computeStatus(
             plant = plantWith(fertilizingIntervalDays = 14),
             lastWateredAt = null,
@@ -155,6 +210,21 @@ class CareScheduleTest {
         )
         assertTrue(status.isFertilizingDueSoon)
         assertFalse(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `fertilizing isOverdue when nextDue was yesterday even if less than 24h ago`() {
+        val nextFertDueAt = now - TimeUnit.HOURS.toMillis(23)
+        val lastFertilizedAt = nextFertDueAt - TimeUnit.DAYS.toMillis(14)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(fertilizingIntervalDays = 14),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilizedAt,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isFertilizingOverdue)
+        assertFalse(status.isFertilizingDueSoon)
     }
 
     @Test
@@ -207,5 +277,52 @@ class CareScheduleTest {
         val earlier = now
         val later = now + TimeUnit.DAYS.toMillis(5)
         assertEquals(5, CareSchedule.daysBetween(earlier, later))
+    }
+
+    @Test
+    fun `TOO_SOON with early watering extends beyond stored interval`() {
+        // actual=7, stored=14 → user watered early; interval should grow past 14
+        assertEquals(15, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, 14))
+    }
+
+    @Test
+    fun `TOO_SOON with on-schedule or late watering uses actual interval`() {
+        // actual=9, stored=7 → user watered late; base is actual
+        assertEquals(10, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 9, 7))
+    }
+
+    @Test
+    fun `TOO_SOON with no current interval uses actual interval`() {
+        assertEquals(8, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, null))
+    }
+
+    @Test
+    fun `JUST_RIGHT with early watering returns actual interval`() {
+        // actual=7, stored=14 → suggestion is 7 (ViewModel will surface this as a change)
+        assertEquals(7, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 7, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with actual greater than stored uses stored as base`() {
+        // stored=14, actual=20 → user watered late; clamp base to stored so interval shrinks from 14
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 20, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with actual equal to stored decreases stored by 1`() {
+        // stored=14, actual=14 → base is actual (== stored); result is 13
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with actual less than stored uses actual as base`() {
+        // stored=14, actual=7 → user watered early but still too late; base is actual
+        assertEquals(6, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 7, 14))
+    }
+
+    @Test
+    fun `TOO_LATE with no current interval falls back to actual minus 1`() {
+        // currentIntervalDays=null → base is actualIntervalDays
+        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, null))
     }
 }

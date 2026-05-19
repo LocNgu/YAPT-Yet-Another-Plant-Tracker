@@ -77,7 +77,6 @@ class AddCareLogViewModel(
 
     private suspend fun computeSuggestedInterval(): Int? {
         val feedback = selectedFeedback ?: return null
-        if (feedback == WateringFeedback.JUST_RIGHT) return null
         if (selectedCareType != CareType.WATER) return null
 
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
@@ -91,7 +90,7 @@ class AddCareLogViewModel(
         }
 
         if (actualIntervalDays <= 0) return null
-        val suggested = CareSchedule.computeSuggestedInterval(feedback, actualIntervalDays)
+        val suggested = CareSchedule.computeSuggestedInterval(feedback, actualIntervalDays, currentInterval)
         return if (suggested != currentInterval) suggested else null
     }
 
