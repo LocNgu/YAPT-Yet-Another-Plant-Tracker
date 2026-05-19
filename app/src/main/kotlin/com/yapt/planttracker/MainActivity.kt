@@ -9,17 +9,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -49,19 +52,19 @@ class MainActivity : ComponentActivity() {
 
         val app = application as YaptApplication
 
-        setContent {
-            val keepScreenOn by app.settingsDataStore.data
-                .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
-                .collectAsStateWithLifecycle(initialValue = false)
-
-            LaunchedEffect(keepScreenOn) {
-                if (keepScreenOn) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                app.settingsDataStore.data
+                    .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
+                    .distinctUntilChanged()
+                    .collect { on ->
+                        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
             }
+        }
 
+        setContent {
             YaptTheme {
                 YaptNavGraph(
                     app = app,
