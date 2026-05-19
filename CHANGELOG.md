@@ -22,6 +22,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - Soft keyboard no longer obscures the Notes field on AddEditPlant and AddCareLog screens (issue #135)
+- Due-date comparisons now use calendar-day granularity — a plant watered at 08:00 no longer goes overdue at 08:01 on day 7; it becomes overdue at the start of day 8 (issue #141)
 
 ---
 
