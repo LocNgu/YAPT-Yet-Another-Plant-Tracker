@@ -15,7 +15,8 @@ object WhatsNewContent {
         added = listOf(
             "What's New sheet — see what changed after each update (that's this screen!)",
             "Keep screen on toggle in Settings — screen stays awake while you water your plants",
-            "Interval suggestion is now an editable dialog — adjust the value before applying"
+            "Interval suggestion is now an editable dialog — adjust the value before applying",
+            "Location suggestion chips on Add/Edit Plant — tap a previously used room to fill the field exactly"
         ),
         fixed = listOf(
             "Overdue plants now always show \"Overdue\" (not \"Due today\") when the due date has passed",
