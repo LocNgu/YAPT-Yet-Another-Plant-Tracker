@@ -70,9 +70,49 @@ class WateringHistoryChartTest {
         )
         val rangeStart = 100L + dayInMs / 2
         val rangeEnd = 100L + dayInMs * 3 + 1
+        // log1 is before rangeStart → becomes synthetic predecessor for log2
         val result = computeWateringIntervals(logs, rangeStart, rangeEnd)
+        assertEquals(2, result.size)
+        assertEquals(1f, result[0].daysSincePrevious, 0.01f)  // log1 → log2
+        assertEquals(2f, result[1].daysSincePrevious, 0.01f)  // log2 → log3
+    }
+
+    @Test
+    fun computeWateringIntervals_singleInRangeWithPredecessor() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 30)
+        )
+        // Range starts after log1 but before log2
+        val rangeStart = 100L + dayInMs * 15
+        val result = computeWateringIntervals(logs, rangeStart, 100L + dayInMs * 31)
         assertEquals(1, result.size)
-        assertEquals(2f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(30f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(100L + dayInMs * 30, result[0].timestamp)
+    }
+
+    @Test
+    fun computeWateringIntervals_singleInRangeNoPredecessor() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val log = CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs)
+        val result = computeWateringIntervals(listOf(log), 100L, 100L + dayInMs * 2)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun computeWateringIntervals_multipleInRangeWithPredecessor() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 10),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 25)
+        )
+        val rangeStart = 100L + dayInMs * 5  // log1 is before range
+        val result = computeWateringIntervals(logs, rangeStart, 100L + dayInMs * 30)
+        assertEquals(2, result.size)
+        assertEquals(10f, result[0].daysSincePrevious, 0.01f)  // log1 → log2
+        assertEquals(15f, result[1].daysSincePrevious, 0.01f)  // log2 → log3
     }
 
     @Test

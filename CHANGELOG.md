@@ -15,6 +15,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - Location suggestion chips on Add/Edit Plant screen: previously used room names appear as tappable chips below the Location field; tapping fills the field with the exact stored string; chips with a case-insensitive match to the current field text are highlighted (#137)
 
+### Fixed
+- Watering history chart no longer shows "not enough data" for infrequently-watered plants on short time ranges (1M/3M/6M): the watering immediately before the range window is now used as a synthetic predecessor so the first in-window log always gets an interval (#117)
+
 ---
 
 ## [0.6.0] - 2026-05-20

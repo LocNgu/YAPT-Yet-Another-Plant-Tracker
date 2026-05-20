@@ -280,19 +280,25 @@ fun computeWateringIntervals(
     rangeStartMs: Long,
     now: Long
 ): List<WateringInterval> {
-    val filtered = wateringLogs.filter { it.loggedAt >= rangeStartMs && it.loggedAt <= now }
+    val inRange = wateringLogs.filter { it.loggedAt >= rangeStartMs && it.loggedAt <= now }
 
-    if (filtered.size < 2) {
-        return emptyList()
-    }
+    if (inRange.isEmpty()) return emptyList()
+
+    // Use the watering just before the range window as a synthetic anchor so the
+    // first in-window log gets an interval even when it has no in-window predecessor.
+    val predecessor = wateringLogs.filter { it.loggedAt < rangeStartMs }
+        .maxByOrNull { it.loggedAt }
+
+    val workingList = if (predecessor != null) listOf(predecessor) + inRange else inRange
+
+    if (workingList.size < 2) return emptyList()
 
     val intervals = mutableListOf<WateringInterval>()
-    for (i in 1 until filtered.size) {
-        val prevLog = filtered[i - 1]
-        val currentLog = filtered[i]
-        val daysDiff = (currentLog.loggedAt - prevLog.loggedAt) / (24 * 60 * 60 * 1000).toFloat()
-        intervals.add(WateringInterval(currentLog.loggedAt, daysDiff))
+    for (i in 1 until workingList.size) {
+        val prev = workingList[i - 1]
+        val curr = workingList[i]
+        val daysDiff = (curr.loggedAt - prev.loggedAt) / (24 * 60 * 60 * 1000).toFloat()
+        intervals.add(WateringInterval(curr.loggedAt, daysDiff))
     }
-
     return intervals
 }
