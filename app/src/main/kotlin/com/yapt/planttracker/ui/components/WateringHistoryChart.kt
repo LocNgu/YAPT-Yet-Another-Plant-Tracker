@@ -126,8 +126,15 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
         val indexToZdt = mutableListOf<ZonedDateTime>()
 
         var monthIndex = 0
+        // When a pre-range interval exists (e.g. 0 in-window logs for an infrequently-watered
+        // plant), start the month loop from that interval's month so the data point is visible.
+        val effectiveStartMs = if (intervals.isNotEmpty()) {
+            minOf(rangeStartMs, intervals.minOf { it.timestamp })
+        } else {
+            rangeStartMs
+        }
         var monthStart = ZonedDateTime.ofInstant(
-            Instant.ofEpochMilli(rangeStartMs), ZoneId.systemDefault()
+            Instant.ofEpochMilli(effectiveStartMs), ZoneId.systemDefault()
         ).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
 
         while (!monthStart.toInstant().isAfter(Instant.ofEpochMilli(now))) {
@@ -281,16 +288,16 @@ fun computeWateringIntervals(
     now: Long
 ): List<WateringInterval> {
     val inRange = wateringLogs.filter { it.loggedAt >= rangeStartMs && it.loggedAt <= now }
+    val beforeRange = wateringLogs
+        .filter { it.loggedAt < rangeStartMs }
+        .sortedByDescending { it.loggedAt }
 
-    if (inRange.isEmpty()) return emptyList()
+    // When there are no in-range logs, fall back to the last 2 pre-range waterings so
+    // plants watered less than once per month still get one interval point.
+    val anchorsNeeded = if (inRange.isEmpty()) 2 else 1
+    val anchors = beforeRange.take(anchorsNeeded).reversed()
 
-    // Use the watering just before the range window as a synthetic anchor so the
-    // first in-window log gets an interval even when it has no in-window predecessor.
-    val predecessor = wateringLogs.filter { it.loggedAt < rangeStartMs }
-        .maxByOrNull { it.loggedAt }
-
-    val workingList = if (predecessor != null) listOf(predecessor) + inRange else inRange
-
+    val workingList = anchors + inRange
     if (workingList.size < 2) return emptyList()
 
     val intervals = mutableListOf<WateringInterval>()

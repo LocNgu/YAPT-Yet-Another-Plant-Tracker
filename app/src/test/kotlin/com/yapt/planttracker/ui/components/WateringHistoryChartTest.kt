@@ -116,6 +116,31 @@ class WateringHistoryChartTest {
     }
 
     @Test
+    fun computeWateringIntervals_noInRangeWithTwoPredecessors() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 45),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 90)
+        )
+        // Range starts after all waterings (simulates a plant watered every 45 days on 1M view)
+        val rangeStart = 100L + dayInMs * 100
+        val result = computeWateringIntervals(logs, rangeStart, 100L + dayInMs * 130)
+        assertEquals(1, result.size)
+        assertEquals(45f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(100L + dayInMs * 90, result[0].timestamp)
+    }
+
+    @Test
+    fun computeWateringIntervals_noInRangeWithOnePredecessor() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val log = CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = 100L)
+        val rangeStart = 100L + dayInMs * 10
+        val result = computeWateringIntervals(listOf(log), rangeStart, 100L + dayInMs * 20)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
     fun computeWateringIntervals_ignoreNonWateringLogs() {
         val dayInMs = 24 * 60 * 60 * 1000L
         val waterLogs = listOf(
