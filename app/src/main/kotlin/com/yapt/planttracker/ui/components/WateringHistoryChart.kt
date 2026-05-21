@@ -111,6 +111,10 @@ fun WateringHistoryChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 32.dp)
             )
+        } else if (intervals.size == 1) {
+            // Vico's line layer needs 2+ points to draw a segment; show stats only
+            // rather than a blank chart host when there are only 2 total waterings.
+            ChartLegend(intervals)
         } else {
             ChartContent(intervals, rangeStartMs, now)
         }
