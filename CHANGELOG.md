@@ -14,6 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Location suggestion chips on Add/Edit Plant screen: previously used room names appear as tappable chips below the Location field; tapping fills the field with the exact stored string; chips with a case-insensitive match to the current field text are highlighted (#137)
+- Skip - too soon action on watering notifications and plant detail screen: extends the watering interval by 1 day without logging a care event; Snackbar confirms the new interval (#33)
 
 ---
 
