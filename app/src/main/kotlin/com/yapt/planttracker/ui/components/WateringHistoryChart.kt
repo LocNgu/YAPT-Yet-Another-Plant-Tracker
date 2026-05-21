@@ -19,10 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.point
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
@@ -31,7 +35,9 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -111,10 +117,6 @@ fun WateringHistoryChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 32.dp)
             )
-        } else if (intervals.size == 1) {
-            // Vico's line layer needs 2+ points to draw a segment; show stats only
-            // rather than a blank chart host when there are only 2 total waterings.
-            ChartLegend(intervals)
         } else {
             ChartContent(intervals, rangeStartMs, now)
         }
@@ -223,7 +225,21 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
 
         CartesianChartHost(
             chart = rememberCartesianChart(
-                rememberLineCartesianLayer(rangeProvider = rangeProvider),
+                rememberLineCartesianLayer(
+                    lineProvider = LineCartesianLayer.LineProvider.series(
+                        LineCartesianLayer.rememberLine(
+                            pointProvider = LineCartesianLayer.PointProvider.single(
+                                LineCartesianLayer.point(
+                                    rememberShapeComponent(
+                                        fill = fill(MaterialTheme.colorScheme.primary),
+                                        shape = CorneredShape.Pill,
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    rangeProvider = rangeProvider,
+                ),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = dayFormatter
                 ),
