@@ -16,7 +16,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Location suggestion chips on Add/Edit Plant screen: previously used room names appear as tappable chips below the Location field; tapping fills the field with the exact stored string; chips with a case-insensitive match to the current field text are highlighted (#137)
 
 ### Fixed
-- Watering history chart no longer shows "not enough data" for infrequently-watered plants on short time ranges (1M/3M/6M): when only one watering falls inside the window, the predecessor just outside is used to compute its interval; when no waterings fall inside the window, the two most recent pre-range waterings are used to show the last known interval (#117)
+- Watering history chart no longer shows "not enough data" or a blank area for infrequently-watered plants: predecessor outside the range window is used to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval; single data points (2 total waterings) now render as a visible circle dot via Vico `PointProvider` (#117)
 
 ---
 
