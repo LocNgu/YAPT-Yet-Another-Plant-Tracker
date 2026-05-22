@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.util.toLocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
@@ -75,14 +76,30 @@ class ReminderWorker(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
+            val skipIntent = Intent(context, SkipWateringReceiver::class.java).apply {
+                action = SkipWateringReceiver.ACTION_SKIP_WATERING
+                putExtra(SkipWateringReceiver.EXTRA_PLANT_ID, plant.id)
+            }
+            val skipPendingIntent = PendingIntent.getBroadcast(
+                context,
+                plant.id.toInt(),
+                skipIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val builder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_plant_placeholder)
                 .setContentTitle(plant.name)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .build()
+
+            if (status.isOverdue || status.isDueSoon) {
+                builder.addAction(0, "Skip watering", skipPendingIntent)
+            }
+
+            val notification = builder.build()
 
             notificationManager.notify(plant.id.toInt(), notification)
         }
