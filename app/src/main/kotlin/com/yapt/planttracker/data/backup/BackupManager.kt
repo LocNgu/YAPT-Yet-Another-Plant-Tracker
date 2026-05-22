@@ -193,12 +193,14 @@ class BackupManager(
         photoEntries: Map<String, ByteArray>
     ): BackupResult = withContext(Dispatchers.IO) {
         val restoredPhotosDir = context.filesDir.resolve("restored_photos").also { it.mkdirs() }
+        val writtenFiles = mutableListOf<File>()
         try {
             val zipPathToLocalPath = mutableMapOf<String, String>()
             for ((zipPath, bytes) in photoEntries) {
                 val filename = File(zipPath.removePrefix(PHOTOS_DIR)).name
                 val destFile = File(restoredPhotosDir, filename)
                 destFile.writeBytes(bytes)
+                writtenFiles.add(destFile)
                 zipPathToLocalPath[zipPath] = destFile.absolutePath
             }
 
@@ -252,7 +254,7 @@ class BackupManager(
 
             BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
         } catch (e: Exception) {
-            restoredPhotosDir.deleteRecursively()
+            writtenFiles.forEach { it.delete() }
             throw e
         }
     }
