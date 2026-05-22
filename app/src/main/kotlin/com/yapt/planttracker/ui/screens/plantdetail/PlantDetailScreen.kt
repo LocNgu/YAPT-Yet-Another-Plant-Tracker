@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,6 +74,7 @@ fun PlantDetailScreen(
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
+    val showSkipDialog by viewModel.showSkipDialog.collectAsStateWithLifecycle()
 
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
@@ -82,12 +85,57 @@ fun PlantDetailScreen(
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it >= 1 }
 
+    var skipDays by remember { mutableIntStateOf(1) }
+    LaunchedEffect(showSkipDialog) {
+        if (showSkipDialog) skipDays = 1
+    }
+
     LaunchedEffect(suggestedInterval, plant?.wateringIntervalDays) {
         val s = suggestedInterval
         val current = plant?.wateringIntervalDays
         if (s != null && current != null && s == current) {
             viewModel.clearSuggestedInterval()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is PlantDetailViewModel.Event.SkipConfirmed -> {
+                    viewModel.suggestedWateringInterval.value = event.proposedInterval
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (showSkipDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSkipDialog() },
+            title = { Text("Skip watering") },
+            text = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    IconButton(
+                        onClick = { if (skipDays > 1) skipDays-- },
+                        enabled = skipDays > 1
+                    ) { Icon(Icons.Filled.Remove, contentDescription = "Decrease") }
+                    Text(if (skipDays == 1) "1 day" else "$skipDays days")
+                    IconButton(
+                        onClick = { if (skipDays < 7) skipDays++ },
+                        enabled = skipDays < 7
+                    ) { Icon(Icons.Filled.Add, contentDescription = "Increase") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text("Cancel") }
+            }
+        )
     }
 
     val showDialog = suggestedInterval != null &&
@@ -219,6 +267,14 @@ fun PlantDetailScreen(
                 careStatus?.let { status ->
                     item {
                         StatsRow(status = status)
+                        if (plant?.wateringIntervalDays != null) {
+                            TextButton(
+                                onClick = { viewModel.requestSkip() },
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text("Skip watering")
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }

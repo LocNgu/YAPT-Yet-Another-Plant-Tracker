@@ -88,7 +88,8 @@ class BackupManager(
                     wateringIntervalDays = entity.wateringIntervalDays,
                     fertilizingIntervalDays = entity.fertilizingIntervalDays,
                     createdAt = entity.createdAt,
-                    updatedAt = entity.updatedAt
+                    updatedAt = entity.updatedAt,
+                    wateringDueDateOverride = entity.wateringDueDateOverride
                 )
             }
 
@@ -216,7 +217,8 @@ class BackupManager(
                 wateringIntervalDays = bp.wateringIntervalDays,
                 fertilizingIntervalDays = bp.fertilizingIntervalDays,
                 createdAt = bp.createdAt,
-                updatedAt = bp.updatedAt
+                updatedAt = bp.updatedAt,
+                wateringDueDateOverride = bp.wateringDueDateOverride
             )
         }
 

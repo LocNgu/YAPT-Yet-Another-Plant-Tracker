@@ -52,5 +52,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".notification.SkipWateringReceiver"
+            android:exported="false" />
+
+
     </application>
 </manifest>

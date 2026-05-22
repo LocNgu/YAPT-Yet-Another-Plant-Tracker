@@ -70,6 +70,15 @@ class AddCareLogViewModel(
             )
             careLogRepository.addLog(log)
 
+            if (selectedCareType == CareType.WATER) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
+            }
+
             val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
             _events.emit(Event.Saved(suggestedInterval))
         }
