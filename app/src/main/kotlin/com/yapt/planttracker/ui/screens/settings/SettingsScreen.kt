@@ -115,7 +115,7 @@ fun SettingsScreen(
             when (result) {
                 is BackupResult.ExportSuccess ->
                     snackbarHostState.showSnackbar(
-                        "Backup saved (${result.plantCount} plants, ${result.logCount} logs)"
+                        context.getString(R.string.backup_export_success, result.plantCount, result.logCount)
                     )
                 is BackupResult.ImportSuccess ->
                     onRestoreSuccess(result.plantCount, result.logCount)
@@ -125,7 +125,7 @@ fun SettingsScreen(
                     showFutureSchemaDialog = true
                 }
                 is BackupResult.Error ->
-                    snackbarHostState.showSnackbar("Error: ${result.message}")
+                    snackbarHostState.showSnackbar(context.getString(R.string.backup_error, result.message))
             }
         }
     }
@@ -133,10 +133,10 @@ fun SettingsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export backup") },
+            title = { Text(stringResource(R.string.backup_export_dialog_title)) },
             text = {
                 Column {
-                    Text("Create a backup of all your plants and care logs.")
+                    Text(stringResource(R.string.backup_export_dialog_text))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -149,7 +149,7 @@ fun SettingsScreen(
                             onCheckedChange = { includePhotos = it }
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Include photos")
+                        Text(stringResource(R.string.backup_include_photos))
                     }
                 }
             },
@@ -157,7 +157,7 @@ fun SettingsScreen(
                 Button(onClick = {
                     showExportDialog = false
                     createDocumentLauncher.launch("yapt-backup-$todayString.yapt")
-                }) { Text("Export") }
+                }) { Text(stringResource(R.string.backup_export_confirm_button)) }
             },
             dismissButton = {
                 TextButton(onClick = { showExportDialog = false }) { Text(stringResource(R.string.cancel)) }
@@ -171,14 +171,14 @@ fun SettingsScreen(
                 showRestoreConfirmDialog = false
                 pendingRestoreUri = null
             },
-            title = { Text("Restore backup") },
-            text = { Text("This will replace all current data. This cannot be undone.") },
+            title = { Text(stringResource(R.string.backup_restore_dialog_title)) },
+            text = { Text(stringResource(R.string.backup_restore_dialog_text)) },
             confirmButton = {
                 Button(onClick = {
                     showRestoreConfirmDialog = false
                     pendingRestoreUri?.let { viewModel.importBackup(it) }
                     pendingRestoreUri = null
-                }) { Text("Restore") }
+                }) { Text(stringResource(R.string.backup_restore_confirm_button)) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -195,19 +195,16 @@ fun SettingsScreen(
                 showFutureSchemaDialog = false
                 pendingFutureSchemaImport = null
             },
-            title = { Text("Newer backup version") },
+            title = { Text(stringResource(R.string.backup_future_schema_title)) },
             text = {
-                Text(
-                    "This backup was created with a newer version of YAPT " +
-                        "(schema v$futureSchemaVersion). Some data may not be restored."
-                )
+                Text(stringResource(R.string.backup_future_schema_text, futureSchemaVersion))
             },
             confirmButton = {
                 Button(onClick = {
                     showFutureSchemaDialog = false
                     pendingFutureSchemaImport?.let { viewModel.proceedWithFutureSchemaImport(it) }
                     pendingFutureSchemaImport = null
-                }) { Text("Proceed") }
+                }) { Text(stringResource(R.string.backup_proceed_button)) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -353,7 +350,7 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Backup & Restore",
+                text = stringResource(R.string.backup_section_title),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -373,9 +370,9 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Export backup", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.backup_export_item_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Save a .yapt file to your device",
+                        stringResource(R.string.backup_export_item_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -398,9 +395,9 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Restore from backup", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.backup_restore_item_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Replace all data from a .yapt file",
+                        stringResource(R.string.backup_restore_item_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
