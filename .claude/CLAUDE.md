@@ -116,13 +116,13 @@ Every feature and bug fix follows these steps in order:
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
 3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
-   - BLOCKING findings are posted as **inline PR review comments** on the relevant lines using `mcp__github__pull_request_review_write`
+   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them to the PR using `mcp__github__pull_request_review_write` (BLOCKING findings as inline comments) and `mcp__github__add_issue_comment`
    - The PR review body is compact: verdict + counts only
    - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
-   - **GitHub API only** — use `mcp__github__` tools for all GitHub interactions; `gh` CLI is not available in this environment
+   - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
-   - **Posts a compact checklist comment on the PR** (under 15 lines for a passing run) using `mcp__github__add_issue_comment`
-   - **GitHub API only** — use `mcp__github__` tools for all GitHub interactions; `gh` CLI is not available in this environment
+   - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
+   - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
 6. **Merge** — **human merges only**; Claude never merges a PR
 
