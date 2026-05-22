@@ -116,14 +116,14 @@ Every feature and bug fix follows these steps in order:
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
 3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
-   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them to the PR using `mcp__github__pull_request_review_write` (BLOCKING findings as inline comments) and `mcp__github__add_issue_comment`
+   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts BLOCKING findings to the PR as inline comments via `mcp__github__pull_request_review_write`; NON-BLOCKING findings are filed as new GitHub issues via `mcp__github__issue_write`
    - The PR review body is compact: verdict + counts only
    - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
    - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
    - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
-5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
+5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
