@@ -81,8 +81,22 @@ class PlantDetailViewModel(
         viewModelScope.launch { careLogRepository.deleteLog(log) }
     }
 
+    fun skipWateringTooSoon() {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                val current = p.wateringIntervalDays ?: return@let
+                val newInterval = current + 1
+                plantRepository.updatePlant(
+                    p.copy(wateringIntervalDays = newInterval, updatedAt = System.currentTimeMillis())
+                )
+                _events.emit(Event.SkipTooSoon(newInterval))
+            }
+        }
+    }
+
     sealed class Event {
         object IntervalUpdated : Event()
+        data class SkipTooSoon(val newInterval: Int) : Event()
     }
 
     class Factory(

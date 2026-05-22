@@ -27,13 +27,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -72,6 +78,21 @@ fun PlantDetailScreen(
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is PlantDetailViewModel.Event.SkipTooSoon ->
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Interval extended to ${event.newInterval} days")
+                    }
+                PlantDetailViewModel.Event.IntervalUpdated -> {}
+            }
+        }
+    }
 
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
@@ -219,6 +240,25 @@ fun PlantDetailScreen(
                 careStatus?.let { status ->
                     item {
                         StatsRow(status = status)
+                        val showSkipButton = plant?.wateringIntervalDays != null &&
+                            (status.isOverdue || status.isDueSoon)
+                        if (showSkipButton) {
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                OutlinedButton(
+                                    onClick = { viewModel.skipWateringTooSoon() },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.WaterDrop,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Skip - too soon", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }
@@ -331,6 +371,14 @@ fun PlantDetailScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Log care")
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 88.dp)
+        )
 
         }
     }
