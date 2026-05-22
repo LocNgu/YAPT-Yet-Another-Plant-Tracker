@@ -92,8 +92,10 @@ class PlantDetailViewModel(
         viewModelScope.launch {
             showSkipDialog.value = false
             plant.value?.let { p ->
-                val currentDue = careStatus.value?.nextWateringDueAt
-                    ?: System.currentTimeMillis()
+                val currentDue = maxOf(
+                    careStatus.value?.nextWateringDueAt ?: 0L,
+                    System.currentTimeMillis()
+                )
                 val newOverride = currentDue + TimeUnit.DAYS.toMillis(days.toLong())
                 plantRepository.updatePlant(
                     p.copy(wateringDueDateOverride = newOverride, updatedAt = System.currentTimeMillis())

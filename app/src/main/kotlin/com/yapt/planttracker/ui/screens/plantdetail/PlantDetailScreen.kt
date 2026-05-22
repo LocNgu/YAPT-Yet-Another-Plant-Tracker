@@ -267,7 +267,7 @@ fun PlantDetailScreen(
                 careStatus?.let { status ->
                     item {
                         StatsRow(status = status)
-                        if (plant?.wateringIntervalDays != null) {
+                        if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
                             TextButton(
                                 onClick = { viewModel.requestSkip() },
                                 modifier = Modifier.padding(horizontal = 8.dp)
