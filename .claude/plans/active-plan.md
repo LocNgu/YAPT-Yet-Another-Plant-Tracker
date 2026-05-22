@@ -40,6 +40,7 @@
 - [x] Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen so the soft keyboard no longer obscures the Notes field; bottom Spacer reduced from 72 dp to 16 dp on both screens
 - [x] Fix #136: `formatCountdown` returns `"Overdue"` for same-day-overdue (diffMs < 0 && absDays == 0L) so the PlantCard chip shows red correctly; unit test updated
 - [x] Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` clamps base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases
+- [x] Fix #117: watering history chart now works for infrequently-watered plants — `computeWateringIntervals` uses the predecessor just outside the range window to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval point; `ChartContent` month loop extended to cover pre-range months; Vico `PointProvider(CorneredShape.Pill)` added so single data points (2 total waterings) render as visible circles (PR #166)
 
 ---
 

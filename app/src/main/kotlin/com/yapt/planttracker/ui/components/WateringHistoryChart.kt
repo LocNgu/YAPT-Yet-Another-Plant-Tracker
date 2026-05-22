@@ -19,10 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.point
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
@@ -31,7 +35,9 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -126,8 +132,15 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
         val indexToZdt = mutableListOf<ZonedDateTime>()
 
         var monthIndex = 0
+        // When a pre-range interval exists (e.g. 0 in-window logs for an infrequently-watered
+        // plant), start the month loop from that interval's month so the data point is visible.
+        val effectiveStartMs = if (intervals.isNotEmpty()) {
+            minOf(rangeStartMs, intervals.minOf { it.timestamp })
+        } else {
+            rangeStartMs
+        }
         var monthStart = ZonedDateTime.ofInstant(
-            Instant.ofEpochMilli(rangeStartMs), ZoneId.systemDefault()
+            Instant.ofEpochMilli(effectiveStartMs), ZoneId.systemDefault()
         ).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
 
         while (!monthStart.toInstant().isAfter(Instant.ofEpochMilli(now))) {
@@ -212,7 +225,21 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
 
         CartesianChartHost(
             chart = rememberCartesianChart(
-                rememberLineCartesianLayer(rangeProvider = rangeProvider),
+                rememberLineCartesianLayer(
+                    lineProvider = LineCartesianLayer.LineProvider.series(
+                        LineCartesianLayer.rememberLine(
+                            pointProvider = LineCartesianLayer.PointProvider.single(
+                                LineCartesianLayer.point(
+                                    rememberShapeComponent(
+                                        fill = fill(MaterialTheme.colorScheme.primary),
+                                        shape = CorneredShape.Pill,
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    rangeProvider = rangeProvider,
+                ),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = dayFormatter
                 ),
@@ -280,19 +307,25 @@ fun computeWateringIntervals(
     rangeStartMs: Long,
     now: Long
 ): List<WateringInterval> {
-    val filtered = wateringLogs.filter { it.loggedAt >= rangeStartMs && it.loggedAt <= now }
+    val inRange = wateringLogs.filter { it.loggedAt >= rangeStartMs && it.loggedAt <= now }
+    val beforeRange = wateringLogs
+        .filter { it.loggedAt < rangeStartMs }
+        .sortedByDescending { it.loggedAt }
 
-    if (filtered.size < 2) {
-        return emptyList()
-    }
+    // When there are no in-range logs, fall back to the last 2 pre-range waterings so
+    // plants watered less than once per month still get one interval point.
+    val anchorsNeeded = if (inRange.isEmpty()) 2 else 1
+    val anchors = beforeRange.take(anchorsNeeded).reversed()
+
+    val workingList = anchors + inRange
+    if (workingList.size < 2) return emptyList()
 
     val intervals = mutableListOf<WateringInterval>()
-    for (i in 1 until filtered.size) {
-        val prevLog = filtered[i - 1]
-        val currentLog = filtered[i]
-        val daysDiff = (currentLog.loggedAt - prevLog.loggedAt) / (24 * 60 * 60 * 1000).toFloat()
-        intervals.add(WateringInterval(currentLog.loggedAt, daysDiff))
+    for (i in 1 until workingList.size) {
+        val prev = workingList[i - 1]
+        val curr = workingList[i]
+        val daysDiff = (curr.loggedAt - prev.loggedAt) / (24 * 60 * 60 * 1000).toFloat()
+        intervals.add(WateringInterval(curr.loggedAt, daysDiff))
     }
-
     return intervals
 }
