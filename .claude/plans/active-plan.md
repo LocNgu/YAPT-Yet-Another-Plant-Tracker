@@ -72,9 +72,11 @@
 
 1. **Spec** — run the spec agent; it interviews the human and posts clarifications as a comment on the GitHub issue
 2. **Implement** — run the implementer agent; it reads the spec and writes code on a `claude/<kebab-description>` branch, then opens a PR targeting `develop`
-3. **Review** — run the reviewer agent (iterative rounds of REQUEST CHANGES):
-   - BLOCKING findings posted as inline PR review comments; NON-BLOCKING findings filed as new GitHub issues
+3. **Review** — run the reviewer agent; it returns findings as text; the **orchestrating Claude instance** posts them to the PR:
+   - BLOCKING inline comments: `mcp__github__pull_request_review_write` create (no event) → `mcp__github__add_comment_to_pending_review` per finding → `submit_pending` with `event: COMMENT`
+   - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are blocked on same-account PRs — always use `COMMENT` event
    - After round 2 the reviewer escalates to the human with a recommendation instead of auto-approving
-4. **QA** — run the qa agent; it validates build, tests, lint, and every acceptance criterion (compact checklist comment)
-5. **Merge** — human merges the PR; Claude never merges
-6. **Update docs** — implementer updates this file (move to Completed) and `CLAUDE.md` (What's Been Completed + Known Issues)
+4. **QA** — run the qa agent; it returns a compact checklist; the **orchestrating Claude instance** posts it via `mcp__github__add_issue_comment`
+5. **Update docs** — implementer updates this file (move to Completed), `CLAUDE.md` (What's Been Completed + Known Issues), `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt`; `chore:`/docs-only PRs may omit CHANGELOG and `WhatsNewContent.kt`
+6. **Merge** — human merges the PR; Claude never merges
