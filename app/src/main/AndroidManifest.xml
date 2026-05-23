@@ -54,8 +54,11 @@
 
         <receiver
             android:name=".notification.SkipWateringReceiver"
-            android:exported="false" />
-
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.yapt.planttracker.ACTION_SKIP_WATERING" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

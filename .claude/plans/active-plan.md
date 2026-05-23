@@ -40,6 +40,7 @@
 - [x] Fix #135: add `imePadding()` to AddEditPlantScreen and AddCareLogScreen so the soft keyboard no longer obscures the Notes field; bottom Spacer reduced from 72 dp to 16 dp on both screens
 - [x] Fix #136: `formatCountdown` returns `"Overdue"` for same-day-overdue (diffMs < 0 && absDays == 0L) so the PlantCard chip shows red correctly; unit test updated
 - [x] Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` clamps base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases
+- [x] Fix #117: watering history chart now works for infrequently-watered plants — `computeWateringIntervals` uses the predecessor just outside the range window to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval point; `ChartContent` month loop extended to cover pre-range months; Vico `PointProvider(CorneredShape.Pill)` added so single data points (2 total waterings) render as visible circles (PR #166)
 
 ---
 
@@ -71,9 +72,11 @@
 
 1. **Spec** — run the spec agent; it interviews the human and posts clarifications as a comment on the GitHub issue
 2. **Implement** — run the implementer agent; it reads the spec and writes code on a `claude/<kebab-description>` branch, then opens a PR targeting `develop`
-3. **Review** — run the reviewer agent (iterative rounds of REQUEST CHANGES):
-   - BLOCKING findings posted as inline PR review comments; NON-BLOCKING findings filed as new GitHub issues
+3. **Review** — run the reviewer agent; it returns findings as text; the **orchestrating Claude instance** posts them to the PR:
+   - BLOCKING inline comments: `mcp__github__pull_request_review_write` create (no event) → `mcp__github__add_comment_to_pending_review` per finding → `submit_pending` with `event: COMMENT`
+   - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are blocked on same-account PRs — always use `COMMENT` event
    - After round 2 the reviewer escalates to the human with a recommendation instead of auto-approving
-4. **QA** — run the qa agent; it validates build, tests, lint, and every acceptance criterion (compact checklist comment)
-5. **Merge** — human merges the PR; Claude never merges
-6. **Update docs** — implementer updates this file (move to Completed) and `CLAUDE.md` (What's Been Completed + Known Issues)
+4. **QA** — run the qa agent; it returns a compact checklist; the **orchestrating Claude instance** posts it via `mcp__github__add_issue_comment`
+5. **Update docs** — implementer updates this file (move to Completed), `CLAUDE.md` (What's Been Completed + Known Issues), `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt`; `chore:`/docs-only PRs may omit CHANGELOG and `WhatsNewContent.kt`
+6. **Merge** — human merges the PR; Claude never merges

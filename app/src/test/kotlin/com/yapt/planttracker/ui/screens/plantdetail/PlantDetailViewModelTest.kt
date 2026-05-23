@@ -105,6 +105,41 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun `skipWateringTooSoon increments wateringIntervalDays by 1 and emits SkipTooSoon event`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.events.test {
+                vm.skipWateringTooSoon()
+                val event = awaitItem()
+                assert(event is PlantDetailViewModel.Event.SkipTooSoon)
+                assertEquals(8, (event as PlantDetailViewModel.Event.SkipTooSoon).newInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 8 }) }
+    }
+
+    @Test
+    fun `skipWateringTooSoon does nothing when wateringIntervalDays is null`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.skipWateringTooSoon()
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
+
+    @Test
     fun `plant with watering interval and no logs has no overdue status`() = runTest {
         val plantWithInterval = Plant(
             id = 2L,

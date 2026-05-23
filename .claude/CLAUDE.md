@@ -114,17 +114,22 @@ Every feature and bug fix follows these steps in order:
 
 1. **Spec** (`spec` agent) — interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
-3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
+3. **Review** (`reviewer` agent) — iterative rounds of review:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
-   - BLOCKING findings are posted as **inline PR review comments** on the relevant lines
+   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
+     - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
+     - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
    - The PR review body is compact: verdict + counts only
-   - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
+   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
+   - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
+   - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
-   - **Posts a compact checklist comment on the PR** (under 15 lines for a passing run)
-5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
+   - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
+   - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
-After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread.
+After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
 
 ## Git Workflow
 
@@ -216,3 +221,4 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Keep screen on toggle in Settings (issue #140): `KEEP_SCREEN_ON` DataStore key; `SettingsViewModel.keepScreenOn` StateFlow + `setKeepScreenOn()`; "Display" section in SettingsScreen with `BrightnessMedium` icon; `MainActivity` collects the flow in `setContent` and applies/clears `FLAG_KEEP_SCREEN_ON` via `LaunchedEffect`; preference round-trips through backup/restore; 2 new `SettingsViewModelTest` cases
 - Fix #141: due-date comparisons normalised to calendar-day granularity — `internal fun Long.toLocalDate()` extension added to `DateUtils.kt` (shared via import by `CareSchedule` and `ReminderWorker`); `isOverdue`/`isDueSoon` and fertilizing equivalents in `CareSchedule.computeStatus()` use `LocalDate.isBefore()` / `==` instead of millisecond subtraction; `formatCountdown` uses `ChronoUnit.DAYS.between(toLocalDate(), toLocalDate())` — eliminates "overdue by <24 h" edge case (plants remain "Due today" throughout the due calendar day); `ReminderWorker.buildCareBody()` likewise uses `ChronoUnit.DAYS`; unit tests pin JVM timezone to UTC via `@Before`; supersedes the millisecond workaround in fix #136 (PR #152)
 - Location suggestion chips on Add/Edit Plant screen (issue #137, PR #165): `AddEditPlantViewModel.rooms: StateFlow<List<String>>` via `plantRepository.getAllRooms().stateIn(WhileSubscribed(5000))`; `AddEditPlantScreen` renders a `FlowRow` of `SuggestionChip`s below the Location field (hidden when no rooms saved); chip tap sets field to exact stored string and hides keyboard; case-insensitive match (chip ≠ fieldText) applies `primaryContainer` tint; `getAllRooms()` stubbed in `AddEditPlantViewModelTest` and `AddEditPlantScreenTest`
+- Fix #117: watering history chart now works for infrequently-watered plants (PR #166): `computeWateringIntervals` uses the most recent watering before `rangeStartMs` as a predecessor anchor so the first in-window log gets an interval; when `inRange` is empty the last two pre-range waterings produce one interval point; `ChartContent` month loop starts from `min(rangeStartMs, earliest interval timestamp)` so pre-range points land in a visible bucket; `rememberLineCartesianLayer` configured with `LineCartesianLayer.PointProvider.single(CorneredShape.Pill)` so a single data point (2 total waterings) renders as a visible circle; 5 new unit tests added

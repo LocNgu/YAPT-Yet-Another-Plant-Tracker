@@ -87,7 +87,7 @@ class ReminderWorker(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val builder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
+            val notificationBuilder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_plant_placeholder)
                 .setContentTitle(plant.name)
                 .setContentText(body)
@@ -96,12 +96,10 @@ class ReminderWorker(
                 .setAutoCancel(true)
 
             if (status.isOverdue || status.isDueSoon) {
-                builder.addAction(0, "Skip watering", skipPendingIntent)
+                notificationBuilder.addAction(0, "Skip watering", skipPendingIntent)
             }
 
-            val notification = builder.build()
-
-            notificationManager.notify(plant.id.toInt(), notification)
+            notificationManager.notify(plant.id.toInt(), notificationBuilder.build())
         }
 
         return Result.success()
