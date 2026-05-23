@@ -10,6 +10,9 @@ interface CareLogDao {
     @Query("SELECT * FROM care_logs WHERE plantId = :plantId ORDER BY loggedAt DESC")
     fun getLogsForPlant(plantId: Long): Flow<List<CareLogEntity>>
 
+    @Query("SELECT * FROM care_logs")
+    fun getAllLogs(): Flow<List<CareLogEntity>>
+
     @Query(
         "SELECT * FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
             "ORDER BY loggedAt DESC LIMIT 1"

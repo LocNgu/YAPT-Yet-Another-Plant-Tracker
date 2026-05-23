@@ -19,6 +19,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - Watering history chart no longer shows "not enough data" or a blank area for infrequently-watered plants: predecessor outside the range window is used to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval; single data points (2 total waterings) now render as a visible circle dot via Vico `PointProvider` (#117)
+- Backup error message when importing a file without backup.json is now readable — was "not compatible File" (#38)
+- Reminder schedule now updates to the restored time immediately after importing a backup (#41)
+- Orphaned photo files are cleaned up when a backup restore fails mid-import (#35)
+- Unreadable photos are silently skipped during export instead of producing malformed zip entries (#40)
+- Backup export now fetches all care logs in a single query instead of one per plant (#36)
+- Backup & Restore UI strings moved to strings.xml (#39)
 
 ### Changed
 - CLAUDE.md dev workflow: reviewer step now correctly names `mcp__github__issue_write` for NON-BLOCKING findings; documents the 3-step inline comment API flow; notes that `APPROVE` and `REQUEST_CHANGES` are both blocked on same-account PRs — use `COMMENT` event; step 5 clarifies that `chore:`/docs-only PRs may omit CHANGELOG and `WhatsNewContent.kt` entries (#173, #174)
