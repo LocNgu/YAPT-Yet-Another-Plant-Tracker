@@ -36,10 +36,13 @@ class PlantListViewModel(
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
 
+    private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val hasUnassignedPlants: StateFlow<Boolean> = plantRepository.getAllPlants()
+    val hasUnassignedPlants: StateFlow<Boolean> = allPlants
         .map { plants -> plants.any { it.room == null } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -71,7 +74,7 @@ class PlantListViewModel(
     }
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
-        plantRepository.getAllPlants(),
+        allPlants,
         careLogRepository.logCount,
         selectedRoom,
         _sortOrder

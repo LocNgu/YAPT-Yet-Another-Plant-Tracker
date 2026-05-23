@@ -14,7 +14,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -227,5 +229,21 @@ class PlantListViewModelTest {
             assertEquals(false, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `auto-fallback resets selection to All when last unassigned plant gains a room`() = runTest {
+        val plantsFlow = MutableStateFlow(listOf(plant(id = 1L, name = "Snake Plant", room = null)))
+        every { plantRepo.getAllPlants() } returns plantsFlow
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
+        assertEquals(PlantListViewModel.UNASSIGNED_ROOM, vm.selectedRoom.value)
+
+        plantsFlow.value = listOf(plant(id = 1L, name = "Snake Plant", room = "Kitchen"))
+        advanceUntilIdle()
+
+        assertNull(vm.selectedRoom.value)
     }
 }
