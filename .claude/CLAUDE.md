@@ -114,11 +114,14 @@ Every feature and bug fix follows these steps in order:
 
 1. **Spec** (`spec` agent) — interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
-3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
+3. **Review** (`reviewer` agent) — iterative rounds of review:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
-   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts BLOCKING findings to the PR as inline comments via `mcp__github__pull_request_review_write`; NON-BLOCKING findings are filed as new GitHub issues via `mcp__github__issue_write`
+   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
+     - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `submit_pending` with `event: COMMENT`
+     - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
    - The PR review body is compact: verdict + counts only
-   - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
+   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
+   - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
    - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
