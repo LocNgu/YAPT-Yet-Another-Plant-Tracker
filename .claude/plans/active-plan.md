@@ -77,5 +77,5 @@
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are blocked on same-account PRs — always use `COMMENT` event
    - After round 2 the reviewer escalates to the human with a recommendation instead of auto-approving
 4. **QA** — run the qa agent; it returns a compact checklist; the **orchestrating Claude instance** posts it via `mcp__github__add_issue_comment`
-5. **Merge** — human merges the PR; Claude never merges
-6. **Update docs** — implementer updates this file (move to Completed) and `CLAUDE.md` (What's Been Completed + Known Issues)
+5. **Update docs** — implementer updates this file (move to Completed), `CLAUDE.md` (What's Been Completed + Known Issues), `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt`; `chore:`/docs-only PRs may omit CHANGELOG and `WhatsNewContent.kt`
+6. **Merge** — human merges the PR; Claude never merges
