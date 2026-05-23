@@ -39,4 +39,21 @@
     <string name="time_range_6m">6M</string>
     <string name="time_range_12m">12M</string>
     <string name="time_range_all">All</string>
+    <string name="backup_section_title">Backup &amp; Restore</string>
+    <string name="backup_export_dialog_title">Export backup</string>
+    <string name="backup_export_dialog_text">Create a backup of all your plants and care logs.</string>
+    <string name="backup_include_photos">Include photos</string>
+    <string name="backup_export_confirm_button">Export</string>
+    <string name="backup_restore_dialog_title">Restore backup</string>
+    <string name="backup_restore_dialog_text">This will replace all current data. This cannot be undone.</string>
+    <string name="backup_restore_confirm_button">Restore</string>
+    <string name="backup_future_schema_title">Newer backup version</string>
+    <string name="backup_future_schema_text">This backup was created with a newer version of YAPT (schema v%d). Some data may not be restored.</string>
+    <string name="backup_proceed_button">Proceed</string>
+    <string name="backup_export_item_title">Export backup</string>
+    <string name="backup_export_item_subtitle">Save a .yapt file to your device</string>
+    <string name="backup_restore_item_title">Restore from backup</string>
+    <string name="backup_restore_item_subtitle">Replace all data from a .yapt file</string>
+    <string name="backup_export_success">Backup saved (%1$d plants, %2$d logs)</string>
+    <string name="backup_error">Error: %s</string>
 </resources>

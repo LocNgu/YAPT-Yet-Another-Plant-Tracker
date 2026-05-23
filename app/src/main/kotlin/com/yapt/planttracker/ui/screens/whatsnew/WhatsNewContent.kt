@@ -25,7 +25,9 @@ object WhatsNewContent {
             "Care-type chip no longer shows \"next:\" when care is already overdue",
             "Keyboard no longer covers the Notes field when editing a plant or care log",
             "Due dates compare by calendar day — \"due today\" stays correct throughout the day",
-            "Watering history chart now shows for infrequently-watered plants on short ranges (1M/3M/6M) and for plants with only 2 total waterings"
+            "Watering history chart now shows for infrequently-watered plants on short ranges (1M/3M/6M) and for plants with only 2 total waterings",
+            "Reminder schedule now updates immediately after restoring a backup",
+            "Backup error message is now readable when importing a file that isn't a YAPT backup"
         )
     )
 }

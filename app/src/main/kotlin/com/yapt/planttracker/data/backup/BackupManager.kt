@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -45,13 +46,8 @@ class BackupManager(
             val careLogDao = database.careLogDao()
 
             val plants = plantDao.getAllPlants().first()
-            val careLogs = mutableListOf<CareLogEntity>()
-            for (plant in plants) {
-                val logs = careLogDao.getLogsForPlant(plant.id).first()
-                for (log in logs) {
-                    careLogs.add(log)
-                }
-            }
+            val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
+            val careLogs = plants.flatMap { allLogs[it.id].orEmpty() }
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -132,12 +128,13 @@ class BackupManager(
 
                     if (includePhotos) {
                         for ((originalUri, zipPath) in photoMapping) {
-                            runCatching {
-                                context.contentResolver.openInputStream(Uri.parse(originalUri))?.use { input ->
-                                    zip.putNextEntry(ZipEntry(zipPath))
-                                    input.copyTo(zip)
-                                    zip.closeEntry()
-                                }
+                            val input = runCatching {
+                                context.contentResolver.openInputStream(Uri.parse(originalUri))
+                            }.getOrNull() ?: continue
+                            input.use {
+                                zip.putNextEntry(ZipEntry(zipPath))
+                                it.copyTo(zip)
+                                zip.closeEntry()
                             }
                         }
                     }
@@ -173,7 +170,7 @@ class BackupManager(
                         zip.closeEntry()
                         entry = zip.nextEntry
                     }
-                    if (!foundJson) error("not compatible File")
+                    if (!foundJson) error("Backup file is not compatible: backup.json not found")
                     jsonBytes = jsonHolder[0]
                 }
             } ?: error("Could not open input stream for URI: $sourceUri")
@@ -197,59 +194,71 @@ class BackupManager(
         photoEntries: Map<String, ByteArray>
     ): BackupResult = withContext(Dispatchers.IO) {
         val restoredPhotosDir = context.filesDir.resolve("restored_photos").also { it.mkdirs() }
+        val writtenFiles = mutableListOf<File>()
+        try {
+            val zipPathToLocalPath = mutableMapOf<String, String>()
+            for ((zipPath, bytes) in photoEntries) {
+                val filename = File(zipPath.removePrefix(PHOTOS_DIR)).name
+                val destFile = File(restoredPhotosDir, filename)
+                destFile.writeBytes(bytes)
+                writtenFiles.add(destFile)
+                zipPathToLocalPath[zipPath] = destFile.absolutePath
+            }
 
-        val zipPathToLocalPath = mutableMapOf<String, String>()
-        for ((zipPath, bytes) in photoEntries) {
-            val filename = File(zipPath.removePrefix(PHOTOS_DIR)).name
-            val destFile = File(restoredPhotosDir, filename)
-            destFile.writeBytes(bytes)
-            zipPathToLocalPath[zipPath] = destFile.absolutePath
+            val plantEntities = backup.plants.map { bp ->
+                PlantEntity(
+                    id = bp.id,
+                    name = bp.name,
+                    species = bp.species,
+                    room = bp.room,
+                    coverPhotoUri = bp.coverPhotoUri?.let { zipPathToLocalPath[it] ?: it },
+                    notes = bp.notes,
+                    wateringIntervalDays = bp.wateringIntervalDays,
+                    fertilizingIntervalDays = bp.fertilizingIntervalDays,
+                    createdAt = bp.createdAt,
+                    updatedAt = bp.updatedAt,
+                    wateringDueDateOverride = bp.wateringDueDateOverride
+                )
+            }
+
+            val careLogEntities = backup.careLogs.map { bl ->
+                CareLogEntity(
+                    id = bl.id,
+                    plantId = bl.plantId,
+                    careType = bl.careType,
+                    loggedAt = bl.loggedAt,
+                    notes = bl.notes,
+                    photoUri = bl.photoUri?.let { zipPathToLocalPath[it] ?: it },
+                    amount = bl.amount,
+                    wateringFeedback = bl.wateringFeedback
+                )
+            }
+
+            database.withTransaction {
+                database.careLogDao().deleteAll()
+                database.plantDao().deleteAll()
+                database.plantDao().insertAll(plantEntities)
+                database.careLogDao().insertAll(careLogEntities)
+            }
+
+            dataStore.edit { prefs ->
+                prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
+                prefs[SettingsKeys.REMINDER_HOUR] = backup.settings.reminderHour
+                prefs[SettingsKeys.REMINDER_MINUTE] = backup.settings.reminderMinute
+                prefs[SettingsKeys.KEEP_SCREEN_ON] = backup.settings.keepScreenOn
+            }
+
+            if (backup.settings.notificationsEnabled) {
+                ReminderScheduler.schedule(context, backup.settings.reminderHour, backup.settings.reminderMinute)
+            } else {
+                ReminderScheduler.cancel(context)
+            }
+
+            BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
+        } catch (e: Exception) {
+            writtenFiles.forEach { it.delete() }
+            throw e
         }
-
-        val plantEntities = backup.plants.map { bp ->
-            PlantEntity(
-                id = bp.id,
-                name = bp.name,
-                species = bp.species,
-                room = bp.room,
-                coverPhotoUri = bp.coverPhotoUri?.let { zipPathToLocalPath[it] ?: it },
-                notes = bp.notes,
-                wateringIntervalDays = bp.wateringIntervalDays,
-                fertilizingIntervalDays = bp.fertilizingIntervalDays,
-                createdAt = bp.createdAt,
-                updatedAt = bp.updatedAt,
-                wateringDueDateOverride = bp.wateringDueDateOverride
-            )
-        }
-
-        val careLogEntities = backup.careLogs.map { bl ->
-            CareLogEntity(
-                id = bl.id,
-                plantId = bl.plantId,
-                careType = bl.careType,
-                loggedAt = bl.loggedAt,
-                notes = bl.notes,
-                photoUri = bl.photoUri?.let { zipPathToLocalPath[it] ?: it },
-                amount = bl.amount,
-                wateringFeedback = bl.wateringFeedback
-            )
-        }
-
-        database.withTransaction {
-            database.careLogDao().deleteAll()
-            database.plantDao().deleteAll()
-            database.plantDao().insertAll(plantEntities)
-            database.careLogDao().insertAll(careLogEntities)
-        }
-
-        dataStore.edit { prefs ->
-            prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
-            prefs[SettingsKeys.REMINDER_HOUR] = backup.settings.reminderHour
-            prefs[SettingsKeys.REMINDER_MINUTE] = backup.settings.reminderMinute
-            prefs[SettingsKeys.KEEP_SCREEN_ON] = backup.settings.keepScreenOn
-        }
-
-        BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
     }
 
     private fun buildZipPhotoName(uriString: String): String {
