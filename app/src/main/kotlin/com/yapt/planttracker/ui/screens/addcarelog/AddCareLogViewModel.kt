@@ -70,7 +70,7 @@ class AddCareLogViewModel(
             )
             careLogRepository.addLog(log)
 
-            if (selectedCareType == CareType.WATER) {
+            if (!isEditMode && selectedCareType == CareType.WATER) {
                 plantRepository.getPlantById(plantId).first()?.let { p ->
                     if (p.wateringDueDateOverride != null)
                         plantRepository.updatePlant(
