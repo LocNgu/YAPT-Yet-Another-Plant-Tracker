@@ -91,6 +91,20 @@ Human promotes `[Unreleased]` → a versioned heading when cutting a release.
 
 ---
 
+## Architecture Decision Records (ADRs)
+
+Decisions are documented in `docs/decisions/`:
+- **`product/`** — product and UX decisions (the primary set): when features appear, what defaults are, how the app behaves
+- **`technical/`** — implementation constraints and framework choices
+
+**When to consult ADRs:**
+- **Spec agent**: before interviewing the human, scan `docs/decisions/product/` for ADRs relevant to the feature area. If the request contradicts an existing ADR, name the ADR and its rationale explicitly, and ask the human to confirm the new direction before proceeding.
+- **Implementer agent**: before writing code in an area covered by a technical ADR, read the relevant file. Do not refactor patterns described in technical ADRs without a superseding decision.
+
+**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. Old ADRs are never edited — the history stays intact.
+
+---
+
 ## Known Issues / Technical Debt
 
 Tracked as GitHub issues:
@@ -112,7 +126,7 @@ Tracked as GitHub issues:
 
 Every feature and bug fix follows these steps in order:
 
-1. **Spec** (`spec` agent) — interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
+1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
 3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
