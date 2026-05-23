@@ -57,6 +57,7 @@ fun PlantListScreen(
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val selectedRoom by viewModel.selectedRoom.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val hasUnassignedPlants by viewModel.hasUnassignedPlants.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
@@ -133,7 +134,7 @@ fun PlantListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (rooms.isNotEmpty()) {
+            if (rooms.isNotEmpty() || hasUnassignedPlants) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -144,6 +145,15 @@ fun PlantListScreen(
                             onClick = { viewModel.selectRoom(null) },
                             label = { Text("All") }
                         )
+                    }
+                    if (hasUnassignedPlants) {
+                        item {
+                            FilterChip(
+                                selected = selectedRoom == PlantListViewModel.UNASSIGNED_ROOM,
+                                onClick = { viewModel.selectRoom(PlantListViewModel.UNASSIGNED_ROOM) },
+                                label = { Text("Unassigned") }
+                            )
+                        }
                     }
                     items(rooms) { room ->
                         FilterChip(
@@ -156,10 +166,13 @@ fun PlantListScreen(
             }
 
             if (plantsWithStatus.isEmpty()) {
-                val emptyMessage = if (sortOrder.option == SortOption.BOTH_DUE) {
-                    "No plants need both watering\nand fertilizing right now."
-                } else {
-                    "No plants yet!\nTap + to add your first plant."
+                val emptyMessage = when {
+                    sortOrder.option == SortOption.BOTH_DUE ->
+                        "No plants need both watering\nand fertilizing right now."
+                    selectedRoom == PlantListViewModel.UNASSIGNED_ROOM ->
+                        "All plants are assigned to a room."
+                    else ->
+                        "No plants yet!\nTap + to add your first plant."
                 }
                 EmptyStateView(
                     message = emptyMessage,
