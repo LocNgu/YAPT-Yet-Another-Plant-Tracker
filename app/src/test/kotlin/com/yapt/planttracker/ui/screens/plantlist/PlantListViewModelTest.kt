@@ -184,4 +184,48 @@ class PlantListViewModelTest {
             careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.wateringFeedback == null })
         }
     }
+
+    @Test
+    fun `unassigned filter shows only plants with null room`() = runTest {
+        val kitchen = plant(id = 1L, name = "Basil", room = "Kitchen")
+        val unassigned = plant(id = 2L, name = "Snake Plant", room = null)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, unassigned))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(1, items.size)
+            assertEquals("Snake Plant", items[0].plant.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `hasUnassignedPlants is true when at least one plant has null room`() = runTest {
+        val unassigned = plant(id = 1L, name = "Mystery Plant", room = null)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(unassigned))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.hasUnassignedPlants.test {
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `hasUnassignedPlants is false when all plants have rooms`() = runTest {
+        val kitchen = plant(id = 1L, name = "Basil", room = "Kitchen")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.hasUnassignedPlants.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

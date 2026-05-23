@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -37,6 +38,10 @@ class PlantListViewModel(
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hasUnassignedPlants: StateFlow<Boolean> = plantRepository.getAllPlants()
+        .map { plants -> plants.any { it.room == null } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val selectedRoom = MutableStateFlow<String?>(null)
 
@@ -56,6 +61,13 @@ class PlantListViewModel(
                 )
             }
         }
+        viewModelScope.launch {
+            hasUnassignedPlants.collect { hasUnassigned ->
+                if (!hasUnassigned && selectedRoom.value == UNASSIGNED_ROOM) {
+                    selectedRoom.value = null
+                }
+            }
+        }
     }
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
@@ -64,7 +76,11 @@ class PlantListViewModel(
         selectedRoom,
         _sortOrder
     ) { plants, _, room, sort ->
-        val filtered = if (room == null) plants else plants.filter { it.room == room }
+        val filtered = when (room) {
+            null -> plants
+            UNASSIGNED_ROOM -> plants.filter { it.room == null }
+            else -> plants.filter { it.room == room }
+        }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
             statusList.add(buildStatus(plant))
@@ -197,6 +213,10 @@ class PlantListViewModel(
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs
         )
+    }
+
+    companion object {
+        const val UNASSIGNED_ROOM = " unassigned"
     }
 
     class Factory(
