@@ -16,7 +16,6 @@ The orchestrator will provide:
 ### 1. Read context
 
 - Read `.claude/CLAUDE.md` — architecture, conventions, existing patterns
-- Read `.claude/plans/active-plan.md` — current scope and open issues
 - Fetch the issue: `gh issue view <number> --repo LocNgu/YAPT-Yet-Another-Plant-Tracker`
 
 ### 2. Ask clarifying questions

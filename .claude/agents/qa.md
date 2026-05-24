@@ -15,8 +15,7 @@ The orchestrator will provide:
 ## Before validating
 
 1. Read `.claude/CLAUDE.md` — understand architecture, conventions, and known pitfalls so you can spot regressions.
-2. Read `.claude/plans/active-plan.md` — broader project context.
-3. Fetch the GitHub issue and its comments — the acceptance criteria and any spec clarifications are the source of truth:
+2. Fetch the GitHub issue and its comments — the acceptance criteria and any spec clarifications are the source of truth:
    `gh issue view <number> --repo LocNgu/YAPT-Yet-Another-Plant-Tracker --comments`
 
 ## What to run
