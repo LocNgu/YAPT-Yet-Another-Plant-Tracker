@@ -22,12 +22,14 @@ class CareScheduleTest {
 
     private fun plantWith(
         wateringIntervalDays: Int? = null,
-        fertilizingIntervalDays: Int? = null
+        fertilizingIntervalDays: Int? = null,
+        wateringDueDateOverride: Long? = null
     ) = Plant(
         id = 1L,
         name = "Test Plant",
         wateringIntervalDays = wateringIntervalDays,
-        fertilizingIntervalDays = fertilizingIntervalDays
+        fertilizingIntervalDays = fertilizingIntervalDays,
+        wateringDueDateOverride = wateringDueDateOverride
     )
 
     @Test
@@ -280,6 +282,26 @@ class CareScheduleTest {
     }
 
     @Test
+    fun `daysBetween returns calendar days not truncated milliseconds`() {
+        // 7 calendar days but only ~6.45 raw days — millisecond truncation would return 6
+        val earlier = now
+        val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
+        assertEquals(7, CareSchedule.daysBetween(earlier, later))
+    }
+
+    @Test
+    fun `JUST_RIGHT on due day produces no suggestion`() {
+        // Watering on the due calendar day: actual == currentInterval → suggested == currentInterval,
+        // so ViewModel suppresses the dialog.
+        val earlier = now
+        val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
+        val actual = CareSchedule.daysBetween(earlier, later)
+        val suggested = CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, actual, 7)
+        assertEquals(7, actual)
+        assertEquals(7, suggested)
+    }
+
+    @Test
     fun `TOO_SOON with early watering extends beyond stored interval`() {
         // actual=7, stored=14 → user watered early; interval should grow past 14
         assertEquals(15, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, 14))
@@ -324,5 +346,36 @@ class CareScheduleTest {
     fun `TOO_LATE with no current interval falls back to actual minus 1`() {
         // currentIntervalDays=null → base is actualIntervalDays
         assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, null))
+    }
+
+    @Test
+    fun `wateringDueDateOverride pushes effective due past computed due`() {
+        // interval=7, watered 3 days ago → computed = now+4d; override = now+10d → effective = now+10d
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(3)
+        val override = now + TimeUnit.DAYS.toMillis(10)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(override, status.nextWateringDueAt)
+    }
+
+    @Test
+    fun `wateringDueDateOverride in the past is ignored when computed due is later`() {
+        // interval=7, watered 1 day ago → computed = now+6d; override = now-1d → effective = now+6d
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(1)
+        val override = now - TimeUnit.DAYS.toMillis(1)
+        val computedDue = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(computedDue, status.nextWateringDueAt)
     }
 }

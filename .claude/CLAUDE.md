@@ -111,14 +111,11 @@ Tracked as GitHub issues:
 
 | # | Description | Severity |
 |---|---|---|
-| [#7](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/7) | All reminders share one notification ID | Enhancement |
 | [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
-| [#35](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/35) | BackupManager: photo files written before Room transaction (orphaned on failure) | Enhancement |
-| [#36](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/36) | BackupManager export: N+1 Flow query per plant | Enhancement |
-| [#38](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/38) | Backup error message grammar ("not compatible File") | Enhancement |
-| [#39](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/39) | Hardcoded UI strings in backup/restore | Enhancement |
-| [#40](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/40) | Dangling zip-path URI on partial photo export failure | Enhancement |
-| [#41](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/41) | ReminderWorker not rescheduled after backup restore | Enhancement |
+| [#170](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/170) | Skip watering button: replace `TextButton` with `ExtendedFloatingActionButton` bottom-start; fix stepper dialog alignment | Enhancement |
+| [#175](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/175) | BackupManager: photo cleanup on failure can delete committed-DB files if exception fires after DB transaction but before ImportSuccess | Enhancement |
+| [#178](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/178) | `SkipWateringReceiver` does not check `intent.action` before processing | Enhancement |
+| [#179](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/179) | Hardcoded UI strings in skip dialog (`PlantDetailScreen`) | Tech debt |
 
 ---
 
@@ -128,17 +125,22 @@ Every feature and bug fix follows these steps in order:
 
 1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
-3. **Review** (`reviewer` agent) — iterative rounds of REQUEST CHANGES:
+3. **Review** (`reviewer` agent) — iterative rounds of review:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
-   - BLOCKING findings are posted as **inline PR review comments** on the relevant lines
+   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
+     - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
+     - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
    - The PR review body is compact: verdict + counts only
-   - After round 2, the reviewer **does not auto-approve** — it stops, posts a recommendation, and waits for the human to decide (another implementer round, manual approval, or other action)
+   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
+   - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
+   - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
-   - **Posts a compact checklist comment on the PR** (under 15 lines for a passing run)
-5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion
+   - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
+   - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
-After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread.
+After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
 
 ## Git Workflow
 
@@ -229,3 +231,9 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` now clamps the base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases covering actual>stored, actual==stored, actual<stored, and null currentIntervalDays
 - Keep screen on toggle in Settings (issue #140): `KEEP_SCREEN_ON` DataStore key; `SettingsViewModel.keepScreenOn` StateFlow + `setKeepScreenOn()`; "Display" section in SettingsScreen with `BrightnessMedium` icon; `MainActivity` collects the flow in `setContent` and applies/clears `FLAG_KEEP_SCREEN_ON` via `LaunchedEffect`; preference round-trips through backup/restore; 2 new `SettingsViewModelTest` cases
 - Fix #141: due-date comparisons normalised to calendar-day granularity — `internal fun Long.toLocalDate()` extension added to `DateUtils.kt` (shared via import by `CareSchedule` and `ReminderWorker`); `isOverdue`/`isDueSoon` and fertilizing equivalents in `CareSchedule.computeStatus()` use `LocalDate.isBefore()` / `==` instead of millisecond subtraction; `formatCountdown` uses `ChronoUnit.DAYS.between(toLocalDate(), toLocalDate())` — eliminates "overdue by <24 h" edge case (plants remain "Due today" throughout the due calendar day); `ReminderWorker.buildCareBody()` likewise uses `ChronoUnit.DAYS`; unit tests pin JVM timezone to UTC via `@Before`; supersedes the millisecond workaround in fix #136 (PR #152)
+- Location suggestion chips on Add/Edit Plant screen (issue #137, PR #165): `AddEditPlantViewModel.rooms: StateFlow<List<String>>` via `plantRepository.getAllRooms().stateIn(WhileSubscribed(5000))`; `AddEditPlantScreen` renders a `FlowRow` of `SuggestionChip`s below the Location field (hidden when no rooms saved); chip tap sets field to exact stored string and hides keyboard; case-insensitive match (chip ≠ fieldText) applies `primaryContainer` tint; `getAllRooms()` stubbed in `AddEditPlantViewModelTest` and `AddEditPlantScreenTest`
+- BackupManager improvements (PR #172, issues #35 #36 #38 #39 #40 #41): export uses a single `getAllLogs()` bulk query + `groupBy(plantId)` instead of N+1 per-plant calls; photo export opens `InputStream` before `putNextEntry` so unreadable URIs skip cleanly; `performImport` wrapped in try-catch deleting only files written in the current import attempt on failure; `ReminderScheduler.schedule/cancel` called after DataStore write on restore; error message when backup.json is missing changed from "not compatible File" to a readable string; all backup/restore UI strings moved to `strings.xml`
+- Fix #117: watering history chart now works for infrequently-watered plants (PR #166): `computeWateringIntervals` uses the most recent watering before `rangeStartMs` as a predecessor anchor so the first in-window log gets an interval; when `inRange` is empty the last two pre-range waterings produce one interval point; `ChartContent` month loop starts from `min(rangeStartMs, earliest interval timestamp)` so pre-range points land in a visible bucket; `rememberLineCartesianLayer` configured with `LineCartesianLayer.PointProvider.single(CorneredShape.Pill)` so a single data point (2 total waterings) renders as a visible circle; 5 new unit tests added
+- Skip watering stepper dialog + `wateringDueDateOverride` (PR #176, issues #168 #169): tapping "Skip watering" on plant detail opens an `AlertDialog` with a +/− stepper (range 1–7 days, default 1); confirming sets `wateringDueDateOverride: Long?` on the plant — due date pushed forward by N days from `max(nextDueAt, now)` — without touching `wateringIntervalDays`; the existing interval-extension `AlertDialog` fires immediately after so the user can optionally make the change permanent; logging a WATER event clears the override; `SkipWateringReceiver` handles the notification "Skip watering" action by pushing the override +1 day; `CareSchedule.computeStatus()` applies `nextDueAt = maxOf(computedDue, override)`; Room DB bumped to version 2 with explicit `MIGRATION_1_2` (`ALTER TABLE plants ADD COLUMN wateringDueDateOverride INTEGER`); `BackupPlant.wateringDueDateOverride` threads through export/import for round-trip fidelity; schema `2.json` committed with real Room `identityHash`
+- Fix #180: `CareSchedule.daysBetween()` now uses `ChronoUnit.DAYS.between(earlierMs.toLocalDate(), laterMs.toLocalDate())` instead of millisecond integer division, eliminating the spurious "interval − 1" suggestion when the user waters on the exact due calendar day with Just Right feedback (PR #182); 2 new `CareScheduleTest` cases
+- "Unassigned" filter chip on plant list: shows only plants with no room assigned; chip hidden and selection resets to "All" when all plants have rooms; single shared `getAllPlants()` Room subscription via private `allPlants` StateFlow avoids duplicate Room subscriptions; auto-fallback test added (issues #183, #184)

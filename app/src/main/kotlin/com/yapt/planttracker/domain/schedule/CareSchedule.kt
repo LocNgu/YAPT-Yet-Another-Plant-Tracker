@@ -4,6 +4,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.toLocalDate
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -22,9 +23,15 @@ object CareSchedule {
             (now - it) / ONE_DAY_MS
         }
 
-        val nextDueAt = if (plant.wateringIntervalDays != null && lastWateredAt != null) {
+        val computedNextDueAt = if (plant.wateringIntervalDays != null && lastWateredAt != null) {
             lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
         } else null
+
+        val nextDueAt = when {
+            computedNextDueAt == null -> plant.wateringDueDateOverride
+            plant.wateringDueDateOverride == null -> computedNextDueAt
+            else -> maxOf(computedNextDueAt, plant.wateringDueDateOverride)
+        }
 
         val nowDate = now.toLocalDate()
         val isOverdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)
@@ -74,5 +81,5 @@ object CareSchedule {
     }
 
     fun daysBetween(earlierMs: Long, laterMs: Long): Int =
-        ((laterMs - earlierMs) / ONE_DAY_MS).toInt()
+        ChronoUnit.DAYS.between(earlierMs.toLocalDate(), laterMs.toLocalDate()).toInt()
 }

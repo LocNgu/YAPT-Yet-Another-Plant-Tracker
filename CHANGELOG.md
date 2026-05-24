@@ -14,6 +14,29 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.7.0] - 2026-05-24
+
+### Added
+- Location suggestion chips on Add/Edit Plant screen: previously used room names appear as tappable chips below the Location field; tapping fills the field with the exact stored string; chips with a case-insensitive match to the current field text are highlighted (#137)
+- Skip watering: tap "Skip watering" on the plant detail screen to push the next due date forward 1–7 days via a stepper dialog; the app then asks whether to permanently extend the watering interval (#168, #169)
+- `wateringDueDateOverride` column on plants: when set, the effective due date is `max(computed, override)`; cleared automatically when a watering is logged (#169)
+- "Unassigned" filter chip on plant list: shows only plants without a room assigned; chip is hidden and selection resets to "All" when all plants have rooms; single shared `getAllPlants()` Room subscription via private `allPlants` StateFlow; auto-fallback test added (issues #183, #184)
+
+### Fixed
+- Fix #180: `CareSchedule.daysBetween()` now uses calendar-day arithmetic (`ChronoUnit.DAYS.between`) instead of millisecond division, eliminating the spurious "interval − 1" suggestion when watering exactly on the due day with Just Right feedback.
+- Watering history chart no longer shows "not enough data" or a blank area for infrequently-watered plants: predecessor outside the range window is used to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval; single data points (2 total waterings) now render as a visible circle dot via Vico `PointProvider` (#117)
+- Backup error message when importing a file without backup.json is now readable — was "not compatible File" (#38)
+- Reminder schedule now updates to the restored time immediately after importing a backup (#41)
+- Orphaned photo files are cleaned up when a backup restore fails mid-import (#35)
+- Unreadable photos are silently skipped during export instead of producing malformed zip entries (#40)
+- Backup export now fetches all care logs in a single query instead of one per plant (#36)
+- Backup & Restore UI strings moved to strings.xml (#39)
+
+### Changed
+- CLAUDE.md dev workflow: reviewer step now correctly names `mcp__github__issue_write` for NON-BLOCKING findings; documents the 3-step inline comment API flow; notes that `APPROVE` and `REQUEST_CHANGES` are both blocked on same-account PRs — use `COMMENT` event; step 5 clarifies that `chore:`/docs-only PRs may omit CHANGELOG and `WhatsNewContent.kt` entries (#173, #174)
+
+---
+
 ## [0.6.0] - 2026-05-20
 
 ### Added

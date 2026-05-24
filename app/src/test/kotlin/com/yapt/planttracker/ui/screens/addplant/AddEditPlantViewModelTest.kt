@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -23,6 +24,11 @@ class AddEditPlantViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val plantRepo: PlantRepository = mockk()
+
+    @Before
+    fun setUp() {
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+    }
 
     private fun plant(id: Long = 1L, name: String = "Monstera", species: String? = "M. deliciosa") = Plant(
         id = id,

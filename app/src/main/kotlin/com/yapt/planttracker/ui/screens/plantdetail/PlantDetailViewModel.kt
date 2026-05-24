@@ -11,6 +11,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.ui.components.TimeRange
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -51,6 +52,8 @@ class PlantDetailViewModel(
 
     val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
+    val showSkipDialog = MutableStateFlow(false)
+
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
@@ -77,12 +80,39 @@ class PlantDetailViewModel(
         }
     }
 
+    fun requestSkip() {
+        showSkipDialog.value = true
+    }
+
+    fun dismissSkipDialog() {
+        showSkipDialog.value = false
+    }
+
+    fun confirmSkip(days: Int) {
+        viewModelScope.launch {
+            showSkipDialog.value = false
+            plant.value?.let { p ->
+                val currentDue = maxOf(
+                    careStatus.value?.nextWateringDueAt ?: 0L,
+                    System.currentTimeMillis()
+                )
+                val newOverride = currentDue + TimeUnit.DAYS.toMillis(days.toLong())
+                plantRepository.updatePlant(
+                    p.copy(wateringDueDateOverride = newOverride, updatedAt = System.currentTimeMillis())
+                )
+                val proposed = (p.wateringIntervalDays ?: 0) + days
+                _events.emit(Event.SkipConfirmed(days, proposed))
+            }
+        }
+    }
+
     fun deleteLog(log: CareLog) {
         viewModelScope.launch { careLogRepository.deleteLog(log) }
     }
 
     sealed class Event {
         object IntervalUpdated : Event()
+        data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()
     }
 
     class Factory(

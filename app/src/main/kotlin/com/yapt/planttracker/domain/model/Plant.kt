@@ -10,5 +10,6 @@ data class Plant(
     val wateringIntervalDays: Int? = null,
     val fertilizingIntervalDays: Int? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val wateringDueDateOverride: Long? = null
 )

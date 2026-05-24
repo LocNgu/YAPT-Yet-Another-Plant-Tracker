@@ -11,7 +11,10 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class AddEditPlantViewModel(
@@ -30,6 +33,9 @@ class AddEditPlantViewModel(
     var wateringIntervalEnabled by mutableStateOf(false)
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
+
+    val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
