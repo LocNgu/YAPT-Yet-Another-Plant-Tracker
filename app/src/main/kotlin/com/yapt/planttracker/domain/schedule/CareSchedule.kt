@@ -22,9 +22,15 @@ object CareSchedule {
             (now - it) / ONE_DAY_MS
         }
 
-        val nextDueAt = if (plant.wateringIntervalDays != null && lastWateredAt != null) {
+        val computedNextDueAt = if (plant.wateringIntervalDays != null && lastWateredAt != null) {
             lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
         } else null
+
+        val nextDueAt = when {
+            computedNextDueAt == null -> plant.wateringDueDateOverride
+            plant.wateringDueDateOverride == null -> computedNextDueAt
+            else -> maxOf(computedNextDueAt, plant.wateringDueDateOverride)
+        }
 
         val nowDate = now.toLocalDate()
         val isOverdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)

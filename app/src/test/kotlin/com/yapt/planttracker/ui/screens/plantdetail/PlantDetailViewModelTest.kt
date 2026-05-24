@@ -14,8 +14,10 @@ import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -103,41 +105,6 @@ class PlantDetailViewModelTest {
     }
 
     @Test
-    fun `skipWateringTooSoon increments wateringIntervalDays by 1 and emits SkipTooSoon event`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.events.test {
-                vm.skipWateringTooSoon()
-                val event = awaitItem()
-                assert(event is PlantDetailViewModel.Event.SkipTooSoon)
-                assertEquals(8, (event as PlantDetailViewModel.Event.SkipTooSoon).newInterval)
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 8 }) }
-    }
-
-    @Test
-    fun `skipWateringTooSoon does nothing when wateringIntervalDays is null`() = runTest {
-        val monstera = plant()
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.skipWateringTooSoon()
-            cancelAndIgnoreRemainingEvents()
-        }
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
-    @Test
     fun `plant with watering interval and no logs has no overdue status`() = runTest {
         val plantWithInterval = Plant(
             id = 2L,
@@ -156,6 +123,89 @@ class PlantDetailViewModelTest {
             assertNotNull(status)
             assertEquals(false, status?.isOverdue)
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `requestSkip sets showSkipDialog to true`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.showSkipDialog.test {
+            assertFalse(awaitItem())
+            vm.requestSkip()
+            assertTrue(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `dismissSkipDialog sets showSkipDialog to false`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.requestSkip()
+        vm.showSkipDialog.test {
+            assertTrue(awaitItem())
+            vm.dismissSkipDialog()
+            assertFalse(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `confirmSkip(1) sets wateringDueDateOverride, keeps wateringIntervalDays unchanged, emits SkipConfirmed`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+
+            vm.events.test {
+                vm.confirmSkip(1)
+                val event = awaitItem()
+                assertTrue(event is PlantDetailViewModel.Event.SkipConfirmed)
+                val skipEvent = event as PlantDetailViewModel.Event.SkipConfirmed
+                assertEquals(1, skipEvent.skippedDays)
+                assertEquals(8, skipEvent.proposedInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride != null && it.wateringIntervalDays == 7 })
+        }
+    }
+
+    @Test
+    fun `confirmSkip(3) pushes due date by 3 days`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+
+            vm.events.test {
+                vm.confirmSkip(3)
+                val event = awaitItem() as PlantDetailViewModel.Event.SkipConfirmed
+                assertEquals(3, event.skippedDays)
+                assertEquals(10, event.proposedInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride != null && it.wateringIntervalDays == 7 })
         }
     }
 }

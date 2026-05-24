@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.util.toLocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
@@ -95,7 +96,7 @@ class ReminderWorker(
                 .setAutoCancel(true)
 
             if (status.isOverdue || status.isDueSoon) {
-                notificationBuilder.addAction(0, "Skip - too soon", skipPendingIntent)
+                notificationBuilder.addAction(0, "Skip watering", skipPendingIntent)
             }
 
             notificationManager.notify(plant.id.toInt(), notificationBuilder.build())

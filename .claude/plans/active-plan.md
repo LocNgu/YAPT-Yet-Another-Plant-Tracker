@@ -1,6 +1,6 @@
 # YAPT – Active Plan
 
-## Status: Feature development phase (as of 2026-05-10)
+## Status: Feature development phase (as of 2026-05-24)
 
 ---
 
@@ -41,6 +41,7 @@
 - [x] Fix #136: `formatCountdown` returns `"Overdue"` for same-day-overdue (diffMs < 0 && absDays == 0L) so the PlantCard chip shows red correctly; unit test updated
 - [x] Fix #159: correct `TOO_LATE` adaptive interval when user waters late (actual > stored) — `CareSchedule.computeSuggestedInterval` clamps base to `min(actual, stored)` for `TOO_LATE`, symmetric to the PR #149/#105 fix for `TOO_SOON`; 4 new `CareScheduleTest` cases
 - [x] Fix #117: watering history chart now works for infrequently-watered plants — `computeWateringIntervals` uses the predecessor just outside the range window to anchor the first in-window interval; when no waterings fall inside the window the last two pre-range waterings produce an interval point; `ChartContent` month loop extended to cover pre-range months; Vico `PointProvider(CorneredShape.Pill)` added so single data points (2 total waterings) render as visible circles (PR #166)
+- [x] Skip watering stepper dialog + `wateringDueDateOverride` (PR #176, issues #168 #169): tapping "Skip watering" on plant detail opens an `AlertDialog` with a +/− stepper (range 1–7 days, default 1); confirming sets `wateringDueDateOverride: Long?` on the plant — due date pushed forward by N days from `max(nextDueAt, now)` — without touching `wateringIntervalDays`; the existing interval-extension `AlertDialog` fires immediately after; logging a WATER event clears the override; `SkipWateringReceiver` handles the notification "Skip watering" action by pushing the override +1 day; Room DB version 2 with `MIGRATION_1_2`; `BackupPlant.wateringDueDateOverride` threads through export/import
 
 ---
 
@@ -53,7 +54,7 @@
 | ~~[#18](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/18)~~ | ~~Watering history line chart in plant detail~~ | P2 — merged |
 | [#29](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/29) | Larger plant images on overview and detail screens | P2 |
 | [#31](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/31) | Snooze fertilizing reminder until next watering / auto-sync | P2 |
-| [#33](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/33) | Skip watering / "too soon" action without logging a watering | P2 |
+| ~~[#33](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/33)~~ | ~~Skip watering / "too soon" action without logging a watering~~ | P2 — merged PR #176 |
 
 ---
 
