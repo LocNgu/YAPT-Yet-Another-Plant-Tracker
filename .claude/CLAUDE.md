@@ -182,6 +182,31 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 
 ---
 
+## Release Workflow
+
+When the human asks to cut a release (e.g. "do a release", "bump to X.Y.Z", "prepare a release PR"):
+
+1. **Determine the new version** — ask the human if not specified; follow semver (new features → MINOR bump, fixes only → PATCH bump).
+
+2. **Update these five files** on a `claude/<kebab>` branch:
+   - `version.properties` — bump `MINOR` or `PATCH` (or `MAJOR`)
+   - `CHANGELOG.md` — promote `## [Unreleased]` → `## [X.Y.Z] - <today>` and add a fresh empty `## [Unreleased]` section above it
+   - `WhatsNewContent.kt` — replace the previous release's content with items new in *this* release only (user-facing language; skip internal/perf/doc-only entries)
+   - `README.md` — add any features in the new release that aren't already listed under Features
+   - `.claude/CLAUDE.md` — add any "What's Been Completed" entries that are still missing
+
+3. **Commit and push** to the feature branch with message `chore: bump version to X.Y.Z, promote changelog, update docs`.
+
+4. **Create PR #1** — `claude/<branch>` → `develop` (title: `chore: release prep for X.Y.Z`). This is a docs/version-only PR.
+
+5. **Create PR #2** — `develop` → `main` (title: `Release X.Y.Z`). Body should list all Added / Fixed / Changed from the new CHANGELOG section. Note in the body that PR #1 must be merged first.
+
+6. **Human merges both PRs** (in order). CI builds the release APK automatically on merge to `main`.
+
+No DB migration, no new tests, and no `active-plan.md` update needed for a docs-only release prep PR.
+
+---
+
 ## What's Been Completed
 
 - Full Room database (PlantEntity, CareLogEntity, DAOs, explicit migrations required — hard-crash on missing migration path, baseline schema `1.json` committed)
