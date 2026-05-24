@@ -4,6 +4,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.toLocalDate
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -80,5 +81,5 @@ object CareSchedule {
     }
 
     fun daysBetween(earlierMs: Long, laterMs: Long): Int =
-        ((laterMs - earlierMs) / ONE_DAY_MS).toInt()
+        ChronoUnit.DAYS.between(earlierMs.toLocalDate(), laterMs.toLocalDate()).toInt()
 }

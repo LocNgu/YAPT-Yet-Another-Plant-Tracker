@@ -282,6 +282,26 @@ class CareScheduleTest {
     }
 
     @Test
+    fun `daysBetween returns calendar days not truncated milliseconds`() {
+        // 7 calendar days but only ~6.45 raw days — millisecond truncation would return 6
+        val earlier = now
+        val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
+        assertEquals(7, CareSchedule.daysBetween(earlier, later))
+    }
+
+    @Test
+    fun `JUST_RIGHT on due day produces no suggestion`() {
+        // Watering on the due calendar day: actual == currentInterval → suggested == currentInterval,
+        // so ViewModel suppresses the dialog.
+        val earlier = now
+        val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
+        val actual = CareSchedule.daysBetween(earlier, later)
+        val suggested = CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, actual, 7)
+        assertEquals(7, actual)
+        assertEquals(7, suggested)
+    }
+
+    @Test
     fun `TOO_SOON with early watering extends beyond stored interval`() {
         // actual=7, stored=14 → user watered early; interval should grow past 14
         assertEquals(15, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, 14))
