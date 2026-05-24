@@ -21,6 +21,7 @@ object WhatsNewContent {
         ),
         fixed = listOf(
             "Overdue plants now always show \"Overdue\" (not \"Due today\") when the due date has passed",
+            "No interval suggestion when you water on the due day with Just Right feedback",
             "Watering interval suggestions (Just right / Too soon / Too late) are more accurate",
             "Care-type chip no longer shows \"next:\" when care is already overdue",
             "Keyboard no longer covers the Notes field when editing a plant or care log",
