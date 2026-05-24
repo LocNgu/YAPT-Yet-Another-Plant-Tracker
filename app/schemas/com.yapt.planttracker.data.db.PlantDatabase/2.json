@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "TBD_GENERATED_BY_ROOM_ANNOTATION_PROCESSOR",
+    "identityHash": "a2f37b6d5f1a1573266ba095f5536623",
     "entities": [
       {
         "tableName": "plants",
@@ -172,7 +172,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'TBD_GENERATED_BY_ROOM_ANNOTATION_PROCESSOR')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2f37b6d5f1a1573266ba095f5536623')"
     ]
   }
 }
