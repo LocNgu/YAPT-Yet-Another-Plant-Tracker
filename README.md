@@ -9,10 +9,13 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Adaptive watering intervals** — After each watering, mark it as *too soon*, *just right*, or *too late*. YAPT suggests an updated interval based on your actual observed rhythm
 - **Care history timeline** — Full chronological log per plant with photos
 - **Care reminders** — Daily local notifications for overdue or due-today plants
-- **Room grouping** — Assign plants to rooms and filter the home screen by room
+- **Room grouping** — Assign plants to rooms and filter the home screen by room; an "Unassigned" chip filters to plants with no room yet
+- **Location suggestion chips** — Previously used room names appear as tappable chips on the Add/Edit Plant screen; tap to fill the field instantly
 - **Countdown labels** — Each plant card shows "In X days", "Due today", or "Overdue by X days" for watering and fertilizing, colour-coded green/orange/red
 - **Quick log buttons** — One-tap water and fertilize buttons on each plant card; no need to open the detail screen
+- **Skip watering** — Push the next due date forward 1–7 days from the plant detail screen; optionally make the change permanent via an interval adjustment dialog
 - **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
+- **Keep screen on** — Optional toggle in Settings keeps the display awake while you tend your plants
 - **Watering history chart** — Line chart on the plant detail screen showing average days between waterings per calendar month; selectable time ranges (1M / 3M / 6M / 12M / All)
 - **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
 - **Photo gallery** — Scrollable thumbnail gallery of all care photos per plant
