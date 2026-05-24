@@ -13,22 +13,16 @@ object WhatsNewContent {
     val current = ReleaseNotes(
         versionName = BuildConfig.VERSION_NAME,
         added = listOf(
-            "What's New sheet — see what changed after each update (that's this screen!)",
-            "Keep screen on toggle in Settings — screen stays awake while you water your plants",
-            "Interval suggestion is now an editable dialog — adjust the value before applying",
-            "Location suggestion chips on Add/Edit Plant — tap a previously used room to fill the field exactly",
+            "Unassigned filter — tap \"Unassigned\" on the plant list to show only plants without a room",
+            "Location suggestion chips on Add/Edit Plant — tap a previously used room to fill the field",
             "Skip watering — push the next due date forward 1–7 days from the plant detail screen"
         ),
         fixed = listOf(
-            "Overdue plants now always show \"Overdue\" (not \"Due today\") when the due date has passed",
-            "No interval suggestion when you water on the due day with Just Right feedback",
-            "Watering interval suggestions (Just right / Too soon / Too late) are more accurate",
-            "Care-type chip no longer shows \"next:\" when care is already overdue",
-            "Keyboard no longer covers the Notes field when editing a plant or care log",
-            "Due dates compare by calendar day — \"due today\" stays correct throughout the day",
-            "Watering history chart now shows for infrequently-watered plants on short ranges (1M/3M/6M) and for plants with only 2 total waterings",
-            "Reminder schedule now updates immediately after restoring a backup",
-            "Backup error message is now readable when importing a file that isn't a YAPT backup"
+            "No spurious interval suggestion when you water on the due day with Just Right feedback",
+            "Watering history chart now appears for infrequently-watered plants and for plants with only 2 waterings",
+            "Reminder schedule updates immediately after restoring a backup",
+            "Backup error message is now readable when importing a non-YAPT file",
+            "Orphaned photos are cleaned up if a backup restore fails partway through"
         )
     )
 }
