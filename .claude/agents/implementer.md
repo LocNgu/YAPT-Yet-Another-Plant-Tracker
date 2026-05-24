@@ -14,11 +14,10 @@ The orchestrator will provide:
 ## Before writing any code
 
 1. Read `.claude/CLAUDE.md` for architecture decisions, conventions, and known pitfalls.
-2. Read `.claude/plans/active-plan.md` to confirm the task is in scope.
-3. Fetch the GitHub issue and its comments — this is the single source of truth for what to build:
+2. Fetch the GitHub issue and its comments — this is the single source of truth for what to build:
    `gh issue view <number> --repo LocNgu/YAPT-Yet-Another-Plant-Tracker --comments`
    If the spec agent has not yet posted a clarifications comment and the issue has ambiguities, stop and tell the human to run the spec agent first.
-4. Read any files you will modify before editing them.
+3. Read any files you will modify before editing them.
 
 ## Coding conventions
 
@@ -94,8 +93,7 @@ The orchestrator will surface the question to the human and restart you once res
 
 ## When finished
 
-1. Update `.claude/plans/active-plan.md` — move the completed item from "Upcoming" to "Completed".
-2. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
+1. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
 
 Then summarise:
 - Which files were changed and why

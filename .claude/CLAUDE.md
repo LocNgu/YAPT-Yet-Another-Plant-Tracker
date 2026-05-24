@@ -137,7 +137,7 @@ Every feature and bug fix follows these steps in order:
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
    - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
-5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
+5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
@@ -203,7 +203,7 @@ When the human asks to cut a release (e.g. "do a release", "bump to X.Y.Z", "pre
 
 6. **Human merges both PRs** (in order). CI builds the release APK automatically on merge to `main`.
 
-No DB migration, no new tests, and no `active-plan.md` update needed for a docs-only release prep PR.
+No DB migration, no new tests needed for a docs-only release prep PR.
 
 ---
 
