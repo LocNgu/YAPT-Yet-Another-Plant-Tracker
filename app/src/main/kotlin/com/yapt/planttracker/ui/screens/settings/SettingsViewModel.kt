@@ -106,6 +106,10 @@ class SettingsViewModel(
         }
     }
 
+    fun dismissFutureSchemaImport(onDismiss: suspend () -> Unit) {
+        viewModelScope.launch { onDismiss() }
+    }
+
     class Factory(
         private val dataStore: DataStore<Preferences>,
         private val context: Context,

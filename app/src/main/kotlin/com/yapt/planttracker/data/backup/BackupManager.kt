@@ -27,7 +27,11 @@ private const val PHOTOS_DIR = "photos/"
 sealed class BackupResult {
     data class ExportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
     data class ImportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
-    data class FutureSchemaWarning(val schemaVersion: Int, val onProceed: suspend () -> BackupResult) : BackupResult()
+    data class FutureSchemaWarning(
+        val schemaVersion: Int,
+        val onProceed: suspend () -> BackupResult,
+        val onDismiss: suspend () -> Unit,
+    ) : BackupResult()
     data class Error(val message: String) : BackupResult()
 }
 
@@ -168,8 +172,8 @@ class BackupManager(
                                 }
                                 entry.name.startsWith(PHOTOS_DIR) && !entry.isDirectory -> {
                                     val tmp = File(context.cacheDir, UUID.randomUUID().toString())
-                                    tmp.outputStream().use { out -> zip.copyTo(out) }
                                     photoTempFiles[entry.name] = tmp
+                                    tmp.outputStream().use { out -> zip.copyTo(out) }
                                 }
                             }
                             zip.closeEntry()
@@ -184,13 +188,21 @@ class BackupManager(
 
                 if (backup.schemaVersion > CURRENT_SCHEMA_VERSION) {
                     deferCleanup = true
-                    return@runCatching BackupResult.FutureSchemaWarning(backup.schemaVersion) {
-                        try {
-                            performImport(backup, photoTempFiles)
-                        } finally {
-                            photoTempFiles.values.forEach { it.delete() }
-                        }
-                    }
+                    return@runCatching BackupResult.FutureSchemaWarning(
+                        schemaVersion = backup.schemaVersion,
+                        onProceed = {
+                            try {
+                                performImport(backup, photoTempFiles)
+                            } finally {
+                                photoTempFiles.values.forEach { it.delete() }
+                            }
+                        },
+                        onDismiss = {
+                            withContext(Dispatchers.IO) {
+                                photoTempFiles.values.forEach { it.delete() }
+                            }
+                        },
+                    )
                 }
 
                 performImport(backup, photoTempFiles)
