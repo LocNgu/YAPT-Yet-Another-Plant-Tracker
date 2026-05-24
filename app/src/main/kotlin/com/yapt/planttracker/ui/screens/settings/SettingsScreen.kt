@@ -88,6 +88,7 @@ fun SettingsScreen(
     var showFutureSchemaDialog by remember { mutableStateOf(false) }
     var futureSchemaVersion by remember { mutableStateOf(0) }
     var pendingFutureSchemaImport by remember { mutableStateOf<(suspend () -> BackupResult)?>(null) }
+    var pendingFutureSchemaOnDismiss by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -122,6 +123,7 @@ fun SettingsScreen(
                 is BackupResult.FutureSchemaWarning -> {
                     futureSchemaVersion = result.schemaVersion
                     pendingFutureSchemaImport = result.onProceed
+                    pendingFutureSchemaOnDismiss = result.onDismiss
                     showFutureSchemaDialog = true
                 }
                 is BackupResult.Error ->
@@ -193,7 +195,9 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {
                 showFutureSchemaDialog = false
+                pendingFutureSchemaOnDismiss?.let { viewModel.dismissFutureSchemaImport(it) }
                 pendingFutureSchemaImport = null
+                pendingFutureSchemaOnDismiss = null
             },
             title = { Text(stringResource(R.string.backup_future_schema_title)) },
             text = {
@@ -204,12 +208,15 @@ fun SettingsScreen(
                     showFutureSchemaDialog = false
                     pendingFutureSchemaImport?.let { viewModel.proceedWithFutureSchemaImport(it) }
                     pendingFutureSchemaImport = null
+                    pendingFutureSchemaOnDismiss = null
                 }) { Text(stringResource(R.string.backup_proceed_button)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showFutureSchemaDialog = false
+                    pendingFutureSchemaOnDismiss?.let { viewModel.dismissFutureSchemaImport(it) }
                     pendingFutureSchemaImport = null
+                    pendingFutureSchemaOnDismiss = null
                 }) { Text(stringResource(R.string.cancel)) }
             }
         )

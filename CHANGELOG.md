@@ -14,6 +14,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - BackupManager: restore no longer loads all photo bytes into memory at once; each photo is now streamed to a temp file during ZIP traversal and deleted immediately after copying to the destination, preventing OOM crashes on large backups (#193)
+- BackupManager: temp photo files are now cleaned up when the user cancels the FutureSchemaWarning dialog; `onDismiss` callback added to `FutureSchemaWarning` and called from all dismiss paths in SettingsScreen (#195)
+- BackupManager: partial temp photo file no longer orphaned in `cacheDir` if `copyTo` throws mid-write; map entry is inserted before the write so the outer `finally` can always reach the file (#196)
 
 ---
 
