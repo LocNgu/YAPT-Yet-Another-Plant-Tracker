@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Dependency upgrades: AGP 8.7.3 → 8.13.2, Kotlin 2.0.21 → 2.1.21, KSP 2.0.21-1.0.28 → 2.1.21-2.0.2, Gradle 8.9 → 8.14.5, Compose BOM 2024.11.00 → 2026.05.01, Room 2.6.1 → 2.8.4, Lifecycle 2.8.7 → 2.10.0, Navigation 2.8.4 → 2.9.8, DataStore 1.1.1 → 1.2.1, WorkManager 2.10.0 → 2.11.2, core-ktx 1.15.0 → 1.18.0, activity-compose 1.9.3 → 1.13.0, desugar_jdk_libs 2.1.3 → 2.1.4, kotlinx-coroutines 1.9.0 → 1.10.1, kotlinx-serialization 1.6.3 → 1.8.1, Robolectric 4.13 → 4.16.1, Turbine 1.2.0 → 1.2.1; compileSdk bumped 35 → 36 (#16)
+
 ### Fixed
 - BackupManager: restore no longer loads all photo bytes into memory at once; each photo is now streamed to a temp file during ZIP traversal and deleted immediately after copying to the destination, preventing OOM crashes on large backups (#193)
 - BackupManager: temp photo files are now cleaned up when the user cancels the FutureSchemaWarning dialog; `onDismiss` callback added to `FutureSchemaWarning` and called from all dismiss paths in SettingsScreen (#195)
