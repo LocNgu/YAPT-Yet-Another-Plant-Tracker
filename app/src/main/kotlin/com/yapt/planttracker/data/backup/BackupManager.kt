@@ -241,7 +241,7 @@ class BackupManager(
                 tmpFile.copyTo(destFile, overwrite = true)
                 tmpFile.delete()
                 writtenFiles.add(destFile)
-                zipPathToLocalPath[zipPath] = Uri.fromFile(destFile).toString()
+                zipPathToLocalPath[zipPath] = destFile.absolutePath
             }
 
             val plantEntities = backup.plants.map { bp ->

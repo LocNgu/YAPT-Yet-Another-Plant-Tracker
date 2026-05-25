@@ -19,7 +19,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - BackupManager: restore no longer loads all photo bytes into memory at once; each photo is now streamed to a temp file during ZIP traversal and deleted immediately after copying to the destination, preventing OOM crashes on large backups (#193)
 - BackupManager: temp photo files are now cleaned up when the user cancels the FutureSchemaWarning dialog; `onDismiss` callback added to `FutureSchemaWarning` and called from all dismiss paths in SettingsScreen (#195)
 - BackupManager: partial temp photo file no longer orphaned in `cacheDir` if `copyTo` throws mid-write; map entry is inserted before the write so the outer `finally` can always reach the file (#196)
-- BackupManager: export with photos to cloud SAF destinations (e.g. Google Drive) no longer produces a broken 0 KB ZIP; the full ZIP is now written to a local temp file first, then streamed to the destination URI in a single copy; photos restored from a previous import (stored as bare absolute paths) are now opened via `FileInputStream` so they are no longer silently skipped during export; `performImport` now stores restored photo paths as `file://` URIs so future export–import round-trips work without special handling (#144)
+- BackupManager: export with photos to cloud SAF destinations (e.g. Google Drive) no longer produces a broken 0 KB ZIP; the full ZIP is now written to a local temp file first, then streamed to the destination URI in a single copy; photos restored from a previous import (stored as bare absolute paths) are now opened via `FileInputStream` so they are no longer silently skipped during re-export (#144)
 
 ---
 
