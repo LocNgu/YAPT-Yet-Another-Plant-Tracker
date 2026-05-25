@@ -90,7 +90,7 @@ keytool -genkey -v \
 
 ## CI/CD
 
-GitHub Actions builds a debug APK on every push to `main`, `develop`, and `claude/**` branches. A release APK is built automatically when code lands on `main`. Artifacts are available for download from the Actions tab.
+GitHub Actions builds a debug APK on every push to `main`, `develop`, and `claude/**` branches. A release APK is built automatically when code lands on `main` and published to the [Releases page](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/releases). Debug build artifacts are also available on the Actions tab.
 
 [![Android CI/CD](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/actions/workflows/android.yml/badge.svg)](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/actions/workflows/android.yml)
 
