@@ -202,5 +202,6 @@ jobs:
             gh release create "${{ steps.version.outputs.tag }}" \
               app/build/outputs/apk/release/app-release.apk \
               --title "YAPT ${{ steps.version.outputs.name }}" \
+              --target "${{ github.sha }}" \
               --generate-notes
           fi
