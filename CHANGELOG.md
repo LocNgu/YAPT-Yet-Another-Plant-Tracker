@@ -12,16 +12,20 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Per-plant liquid fertilizer toggle on Add/Edit Plant screen; FERTILIZE logs with Liquid type auto-create a paired WATER log at the same timestamp (#56)
+- Fertilizer type selector (Liquid / Solid chips) on the Add Care Log screen, pre-selected from plant default (#56)
+- PlantCard fertilizing chip shows Science flask icon for liquid-fertilizer plants (#56)
+- Reminder notifications: liquid-fertilizer plants show "Fertilize with watering" in the watering alert instead of a standalone fertilizing notification (#56)
+- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
+- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+
 ### Changed
 - Agent definitions in `.claude/agents/` refactored (#221, PR #222): removed dead `gh` CLI blocks (subagents now return findings as text for the orchestrator to post via `mcp__github__*` MCP tools); `reviewer.md` slimmed 202 → 108 lines with the APPROVE/REQUEST_CHANGES verbs dropped, round-cap contradiction reconciled, and 1‑2‑4 numbering bug fixed; trigger-style `description` and `model:` field added to each agent; subagents granted read-only `mcp__github__issue_read` and `mcp__github__pull_request_read` so they fetch their own inputs; `CLAUDE.md` Autonomy table updated (`gh` row replaced with MCP read/write split) and workflow step 2 updated to reflect the implementer's push-only flow
 
 ### Fixed
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `<plurals>` resource (issue #179)
-
-### Added
-- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
-- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
 ### Fixed
 - CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag is anchored to the exact main commit that triggered the push, not the default branch HEAD; fixes incorrect release notes when the repo's default branch is `develop`
 

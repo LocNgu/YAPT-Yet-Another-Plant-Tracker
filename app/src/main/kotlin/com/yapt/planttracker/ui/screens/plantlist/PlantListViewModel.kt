@@ -96,18 +96,27 @@ class PlantListViewModel(
 
     fun quickLog(plantId: Long, careType: CareType) {
         viewModelScope.launch {
-            val plantName = plantsWithStatus.value
-                .firstOrNull { it.plant.id == plantId }
-                ?.plant?.name ?: return@launch
+            val plant = plantsWithStatus.value
+                .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
+            val plantName = plant.name
             val log = CareLog(
                 plantId = plantId,
                 careType = careType,
                 wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null
             )
             careLogRepository.addLog(log)
+            if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
+                careLogRepository.addLog(
+                    CareLog(
+                        plantId = plantId,
+                        careType = CareType.WATER,
+                        wateringFeedback = WateringFeedback.JUST_RIGHT
+                    )
+                )
+            }
             val message = when (careType) {
                 CareType.WATER -> "Watered $plantName"
-                CareType.FERTILIZE -> "Fertilized $plantName"
+                CareType.FERTILIZE -> if (plant.useLiquidFertilizer) "Watered and fertilized $plantName" else "Fertilized $plantName"
                 else -> "${careType.displayName} $plantName"
             }
             _quickLogEvent.emit(message)

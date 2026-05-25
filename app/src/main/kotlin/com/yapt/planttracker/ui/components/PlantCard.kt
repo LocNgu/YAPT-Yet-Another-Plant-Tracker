@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
@@ -158,7 +159,7 @@ fun PlantCard(
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Filled.Spa,
+                                if (status.plant.useLiquidFertilizer) Icons.Filled.Science else Icons.Filled.Spa,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = fertColor

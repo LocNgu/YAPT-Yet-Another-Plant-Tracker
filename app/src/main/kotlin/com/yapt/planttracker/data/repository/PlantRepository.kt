@@ -37,7 +37,8 @@ private fun PlantEntity.toDomain() = Plant(
     fertilizingIntervalDays = fertilizingIntervalDays,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    wateringDueDateOverride = wateringDueDateOverride
+    wateringDueDateOverride = wateringDueDateOverride,
+    useLiquidFertilizer = useLiquidFertilizer
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -51,5 +52,6 @@ private fun Plant.toEntity() = PlantEntity(
     fertilizingIntervalDays = fertilizingIntervalDays,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    wateringDueDateOverride = wateringDueDateOverride
+    wateringDueDateOverride = wateringDueDateOverride,
+    useLiquidFertilizer = useLiquidFertilizer
 )
