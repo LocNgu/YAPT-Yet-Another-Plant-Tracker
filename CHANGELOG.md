@@ -14,6 +14,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.7.2] - 2026-05-25
+
+### Changed
+- CI: release job now automatically creates a GitHub Release with the signed APK attached and auto-generated release notes on every push to `main`
+
+---
+
 ## [0.7.1] - 2026-05-25
 
 ### Changed
