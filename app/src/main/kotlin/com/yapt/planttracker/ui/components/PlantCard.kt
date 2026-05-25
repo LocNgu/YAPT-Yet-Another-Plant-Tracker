@@ -151,6 +151,7 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
+                            status.plant.useLiquidFertilizer -> "With watering"
                             status.nextFertilizingDueAt != null ->
                                 DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
@@ -196,7 +197,7 @@ fun PlantCard(
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        Icons.Filled.Spa,
+                        if (status.plant.useLiquidFertilizer) Icons.Filled.Science else Icons.Filled.Spa,
                         contentDescription = "Quick fertilize",
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
@@ -60,7 +61,7 @@ fun StatsRow(
                 else -> OkGreen
             }
             StatChip(
-                icon = Icons.Filled.Spa,
+                icon = if (status.plant.useLiquidFertilizer) Icons.Filled.Science else Icons.Filled.Spa,
                 label = "Fertilizing",
                 nextLine = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
                 nextColor = if (status.nextFertilizingDueAt != null) fertColor else null,
