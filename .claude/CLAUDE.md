@@ -19,8 +19,8 @@ An offline-first Android app for houseplant owners who want to track care histor
 | Images | Coil 2 | Async image loading in Compose |
 | Reminders | WorkManager + NotificationManager | Survives process death |
 | Preferences | DataStore | Async, coroutine-friendly settings |
-| Build | AGP 8.7.3, Kotlin 2.0.21, KSP 2.0.21-1.0.28 | |
-| Compose BOM | 2024.11.00 | Aligns all Compose artifact versions |
+| Build | AGP 8.13.2, Kotlin 2.1.21, KSP 2.1.21-2.0.2, Gradle 8.14.5 | |
+| Compose BOM | 2026.05.01 | Aligns all Compose artifact versions |
 
 ---
 
@@ -64,7 +64,7 @@ Every ViewModel has an inner `Factory` class. Compose screens obtain them via `v
 `PlantListViewModel.buildStatus()` is a `suspend` function called inside a `combine {}` block. Kotlin's `List.map {}` takes a non-suspend lambda, so the code uses a `for` loop with `mutableListOf` to accumulate results. Do not refactor to `.map {}` without making it suspendable.
 
 ### Adaptive watering interval
-After saving a WATER log, `AddCareLogViewModel` queries the last two waterings to compute `actualIntervalDays`, applies `CareSchedule.computeSuggestedInterval(feedback, actualDays, currentInterval)`, and passes the result back to `PlantDetailScreen` via `savedStateHandle["suggestedWateringInterval"]`. The detail screen shows a Snackbar with an "Apply" action. `JUST_RIGHT` produces a suggestion when `actualIntervalDays != currentInterval`; `TOO_SOON` uses `currentInterval` as the base when the user watered early (`actual < stored`) so the suggestion extends beyond the stored interval.
+After saving a WATER log, `AddCareLogViewModel` queries the last two waterings to compute `actualIntervalDays`, applies `CareSchedule.computeSuggestedInterval(feedback, actualDays, currentInterval)`, and passes the result back to `PlantDetailScreen` via `savedStateHandle["suggestedWateringInterval"]`. The detail screen shows a modal `AlertDialog` with a pre-filled editable `TextField`; the user can adjust the value before tapping Apply, or dismiss to discard. See product ADR-0006 (supersedes ADR-0005). `JUST_RIGHT` produces a suggestion when `actualIntervalDays != currentInterval`; `TOO_SOON` uses `currentInterval` as the base when the user watered early (`actual < stored`) so the suggestion extends beyond the stored interval.
 
 ### DataStore delegate
 `val Context.settingsDataStore by preferencesDataStore(name = "settings")` is declared at **file top-level** in `YaptApplication.kt` (not inside the class). This is required by the AndroidX DataStore API.
@@ -137,7 +137,7 @@ Every feature and bug fix follows these steps in order:
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
    - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
-5. **Update docs** — implementer updates `active-plan.md`, this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
+5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
@@ -179,6 +179,31 @@ Agents and Claude operate under this permission model to minimise interruptions 
 | `gh pr merge` or merging PRs any other way | **Forbidden** — human merges only |
 
 When a prompt appears for `git checkout develop`, `git push origin develop`, or `git push --force origin claude/*`, it is intentional — approve when appropriate.
+
+---
+
+## Release Workflow
+
+When the human asks to cut a release (e.g. "do a release", "bump to X.Y.Z", "prepare a release PR"):
+
+1. **Determine the new version** — ask the human if not specified; follow semver (new features → MINOR bump, fixes only → PATCH bump).
+
+2. **Update these five files** on a `claude/<kebab>` branch:
+   - `version.properties` — bump `MINOR` or `PATCH` (or `MAJOR`)
+   - `CHANGELOG.md` — promote `## [Unreleased]` → `## [X.Y.Z] - <today>` and add a fresh empty `## [Unreleased]` section above it
+   - `WhatsNewContent.kt` — replace the previous release's content with items new in *this* release only (user-facing language; skip internal/perf/doc-only entries)
+   - `README.md` — add any features in the new release that aren't already listed under Features
+   - `.claude/CLAUDE.md` — add any "What's Been Completed" entries that are still missing
+
+3. **Commit and push** to the feature branch with message `chore: bump version to X.Y.Z, promote changelog, update docs`.
+
+4. **Create PR #1** — `claude/<branch>` → `develop` (title: `chore: release prep for X.Y.Z`). This is a docs/version-only PR.
+
+5. **Create PR #2** — `develop` → `main` (title: `Release X.Y.Z`). Body should list all Added / Fixed / Changed from the new CHANGELOG section. Note in the body that PR #1 must be merged first.
+
+6. **Human merges both PRs** (in order). CI builds the release APK automatically on merge to `main`.
+
+No DB migration, no new tests needed for a docs-only release prep PR.
 
 ---
 
@@ -237,3 +262,7 @@ When a prompt appears for `git checkout develop`, `git push origin develop`, or 
 - Skip watering stepper dialog + `wateringDueDateOverride` (PR #176, issues #168 #169): tapping "Skip watering" on plant detail opens an `AlertDialog` with a +/− stepper (range 1–7 days, default 1); confirming sets `wateringDueDateOverride: Long?` on the plant — due date pushed forward by N days from `max(nextDueAt, now)` — without touching `wateringIntervalDays`; the existing interval-extension `AlertDialog` fires immediately after so the user can optionally make the change permanent; logging a WATER event clears the override; `SkipWateringReceiver` handles the notification "Skip watering" action by pushing the override +1 day; `CareSchedule.computeStatus()` applies `nextDueAt = maxOf(computedDue, override)`; Room DB bumped to version 2 with explicit `MIGRATION_1_2` (`ALTER TABLE plants ADD COLUMN wateringDueDateOverride INTEGER`); `BackupPlant.wateringDueDateOverride` threads through export/import for round-trip fidelity; schema `2.json` committed with real Room `identityHash`
 - Fix #180: `CareSchedule.daysBetween()` now uses `ChronoUnit.DAYS.between(earlierMs.toLocalDate(), laterMs.toLocalDate())` instead of millisecond integer division, eliminating the spurious "interval − 1" suggestion when the user waters on the exact due calendar day with Just Right feedback (PR #182); 2 new `CareScheduleTest` cases
 - "Unassigned" filter chip on plant list: shows only plants with no room assigned; chip hidden and selection resets to "All" when all plants have rooms; single shared `getAllPlants()` Room subscription via private `allPlants` StateFlow avoids duplicate Room subscriptions; auto-fallback test added (issues #183, #184)
+- Fix #144: `BackupManager.exportBackup` now writes the full ZIP to a temp file in `cacheDir` first, then streams the finished file to the SAF destination URI in a single copy; temp file deleted in `finally`; fixes broken 0 KB exports to cloud SAF providers (Google Drive, etc.); photo input-stream opener now handles bare absolute paths (`File.inputStream()`) and `file://` URIs in addition to `content://` URIs so restored photos are no longer silently skipped on re-export; 1 new `BackupManagerTest` case verifies temp file is deleted on export failure
+- Dependency upgrades (PR #200, issue #16): AGP 8.7.3→8.13.2, Kotlin 2.0.21→2.1.21, KSP 2.0.21-1.0.28→2.1.21-2.0.2, Gradle 8.9→8.14.5, Compose BOM 2024.11.00→2026.05.01, Room 2.6.1→2.8.4, Lifecycle 2.8.7→2.10.0, Navigation 2.8.4→2.9.8, DataStore 1.1.1→1.2.1, WorkManager 2.10.0→2.11.2, core-ktx 1.15.0→1.18.0, activity-compose 1.9.3→1.13.0, desugar_jdk_libs 2.1.3→2.1.4, kotlinx-coroutines 1.9.0→1.10.1, kotlinx-serialization 1.6.3→1.8.1, Robolectric 4.13→4.16.1, Turbine 1.2.0→1.2.1; compileSdk 35→36
+- Fix #193 (PR #201): BackupManager restore no longer loads all photo bytes into memory at once; each photo is streamed to a temp file during ZIP traversal and deleted immediately after copying to the destination, preventing OOM crashes on large backups
+- Fix #195/#196 (PR #199): temp photo files cleaned up on FutureSchemaWarning dismiss (`onDismiss` callback added to `FutureSchemaWarning`, called from all dismiss paths in SettingsScreen); partial temp photo file no longer orphaned in `cacheDir` if `copyTo` throws mid-write (map entry inserted before write so outer `finally` can always reach the file)

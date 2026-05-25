@@ -88,8 +88,11 @@ fun SettingsScreen(
     var showFutureSchemaDialog by remember { mutableStateOf(false) }
     var futureSchemaVersion by remember { mutableStateOf(0) }
     var pendingFutureSchemaImport by remember { mutableStateOf<(suspend () -> BackupResult)?>(null) }
+    var pendingFutureSchemaOnDismiss by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val exportSuccessFormat = stringResource(R.string.backup_export_success)
+    val errorFormat = stringResource(R.string.backup_error)
 
     val todayString = remember {
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -115,17 +118,18 @@ fun SettingsScreen(
             when (result) {
                 is BackupResult.ExportSuccess ->
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.backup_export_success, result.plantCount, result.logCount)
+                        String.format(exportSuccessFormat, result.plantCount, result.logCount)
                     )
                 is BackupResult.ImportSuccess ->
                     onRestoreSuccess(result.plantCount, result.logCount)
                 is BackupResult.FutureSchemaWarning -> {
                     futureSchemaVersion = result.schemaVersion
                     pendingFutureSchemaImport = result.onProceed
+                    pendingFutureSchemaOnDismiss = result.onDismiss
                     showFutureSchemaDialog = true
                 }
                 is BackupResult.Error ->
-                    snackbarHostState.showSnackbar(context.getString(R.string.backup_error, result.message))
+                    snackbarHostState.showSnackbar(String.format(errorFormat, result.message))
             }
         }
     }
@@ -193,7 +197,9 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {
                 showFutureSchemaDialog = false
+                pendingFutureSchemaOnDismiss?.let { viewModel.dismissFutureSchemaImport(it) }
                 pendingFutureSchemaImport = null
+                pendingFutureSchemaOnDismiss = null
             },
             title = { Text(stringResource(R.string.backup_future_schema_title)) },
             text = {
@@ -204,12 +210,15 @@ fun SettingsScreen(
                     showFutureSchemaDialog = false
                     pendingFutureSchemaImport?.let { viewModel.proceedWithFutureSchemaImport(it) }
                     pendingFutureSchemaImport = null
+                    pendingFutureSchemaOnDismiss = null
                 }) { Text(stringResource(R.string.backup_proceed_button)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showFutureSchemaDialog = false
+                    pendingFutureSchemaOnDismiss?.let { viewModel.dismissFutureSchemaImport(it) }
                     pendingFutureSchemaImport = null
+                    pendingFutureSchemaOnDismiss = null
                 }) { Text(stringResource(R.string.cancel)) }
             }
         )

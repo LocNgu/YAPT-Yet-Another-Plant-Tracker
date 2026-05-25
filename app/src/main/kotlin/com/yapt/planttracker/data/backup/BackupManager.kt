@@ -27,7 +27,11 @@ private const val PHOTOS_DIR = "photos/"
 sealed class BackupResult {
     data class ExportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
     data class ImportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
-    data class FutureSchemaWarning(val schemaVersion: Int, val onProceed: suspend () -> BackupResult) : BackupResult()
+    data class FutureSchemaWarning(
+        val schemaVersion: Int,
+        val onProceed: suspend () -> BackupResult,
+        val onDismiss: suspend () -> Unit,
+    ) : BackupResult()
     data class Error(val message: String) : BackupResult()
 }
 
@@ -120,26 +124,39 @@ class BackupManager(
 
             val jsonString = backupJson.encodeToString(BackupRoot.serializer(), backupRoot)
 
-            context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
-                ZipOutputStream(outputStream.buffered()).use { zip ->
-                    zip.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
-                    zip.write(jsonString.toByteArray(Charsets.UTF_8))
-                    zip.closeEntry()
+            val tempFile = File(context.cacheDir, UUID.randomUUID().toString())
+            try {
+                tempFile.outputStream().buffered().use { tempOut ->
+                    ZipOutputStream(tempOut).use { zip ->
+                        zip.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
+                        zip.write(jsonString.toByteArray(Charsets.UTF_8))
+                        zip.closeEntry()
 
-                    if (includePhotos) {
-                        for ((originalUri, zipPath) in photoMapping) {
-                            val input = runCatching {
-                                context.contentResolver.openInputStream(Uri.parse(originalUri))
-                            }.getOrNull() ?: continue
-                            input.use {
-                                zip.putNextEntry(ZipEntry(zipPath))
-                                it.copyTo(zip)
-                                zip.closeEntry()
+                        if (includePhotos) {
+                            for ((originalUri, zipPath) in photoMapping) {
+                                val input = runCatching {
+                                    val parsedUri = Uri.parse(originalUri)
+                                    when (parsedUri.scheme) {
+                                        null -> File(originalUri).inputStream()
+                                        "file" -> File(parsedUri.path!!).inputStream()
+                                        else -> context.contentResolver.openInputStream(parsedUri)
+                                    }
+                                }.getOrNull() ?: continue
+                                input.use {
+                                    zip.putNextEntry(ZipEntry(zipPath))
+                                    it.copyTo(zip)
+                                    zip.closeEntry()
+                                }
                             }
                         }
                     }
                 }
-            } ?: error("Could not open output stream for URI: $destinationUri")
+                context.contentResolver.openOutputStream(destinationUri)?.use { out ->
+                    tempFile.inputStream().copyTo(out)
+                } ?: error("Could not open output stream for URI: $destinationUri")
+            } finally {
+                tempFile.delete()
+            }
 
             BackupResult.ExportSuccess(plants.size, careLogs.size)
         }.getOrElse { e ->
@@ -148,59 +165,81 @@ class BackupManager(
     }
 
     suspend fun importBackup(sourceUri: Uri): BackupResult = withContext(Dispatchers.IO) {
-        runCatching {
-            val jsonBytes: ByteArray
-            val photoEntries = mutableMapOf<String, ByteArray>()
+        val photoTempFiles = mutableMapOf<String, File>()
+        // When FutureSchemaWarning is returned, onProceed owns cleanup; skip the finally block.
+        var deferCleanup = false
+        try {
+            runCatching {
+                val jsonBytes: ByteArray
 
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                ZipInputStream(inputStream.buffered()).use { zip ->
-                    var entry = zip.nextEntry
-                    var foundJson = false
-                    val jsonHolder = mutableListOf<ByteArray>()
-                    while (entry != null) {
-                        when {
-                            entry.name == BACKUP_JSON_ENTRY -> {
-                                jsonHolder.add(zip.readBytes())
-                                foundJson = true
+                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                    ZipInputStream(inputStream.buffered()).use { zip ->
+                        var entry = zip.nextEntry
+                        var foundJson = false
+                        val jsonHolder = mutableListOf<ByteArray>()
+                        while (entry != null) {
+                            when {
+                                entry.name == BACKUP_JSON_ENTRY -> {
+                                    jsonHolder.add(zip.readBytes())
+                                    foundJson = true
+                                }
+                                entry.name.startsWith(PHOTOS_DIR) && !entry.isDirectory -> {
+                                    val tmp = File(context.cacheDir, UUID.randomUUID().toString())
+                                    photoTempFiles[entry.name] = tmp
+                                    tmp.outputStream().use { out -> zip.copyTo(out) }
+                                }
                             }
-                            entry.name.startsWith(PHOTOS_DIR) && !entry.isDirectory -> {
-                                photoEntries[entry.name] = zip.readBytes()
-                            }
+                            zip.closeEntry()
+                            entry = zip.nextEntry
                         }
-                        zip.closeEntry()
-                        entry = zip.nextEntry
+                        if (!foundJson) error("Backup file is not compatible: backup.json not found")
+                        jsonBytes = jsonHolder[0]
                     }
-                    if (!foundJson) error("Backup file is not compatible: backup.json not found")
-                    jsonBytes = jsonHolder[0]
-                }
-            } ?: error("Could not open input stream for URI: $sourceUri")
+                } ?: error("Could not open input stream for URI: $sourceUri")
 
-            val backup = backupJson.decodeFromString(BackupRoot.serializer(), jsonBytes.toString(Charsets.UTF_8))
+                val backup = backupJson.decodeFromString(BackupRoot.serializer(), jsonBytes.toString(Charsets.UTF_8))
 
-            if (backup.schemaVersion > CURRENT_SCHEMA_VERSION) {
-                return@withContext BackupResult.FutureSchemaWarning(backup.schemaVersion) {
-                    performImport(backup, photoEntries)
+                if (backup.schemaVersion > CURRENT_SCHEMA_VERSION) {
+                    deferCleanup = true
+                    return@runCatching BackupResult.FutureSchemaWarning(
+                        schemaVersion = backup.schemaVersion,
+                        onProceed = {
+                            try {
+                                performImport(backup, photoTempFiles)
+                            } finally {
+                                photoTempFiles.values.forEach { it.delete() }
+                            }
+                        },
+                        onDismiss = {
+                            withContext(Dispatchers.IO) {
+                                photoTempFiles.values.forEach { it.delete() }
+                            }
+                        },
+                    )
                 }
+
+                performImport(backup, photoTempFiles)
+            }.getOrElse { e ->
+                BackupResult.Error(e.message ?: "Import failed")
             }
-
-            performImport(backup, photoEntries)
-        }.getOrElse { e ->
-            BackupResult.Error(e.message ?: "Import failed")
+        } finally {
+            if (!deferCleanup) photoTempFiles.values.forEach { it.delete() }
         }
     }
 
     private suspend fun performImport(
         backup: BackupRoot,
-        photoEntries: Map<String, ByteArray>
+        photoTempFiles: Map<String, File>
     ): BackupResult = withContext(Dispatchers.IO) {
         val restoredPhotosDir = context.filesDir.resolve("restored_photos").also { it.mkdirs() }
         val writtenFiles = mutableListOf<File>()
         try {
             val zipPathToLocalPath = mutableMapOf<String, String>()
-            for ((zipPath, bytes) in photoEntries) {
+            for ((zipPath, tmpFile) in photoTempFiles) {
                 val filename = File(zipPath.removePrefix(PHOTOS_DIR)).name
                 val destFile = File(restoredPhotosDir, filename)
-                destFile.writeBytes(bytes)
+                tmpFile.copyTo(destFile, overwrite = true)
+                tmpFile.delete()
                 writtenFiles.add(destFile)
                 zipPathToLocalPath[zipPath] = destFile.absolutePath
             }

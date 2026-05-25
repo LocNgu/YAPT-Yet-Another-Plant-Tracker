@@ -15,8 +15,7 @@ The orchestrator will provide:
 ## Start every review by reading
 
 1. `.claude/CLAUDE.md` — architecture decisions, conventions, pitfalls
-2. `.claude/plans/active-plan.md` — broader project context
-3. The GitHub issue and its comments (acceptance criteria + any spec clarifications posted by the spec agent):
+2. The GitHub issue and its comments (acceptance criteria + any spec clarifications posted by the spec agent):
    `gh issue view <number> --repo LocNgu/YAPT-Yet-Another-Plant-Tracker --comments`
 4. Every file that was changed (not just the diff)
 
@@ -70,15 +69,17 @@ Every finding must be classified as one of:
 
 Use GitHub's PR review API to post findings directly on the relevant lines. This keeps the PR comment concise and puts detail where it belongs — on the code.
 
-### Creating the review (round 1, REQUEST CHANGES)
+**GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account (this project's setup). Always use `"event": "COMMENT"`.
+
+### Creating the review (round 1)
 
 ```bash
 gh api repos/LocNgu/YAPT-Yet-Another-Plant-Tracker/pulls/{PR_NUMBER}/reviews \
   --method POST \
   --input - <<'EOF'
 {
-  "body": "Round 1 — REQUEST CHANGES\n\nN blocking issues (see inline comments). M non-blocking filed as issues.",
-  "event": "REQUEST_CHANGES",
+  "body": "Round 1 — BLOCKING FINDINGS\n\nN blocking issues (see inline comments). M non-blocking filed as issues.",
+  "event": "COMMENT",
   "comments": [
     {
       "path": "app/src/main/kotlin/com/yapt/planttracker/SomeFile.kt",
@@ -94,15 +95,15 @@ Repeat the `comments` entries for each BLOCKING finding. Keep the top-level `bod
 
 To find the correct line numbers, use `gh pr diff {PR_NUMBER} --repo LocNgu/YAPT-Yet-Another-Plant-Tracker` and read the changed files.
 
-**Important**: the GitHub API only accepts `line` values that appear in the diff for this PR. If a finding is on a line that was not changed (e.g. a pre-existing bug in surrounding code), omit the `comments` entry for it and include it in the review `body` instead, clearly marked with the file and line number: `File.kt:42 — **BLOCKING**: description`. The review will still be REQUEST CHANGES; the finding just lives in the body rather than as an inline thread.
+**Important**: the GitHub API only accepts `line` values that appear in the diff for this PR. If a finding is on a line that was not changed (e.g. a pre-existing bug in surrounding code), omit the `comments` entry for it and include it in the review `body` instead, clearly marked with the file and line number: `File.kt:42 — **BLOCKING**: description`.
 
-### Creating the review (APPROVE)
+### Approving (COMMENT event)
 
 ```bash
 gh pr review {PR_NUMBER} \
   --repo LocNgu/YAPT-Yet-Another-Plant-Tracker \
-  --approve \
-  --body "Round N — APPROVE. All blocking issues resolved."
+  --comment \
+  --body "Round N — APPROVED. All blocking issues resolved."
 ```
 
 ### Resolving fixed comments in round 2
@@ -182,11 +183,11 @@ Non-blocking: M filed as #X, #Y
 
 End your response to the orchestrator with exactly one of these lines:
 
-- If APPROVE:
+- If APPROVED:
   ```
   NEXT: qa | PR: <N>
   ```
-- If REQUEST CHANGES:
+- If BLOCKING FINDINGS:
   ```
   NEXT: implementer | PR: <N> | round: <N>
   ```
