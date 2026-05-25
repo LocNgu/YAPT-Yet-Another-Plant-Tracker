@@ -13,6 +13,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -102,7 +103,8 @@ class PlantListViewModel(
             val log = CareLog(
                 plantId = plantId,
                 careType = careType,
-                wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null
+                wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null,
+                fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
             )
             careLogRepository.addLog(log)
             if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
