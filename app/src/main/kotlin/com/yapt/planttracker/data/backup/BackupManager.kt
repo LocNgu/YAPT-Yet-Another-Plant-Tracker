@@ -135,7 +135,12 @@ class BackupManager(
                         if (includePhotos) {
                             for ((originalUri, zipPath) in photoMapping) {
                                 val input = runCatching {
-                                    context.contentResolver.openInputStream(Uri.parse(originalUri))
+                                    val parsedUri = Uri.parse(originalUri)
+                                    when (parsedUri.scheme) {
+                                        null -> File(originalUri).inputStream()
+                                        "file" -> File(parsedUri.path!!).inputStream()
+                                        else -> context.contentResolver.openInputStream(parsedUri)
+                                    }
                                 }.getOrNull() ?: continue
                                 input.use {
                                     zip.putNextEntry(ZipEntry(zipPath))
@@ -236,7 +241,7 @@ class BackupManager(
                 tmpFile.copyTo(destFile, overwrite = true)
                 tmpFile.delete()
                 writtenFiles.add(destFile)
-                zipPathToLocalPath[zipPath] = destFile.absolutePath
+                zipPathToLocalPath[zipPath] = Uri.fromFile(destFile).toString()
             }
 
             val plantEntities = backup.plants.map { bp ->
