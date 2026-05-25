@@ -19,8 +19,8 @@ An offline-first Android app for houseplant owners who want to track care histor
 | Images | Coil 2 | Async image loading in Compose |
 | Reminders | WorkManager + NotificationManager | Survives process death |
 | Preferences | DataStore | Async, coroutine-friendly settings |
-| Build | AGP 8.7.3, Kotlin 2.0.21, KSP 2.0.21-1.0.28 | |
-| Compose BOM | 2024.11.00 | Aligns all Compose artifact versions |
+| Build | AGP 8.13.2, Kotlin 2.1.21, KSP 2.1.21-2.0.2, Gradle 8.14.5 | |
+| Compose BOM | 2026.05.01 | Aligns all Compose artifact versions |
 
 ---
 

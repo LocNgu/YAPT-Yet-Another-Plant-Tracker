@@ -91,6 +91,8 @@ fun SettingsScreen(
     var pendingFutureSchemaOnDismiss by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val exportSuccessFormat = stringResource(R.string.backup_export_success)
+    val errorFormat = stringResource(R.string.backup_error)
 
     val todayString = remember {
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -116,7 +118,7 @@ fun SettingsScreen(
             when (result) {
                 is BackupResult.ExportSuccess ->
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.backup_export_success, result.plantCount, result.logCount)
+                        String.format(exportSuccessFormat, result.plantCount, result.logCount)
                     )
                 is BackupResult.ImportSuccess ->
                     onRestoreSuccess(result.plantCount, result.logCount)
@@ -127,7 +129,7 @@ fun SettingsScreen(
                     showFutureSchemaDialog = true
                 }
                 is BackupResult.Error ->
-                    snackbarHostState.showSnackbar(context.getString(R.string.backup_error, result.message))
+                    snackbarHostState.showSnackbar(String.format(errorFormat, result.message))
             }
         }
     }
