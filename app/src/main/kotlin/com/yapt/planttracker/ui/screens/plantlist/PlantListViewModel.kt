@@ -100,9 +100,11 @@ class PlantListViewModel(
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
             val plantName = plant.name
+            val now = System.currentTimeMillis()
             val log = CareLog(
                 plantId = plantId,
                 careType = careType,
+                loggedAt = now,
                 wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null,
                 fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
             )
@@ -112,6 +114,7 @@ class PlantListViewModel(
                     CareLog(
                         plantId = plantId,
                         careType = CareType.WATER,
+                        loggedAt = now,
                         wateringFeedback = WateringFeedback.JUST_RIGHT
                     )
                 )
