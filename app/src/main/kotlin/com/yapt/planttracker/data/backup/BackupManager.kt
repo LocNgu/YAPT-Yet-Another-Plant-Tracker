@@ -124,26 +124,34 @@ class BackupManager(
 
             val jsonString = backupJson.encodeToString(BackupRoot.serializer(), backupRoot)
 
-            context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
-                ZipOutputStream(outputStream.buffered()).use { zip ->
-                    zip.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
-                    zip.write(jsonString.toByteArray(Charsets.UTF_8))
-                    zip.closeEntry()
+            val tempFile = File(context.cacheDir, UUID.randomUUID().toString())
+            try {
+                tempFile.outputStream().buffered().use { tempOut ->
+                    ZipOutputStream(tempOut).use { zip ->
+                        zip.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
+                        zip.write(jsonString.toByteArray(Charsets.UTF_8))
+                        zip.closeEntry()
 
-                    if (includePhotos) {
-                        for ((originalUri, zipPath) in photoMapping) {
-                            val input = runCatching {
-                                context.contentResolver.openInputStream(Uri.parse(originalUri))
-                            }.getOrNull() ?: continue
-                            input.use {
-                                zip.putNextEntry(ZipEntry(zipPath))
-                                it.copyTo(zip)
-                                zip.closeEntry()
+                        if (includePhotos) {
+                            for ((originalUri, zipPath) in photoMapping) {
+                                val input = runCatching {
+                                    context.contentResolver.openInputStream(Uri.parse(originalUri))
+                                }.getOrNull() ?: continue
+                                input.use {
+                                    zip.putNextEntry(ZipEntry(zipPath))
+                                    it.copyTo(zip)
+                                    zip.closeEntry()
+                                }
                             }
                         }
                     }
                 }
-            } ?: error("Could not open output stream for URI: $destinationUri")
+                context.contentResolver.openOutputStream(destinationUri)?.use { out ->
+                    tempFile.inputStream().copyTo(out)
+                } ?: error("Could not open output stream for URI: $destinationUri")
+            } finally {
+                tempFile.delete()
+            }
 
             BackupResult.ExportSuccess(plants.size, careLogs.size)
         }.getOrElse { e ->
