@@ -329,4 +329,16 @@ class BackupManagerTest {
         val restoredHash = digest.digest(restoredBytes)
         assertArrayEquals("SHA-256 hash of restored photo must match original", originalHash, restoredHash)
     }
+
+    @Test
+    fun exportFailure_tempFileDeleted() = runBlocking {
+        val cacheFilesBefore = context.cacheDir.listFiles()?.toSet() ?: emptySet()
+
+        val result = backupManager.exportBackup(Uri.parse("content://invalid/does/not/exist"), includePhotos = false)
+
+        assertTrue("Expected BackupResult.Error for unresolvable URI", result is BackupResult.Error)
+        val cacheFilesAfter = context.cacheDir.listFiles()?.toSet() ?: emptySet()
+        val newFiles = cacheFilesAfter - cacheFilesBefore
+        assertTrue("No temp files should remain in cacheDir after a failed export", newFiles.isEmpty())
+    }
 }
