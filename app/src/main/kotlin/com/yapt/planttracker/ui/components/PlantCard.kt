@@ -158,10 +158,6 @@ fun PlantCard(
                             else -> "Never fertilized"
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (status.plant.useLiquidFertilizer) {
-                                Icon(Icons.Filled.WaterDrop, null, Modifier.size(12.dp), tint = fertColor)
-                                Text("+", style = MaterialTheme.typography.labelSmall, color = fertColor)
-                            }
                             Icon(Icons.Filled.Spa, null, Modifier.size(12.dp), tint = fertColor)
                             Spacer(Modifier.width(2.dp))
                             Text(
@@ -196,9 +192,9 @@ fun PlantCard(
                 ) {
                     if (status.plant.useLiquidFertilizer) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("+", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Icon(Icons.Filled.Spa, null, Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Filled.Spa, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         Icon(Icons.Filled.Spa, "Quick fertilize", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
