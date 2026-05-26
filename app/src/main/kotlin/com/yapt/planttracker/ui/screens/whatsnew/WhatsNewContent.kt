@@ -14,7 +14,7 @@ object WhatsNewContent {
             added = listOf(
                 "Liquid fertilizer mode: mark a plant as using liquid fertilizer and logging a fertilize event will automatically pair it with a watering log",
                 "Fertilizer type selector (Liquid / Solid) on the Add Care Log screen, pre-selected from plant default",
-                "Plant list cards show a flask icon for liquid-fertilizer plants"
+                "Plant list cards and detail screen show a 'With watering' label on the fertilizing chip for liquid-fertilizer plants"
             )
         ),
         ReleaseNotes(

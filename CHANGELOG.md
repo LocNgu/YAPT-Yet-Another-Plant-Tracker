@@ -15,7 +15,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - Per-plant liquid fertilizer toggle on Add/Edit Plant screen; FERTILIZE logs with Liquid type auto-create a paired WATER log at the same timestamp (#56)
 - Fertilizer type selector (Liquid / Solid chips) on the Add Care Log screen, pre-selected from plant default (#56)
-- PlantCard fertilizing chip shows Science flask icon for liquid-fertilizer plants (#56)
+- PlantCard and PlantDetail fertilizing chip shows "With watering" label for liquid-fertilizer plants; quick-fertilize button on the plant list card auto-creates a paired watering log for liquid-fertilizer plants (#56)
 - Reminder notifications: liquid-fertilizer plants show "Fertilize with watering" in the watering alert instead of a standalone fertilizing notification (#56)
 - What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
