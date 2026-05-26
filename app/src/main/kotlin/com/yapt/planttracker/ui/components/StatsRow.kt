@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
@@ -61,7 +60,8 @@ fun StatsRow(
                 else -> OkGreen
             }
             StatChip(
-                icon = if (status.plant.useLiquidFertilizer) Icons.Filled.Science else Icons.Filled.Spa,
+                icon = Icons.Filled.Spa,
+                leadingIcon = if (status.plant.useLiquidFertilizer) Icons.Filled.WaterDrop else null,
                 label = "Fertilizing",
                 nextLine = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
                 nextColor = if (status.nextFertilizingDueAt != null) fertColor else null,
@@ -75,6 +75,7 @@ fun StatsRow(
 @Composable
 private fun StatChip(
     icon: ImageVector,
+    leadingIcon: ImageVector? = null,
     label: String,
     nextLine: String?,
     nextColor: Color?,
@@ -89,6 +90,19 @@ private fun StatChip(
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (leadingIcon != null) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "+",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
