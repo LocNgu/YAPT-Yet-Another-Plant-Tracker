@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -94,7 +95,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("What's New").assertIsDisplayed()
+        composeTestRule.onNodeWithText("What's New").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -109,7 +110,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("What's New").performClick()
+        composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
         assert(called)
     }
 }
