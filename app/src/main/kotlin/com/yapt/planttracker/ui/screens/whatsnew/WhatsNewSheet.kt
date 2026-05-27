@@ -29,7 +29,7 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
         )
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 24.dp, bottom = 8.dp),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             items(WhatsNewContent.all) { notes ->
