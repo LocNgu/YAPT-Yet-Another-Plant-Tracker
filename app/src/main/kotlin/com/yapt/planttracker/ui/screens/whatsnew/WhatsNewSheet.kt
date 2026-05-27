@@ -28,7 +28,7 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
                 .padding(bottom = 8.dp)
         )
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
