@@ -59,9 +59,9 @@ private fun ReleaseSection(notes: ReleaseNotes) {
 }
 
 @Composable
-private fun NoteSection(heading: String, items: List<String>) {
+private fun NoteSection(heading: String, entries: List<String>) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(heading, style = MaterialTheme.typography.labelLarge)
-        items.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+        entries.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
     }
 }
