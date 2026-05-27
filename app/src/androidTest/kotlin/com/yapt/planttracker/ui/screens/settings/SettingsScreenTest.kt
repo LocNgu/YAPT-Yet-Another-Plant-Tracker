@@ -60,7 +60,8 @@ class SettingsScreenTest {
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
-                onRestoreSuccess = { _, _ -> }
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
             )
         }
 
@@ -73,7 +74,8 @@ class SettingsScreenTest {
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
-                onRestoreSuccess = { _, _ -> }
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
             )
         }
 

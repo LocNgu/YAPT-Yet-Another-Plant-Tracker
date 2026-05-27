@@ -42,11 +42,13 @@ fun YaptNavGraph(
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     var showWhatsNew by remember { mutableStateOf(false) }
+    var updateStoreOnWhatsNewDismiss by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val lastSeen = app.settingsDataStore.data.first()[SettingsKeys.LAST_SEEN_VERSION_CODE] ?: 0
         if (BuildConfig.VERSION_CODE > lastSeen) {
             showWhatsNew = true
+            updateStoreOnWhatsNewDismiss = true
         }
     }
 
@@ -197,7 +199,8 @@ fun YaptNavGraph(
                     navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
                         popUpTo(0) { inclusive = true }
                     }
-                }
+                },
+                onShowWhatsNew = { showWhatsNew = true }
             )
         }
     }
@@ -205,9 +208,12 @@ fun YaptNavGraph(
     if (showWhatsNew) {
         WhatsNewSheet(onDismiss = {
             showWhatsNew = false
-            scope.launch {
-                app.settingsDataStore.edit {
-                    it[SettingsKeys.LAST_SEEN_VERSION_CODE] = BuildConfig.VERSION_CODE
+            if (updateStoreOnWhatsNewDismiss) {
+                updateStoreOnWhatsNewDismiss = false
+                scope.launch {
+                    app.settingsDataStore.edit {
+                        it[SettingsKeys.LAST_SEEN_VERSION_CODE] = BuildConfig.VERSION_CODE
+                    }
                 }
             }
         })
