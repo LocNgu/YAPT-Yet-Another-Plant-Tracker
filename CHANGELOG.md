@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Agent definitions in `.claude/agents/` refactored (#221, PR #222): removed dead `gh` CLI blocks (subagents now return findings as text for the orchestrator to post via `mcp__github__*` MCP tools); `reviewer.md` slimmed 202 → 108 lines with the APPROVE/REQUEST_CHANGES verbs dropped, round-cap contradiction reconciled, and 1‑2‑4 numbering bug fixed; trigger-style `description` and `model:` field added to each agent; subagents granted read-only `mcp__github__issue_read` and `mcp__github__pull_request_read` so they fetch their own inputs; `CLAUDE.md` Autonomy table updated (`gh` row replaced with MCP read/write split) and workflow step 2 updated to reflect the implementer's push-only flow
+
 ### Fixed
 - CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag is anchored to the exact main commit that triggered the push, not the default branch HEAD; fixes incorrect release notes when the repo's default branch is `develop`
 

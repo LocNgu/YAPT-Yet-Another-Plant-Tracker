@@ -73,7 +73,7 @@ Never (forbidden — hard-blocked by settings):
 - `git push origin main`
 - `git checkout main`
 - `git reset --hard`
-- Merging PRs (`gh pr merge`) — human merges only
+- Merging PRs by any means (`mcp__github__merge_pull_request`, GitHub UI, etc.) — human merges only
 
 ## Reviewer loop
 
