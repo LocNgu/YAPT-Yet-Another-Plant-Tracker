@@ -3,6 +3,8 @@ package com.yapt.planttracker.ui.screens.settings
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -60,7 +62,8 @@ class SettingsScreenTest {
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
-                onRestoreSuccess = { _, _ -> }
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
             )
         }
 
@@ -73,10 +76,41 @@ class SettingsScreenTest {
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
-                onRestoreSuccess = { _, _ -> }
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
             )
         }
 
         composeTestRule.onNodeWithText("Restore from backup").assertIsDisplayed()
+    }
+
+    @Test
+    fun whatsNewRow_isDisplayed() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("What's New").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun whatsNewRow_invokesCallback() {
+        var called = false
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = { called = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
+        assert(called)
     }
 }
