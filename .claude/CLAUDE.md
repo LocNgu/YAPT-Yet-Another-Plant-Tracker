@@ -133,10 +133,10 @@ Every feature and bug fix follows these steps in order:
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
    - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
-   - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+   - **Note:** `reviewer` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
-   - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+   - **Note:** `qa` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
