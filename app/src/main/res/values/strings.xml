@@ -58,7 +58,6 @@
     <string name="backup_error">Error: %s</string>
     <string name="skip_watering_title">Skip watering</string>
     <string name="skip_watering_confirm">Confirm</string>
-    <string name="skip_watering_cancel">Cancel</string>
     <string name="skip_watering_decrease_cd">Decrease</string>
     <string name="skip_watering_increase_cd">Increase</string>
     <plurals name="skip_watering_days">

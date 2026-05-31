@@ -51,9 +51,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
@@ -136,7 +136,7 @@ fun PlantDetailScreen(
                 TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text(stringResource(R.string.skip_watering_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.skip_watering_cancel)) }
+                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
