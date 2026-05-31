@@ -51,9 +51,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoGallery
@@ -112,7 +115,7 @@ fun PlantDetailScreen(
     if (showSkipDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissSkipDialog() },
-            title = { Text("Skip watering") },
+            title = { Text(stringResource(R.string.skip_watering_title)) },
             text = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -121,19 +124,19 @@ fun PlantDetailScreen(
                     IconButton(
                         onClick = { if (skipDays > 1) skipDays-- },
                         enabled = skipDays > 1
-                    ) { Icon(Icons.Filled.Remove, contentDescription = "Decrease") }
-                    Text(if (skipDays == 1) "1 day" else "$skipDays days")
+                    ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.skip_watering_decrease_cd)) }
+                    Text(pluralStringResource(R.plurals.skip_watering_days, skipDays, skipDays))
                     IconButton(
                         onClick = { if (skipDays < 7) skipDays++ },
                         enabled = skipDays < 7
-                    ) { Icon(Icons.Filled.Add, contentDescription = "Increase") }
+                    ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.skip_watering_increase_cd)) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text("Confirm") }
+                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text(stringResource(R.string.skip_watering_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text("Cancel") }
+                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -272,7 +275,7 @@ fun PlantDetailScreen(
                                 onClick = { viewModel.requestSkip() },
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             ) {
-                                Text("Skip watering")
+                                Text(stringResource(R.string.skip_watering_title))
                             }
                         }
                         Spacer(Modifier.height(16.dp))
