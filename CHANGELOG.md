@@ -15,6 +15,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+### Fixed
+- CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag is anchored to the exact main commit that triggered the push, not the default branch HEAD; fixes incorrect release notes when the repo's default branch is `develop`
 
 ---
 
