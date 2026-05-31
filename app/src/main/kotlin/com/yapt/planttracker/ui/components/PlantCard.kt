@@ -188,13 +188,13 @@ fun PlantCard(
                 }
                 IconButton(
                     onClick = onQuickFertilize,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(if (status.plant.useLiquidFertilizer) 44.dp else 36.dp)
                 ) {
                     if (status.plant.useLiquidFertilizer) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("+", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Icon(Icons.Filled.Spa, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Filled.Spa, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         Icon(Icons.Filled.Spa, "Quick fertilize", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
