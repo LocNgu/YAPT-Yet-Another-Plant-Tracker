@@ -250,6 +250,14 @@ fun AddCareLogScreen(
                             )
                         }
                     }
+                    if (viewModel.selectedFertilizerType == FertilizerType.LIQUID) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Also logs a watering",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
