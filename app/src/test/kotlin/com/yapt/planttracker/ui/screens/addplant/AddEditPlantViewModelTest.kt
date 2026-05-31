@@ -112,4 +112,39 @@ class AddEditPlantViewModelTest {
         coVerify { plantRepo.updatePlant(match { it.name == "Monstera Updated" }) }
         coVerify(exactly = 0) { plantRepo.addPlant(any()) }
     }
+
+    @Test
+    fun `useLiquidFertilizer true saved in new plant mode`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 5L
+        val vm = AddEditPlantViewModel(plantRepo, plantId = null)
+        vm.name = "Pothos"
+        vm.fertilizingIntervalEnabled = true
+        vm.useLiquidFertilizer = true
+
+        vm.events.test {
+            vm.save()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.addPlant(match { it.useLiquidFertilizer }) }
+    }
+
+    @Test
+    fun `useLiquidFertilizer round-trips through edit mode`() = runTest {
+        val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantId = 1L)
+
+        assertTrue(vm.useLiquidFertilizer)
+
+        vm.events.test {
+            vm.save()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+    }
 }

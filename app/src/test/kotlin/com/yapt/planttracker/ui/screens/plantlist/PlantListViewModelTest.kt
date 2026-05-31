@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -184,6 +185,33 @@ class PlantListViewModelTest {
 
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
+    fun `quickLog fertilize liquid plant emits watered-and-fertilized message and creates two logs`() = runTest {
+        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.FERTILIZE)
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("Watered and fertilized Monstera", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 2) { careLogRepo.addLog(any()) }
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID })
+        }
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
         }
     }
 

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.theme.OkGreen
@@ -150,6 +151,7 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
+                            status.plant.useLiquidFertilizer -> "With watering"
                             status.nextFertilizingDueAt != null ->
                                 DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
@@ -157,12 +159,7 @@ fun PlantCard(
                             else -> "Never fertilized"
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.Spa,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = fertColor
-                            )
+                            Icon(Icons.Filled.Spa, null, Modifier.size(12.dp), tint = fertColor)
                             Spacer(Modifier.width(2.dp))
                             Text(
                                 text = fertLabel,
@@ -192,14 +189,22 @@ fun PlantCard(
                 }
                 IconButton(
                     onClick = onQuickFertilize,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(if (status.plant.useLiquidFertilizer) 44.dp else 36.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.Spa,
-                        contentDescription = "Quick fertilize",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (status.plant.useLiquidFertilizer) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = "+",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            )
+                            Icon(Icons.Filled.Spa, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        Icon(Icons.Filled.Spa, "Quick fertilize", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }

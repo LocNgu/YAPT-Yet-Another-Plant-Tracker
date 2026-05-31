@@ -4,6 +4,7 @@ import com.yapt.planttracker.data.db.CareLogDao
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -47,7 +48,8 @@ private fun CareLogEntity.toDomain() = CareLog(
     amount = amount,
     wateringFeedback = wateringFeedback?.let {
         runCatching { WateringFeedback.valueOf(it) }.getOrNull()
-    }
+    },
+    fertilizerType = runCatching { FertilizerType.valueOf(fertilizerType) }.getOrDefault(FertilizerType.UNSPECIFIED)
 )
 
 private fun CareLog.toEntity() = CareLogEntity(
@@ -58,5 +60,6 @@ private fun CareLog.toEntity() = CareLogEntity(
     notes = notes,
     photoUri = photoUri,
     amount = amount,
-    wateringFeedback = wateringFeedback?.name
+    wateringFeedback = wateringFeedback?.name,
+    fertilizerType = fertilizerType.name
 )

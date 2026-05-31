@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +33,7 @@ class AddCareLogViewModel(
     var amount by mutableStateOf("")
     var loggedAt by mutableStateOf(System.currentTimeMillis())
     var selectedFeedback by mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT)
+    var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
 
@@ -50,8 +52,15 @@ class AddCareLogViewModel(
                 amount = log.amount ?: ""
                 photoUri = log.photoUri
                 selectedFeedback = log.wateringFeedback
+                selectedFertilizerType = log.fertilizerType
                 loggedAt = log.loggedAt
                 isLoaded = true
+            }
+        } else {
+            viewModelScope.launch {
+                plantRepository.getPlantById(plantId).first()?.let { plant ->
+                    if (plant.useLiquidFertilizer) selectedFertilizerType = FertilizerType.LIQUID
+                }
             }
         }
     }
@@ -66,9 +75,27 @@ class AddCareLogViewModel(
                 notes = notes.trim().ifBlank { null },
                 photoUri = photoUri,
                 amount = amount.trim().ifBlank { null },
-                wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null
+                wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null,
+                fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED
             )
             careLogRepository.addLog(log)
+
+            if (!isEditMode && selectedCareType == CareType.FERTILIZE && selectedFertilizerType == FertilizerType.LIQUID) {
+                careLogRepository.addLog(
+                    CareLog(
+                        plantId = plantId,
+                        careType = CareType.WATER,
+                        loggedAt = loggedAt,
+                        wateringFeedback = WateringFeedback.JUST_RIGHT
+                    )
+                )
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
+            }
 
             if (!isEditMode && selectedCareType == CareType.WATER) {
                 plantRepository.getPlantById(plantId).first()?.let { p ->

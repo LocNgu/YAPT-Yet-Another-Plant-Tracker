@@ -5,10 +5,12 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
@@ -29,12 +31,13 @@ class AddCareLogViewModelTest {
 
     private val now = System.currentTimeMillis()
 
-    private fun plant(id: Long = 1L, wateringIntervalDays: Int? = 7) = Plant(
+    private fun plant(id: Long = 1L, wateringIntervalDays: Int? = 7, useLiquidFertilizer: Boolean = false) = Plant(
         id = id,
         name = "Monstera",
         wateringIntervalDays = wateringIntervalDays,
         createdAt = 0L,
-        updatedAt = 0L
+        updatedAt = 0L,
+        useLiquidFertilizer = useLiquidFertilizer
     )
 
     private fun waterLog(loggedAt: Long = now) = CareLog(
@@ -111,6 +114,7 @@ class AddCareLogViewModelTest {
 
     @Test
     fun `save FERTILIZE log emits Saved with null interval regardless of feedback`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
         coEvery { careLogRepo.addLog(any()) } returns 1L
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.FERTILIZE
@@ -162,5 +166,56 @@ class AddCareLogViewModelTest {
             assertNull(event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `FERTILIZE with LIQUID type auto-creates paired WATER log`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(useLiquidFertilizer = true))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.FERTILIZE
+        vm.selectedFertilizerType = FertilizerType.LIQUID
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 2) { careLogRepo.addLog(any()) }
+        coVerify { careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }) }
+    }
+
+    @Test
+    fun `FERTILIZE with SOLID type does not create paired WATER log`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.FERTILIZE
+        vm.selectedFertilizerType = FertilizerType.SOLID
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `new mode init defaults selectedFertilizerType to LIQUID when plant useLiquidFertilizer is true`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(useLiquidFertilizer = true))
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+
+        assertEquals(FertilizerType.LIQUID, vm.selectedFertilizerType)
+    }
+
+    @Test
+    fun `new mode init defaults selectedFertilizerType to UNSPECIFIED when plant useLiquidFertilizer is false`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(useLiquidFertilizer = false))
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+
+        assertEquals(FertilizerType.UNSPECIFIED, vm.selectedFertilizerType)
     }
 }
