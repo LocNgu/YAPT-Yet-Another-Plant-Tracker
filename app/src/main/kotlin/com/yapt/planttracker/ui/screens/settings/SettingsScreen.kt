@@ -456,9 +456,9 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("What's New", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_whats_new_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "View the release history",
+                        stringResource(R.string.settings_whats_new_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -28,6 +28,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Fixed
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `<plurals>` resource (issue #179)
+- "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded literals to `strings.xml` entries (`settings_whats_new_title`, `settings_whats_new_subtitle`) (issue #216)
 - CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag is anchored to the exact main commit that triggered the push, not the default branch HEAD; fixes incorrect release notes when the repo's default branch is `develop`
 
 
