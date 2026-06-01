@@ -32,7 +32,7 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            items(WhatsNewContent.all) { notes ->
+            items(WhatsNewContent.all.sortedByDescending { it.versionCode }) { notes ->
                 ReleaseSection(notes)
             }
         }
