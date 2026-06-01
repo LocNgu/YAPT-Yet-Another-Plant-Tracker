@@ -14,14 +14,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.yapt.planttracker.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WhatsNewSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            text = "What's New",
+            text = stringResource(R.string.settings_whats_new_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier
                 .padding(horizontal = 24.dp)
@@ -43,7 +45,7 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
                 .padding(horizontal = 24.dp)
                 .padding(top = 8.dp, bottom = 32.dp)
         ) {
-            Text("Got it")
+            Text(stringResource(R.string.whats_new_got_it))
         }
     }
 }
@@ -52,9 +54,9 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
 private fun ReleaseSection(notes: ReleaseNotes) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(notes.versionName, style = MaterialTheme.typography.titleMedium)
-        if (notes.added.isNotEmpty()) NoteSection("Added", notes.added)
-        if (notes.fixed.isNotEmpty()) NoteSection("Fixed", notes.fixed)
-        if (notes.changed.isNotEmpty()) NoteSection("Changed", notes.changed)
+        if (notes.added.isNotEmpty()) NoteSection(stringResource(R.string.whats_new_section_added), notes.added)
+        if (notes.fixed.isNotEmpty()) NoteSection(stringResource(R.string.whats_new_section_fixed), notes.fixed)
+        if (notes.changed.isNotEmpty()) NoteSection(stringResource(R.string.whats_new_section_changed), notes.changed)
     }
 }
 
