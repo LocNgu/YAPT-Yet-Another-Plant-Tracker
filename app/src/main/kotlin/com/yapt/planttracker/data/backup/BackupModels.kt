@@ -14,7 +14,8 @@ data class BackupPlant(
     val fertilizingIntervalDays: Int? = null,
     val createdAt: Long,
     val updatedAt: Long,
-    val wateringDueDateOverride: Long? = null
+    val wateringDueDateOverride: Long? = null,
+    val useLiquidFertilizer: Boolean = false
 )
 
 @Serializable
@@ -26,7 +27,8 @@ data class BackupCareLog(
     val notes: String? = null,
     val photoUri: String? = null,
     val amount: String? = null,
-    val wateringFeedback: String? = null
+    val wateringFeedback: String? = null,
+    val fertilizerType: String = "UNSPECIFIED"
 )
 
 @Serializable

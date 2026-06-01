@@ -10,6 +10,14 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionName = "0.8.0",
+            added = listOf(
+                "Liquid fertilizer mode: mark a plant as using liquid fertilizer and logging a fertilize event will automatically pair it with a watering log",
+                "Fertilizer type selector (Liquid / Solid) on the Add Care Log screen, pre-selected from plant default",
+                "Plant list cards and detail screen show a 'With watering' label on the fertilizing chip for liquid-fertilizer plants"
+            )
+        ),
+        ReleaseNotes(
             versionName = "0.7.1",
             fixed = listOf(
                 "Restoring a large backup with many photos no longer crashes the app (photos are now streamed instead of loaded into memory)",
