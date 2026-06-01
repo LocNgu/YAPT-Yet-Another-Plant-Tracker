@@ -21,6 +21,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// 1→2 (PR #209): useLiquidFertilizer added as a non-nullable field — bump required.
+// wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
 const val CURRENT_SCHEMA_VERSION = 2
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
