@@ -130,6 +130,7 @@ Every feature and bug fix follows these steps in order:
    - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
      - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
      - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+   - **Each reviewer round is posted as a fresh, standalone PR review — never combined with a previous round's findings**
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
    - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
@@ -139,6 +140,15 @@ Every feature and bug fix follows these steps in order:
    - **Note:** `qa` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
+
+**Comment cadence** — the orchestrator posts each phase as its own separate comment, in order. Never bundle multiple phases or rounds into one comment:
+
+| Phase | Where | Tool |
+|---|---|---|
+| Spec clarifications | GitHub issue | `mcp__github__add_issue_comment` |
+| Each reviewer round | PR (inline review) | `pull_request_review_write` + `add_comment_to_pending_review` |
+| QA result | PR | `mcp__github__add_issue_comment` |
+| Workflow summary | PR | `mcp__github__add_issue_comment` |
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
 

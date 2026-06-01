@@ -62,6 +62,8 @@ Classify every finding:
 
 You cannot post to GitHub. Return your findings as text; the orchestrator posts them via MCP, always submitting the review with `event: COMMENT` (GitHub blocks `APPROVE`/`REQUEST_CHANGES` when author and reviewer share one account).
 
+Each round is posted as a **fresh, standalone PR review** — the orchestrator always calls `pull_request_review_write` `create` anew for each round. Never ask the orchestrator to append findings to a previous round's review.
+
 Structure your response so the orchestrator can post it directly:
 
 1. **A compact review body** (2–3 lines): the verdict and counts.
