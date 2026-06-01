@@ -56,7 +56,6 @@
     <string name="backup_restore_item_subtitle">Replace all data from a .yapt file</string>
     <string name="backup_export_success">Backup saved (%1$d plants, %2$d logs)</string>
     <string name="backup_error">Error: %s</string>
-    <string name="whats_new_title">What\'s New</string>
     <string name="whats_new_got_it">Got it</string>
     <string name="whats_new_section_added">Added</string>
     <string name="whats_new_section_fixed">Fixed</string>

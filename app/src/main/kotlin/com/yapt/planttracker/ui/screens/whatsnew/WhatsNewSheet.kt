@@ -23,7 +23,7 @@ import com.yapt.planttracker.R
 fun WhatsNewSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            text = stringResource(R.string.whats_new_title),
+            text = stringResource(R.string.settings_whats_new_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier
                 .padding(horizontal = 24.dp)
