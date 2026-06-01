@@ -208,7 +208,7 @@ fun AddCareLogScreen(
             if (viewModel.selectedCareType == CareType.WATER) {
                 Column {
                     Text(
-                        text = "How was the timing?",
+                        text = "How was the soil?",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

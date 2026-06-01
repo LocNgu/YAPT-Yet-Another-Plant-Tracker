@@ -49,7 +49,7 @@ object WhatsNewContent {
             ),
             fixed = listOf(
                 "Overdue plants now always show \"Overdue\" (not \"Due today\") when the due date has passed",
-                "Watering interval suggestions (Just right / Too soon / Too late) are more accurate",
+                "Watering interval suggestions (Still wet / Just right / Too dry) are more accurate",
                 "Care-type chip no longer shows \"next:\" when care is already overdue",
                 "Keyboard no longer covers the Notes field when editing a plant or care log",
                 "Due dates compare by calendar day — \"due today\" stays correct throughout the day"
@@ -87,7 +87,7 @@ object WhatsNewContent {
             added = listOf(
                 "Plant library — add, edit, and delete plants with a cover photo",
                 "Care logging — Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; editable history",
-                "Adaptive watering interval — suggestions based on Too soon / Just right / Too late feedback",
+                "Adaptive watering interval — suggestions based on Still wet / Just right / Too dry feedback",
                 "Daily care reminders — configurable time in Settings",
                 "Local backup and restore — export and import a .yapt archive"
             )
