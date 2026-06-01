@@ -22,6 +22,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - WhatsNewSheet: move hardcoded UI strings (title, dismiss button, section headings) to strings.xml (issue #215)
+- WhatsNewContent: enforce newest-first ordering by adding `versionCode` field to `ReleaseNotes` and sorting at render time (issue #219)
 - Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
 - CI: gate release job on `test` job (unit tests + lint); release job now also runs `testReleaseUnitTest` and `lintRelease` before producing the APK ([#84](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/84))
 - WateringHistoryChart: remove unreachable `coerceAtLeast(0)` on totalMonths (issue #113)
