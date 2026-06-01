@@ -23,13 +23,21 @@ jobs:
         with:
           filters: |
             app:
-              - 'app/src/androidTest/**'
-              - 'app/src/main/**'
+              - 'app/src/**'
               - 'app/build.gradle.kts'
+              - 'build.gradle.kts'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - '.github/workflows/**'
             instrumented:
               - 'app/src/androidTest/**'
               - 'app/src/main/**'
               - 'app/build.gradle.kts'
+              - 'build.gradle.kts'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'gradlew.bat'
 
   test:
     name: Unit Tests & Lint
