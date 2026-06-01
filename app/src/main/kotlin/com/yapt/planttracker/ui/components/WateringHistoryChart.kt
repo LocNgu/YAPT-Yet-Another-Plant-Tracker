@@ -219,7 +219,7 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
         val rangeProvider = remember(totalMonths) {
             CartesianLayerRangeProvider.fixed(
                 minX = 0.0,
-                maxX = (totalMonths - 1).coerceAtLeast(0).toDouble()
+                maxX = (totalMonths - 1).toDouble()
             )
         }
 

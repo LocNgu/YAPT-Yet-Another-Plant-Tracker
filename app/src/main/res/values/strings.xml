@@ -61,6 +61,8 @@
     <string name="whats_new_section_added">Added</string>
     <string name="whats_new_section_fixed">Fixed</string>
     <string name="whats_new_section_changed">Changed</string>
+    <string name="settings_whats_new_title">What\'s New</string>
+    <string name="settings_whats_new_subtitle">View the release history</string>
     <string name="skip_watering_title">Skip watering</string>
     <string name="skip_watering_confirm">Confirm</string>
     <string name="skip_watering_decrease_cd">Decrease</string>
