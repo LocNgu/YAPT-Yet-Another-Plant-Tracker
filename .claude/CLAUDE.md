@@ -124,7 +124,7 @@ Tracked as GitHub issues:
 Every feature and bug fix follows these steps in order:
 
 1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
-2. **Implement** (`implementer` agent) — reads the spec, writes code, opens a PR targeting `develop`
+2. **Implement** (`implementer` agent) — reads the spec, writes code, pushes a `claude/*` branch, and returns the PR title/body as text; the **orchestrating Claude instance** opens the PR targeting `develop` via `mcp__github__create_pull_request`
 3. **Review** (`reviewer` agent) — iterative rounds of review:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
    - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
@@ -133,10 +133,10 @@ Every feature and bug fix follows these steps in order:
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
    - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
-   - **Note:** `reviewer` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+   - **Note:** `reviewer` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
    - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
-   - **Note:** `qa` subagents only have Read/Bash tools — they cannot call `mcp__github__` directly; the orchestrator must post on their behalf
+   - **Note:** `qa` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
@@ -167,7 +167,9 @@ Agents and Claude operate under this permission model to minimise interruptions 
 | `git add`, `git commit`, `git stash`, `git cherry-pick` | Always allowed — no prompt |
 | `git checkout claude/*` / `git checkout -b claude/*` | Always allowed — no prompt |
 | `git push origin claude/*` (any push to a `claude/` branch) | Always allowed — no prompt |
-| `gh issue *`, `gh pr create/view/list/diff/checks/comment/ready`, `gh api *` | Always allowed — no prompt |
+| `gh issue *`, `gh pr create/view/list/diff/checks/comment/ready`, `gh api *` | **Removed** — `gh` is not installed; use `mcp__github__*` MCP tools instead |
+| `mcp__github__issue_read`, `mcp__github__pull_request_read` (read-only) | Always allowed — granted to subagents in their frontmatter |
+| `mcp__github__issue_write`, `mcp__github__pull_request_review_write`, `mcp__github__add_issue_comment`, `mcp__github__add_comment_to_pending_review`, `mcp__github__create_pull_request` (writes) | Orchestrator-only — subagents return text, the orchestrator posts |
 | `./gradlew *` (build, test, lint) | Always allowed — no prompt |
 | `git checkout develop` | Requires permission — a prompt will appear |
 | `git push origin develop` | Requires permission — a prompt will appear |
@@ -176,7 +178,7 @@ Agents and Claude operate under this permission model to minimise interruptions 
 | `git push --force origin main` / `git push --force origin develop` | **Forbidden** — blocked by `settings.local.json` |
 | `git push origin main` | **Forbidden** — blocked by `settings.local.json` |
 | `git reset --hard` | **Forbidden** — blocked by `settings.local.json` |
-| `gh pr merge` or merging PRs any other way | **Forbidden** — human merges only |
+| Merging PRs by any means (`mcp__github__merge_pull_request`, GitHub UI, etc.) | **Forbidden** — human merges only |
 
 When a prompt appears for `git checkout develop`, `git push origin develop`, or `git push --force origin claude/*`, it is intentional — approve when appropriate.
 
@@ -268,3 +270,5 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Fix #195/#196 (PR #199): temp photo files cleaned up on FutureSchemaWarning dismiss (`onDismiss` callback added to `FutureSchemaWarning`, called from all dismiss paths in SettingsScreen); partial temp photo file no longer orphaned in `cacheDir` if `copyTo` throws mid-write (map entry inserted before write so outer `finally` can always reach the file)
 - CI: release job now automatically creates a GitHub Release with the signed APK attached and auto-generated release notes (via `gh release create --generate-notes`) on every push to `main`; `GITHUB_TOKEN` given `contents: write`; skips creation silently if tag already exists (PR #205)
 - What's New sheet shows full release history grouped by version, newest first, scrollable — `WhatsNewContent.all: List<ReleaseNotes>` replaces `current`; `LazyColumn` with `weight(1f)` keeps "Got it" button pinned; "What's New" row in SettingsScreen reopens the sheet on demand without resetting the auto-show trigger; `updateStoreOnWhatsNewDismiss` flag in NavGraph gates the DataStore write to auto-show dismissals only (PR #213, issue #212)
+- Agent definitions refactored (#221, PR #222): dead `gh` CLI blocks removed from all four `.claude/agents/*.md` (subagents return findings as text, orchestrator posts via `mcp__github__*`); `reviewer.md` slimmed 202 → 108 lines (APPROVE/REQUEST_CHANGES verbs dropped, round-cap contradiction reconciled, 1‑2‑4 numbering fixed); trigger-style `description` and `model:` field added per agent (reviewer/implementer `sonnet`, qa/spec `inherit`); read-only `mcp__github__issue_read` + `mcp__github__pull_request_read` granted so subagents fetch their own inputs; `CLAUDE.md` Autonomy table updated (gh row replaced with MCP read/write split) and workflow step 2 updated to reflect implementer's push-only flow
+- Liquid fertilizer mode per plant (PR #209, issue #56): `useLiquidFertilizer` toggle on Add/Edit Plant; FERTILIZE logs with Liquid type auto-create a paired WATER log (from quick-log and Add Care Log screen); Fertilizer type selector (Liquid/Solid) on Add Care Log screen; PlantCard and PlantDetail fertilizing chip shows "With watering" label for liquid-fertilizer plants; quick-fertilize button on plant list auto-creates a paired watering log; notifications append "Fertilize with watering" to watering alert instead of separate notification; DB v2→v3 via MIGRATION_2_3; backup schema v1→v2

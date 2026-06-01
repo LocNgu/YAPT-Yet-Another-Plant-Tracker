@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PlantPhoto
@@ -225,6 +226,37 @@ fun AddCareLogScreen(
                                 label = { Text("${feedback.emoji} ${feedback.displayName}") }
                             )
                         }
+                    }
+                }
+            }
+
+            if (viewModel.selectedCareType == CareType.FERTILIZE) {
+                Column {
+                    Text(
+                        text = "Fertilizer type",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(FertilizerType.LIQUID to "Liquid", FertilizerType.SOLID to "Solid").forEach { (type, label) ->
+                            FilterChip(
+                                selected = viewModel.selectedFertilizerType == type,
+                                onClick = {
+                                    viewModel.selectedFertilizerType =
+                                        if (viewModel.selectedFertilizerType == type) FertilizerType.UNSPECIFIED else type
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    if (viewModel.selectedFertilizerType == FertilizerType.LIQUID) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Also logs a watering",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

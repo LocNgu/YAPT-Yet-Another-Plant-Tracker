@@ -33,6 +33,7 @@ class AddEditPlantViewModel(
     var wateringIntervalEnabled by mutableStateOf(false)
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
+    var useLiquidFertilizer by mutableStateOf(false)
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -57,6 +58,7 @@ class AddEditPlantViewModel(
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
                     }
+                    useLiquidFertilizer = plant.useLiquidFertilizer
                 }
             }
         }
@@ -79,11 +81,17 @@ class AddEditPlantViewModel(
                 wateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null,
                 fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
                 createdAt = if (isEditMode) 0L else now,
-                updatedAt = now
+                updatedAt = now,
+                useLiquidFertilizer = useLiquidFertilizer
             )
             if (isEditMode) {
                 val existing = plantRepository.getPlantById(plantId!!).first()
-                plantRepository.updatePlant(plant.copy(createdAt = existing?.createdAt ?: now))
+                plantRepository.updatePlant(
+                    plant.copy(
+                        createdAt = existing?.createdAt ?: now,
+                        wateringDueDateOverride = existing?.wateringDueDateOverride
+                    )
+                )
                 _events.emit(Event.Saved(plantId))
             } else {
                 val newId = plantRepository.addPlant(plant)

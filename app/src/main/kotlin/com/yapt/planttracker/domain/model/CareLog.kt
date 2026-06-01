@@ -8,5 +8,6 @@ data class CareLog(
     val notes: String? = null,
     val photoUri: String? = null,
     val amount: String? = null,
-    val wateringFeedback: WateringFeedback? = null
+    val wateringFeedback: WateringFeedback? = null,
+    val fertilizerType: FertilizerType = FertilizerType.UNSPECIFIED
 )
