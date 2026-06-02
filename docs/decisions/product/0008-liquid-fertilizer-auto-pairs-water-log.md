@@ -22,13 +22,12 @@ Plants have a `useLiquidFertilizer: Boolean` flag (added in DB v3, `MIGRATION_2_
 
 - The Add Care Log screen (on save)
 - The quick-fertilize button on the plant list card
-- The `SkipWateringReceiver` / notification action path
 
 The Add Care Log screen shows a Fertilizer type selector (Liquid / Solid chips) so the user can see and override the default for a specific log. The PlantCard and PlantDetail fertilizing chip shows "With watering" when the plant uses liquid fertilizer, so the behaviour is visible in the UI.
 
 Reminder notifications for liquid-fertilizer plants append "Fertilize with watering" to the watering alert body instead of posting a standalone fertilizing notification.
 
-The `wateringDueDateOverride` is threaded through backup/restore (backup schema v2) for round-trip fidelity.
+The `useLiquidFertilizer` flag and `fertilizerType` on care logs are included in backup schema v2 for round-trip fidelity.
 
 ## Consequences
 

@@ -28,7 +28,7 @@ An `internal fun Long.toLocalDate(): LocalDate` extension is added to `DateUtils
 All due-date and interval comparisons now use calendar-day semantics:
 
 - `isOverdue`: `nextDueDate.isBefore(today)`
-- `isDueSoon`: `nextDueDate == today || nextDueDate == today.plusDays(1)`
+- `isDueSoon`: `nextDueDate == today` (a plant is "due soon" only on its exact due calendar day)
 - `formatCountdown`: `ChronoUnit.DAYS.between(today, nextDueDate)` — a negative result means overdue
 - `daysBetween(earlier, later)`: `ChronoUnit.DAYS.between(earlier.toLocalDate(), later.toLocalDate())`
 - `ReminderWorker.buildCareBody()`: same `ChronoUnit.DAYS` pattern
