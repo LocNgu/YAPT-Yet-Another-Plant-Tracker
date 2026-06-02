@@ -34,9 +34,9 @@ class PlantListViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val application: Application = mockk {
-        every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${arg<String>(1)}" }
-        every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${arg<String>(1)}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${arg<String>(1)}" }
+        every { getString(R.string.quick_log_watered, any()) } returns "Watered Monstera"
+        every { getString(R.string.quick_log_fertilized, any()) } returns "Fertilized Monstera"
+        every { getString(R.string.quick_log_watered_and_fertilized, any()) } returns "Watered and fertilized Monstera"
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
