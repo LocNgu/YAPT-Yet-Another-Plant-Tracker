@@ -64,6 +64,10 @@
     <string name="settings_section_about">About</string>
     <string name="settings_about_app_name">YAPT – Yet Another Plant Tracker</string>
     <string name="settings_about_version">Version %s · Offline-first · No data collection</string>
+    <string name="whats_new_got_it">Got it</string>
+    <string name="whats_new_section_added">Added</string>
+    <string name="whats_new_section_fixed">Fixed</string>
+    <string name="whats_new_section_changed">Changed</string>
     <string name="settings_whats_new_title">What\'s New</string>
     <string name="settings_whats_new_subtitle">View the release history</string>
     <string name="skip_watering_title">Skip watering</string>
@@ -74,4 +78,9 @@
         <item quantity="one">1 day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="interval_suggestion_title">Adjust watering interval?</string>
+    <string name="interval_suggestion_body">Suggested: water every %1$d days (currently %2$d days)</string>
+    <string name="interval_suggestion_field_label">Days</string>
+    <string name="interval_suggestion_apply">Apply</string>
+    <string name="dismiss">Dismiss</string>
 </resources>

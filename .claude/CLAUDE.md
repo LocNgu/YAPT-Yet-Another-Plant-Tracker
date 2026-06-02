@@ -130,6 +130,7 @@ Every feature and bug fix follows these steps in order:
    - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
      - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
      - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+   - **Each reviewer round is posted as a fresh, standalone PR review — never combined with a previous round's findings**
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
    - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
@@ -139,6 +140,15 @@ Every feature and bug fix follows these steps in order:
    - **Note:** `qa` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
+
+**Comment cadence** — the orchestrator posts each phase as its own separate comment, in order. Never bundle multiple phases or rounds into one comment:
+
+| Phase | Where | Tool |
+|---|---|---|
+| Spec clarifications | GitHub issue | `mcp__github__add_issue_comment` |
+| Each reviewer round | PR (inline review) | `pull_request_review_write` + `add_comment_to_pending_review` |
+| QA result | PR | `mcp__github__add_issue_comment` |
+| Workflow summary | PR | `mcp__github__add_issue_comment` |
 
 After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
 
@@ -274,3 +284,4 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Liquid fertilizer mode per plant (PR #209, issue #56): `useLiquidFertilizer` toggle on Add/Edit Plant; FERTILIZE logs with Liquid type auto-create a paired WATER log (from quick-log and Add Care Log screen); Fertilizer type selector (Liquid/Solid) on Add Care Log screen; PlantCard and PlantDetail fertilizing chip shows "With watering" label for liquid-fertilizer plants; quick-fertilize button on plant list auto-creates a paired watering log; notifications append "Fertilize with watering" to watering alert instead of separate notification; DB v2→v3 via MIGRATION_2_3; backup schema v1→v2
 - CI: `test` job extracted from `build` (runs `testDebugUnitTest` + `lintDebug`, uploads test-results artifact); `build` (debug APK) now depends on `test`; `release` now depends on `test` (explicit gate) and runs `testReleaseUnitTest` + `lintRelease` before `assembleRelease`; uploads release-test-results artifact (issue #84)
 - Fix #216: "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded string literals to `strings.xml` (`settings_whats_new_title`, `settings_whats_new_subtitle`)
+- Comment cadence conventions codified (PR #242): each reviewer round is a fresh standalone PR review; "Comment cadence" table added to CLAUDE.md mapping each workflow phase to its GitHub location and MCP tool
