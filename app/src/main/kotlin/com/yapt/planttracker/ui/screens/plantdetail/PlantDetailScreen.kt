@@ -148,16 +148,20 @@ fun PlantDetailScreen(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.clearSuggestedInterval() },
-            title = { Text("Adjust watering interval?") },
+            title = { Text(stringResource(R.string.interval_suggestion_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "Suggested: water every $suggestedInterval days (currently ${plant!!.wateringIntervalDays} days)"
+                        stringResource(
+                            R.string.interval_suggestion_body,
+                            suggestedInterval!!,
+                            plant!!.wateringIntervalDays
+                        )
                     )
                     OutlinedTextField(
                         value = intervalFieldText,
                         onValueChange = { intervalFieldText = it.filter(Char::isDigit) },
-                        label = { Text("Days") },
+                        label = { Text(stringResource(R.string.interval_suggestion_field_label)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
@@ -168,12 +172,12 @@ fun PlantDetailScreen(
                     onClick = { parsedInterval?.let { viewModel.applySuggestedInterval(it) } },
                     enabled = parsedInterval != null
                 ) {
-                    Text("Apply")
+                    Text(stringResource(R.string.interval_suggestion_apply))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
-                    Text("Dismiss")
+                    Text(stringResource(R.string.dismiss))
                 }
             }
         )

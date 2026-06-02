@@ -70,4 +70,9 @@
         <item quantity="one">1 day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="interval_suggestion_title">Adjust watering interval?</string>
+    <string name="interval_suggestion_body">Suggested: water every %1$d days (currently %2$d days)</string>
+    <string name="interval_suggestion_field_label">Days</string>
+    <string name="interval_suggestion_apply">Apply</string>
+    <string name="dismiss">Dismiss</string>
 </resources>

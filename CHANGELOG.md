@@ -21,6 +21,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
 
 ### Changed
+- Move hardcoded interval-suggestion AlertDialog strings to strings.xml (issue #154)
 - WhatsNewSheet: move hardcoded UI strings (title, dismiss button, section headings) to strings.xml (issue #215)
 - WhatsNewContent: enforce newest-first ordering by adding `versionCode` field to `ReleaseNotes` and sorting at render time (issue #219)
 - Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
