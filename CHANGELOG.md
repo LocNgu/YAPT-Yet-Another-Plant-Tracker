@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
+- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+
 ---
 
 ## [0.8.0] - 2026-06-02
