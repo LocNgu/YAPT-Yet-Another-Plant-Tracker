@@ -235,6 +235,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - All 5 screens: PlantList, AddEditPlant, PlantDetail, AddCareLog, Settings; all reusable components: PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto, CareTypeSelector
 - Sealed `Screen` class; `savedStateHandle` for cross-screen data (e.g. `suggestedWateringInterval`); reads/writes wrapped in `LaunchedEffect` to avoid `StateFlowValueCalledInComposition`
 - `collectAsStateWithLifecycle()` everywhere; `imePadding()` on AddEditPlant and AddCareLog scrollable columns so keyboard never obscures Notes field
+- Location suggestion chips on AddEditPlant: `FlowRow` of `SuggestionChip`s below Location field; tapping fills field and hides keyboard; case-insensitive match highlights chip (#137)
 
 **Care Features**
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
@@ -250,7 +251,6 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55)
 - Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19)
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
-- Location suggestion chips on AddEditPlant: `FlowRow` of `SuggestionChip`s below Location field; tapping fills field and hides keyboard; case-insensitive match highlights chip (#137)
 
 **Plant Detail UI**
 - Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29)

@@ -8,9 +8,9 @@
 The original `CareSchedule.computeStatus()` computed overdue/due-soon status by comparing millisecond timestamps:
 
 ```kotlin
-val daysDiff = (nextDueMs - now) / 86_400_000L
-val isOverdue = daysDiff < 0
-val isDueSoon = daysDiff in 0..1
+val isOverdue = nextDueAt != null && nextDueAt < now
+val isDueSoon = nextDueAt != null && !isOverdue && (nextDueAt - now) <= ONE_DAY_MS
+val daysBetween = (laterMs - earlierMs) / 86_400_000L
 ```
 
 This caused two classes of bug:
