@@ -22,10 +22,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - Move hardcoded interval-suggestion AlertDialog strings to strings.xml (issue #154)
+- WhatsNewSheet: move hardcoded UI strings (title, dismiss button, section headings) to strings.xml (issue #215)
+- WhatsNewContent: enforce newest-first ordering by adding `versionCode` field to `ReleaseNotes` and sorting at render time (issue #219)
 - Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
 - CI: gate release job on `test` job (unit tests + lint); release job now also runs `testReleaseUnitTest` and `lintRelease` before producing the APK ([#84](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/84))
 - WateringHistoryChart: remove unreachable `coerceAtLeast(0)` on totalMonths (issue #113)
 - Agent definitions in `.claude/agents/` refactored (#221, PR #222): removed dead `gh` CLI blocks (subagents now return findings as text for the orchestrator to post via `mcp__github__*` MCP tools); `reviewer.md` slimmed 202 → 108 lines with the APPROVE/REQUEST_CHANGES verbs dropped, round-cap contradiction reconciled, and 1‑2‑4 numbering bug fixed; trigger-style `description` and `model:` field added to each agent; subagents granted read-only `mcp__github__issue_read` and `mcp__github__pull_request_read` so they fetch their own inputs; `CLAUDE.md` Autonomy table updated (`gh` row replaced with MCP read/write split) and workflow step 2 updated to reflect the implementer's push-only flow
+- BackupManager: add comment explaining why `CURRENT_SCHEMA_VERSION` was not bumped when `wateringDueDateOverride` was added (issue #188)
 
 ### Fixed
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
