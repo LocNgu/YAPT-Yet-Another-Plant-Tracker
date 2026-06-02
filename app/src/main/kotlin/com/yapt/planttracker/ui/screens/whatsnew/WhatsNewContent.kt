@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.whatsnew
 
 data class ReleaseNotes(
+    val versionCode: Int,
     val versionName: String,
     val added: List<String> = emptyList(),
     val fixed: List<String> = emptyList(),
@@ -10,6 +11,20 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 130,
+            versionName = "0.8.0",
+            added = listOf(
+                "Liquid fertilizer mode: mark a plant as using liquid fertilizer and logging a fertilize event will automatically pair it with a watering log",
+                "Fertilizer type selector (Liquid / Solid) on the Add Care Log screen, pre-selected from plant default",
+                "Plant list cards and detail screen show a \"With watering\" label on the fertilizing chip for liquid-fertilizer plants",
+                "What's New sheet now shows the full release history, scrollable and grouped by version — reopen it any time from Settings"
+            ),
+            changed = listOf(
+                "Watering feedback renamed: \"Still wet\" (was Too soon), \"Just right\" (unchanged), \"Too dry\" (was Too late); question is now \"What did you find?\""
+            )
+        ),
+        ReleaseNotes(
+            versionCode = 119,
             versionName = "0.7.1",
             fixed = listOf(
                 "Restoring a large backup with many photos no longer crashes the app (photos are now streamed instead of loaded into memory)",
@@ -18,6 +33,7 @@ object WhatsNewContent {
             )
         ),
         ReleaseNotes(
+            versionCode = 108,
             versionName = "0.7.0",
             added = listOf(
                 "Unassigned filter — tap \"Unassigned\" on the plant list to show only plants without a room",
@@ -33,6 +49,7 @@ object WhatsNewContent {
             )
         ),
         ReleaseNotes(
+            versionCode = 91,
             versionName = "0.6.0",
             added = listOf(
                 "What's New sheet — see what changed after each update (that's this screen!)",
@@ -41,13 +58,14 @@ object WhatsNewContent {
             ),
             fixed = listOf(
                 "Overdue plants now always show \"Overdue\" (not \"Due today\") when the due date has passed",
-                "Watering interval suggestions (Just right / Too soon / Too late) are more accurate",
+                "Watering interval suggestions (Still wet / Just right / Too dry) are more accurate",
                 "Care-type chip no longer shows \"next:\" when care is already overdue",
                 "Keyboard no longer covers the Notes field when editing a plant or care log",
                 "Due dates compare by calendar day — \"due today\" stays correct throughout the day"
             )
         ),
         ReleaseNotes(
+            versionCode = 70,
             versionName = "0.4.1",
             added = listOf(
                 "\"Water + Fertilize due\" filter in the sort dropdown — shows only plants where both are due",
@@ -55,18 +73,21 @@ object WhatsNewContent {
             )
         ),
         ReleaseNotes(
+            versionCode = 60,
             versionName = "0.4.0",
             added = listOf(
                 "Larger plant photos — full-height thumbnail on list cards, hero image on the detail screen"
             )
         ),
         ReleaseNotes(
+            versionCode = 40,
             versionName = "0.3.0",
             added = listOf(
                 "Watering history chart on the plant detail screen with time-range chips (1M / 3M / 6M / 12M / All)"
             )
         ),
         ReleaseNotes(
+            versionCode = 25,
             versionName = "0.2.0",
             added = listOf(
                 "Sort controls on the plant list — Alphabetical, Watering due, Fertilizing due, Recently added; choice persists across restarts",
@@ -75,11 +96,12 @@ object WhatsNewContent {
             )
         ),
         ReleaseNotes(
+            versionCode = 10,
             versionName = "0.1.0",
             added = listOf(
                 "Plant library — add, edit, and delete plants with a cover photo",
                 "Care logging — Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; editable history",
-                "Adaptive watering interval — suggestions based on Too soon / Just right / Too late feedback",
+                "Adaptive watering interval — suggestions based on Still wet / Just right / Too dry feedback",
                 "Daily care reminders — configurable time in Settings",
                 "Local backup and restore — export and import a .yapt archive"
             )

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 class SkipWateringReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != ACTION_SKIP_WATERING) return
         val plantId = intent.getLongExtra(EXTRA_PLANT_ID, 0L).takeIf { it != 0L } ?: return
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {

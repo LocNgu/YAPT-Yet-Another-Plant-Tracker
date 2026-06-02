@@ -26,5 +26,6 @@ data class CareLogEntity(
     val notes: String?,
     val photoUri: String?,
     val amount: String?,
-    val wateringFeedback: String?
+    val wateringFeedback: String?,
+    val fertilizerType: String = "UNSPECIFIED"
 )

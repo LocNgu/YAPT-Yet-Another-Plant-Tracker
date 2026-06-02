@@ -50,10 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoGallery
@@ -112,7 +115,7 @@ fun PlantDetailScreen(
     if (showSkipDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissSkipDialog() },
-            title = { Text("Skip watering") },
+            title = { Text(stringResource(R.string.skip_watering_title)) },
             text = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -121,19 +124,19 @@ fun PlantDetailScreen(
                     IconButton(
                         onClick = { if (skipDays > 1) skipDays-- },
                         enabled = skipDays > 1
-                    ) { Icon(Icons.Filled.Remove, contentDescription = "Decrease") }
-                    Text(if (skipDays == 1) "1 day" else "$skipDays days")
+                    ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.skip_watering_decrease_cd)) }
+                    Text(pluralStringResource(R.plurals.skip_watering_days, skipDays, skipDays))
                     IconButton(
                         onClick = { if (skipDays < 7) skipDays++ },
                         enabled = skipDays < 7
-                    ) { Icon(Icons.Filled.Add, contentDescription = "Increase") }
+                    ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.skip_watering_increase_cd)) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text("Confirm") }
+                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text(stringResource(R.string.skip_watering_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text("Cancel") }
+                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -145,16 +148,20 @@ fun PlantDetailScreen(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.clearSuggestedInterval() },
-            title = { Text("Adjust watering interval?") },
+            title = { Text(stringResource(R.string.interval_suggestion_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "Suggested: water every $suggestedInterval days (currently ${plant!!.wateringIntervalDays} days)"
+                        stringResource(
+                            R.string.interval_suggestion_body,
+                            suggestedInterval!!,
+                            plant!!.wateringIntervalDays ?: 0
+                        )
                     )
                     OutlinedTextField(
                         value = intervalFieldText,
                         onValueChange = { intervalFieldText = it.filter(Char::isDigit) },
-                        label = { Text("Days") },
+                        label = { Text(stringResource(R.string.interval_suggestion_field_label)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
@@ -165,12 +172,12 @@ fun PlantDetailScreen(
                     onClick = { parsedInterval?.let { viewModel.applySuggestedInterval(it) } },
                     enabled = parsedInterval != null
                 ) {
-                    Text("Apply")
+                    Text(stringResource(R.string.interval_suggestion_apply))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
-                    Text("Dismiss")
+                    Text(stringResource(R.string.dismiss))
                 }
             }
         )
@@ -272,7 +279,7 @@ fun PlantDetailScreen(
                                 onClick = { viewModel.requestSkip() },
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             ) {
-                                Text("Skip watering")
+                                Text(stringResource(R.string.skip_watering_title))
                             }
                         }
                         Spacer(Modifier.height(16.dp))

@@ -247,10 +247,10 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_content_description))
                     }
                 }
             )
@@ -263,7 +263,7 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "Reminders",
+                text = stringResource(R.string.settings_section_reminders),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -282,9 +282,9 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Enable Reminders", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.notifications_enabled), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Get notified when plants need care",
+                        stringResource(R.string.settings_notifications_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -313,7 +313,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Daily Reminder Time", style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.reminder_time), style = MaterialTheme.typography.bodyLarge)
                         Text(
                             DateUtils.formatHourMinute(reminderHour, reminderMinute),
                             style = MaterialTheme.typography.bodySmall,
@@ -326,7 +326,7 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Display",
+                text = stringResource(R.string.settings_section_display),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -418,7 +418,7 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "About",
+                text = stringResource(R.string.settings_section_about),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -431,11 +431,11 @@ fun SettingsScreen(
             ) {
                 Column {
                     Text(
-                        "YAPT – Yet Another Plant Tracker",
+                        stringResource(R.string.settings_about_app_name),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        "Version $versionName · Offline-first · No data collection",
+                        stringResource(R.string.settings_about_version, versionName),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -456,14 +456,15 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("What's New", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_whats_new_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "View the release history",
+                        stringResource(R.string.settings_whats_new_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
         }
     }
 }

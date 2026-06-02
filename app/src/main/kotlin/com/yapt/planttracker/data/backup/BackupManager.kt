@@ -9,6 +9,7 @@ import androidx.room.withTransaction
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-const val CURRENT_SCHEMA_VERSION = 1
+// Schema 2 (PR #209): useLiquidFertilizer added — bump signals that this backup may contain liquid-fertilizer data.
+// wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
+const val CURRENT_SCHEMA_VERSION = 2
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -89,7 +92,8 @@ class BackupManager(
                     fertilizingIntervalDays = entity.fertilizingIntervalDays,
                     createdAt = entity.createdAt,
                     updatedAt = entity.updatedAt,
-                    wateringDueDateOverride = entity.wateringDueDateOverride
+                    wateringDueDateOverride = entity.wateringDueDateOverride,
+                    useLiquidFertilizer = entity.useLiquidFertilizer
                 )
             }
 
@@ -102,7 +106,8 @@ class BackupManager(
                     notes = entity.notes,
                     photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
                     amount = entity.amount,
-                    wateringFeedback = entity.wateringFeedback
+                    wateringFeedback = entity.wateringFeedback,
+                    fertilizerType = entity.fertilizerType
                 )
             }
 
@@ -256,7 +261,8 @@ class BackupManager(
                     fertilizingIntervalDays = bp.fertilizingIntervalDays,
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,
-                    wateringDueDateOverride = bp.wateringDueDateOverride
+                    wateringDueDateOverride = bp.wateringDueDateOverride,
+                    useLiquidFertilizer = bp.useLiquidFertilizer
                 )
             }
 
@@ -269,7 +275,8 @@ class BackupManager(
                     notes = bl.notes,
                     photoUri = bl.photoUri?.let { zipPathToLocalPath[it] ?: it },
                     amount = bl.amount,
-                    wateringFeedback = bl.wateringFeedback
+                    wateringFeedback = bl.wateringFeedback,
+                    fertilizerType = runCatching { FertilizerType.valueOf(bl.fertilizerType) }.getOrDefault(FertilizerType.UNSPECIFIED).name
                 )
             }
 

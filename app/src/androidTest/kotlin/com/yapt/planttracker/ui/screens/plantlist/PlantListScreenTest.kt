@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
+import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -7,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -41,7 +43,12 @@ class PlantListScreenTest {
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
-        return PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        return PlantListViewModel(
+            ApplicationProvider.getApplicationContext<Application>(),
+            plantRepo,
+            careLogRepo,
+            dataStore
+        )
     }
 
     @Test

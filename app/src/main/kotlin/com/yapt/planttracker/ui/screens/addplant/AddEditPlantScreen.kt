@@ -271,6 +271,20 @@ fun AddEditPlantScreen(
                         valueRange = 1f..90f,
                         steps = 88
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Fertilize with watering (liquid fertilizer)",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Switch(
+                            checked = viewModel.useLiquidFertilizer,
+                            onCheckedChange = { viewModel.useLiquidFertilizer = it }
+                        )
+                    }
                 }
             }
 

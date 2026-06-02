@@ -76,6 +76,7 @@ fun YaptNavGraph(
             val restoreMessage = backStackEntry.arguments?.getString("restoreMessage")
             val vm: PlantListViewModel = viewModel(
                 factory = PlantListViewModel.Factory(
+                    app,
                     app.plantRepository,
                     app.careLogRepository,
                     app.settingsDataStore

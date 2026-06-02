@@ -116,14 +116,20 @@ class ReminderWorker(
             parts.add("Watering due today")
         }
 
-        if (status.isFertilizingOverdue) {
-            val days = ChronoUnit.DAYS.between(status.nextFertilizingDueAt!!.toLocalDate(), nowDate).toInt()
-            parts.add("Fertilizing overdue by $days ${if (days == 1) "day" else "days"}")
-        } else if (status.isFertilizingDueSoon) {
-            parts.add("Fertilizing due today")
+        if (status.isFertilizingOverdue || status.isFertilizingDueSoon) {
+            if (status.plant.useLiquidFertilizer) {
+                if (parts.isNotEmpty()) parts.add("Fertilize with watering")
+            } else {
+                if (status.isFertilizingOverdue) {
+                    val days = ChronoUnit.DAYS.between(status.nextFertilizingDueAt!!.toLocalDate(), nowDate).toInt()
+                    parts.add("Fertilizing overdue by $days ${if (days == 1) "day" else "days"}")
+                } else {
+                    parts.add("Fertilizing due today")
+                }
+            }
         }
 
-        return if (parts.size > 1) "Watering and fertilizing due" else parts.firstOrNull() ?: ""
+        return parts.joinToString(" · ")
     }
 
     companion object {
