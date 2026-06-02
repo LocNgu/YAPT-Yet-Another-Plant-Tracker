@@ -11,12 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
-            versionCode = 129,
+            versionCode = 130,
             versionName = "0.8.0",
             added = listOf(
                 "Liquid fertilizer mode: mark a plant as using liquid fertilizer and logging a fertilize event will automatically pair it with a watering log",
                 "Fertilizer type selector (Liquid / Solid) on the Add Care Log screen, pre-selected from plant default",
-                "Plant list cards and detail screen show a 'With watering' label on the fertilizing chip for liquid-fertilizer plants"
+                "Plant list cards and detail screen show a \"With watering\" label on the fertilizing chip for liquid-fertilizer plants",
+                "What's New sheet now shows the full release history, scrollable and grouped by version — reopen it any time from Settings"
+            ),
+            changed = listOf(
+                "Watering feedback renamed: \"Still wet\" (was Too soon), \"Just right\" (unchanged), \"Too dry\" (was Too late); question is now \"What did you find?\""
             )
         ),
         ReleaseNotes(
