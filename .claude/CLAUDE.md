@@ -240,7 +240,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Care Features**
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
 - Adaptive watering interval: modal `AlertDialog` with editable TextField shown after WATER logs (see product ADR-0006); JUST_RIGHT, TOO_SOON, TOO_LATE all produce correct suggestions; default feedback pre-selected to JUST_RIGHT; quick-log uses JUST_RIGHT silently
-- Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log, notification action) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
+- Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
 - Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log; follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
 
