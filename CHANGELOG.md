@@ -21,6 +21,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
 
 ### Changed
+- Move hardcoded SettingsScreen section-header strings to strings.xml (issue #158)
 - Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
 - CI: gate release job on `test` job (unit tests + lint); release job now also runs `testReleaseUnitTest` and `lintRelease` before producing the APK ([#84](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/84))
 - WateringHistoryChart: remove unreachable `coerceAtLeast(0)` on totalMonths (issue #113)
