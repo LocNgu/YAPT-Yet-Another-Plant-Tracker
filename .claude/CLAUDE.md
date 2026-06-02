@@ -111,11 +111,8 @@ Tracked as GitHub issues:
 
 | # | Description | Severity |
 |---|---|---|
-| [#16](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/16) | Upgrade dependencies: AGP, Kotlin, Gradle, Compose BOM, libraries | Tech debt |
 | [#170](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/170) | Skip watering button: replace `TextButton` with `ExtendedFloatingActionButton` bottom-start; fix stepper dialog alignment | Enhancement |
 | [#175](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/175) | BackupManager: photo cleanup on failure can delete committed-DB files if exception fires after DB transaction but before ImportSuccess | Enhancement |
-| [#178](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/178) | `SkipWateringReceiver` does not check `intent.action` before processing | Enhancement |
-| [#179](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/179) | Hardcoded UI strings in skip dialog (`PlantDetailScreen`) | Tech debt |
 
 ---
 
@@ -285,3 +282,11 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - CI: `test` job extracted from `build` (runs `testDebugUnitTest` + `lintDebug`, uploads test-results artifact); `build` (debug APK) now depends on `test`; `release` now depends on `test` (explicit gate) and runs `testReleaseUnitTest` + `lintRelease` before `assembleRelease`; uploads release-test-results artifact (issue #84)
 - Fix #216: "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded string literals to `strings.xml` (`settings_whats_new_title`, `settings_whats_new_subtitle`)
 - Comment cadence conventions codified (PR #242): each reviewer round is a fresh standalone PR review; "Comment cadence" table added to CLAUDE.md mapping each workflow phase to its GitHub location and MCP tool
+- Watering feedback chips reframed: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?"; enum values `TOO_SOON`/`TOO_LATE` kept in DB for backward-compat, display labels only updated (issue #161)
+- Hardcoded UI strings moved to `strings.xml`: quick-log content descriptions and Snackbar messages (issue #91), SettingsScreen section-header strings (issue #158), interval-suggestion AlertDialog strings (issue #154), WhatsNewSheet UI strings (title, dismiss button, section headings; issue #215)
+- `WhatsNewContent.ReleaseNotes` gains `versionCode: Int` field; `WhatsNewSheet` sorts `all` by `versionCode` descending at render time to guarantee newest-first order (issue #219)
+- Fix #178: `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing
+- Fix #179: hardcoded strings in skip-watering stepper dialog and button moved to `strings.xml`; day count uses `pluralStringResource`
+- CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag anchors to the exact main commit, fixing incorrect release notes when default branch is `develop`
+- WateringHistoryChart: removed unreachable `coerceAtLeast(0)` guard on `totalMonths` (issue #113)
+- BackupManager: added comment explaining why `CURRENT_SCHEMA_VERSION` was not bumped when `wateringDueDateOverride` was added (issue #188)

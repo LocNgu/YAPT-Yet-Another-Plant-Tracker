@@ -12,24 +12,28 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.8.0] - 2026-06-02
+
 ### Added
 - Per-plant liquid fertilizer toggle on Add/Edit Plant screen; FERTILIZE logs with Liquid type auto-create a paired WATER log at the same timestamp (#56)
 - Fertilizer type selector (Liquid / Solid chips) on the Add Care Log screen, pre-selected from plant default (#56)
 - PlantCard and PlantDetail fertilizing chip shows "With watering" label for liquid-fertilizer plants; quick-fertilize button on the plant list card auto-creates a paired watering log for liquid-fertilizer plants (#56)
 - Reminder notifications: liquid-fertilizer plants show "Fertilize with watering" in the watering alert instead of a standalone fertilizing notification (#56)
-- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
-- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable (#212)
+- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger (#212)
 
 ### Changed
+- Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
 - Move hardcoded quick-log content descriptions and Snackbar messages to strings.xml (issue #91)
 - Move hardcoded SettingsScreen section-header strings to strings.xml (issue #158)
 - Move hardcoded interval-suggestion AlertDialog strings to strings.xml (issue #154)
 - WhatsNewSheet: move hardcoded UI strings (title, dismiss button, section headings) to strings.xml (issue #215)
 - WhatsNewContent: enforce newest-first ordering by adding `versionCode` field to `ReleaseNotes` and sorting at render time (issue #219)
-- Watering feedback chips reframed around observable plant/soil state: "Still wet" (was "Too soon"), "Just right" (unchanged), "Too dry" (was "Too late"); feedback question changed to "What did you find?" (issue #161)
-- CI: gate release job on `test` job (unit tests + lint); release job now also runs `testReleaseUnitTest` and `lintRelease` before producing the APK ([#84](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/84))
+- CI: gate release job on `test` job (unit tests + lint); release job now also runs `testReleaseUnitTest` and `lintRelease` before producing the APK (#84)
 - WateringHistoryChart: remove unreachable `coerceAtLeast(0)` on totalMonths (issue #113)
-- Agent definitions in `.claude/agents/` refactored (#221, PR #222): removed dead `gh` CLI blocks (subagents now return findings as text for the orchestrator to post via `mcp__github__*` MCP tools); `reviewer.md` slimmed 202 → 108 lines with the APPROVE/REQUEST_CHANGES verbs dropped, round-cap contradiction reconciled, and 1‑2‑4 numbering bug fixed; trigger-style `description` and `model:` field added to each agent; subagents granted read-only `mcp__github__issue_read` and `mcp__github__pull_request_read` so they fetch their own inputs; `CLAUDE.md` Autonomy table updated (`gh` row replaced with MCP read/write split) and workflow step 2 updated to reflect the implementer's push-only flow
+- Agent definitions in `.claude/agents/` refactored (#221, PR #222): removed dead `gh` CLI blocks; `reviewer.md` slimmed; trigger-style `description` and `model:` field added per agent; subagents granted read-only MCP GitHub tools
 - BackupManager: add comment explaining why `CURRENT_SCHEMA_VERSION` was not bumped when `wateringDueDateOverride` was added (issue #188)
 
 ### Fixed
@@ -37,7 +41,6 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `pluralStringResource` resource (issue #179)
 - "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded literals to `strings.xml` entries (`settings_whats_new_title`, `settings_whats_new_subtitle`) (issue #216)
 - CI: `gh release create` now passes `--target "${{ github.sha }}"` so the release tag is anchored to the exact main commit that triggered the push, not the default branch HEAD; fixes incorrect release notes when the repo's default branch is `develop`
-
 
 ---
 
