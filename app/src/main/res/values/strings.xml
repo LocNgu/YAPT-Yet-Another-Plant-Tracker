@@ -78,6 +78,11 @@
         <item quantity="one">1 day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="quick_log_water_cd">Quick water</string>
+    <string name="quick_log_fertilize_cd">Quick fertilize</string>
+    <string name="quick_log_watered">Watered %s</string>
+    <string name="quick_log_fertilized">Fertilized %s</string>
+    <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="interval_suggestion_title">Adjust watering interval?</string>
     <string name="interval_suggestion_body">Suggested: water every %1$d days (currently %2$d days)</string>
     <string name="interval_suggestion_field_label">Days</string>
