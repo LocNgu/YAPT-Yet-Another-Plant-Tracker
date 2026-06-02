@@ -155,7 +155,7 @@ fun PlantDetailScreen(
                         stringResource(
                             R.string.interval_suggestion_body,
                             suggestedInterval!!,
-                            plant!!.wateringIntervalDays
+                            plant!!.wateringIntervalDays ?: 0
                         )
                     )
                     OutlinedTextField(
