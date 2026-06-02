@@ -30,9 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
@@ -182,7 +184,7 @@ fun PlantCard(
                 ) {
                     Icon(
                         Icons.Filled.WaterDrop,
-                        contentDescription = "Quick water",
+                        contentDescription = stringResource(R.string.quick_log_water_cd),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -203,7 +205,7 @@ fun PlantCard(
                             Icon(Icons.Filled.Spa, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        Icon(Icons.Filled.Spa, "Quick fertilize", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Filled.Spa, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

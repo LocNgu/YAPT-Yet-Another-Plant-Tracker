@@ -1,11 +1,13 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
+import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -32,6 +34,7 @@ import kotlinx.coroutines.launch
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
 class PlantListViewModel(
+    private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val dataStore: DataStore<Preferences>
@@ -120,8 +123,12 @@ class PlantListViewModel(
                 )
             }
             val message = when (careType) {
-                CareType.WATER -> "Watered $plantName"
-                CareType.FERTILIZE -> if (plant.useLiquidFertilizer) "Watered and fertilized $plantName" else "Fertilized $plantName"
+                CareType.WATER -> application.getString(R.string.quick_log_watered, plantName)
+                CareType.FERTILIZE -> if (plant.useLiquidFertilizer) {
+                    application.getString(R.string.quick_log_watered_and_fertilized, plantName)
+                } else {
+                    application.getString(R.string.quick_log_fertilized, plantName)
+                }
                 else -> "${careType.displayName} $plantName"
             }
             _quickLogEvent.emit(message)
@@ -237,12 +244,13 @@ class PlantListViewModel(
     }
 
     class Factory(
+        private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val dataStore: DataStore<Preferences>
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantListViewModel(plantRepository, careLogRepository, dataStore) as T
+            PlantListViewModel(application, plantRepository, careLogRepository, dataStore) as T
     }
 }

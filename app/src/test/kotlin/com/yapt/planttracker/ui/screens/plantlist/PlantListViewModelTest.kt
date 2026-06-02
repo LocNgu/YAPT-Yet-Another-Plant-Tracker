@@ -1,9 +1,11 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
+import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
@@ -31,6 +33,11 @@ class PlantListViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
+    private val application: Application = mockk {
+        every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${arg<String>(1)}" }
+        every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${arg<String>(1)}" }
+        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${arg<String>(1)}" }
+    }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
     private val dataStore: DataStore<Preferences> = mockk {
@@ -57,7 +64,7 @@ class PlantListViewModelTest {
     fun `empty plant list emits empty status list`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.plantsWithStatus.test {
             val items = awaitItem()
@@ -71,7 +78,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.plantsWithStatus.test {
             val items = awaitItem()
@@ -89,7 +96,7 @@ class PlantListViewModelTest {
         val bedroom = plant(id = 2L, name = "Snake Plant", room = "Bedroom")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, bedroom))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.selectRoom("Kitchen")
 
@@ -107,7 +114,7 @@ class PlantListViewModelTest {
         val bedroom = plant(id = 2L, name = "Snake Plant", room = "Bedroom")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, bedroom))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.selectRoom(null)
 
@@ -132,7 +139,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getCareLogCount(3L) } returns 5
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.FERTILIZE) } returns null
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.plantsWithStatus.test {
             val items = awaitItem()
@@ -148,7 +155,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.quickLogEvent.test {
             vm.plantsWithStatus.test {
@@ -171,7 +178,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.quickLogEvent.test {
             vm.plantsWithStatus.test {
@@ -194,7 +201,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.quickLogEvent.test {
             vm.plantsWithStatus.test {
@@ -221,7 +228,7 @@ class PlantListViewModelTest {
         val unassigned = plant(id = 2L, name = "Snake Plant", room = null)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, unassigned))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
 
@@ -238,7 +245,7 @@ class PlantListViewModelTest {
         val unassigned = plant(id = 1L, name = "Mystery Plant", room = null)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(unassigned))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.hasUnassignedPlants.test {
             assertEquals(true, awaitItem())
@@ -251,7 +258,7 @@ class PlantListViewModelTest {
         val kitchen = plant(id = 1L, name = "Basil", room = "Kitchen")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.hasUnassignedPlants.test {
             assertEquals(false, awaitItem())
@@ -264,7 +271,7 @@ class PlantListViewModelTest {
         val plantsFlow = MutableStateFlow(listOf(plant(id = 1L, name = "Snake Plant", room = null)))
         every { plantRepo.getAllPlants() } returns plantsFlow
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
         assertEquals(PlantListViewModel.UNASSIGNED_ROOM, vm.selectedRoom.value)

@@ -66,4 +66,9 @@
         <item quantity="one">1 day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="quick_log_water_cd">Quick water</string>
+    <string name="quick_log_fertilize_cd">Quick fertilize</string>
+    <string name="quick_log_watered">Watered %s</string>
+    <string name="quick_log_fertilized">Fertilized %s</string>
+    <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
 </resources>
