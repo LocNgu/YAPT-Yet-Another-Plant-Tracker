@@ -21,6 +21,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
 
 ### Changed
+- Move hardcoded SettingsScreen section-header strings to strings.xml (issue #158)
 - Move hardcoded interval-suggestion AlertDialog strings to strings.xml (issue #154)
 - WhatsNewSheet: move hardcoded UI strings (title, dismiss button, section headings) to strings.xml (issue #215)
 - WhatsNewContent: enforce newest-first ordering by adding `versionCode` field to `ReleaseNotes` and sorting at render time (issue #219)
