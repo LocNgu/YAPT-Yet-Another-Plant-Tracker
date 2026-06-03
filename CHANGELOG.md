@@ -22,6 +22,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - Move quick-log else-branch Snackbar message to strings.xml (issue #248)
 
+### Tests
+- `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)
+
 ---
 
 ## [0.8.0] - 2026-06-02
