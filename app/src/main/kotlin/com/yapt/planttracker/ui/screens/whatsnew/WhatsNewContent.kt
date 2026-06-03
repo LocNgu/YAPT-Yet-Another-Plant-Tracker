@@ -11,6 +11,13 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 140,
+            versionName = "0.9.0",
+            added = listOf(
+                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 130,
             versionName = "0.8.0",
             added = listOf(
