@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
+
 ### Added
 - What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
