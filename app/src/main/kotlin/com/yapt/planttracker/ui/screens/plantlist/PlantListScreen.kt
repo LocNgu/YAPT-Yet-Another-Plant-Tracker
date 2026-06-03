@@ -37,9 +37,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantCard
@@ -77,27 +79,34 @@ fun PlantListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("My Plants") },
+                title = { Text(stringResource(R.string.plant_list_title)) },
                 colors = TopAppBarDefaults.topAppBarColors(),
                 actions = {
                     Box {
                         IconButton(onClick = { sortMenuExpanded = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort plants")
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.cd_sort_plants))
                         }
                         DropdownMenu(
                             expanded = sortMenuExpanded,
                             onDismissRequest = { sortMenuExpanded = false }
                         ) {
+                            val sortAlpha = stringResource(R.string.sort_alphabetical)
+                            val sortAlphaAsc = stringResource(R.string.sort_alphabetical_asc)
+                            val sortAlphaDesc = stringResource(R.string.sort_alphabetical_desc)
+                            val sortWatering = stringResource(R.string.sort_watering_due)
+                            val sortFertilizing = stringResource(R.string.sort_fertilizing_due)
+                            val sortRecent = stringResource(R.string.sort_recently_added)
+                            val sortBothDue = stringResource(R.string.sort_both_due)
                             SortOption.entries.forEach { option ->
                                 val isActive = sortOrder.option == option
                                 val label = when (option) {
                                     SortOption.ALPHABETICAL -> if (isActive) {
-                                        if (sortOrder.direction == SortDirection.ASC) "Alphabetical (A→Z)" else "Alphabetical (Z→A)"
-                                    } else "Alphabetical"
-                                    SortOption.WATERING_DUE -> "Watering due"
-                                    SortOption.FERTILIZING_DUE -> "Fertilizing due"
-                                    SortOption.RECENTLY_ADDED -> "Recently added"
-                                    SortOption.BOTH_DUE -> "Water + Fertilize due"
+                                        if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc
+                                    } else sortAlpha
+                                    SortOption.WATERING_DUE -> sortWatering
+                                    SortOption.FERTILIZING_DUE -> sortFertilizing
+                                    SortOption.RECENTLY_ADDED -> sortRecent
+                                    SortOption.BOTH_DUE -> sortBothDue
                                 }
                                 DropdownMenuItem(
                                     text = {
@@ -116,7 +125,7 @@ fun PlantListScreen(
                         }
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
                     }
                 }
             )
@@ -125,7 +134,7 @@ fun PlantListScreen(
             ExtendedFloatingActionButton(
                 onClick = onNavigateToAdd,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add Plant") }
+                text = { Text(stringResource(R.string.add_plant_fab_label)) }
             )
         }
     ) { padding ->
@@ -143,7 +152,7 @@ fun PlantListScreen(
                         FilterChip(
                             selected = selectedRoom == null,
                             onClick = { viewModel.selectRoom(null) },
-                            label = { Text("All") }
+                            label = { Text(stringResource(R.string.filter_all)) }
                         )
                     }
                     if (hasUnassignedPlants) {
@@ -151,7 +160,7 @@ fun PlantListScreen(
                             FilterChip(
                                 selected = selectedRoom == PlantListViewModel.UNASSIGNED_ROOM,
                                 onClick = { viewModel.selectRoom(PlantListViewModel.UNASSIGNED_ROOM) },
-                                label = { Text("Unassigned") }
+                                label = { Text(stringResource(R.string.filter_unassigned)) }
                             )
                         }
                     }
@@ -166,13 +175,13 @@ fun PlantListScreen(
             }
 
             if (plantsWithStatus.isEmpty()) {
+                val emptyBothDue = stringResource(R.string.empty_state_both_due)
+                val emptyAllAssigned = stringResource(R.string.empty_state_all_assigned)
+                val emptyNoPlants = stringResource(R.string.no_plants_yet)
                 val emptyMessage = when {
-                    sortOrder.option == SortOption.BOTH_DUE ->
-                        "No plants need both watering\nand fertilizing right now."
-                    selectedRoom == PlantListViewModel.UNASSIGNED_ROOM ->
-                        "All plants are assigned to a room."
-                    else ->
-                        "No plants yet!\nTap + to add your first plant."
+                    sortOrder.option == SortOption.BOTH_DUE -> emptyBothDue
+                    selectedRoom == PlantListViewModel.UNASSIGNED_ROOM -> emptyAllAssigned
+                    else -> emptyNoPlants
                 }
                 EmptyStateView(
                     message = emptyMessage,

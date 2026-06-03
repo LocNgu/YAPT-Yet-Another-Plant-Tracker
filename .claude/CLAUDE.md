@@ -101,7 +101,7 @@ Decisions are documented in `docs/decisions/`:
 - **Spec agent**: before interviewing the human, scan `docs/decisions/product/` for ADRs relevant to the feature area. If the request contradicts an existing ADR, name the ADR and its rationale explicitly, and ask the human to confirm the new direction before proceeding.
 - **Implementer agent**: before writing code in an area covered by a technical ADR, read the relevant file. Do not refactor patterns described in technical ADRs without a superseding decision.
 
-**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. Old ADRs are never edited — the history stays intact.
+**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. The superseded ADR's **Status** line is updated to `superseded by [ADR-XXXX](filename.md)` — this single-line metadata update is the only permitted edit to a finalized ADR; all other content stays intact.
 
 ---
 
@@ -296,7 +296,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
 - ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248)
+- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`
 - Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
 - NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
 - README at repo root with Features list, build instructions, CI/CD badge, project structure

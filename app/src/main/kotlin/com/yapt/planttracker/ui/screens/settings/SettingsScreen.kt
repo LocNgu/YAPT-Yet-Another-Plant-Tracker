@@ -47,6 +47,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -269,58 +271,29 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.Notifications,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.notifications_enabled), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.settings_notifications_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            SettingsItemRow(
+                icon = Icons.Filled.Notifications,
+                title = stringResource(R.string.notifications_enabled),
+                subtitle = stringResource(R.string.settings_notifications_subtitle),
+                trailingContent = {
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = {
+                            viewModel.setNotificationsEnabled(it)
+                            if (!it) showTimePicker = false
+                        }
                     )
                 }
-                Switch(
-                    checked = notificationsEnabled,
-                    onCheckedChange = {
-                        viewModel.setNotificationsEnabled(it)
-                        if (!it) showTimePicker = false
-                    }
-                )
-            }
+            )
 
             if (notificationsEnabled) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTimePicker = true }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.Schedule,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.reminder_time), style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            DateUtils.formatHourMinute(reminderHour, reminderMinute),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                SettingsItemRow(
+                    icon = Icons.Filled.Schedule,
+                    title = stringResource(R.string.reminder_time),
+                    subtitle = DateUtils.formatHourMinute(reminderHour, reminderMinute),
+                    subtitleColor = MaterialTheme.colorScheme.primary,
+                    onClick = { showTimePicker = true }
+                )
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -332,31 +305,17 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.BrightnessMedium,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.keep_screen_on), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.keep_screen_on_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            SettingsItemRow(
+                icon = Icons.Filled.BrightnessMedium,
+                title = stringResource(R.string.keep_screen_on),
+                subtitle = stringResource(R.string.keep_screen_on_subtitle),
+                trailingContent = {
+                    Switch(
+                        checked = keepScreenOn,
+                        onCheckedChange = { viewModel.setKeepScreenOn(it) }
                     )
                 }
-                Switch(
-                    checked = keepScreenOn,
-                    onCheckedChange = { viewModel.setKeepScreenOn(it) }
-                )
-            }
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -367,53 +326,19 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showExportDialog = true }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.CloudUpload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.backup_export_item_title), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.backup_export_item_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            SettingsItemRow(
+                icon = Icons.Filled.CloudUpload,
+                title = stringResource(R.string.backup_export_item_title),
+                subtitle = stringResource(R.string.backup_export_item_subtitle),
+                onClick = { showExportDialog = true }
+            )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*"))
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.CloudDownload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.backup_restore_item_title), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.backup_restore_item_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            SettingsItemRow(
+                icon = Icons.Filled.CloudDownload,
+                title = stringResource(R.string.backup_restore_item_title),
+                subtitle = stringResource(R.string.backup_restore_item_subtitle),
+                onClick = { openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) }
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -442,29 +367,48 @@ fun SettingsScreen(
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onShowWhatsNew() }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_whats_new_title), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.settings_whats_new_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            SettingsItemRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = stringResource(R.string.settings_whats_new_title),
+                subtitle = stringResource(R.string.settings_whats_new_subtitle),
+                onClick = { onShowWhatsNew() }
+            )
 
         }
+    }
+}
+
+@Composable
+private fun SettingsItemRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    trailingContent: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = subtitleColor
+            )
+        }
+        trailingContent?.invoke()
     }
 }
