@@ -156,6 +156,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.quickLogEvent.test {
@@ -202,6 +203,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.quickLogEvent.test {
@@ -220,6 +222,81 @@ class PlantListViewModelTest {
         }
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+        }
+    }
+
+    @Test
+    fun `quickLog water clears wateringDueDateOverride when override is active`() = runTest {
+        val override = System.currentTimeMillis() + 86_400_000L
+        val monstera = Plant(id = 1L, name = "Monstera", wateringDueDateOverride = override, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } returns Unit
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.WATER)
+                cancelAndIgnoreRemainingEvents()
+            }
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride == null })
+        }
+    }
+
+    @Test
+    fun `quickLog water does not call updatePlant when no override is active`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } returns Unit
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.WATER)
+                cancelAndIgnoreRemainingEvents()
+            }
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
+
+    @Test
+    fun `quickLog liquid fertilize clears wateringDueDateOverride when override is active`() = runTest {
+        val override = System.currentTimeMillis() + 86_400_000L
+        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringDueDateOverride = override, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } returns Unit
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.FERTILIZE)
+                cancelAndIgnoreRemainingEvents()
+            }
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride == null })
         }
     }
 

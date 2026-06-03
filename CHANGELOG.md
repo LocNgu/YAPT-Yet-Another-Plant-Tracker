@@ -58,6 +58,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - BackupManager: add comment explaining why `CURRENT_SCHEMA_VERSION` was not bumped when `wateringDueDateOverride` was added (issue #188)
 
 ### Fixed
+- `quickLog()` now clears `wateringDueDateOverride` after logging WATER (and liquid-fertilizer auto-paired WATER), matching `AddCareLogViewModel` behaviour (issue #210)
 - PlantCard: add accessibility contentDescription to liquid-fertilizer quick-log button (issue #251)
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `pluralStringResource` resource (issue #179)
