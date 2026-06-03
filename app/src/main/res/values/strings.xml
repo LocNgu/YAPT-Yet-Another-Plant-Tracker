@@ -89,4 +89,5 @@
     <string name="interval_suggestion_field_label">Days</string>
     <string name="interval_suggestion_apply">Apply</string>
     <string name="dismiss">Dismiss</string>
+    <string name="fert_label_due_with_watering">Due with next watering</string>
 </resources>

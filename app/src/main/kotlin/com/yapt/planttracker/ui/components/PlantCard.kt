@@ -153,7 +153,9 @@ fun PlantCard(
                             else -> OkGreen
                         }
                         val fertLabel = when {
-                            status.plant.useLiquidFertilizer -> "With watering"
+                            status.plant.useLiquidFertilizer &&
+                                    (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
+                                stringResource(R.string.fert_label_due_with_watering)
                             status.nextFertilizingDueAt != null ->
                                 DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
