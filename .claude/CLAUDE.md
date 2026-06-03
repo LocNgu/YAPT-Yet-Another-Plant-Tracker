@@ -249,7 +249,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - "Water + Fertilize due" filter — both care types due/overdue, sorted by watering urgency (#78)
 - Sort controls: 4 options (Alphabetical, Watering due, Fertilizing due, Recently added); ASC/DESC toggle on applicable sorts; DataStore-persisted (#21)
 - Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55)
-- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19)
+- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19); liquid-fertilizer quick-log button has `contentDescription` for screen readers (#251)
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
 
 **Plant Detail UI**
