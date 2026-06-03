@@ -136,9 +136,7 @@
     <string name="stat_label_next">next: %1$s</string>
     <string name="stat_label_last">last: %1$s</string>
     <string name="stat_label_overdue_prefix">overdue</string>
-    <string name="photos_section_title">Photos</string>
-    <string name="care_logs_count">%d logs</string>
-    <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
+<string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
     <string name="watering_interval_label">Water every %1$d days</string>
     <string name="watering_reminder_label">Watering reminder</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
