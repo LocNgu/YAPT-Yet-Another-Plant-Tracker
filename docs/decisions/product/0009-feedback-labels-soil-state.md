@@ -1,6 +1,6 @@
 # Product ADR-0009: Watering feedback labels reframed as observable soil state
 
-**Status**: accepted
+**Status**: superseded by [ADR-0011](0011-feedback-question-text-how-was-soil.md)
 **Date**: 2026-06-02
 
 ## Context
