@@ -37,11 +37,10 @@ Classify every finding:
 - New ViewModel without an inner `Factory`; PhotoPicker URI not persisted with `takePersistableUriPermission`; Room schema change without a `Migration`; new dependency not pinned in `app/build.gradle.kts`
 - Security issues
 
-**NON-BLOCKING** — do not block the PR; the orchestrator files these as new GitHub issues:
-- Style nits or naming preferences
-- Missing tests for coverage not required by the spec
-- Performance improvements or minor refactors that don't affect correctness
-- Anything you'd phrase as "consider" or "in the future"
+**NON-BLOCKING** — do not block the PR; tag each finding **SMALL** or **LARGE**:
+- **SMALL**: localised, ≤ a few lines, no design risk (e.g. style nit, rename, single-call fix)
+- **LARGE**: cross-cutting, architectural, or requires its own spec/discussion
+- The orchestrator asks the human for each finding (with a recommendation) before deciding to fix it in the current PR or file a new GitHub issue
 
 ## Review checklist
 
@@ -68,7 +67,7 @@ Structure your response so the orchestrator can post it directly:
 
 1. **A compact review body** (2–3 lines): the verdict and counts.
 2. **BLOCKING inline comments** — one per finding, each with `path`, `line`, and the comment body (`**BLOCKING**: problem + expected fix`). The orchestrator posts each via `add_comment_to_pending_review`. Use line numbers that appear in the PR diff; for a finding on an unchanged line, put it in the review body as `File.kt:42 — **BLOCKING**: …` instead.
-3. **NON-BLOCKING findings** — a short list with suggested issue titles + bodies for the orchestrator to file via `issue_write`.
+3. **NON-BLOCKING findings** — a short list, each tagged **SMALL** or **LARGE** with a one-line recommended action ("fix in this PR" or "new issue"), so the orchestrator can prompt the human and act on their decision.
 
 In round 2+, also tell the orchestrator which round-1 findings are now fixed so it can resolve those review threads.
 
@@ -97,7 +96,7 @@ Keep the review body short; detail lives in the inline comments.
 **Round N — <APPROVED | CHANGES NEEDED>**
 
 Blocking: N (see inline comments)
-Non-blocking: M (suggested as issues)
+Non-blocking: M (X small / Y large — see list)
 
 End your response with exactly one of these lines so the orchestrator can parse it:
 
