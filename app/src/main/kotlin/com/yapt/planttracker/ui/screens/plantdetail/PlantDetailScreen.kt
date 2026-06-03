@@ -215,7 +215,7 @@ fun PlantDetailScreen(
                         if (plant?.coverPhotoUri != null) {
                             AsyncImage(
                                 model = plant!!.coverPhotoUri,
-                                contentDescription = "Plant cover photo",
+                                contentDescription = stringResource(R.string.cd_plant_cover_photo),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -266,14 +266,14 @@ fun PlantDetailScreen(
                         }
                         plant?.room?.let {
                             Text(
-                                text = "📍 $it",
+                                text = stringResource(R.string.plant_detail_location, it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         plant?.wateringIntervalDays?.let {
                             Text(
-                                text = "💧 Every $it days",
+                                text = stringResource(R.string.plant_detail_watering_interval, it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -308,7 +308,7 @@ fun PlantDetailScreen(
                 if (photoUris.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Photos",
+                            text = stringResource(R.string.plant_detail_photos_section),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
@@ -328,12 +328,12 @@ fun PlantDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Care History",
+                            text = stringResource(R.string.plant_detail_care_history_section),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "${careLogs.size} logs",
+                            text = stringResource(R.string.plant_detail_care_logs_count, careLogs.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -344,7 +344,7 @@ fun PlantDetailScreen(
                     item {
                         Box(modifier = Modifier.height(200.dp)) {
                             EmptyStateView(
-                                message = "No care logged yet.\nTap + to log your first care event.",
+                                message = stringResource(R.string.no_care_logs_detail),
                                 icon = Icons.Filled.Notes
                             )
                         }
@@ -403,7 +403,7 @@ fun PlantDetailScreen(
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = iconTint
                 )
             }
@@ -416,7 +416,7 @@ fun PlantDetailScreen(
             ) {
                 Icon(
                     Icons.Filled.Edit,
-                    contentDescription = "Edit plant",
+                    contentDescription = stringResource(R.string.cd_edit_plant),
                     tint = iconTint
                 )
             }
@@ -429,7 +429,7 @@ fun PlantDetailScreen(
                 .navigationBarsPadding()
                 .padding(16.dp)
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Log care")
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
         }
 
         }

@@ -51,7 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
@@ -122,10 +124,10 @@ fun AddCareLogScreen(
                         viewModel.loggedAt = localCal.timeInMillis
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -135,17 +137,17 @@ fun AddCareLogScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) "Edit Care Log" else "Log Care") },
+                title = { Text(if (viewModel.isEditMode) stringResource(R.string.care_log_title_edit) else stringResource(R.string.care_log_title_add)) },
                 navigationIcon = {
                     IconButton(onClick = { onNavigateBack(null) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.saveLog() }) {
-                Icon(Icons.Filled.Check, contentDescription = "Save")
+                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cd_save))
             }
         }
     ) { padding ->
@@ -177,7 +179,7 @@ fun AddCareLogScreen(
                         )
                         Icon(
                             Icons.Filled.DateRange,
-                            contentDescription = "Pick date",
+                            contentDescription = stringResource(R.string.cd_pick_date),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -185,7 +187,7 @@ fun AddCareLogScreen(
             }
 
             Text(
-                text = "What did you do?",
+                text = stringResource(R.string.care_log_prompt_what_did_you_do),
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -208,7 +210,7 @@ fun AddCareLogScreen(
             if (viewModel.selectedCareType == CareType.WATER) {
                 Column {
                     Text(
-                        text = "How was the soil?",
+                        text = stringResource(R.string.care_log_prompt_how_was_soil),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -233,13 +235,13 @@ fun AddCareLogScreen(
             if (viewModel.selectedCareType == CareType.FERTILIZE) {
                 Column {
                     Text(
-                        text = "Fertilizer type",
+                        text = stringResource(R.string.care_log_fertilizer_type_label),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(FertilizerType.LIQUID to "Liquid", FertilizerType.SOLID to "Solid").forEach { (type, label) ->
+                        listOf(FertilizerType.LIQUID to stringResource(R.string.fertilizer_type_liquid), FertilizerType.SOLID to stringResource(R.string.fertilizer_type_solid)).forEach { (type, label) ->
                             FilterChip(
                                 selected = viewModel.selectedFertilizerType == type,
                                 onClick = {
@@ -253,7 +255,7 @@ fun AddCareLogScreen(
                     if (viewModel.selectedFertilizerType == FertilizerType.LIQUID) {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Also logs a watering",
+                            text = stringResource(R.string.fertilizer_also_logs_watering),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -265,9 +267,9 @@ fun AddCareLogScreen(
                 OutlinedTextField(
                     value = viewModel.amount,
                     onValueChange = { viewModel.amount = it },
-                    label = { Text("Amount (optional)") },
+                    label = { Text(stringResource(R.string.field_amount_optional)) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("e.g. 200ml") },
+                    placeholder = { Text(stringResource(R.string.placeholder_amount)) },
                     singleLine = true
                 )
             }
@@ -275,7 +277,7 @@ fun AddCareLogScreen(
             OutlinedTextField(
                 value = viewModel.notes,
                 onValueChange = { viewModel.notes = it },
-                label = { Text("Notes (optional)") },
+                label = { Text(stringResource(R.string.field_notes_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 maxLines = 5
@@ -283,7 +285,7 @@ fun AddCareLogScreen(
 
             Column {
                 Text(
-                    text = "Photo (optional)",
+                    text = stringResource(R.string.care_log_photo_label),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
@@ -305,7 +307,7 @@ fun AddCareLogScreen(
                     }) {
                         Icon(
                             Icons.Filled.AddAPhoto,
-                            contentDescription = "Add photo",
+                            contentDescription = stringResource(R.string.cd_add_photo),
                             modifier = Modifier.size(32.dp)
                         )
                     }

@@ -296,7 +296,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
 - ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248)
+- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`
 - Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
 - NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
 - README at repo root with Features list, build instructions, CI/CD badge, project structure

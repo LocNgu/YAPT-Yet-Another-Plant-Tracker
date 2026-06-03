@@ -21,7 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
@@ -46,7 +48,7 @@ fun StatsRow(
         }
         StatChip(
             icon = Icons.Filled.WaterDrop,
-            label = "Watering",
+            label = stringResource(R.string.stat_label_watering),
             nextLine = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
             nextColor = if (status.nextWateringDueAt != null) waterColor else null,
             lastLine = status.lastWateredAt?.let { DateUtils.formatRelative(it).lowercase() },
@@ -61,7 +63,7 @@ fun StatsRow(
             }
             StatChip(
                 icon = Icons.Filled.Spa,
-                label = "Fertilizing",
+                label = stringResource(R.string.stat_label_fertilizing),
                 nextLine = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
                 nextColor = if (status.nextFertilizingDueAt != null) fertColor else null,
                 lastLine = status.lastFertilizedAt?.let { DateUtils.formatRelative(it).lowercase() },
@@ -101,23 +103,25 @@ private fun StatChip(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+            val neverText = stringResource(R.string.stat_label_never)
+            val overduePrefix = stringResource(R.string.stat_label_overdue_prefix)
             if (nextLine == null && lastLine == null) {
                 Text(
-                    text = "never",
+                    text = neverText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 nextLine?.let {
                     Text(
-                        text = if (it.startsWith("overdue")) it else "next: $it",
+                        text = if (it.startsWith(overduePrefix)) it else stringResource(R.string.stat_label_next, it),
                         style = MaterialTheme.typography.labelSmall,
                         color = nextColor ?: MaterialTheme.colorScheme.primary
                     )
                 }
                 lastLine?.let {
                     Text(
-                        text = "last: $it",
+                        text = stringResource(R.string.stat_label_last, it),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

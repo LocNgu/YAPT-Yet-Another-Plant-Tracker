@@ -16,6 +16,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Care history on plant detail screen collapses to 5 most recent logs by default; a chevron chip below the list expands to show all logs and collapses back, with animated rotation (#253)
 
 ### Changed
+- All hardcoded UI strings moved to `strings.xml`; extracted shared `SettingsItemRow` composable in SettingsScreen (#220, #272)
 - Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
 - Move quick-log else-branch Snackbar message to `strings.xml` (#248)
 - `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)

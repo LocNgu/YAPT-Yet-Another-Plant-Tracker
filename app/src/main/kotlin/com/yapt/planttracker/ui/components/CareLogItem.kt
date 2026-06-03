@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.util.DateUtils
 
@@ -88,7 +90,7 @@ fun CareLogItem(
             IconButton(onClick = it) {
                 Icon(
                     Icons.Filled.Edit,
-                    contentDescription = "Edit log",
+                    contentDescription = stringResource(R.string.cd_edit_log),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -99,7 +101,7 @@ fun CareLogItem(
             IconButton(onClick = it) {
                 Icon(
                     Icons.Filled.Delete,
-                    contentDescription = "Delete log",
+                    contentDescription = stringResource(R.string.cd_delete_log),
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                     modifier = Modifier.size(18.dp)
                 )
