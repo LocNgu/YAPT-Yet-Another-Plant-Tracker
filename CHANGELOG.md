@@ -30,6 +30,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
 - Move quick-log else-branch Snackbar message to strings.xml (issue #248)
 
+### Tests
+- `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)
+
 ---
 
 ## [0.8.0] - 2026-06-02

@@ -12,7 +12,9 @@ import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -217,5 +219,29 @@ class AddCareLogViewModelTest {
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
 
         assertEquals(FertilizerType.UNSPECIFIED, vm.selectedFertilizerType)
+    }
+
+    @Test
+    fun `save new WATER log clears wateringDueDateOverride when it is set`() = runTest {
+        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        val plantWithOverride = plant(wateringIntervalDays = 7)
+            .copy(wateringDueDateOverride = now + 3L * 24 * 60 * 60 * 1000)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plantWithOverride)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = now),
+            waterLog(loggedAt = sevenDaysAgo)
+        )
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
     }
 }
