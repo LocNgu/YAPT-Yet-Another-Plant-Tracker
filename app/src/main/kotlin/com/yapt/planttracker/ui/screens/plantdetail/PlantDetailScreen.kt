@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,10 +26,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -82,6 +86,12 @@ fun PlantDetailScreen(
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
+
+    var isExpanded by remember { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "chevronRotation"
+    )
 
     var intervalFieldText by remember(suggestedInterval) {
         mutableStateOf(suggestedInterval?.toString().orEmpty())
@@ -340,12 +350,39 @@ fun PlantDetailScreen(
                         }
                     }
                 } else {
-                    items(careLogs, key = { it.id }) { log ->
+                    val visibleLogs = if (isExpanded) careLogs else careLogs.take(5)
+                    items(visibleLogs, key = { it.id }) { log ->
                         CareLogItem(
                             log = log,
                             onEdit = { onNavigateToEditLog(log.id) },
                             onDelete = { viewModel.deleteLog(log) }
                         )
+                    }
+
+                    if (careLogs.size > 5) {
+                        item {
+                            val remaining = careLogs.size - 5
+                            AssistChip(
+                                onClick = { isExpanded = !isExpanded },
+                                label = {
+                                    Text(
+                                        if (isExpanded) stringResource(R.string.care_history_show_less)
+                                        else pluralStringResource(R.plurals.care_history_show_more, remaining, remaining)
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.ExpandMore,
+                                        contentDescription = if (isExpanded)
+                                            stringResource(R.string.care_history_collapse_cd)
+                                        else
+                                            stringResource(R.string.care_history_expand_cd),
+                                        modifier = Modifier.rotate(chevronRotation)
+                                    )
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }

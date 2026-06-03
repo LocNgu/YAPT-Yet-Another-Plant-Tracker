@@ -12,14 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
-### Changed
-- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
-
 ### Added
 - What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+- Care history on plant detail screen collapses to 5 most recent logs by default; a chevron chip below the list expands to show all logs and collapses back, with animated rotation
 
 ### Changed
+- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
 - Move quick-log else-branch Snackbar message to strings.xml (issue #248)
 
 ---
