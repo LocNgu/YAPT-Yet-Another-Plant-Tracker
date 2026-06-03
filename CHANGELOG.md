@@ -12,9 +12,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
+
 ### Added
 - What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
 - "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+
+### Changed
+- Move quick-log else-branch Snackbar message to strings.xml (issue #248)
 
 ---
 
@@ -42,6 +48,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - `quickLog()` now clears `wateringDueDateOverride` after logging WATER (and liquid-fertilizer auto-paired WATER), matching `AddCareLogViewModel` behaviour (issue #210)
+- PlantCard: add accessibility contentDescription to liquid-fertilizer quick-log button (issue #251)
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `pluralStringResource` resource (issue #179)
 - "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded literals to `strings.xml` entries (`settings_whats_new_title`, `settings_whats_new_subtitle`) (issue #216)

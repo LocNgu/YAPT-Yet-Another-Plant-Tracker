@@ -123,10 +123,10 @@ Every feature and bug fix follows these steps in order:
 1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, pushes a `claude/*` branch, and returns the PR title/body as text; the **orchestrating Claude instance** opens the PR targeting `develop` via `mcp__github__create_pull_request`
 3. **Review** (`reviewer` agent) — iterative rounds of review:
-   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
+   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING**; the reviewer also tags each NON-BLOCKING finding as **SMALL** (localised, ≤ a few lines, no design risk) or **LARGE** (cross-cutting, architectural, or requires its own spec)
    - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
      - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
-     - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+     - NON-BLOCKING: the orchestrator **asks the human** for each finding (or grouped by recommendation) before acting — it states its recommendation ("fix in this PR" for SMALL, "new issue" for LARGE) and waits for the human's decision; then either hands the fix to the implementer in the current PR or files a new GitHub issue via `mcp__github__issue_write`
    - **Each reviewer round is posted as a fresh, standalone PR review — never combined with a previous round's findings**
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
@@ -249,7 +249,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - "Water + Fertilize due" filter — both care types due/overdue, sorted by watering urgency (#78)
 - Sort controls: 4 options (Alphabetical, Watering due, Fertilizing due, Recently added); ASC/DESC toggle on applicable sorts; DataStore-persisted (#21)
 - Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55)
-- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19)
+- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19); liquid-fertilizer quick-log button has `contentDescription` for screen readers (#251)
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
 
 **Plant Detail UI**
@@ -295,6 +295,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
 - ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215)
+- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248)
 - Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
+- NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
 - README at repo root with Features list, build instructions, CI/CD badge, project structure
