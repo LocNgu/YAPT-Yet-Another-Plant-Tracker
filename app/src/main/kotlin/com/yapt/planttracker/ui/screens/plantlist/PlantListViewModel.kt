@@ -129,7 +129,7 @@ class PlantListViewModel(
                 } else {
                     application.getString(R.string.quick_log_fertilized, plantName)
                 }
-                else -> "${careType.displayName} $plantName"
+                else -> application.getString(R.string.quick_log_other, careType.displayName, plantName)
             }
             _quickLogEvent.emit(message)
         }
