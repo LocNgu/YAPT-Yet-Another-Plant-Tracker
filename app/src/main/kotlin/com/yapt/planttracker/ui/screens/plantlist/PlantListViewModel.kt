@@ -112,6 +112,14 @@ class PlantListViewModel(
                 fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
             )
             careLogRepository.addLog(log)
+            if (careType == CareType.WATER) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
+            }
             if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
                 careLogRepository.addLog(
                     CareLog(
@@ -121,6 +129,12 @@ class PlantListViewModel(
                         wateringFeedback = WateringFeedback.JUST_RIGHT
                     )
                 )
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
             }
             val message = when (careType) {
                 CareType.WATER -> application.getString(R.string.quick_log_watered, plantName)
