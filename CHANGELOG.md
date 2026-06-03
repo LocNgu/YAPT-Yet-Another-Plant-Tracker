@@ -12,26 +12,17 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Care history on plant detail screen collapses to 5 most recent logs by default; a chevron chip below the list expands to show all logs and collapses back, with animated rotation (#253)
+
+### Changed
+- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
+- Move quick-log else-branch Snackbar message to `strings.xml` (#248)
+- `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)
+
 ### Fixed
 - WhatsNewSheet: "Got it" button is now always visible at the bottom of the sheet even when many release entries are present; `LazyColumn` constrained with `Modifier.weight(1f)` so it cannot push the button off-screen (#214)
-
-### Changed
-- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
-
-### Added
-- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
-- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
-- Care history on plant detail screen collapses to 5 most recent logs by default; a chevron chip below the list expands to show all logs and collapses back, with animated rotation
-
-### Fixed
 - PlantCard fertilizing chip for liquid-fertilizer plants now shows a time-based label instead of static "With watering": shows "Due with next watering" when due/overdue, or the regular countdown ("In X days") when not yet due (#267)
-
-### Changed
-- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
-- Move quick-log else-branch Snackbar message to strings.xml (issue #248)
-
-### Tests
-- `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)
 
 ---
 
