@@ -59,6 +59,8 @@ import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.util.emojiRes
+import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
@@ -225,7 +227,7 @@ fun AddCareLogScreen(
                                     viewModel.selectedFeedback =
                                         if (viewModel.selectedFeedback == feedback) null else feedback
                                 },
-                                label = { Text("${feedback.emoji} ${feedback.displayName}") }
+                                label = { Text(stringResource(R.string.feedback_label_format, stringResource(feedback.emojiRes()), stringResource(feedback.labelRes()))) }
                             )
                         }
                     }

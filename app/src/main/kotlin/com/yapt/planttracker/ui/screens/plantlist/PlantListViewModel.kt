@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.ui.util.labelRes
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -143,7 +144,7 @@ class PlantListViewModel(
                 } else {
                     application.getString(R.string.quick_log_fertilized, plantName)
                 }
-                else -> application.getString(R.string.quick_log_other, careType.displayName, plantName)
+                else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plantName)
             }
             _quickLogEvent.emit(message)
         }
