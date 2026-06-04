@@ -221,7 +221,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Architecture & Data**
 - Room DB v3 (PlantEntity, CareLogEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed
 - PlantRepository + CareLogRepository with entity↔domain mapping; UI never touches Room entities directly
-- Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization
+- Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization; `CareType` and `WateringFeedback` are plain Kotlin enums — display strings and icons live in `ui/util/EnumResources.kt` extension functions (#276)
 - DataStore preferences (notification toggle, reminder time, sort option, keep-screen-on, last-seen version code); delegate declared at file top-level in `YaptApplication.kt`
 - Manual DI via `YaptApplication` lazy singletons; ViewModel `Factory` inner classes; no Hilt
 - Nature-themed Material 3 dark/light theme; Android PhotoPicker with `takePersistableUriPermission`
