@@ -62,10 +62,7 @@ class PlantListViewModelTest {
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
-        coEvery { dataStore.edit(any()) } answers {
-            firstArg<suspend (MutablePreferences) -> Unit>().invoke(mockk(relaxed = true))
-            mockk()
-        }
+        coEvery { dataStore.updateData(any()) } returns emptyPreferences()
     }
 
     @Test
