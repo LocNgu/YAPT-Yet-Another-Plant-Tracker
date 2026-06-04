@@ -79,7 +79,7 @@ fun PlantListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.plant_list_title)) },
+                title = { Text(stringResource(R.string.my_plants)) },
                 colors = TopAppBarDefaults.topAppBarColors(),
                 actions = {
                     Box {
@@ -134,7 +134,7 @@ fun PlantListScreen(
             ExtendedFloatingActionButton(
                 onClick = onNavigateToAdd,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.add_plant_fab_label)) }
+                text = { Text(stringResource(R.string.add_plant)) }
             )
         }
     ) { padding ->
@@ -152,7 +152,7 @@ fun PlantListScreen(
                         FilterChip(
                             selected = selectedRoom == null,
                             onClick = { viewModel.selectRoom(null) },
-                            label = { Text(stringResource(R.string.filter_all)) }
+                            label = { Text(stringResource(R.string.time_range_all)) }
                         )
                     }
                     if (hasUnassignedPlants) {
