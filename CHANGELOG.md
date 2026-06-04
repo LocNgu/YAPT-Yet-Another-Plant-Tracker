@@ -23,6 +23,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - `WateringFeedback` and `CareType` domain enums are now plain Kotlin enums; `displayName`, `emoji`, `icon` moved to `ui/util/EnumResources.kt` extension functions; all display strings routed through `strings.xml` (#276)
 - `strings.xml`: remove 12 duplicate/redundant keys introduced in #274; update all call sites to canonical keys; rename `settings_back_content_description` → `cd_back` (#275)
 - `PlantListViewModelTest`: add test for `quickLog` else-branch covering non-WATER/non-FERTILIZE `CareType` (#265)
+- `PlantListViewModelTest`: add 13 tests covering `toggleSort` direction cycling and `applySortOrder` ordering for all sort options; fix `dataStore` stub in `@Before` to use `updateData` instead of `edit` (#77)
 
 ### Fixed
 - WhatsNewSheet: "Got it" button is now always visible at the bottom of the sheet even when many release entries are present; `LazyColumn` constrained with `Modifier.weight(1f)` so it cannot push the button off-screen (#214)
