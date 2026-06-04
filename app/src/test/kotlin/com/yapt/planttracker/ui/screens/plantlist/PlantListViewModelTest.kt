@@ -465,6 +465,21 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `toggleSort WATERING_DUE third tap cycles back to DESC`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        vm.toggleSort(SortOption.WATERING_DUE)
+        vm.toggleSort(SortOption.WATERING_DUE)
+
+        assertEquals(SortOption.WATERING_DUE, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+    }
+
+    @Test
     fun `toggleSort RECENTLY_ADDED repeated taps do not change direction`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
@@ -572,6 +587,30 @@ class PlantListViewModelTest {
         vm.plantsWithStatus.test {
             val items = awaitItem()
             assertEquals(listOf(1L, 2L, 3L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder WATERING_DUE DESC tiebreaks by plant id descending`() = runTest {
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        val sameTs = 150L - oneDayMs
+        val p1 = Plant(id = 1L, name = "P1", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sameTs)
+        coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
+            CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = sameTs)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(2L, 1L), items.map { it.plant.id })
             cancelAndIgnoreRemainingEvents()
         }
     }
