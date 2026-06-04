@@ -98,16 +98,16 @@ fun AddEditPlantScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.delete_plant_dialog_title)) },
-            text = { Text(stringResource(R.string.delete_plant_dialog_message)) },
+            title = { Text(stringResource(R.string.delete_plant)) },
+            text = { Text(stringResource(R.string.delete_plant_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     viewModel.deletePlant()
-                }) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -127,7 +127,7 @@ fun AddEditPlantScreen(
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.cd_delete),
+                                contentDescription = stringResource(R.string.delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -137,7 +137,7 @@ fun AddEditPlantScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.save() }) {
-                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cd_save))
+                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
             }
         }
     ) { padding ->

@@ -328,7 +328,7 @@ fun PlantDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.plant_detail_care_history_section),
+                            text = stringResource(R.string.care_history),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(Modifier.width(8.dp))
