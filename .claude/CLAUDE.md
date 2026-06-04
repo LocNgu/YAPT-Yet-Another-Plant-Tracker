@@ -282,7 +282,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Full release history in `WhatsNewContent.all: List<ReleaseNotes>`; sorted by `versionCode` descending at render time; scrollable `LazyColumn`; "Got it" button pinned; `versionCode: Int` field on `ReleaseNotes` guarantees sort order (see product ADR-0010, #212 #219)
 
 **Tests**
-- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save (#46 #48 #187)
+- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save; `PlantListViewModelTest` covers `quickLog` else-branch (#46 #48 #187 #265)
 - Instrumented BackupManager tests: 9 cases (round-trips with/without photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings, photo SHA-256) (#50)
 - Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51)
 
@@ -296,7 +296,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
 - ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`
+- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272 #275); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`; `cd_back` is the canonical back-button content description
 - Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
 - NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
 - README at repo root with Features list, build instructions, CI/CD badge, project structure

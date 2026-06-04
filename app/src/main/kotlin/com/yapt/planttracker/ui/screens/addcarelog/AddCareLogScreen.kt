@@ -126,10 +126,10 @@ fun AddCareLogScreen(
                         viewModel.loggedAt = localCal.timeInMillis
                     }
                     showDatePicker = false
-                }) { Text(stringResource(R.string.action_ok)) }
+                }) { Text(stringResource(R.string.ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -149,7 +149,7 @@ fun AddCareLogScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.saveLog() }) {
-                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cd_save))
+                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
             }
         }
     ) { padding ->
