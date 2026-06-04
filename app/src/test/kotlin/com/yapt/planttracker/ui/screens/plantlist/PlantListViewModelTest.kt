@@ -301,6 +301,29 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `quickLog other care type emits correct snackbar message`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickLogEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLog(1L, CareType.PRUNE)
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("Pruned Monstera", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.PRUNE && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
     fun `unassigned filter shows only plants with null room`() = runTest {
         val kitchen = plant(id = 1L, name = "Basil", room = "Kitchen")
         val unassigned = plant(id = 2L, name = "Snake Plant", room = null)

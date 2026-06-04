@@ -21,6 +21,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Move quick-log else-branch Snackbar message to `strings.xml` (#248)
 - `AddCareLogViewModelTest`: add positive test verifying that saving a new WATER log clears `wateringDueDateOverride` when it is non-null (#187)
 - `strings.xml`: remove 12 duplicate/redundant keys introduced in #274; update all call sites to canonical keys; rename `settings_back_content_description` → `cd_back` (#275)
+- `PlantListViewModelTest`: add test for `quickLog` else-branch covering non-WATER/non-FERTILIZE `CareType` (#265)
 
 ### Fixed
 - WhatsNewSheet: "Got it" button is now always visible at the bottom of the sheet even when many release entries are present; `LazyColumn` constrained with `Modifier.weight(1f)` so it cannot push the button off-screen (#214)
