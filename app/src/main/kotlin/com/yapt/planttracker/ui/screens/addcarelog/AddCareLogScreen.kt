@@ -227,7 +227,7 @@ fun AddCareLogScreen(
                                     viewModel.selectedFeedback =
                                         if (viewModel.selectedFeedback == feedback) null else feedback
                                 },
-                                label = { Text("${stringResource(feedback.emojiRes())} ${stringResource(feedback.labelRes())}") }
+                                label = { Text(stringResource(R.string.feedback_label_format, stringResource(feedback.emojiRes()), stringResource(feedback.labelRes()))) }
                             )
                         }
                     }

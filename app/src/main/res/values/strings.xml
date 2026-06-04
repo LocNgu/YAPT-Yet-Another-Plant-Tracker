@@ -179,4 +179,5 @@
     <string name="feedback_emoji_still_wet">💦</string>
     <string name="feedback_emoji_just_right">✅</string>
     <string name="feedback_emoji_too_dry">🏜️</string>
+    <string name="feedback_label_format">%1$s %2$s</string>
 </resources>
