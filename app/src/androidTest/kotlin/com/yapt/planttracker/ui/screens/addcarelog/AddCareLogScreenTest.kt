@@ -5,10 +5,11 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
-import com.yapt.planttracker.domain.model.WateringFeedback
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -62,8 +63,11 @@ class AddCareLogScreenTest {
             )
         }
 
+        val justRightLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.feedback_just_right)
+
         composeTestRule
-            .onNode(hasText(WateringFeedback.JUST_RIGHT.displayName, substring = true) and isSelected())
+            .onNode(hasText(justRightLabel, substring = true) and isSelected())
             .assertIsDisplayed()
     }
 }

@@ -166,4 +166,17 @@
     <string name="sort_recently_added">Recently added</string>
     <string name="sort_both_due">Water + Fertilize due</string>
     <string name="water_label_never_watered">Never watered</string>
+    <string name="care_type_watered">Watered</string>
+    <string name="care_type_fertilized">Fertilized</string>
+    <string name="care_type_pruned">Pruned</string>
+    <string name="care_type_misted">Misted</string>
+    <string name="care_type_repotted">Repotted</string>
+    <string name="care_type_note">Note</string>
+    <string name="care_type_photo">Photo</string>
+    <string name="feedback_still_wet">Still wet</string>
+    <string name="feedback_just_right">Just right</string>
+    <string name="feedback_too_dry">Too dry</string>
+    <string name="feedback_emoji_still_wet">💦</string>
+    <string name="feedback_emoji_just_right">✅</string>
+    <string name="feedback_emoji_too_dry">🏜️</string>
 </resources>
