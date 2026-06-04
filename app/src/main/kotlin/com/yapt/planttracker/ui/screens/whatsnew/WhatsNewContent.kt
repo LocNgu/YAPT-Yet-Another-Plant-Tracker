@@ -11,6 +11,17 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 170,
+            versionName = "0.8.1",
+            added = listOf(
+                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse"
+            ),
+            fixed = listOf(
+                "\"Got it\" button in What's New is now always visible even when there are many release entries",
+                "Liquid-fertilizer plant cards now show a time-based countdown instead of a static \"With watering\" label"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 130,
             versionName = "0.8.0",
             added = listOf(

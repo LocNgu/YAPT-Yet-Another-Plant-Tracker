@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.yapt.planttracker.R
 
 @Composable
 fun PhotoGallery(
@@ -30,7 +32,7 @@ fun PhotoGallery(
         items(photoUris, key = { it }) { uri ->
             AsyncImage(
                 model = uri,
-                contentDescription = "Care log photo",
+                contentDescription = stringResource(R.string.cd_care_log_photo),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)

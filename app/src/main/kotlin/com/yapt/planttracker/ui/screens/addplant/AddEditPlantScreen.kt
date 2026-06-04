@@ -52,8 +52,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.PlantPhoto
 import kotlin.math.roundToInt
 
@@ -96,16 +98,16 @@ fun AddEditPlantScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Plant") },
-            text = { Text("Delete this plant and all its care history?") },
+            title = { Text(stringResource(R.string.delete_plant)) },
+            text = { Text(stringResource(R.string.delete_plant_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     viewModel.deletePlant()
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -114,10 +116,10 @@ fun AddEditPlantScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) "Edit Plant" else "Add Plant") },
+                title = { Text(if (viewModel.isEditMode) stringResource(R.string.edit_plant) else stringResource(R.string.add_plant)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 actions = {
@@ -125,7 +127,7 @@ fun AddEditPlantScreen(
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 Icons.Filled.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -135,7 +137,7 @@ fun AddEditPlantScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.save() }) {
-                Icon(Icons.Filled.Check, contentDescription = "Save")
+                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
             }
         }
     ) { padding ->
@@ -169,7 +171,7 @@ fun AddEditPlantScreen(
                 ) {
                     Icon(
                         Icons.Filled.AddAPhoto,
-                        contentDescription = "Add photo",
+                        contentDescription = stringResource(R.string.cd_add_photo),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -178,7 +180,7 @@ fun AddEditPlantScreen(
             OutlinedTextField(
                 value = viewModel.name,
                 onValueChange = { viewModel.name = it },
-                label = { Text("Plant Name *") },
+                label = { Text(stringResource(R.string.field_plant_name)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -186,7 +188,7 @@ fun AddEditPlantScreen(
             OutlinedTextField(
                 value = viewModel.species,
                 onValueChange = { viewModel.species = it },
-                label = { Text("Species") },
+                label = { Text(stringResource(R.string.field_species)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -194,10 +196,10 @@ fun AddEditPlantScreen(
             OutlinedTextField(
                 value = viewModel.room,
                 onValueChange = { viewModel.room = it },
-                label = { Text("Location / Room") },
+                label = { Text(stringResource(R.string.field_location)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("e.g. Living Room") }
+                placeholder = { Text(stringResource(R.string.placeholder_location)) }
             )
 
             if (rooms.isNotEmpty()) {
@@ -228,8 +230,8 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.wateringIntervalEnabled)
-                            "Water every ${viewModel.wateringIntervalDays} days"
-                        else "Watering reminder",
+                            stringResource(R.string.watering_interval_label, viewModel.wateringIntervalDays)
+                        else stringResource(R.string.watering_reminder_label),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(
@@ -255,8 +257,8 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.fertilizingIntervalEnabled)
-                            "Fertilize every ${viewModel.fertilizingIntervalDays} days"
-                        else "Fertilizing reminder",
+                            stringResource(R.string.fertilizing_interval_label, viewModel.fertilizingIntervalDays)
+                        else stringResource(R.string.fertilizing_reminder_label),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(
@@ -277,7 +279,7 @@ fun AddEditPlantScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Fertilize with watering (liquid fertilizer)",
+                            text = stringResource(R.string.liquid_fertilizer_label),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Switch(
@@ -291,7 +293,7 @@ fun AddEditPlantScreen(
             OutlinedTextField(
                 value = viewModel.notes,
                 onValueChange = { viewModel.notes = it },
-                label = { Text("Notes") },
+                label = { Text(stringResource(R.string.field_notes)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 maxLines = 6
