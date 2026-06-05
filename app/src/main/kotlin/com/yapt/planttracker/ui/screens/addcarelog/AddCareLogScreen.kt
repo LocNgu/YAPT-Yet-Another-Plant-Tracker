@@ -1,7 +1,11 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
+import android.Manifest
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +42,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,23 +54,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CareTypeChip
+import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.ImageUtils
 import java.util.Calendar
 import java.util.TimeZone
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,12 +85,58 @@ fun AddCareLogScreen(
     onNavigateBack: (suggestedInterval: Int?) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
 
     // Keyed on isLoaded so in edit mode the picker re-initializes once the async
     // load completes, picking up the log's original loggedAt instead of "now".
     val datePickerState = key(viewModel.isLoaded) {
         rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
+    }
+
+    var showPhotoSourceSheet by remember { mutableStateOf(false) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var showPermissionRationale by remember { mutableStateOf(false) }
+    var showPermissionDenied by remember { mutableStateOf(false) }
+    val hasCameraHardware = remember {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+    }
+    val noCameraMessage = stringResource(R.string.camera_not_available)
+
+    val cameraCaptureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            pendingCameraUri?.let { viewModel.photoUri = it.toString() }
+        } else {
+            pendingCameraUri = null
+        }
+    }
+
+    val launchCamera = {
+        try {
+            val uri = ImageUtils.createCameraImageUri(context)
+            pendingCameraUri = uri
+            cameraCaptureLauncher.launch(uri)
+        } catch (_: Exception) {
+            scope.launch { snackbarHostState.showSnackbar(noCameraMessage) }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchCamera()
+        } else if (ActivityCompat.shouldShowRequestPermissionRationale(
+                context as Activity, Manifest.permission.CAMERA
+            )
+        ) {
+            showPermissionRationale = true
+        } else {
+            showPermissionDenied = true
+        }
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -90,6 +149,21 @@ fun AddCareLogScreen(
                 )
             } catch (_: SecurityException) {}
             viewModel.photoUri = it.toString()
+        }
+    }
+
+    fun onTakePhotoTapped() {
+        if (!hasCameraHardware) {
+            scope.launch { snackbarHostState.showSnackbar(noCameraMessage) }
+            return
+        }
+        when {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                    PackageManager.PERMISSION_GRANTED -> launchCamera()
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                context as Activity, Manifest.permission.CAMERA
+            ) -> showPermissionRationale = true
+            else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -136,7 +210,61 @@ fun AddCareLogScreen(
         }
     }
 
+    if (showPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationale = false },
+            title = { Text(stringResource(R.string.camera_permission_rationale_title)) },
+            text = { Text(stringResource(R.string.camera_permission_rationale_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionRationale = false
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionRationale = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showPermissionDenied) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDenied = false },
+            title = { Text(stringResource(R.string.camera_permission_denied_title)) },
+            text = { Text(stringResource(R.string.camera_permission_denied_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDenied = false
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }) { Text(stringResource(R.string.camera_permission_open_settings)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDenied = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showPhotoSourceSheet) {
+        PhotoSourceBottomSheet(
+            onDismiss = { showPhotoSourceSheet = false },
+            onTakePhoto = {
+                showPhotoSourceSheet = false
+                onTakePhotoTapped()
+            },
+            onChooseGallery = {
+                showPhotoSourceSheet = false
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isEditMode) stringResource(R.string.care_log_title_edit) else stringResource(R.string.care_log_title_add)) },
@@ -302,11 +430,7 @@ fun AddCareLogScreen(
                             rounded = false
                         )
                     }
-                    IconButton(onClick = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }) {
+                    IconButton(onClick = { showPhotoSourceSheet = true }) {
                         Icon(
                             Icons.Filled.AddAPhoto,
                             contentDescription = stringResource(R.string.cd_add_photo),

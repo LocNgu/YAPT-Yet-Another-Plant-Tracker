@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- In-app camera capture for plant and care log photos; tapping the photo button shows a bottom sheet with "Take photo" and "Choose from gallery"; runtime CAMERA permission requested with rationale dialog on first denial and Settings deep-link on permanent denial; graceful Snackbar error on devices without a camera (#134)
+
 ---
 
 ## [0.8.1] - 2026-06-04

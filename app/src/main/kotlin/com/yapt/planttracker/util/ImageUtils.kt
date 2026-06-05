@@ -20,10 +20,8 @@ object ImageUtils {
     }
 
     fun createCameraImageUri(context: Context): Uri {
-        val imageFile = File(
-            context.externalCacheDir,
-            "plant_photo_${System.currentTimeMillis()}.jpg"
-        )
+        val imagesDir = File(context.filesDir, "images").also { it.mkdirs() }
+        val imageFile = File(imagesDir, "plant_photo_${System.currentTimeMillis()}.jpg")
         return FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
