@@ -145,6 +145,25 @@ class BackupSerializerTest {
     }
 
     @Test
+    fun `encodeDefaults=true emits null fields in serialized JSON`() {
+        val plant = BackupPlant(
+            id = 1L,
+            name = "Aloe",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1_000_000_000_000L,
+            updatedAt = 1_000_000_000_000L,
+            wateringDueDateOverride = null
+        )
+        val json = backupJson.encodeToString(BackupPlant.serializer(), plant)
+        assert(json.contains("\"species\":null")) { "Expected explicit null for species but got: $json" }
+    }
+
+    @Test
     fun `multiple plants and logs round-trip`() {
         val root = fullRoot().copy(
             plants = listOf(
