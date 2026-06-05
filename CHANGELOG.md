@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
+
 ---
 
 ## [0.8.1] - 2026-06-04
