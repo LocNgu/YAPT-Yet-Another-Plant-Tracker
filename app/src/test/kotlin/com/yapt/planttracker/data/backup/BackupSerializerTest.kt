@@ -158,6 +158,7 @@ class BackupSerializerTest {
             createdAt = 1_000_000_000_000L,
             updatedAt = 1_000_000_000_000L,
             wateringDueDateOverride = null
+            // useLiquidFertilizer omitted — Boolean default (false), not a nullable field
         )
         val json = backupJson.encodeToString(BackupPlant.serializer(), plant)
         assert(json.contains("\"species\":null")) { "Expected explicit null for species but got: $json" }
