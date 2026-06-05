@@ -15,6 +15,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
 
+### Changed
+- `SettingsViewModelTest`: fix defaults tests to stub non-default DataStore values (`false`/`21`/`30`) so assertions can only pass if the DataStore mapping path was actually followed; remove untestable `null`-key tests where the fallback default equals the `stateIn` initial value (#63)
+
 ---
 
 ## [0.8.1] - 2026-06-04
