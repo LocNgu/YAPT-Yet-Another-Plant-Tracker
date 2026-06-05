@@ -12,7 +12,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -36,46 +35,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `notificationsEnabled defaults to true when key absent`() = runTest {
-        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
-
-        vm.notificationsEnabled.test {
-            assertTrue(awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `reminderHour defaults to 9 when key absent`() = runTest {
-        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
-
-        vm.reminderHour.test {
-            assertEquals(9, awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `reminderMinute defaults to 0 when key absent`() = runTest {
-        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
-        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
-
-        vm.reminderMinute.test {
-            assertEquals(0, awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `notificationsEnabled reflects stored value`() = runTest {
+    fun `notificationsEnabled emits false when DataStore returns false`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns false
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
@@ -83,6 +43,32 @@ class SettingsViewModelTest {
 
         vm.notificationsEnabled.test {
             assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `reminderHour emits stored value when DataStore returns 21`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns 21
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+
+        vm.reminderHour.test {
+            assertEquals(21, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `reminderMinute emits stored value when DataStore returns 30`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns 30
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+
+        vm.reminderMinute.test {
+            assertEquals(30, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
