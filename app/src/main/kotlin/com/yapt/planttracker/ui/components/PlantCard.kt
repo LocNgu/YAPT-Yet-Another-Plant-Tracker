@@ -72,7 +72,7 @@ fun PlantCard(
                 if (status.plant.coverPhotoUri != null) {
                     AsyncImage(
                         model = status.plant.coverPhotoUri,
-                        contentDescription = "Plant photo",
+                        contentDescription = stringResource(R.string.cd_plant_photo),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -123,12 +123,13 @@ fun PlantCard(
                         status.isDueSoon -> WarnOrange
                         else -> OkGreen
                     }
+                    val neverWateredLabel = stringResource(R.string.water_label_never_watered)
                     val waterLabel = when {
                         status.nextWateringDueAt != null ->
                             DateUtils.formatCountdown(status.nextWateringDueAt)
                         status.lastWateredAt != null ->
                             DateUtils.formatRelative(status.lastWateredAt)
-                        else -> "Never watered"
+                        else -> neverWateredLabel
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,13 +153,19 @@ fun PlantCard(
                             status.isFertilizingDueSoon -> WarnOrange
                             else -> OkGreen
                         }
+                        val fertLabelNever = stringResource(R.string.fert_label_never_fertilized)
+                        val fertLabelFertilizing = status.lastFertilizedAt?.let {
+                            stringResource(R.string.fert_label_fertilizing, DateUtils.formatRelative(it))
+                        }
                         val fertLabel = when {
-                            status.plant.useLiquidFertilizer -> "With watering"
+                            status.plant.useLiquidFertilizer &&
+                                    (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
+                                stringResource(R.string.fert_label_due_with_watering)
                             status.nextFertilizingDueAt != null ->
                                 DateUtils.formatCountdown(status.nextFertilizingDueAt)
                             status.lastFertilizedAt != null ->
-                                "Fertilizing ${DateUtils.formatRelative(status.lastFertilizedAt)}"
-                            else -> "Never fertilized"
+                                fertLabelFertilizing ?: fertLabelNever
+                            else -> fertLabelNever
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Spa, null, Modifier.size(12.dp), tint = fertColor)
@@ -195,7 +202,7 @@ fun PlantCard(
                 ) {
                     if (status.plant.useLiquidFertilizer) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.WaterDrop, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 text = "+",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),

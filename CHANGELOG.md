@@ -12,9 +12,23 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.8.1] - 2026-06-04
+
 ### Added
-- What's New sheet now shows the full release history, grouped by version, newest first, and is scrollable
-- "What's New" row in Settings — reopens the release history sheet at any time without affecting the auto-show trigger
+- Care history on plant detail screen collapses to 5 most recent logs by default; a chevron chip below the list expands to show all logs and collapses back, with animated rotation (#253)
+
+### Changed
+- All hardcoded UI strings moved to `strings.xml`; extracted shared `SettingsItemRow` composable in SettingsScreen (#220, #272)
+- Move quick-log else-branch Snackbar message to `strings.xml` (#248)
+- `WateringFeedback` and `CareType` domain enums are now plain Kotlin enums; `displayName`, `emoji`, `icon` moved to `ui/util/EnumResources.kt` extension functions; all display strings routed through `strings.xml` (#276)
+- `strings.xml`: remove 12 duplicate/redundant keys introduced in #274; update all call sites to canonical keys; rename `settings_back_content_description` → `cd_back` (#275)
+- Reviewer NON-BLOCKING findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before filing a new issue or fixing in-PR (#259)
+
+### Fixed
+- WhatsNewSheet: "Got it" button is now always visible at the bottom of the sheet even when many release entries are present; `LazyColumn` constrained with `Modifier.weight(1f)` so it cannot push the button off-screen (#214)
+- PlantCard fertilizing chip for liquid-fertilizer plants now shows a time-based label instead of static "With watering": shows "Due with next watering" when due/overdue, or the regular countdown ("In X days") when not yet due (#267)
 
 ---
 
@@ -41,6 +55,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - BackupManager: add comment explaining why `CURRENT_SCHEMA_VERSION` was not bumped when `wateringDueDateOverride` was added (issue #188)
 
 ### Fixed
+- `quickLog()` now clears `wateringDueDateOverride` after logging WATER (and liquid-fertilizer auto-paired WATER), matching `AddCareLogViewModel` behaviour (issue #210)
+- PlantCard: add accessibility contentDescription to liquid-fertilizer quick-log button (issue #251)
 - `SkipWateringReceiver.onReceive()` now guards on `intent.action == ACTION_SKIP_WATERING` before processing, consistent with `BootReceiver` convention (issue #178)
 - Hardcoded strings in the skip-watering stepper dialog and button moved to `strings.xml`; day count uses a proper `pluralStringResource` resource (issue #179)
 - "What's New" row title and subtitle in `SettingsScreen` moved from hardcoded literals to `strings.xml` entries (`settings_whats_new_title`, `settings_whats_new_subtitle`) (issue #216)

@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.ui.util.labelRes
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -112,6 +113,14 @@ class PlantListViewModel(
                 fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
             )
             careLogRepository.addLog(log)
+            if (careType == CareType.WATER) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
+            }
             if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
                 careLogRepository.addLog(
                     CareLog(
@@ -121,6 +130,12 @@ class PlantListViewModel(
                         wateringFeedback = WateringFeedback.JUST_RIGHT
                     )
                 )
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    if (p.wateringDueDateOverride != null)
+                        plantRepository.updatePlant(
+                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                        )
+                }
             }
             val message = when (careType) {
                 CareType.WATER -> application.getString(R.string.quick_log_watered, plantName)
@@ -129,7 +144,7 @@ class PlantListViewModel(
                 } else {
                     application.getString(R.string.quick_log_fertilized, plantName)
                 }
-                else -> "${careType.displayName} $plantName"
+                else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plantName)
             }
             _quickLogEvent.emit(message)
         }

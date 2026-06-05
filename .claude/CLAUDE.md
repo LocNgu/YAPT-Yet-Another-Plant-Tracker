@@ -101,7 +101,7 @@ Decisions are documented in `docs/decisions/`:
 - **Spec agent**: before interviewing the human, scan `docs/decisions/product/` for ADRs relevant to the feature area. If the request contradicts an existing ADR, name the ADR and its rationale explicitly, and ask the human to confirm the new direction before proceeding.
 - **Implementer agent**: before writing code in an area covered by a technical ADR, read the relevant file. Do not refactor patterns described in technical ADRs without a superseding decision.
 
-**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. Old ADRs are never edited — the history stays intact.
+**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. The superseded ADR's **Status** line is updated to `superseded by [ADR-XXXX](filename.md)` — this single-line metadata update is the only permitted edit to a finalized ADR; all other content stays intact.
 
 ---
 
@@ -123,10 +123,10 @@ Every feature and bug fix follows these steps in order:
 1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
 2. **Implement** (`implementer` agent) — reads the spec, writes code, pushes a `claude/*` branch, and returns the PR title/body as text; the **orchestrating Claude instance** opens the PR targeting `develop` via `mcp__github__create_pull_request`
 3. **Review** (`reviewer` agent) — iterative rounds of review:
-   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING** (filed as a new GitHub issue)
+   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING**; the reviewer also tags each NON-BLOCKING finding as **SMALL** (localised, ≤ a few lines, no design risk) or **LARGE** (cross-cutting, architectural, or requires its own spec)
    - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
      - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
-     - NON-BLOCKING: filed as new GitHub issues via `mcp__github__issue_write`
+     - NON-BLOCKING: the orchestrator **asks the human** for each finding (or grouped by recommendation) before acting — it states its recommendation ("fix in this PR" for SMALL, "new issue" for LARGE) and waits for the human's decision; then either hands the fix to the implementer in the current PR or files a new GitHub issue via `mcp__github__issue_write`
    - **Each reviewer round is posted as a fresh, standalone PR review — never combined with a previous round's findings**
    - The PR review body is compact: verdict + counts only
    - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
@@ -221,7 +221,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Architecture & Data**
 - Room DB v3 (PlantEntity, CareLogEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed
 - PlantRepository + CareLogRepository with entity↔domain mapping; UI never touches Room entities directly
-- Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization
+- Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization; `CareType` and `WateringFeedback` are plain Kotlin enums — display strings and icons live in `ui/util/EnumResources.kt` extension functions (#276)
 - DataStore preferences (notification toggle, reminder time, sort option, keep-screen-on, last-seen version code); delegate declared at file top-level in `YaptApplication.kt`
 - Manual DI via `YaptApplication` lazy singletons; ViewModel `Factory` inner classes; no Hilt
 - Nature-themed Material 3 dark/light theme; Android PhotoPicker with `takePersistableUriPermission`
@@ -241,21 +241,22 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
 - Adaptive watering interval: modal `AlertDialog` with editable TextField shown after WATER logs (see product ADR-0006); JUST_RIGHT, TOO_SOON, TOO_LATE all produce correct suggestions; default feedback pre-selected to JUST_RIGHT; quick-log uses JUST_RIGHT silently
 - Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
-- Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log; follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169)
+- Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
 
 **Plant List UI**
 - Room filter chips + "Unassigned" chip (shows plants with no room; auto-resets to "All" when all plants have rooms; single `allPlants` StateFlow subscription) (#183 #184)
 - "Water + Fertilize due" filter — both care types due/overdue, sorted by watering urgency (#78)
 - Sort controls: 4 options (Alphabetical, Watering due, Fertilizing due, Recently added); ASC/DESC toggle on applicable sorts; DataStore-persisted (#21)
-- Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55)
-- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19)
+- Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55); liquid-fert fertilizing chip shows "Due with next watering" when overdue/due-soon, else standard countdown (#267)
+- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19); liquid-fertilizer quick-log button has `contentDescription` for screen readers (#251)
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
 
 **Plant Detail UI**
 - Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29)
 - StatChip: icon + label header with `next:` / `last:` lines for watering and fertilizing
 - Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs (#18 #117)
+- Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
 
 **Notifications & Reminders**
 - `ReminderWorker` (WorkManager, REPLACE policy): daily at user-configured time; one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications before re-posting; body = care items joined with " · " (#7)
@@ -281,7 +282,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Full release history in `WhatsNewContent.all: List<ReleaseNotes>`; sorted by `versionCode` descending at render time; scrollable `LazyColumn`; "Got it" button pinned; `versionCode: Int` field on `ReleaseNotes` guarantees sort order (see product ADR-0010, #212 #219)
 
 **Tests**
-- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before` (#46 #48)
+- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save; `PlantListViewModelTest` covers `quickLog` else-branch and `toggleSort` direction cycling and `applySortOrder` ordering for all sort options (#46 #48 #77 #187 #265)
 - Instrumented BackupManager tests: 9 cases (round-trips with/without photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings, photo SHA-256) (#50)
 - Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51)
 
@@ -295,6 +296,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
 - ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215)
+- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272 #275); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`; `cd_back` is the canonical back-button content description
 - Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
+- NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
 - README at repo root with Features list, build instructions, CI/CD badge, project structure

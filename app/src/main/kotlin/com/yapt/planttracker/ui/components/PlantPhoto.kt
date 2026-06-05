@@ -14,9 +14,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.yapt.planttracker.R
 
 @Composable
 fun PlantPhoto(
@@ -29,7 +31,7 @@ fun PlantPhoto(
     if (uri != null) {
         AsyncImage(
             model = uri,
-            contentDescription = "Plant photo",
+            contentDescription = stringResource(R.string.cd_plant_photo),
             contentScale = ContentScale.Crop,
             modifier = modifier
                 .size(size)
