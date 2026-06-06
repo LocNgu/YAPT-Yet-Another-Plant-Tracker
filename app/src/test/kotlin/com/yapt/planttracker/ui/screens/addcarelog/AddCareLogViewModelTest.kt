@@ -163,6 +163,7 @@ class AddCareLogViewModelTest {
         coEvery { careLogRepo.getLogById(99L) } returns existingLog
         coEvery { careLogRepo.addLog(any()) } returns 99L
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
 
         vm.events.test {
             vm.saveLog()
