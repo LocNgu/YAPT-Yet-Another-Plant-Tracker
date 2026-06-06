@@ -16,6 +16,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -144,6 +145,7 @@ class AddCareLogViewModelTest {
         coEvery { careLogRepo.addLog(any()) } returns 99L
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
 
+        advanceUntilIdle()
         assertTrue(vm.isEditMode)
         assertEquals(CareType.FERTILIZE, vm.selectedCareType)
         assertEquals("Monthly feed", vm.notes)
@@ -161,6 +163,7 @@ class AddCareLogViewModelTest {
         coEvery { careLogRepo.getLogById(99L) } returns existingLog
         coEvery { careLogRepo.addLog(any()) } returns 99L
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
 
         vm.events.test {
             vm.saveLog()
