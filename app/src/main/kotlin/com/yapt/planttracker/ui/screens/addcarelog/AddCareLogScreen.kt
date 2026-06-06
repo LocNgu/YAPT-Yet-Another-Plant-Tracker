@@ -111,6 +111,8 @@ fun AddCareLogScreen(
     ) { success ->
         if (success) {
             pendingCameraUri?.let { viewModel.photoUri = it.toString() }
+            pendingCameraFile = null
+            pendingCameraUri = null
         } else {
             pendingCameraFile?.delete()
             pendingCameraFile = null

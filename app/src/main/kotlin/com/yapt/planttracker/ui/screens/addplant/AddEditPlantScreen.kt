@@ -98,6 +98,8 @@ fun AddEditPlantScreen(
     ) { success ->
         if (success) {
             pendingCameraUri?.let { viewModel.coverPhotoUri = it.toString() }
+            pendingCameraFile = null
+            pendingCameraUri = null
         } else {
             pendingCameraFile?.delete()
             pendingCameraFile = null
