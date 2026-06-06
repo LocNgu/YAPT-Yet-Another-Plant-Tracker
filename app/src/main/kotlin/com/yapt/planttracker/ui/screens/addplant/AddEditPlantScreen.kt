@@ -1,7 +1,6 @@
 package com.yapt.planttracker.ui.screens.addplant
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -66,7 +65,9 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.util.ImageUtils
+import com.yapt.planttracker.util.findActivity
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -84,6 +85,7 @@ fun AddEditPlantScreen(
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
     var showPermissionRationale by remember { mutableStateOf(false) }
     var showPermissionDenied by remember { mutableStateOf(false) }
     val hasCameraHardware = remember {
@@ -97,13 +99,19 @@ fun AddEditPlantScreen(
         if (success) {
             pendingCameraUri?.let { viewModel.coverPhotoUri = it.toString() }
         } else {
+            pendingCameraFile?.delete()
+            pendingCameraFile = null
             pendingCameraUri = null
         }
     }
 
     val launchCamera = {
         try {
-            val uri = ImageUtils.createCameraImageUri(context)
+            // Delete the previous camera-captured file if the user is replacing it.
+            pendingCameraFile?.delete()
+            val file = ImageUtils.createCameraImageFile(context)
+            pendingCameraFile = file
+            val uri = ImageUtils.createCameraImageUri(context, file)
             pendingCameraUri = uri
             cameraCaptureLauncher.launch(uri)
         } catch (_: Exception) {
@@ -116,13 +124,16 @@ fun AddEditPlantScreen(
     ) { granted ->
         if (granted) {
             launchCamera()
-        } else if (ActivityCompat.shouldShowRequestPermissionRationale(
-                context as Activity, Manifest.permission.CAMERA
-            )
-        ) {
-            showPermissionRationale = true
         } else {
-            showPermissionDenied = true
+            val activity = context.findActivity()
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, Manifest.permission.CAMERA
+                )
+            ) {
+                showPermissionRationale = true
+            } else {
+                showPermissionDenied = true
+            }
         }
     }
 
@@ -130,6 +141,10 @@ fun AddEditPlantScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
+            // Switching to a gallery photo; discard any uncommitted camera file.
+            pendingCameraFile?.delete()
+            pendingCameraFile = null
+            pendingCameraUri = null
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -147,9 +162,9 @@ fun AddEditPlantScreen(
         when {
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED -> launchCamera()
-            ActivityCompat.shouldShowRequestPermissionRationale(
-                context as Activity, Manifest.permission.CAMERA
-            ) -> showPermissionRationale = true
+            context.findActivity()?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+            } == true -> showPermissionRationale = true
             else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import com.yapt.planttracker.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,13 +29,23 @@ fun PhotoSourceBottomSheet(
     ) {
         ListItem(
             headlineContent = { Text(stringResource(R.string.photo_source_take_photo)) },
-            leadingContent = { Icon(Icons.Filled.CameraAlt, contentDescription = null) },
-            modifier = Modifier.clickable { onTakePhoto() }
+            leadingContent = {
+                Icon(
+                    Icons.Filled.CameraAlt,
+                    contentDescription = stringResource(R.string.photo_source_take_photo)
+                )
+            },
+            modifier = Modifier.clickable(role = Role.Button) { onTakePhoto() }
         )
         ListItem(
             headlineContent = { Text(stringResource(R.string.photo_source_choose_gallery)) },
-            leadingContent = { Icon(Icons.Filled.PhotoLibrary, contentDescription = null) },
-            modifier = Modifier.clickable { onChooseGallery() }
+            leadingContent = {
+                Icon(
+                    Icons.Filled.PhotoLibrary,
+                    contentDescription = stringResource(R.string.photo_source_choose_gallery)
+                )
+            },
+            modifier = Modifier.clickable(role = Role.Button) { onChooseGallery() }
         )
     }
 }

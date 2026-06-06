@@ -1,7 +1,6 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -74,6 +73,8 @@ import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
+import com.yapt.planttracker.util.findActivity
+import java.io.File
 import java.util.Calendar
 import java.util.TimeZone
 import kotlinx.coroutines.launch
@@ -97,6 +98,7 @@ fun AddCareLogScreen(
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
     var showPermissionRationale by remember { mutableStateOf(false) }
     var showPermissionDenied by remember { mutableStateOf(false) }
     val hasCameraHardware = remember {
@@ -110,13 +112,19 @@ fun AddCareLogScreen(
         if (success) {
             pendingCameraUri?.let { viewModel.photoUri = it.toString() }
         } else {
+            pendingCameraFile?.delete()
+            pendingCameraFile = null
             pendingCameraUri = null
         }
     }
 
     val launchCamera = {
         try {
-            val uri = ImageUtils.createCameraImageUri(context)
+            // Delete the previous camera-captured file if the user is replacing it.
+            pendingCameraFile?.delete()
+            val file = ImageUtils.createCameraImageFile(context)
+            pendingCameraFile = file
+            val uri = ImageUtils.createCameraImageUri(context, file)
             pendingCameraUri = uri
             cameraCaptureLauncher.launch(uri)
         } catch (_: Exception) {
@@ -129,13 +137,16 @@ fun AddCareLogScreen(
     ) { granted ->
         if (granted) {
             launchCamera()
-        } else if (ActivityCompat.shouldShowRequestPermissionRationale(
-                context as Activity, Manifest.permission.CAMERA
-            )
-        ) {
-            showPermissionRationale = true
         } else {
-            showPermissionDenied = true
+            val activity = context.findActivity()
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, Manifest.permission.CAMERA
+                )
+            ) {
+                showPermissionRationale = true
+            } else {
+                showPermissionDenied = true
+            }
         }
     }
 
@@ -143,6 +154,10 @@ fun AddCareLogScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
+            // Switching to a gallery photo; discard any uncommitted camera file.
+            pendingCameraFile?.delete()
+            pendingCameraFile = null
+            pendingCameraUri = null
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -160,9 +175,9 @@ fun AddCareLogScreen(
         when {
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED -> launchCamera()
-            ActivityCompat.shouldShowRequestPermissionRationale(
-                context as Activity, Manifest.permission.CAMERA
-            ) -> showPermissionRationale = true
+            context.findActivity()?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+            } == true -> showPermissionRationale = true
             else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
