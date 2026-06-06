@@ -18,6 +18,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - `SettingsViewModelTest`: fix defaults tests to stub non-default DataStore values (`false`/`21`/`30`) so assertions can only pass if the DataStore mapping path was actually followed; remove untestable `null`-key tests where the fallback default equals the `stateIn` initial value (#63)
+- `AddCareLogViewModelTest`: add `advanceUntilIdle()` before assertions in the edit-mode tests so synchronisation is explicit and not reliant on `UnconfinedTestDispatcher` eagerness (#64)
 
 ---
 
