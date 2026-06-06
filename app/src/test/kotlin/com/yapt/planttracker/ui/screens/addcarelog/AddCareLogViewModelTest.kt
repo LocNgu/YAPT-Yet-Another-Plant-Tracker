@@ -144,6 +144,7 @@ class AddCareLogViewModelTest {
         coEvery { careLogRepo.addLog(any()) } returns 99L
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
 
+        advanceUntilIdle()
         assertTrue(vm.isEditMode)
         assertEquals(CareType.FERTILIZE, vm.selectedCareType)
         assertEquals("Monthly feed", vm.notes)
