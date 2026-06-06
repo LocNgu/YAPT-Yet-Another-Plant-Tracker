@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <external-cache-path name="plant_photos" path="." />
+    <files-path name="plant_images" path="images/" />
 </paths>
