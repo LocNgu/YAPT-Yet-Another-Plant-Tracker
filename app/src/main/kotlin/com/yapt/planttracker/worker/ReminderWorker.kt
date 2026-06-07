@@ -96,7 +96,7 @@ class ReminderWorker(
                 .setAutoCancel(true)
 
             if (status.isOverdue || status.isDueSoon) {
-                notificationBuilder.addAction(0, "Skip watering", skipPendingIntent)
+                notificationBuilder.addAction(0, context.getString(R.string.skip_watering_title), skipPendingIntent)
             }
 
             notificationManager.notify(plant.id.toInt(), notificationBuilder.build())
