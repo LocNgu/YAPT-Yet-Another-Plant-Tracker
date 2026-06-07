@@ -88,6 +88,17 @@
         <item quantity="one">Show 1 more</item>
         <item quantity="other">Show %d more</item>
     </plurals>
+    <string name="notification_watering_due_today">Watering due today</string>
+    <string name="notification_fertilizing_due_today">Fertilizing due today</string>
+    <string name="notification_fertilize_with_watering">Fertilize with watering</string>
+    <plurals name="notification_watering_overdue">
+        <item quantity="one">Watering overdue by 1 day</item>
+        <item quantity="other">Watering overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_fertilizing_overdue">
+        <item quantity="one">Fertilizing overdue by 1 day</item>
+        <item quantity="other">Fertilizing overdue by %d days</item>
+    </plurals>
     <string name="care_history_expand_cd">Expand care history</string>
     <string name="care_history_collapse_cd">Collapse care history</string>
     <string name="interval_suggestion_title">Adjust watering interval?</string>
@@ -111,6 +122,8 @@
     <string name="field_notes_optional">Notes (optional)</string>
     <string name="cd_pick_date">Pick date</string>
     <string name="cd_plant_cover_photo">Plant cover photo</string>
+    <string name="cd_plant_photo_fullscreen">Full-screen plant photo</string>
+    <string name="cd_close_photo_viewer">Close photo viewer</string>
     <string name="cd_edit_plant">Edit plant</string>
     <string name="cd_log_care">Log care</string>
     <string name="cd_edit_log">Edit log</string>
@@ -169,4 +182,12 @@
     <string name="feedback_emoji_just_right">✅</string>
     <string name="feedback_emoji_too_dry">🏜️</string>
     <string name="feedback_label_format">%1$s %2$s</string>
+    <string name="photo_source_take_photo">Take photo</string>
+    <string name="photo_source_choose_gallery">Choose from gallery</string>
+    <string name="camera_permission_rationale_title">Camera permission needed</string>
+    <string name="camera_permission_rationale_text">Camera access is required to take photos of your plants.</string>
+    <string name="camera_permission_denied_title">Camera access denied</string>
+    <string name="camera_permission_denied_text">Camera permission was permanently denied. Please enable it in Settings.</string>
+    <string name="camera_permission_open_settings">Open Settings</string>
+    <string name="camera_not_available">No camera available on this device</string>
 </resources>

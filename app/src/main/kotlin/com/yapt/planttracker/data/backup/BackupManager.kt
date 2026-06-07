@@ -9,6 +9,7 @@ import androidx.room.withTransaction
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -21,9 +22,10 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 2 (PR #209): useLiquidFertilizer added — bump signals that this backup may contain liquid-fertilizer data.
+// Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
+// Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 2
+const val CURRENT_SCHEMA_VERSION = 3
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -51,10 +53,12 @@ class BackupManager(
         runCatching {
             val plantDao = database.plantDao()
             val careLogDao = database.careLogDao()
+            val plantPhotoDao = database.plantPhotoDao()
 
             val plants = plantDao.getAllPlants().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
             val careLogs = plants.flatMap { allLogs[it.id].orEmpty() }
+            val allPlantPhotos = plantPhotoDao.getAllPhotos().first()
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -76,6 +80,11 @@ class BackupManager(
                         if (uri !in photoMapping) {
                             photoMapping[uri] = buildZipPhotoName(uri)
                         }
+                    }
+                }
+                for (photo in allPlantPhotos) {
+                    if (photo.uri !in photoMapping) {
+                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri)
                     }
                 }
             }
@@ -111,6 +120,15 @@ class BackupManager(
                 )
             }
 
+            val backupPlantPhotos = allPlantPhotos.map { entity ->
+                BackupPlantPhoto(
+                    id = entity.id,
+                    plantId = entity.plantId,
+                    uri = if (includePhotos) photoMapping[entity.uri] else entity.uri,
+                    capturedAt = entity.capturedAt
+                )
+            }
+
             val backupRoot = BackupRoot(
                 schemaVersion = CURRENT_SCHEMA_VERSION,
                 exportedAt = System.currentTimeMillis(),
@@ -119,6 +137,7 @@ class BackupManager(
                 }.getOrNull() ?: "1.0",
                 plants = backupPlants,
                 careLogs = backupLogs,
+                plantPhotos = backupPlantPhotos,
                 settings = BackupSettings(
                     notificationsEnabled = notificationsEnabled,
                     reminderHour = reminderHour,
@@ -280,11 +299,23 @@ class BackupManager(
                 )
             }
 
+            val plantPhotoEntities = backup.plantPhotos.mapNotNull { bp ->
+                val resolvedUri = bp.uri?.let { zipPathToLocalPath[it] ?: it } ?: return@mapNotNull null
+                PlantPhotoEntity(
+                    id = bp.id,
+                    plantId = bp.plantId,
+                    uri = resolvedUri,
+                    capturedAt = bp.capturedAt
+                )
+            }
+
             database.withTransaction {
+                database.plantPhotoDao().deleteAll()
                 database.careLogDao().deleteAll()
                 database.plantDao().deleteAll()
                 database.plantDao().insertAll(plantEntities)
                 database.careLogDao().insertAll(careLogEntities)
+                database.plantPhotoDao().insertAll(plantPhotoEntities)
             }
 
             dataStore.edit { prefs ->

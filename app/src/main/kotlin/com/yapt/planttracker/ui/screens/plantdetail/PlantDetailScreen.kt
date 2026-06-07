@@ -63,6 +63,7 @@ import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
+import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WateringHistoryChart
@@ -77,7 +78,7 @@ fun PlantDetailScreen(
 ) {
     val plant by viewModel.plant.collectAsStateWithLifecycle()
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
-    val photoLogs by viewModel.photoLogs.collectAsStateWithLifecycle()
+    val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
@@ -86,6 +87,8 @@ fun PlantDetailScreen(
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
+
+    var fullScreenPhotoUri by remember { mutableStateOf<String?>(null) }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -120,6 +123,10 @@ fun PlantDetailScreen(
                 else -> {}
             }
         }
+    }
+
+    fullScreenPhotoUri?.let { uri ->
+        FullScreenPhotoViewer(uri = uri, onDismiss = { fullScreenPhotoUri = null })
     }
 
     if (showSkipDialog) {
@@ -304,8 +311,7 @@ fun PlantDetailScreen(
                     )
                 }
 
-                val photoUris = photoLogs.mapNotNull { it.photoUri }
-                if (photoUris.isNotEmpty()) {
+                if (galleryPhotos.isNotEmpty()) {
                     item {
                         Text(
                             text = stringResource(R.string.plant_detail_photos_section),
@@ -313,8 +319,8 @@ fun PlantDetailScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                         PhotoGallery(
-                            photoUris = photoUris,
-                            onPhotoClick = {}
+                            photoUris = galleryPhotos.map { it.uri },
+                            onPhotoClick = { uri -> fullScreenPhotoUri = uri }
                         )
                         Spacer(Modifier.height(16.dp))
                     }

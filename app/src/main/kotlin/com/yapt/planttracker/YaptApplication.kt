@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.notification.NotificationHelper
 
@@ -18,6 +19,7 @@ class YaptApplication : Application() {
 
     val plantRepository by lazy { PlantRepository(database.plantDao()) }
     val careLogRepository by lazy { CareLogRepository(database.careLogDao()) }
+    val plantPhotoRepository by lazy { PlantPhotoRepository(database.plantPhotoDao()) }
 
     override fun onCreate() {
         super.onCreate()

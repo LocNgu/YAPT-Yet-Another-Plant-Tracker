@@ -37,6 +37,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,8 +60,11 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareTypeChip
+import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -73,6 +78,7 @@ fun AddCareLogScreen(
     onNavigateBack: (suggestedInterval: Int?) -> Unit
 ) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
 
     // Keyed on isLoaded so in edit mode the picker re-initializes once the async
@@ -81,10 +87,17 @@ fun AddCareLogScreen(
         rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
     }
 
+    var showPhotoSourceSheet by remember { mutableStateOf(false) }
+
+    val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        viewModel.photoUri = uri.toString()
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
+            cameraState.onGallerySelected()
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -137,7 +150,26 @@ fun AddCareLogScreen(
         }
     }
 
+    CameraPhotoDialogs(cameraState)
+
+    if (showPhotoSourceSheet) {
+        PhotoSourceBottomSheet(
+            onDismiss = { showPhotoSourceSheet = false },
+            onTakePhoto = {
+                showPhotoSourceSheet = false
+                cameraState.launch()
+            },
+            onChooseGallery = {
+                showPhotoSourceSheet = false
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isEditMode) stringResource(R.string.care_log_title_edit) else stringResource(R.string.care_log_title_add)) },
@@ -307,11 +339,7 @@ fun AddCareLogScreen(
                             rounded = false
                         )
                     }
-                    IconButton(onClick = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }) {
+                    IconButton(onClick = { showPhotoSourceSheet = true }) {
                         Icon(
                             Icons.Filled.AddAPhoto,
                             contentDescription = stringResource(R.string.cd_add_photo),
