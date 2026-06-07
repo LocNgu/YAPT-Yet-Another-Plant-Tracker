@@ -324,7 +324,10 @@ fun AddCareLogScreen(
 
             Column {
                 Text(
-                    text = stringResource(R.string.care_log_photo_label),
+                    text = if (viewModel.selectedCareType == CareType.PHOTO)
+                        stringResource(R.string.care_log_photo_label_required)
+                    else
+                        stringResource(R.string.care_log_photo_label),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
