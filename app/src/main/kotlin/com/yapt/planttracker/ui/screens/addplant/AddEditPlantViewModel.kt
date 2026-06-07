@@ -103,15 +103,11 @@ class AddEditPlantViewModel(
                         wateringDueDateOverride = existing?.wateringDueDateOverride
                     )
                 )
-                for (photoUri in pendingPhotos) {
-                    plantPhotoRepository.addPhoto(PlantPhoto(plantId = plantId, uri = photoUri, capturedAt = now))
-                }
+                savePendingPhotos(plantId, now)
                 _events.emit(Event.Saved(plantId))
             } else {
                 val newId = plantRepository.addPlant(plant)
-                for (photoUri in pendingPhotos) {
-                    plantPhotoRepository.addPhoto(PlantPhoto(plantId = newId, uri = photoUri, capturedAt = now))
-                }
+                savePendingPhotos(newId, now)
                 _events.emit(Event.Saved(newId))
             }
         }
@@ -125,6 +121,13 @@ class AddEditPlantViewModel(
                 _events.emit(Event.Deleted)
             }
         }
+    }
+
+    private suspend fun savePendingPhotos(plantId: Long, now: Long) {
+        if (pendingPhotos.isEmpty()) return
+        plantPhotoRepository.addPhotos(
+            pendingPhotos.map { PlantPhoto(plantId = plantId, uri = it, capturedAt = now) }
+        )
     }
 
     sealed class Event {

@@ -31,7 +31,7 @@ class AddEditPlantViewModelTest {
     @Before
     fun setUp() {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
+        coEvery { plantPhotoRepo.addPhotos(any()) } just runs
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera", species: String? = "M. deliciosa") = Plant(
@@ -185,7 +185,7 @@ class AddEditPlantViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantPhotoRepo.addPhoto(match { it.plantId == 10L && it.uri == "file:///cactus.jpg" }) }
+        coVerify { plantPhotoRepo.addPhotos(match { photos -> photos.any { it.plantId == 10L && it.uri == "file:///cactus.jpg" } }) }
     }
 
     @Test
@@ -193,7 +193,6 @@ class AddEditPlantViewModelTest {
         val existingPlant = plant(id = 1L, name = "Fern")
         every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
         coEvery { plantRepo.updatePlant(any()) } just runs
-        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
 
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
         advanceUntilIdle()
@@ -203,8 +202,8 @@ class AddEditPlantViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            plantPhotoRepo.addPhoto(
-                match { it.plantId == 1L && it.uri == "content://new_photo.jpg" }
+            plantPhotoRepo.addPhotos(
+                match { photos -> photos.any { it.plantId == 1L && it.uri == "content://new_photo.jpg" } }
             )
         }
     }
