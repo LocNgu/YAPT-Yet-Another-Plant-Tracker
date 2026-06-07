@@ -124,7 +124,7 @@ class BackupManager(
                 BackupPlantPhoto(
                     id = entity.id,
                     plantId = entity.plantId,
-                    uri = if (includePhotos) photoMapping[entity.uri] else null,
+                    uri = if (includePhotos) photoMapping[entity.uri] else entity.uri,
                     capturedAt = entity.capturedAt
                 )
             }

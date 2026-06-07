@@ -44,7 +44,7 @@ class PlantDetailViewModel(
         val fromLogs = careLogPhotos.mapNotNull { log ->
             log.photoUri?.let { GalleryPhoto(uri = it, timestamp = log.loggedAt) }
         }
-        (fromPlant + fromLogs).sortedByDescending { it.timestamp }
+        (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val careStatus: StateFlow<PlantCareStatus?> = combine(plant, careLogs) { p, logs ->

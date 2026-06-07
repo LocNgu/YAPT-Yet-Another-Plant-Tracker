@@ -186,4 +186,25 @@ class AddEditPlantViewModelTest {
 
         coVerify { plantPhotoRepo.addPhoto(match { it.plantId == 10L && it.uri == "file:///cactus.jpg" }) }
     }
+
+    @Test
+    fun `save in edit mode inserts pending photos with correct plantId`() = runTest {
+        val existingPlant = plant(id = 1L, name = "Fern")
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
+
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        advanceUntilIdle()
+
+        vm.addPhoto("content://new_photo.jpg")
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantPhotoRepo.addPhoto(
+                match { it.plantId == 1L && it.uri == "content://new_photo.jpg" }
+            )
+        }
+    }
 }
