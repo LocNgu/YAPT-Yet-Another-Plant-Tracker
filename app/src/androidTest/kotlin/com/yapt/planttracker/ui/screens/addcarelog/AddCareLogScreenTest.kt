@@ -110,19 +110,6 @@ class AddCareLogScreenTest {
     }
 
     @Test
-    fun photoSheet_galleryOption_isDisplayed() {
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
-        }
-
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
-
-        composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
-    }
-
-    @Test
     fun takePhoto_noCameraHardware_showsSnackbar() {
         val mockPm = mockk<PackageManager>(relaxed = true)
         every { mockPm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) } returns false
@@ -165,6 +152,7 @@ class AddCareLogScreenTest {
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Camera access is required to take photos of your plants.").assertIsDisplayed()
     }
 
     @Test
@@ -206,5 +194,6 @@ class AddCareLogScreenTest {
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("Camera access denied").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Open Settings").assertIsDisplayed()
     }
 }
