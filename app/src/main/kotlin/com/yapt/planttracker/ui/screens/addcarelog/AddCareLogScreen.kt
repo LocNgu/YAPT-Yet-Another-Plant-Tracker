@@ -50,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -148,7 +149,11 @@ fun AddCareLogScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.saveLog() }) {
+            val isSaveEnabled = !(viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null)
+            FloatingActionButton(
+                onClick = { if (isSaveEnabled) viewModel.saveLog() },
+                modifier = Modifier.alpha(if (isSaveEnabled) 1f else 0.38f)
+            ) {
                 Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
             }
         }
@@ -313,6 +318,14 @@ fun AddCareLogScreen(
                             modifier = Modifier.size(32.dp)
                         )
                     }
+                }
+                if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.photo_required_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
 
