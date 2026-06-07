@@ -2,8 +2,13 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import app.cash.turbine.test
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -28,6 +33,7 @@ class PlantDetailViewModelTest {
 
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
+    private val plantPhotoRepo: PlantPhotoRepository = mockk()
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
@@ -39,7 +45,8 @@ class PlantDetailViewModelTest {
     private fun makeVm(plantId: Long = 1L): PlantDetailViewModel {
         every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plantId) } returns flowOf(emptyList())
-        return PlantDetailViewModel(plantRepo, careLogRepo, plantId)
+        every { plantPhotoRepo.getPhotosForPlant(plantId) } returns flowOf(emptyList())
+        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plantId)
     }
 
     @Test
@@ -116,7 +123,8 @@ class PlantDetailViewModelTest {
         every { plantRepo.getPlantById(2L) } returns flowOf(plantWithInterval)
         every { careLogRepo.getLogsForPlant(2L) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(2L) } returns flowOf(emptyList())
-        val vm = PlantDetailViewModel(plantRepo, careLogRepo, 2L)
+        every { plantPhotoRepo.getPhotosForPlant(2L) } returns flowOf(emptyList())
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 2L)
 
         vm.careStatus.test {
             val status = awaitItem()
@@ -206,6 +214,34 @@ class PlantDetailViewModelTest {
 
         coVerify {
             plantRepo.updatePlant(match { it.wateringDueDateOverride != null && it.wateringIntervalDays == 7 })
+        }
+    }
+
+    @Test
+    fun `galleryPhotos merges plant photos and care log photos sorted by timestamp desc`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        every { careLogRepo.getLogsForPlant(1L) } returns flowOf(emptyList())
+
+        val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 1000L)
+        val careLog = CareLog(
+            id = 1L, plantId = 1L,
+            careType = CareType.PHOTO,
+            loggedAt = 2000L,
+            photoUri = "file:///care.jpg"
+        )
+
+        every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
+        every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(listOf(careLog))
+
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L)
+
+        vm.galleryPhotos.test {
+            val photos = awaitItem()
+            assertEquals(2, photos.size)
+            assertEquals(2000L, photos[0].timestamp)
+            assertEquals(1000L, photos[1].timestamp)
+            cancelAndIgnoreRemainingEvents()
         }
     }
 }

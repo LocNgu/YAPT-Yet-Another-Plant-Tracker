@@ -77,7 +77,7 @@ fun AddEditPlantScreen(
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
     val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
-        viewModel.coverPhotoUri = uri.toString()
+        viewModel.addPhoto(uri.toString())
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -90,7 +90,7 @@ fun AddEditPlantScreen(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: SecurityException) {}
-            viewModel.coverPhotoUri = it.toString()
+            viewModel.addPhoto(it.toString())
         }
     }
 
