@@ -1,10 +1,7 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,31 +49,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
-import com.yapt.planttracker.util.ImageUtils
-import com.yapt.planttracker.util.findActivity
-import java.io.File
 import java.util.Calendar
 import java.util.TimeZone
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +77,6 @@ fun AddCareLogScreen(
     onNavigateBack: (suggestedInterval: Int?) -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -97,90 +87,22 @@ fun AddCareLogScreen(
     }
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
-    var showPermissionRationale by remember { mutableStateOf(false) }
-    var showPermissionDenied by remember { mutableStateOf(false) }
-    val hasCameraHardware = remember {
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
-    }
-    val noCameraMessage = stringResource(R.string.camera_not_available)
 
-    val cameraCaptureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            pendingCameraUri?.let { viewModel.photoUri = it.toString() }
-            pendingCameraFile = null
-            pendingCameraUri = null
-        } else {
-            pendingCameraFile?.delete()
-            pendingCameraFile = null
-            pendingCameraUri = null
-        }
-    }
-
-    val launchCamera = {
-        try {
-            // Delete the previous camera-captured file if the user is replacing it.
-            pendingCameraFile?.delete()
-            val file = ImageUtils.createCameraImageFile(context)
-            pendingCameraFile = file
-            val uri = ImageUtils.createCameraImageUri(context, file)
-            pendingCameraUri = uri
-            cameraCaptureLauncher.launch(uri)
-        } catch (_: Exception) {
-            scope.launch { snackbarHostState.showSnackbar(noCameraMessage) }
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            launchCamera()
-        } else {
-            val activity = context.findActivity()
-            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity, Manifest.permission.CAMERA
-                )
-            ) {
-                showPermissionRationale = true
-            } else {
-                showPermissionDenied = true
-            }
-        }
+    val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        viewModel.photoUri = uri.toString()
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
-            // Switching to a gallery photo; discard any uncommitted camera file.
-            pendingCameraFile?.delete()
-            pendingCameraFile = null
-            pendingCameraUri = null
+            cameraState.onGallerySelected()
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: SecurityException) {}
             viewModel.photoUri = it.toString()
-        }
-    }
-
-    fun onTakePhotoTapped() {
-        if (!hasCameraHardware) {
-            scope.launch { snackbarHostState.showSnackbar(noCameraMessage) }
-            return
-        }
-        when {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                    PackageManager.PERMISSION_GRANTED -> launchCamera()
-            context.findActivity()?.let {
-                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-            } == true -> showPermissionRationale = true
-            else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -227,49 +149,14 @@ fun AddCareLogScreen(
         }
     }
 
-    if (showPermissionRationale) {
-        AlertDialog(
-            onDismissRequest = { showPermissionRationale = false },
-            title = { Text(stringResource(R.string.camera_permission_rationale_title)) },
-            text = { Text(stringResource(R.string.camera_permission_rationale_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPermissionRationale = false
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPermissionRationale = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-
-    if (showPermissionDenied) {
-        AlertDialog(
-            onDismissRequest = { showPermissionDenied = false },
-            title = { Text(stringResource(R.string.camera_permission_denied_title)) },
-            text = { Text(stringResource(R.string.camera_permission_denied_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPermissionDenied = false
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", context.packageName, null)
-                    }
-                    context.startActivity(intent)
-                }) { Text(stringResource(R.string.camera_permission_open_settings)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPermissionDenied = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
+    CameraPhotoDialogs(cameraState)
 
     if (showPhotoSourceSheet) {
         PhotoSourceBottomSheet(
             onDismiss = { showPhotoSourceSheet = false },
             onTakePhoto = {
                 showPhotoSourceSheet = false
-                onTakePhotoTapped()
+                cameraState.launch()
             },
             onChooseGallery = {
                 showPhotoSourceSheet = false
