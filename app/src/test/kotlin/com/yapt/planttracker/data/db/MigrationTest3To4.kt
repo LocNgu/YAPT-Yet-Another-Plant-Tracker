@@ -2,6 +2,7 @@ package com.yapt.planttracker.data.db
 
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +21,7 @@ class MigrationTest3To4 {
 
     @Test
     fun migration3To4_seedsPlantPhotosFromCoverPhotoUri() {
-        helper.createDatabase(TEST_DB_NAME, 3).use { db ->
+        helper.createDatabase(TEST_DB_SEED, 3).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
                 "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
@@ -29,14 +30,14 @@ class MigrationTest3To4 {
             )
         }
 
-        val db = helper.runMigrationsAndValidate(TEST_DB_NAME, 4, true, PlantDatabase.MIGRATION_3_4)
+        val db = helper.runMigrationsAndValidate(TEST_DB_SEED, 4, true, PlantDatabase.MIGRATION_3_4)
 
         db.query("SELECT plantId, uri, capturedAt FROM plant_photos").use { cursor ->
-            assert(cursor.moveToFirst()) { "Expected 1 row in plant_photos after migration" }
-            assert(cursor.getLong(cursor.getColumnIndexOrThrow("plantId")) == 1L) { "plantId mismatch" }
-            assert(cursor.getString(cursor.getColumnIndexOrThrow("uri")) == "content://photo/1") { "uri mismatch" }
-            assert(cursor.getLong(cursor.getColumnIndexOrThrow("capturedAt")) == 1000L) { "capturedAt mismatch" }
-            assert(!cursor.moveToNext()) { "Expected exactly 1 row in plant_photos" }
+            Assert.assertTrue("Expected 1 row in plant_photos after migration", cursor.moveToFirst())
+            Assert.assertEquals("plantId mismatch", 1L, cursor.getLong(cursor.getColumnIndexOrThrow("plantId")))
+            Assert.assertEquals("uri mismatch", "content://photo/1", cursor.getString(cursor.getColumnIndexOrThrow("uri")))
+            Assert.assertEquals("capturedAt mismatch", 1000L, cursor.getLong(cursor.getColumnIndexOrThrow("capturedAt")))
+            Assert.assertFalse("Expected exactly 1 row in plant_photos", cursor.moveToNext())
         }
 
         db.close()
@@ -44,7 +45,7 @@ class MigrationTest3To4 {
 
     @Test
     fun migration3To4_nullCoverPhotoUri_notSeeded() {
-        helper.createDatabase(TEST_DB_NAME, 3).use { db ->
+        helper.createDatabase(TEST_DB_NULL, 3).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
                 "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
@@ -53,17 +54,18 @@ class MigrationTest3To4 {
             )
         }
 
-        val db = helper.runMigrationsAndValidate(TEST_DB_NAME, 4, true, PlantDatabase.MIGRATION_3_4)
+        val db = helper.runMigrationsAndValidate(TEST_DB_NULL, 4, true, PlantDatabase.MIGRATION_3_4)
 
         db.query("SELECT COUNT(*) FROM plant_photos").use { cursor ->
             cursor.moveToFirst()
-            assert(cursor.getInt(0) == 0) { "Expected 0 rows for plant with null coverPhotoUri" }
+            Assert.assertEquals("Expected 0 rows for plant with null coverPhotoUri", 0, cursor.getInt(0))
         }
 
         db.close()
     }
 
     companion object {
-        private const val TEST_DB_NAME = "migration-test"
+        private const val TEST_DB_SEED = "migration-test-seed"
+        private const val TEST_DB_NULL = "migration-test-null"
     }
 }
