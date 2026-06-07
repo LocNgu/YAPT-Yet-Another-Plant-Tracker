@@ -88,7 +88,7 @@ fun PlantDetailScreen(
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
-    var fullScreenPhotoUri by remember { mutableStateOf<String?>(null) }
+    var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -125,8 +125,12 @@ fun PlantDetailScreen(
         }
     }
 
-    fullScreenPhotoUri?.let { uri ->
-        FullScreenPhotoViewer(uri = uri, onDismiss = { fullScreenPhotoUri = null })
+    fullScreenPhotoIndex?.let { index ->
+        FullScreenPhotoViewer(
+            uris = galleryPhotos.map { it.uri },
+            initialIndex = index,
+            onDismiss = { fullScreenPhotoIndex = null }
+        )
     }
 
     if (showSkipDialog) {
@@ -320,7 +324,9 @@ fun PlantDetailScreen(
                         )
                         PhotoGallery(
                             photoUris = galleryPhotos.map { it.uri },
-                            onPhotoClick = { uri -> fullScreenPhotoUri = uri }
+                            onPhotoClick = { uri ->
+                                fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                            }
                         )
                         Spacer(Modifier.height(16.dp))
                     }

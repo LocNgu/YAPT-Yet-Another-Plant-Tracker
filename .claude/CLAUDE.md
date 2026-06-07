@@ -259,6 +259,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs (#18 #117)
 - Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
 - Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290)
+- Full-screen photo viewer: `HorizontalPager` replaces single `AsyncImage`; swipe left/right navigates all gallery photos; opens at tapped index; "2 / 5" position indicator shown when > 1 photo (#308)
 
 **Notifications & Reminders**
 - `ReminderWorker` (WorkManager, REPLACE policy): daily at user-configured time; one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications before re-posting; body = care items joined with " · " (#7)
