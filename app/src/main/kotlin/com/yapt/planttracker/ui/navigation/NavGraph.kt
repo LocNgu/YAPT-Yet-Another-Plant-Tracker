@@ -99,7 +99,7 @@ fun YaptNavGraph(
 
         composable(Screen.AddPlant.route) {
             val vm: AddEditPlantViewModel = viewModel(
-                factory = AddEditPlantViewModel.Factory(app.plantRepository, null)
+                factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, null)
             )
             AddEditPlantScreen(
                 viewModel = vm,
@@ -113,7 +113,7 @@ fun YaptNavGraph(
         ) { backStackEntry ->
             val plantId = backStackEntry.arguments!!.getLong("plantId")
             val vm: AddEditPlantViewModel = viewModel(
-                factory = AddEditPlantViewModel.Factory(app.plantRepository, plantId)
+                factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, plantId)
             )
             AddEditPlantScreen(
                 viewModel = vm,
@@ -130,6 +130,7 @@ fun YaptNavGraph(
                 factory = PlantDetailViewModel.Factory(
                     app.plantRepository,
                     app.careLogRepository,
+                    app.plantPhotoRepository,
                     plantId
                 )
             )

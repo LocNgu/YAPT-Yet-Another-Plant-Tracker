@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -328,6 +329,70 @@ class BackupManagerTest {
         digest.reset()
         val restoredHash = digest.digest(restoredBytes)
         assertArrayEquals("SHA-256 hash of restored photo must match original", originalHash, restoredHash)
+    }
+
+    @Test
+    fun plantPhotos_roundTrip_withPhotos() = runBlocking {
+        val photoBytes = byteArrayOf(10, 20, 30)
+        val photoFile = tmpFolder.newFile("gallery.jpg")
+        photoFile.writeBytes(photoBytes)
+        val photoUri = Uri.fromFile(photoFile).toString()
+
+        val plant = PlantEntity(
+            id = 1L,
+            name = "GalleryPlant",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant)
+        db.plantPhotoDao().insertPhoto(PlantPhotoEntity(id = 1L, plantId = 1L, uri = photoUri, capturedAt = 1000L))
+
+        val exportFile = tmpFolder.newFile("gallery_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = true)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+
+        db.plantPhotoDao().deleteAll()
+        db.plantDao().deleteAll()
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val restoredPhotos = db.plantPhotoDao().getAllPhotos().first()
+        assertEquals(1, restoredPhotos.size)
+        assertNotNull("Restored photo URI should not be null", restoredPhotos[0].uri)
+        val restoredBytes = File(restoredPhotos[0].uri).readBytes()
+        assertArrayEquals("Restored photo bytes must match originals", photoBytes, restoredBytes)
+    }
+
+    @Test
+    fun plantPhotos_oldBackupWithoutField_importsSuccessfully() = runBlocking {
+        val oldJson = """
+            {"schemaVersion":2,"exportedAt":1000,"appVersion":"1.0","plants":[{"id":1,"name":"OldPlant","createdAt":1000,"updatedAt":1000}],"careLogs":[],"settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+
+        val zipFile = tmpFolder.newFile("old_schema.yapt")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("backup.json"))
+            zip.write(oldJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+
+        val importResult = backupManager.importBackup(Uri.fromFile(zipFile))
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val plants = db.plantDao().getAllPlants().first()
+        assertEquals(1, plants.size)
+        assertEquals("OldPlant", plants[0].name)
+
+        val photos = db.plantPhotoDao().getAllPhotos().first()
+        assertEquals(0, photos.size)
     }
 
     @Test

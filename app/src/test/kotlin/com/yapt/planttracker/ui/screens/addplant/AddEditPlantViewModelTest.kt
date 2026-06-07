@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.addplant
 
 import app.cash.turbine.test
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -11,6 +12,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,10 +26,12 @@ class AddEditPlantViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val plantRepo: PlantRepository = mockk()
+    private val plantPhotoRepo: PlantPhotoRepository = mockk()
 
     @Before
     fun setUp() {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantPhotoRepo.addPhotos(any()) } just runs
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera", species: String? = "M. deliciosa") = Plant(
@@ -40,7 +44,7 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `blank name emits ValidationError`() = runTest {
-        val vm = AddEditPlantViewModel(plantRepo, plantId = null)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = ""
 
         vm.events.test {
@@ -54,7 +58,7 @@ class AddEditPlantViewModelTest {
     @Test
     fun `valid name in new plant mode calls addPlant and emits Saved with new id`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
-        val vm = AddEditPlantViewModel(plantRepo, plantId = null)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Monstera"
 
         vm.events.test {
@@ -72,7 +76,7 @@ class AddEditPlantViewModelTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.deletePlant(any()) } just runs
-        val vm = AddEditPlantViewModel(plantRepo, plantId = 1L)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         vm.events.test {
             vm.deletePlant()
@@ -88,7 +92,7 @@ class AddEditPlantViewModelTest {
     fun `edit mode init populates name and species from loaded plant`() = runTest {
         val monstera = plant(name = "Monstera", species = "M. deliciosa")
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = AddEditPlantViewModel(plantRepo, plantId = 1L)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         assertEquals("Monstera", vm.name)
         assertEquals("M. deliciosa", vm.species)
@@ -99,7 +103,7 @@ class AddEditPlantViewModelTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = AddEditPlantViewModel(plantRepo, plantId = 1L)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
         vm.name = "Monstera Updated"
 
         vm.events.test {
@@ -116,7 +120,7 @@ class AddEditPlantViewModelTest {
     @Test
     fun `useLiquidFertilizer true saved in new plant mode`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 5L
-        val vm = AddEditPlantViewModel(plantRepo, plantId = null)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Pothos"
         vm.fertilizingIntervalEnabled = true
         vm.useLiquidFertilizer = true
@@ -135,7 +139,7 @@ class AddEditPlantViewModelTest {
         val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = AddEditPlantViewModel(plantRepo, plantId = 1L)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         assertTrue(vm.useLiquidFertilizer)
 
@@ -146,5 +150,61 @@ class AddEditPlantViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+    }
+
+    @Test
+    fun `addPhoto updates coverPhotoUri and adds to pendingPhotos`() = runTest {
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.addPhoto("file:///photo1.jpg")
+
+        assertEquals("file:///photo1.jpg", vm.coverPhotoUri)
+        assertEquals(1, vm.pendingPhotos.size)
+        assertEquals("file:///photo1.jpg", vm.pendingPhotos[0])
+    }
+
+    @Test
+    fun `addPhoto multiple times appends all to pendingPhotos and updates coverPhotoUri to last`() = runTest {
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.addPhoto("file:///photo1.jpg")
+        vm.addPhoto("file:///photo2.jpg")
+
+        assertEquals("file:///photo2.jpg", vm.coverPhotoUri)
+        assertEquals(2, vm.pendingPhotos.size)
+    }
+
+    @Test
+    fun `save in new mode inserts pending photos via plantPhotoRepo`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 10L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Cactus"
+        vm.addPhoto("file:///cactus.jpg")
+
+        vm.events.test {
+            vm.save()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantPhotoRepo.addPhotos(match { photos -> photos.any { it.plantId == 10L && it.uri == "file:///cactus.jpg" } }) }
+    }
+
+    @Test
+    fun `save in edit mode inserts pending photos with correct plantId`() = runTest {
+        val existingPlant = plant(id = 1L, name = "Fern")
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        advanceUntilIdle()
+
+        vm.addPhoto("content://new_photo.jpg")
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantPhotoRepo.addPhotos(
+                match { photos -> photos.any { it.plantId == 1L && it.uri == "content://new_photo.jpg" } }
+            )
+        }
     }
 }

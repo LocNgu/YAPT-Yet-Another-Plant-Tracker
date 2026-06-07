@@ -21,7 +21,9 @@ import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -41,7 +43,9 @@ class AddEditPlantScreenTest {
     private fun makeViewModel(): AddEditPlantViewModel {
         val plantRepo = mockk<PlantRepository>()
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        return AddEditPlantViewModel(plantRepo, plantId = null)
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
+        return AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
     }
 
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {

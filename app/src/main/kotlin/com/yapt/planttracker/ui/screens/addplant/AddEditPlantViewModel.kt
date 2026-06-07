@@ -2,13 +2,16 @@ package com.yapt.planttracker.ui.screens.addplant
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +22,7 @@ import kotlinx.coroutines.launch
 
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
+    private val plantPhotoRepository: PlantPhotoRepository,
     private val plantId: Long?
 ) : ViewModel() {
 
@@ -34,6 +38,8 @@ class AddEditPlantViewModel(
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
     var useLiquidFertilizer by mutableStateOf(false)
+
+    val pendingPhotos = mutableStateListOf<String>()
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -64,6 +70,11 @@ class AddEditPlantViewModel(
         }
     }
 
+    fun addPhoto(uri: String) {
+        pendingPhotos.add(uri)
+        coverPhotoUri = uri
+    }
+
     fun save() {
         if (name.isBlank()) {
             viewModelScope.launch { _events.emit(Event.ValidationError("Plant name is required")) }
@@ -92,9 +103,11 @@ class AddEditPlantViewModel(
                         wateringDueDateOverride = existing?.wateringDueDateOverride
                     )
                 )
+                savePendingPhotos(plantId, now)
                 _events.emit(Event.Saved(plantId))
             } else {
                 val newId = plantRepository.addPlant(plant)
+                savePendingPhotos(newId, now)
                 _events.emit(Event.Saved(newId))
             }
         }
@@ -110,6 +123,13 @@ class AddEditPlantViewModel(
         }
     }
 
+    private suspend fun savePendingPhotos(plantId: Long, now: Long) {
+        if (pendingPhotos.isEmpty()) return
+        plantPhotoRepository.addPhotos(
+            pendingPhotos.map { PlantPhoto(plantId = plantId, uri = it, capturedAt = now) }
+        )
+    }
+
     sealed class Event {
         data class Saved(val plantId: Long) : Event()
         object Deleted : Event()
@@ -118,10 +138,11 @@ class AddEditPlantViewModel(
 
     class Factory(
         private val plantRepository: PlantRepository,
+        private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long?
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddEditPlantViewModel(plantRepository, plantId) as T
+            AddEditPlantViewModel(plantRepository, plantPhotoRepository, plantId) as T
     }
 }
