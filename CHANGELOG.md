@@ -18,6 +18,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - `AddEditPlantScreenTest` and `AddCareLogScreenTest`: 5 new Compose screen tests per screen covering camera paths — bottom sheet on photo button tap, gallery option visible, no-camera Snackbar, permission rationale dialog, permanent-denial settings dialog (#294)
 - `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
 
+### Fixed
+- Unique constraint on `(plantId, uri)` in `plant_photos` prevents duplicate gallery entries; DB v4→5 (#301)
+
 ### Changed
 - Extracted shared camera/permission/file-cleanup logic into `rememberCameraPhotoState` + `CameraPhotoDialogs`; `AddEditPlantScreen` and `AddCareLogScreen` each call the shared composable instead of duplicating the ~80-line camera block (#293)
 - `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
@@ -211,3 +214,4 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Compose / UI screen tests for all five screens (issue #51)
 - CI instrumented tests on PRs when relevant files change (issue #87)
 - Instrumented tests run on PRs that touch app source or test source (issue #87)
+
