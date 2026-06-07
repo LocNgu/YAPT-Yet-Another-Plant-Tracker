@@ -17,6 +17,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
@@ -53,6 +54,20 @@ class AddCareLogScreenTest {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 0L)
+    }
+
+    private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
+        val registry = object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(
+                requestCode: Int,
+                contract: ActivityResultContract<I, O>,
+                input: I,
+                options: ActivityOptionsCompat?
+            ) {}
+        }
+        return object : ActivityResultRegistryOwner {
+            override val activityResultRegistry = registry
+        }
     }
 
     @After
@@ -103,7 +118,8 @@ class AddCareLogScreenTest {
             AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
         composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
@@ -121,12 +137,16 @@ class AddCareLogScreenTest {
 
         val viewModel = makeViewModel()
         composeTestRule.setContent {
-            CompositionLocalProvider(LocalContext provides noHardwareContext) {
+            CompositionLocalProvider(
+                LocalContext provides noHardwareContext,
+                LocalActivityResultRegistryOwner provides noOpRegistryOwner()
+            ) {
                 AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("No camera available on this device").assertIsDisplayed()
@@ -134,6 +154,15 @@ class AddCareLogScreenTest {
 
     @Test
     fun takePhoto_rationaleNeeded_showsRationaleDialog() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Open the sheet before mocking so FilterChip composition is unaffected.
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
         mockkStatic(ContextCompat::class)
         mockkStatic(ActivityCompat::class)
         every {
@@ -143,12 +172,6 @@ class AddCareLogScreenTest {
             ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
         } returns true
 
-        val viewModel = makeViewModel()
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
-        }
-
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
@@ -157,15 +180,6 @@ class AddCareLogScreenTest {
 
     @Test
     fun takePhoto_permanentlyDenied_showsSettingsDialog() {
-        mockkStatic(ContextCompat::class)
-        mockkStatic(ActivityCompat::class)
-        every {
-            ContextCompat.checkSelfPermission(any(), Manifest.permission.CAMERA)
-        } returns PackageManager.PERMISSION_DENIED
-        every {
-            ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
-        } returns false
-
         val testRegistry = object : ActivityResultRegistry() {
             override fun <I, O> onLaunch(
                 requestCode: Int,
@@ -190,7 +204,19 @@ class AddCareLogScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
+        // Open the sheet before mocking so FilterChip composition is unaffected.
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        mockkStatic(ContextCompat::class)
+        mockkStatic(ActivityCompat::class)
+        every {
+            ContextCompat.checkSelfPermission(any(), Manifest.permission.CAMERA)
+        } returns PackageManager.PERMISSION_DENIED
+        every {
+            ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
+        } returns false
+
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("Camera access denied").assertIsDisplayed()

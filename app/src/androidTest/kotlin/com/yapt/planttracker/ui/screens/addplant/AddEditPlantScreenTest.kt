@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -41,6 +42,20 @@ class AddEditPlantScreenTest {
         val plantRepo = mockk<PlantRepository>()
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         return AddEditPlantViewModel(plantRepo, plantId = null)
+    }
+
+    private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
+        val registry = object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(
+                requestCode: Int,
+                contract: ActivityResultContract<I, O>,
+                input: I,
+                options: ActivityOptionsCompat?
+            ) {}
+        }
+        return object : ActivityResultRegistryOwner {
+            override val activityResultRegistry = registry
+        }
     }
 
     @After
@@ -104,12 +119,16 @@ class AddEditPlantScreenTest {
 
         val viewModel = makeViewModel()
         composeTestRule.setContent {
-            CompositionLocalProvider(LocalContext provides noHardwareContext) {
+            CompositionLocalProvider(
+                LocalContext provides noHardwareContext,
+                LocalActivityResultRegistryOwner provides noOpRegistryOwner()
+            ) {
                 AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performClick()
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Take photo").performClick()
 
         composeTestRule.onNodeWithText("No camera available on this device").assertIsDisplayed()
