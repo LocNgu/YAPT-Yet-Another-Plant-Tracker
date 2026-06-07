@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -224,7 +225,9 @@ fun PlantDetailScreen(
                                 model = plant!!.coverPhotoUri,
                                 contentDescription = stringResource(R.string.cd_plant_cover_photo),
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { fullScreenPhotoUri = plant!!.coverPhotoUri }
                             )
                             Box(
                                 modifier = Modifier
