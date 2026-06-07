@@ -15,7 +15,10 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["plantId"])]
+    indices = [
+        Index(value = ["plantId"]),
+        Index(value = ["plantId", "uri"], unique = true)
+    ]
 )
 data class PlantPhotoEntity(
     @PrimaryKey(autoGenerate = true)
