@@ -40,11 +40,20 @@ data class BackupSettings(
 )
 
 @Serializable
+data class BackupPlantPhoto(
+    val id: Long,
+    val plantId: Long,
+    val uri: String? = null,
+    val capturedAt: Long
+)
+
+@Serializable
 data class BackupRoot(
     val schemaVersion: Int,
     val exportedAt: Long,
     val appVersion: String,
     val plants: List<BackupPlant>,
     val careLogs: List<BackupCareLog>,
-    val settings: BackupSettings
+    val settings: BackupSettings,
+    val plantPhotos: List<BackupPlantPhoto> = emptyList()
 )
