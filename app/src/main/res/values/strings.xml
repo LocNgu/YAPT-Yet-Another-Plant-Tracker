@@ -88,6 +88,17 @@
         <item quantity="one">Show 1 more</item>
         <item quantity="other">Show %d more</item>
     </plurals>
+    <string name="notification_watering_due_today">Watering due today</string>
+    <string name="notification_fertilizing_due_today">Fertilizing due today</string>
+    <string name="notification_fertilize_with_watering">Fertilize with watering</string>
+    <plurals name="notification_watering_overdue">
+        <item quantity="one">Watering overdue by 1 day</item>
+        <item quantity="other">Watering overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_fertilizing_overdue">
+        <item quantity="one">Fertilizing overdue by 1 day</item>
+        <item quantity="other">Fertilizing overdue by %d days</item>
+    </plurals>
     <string name="care_history_expand_cd">Expand care history</string>
     <string name="care_history_collapse_cd">Collapse care history</string>
     <string name="interval_suggestion_title">Adjust watering interval?</string>
