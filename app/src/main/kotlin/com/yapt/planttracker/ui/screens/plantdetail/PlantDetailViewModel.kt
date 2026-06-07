@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -24,6 +26,7 @@ import kotlinx.coroutines.launch
 class PlantDetailViewModel(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
+    private val plantPhotoRepository: PlantPhotoRepository,
     private val plantId: Long
 ) : ViewModel() {
 
@@ -33,8 +36,16 @@ class PlantDetailViewModel(
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val photoLogs: StateFlow<List<CareLog>> = careLogRepository.getPhotoLogsForPlant(plantId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val galleryPhotos: StateFlow<List<GalleryPhoto>> = combine(
+        plantPhotoRepository.getPhotosForPlant(plantId),
+        careLogRepository.getPhotoLogsForPlant(plantId)
+    ) { plantPhotos, careLogPhotos ->
+        val fromPlant = plantPhotos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
+        val fromLogs = careLogPhotos.mapNotNull { log ->
+            log.photoUri?.let { GalleryPhoto(uri = it, timestamp = log.loggedAt) }
+        }
+        (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val careStatus: StateFlow<PlantCareStatus?> = combine(plant, careLogs) { p, logs ->
         p ?: return@combine null
@@ -118,10 +129,11 @@ class PlantDetailViewModel(
     class Factory(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
+        private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantDetailViewModel(plantRepository, careLogRepository, plantId) as T
+            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId) as T
     }
 }
