@@ -86,6 +86,9 @@ android {
         getByName("debug") {
             assets.srcDirs("$projectDir/schemas")
         }
+        getByName("release") {
+            assets.srcDirs("$projectDir/schemas")
+        }
     }
 
     testOptions {
