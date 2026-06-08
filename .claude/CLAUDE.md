@@ -254,11 +254,11 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
 
 **Plant Detail UI**
-- Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29)
+- Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29); tapping the hero `AsyncImage` opens `FullScreenPhotoViewer` at the cover photo URI; placeholder (no cover photo) has no clickable modifier (#307)
 - StatChip: icon + label header with `next:` / `last:` lines for watering and fertilizing
 - Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs (#18 #117)
 - Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
-- Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290)
+- Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; swipe left/right via `HorizontalPager` navigates between photos; page indicator `"X / Y"` shown when >1 photo; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290 #308)
 
 **Notifications & Reminders**
 - `ReminderWorker` (WorkManager, REPLACE policy): daily at user-configured time; one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications before re-posting; body = care items joined with " · " (#7)
@@ -286,7 +286,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Tests**
 - Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save and uses `advanceUntilIdle()` in edit-mode tests for explicit sync; `PlantListViewModelTest` covers `quickLog` else-branch and `toggleSort` direction cycling and `applySortOrder` ordering for all sort options; `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `SettingsViewModelTest` defaults tests stub non-default values to prove DataStore mapping path; `PlantPhotoDaoTest` (Robolectric, 7 cases) covers insert+query, multi-photo desc order, cascade delete (#46 #48 #59 #63 #64 #77 #187 #265 #290)
 - Instrumented BackupManager tests: 9 cases (round-trips with/without photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings, photo SHA-256) (#50)
-- Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51)
+- Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51); `PlantDetailScreenTest` includes cover-photo tap tests: tapping hero photo opens viewer, tapping placeholder does nothing (#307)
 
 **CI/CD**
 - `test` job (unit tests + lintDebug) gates both `build` (debug APK) and `release` jobs; release also runs `testReleaseUnitTest` + `lintRelease` (#84)
