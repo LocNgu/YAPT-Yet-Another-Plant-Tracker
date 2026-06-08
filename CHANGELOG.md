@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- Full-screen photo viewer now supports swipe left/right to navigate all gallery photos; opens at the tapped photo's index; shows a "2 / 5" position indicator when there are multiple photos (#308)
 - Per-plant photo gallery: adding a photo in AddEditPlant now appends to a gallery instead of replacing the cover; Plant Detail shows a unified scrollable gallery of plant and care-log photos sorted by date, with a full-screen viewer on tap; backup/restore includes all gallery photos (#290)
 - In-app camera capture for plant and care log photos; tapping the photo button shows a bottom sheet with "Take photo" and "Choose from gallery"; runtime CAMERA permission requested with rationale dialog on first denial and Settings deep-link on permanent denial; graceful Snackbar error on devices without a camera (#134)
 - `AddEditPlantScreenTest` and `AddCareLogScreenTest`: 5 new Compose screen tests per screen covering camera paths — bottom sheet on photo button tap, gallery option visible, no-camera Snackbar, permission rationale dialog, permanent-denial settings dialog (#294)
