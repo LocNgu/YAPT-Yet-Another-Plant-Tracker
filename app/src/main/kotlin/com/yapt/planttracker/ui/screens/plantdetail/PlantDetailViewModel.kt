@@ -121,6 +121,25 @@ class PlantDetailViewModel(
         viewModelScope.launch { careLogRepository.deleteLog(log) }
     }
 
+    fun deletePhoto(photoUri: String) {
+        viewModelScope.launch {
+            val log = careLogs.value.firstOrNull { it.photoUri == photoUri }
+            if (log != null) {
+                careLogRepository.addLog(log.copy(photoUri = null))
+            }
+            plant.value?.let { p ->
+                if (p.coverPhotoUri == photoUri) {
+                    val nextPhoto = galleryPhotos.value
+                        .filter { it.uri != photoUri }
+                        .maxByOrNull { it.timestamp }?.uri
+                    plantRepository.updatePlant(
+                        p.copy(coverPhotoUri = nextPhoto, updatedAt = System.currentTimeMillis())
+                    )
+                }
+            }
+        }
+    }
+
     sealed class Event {
         object IntervalUpdated : Event()
         data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()

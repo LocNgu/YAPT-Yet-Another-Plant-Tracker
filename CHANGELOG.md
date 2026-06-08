@@ -17,6 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [0.9.0] - 2026-06-08
 
 ### Added
+- Photo gallery: delete individual photos from the full-screen viewer; a confirmation dialog removes the photo from the care log entry (the log is preserved; the photo file stays on the device); if the deleted photo was the cover, the cover falls back to the next most-recent gallery photo (#306)
 - Tapping the cover photo on Plant Detail opens the full-screen photo viewer (#307)
 - Full-screen photo viewer now supports swipe left/right to navigate all gallery photos; opens at the tapped photo's index; shows a "2 / 5" position indicator when there are multiple photos (#308)
 - Per-plant photo gallery: adding a photo in AddEditPlant now appends to a gallery instead of replacing the cover; Plant Detail shows a unified scrollable gallery of plant and care-log photos sorted by date, with a full-screen viewer on tap; backup/restore includes all gallery photos (#290)
