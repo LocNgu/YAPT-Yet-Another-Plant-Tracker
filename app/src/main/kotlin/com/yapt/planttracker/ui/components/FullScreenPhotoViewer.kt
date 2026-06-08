@@ -5,11 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,9 +28,12 @@ import com.yapt.planttracker.R
 
 @Composable
 fun FullScreenPhotoViewer(
-    uri: String,
+    uris: List<String>,
+    initialIndex: Int = 0,
     onDismiss: () -> Unit
 ) {
+    if (uris.isEmpty()) return
+    val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, uris.lastIndex)) { uris.size }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -36,12 +43,33 @@ fun FullScreenPhotoViewer(
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            AsyncImage(
-                model = uri,
-                contentDescription = stringResource(R.string.cd_plant_photo_fullscreen),
-                contentScale = ContentScale.Fit,
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier.fillMaxSize()
-            )
+            ) { page ->
+                AsyncImage(
+                    model = uris[page],
+                    contentDescription = stringResource(R.string.cd_plant_photo_fullscreen),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            if (uris.size > 1) {
+                Text(
+                    text = stringResource(
+                        R.string.photo_viewer_page_indicator,
+                        pagerState.currentPage + 1,
+                        uris.size
+                    ),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                        .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
