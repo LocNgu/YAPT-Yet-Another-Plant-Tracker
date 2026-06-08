@@ -56,7 +56,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
+import com.yapt.planttracker.ui.components.CameraPhotoDialogs
+import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -71,16 +74,23 @@ fun AddEditPlantScreen(
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    var showPhotoSourceSheet by remember { mutableStateOf(false) }
+
+    val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        viewModel.addPhoto(uri.toString())
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
+            cameraState.onGallerySelected()
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it, Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: SecurityException) {}
-            viewModel.coverPhotoUri = it.toString()
+            viewModel.addPhoto(it.toString())
         }
     }
 
@@ -108,6 +118,24 @@ fun AddEditPlantScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    CameraPhotoDialogs(cameraState)
+
+    if (showPhotoSourceSheet) {
+        PhotoSourceBottomSheet(
+            onDismiss = { showPhotoSourceSheet = false },
+            onTakePhoto = {
+                showPhotoSourceSheet = false
+                cameraState.launch()
+            },
+            onChooseGallery = {
+                showPhotoSourceSheet = false
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         )
     }
@@ -160,11 +188,7 @@ fun AddEditPlantScreen(
                     rounded = true
                 )
                 FloatingActionButton(
-                    onClick = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
+                    onClick = { showPhotoSourceSheet = true },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .size(40.dp)

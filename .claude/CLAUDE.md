@@ -219,8 +219,9 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 ## What's Been Completed
 
 **Architecture & Data**
-- Room DB v3 (PlantEntity, CareLogEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed
-- PlantRepository + CareLogRepository with entity↔domain mapping; UI never touches Room entities directly
+- Room DB v5 (PlantEntity, CareLogEntity, PlantPhotoEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed; MIGRATION_3_4 creates `plant_photos` table and seeds rows from `coverPhotoUri` (#290); MIGRATION_4_5 adds unique index on (plantId, uri) in plant_photos and deduplicates existing rows (#301)
+- PlantRepository + CareLogRepository + PlantPhotoRepository with entity↔domain mapping; UI never touches Room entities directly
+- `GalleryPhoto(uri, timestamp)` projection type in `domain/model/` — used by PlantDetailViewModel to merge plant photos and care-log photos via `Flow.combine`; `.distinctBy { it.uri }` prevents duplicate-key crash in LazyRow (#290)
 - Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization; `CareType` and `WateringFeedback` are plain Kotlin enums — display strings and icons live in `ui/util/EnumResources.kt` extension functions (#276)
 - DataStore preferences (notification toggle, reminder time, sort option, keep-screen-on, last-seen version code); delegate declared at file top-level in `YaptApplication.kt`
 - Manual DI via `YaptApplication` lazy singletons; ViewModel `Factory` inner classes; no Hilt
@@ -243,6 +244,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
 - Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
+- Photo care log validation: save FAB disabled (0.38f alpha, click-blocked) when `CareType.PHOTO` is selected and no photo is attached; inline error hint shown below photo picker (#305)
 
 **Plant List UI**
 - Room filter chips + "Unassigned" chip (shows plants with no room; auto-resets to "All" when all plants have rooms; single `allPlants` StateFlow subscription) (#183 #184)
@@ -253,10 +255,12 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
 
 **Plant Detail UI**
-- Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29)
+- Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29); tapping the hero `AsyncImage` opens `FullScreenPhotoViewer` at the cover photo URI; placeholder (no cover photo) has no clickable modifier (#307)
 - StatChip: icon + label header with `next:` / `last:` lines for watering and fertilizing
 - Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs (#18 #117)
 - Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
+- Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290)
+- Full-screen photo viewer: `HorizontalPager` replaces single `AsyncImage`; swipe left/right navigates all gallery photos; opens at tapped index; "2 / 5" position indicator shown when > 1 photo (#308)
 
 **Notifications & Reminders**
 - `ReminderWorker` (WorkManager, REPLACE policy): daily at user-configured time; one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications before re-posting; body = care items joined with " · " (#7)
@@ -266,7 +270,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - `BootReceiver` reschedules using stored time; uses `goAsync()`
 
 **Backup & Restore**
-- `.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compatibility warning dialog (#22)
+- `.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compatibility warning dialog (#22); backup schema v3 includes `plantPhotos: List<BackupPlantPhoto>`; old v2 backups deserialize with `plantPhotos = emptyList()` for forward compat (#290)
 - Export: ZIP assembled in `cacheDir` temp file first, then streamed to SAF destination — prevents broken 0 KB exports to cloud providers (see technical ADR-0014, #144)
 - Restore: photos streamed to `cacheDir` temp files (never loaded into memory) — prevents OOM; temp files tracked in map before copy so `finally` always cleans up (#193 #195 #196)
 - Single bulk `getAllLogs()` query (not N+1 per plant); unreadable photo URIs silently skipped; ReminderScheduler called with restored time; navigate to PlantList + Snackbar on success (#36 #37 #40 #41)
@@ -282,9 +286,9 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Full release history in `WhatsNewContent.all: List<ReleaseNotes>`; sorted by `versionCode` descending at render time; scrollable `LazyColumn`; "Got it" button pinned; `versionCode: Int` field on `ReleaseNotes` guarantees sort order (see product ADR-0010, #212 #219)
 
 **Tests**
-- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save; `PlantListViewModelTest` covers `quickLog` else-branch and `toggleSort` direction cycling and `applySortOrder` ordering for all sort options (#46 #48 #77 #187 #265)
+- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save and uses `advanceUntilIdle()` in edit-mode tests for explicit sync; `PlantListViewModelTest` covers `quickLog` else-branch and `toggleSort` direction cycling and `applySortOrder` ordering for all sort options; `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `SettingsViewModelTest` defaults tests stub non-default values to prove DataStore mapping path; `PlantPhotoDaoTest` (Robolectric, 8 cases) covers insert+query, multi-photo desc order, cascade delete, duplicate IGNORE returns -1L; `MigrationTest3To4` (Robolectric, 2 cases) verifies MIGRATION_3_4 seeds plant_photos from coverPhotoUri and skips null URIs; `MigrationTest4To5` (Robolectric, 2 cases) verifies MIGRATION_4_5 preserves all rows when no duplicates and keeps min-id row when duplicates exist (#46 #48 #59 #63 #64 #77 #187 #265 #290 #301 #303)
 - Instrumented BackupManager tests: 9 cases (round-trips with/without photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings, photo SHA-256) (#50)
-- Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51)
+- Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51); `PlantDetailScreenTest` includes cover-photo tap tests: tapping hero photo opens viewer, tapping placeholder does nothing (#307)
 
 **CI/CD**
 - `test` job (unit tests + lintDebug) gates both `build` (debug APK) and `release` jobs; release also runs `testReleaseUnitTest` + `lintRelease` (#84)

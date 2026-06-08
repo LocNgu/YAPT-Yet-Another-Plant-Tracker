@@ -2,18 +2,24 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,10 +33,12 @@ class PlantDetailScreenTest {
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        return PlantDetailViewModel(plantRepo, careLogRepo, plant.id)
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id)
     }
 
     @Test
@@ -99,10 +107,12 @@ class PlantDetailScreenTest {
 
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo3 = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plant.id)
+        every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -140,10 +150,12 @@ class PlantDetailScreenTest {
 
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo5 = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plant.id)
+        every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -174,10 +186,12 @@ class PlantDetailScreenTest {
 
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo4 = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plant.id)
+        every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -190,5 +204,55 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.").assertIsDisplayed()
+    }
+
+    @Test
+    fun coverPhoto_tapOpensFullScreenViewer() {
+        val plant = Plant(id = 6L, name = "Monstera", coverPhotoUri = "content://fake/photo", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo6 = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
+            PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
+        ))
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Plant cover photo").performClick()
+        composeTestRule.onNodeWithContentDescription("Close photo viewer").assertIsDisplayed()
+    }
+
+    @Test
+    fun coverPhoto_placeholderTapDoesNotOpenFullScreenViewer() {
+        val plant = Plant(id = 7L, name = "Cactus", coverPhotoUri = null, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onRoot().performClick()
+        assertTrue(
+            composeTestRule.onAllNodesWithContentDescription("Close photo viewer")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 }

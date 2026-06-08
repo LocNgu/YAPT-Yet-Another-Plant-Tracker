@@ -96,7 +96,7 @@ class ReminderWorker(
                 .setAutoCancel(true)
 
             if (status.isOverdue || status.isDueSoon) {
-                notificationBuilder.addAction(0, "Skip watering", skipPendingIntent)
+                notificationBuilder.addAction(0, context.getString(R.string.skip_watering_title), skipPendingIntent)
             }
 
             notificationManager.notify(plant.id.toInt(), notificationBuilder.build())
@@ -111,20 +111,20 @@ class ReminderWorker(
 
         if (status.isOverdue) {
             val days = ChronoUnit.DAYS.between(status.nextWateringDueAt!!.toLocalDate(), nowDate).toInt()
-            parts.add("Watering overdue by $days ${if (days == 1) "day" else "days"}")
+            parts.add(context.resources.getQuantityString(R.plurals.notification_watering_overdue, days, days))
         } else if (status.isDueSoon) {
-            parts.add("Watering due today")
+            parts.add(context.getString(R.string.notification_watering_due_today))
         }
 
         if (status.isFertilizingOverdue || status.isFertilizingDueSoon) {
             if (status.plant.useLiquidFertilizer) {
-                if (parts.isNotEmpty()) parts.add("Fertilize with watering")
+                if (parts.isNotEmpty()) parts.add(context.getString(R.string.notification_fertilize_with_watering))
             } else {
                 if (status.isFertilizingOverdue) {
                     val days = ChronoUnit.DAYS.between(status.nextFertilizingDueAt!!.toLocalDate(), nowDate).toInt()
-                    parts.add("Fertilizing overdue by $days ${if (days == 1) "day" else "days"}")
+                    parts.add(context.resources.getQuantityString(R.plurals.notification_fertilizing_overdue, days, days))
                 } else {
-                    parts.add("Fertilizing due today")
+                    parts.add(context.getString(R.string.notification_fertilizing_due_today))
                 }
             }
         }

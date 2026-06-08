@@ -66,6 +66,7 @@ class AddCareLogViewModel(
     }
 
     fun saveLog() {
+        if (selectedCareType == CareType.PHOTO && photoUri == null) return
         viewModelScope.launch {
             val log = CareLog(
                 id = careLogId,

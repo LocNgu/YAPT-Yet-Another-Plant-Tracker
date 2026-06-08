@@ -8,16 +8,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
-    entities = [PlantEntity::class, CareLogEntity::class],
-    version = 3,
+    entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class],
+    version = 5,
     exportSchema = true
 )
 abstract class PlantDatabase : RoomDatabase() {
 
     abstract fun plantDao(): PlantDao
     abstract fun careLogDao(): CareLogDao
+    abstract fun plantPhotoDao(): PlantPhotoDao
 
     companion object {
         @Volatile
@@ -36,6 +38,51 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `plant_photos` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`plantId` INTEGER NOT NULL, " +
+                    "`uri` TEXT NOT NULL, " +
+                    "`capturedAt` INTEGER NOT NULL, " +
+                    "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_plant_photos_plantId` ON `plant_photos` (`plantId`)"
+                )
+                db.execSQL(
+                    "INSERT INTO plant_photos (plantId, uri, capturedAt) " +
+                    "SELECT id, coverPhotoUri, createdAt FROM plants WHERE coverPhotoUri IS NOT NULL"
+                )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `plant_photos_new` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`plantId` INTEGER NOT NULL, " +
+                    "`uri` TEXT NOT NULL, " +
+                    "`capturedAt` INTEGER NOT NULL, " +
+                    "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "INSERT INTO plant_photos_new (id, plantId, uri, capturedAt) " +
+                    "SELECT MIN(id), plantId, uri, MIN(capturedAt) FROM plant_photos GROUP BY plantId, uri"
+                )
+                db.execSQL("DROP TABLE plant_photos")
+                db.execSQL("ALTER TABLE plant_photos_new RENAME TO plant_photos")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_plant_photos_plantId` ON `plant_photos` (`plantId`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_plant_photos_plantId_uri` ON `plant_photos` (`plantId`, `uri`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -43,7 +90,7 @@ abstract class PlantDatabase : RoomDatabase() {
                     PlantDatabase::class.java,
                     "yapt_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }
