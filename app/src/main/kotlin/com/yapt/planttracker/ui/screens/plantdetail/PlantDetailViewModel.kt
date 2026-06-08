@@ -11,6 +11,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.ui.components.TimeRange
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,10 @@ class PlantDetailViewModel(
 
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val plantPhotos: StateFlow<List<PlantPhoto>> =
+        plantPhotoRepository.getPhotosForPlant(plantId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val galleryPhotos: StateFlow<List<GalleryPhoto>> = combine(
         plantPhotoRepository.getPhotosForPlant(plantId),
@@ -125,7 +130,11 @@ class PlantDetailViewModel(
         viewModelScope.launch {
             val log = careLogs.value.firstOrNull { it.photoUri == photoUri }
             if (log != null) {
-                careLogRepository.addLog(log.copy(photoUri = null))
+                careLogRepository.updateLog(log.copy(photoUri = null))
+            }
+            val plantPhoto = plantPhotos.value.firstOrNull { it.uri == photoUri }
+            if (plantPhoto != null) {
+                plantPhotoRepository.deletePhoto(plantPhoto)
             }
             plant.value?.let { p ->
                 if (p.coverPhotoUri == photoUri) {
