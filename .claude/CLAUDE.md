@@ -219,7 +219,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 ## What's Been Completed
 
 **Architecture & Data**
-- Room DB v4 (PlantEntity, CareLogEntity, PlantPhotoEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed; MIGRATION_3_4 creates `plant_photos` table and seeds rows from `coverPhotoUri` (#290)
+- Room DB v5 (PlantEntity, CareLogEntity, PlantPhotoEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed; MIGRATION_3_4 creates `plant_photos` table and seeds rows from `coverPhotoUri` (#290); MIGRATION_4_5 adds unique index on (plantId, uri) in plant_photos and deduplicates existing rows (#301)
 - PlantRepository + CareLogRepository + PlantPhotoRepository with entity↔domain mapping; UI never touches Room entities directly
 - `GalleryPhoto(uri, timestamp)` projection type in `domain/model/` — used by PlantDetailViewModel to merge plant photos and care-log photos via `Flow.combine`; `.distinctBy { it.uri }` prevents duplicate-key crash in LazyRow (#290)
 - Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization; `CareType` and `WateringFeedback` are plain Kotlin enums — display strings and icons live in `ui/util/EnumResources.kt` extension functions (#276)
