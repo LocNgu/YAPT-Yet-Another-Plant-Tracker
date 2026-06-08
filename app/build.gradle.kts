@@ -86,6 +86,12 @@ android {
         unitTests.isIncludeAndroidResources = true
     }
 
+    sourceSets {
+        getByName("test") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
+
     packaging {
         resources {
             excludes += setOf(
