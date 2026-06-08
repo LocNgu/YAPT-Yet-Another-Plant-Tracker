@@ -42,10 +42,10 @@ class PlantDetailViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val galleryPhotos: StateFlow<List<GalleryPhoto>> = combine(
-        plantPhotoRepository.getPhotosForPlant(plantId),
+        plantPhotos,
         careLogRepository.getPhotoLogsForPlant(plantId)
-    ) { plantPhotos, careLogPhotos ->
-        val fromPlant = plantPhotos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
+    ) { photos, careLogPhotos ->
+        val fromPlant = photos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
         val fromLogs = careLogPhotos.mapNotNull { log ->
             log.photoUri?.let { GalleryPhoto(uri = it, timestamp = log.loggedAt) }
         }
