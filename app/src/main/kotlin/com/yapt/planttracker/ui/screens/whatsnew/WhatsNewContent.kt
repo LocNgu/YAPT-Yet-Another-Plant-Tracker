@@ -11,12 +11,23 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 190,
+            versionName = "0.9.0",
+            added = listOf(
+                "Per-plant photo gallery — photos you add on the Add/Edit Plant screen now build a gallery instead of replacing the cover; the Plant Detail screen shows a scrollable gallery of all plant and care-log photos sorted by date",
+                "Full-screen photo viewer — tap any photo to open it full-screen; swipe left/right to browse all gallery photos; a page indicator (e.g. \"2 / 5\") appears when there are multiple photos",
+                "In-app camera capture — tap the photo button on any screen to choose between taking a new photo or picking from the gallery; graceful error if the device has no camera"
+            ),
+            fixed = listOf(
+                "Photo care log: the Save button is now disabled until a photo is attached, with an inline error hint below the photo picker",
+                "Duplicate photos can no longer be added to the gallery"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 170,
             versionName = "0.8.1",
             added = listOf(
-                "Camera capture for plant and care log photos — tap the photo button to choose between taking a new photo or picking from the gallery",
-                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse",
-                "Tapping the cover photo on Plant Detail now opens the full-screen photo viewer"
+                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse"
             ),
             fixed = listOf(
                 "\"Got it\" button in What's New is now always visible even when there are many release entries",
