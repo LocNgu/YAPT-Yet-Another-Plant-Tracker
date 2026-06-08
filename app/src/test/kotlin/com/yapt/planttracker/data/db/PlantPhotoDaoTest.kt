@@ -146,7 +146,7 @@ class PlantPhotoDaoTest {
     @Test
     fun `insertPhoto with duplicate plantId+uri is ignored`() = runTest {
         val plantId = insertPlant()
-        val firstId = dao.insertPhoto(PlantPhotoEntity(plantId = plantId, uri = "content://photo1", capturedAt = 1000L))
+        dao.insertPhoto(PlantPhotoEntity(plantId = plantId, uri = "content://photo1", capturedAt = 1000L))
         val secondId = dao.insertPhoto(PlantPhotoEntity(plantId = plantId, uri = "content://photo1", capturedAt = 2000L))
 
         assertEquals(-1L, secondId)
