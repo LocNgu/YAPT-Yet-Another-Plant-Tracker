@@ -15,6 +15,7 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
@@ -208,7 +209,16 @@ class PlantDetailScreenTest {
     @Test
     fun coverPhoto_tapOpensFullScreenViewer() {
         val plant = Plant(id = 6L, name = "Monstera", coverPhotoUri = "content://fake/photo", createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(plant)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo6 = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
+            PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
+        ))
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id)
 
         composeTestRule.setContent {
             PlantDetailScreen(

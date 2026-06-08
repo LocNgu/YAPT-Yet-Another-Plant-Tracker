@@ -232,7 +232,7 @@ fun PlantDetailScreen(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clickable { plant?.coverPhotoUri?.let { fullScreenPhotoUri = it } }
+                                    .clickable { fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == plant!!.coverPhotoUri }.takeIf { it >= 0 } }
                             )
                             Box(
                                 modifier = Modifier
