@@ -1,10 +1,12 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -199,5 +201,42 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.").assertIsDisplayed()
+    }
+
+    @Test
+    fun coverPhoto_tapOpensFullScreenViewer() {
+        val plant = Plant(id = 6L, name = "Monstera", coverPhotoUri = "content://fake/photo", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Plant cover photo").performClick()
+        composeTestRule.onNodeWithContentDescription("Close photo viewer").assertIsDisplayed()
+    }
+
+    @Test
+    fun coverPhoto_placeholderTapDoesNotOpenFullScreenViewer() {
+        val plant = Plant(id = 7L, name = "Cactus", coverPhotoUri = null, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Close photo viewer").assertDoesNotExist()
     }
 }

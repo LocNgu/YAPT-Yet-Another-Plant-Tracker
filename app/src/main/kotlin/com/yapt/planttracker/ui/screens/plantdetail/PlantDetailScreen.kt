@@ -227,7 +227,7 @@ fun PlantDetailScreen(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clickable { fullScreenPhotoUri = plant!!.coverPhotoUri }
+                                    .clickable { plant?.coverPhotoUri?.let { fullScreenPhotoUri = it } }
                             )
                             Box(
                                 modifier = Modifier
