@@ -244,6 +244,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
 - Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
+- Photo care log validation: save FAB disabled (0.38f alpha, click-blocked) when `CareType.PHOTO` is selected and no photo is attached; inline error hint shown below photo picker (#305)
 
 **Plant List UI**
 - Room filter chips + "Unassigned" chip (shows plants with no room; auto-resets to "All" when all plants have rooms; single `allPlants` StateFlow subscription) (#183 #184)

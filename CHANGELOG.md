@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Photo care log entry: save button is now disabled (dimmed) until a photo is attached; an inline error hint is shown below the photo picker when `CareType.PHOTO` is selected and no photo has been chosen (#305)
 ### Added
 - Tapping the cover photo on Plant Detail opens the full-screen photo viewer (#307)
 - Full-screen photo viewer now supports swipe left/right to navigate all gallery photos; opens at the tapped photo's index; shows a "2 / 5" position indicator when there are multiple photos (#308)
