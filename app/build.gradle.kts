@@ -82,14 +82,14 @@ android {
         arg("room.schemaLocation", "$projectDir/schemas")
     }
 
-    testOptions {
-        unitTests.isIncludeAndroidResources = true
-    }
-
     sourceSets {
-        getByName("test") {
+        getByName("debug") {
             assets.srcDirs("$projectDir/schemas")
         }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     packaging {
