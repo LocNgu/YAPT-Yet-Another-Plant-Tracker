@@ -153,6 +153,8 @@
     <string name="fertilizer_type_solid">Solid</string>
     <string name="fertilizer_also_logs_watering">Also logs a watering</string>
     <string name="care_log_photo_label">Photo (optional)</string>
+    <string name="care_log_photo_label_required">Photo</string>
+    <string name="photo_required_hint">A photo is required for this entry type</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
@@ -189,4 +191,5 @@
     <string name="camera_permission_denied_text">Camera permission was permanently denied. Please enable it in Settings.</string>
     <string name="camera_permission_open_settings">Open Settings</string>
     <string name="camera_not_available">No camera available on this device</string>
+    <string name="photo_viewer_page_indicator">%1$d / %2$d</string>
 </resources>

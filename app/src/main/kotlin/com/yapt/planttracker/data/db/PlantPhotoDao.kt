@@ -16,13 +16,13 @@ interface PlantPhotoDao {
     @Query("SELECT * FROM plant_photos")
     fun getAllPhotos(): Flow<List<PlantPhotoEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPhoto(photo: PlantPhotoEntity): Long
 
     @Delete
     suspend fun deletePhoto(photo: PlantPhotoEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(photos: List<PlantPhotoEntity>): List<Long>
 
     @Query("DELETE FROM plant_photos")

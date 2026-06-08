@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,7 +89,8 @@ fun PlantDetailScreen(
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
-    var fullScreenPhotoUri by remember { mutableStateOf<String?>(null) }
+    var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -125,8 +127,12 @@ fun PlantDetailScreen(
         }
     }
 
-    fullScreenPhotoUri?.let { uri ->
-        FullScreenPhotoViewer(uri = uri, onDismiss = { fullScreenPhotoUri = null })
+    fullScreenPhotoIndex?.let { index ->
+        FullScreenPhotoViewer(
+            uris = galleryUris,
+            initialIndex = index,
+            onDismiss = { fullScreenPhotoIndex = null }
+        )
     }
 
     if (showSkipDialog) {
@@ -224,7 +230,9 @@ fun PlantDetailScreen(
                                 model = plant!!.coverPhotoUri,
                                 contentDescription = stringResource(R.string.cd_plant_cover_photo),
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == plant!!.coverPhotoUri }.takeIf { it >= 0 } }
                             )
                             Box(
                                 modifier = Modifier
@@ -319,8 +327,10 @@ fun PlantDetailScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                         PhotoGallery(
-                            photoUris = galleryPhotos.map { it.uri },
-                            onPhotoClick = { uri -> fullScreenPhotoUri = uri }
+                            photoUris = galleryUris,
+                            onPhotoClick = { uri ->
+                                fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                            }
                         )
                         Spacer(Modifier.height(16.dp))
                     }

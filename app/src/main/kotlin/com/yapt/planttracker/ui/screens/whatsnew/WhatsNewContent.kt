@@ -15,7 +15,8 @@ object WhatsNewContent {
             versionName = "0.8.1",
             added = listOf(
                 "Camera capture for plant and care log photos — tap the photo button to choose between taking a new photo or picking from the gallery",
-                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse"
+                "Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse",
+                "Tapping the cover photo on Plant Detail now opens the full-screen photo viewer"
             ),
             fixed = listOf(
                 "\"Got it\" button in What's New is now always visible even when there are many release entries",

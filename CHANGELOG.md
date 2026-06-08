@@ -12,11 +12,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Photo care log entry: save button is now disabled (dimmed) until a photo is attached; an inline error hint is shown below the photo picker when `CareType.PHOTO` is selected and no photo has been chosen (#305)
 ### Added
+- Tapping the cover photo on Plant Detail opens the full-screen photo viewer (#307)
+- Full-screen photo viewer now supports swipe left/right to navigate all gallery photos; opens at the tapped photo's index; shows a "2 / 5" position indicator when there are multiple photos (#308)
 - Per-plant photo gallery: adding a photo in AddEditPlant now appends to a gallery instead of replacing the cover; Plant Detail shows a unified scrollable gallery of plant and care-log photos sorted by date, with a full-screen viewer on tap; backup/restore includes all gallery photos (#290)
 - In-app camera capture for plant and care log photos; tapping the photo button shows a bottom sheet with "Take photo" and "Choose from gallery"; runtime CAMERA permission requested with rationale dialog on first denial and Settings deep-link on permanent denial; graceful Snackbar error on devices without a camera (#134)
 - `AddEditPlantScreenTest` and `AddCareLogScreenTest`: 5 new Compose screen tests per screen covering camera paths — bottom sheet on photo button tap, gallery option visible, no-camera Snackbar, permission rationale dialog, permanent-denial settings dialog (#294)
 - `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
+- Robolectric migration test for MIGRATION_3_4 verifies plant_photos seeding from coverPhotoUri (#303)
+
+### Fixed
+- Unique constraint on `(plantId, uri)` in `plant_photos` prevents duplicate gallery entries; DB v4→5 (#301)
 
 ### Changed
 - Extracted shared camera/permission/file-cleanup logic into `rememberCameraPhotoState` + `CameraPhotoDialogs`; `AddEditPlantScreen` and `AddCareLogScreen` each call the shared composable instead of duplicating the ~80-line camera block (#293)
@@ -211,3 +219,4 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Compose / UI screen tests for all five screens (issue #51)
 - CI instrumented tests on PRs when relevant files change (issue #87)
 - Instrumented tests run on PRs that touch app source or test source (issue #87)
+
