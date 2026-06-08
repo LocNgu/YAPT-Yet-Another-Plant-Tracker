@@ -89,6 +89,7 @@ fun PlantDetailScreen(
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -127,7 +128,7 @@ fun PlantDetailScreen(
 
     fullScreenPhotoIndex?.let { index ->
         FullScreenPhotoViewer(
-            uris = galleryPhotos.map { it.uri },
+            uris = galleryUris,
             initialIndex = index,
             onDismiss = { fullScreenPhotoIndex = null }
         )
@@ -323,7 +324,7 @@ fun PlantDetailScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                         PhotoGallery(
-                            photoUris = galleryPhotos.map { it.uri },
+                            photoUris = galleryUris,
                             onPhotoClick = { uri ->
                                 fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
                             }
