@@ -19,6 +19,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - In-app camera capture for plant and care log photos; tapping the photo button shows a bottom sheet with "Take photo" and "Choose from gallery"; runtime CAMERA permission requested with rationale dialog on first denial and Settings deep-link on permanent denial; graceful Snackbar error on devices without a camera (#134)
 - `AddEditPlantScreenTest` and `AddCareLogScreenTest`: 5 new Compose screen tests per screen covering camera paths — bottom sheet on photo button tap, gallery option visible, no-camera Snackbar, permission rationale dialog, permanent-denial settings dialog (#294)
 - `BackupSerializerTest`: add assertion that `encodeDefaults = true` emits explicit `null` keys in serialized JSON, guarding against silent regression if the setting is ever removed (#59)
+- Robolectric migration test for MIGRATION_3_4 verifies plant_photos seeding from coverPhotoUri (#303)
 
 ### Fixed
 - Unique constraint on `(plantId, uri)` in `plant_photos` prevents duplicate gallery entries; DB v4→5 (#301)
