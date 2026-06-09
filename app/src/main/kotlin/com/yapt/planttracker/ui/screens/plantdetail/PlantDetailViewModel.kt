@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -128,21 +129,23 @@ class PlantDetailViewModel(
 
     fun deletePhoto(photoUri: String) {
         viewModelScope.launch {
-            val log = careLogs.value.firstOrNull { it.photoUri == photoUri }
+            val logs = careLogRepository.getLogsForPlant(plantId).first()
+            val log = logs.firstOrNull { it.photoUri == photoUri }
             if (log != null) {
                 careLogRepository.updateLog(log.copy(photoUri = null))
             }
-            val plantPhoto = plantPhotos.value.firstOrNull { it.uri == photoUri }
+            val photos = plantPhotoRepository.getPhotosForPlant(plantId).first()
+            val plantPhoto = photos.firstOrNull { it.uri == photoUri }
             if (plantPhoto != null) {
                 plantPhotoRepository.deletePhoto(plantPhoto)
             }
             plant.value?.let { p ->
                 if (p.coverPhotoUri == photoUri) {
-                    val nextPhoto = galleryPhotos.value
+                    val nextCover = photos
                         .filter { it.uri != photoUri }
-                        .maxByOrNull { it.timestamp }?.uri
+                        .maxByOrNull { it.capturedAt }?.uri
                     plantRepository.updatePlant(
-                        p.copy(coverPhotoUri = nextPhoto, updatedAt = System.currentTimeMillis())
+                        p.copy(coverPhotoUri = nextCover, updatedAt = System.currentTimeMillis())
                     )
                 }
             }

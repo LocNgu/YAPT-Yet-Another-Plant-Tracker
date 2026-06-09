@@ -226,9 +226,9 @@ class PlantDetailViewModelTest {
             loggedAt = 1000L,
             photoUri = "file:///care.jpg"
         )
-        every { careLogRepo.getLogsForPlant(1L) } returns flowOf(listOf(careLog))
         coEvery { careLogRepo.updateLog(any()) } just runs
         val vm = makeVm()
+        every { careLogRepo.getLogsForPlant(1L) } returns flowOf(listOf(careLog))
 
         vm.plant.test {
             awaitItem()
@@ -245,6 +245,7 @@ class PlantDetailViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         val plantPhoto = PlantPhoto(id = 2L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 2000L)
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
+        every { careLogRepo.getLogsForPlant(1L) } returns flowOf(emptyList())
         coEvery { plantPhotoRepo.deletePhoto(any()) } just runs
         val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L)
 
@@ -265,6 +266,7 @@ class PlantDetailViewModelTest {
         val plantPhoto = PlantPhoto(id = 3L, plantId = 1L, uri = "file:///cover.jpg", capturedAt = 2000L)
         val otherPhoto = PlantPhoto(id = 4L, plantId = 1L, uri = "file:///other.jpg", capturedAt = 1000L)
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto, otherPhoto))
+        every { careLogRepo.getLogsForPlant(1L) } returns flowOf(emptyList())
         coEvery { plantPhotoRepo.deletePhoto(any()) } just runs
         val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L)
 
