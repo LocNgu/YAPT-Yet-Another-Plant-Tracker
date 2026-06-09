@@ -83,7 +83,7 @@ android {
     }
 
     sourceSets {
-        getByName("debug") {
+        getByName("main") {
             assets.srcDirs("$projectDir/schemas")
         }
     }
