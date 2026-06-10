@@ -91,6 +91,7 @@ class BackupSerializerTest {
         assertNull(plant.notes)
         assertNull(plant.wateringIntervalDays)
         assertNull(plant.fertilizingIntervalDays)
+        assertNull(plant.wateringDueDateOverride)
     }
 
     @Test
