@@ -71,7 +71,9 @@ class AddEditPlantViewModel(
     }
 
     fun addPhoto(uri: String) {
-        pendingPhotos.add(uri)
+        if (pendingPhotos.none { it == uri }) {
+            pendingPhotos.add(uri)
+        }
         coverPhotoUri = uri
     }
 
