@@ -247,4 +247,45 @@ class AddCareLogViewModelTest {
 
         coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
     }
+
+    @Test
+    fun `save PHOTO log with photoUri updates plant coverPhotoUri`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.PHOTO
+        vm.photoUri = "content://photo.jpg"
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == "content://photo.jpg" }) }
+    }
+
+    @Test
+    fun `save WATER log with photo does not update coverPhotoUri`() = runTest {
+        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = now),
+            waterLog(loggedAt = sevenDaysAgo)
+        )
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.photoUri = "content://photo.jpg"
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
 }

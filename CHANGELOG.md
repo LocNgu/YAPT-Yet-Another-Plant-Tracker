@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Saving a Photo care log entry now updates the plant's cover photo to the attached image (#304)
+
 ---
 
 ## [0.9.0] - 2026-06-08

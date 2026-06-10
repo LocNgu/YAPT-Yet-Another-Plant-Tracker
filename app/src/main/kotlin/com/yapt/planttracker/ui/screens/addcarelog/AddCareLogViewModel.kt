@@ -107,6 +107,14 @@ class AddCareLogViewModel(
                 }
             }
 
+            if (selectedCareType == CareType.PHOTO && photoUri != null) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    plantRepository.updatePlant(
+                        p.copy(coverPhotoUri = photoUri, updatedAt = System.currentTimeMillis())
+                    )
+                }
+            }
+
             val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
             _events.emit(Event.Saved(suggestedInterval))
         }
