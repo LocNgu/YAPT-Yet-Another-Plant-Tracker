@@ -40,7 +40,7 @@ class PlantListViewModelTest {
         every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${args[1]}" }
         every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${args[1]}" }
         every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${args[1]}" }
-        every { getString(R.string.quick_log_other, any(), any()) } returns "Pruned Monstera"
+        every { getString(R.string.quick_log_other, any(), any()) } answers { "${args[1]} ${args[2]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
     }
     private val plantRepo: PlantRepository = mockk()
