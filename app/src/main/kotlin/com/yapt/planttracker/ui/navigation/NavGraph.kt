@@ -88,12 +88,6 @@ fun YaptNavGraph(
                 onNavigateToPlant = { plantId ->
                     navController.navigate(Screen.PlantDetail.createRoute(plantId))
                 },
-                onNavigateToPlantWithSuggestion = { plantId, suggestedInterval ->
-                    navController.navigate(Screen.PlantDetail.createRoute(plantId))
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("suggestedWateringInterval", suggestedInterval)
-                },
                 onNavigateToAdd = {
                     navController.navigate(Screen.AddPlant.route)
                 },

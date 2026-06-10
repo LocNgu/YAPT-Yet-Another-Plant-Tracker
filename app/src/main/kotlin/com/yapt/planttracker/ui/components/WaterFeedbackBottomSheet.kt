@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,47 +27,36 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.labelRes
 
-/**
- * Bottom sheet shown when the user taps the quick-water button on a PlantCard.
- * Presents the three soil-state feedback chips (pre-selected to JUST_RIGHT) and
- * a single "Log watering" button. Dismissing without tapping "Log" cancels the action.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuickWaterBottomSheet(
+fun WaterFeedbackBottomSheet(
     plantName: String,
-    onLog: (WateringFeedback) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLog: (WateringFeedback) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartialExpansion = true)
     var selectedFeedback by remember { mutableStateOf(WateringFeedback.JUST_RIGHT) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = rememberModalBottomSheetState()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, top = 8.dp, bottom = 24.dp)
         ) {
             Text(
-                text = stringResource(R.string.quick_water_sheet_title, plantName),
+                text = stringResource(R.string.water_feedback_sheet_title, plantName),
                 style = MaterialTheme.typography.titleMedium
             )
-
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.care_log_prompt_how_was_soil),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WateringFeedback.entries.forEach { feedback ->
                     FilterChip(
                         selected = selectedFeedback == feedback,
@@ -85,14 +73,12 @@ fun QuickWaterBottomSheet(
                     )
                 }
             }
-
-            Spacer(Modifier.height(4.dp))
-
+            Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { onLog(selectedFeedback) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.quick_water_sheet_log_button))
+                Text(stringResource(R.string.quick_water_log))
             }
         }
     }

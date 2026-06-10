@@ -1,53 +1,46 @@
-# Product ADR-0015: Quick-water flow uses a bottom sheet with feedback chips
+# Product ADR-0015: Quick-water opens a feedback bottom sheet
 
-**Status**: accepted
+**Status**: accepted, supersedes [ADR-0002](0002-default-feedback-just-right.md)
+
 **Date**: 2026-06-10
 
 ## Context
 
-Issue #126 identified two conflicting watering paths:
+ADR-0002 decided that the quick-water button on PlantCard would always log with JUST_RIGHT feedback silently. This kept the flow fast but meant users could never record TOO_SOON or TOO_LATE feedback from the plant list, undermining the adaptive interval feature.
 
-1. **PlantCard quick-water button** — one tap, but always logs `JUST_RIGHT` feedback silently. Users cannot record soil state, so the adaptive interval system is blind to over- or under-watering.
-2. **PlantDetail → + → select type → select feedback → Save** — captures feedback but requires 4+ steps and a full-screen transition.
+Issue #126 revisited this decision with the goal of finding a flow that is both fast (≤ 2 taps for the common case) and informative (feedback other than JUST_RIGHT reachable without a screen transition).
 
-The alternatives considered (from the issue) were:
+The alternatives considered were:
 - **Bottom sheet on quick-water tap** — small modal with feedback chips + one button
 - **Inline chip row on PlantCard** — expand the card in place; collapses after logging
 - **Swipe gesture** — encode feedback via swipe direction
 - **Long-press vs tap** — short tap = JUST_RIGHT (current), long-press = feedback picker
 - **Streamlined AddCareLog** — pre-fill WATER + JUST_RIGHT, collapse non-essential fields
 
-The bottom sheet was chosen because:
-- It keeps the one-tap path to begin (tap the water drop icon → sheet appears)
-- JUST_RIGHT is pre-selected, so tapping "Log watering" is the 2-tap happy path
-- TOO_SOON / TOO_LATE are reachable without navigating away
-- No change to the card layout or gesture recognition is required
-- Dismissing the sheet without tapping "Log watering" cancels the action (no silent log)
-- The pattern is already used in the app (PhotoSourceBottomSheet)
+The bottom sheet was chosen because it keeps the fast 2-tap path for JUST_RIGHT, surfaces other feedback values without a screen transition, and follows the same `ModalBottomSheet` pattern already used in the app (`PhotoSourceBottomSheet`).
 
 ## Decision
 
-Tapping the water drop quick-log button on a PlantCard opens a `ModalBottomSheet`
-(`QuickWaterBottomSheet`) containing:
-- A title "Watering {plant name}"
-- The "How was the soil?" prompt
-- Three `FilterChip`s for feedback (Still wet / Just right / Too dry), pre-selected to JUST_RIGHT
-- A full-width "Log watering" primary button
+Tapping the water drop icon on PlantCard opens a `WaterFeedbackBottomSheet` — a `ModalBottomSheet` containing:
 
-Tapping "Log watering" logs the watering with the selected feedback. If the adaptive interval system produces a suggestion, the app navigates to PlantDetailScreen (setting `suggestedWateringInterval` on the savedStateHandle) so the existing interval-adjustment dialog is shown. If no suggestion is produced, a Snackbar confirms the log.
+- The plant name as a title ("Water Monstera?")
+- The "How was the soil?" prompt (per ADR-0011)
+- Three FilterChips for TOO_SOON / JUST_RIGHT / TOO_LATE, with JUST_RIGHT pre-selected
+- A "Log" button
 
-Dismissing the sheet (tap outside, back gesture, or drag) cancels the action with no log written.
+Tapping "Log" with the default JUST_RIGHT chip requires 2 taps from the plant list (water icon → Log), preserving the fast-path expectation. Selecting a different chip and tapping Log requires 3 taps.
 
-The existing `quickLog(plantId, CareType.WATER)` path (which logged JUST_RIGHT silently) is no longer called for watering; the bottom sheet replaces it. The fertilize quick-log path is unchanged (fertilize has no soil-state feedback).
+Dismissing the sheet without tapping Log cancels the action — no log is written.
 
-ADR-0002 documented that "quick log always uses JUST_RIGHT without asking" and "if timing feels wrong, use the full log flow." This ADR supersedes that behaviour for the watering path: feedback is now surfaced inline in the quick-water flow.
+After the log is saved, if the adaptive interval suggestion fires (computed interval differs from stored interval), a suggestion AlertDialog appears directly in PlantListScreen — no screen navigation needed. The user can apply or dismiss the suggestion inline.
+
+The quick-fertilize button behaviour is unchanged (no feedback, single tap).
 
 ## Consequences
 
-- The happy path (JUST_RIGHT watering) requires exactly 2 taps from the plant list — no regressions on speed.
-- Users who want TOO_SOON or TOO_LATE no longer need to navigate to AddCareLog.
-- The adaptive interval system is more accurate because real feedback is captured rather than always assuming JUST_RIGHT.
-- When an interval suggestion fires from the quick-water sheet, the user is navigated to PlantDetailScreen where the existing interval dialog appears. This is the same UX as the AddCareLog path.
-- `PlantListViewModel` gains `quickLogWaterWithFeedback()` and a `quickWaterResult: SharedFlow<QuickWaterResult>` for the result (snackbar message + optional suggestion).
-- `PlantListScreen` gains a new `onNavigateToPlantWithSuggestion` callback used when a suggestion is present.
+- Users can now record TOO_SOON or TOO_LATE feedback without navigating to the Add Care Log screen.
+- The adaptive watering interval suggestion fires from the quick-water path as well as the full Add Care Log path.
+- The 1-tap silent quick-water is replaced by a 2-tap bottom-sheet flow. This is a minor increase in friction for routine waterings, accepted as the tradeoff for richer feedback capture.
+- The `WaterFeedbackBottomSheet` composable follows the same `ModalBottomSheet` pattern as `PhotoSourceBottomSheet`.
+- `PlantListViewModel` gains `quickWaterWithFeedback()`, `applySuggestedIntervalFromList()`, and a `quickWaterSuggestion: SharedFlow<QuickWaterSuggestion>` for routing suggestions to the screen.
 - Fertilize quick-log is unchanged.
