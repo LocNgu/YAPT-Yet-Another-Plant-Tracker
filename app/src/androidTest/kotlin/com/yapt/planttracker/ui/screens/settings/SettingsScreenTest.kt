@@ -17,6 +17,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
@@ -24,11 +25,13 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class SettingsScreenTest {
 
-    @get:Rule
-    val composeTestRule = createComposeRule()
+    private val composeTestRule = createComposeRule()
+    private val tmpFolder = TemporaryFolder()
 
     @get:Rule
-    val tmpFolder = TemporaryFolder()
+    val ruleChain: RuleChain = RuleChain
+        .outerRule(tmpFolder)
+        .around(composeTestRule)
 
     private lateinit var database: PlantDatabase
     private lateinit var dataStoreScope: CoroutineScope
