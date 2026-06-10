@@ -37,10 +37,11 @@ class PlantListViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val application: Application = mockk {
-        every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${args[1]}" }
-        every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${args[1]}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${args[1]}" }
-        every { getString(R.string.quick_log_other, any(), any()) } answers { "${args[1]} ${args[2]}" }
+        // getString is a Java Object... vararg method; MockK captures the vararg as an array at args[1]
+        every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${(args[1] as Array<*>)[0]}" }
+        every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${(args[1] as Array<*>)[0]}" }
+        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
+        every { getString(R.string.quick_log_other, any(), any()) } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
     }
     private val plantRepo: PlantRepository = mockk()
