@@ -21,7 +21,9 @@ class BackupSerializerTest {
                 wateringIntervalDays = 7,
                 fertilizingIntervalDays = 14,
                 createdAt = 1_000_000_000_000L,
-                updatedAt = 1_100_000_000_000L
+                updatedAt = 1_100_000_000_000L,
+                wateringDueDateOverride = 1_700_000_000_000L,
+                useLiquidFertilizer = true
             )
         ),
         careLogs = listOf(
@@ -33,13 +35,23 @@ class BackupSerializerTest {
                 notes = "Watered well",
                 photoUri = "content://uri/log.jpg",
                 amount = "500ml",
-                wateringFeedback = "JUST_RIGHT"
+                wateringFeedback = "JUST_RIGHT",
+                fertilizerType = "LIQUID"
             )
         ),
         settings = BackupSettings(
             notificationsEnabled = true,
             reminderHour = 9,
-            reminderMinute = 0
+            reminderMinute = 0,
+            keepScreenOn = true
+        ),
+        plantPhotos = listOf(
+            BackupPlantPhoto(
+                id = 100L,
+                plantId = 1L,
+                uri = "content://uri/gallery.jpg",
+                capturedAt = 1_650_000_000_000L
+            )
         )
     )
 
@@ -79,6 +91,7 @@ class BackupSerializerTest {
         assertNull(plant.notes)
         assertNull(plant.wateringIntervalDays)
         assertNull(plant.fertilizingIntervalDays)
+        assertNull(plant.wateringDueDateOverride)
     }
 
     @Test

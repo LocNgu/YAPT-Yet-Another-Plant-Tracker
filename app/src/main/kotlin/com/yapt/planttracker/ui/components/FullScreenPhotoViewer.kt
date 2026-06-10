@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -9,6 +10,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -30,7 +32,8 @@ import com.yapt.planttracker.R
 fun FullScreenPhotoViewer(
     uris: List<String>,
     initialIndex: Int = 0,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDelete: ((uri: String) -> Unit)? = null
 ) {
     if (uris.isEmpty()) return
     val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, uris.lastIndex)) { uris.size }
@@ -70,21 +73,38 @@ fun FullScreenPhotoViewer(
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
-            IconButton(
-                onClick = onDismiss,
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(8.dp),
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.60f)
-                )
+                    .padding(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = stringResource(R.string.cd_close_photo_viewer),
-                    tint = Color.White
-                )
+                if (onDelete != null) {
+                    IconButton(
+                        onClick = { onDelete(uris[pagerState.currentPage]) },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.60f)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.cd_delete_photo),
+                            tint = Color.White
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.60f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.cd_close_photo_viewer),
+                        tint = Color.White
+                    )
+                }
             }
         }
     }

@@ -77,6 +77,8 @@
         <item quantity="one">1 day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="water_feedback_sheet_title">Water %s?</string>
+    <string name="quick_water_log">Log</string>
     <string name="quick_log_water_cd">Quick water</string>
     <string name="quick_log_fertilize_cd">Quick fertilize</string>
     <string name="quick_log_watered">Watered %s</string>
@@ -130,6 +132,9 @@
     <string name="cd_delete_log">Delete log</string>
     <string name="cd_plant_photo">Plant photo</string>
     <string name="cd_care_log_photo">Care log photo</string>
+    <string name="cd_delete_photo">Delete photo</string>
+    <string name="delete_photo_title">Delete photo?</string>
+    <string name="delete_photo_body">Removes the photo from the gallery. The photo file stays on your device.</string>
     <string name="fert_label_never_fertilized">Never fertilized</string>
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
     <string name="stat_label_watering">Watering</string>
