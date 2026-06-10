@@ -43,7 +43,7 @@ fun WaterFeedbackBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, top = 8.dp, bottom = 24.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
         ) {
             Text(
                 text = stringResource(R.string.water_feedback_sheet_title, plantName),
