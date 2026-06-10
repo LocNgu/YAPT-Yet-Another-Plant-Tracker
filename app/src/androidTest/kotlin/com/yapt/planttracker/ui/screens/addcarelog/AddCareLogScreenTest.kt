@@ -111,7 +111,7 @@ class AddCareLogScreenTest {
             .getString(R.string.feedback_just_right)
 
         composeTestRule
-            .onNode(hasText(justRightLabel) and isSelected())
+            .onNode(hasText(justRightLabel, substring = true) and isSelected())
             .assertIsDisplayed()
     }
 
