@@ -45,6 +45,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantCard
+import com.yapt.planttracker.ui.components.QuickWaterBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +53,7 @@ fun PlantListScreen(
     viewModel: PlantListViewModel,
     restoreMessage: String? = null,
     onNavigateToPlant: (Long) -> Unit,
+    onNavigateToPlantWithSuggestion: (plantId: Long, suggestedInterval: Int) -> Unit,
     onNavigateToAdd: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
@@ -63,6 +65,9 @@ fun PlantListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
+    // plantId -> plant name for plants whose quick-water sheet is open (at most one at a time)
+    var quickWaterSheetPlantId by remember { mutableStateOf<Long?>(null) }
+
     LaunchedEffect(restoreMessage) {
         if (restoreMessage != null) {
             snackbarHostState.showSnackbar(restoreMessage)
@@ -72,6 +77,31 @@ fun PlantListScreen(
     LaunchedEffect(Unit) {
         viewModel.quickLogEvent.collect { message ->
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.quickWaterResult.collect { result ->
+            val suggested = result.suggestedInterval
+            if (suggested != null) {
+                onNavigateToPlantWithSuggestion(result.plantId, suggested)
+            } else {
+                snackbarHostState.showSnackbar(result.snackbarMessage)
+            }
+        }
+    }
+
+    quickWaterSheetPlantId?.let { plantId ->
+        val status = plantsWithStatus.firstOrNull { it.plant.id == plantId }
+        if (status != null) {
+            QuickWaterBottomSheet(
+                plantName = status.plant.name,
+                onLog = { feedback ->
+                    quickWaterSheetPlantId = null
+                    viewModel.quickLogWaterWithFeedback(plantId, feedback)
+                },
+                onDismiss = { quickWaterSheetPlantId = null }
+            )
         }
     }
 
@@ -195,7 +225,7 @@ fun PlantListScreen(
                         PlantCard(
                             status = status,
                             onClick = { onNavigateToPlant(status.plant.id) },
-                            onQuickWater = { viewModel.quickLog(status.plant.id, CareType.WATER) },
+                            onQuickWater = { quickWaterSheetPlantId = status.plant.id },
                             onQuickFertilize = { viewModel.quickLog(status.plant.id, CareType.FERTILIZE) }
                         )
                     }

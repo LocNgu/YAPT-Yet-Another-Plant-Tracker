@@ -25,7 +25,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -648,5 +650,147 @@ class PlantListViewModelTest {
             assertEquals(0, items.size)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // quickLogWaterWithFeedback tests
+
+    @Test
+    fun `quickLogWaterWithFeedback JUST_RIGHT emits QuickWaterResult with null suggestion when interval matches`() = runTest {
+        val now = System.currentTimeMillis()
+        val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
+        val monstera = plant(id = 1L, name = "Monstera").copy(wateringIntervalDays = 7)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+        )
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterResult.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLogWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                cancelAndIgnoreRemainingEvents()
+            }
+            val result = awaitItem()
+            assertEquals(1L, result.plantId)
+            assertEquals("Watered Monstera", result.snackbarMessage)
+            assertNull(result.suggestedInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+        }
+    }
+
+    @Test
+    fun `quickLogWaterWithFeedback JUST_RIGHT emits QuickWaterResult with suggestion when interval differs`() = runTest {
+        val now = System.currentTimeMillis()
+        val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
+        val monstera = plant(id = 1L, name = "Monstera").copy(wateringIntervalDays = 14)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+        )
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterResult.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLogWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                cancelAndIgnoreRemainingEvents()
+            }
+            val result = awaitItem()
+            assertNotNull(result.suggestedInterval)
+            assertEquals(7, result.suggestedInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `quickLogWaterWithFeedback TOO_SOON emits QuickWaterResult with non-null suggestion`() = runTest {
+        val now = System.currentTimeMillis()
+        val threeDaysAgo = now - TimeUnit.DAYS.toMillis(3)
+        val monstera = plant(id = 1L, name = "Monstera").copy(wateringIntervalDays = 7)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.TOO_SOON),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = threeDaysAgo, wateringFeedback = WateringFeedback.TOO_SOON)
+        )
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterResult.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLogWaterWithFeedback(1L, WateringFeedback.TOO_SOON)
+                cancelAndIgnoreRemainingEvents()
+            }
+            val result = awaitItem()
+            assertTrue(result.suggestedInterval != null)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `quickLogWaterWithFeedback clears wateringDueDateOverride when override is active`() = runTest {
+        val now = System.currentTimeMillis()
+        val override = now + TimeUnit.DAYS.toMillis(2)
+        val monstera = plant(id = 1L, name = "Monstera").copy(wateringDueDateOverride = override)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } returns Unit
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterResult.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLogWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                cancelAndIgnoreRemainingEvents()
+            }
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride == null })
+        }
+    }
+
+    @Test
+    fun `quickLogWaterWithFeedback does not call updatePlant when no override active`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } returns Unit
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterResult.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLogWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                cancelAndIgnoreRemainingEvents()
+            }
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 }

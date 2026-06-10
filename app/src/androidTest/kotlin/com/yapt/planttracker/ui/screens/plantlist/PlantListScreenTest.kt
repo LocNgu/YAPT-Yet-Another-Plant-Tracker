@@ -59,6 +59,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
+                onNavigateToPlantWithSuggestion = { _, _ -> },
                 onNavigateToAdd = {},
                 onNavigateToSettings = {}
             )
@@ -78,6 +79,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
+                onNavigateToPlantWithSuggestion = { _, _ -> },
                 onNavigateToAdd = {},
                 onNavigateToSettings = {}
             )

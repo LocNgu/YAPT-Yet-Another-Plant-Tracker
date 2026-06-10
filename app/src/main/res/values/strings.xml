@@ -192,4 +192,6 @@
     <string name="camera_permission_open_settings">Open Settings</string>
     <string name="camera_not_available">No camera available on this device</string>
     <string name="photo_viewer_page_indicator">%1$d / %2$d</string>
+    <string name="quick_water_sheet_title">Watering %s</string>
+    <string name="quick_water_sheet_log_button">Log watering</string>
 </resources>
