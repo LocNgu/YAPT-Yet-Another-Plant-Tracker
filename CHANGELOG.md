@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Adding the same photo URI twice in Add/Edit Plant no longer shows a duplicate thumbnail (#317)
+
 ---
 
 ## [0.9.0] - 2026-06-08
