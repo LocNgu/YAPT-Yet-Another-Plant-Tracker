@@ -34,6 +34,8 @@ import kotlinx.coroutines.launch
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
+data class QuickWaterSuggestion(val plantId: Long, val plantName: String, val suggestedInterval: Int)
+
 class PlantListViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
@@ -99,7 +101,14 @@ class PlantListViewModel(
     private val _quickLogEvent = MutableSharedFlow<String>()
     val quickLogEvent: SharedFlow<String> = _quickLogEvent.asSharedFlow()
 
+    private val _quickWaterSuggestion = MutableSharedFlow<QuickWaterSuggestion>()
+    val quickWaterSuggestion: SharedFlow<QuickWaterSuggestion> = _quickWaterSuggestion.asSharedFlow()
+
     fun quickLog(plantId: Long, careType: CareType) {
+        if (careType == CareType.WATER) {
+            quickWaterWithFeedback(plantId, WateringFeedback.JUST_RIGHT)
+            return
+        }
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
@@ -109,18 +118,10 @@ class PlantListViewModel(
                 plantId = plantId,
                 careType = careType,
                 loggedAt = now,
-                wateringFeedback = if (careType == CareType.WATER) WateringFeedback.JUST_RIGHT else null,
+                wateringFeedback = null,
                 fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
             )
             careLogRepository.addLog(log)
-            if (careType == CareType.WATER) {
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null)
-                        plantRepository.updatePlant(
-                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                        )
-                }
-            }
             if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
                 careLogRepository.addLog(
                     CareLog(
@@ -138,7 +139,6 @@ class PlantListViewModel(
                 }
             }
             val message = when (careType) {
-                CareType.WATER -> application.getString(R.string.quick_log_watered, plantName)
                 CareType.FERTILIZE -> if (plant.useLiquidFertilizer) {
                     application.getString(R.string.quick_log_watered_and_fertilized, plantName)
                 } else {
@@ -147,6 +147,50 @@ class PlantListViewModel(
                 else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plantName)
             }
             _quickLogEvent.emit(message)
+        }
+    }
+
+    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback) {
+        viewModelScope.launch {
+            val plant = plantsWithStatus.value
+                .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
+            val plantName = plant.name
+            val now = System.currentTimeMillis()
+            val log = CareLog(
+                plantId = plantId,
+                careType = CareType.WATER,
+                loggedAt = now,
+                wateringFeedback = feedback
+            )
+            careLogRepository.addLog(log)
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                if (p.wateringDueDateOverride != null)
+                    plantRepository.updatePlant(
+                        p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                    )
+            }
+            val lastTwo = careLogRepository.getLastTwoWaterings(plantId)
+            if (lastTwo.size >= 2) {
+                val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
+                val current = plant.wateringIntervalDays
+                if (current != null) {
+                    val suggestion = CareSchedule.computeSuggestedInterval(feedback, actual, current)
+                    if (suggestion != current) {
+                        _quickWaterSuggestion.emit(QuickWaterSuggestion(plantId, plantName, suggestion))
+                    }
+                }
+            }
+            _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plantName))
+        }
+    }
+
+    fun applySuggestedIntervalFromList(plantId: Long, newInterval: Int) {
+        viewModelScope.launch {
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(wateringIntervalDays = newInterval, updatedAt = System.currentTimeMillis())
+                )
+            }
         }
     }
 
