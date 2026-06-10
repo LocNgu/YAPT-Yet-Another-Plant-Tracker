@@ -26,7 +26,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.ui.util.labelRes
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -86,8 +88,11 @@ class AddCareLogScreenTest {
             )
         }
 
+        val waterLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(CareType.WATER.labelRes())
+
         composeTestRule
-            .onNode(hasText("Water", substring = true) and isSelected())
+            .onNode(hasText(waterLabel) and isSelected())
             .assertIsDisplayed()
     }
 
