@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- `BackupSerializerTest.fullRoot()` now includes all `BackupPlant` fields so future nullable additions are caught by the round-trip test (#288)
+
 ---
 
 ## [0.9.0] - 2026-06-08
