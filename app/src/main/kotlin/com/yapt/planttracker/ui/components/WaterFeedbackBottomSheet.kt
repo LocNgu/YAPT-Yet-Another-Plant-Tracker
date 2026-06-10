@@ -56,7 +56,10 @@ fun WaterFeedbackBottomSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 WateringFeedback.entries.forEach { feedback ->
                     FilterChip(
                         selected = selectedFeedback == feedback,
