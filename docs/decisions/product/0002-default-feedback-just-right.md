@@ -1,6 +1,6 @@
 # Product ADR-0002: Default watering feedback is JUST_RIGHT; quick log skips feedback entirely
 
-**Status**: accepted
+**Status**: superseded by [ADR-0015](0015-quick-water-bottom-sheet.md)
 
 **Date**: 2024-01-01
 

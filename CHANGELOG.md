@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Quick-water button on plant cards now opens a feedback bottom sheet (Still wet / Just right / Too dry) with Just right pre-selected; tapping Log in the default state still requires only 2 taps. Feedback other than Just right can now be recorded without opening the Add Care Log screen, and the adaptive watering interval suggestion fires from this path too (#126).
 ### Fixed
 - Adding the same photo URI twice in Add/Edit Plant no longer shows a duplicate thumbnail (#317)
 
