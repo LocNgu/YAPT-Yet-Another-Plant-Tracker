@@ -91,6 +91,7 @@ fun PlantDetailScreen(
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
+    var confirmDeletePhotoUri by remember { mutableStateOf<String?>(null) }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -131,7 +132,26 @@ fun PlantDetailScreen(
         FullScreenPhotoViewer(
             uris = galleryUris,
             initialIndex = index,
-            onDismiss = { fullScreenPhotoIndex = null }
+            onDismiss = { fullScreenPhotoIndex = null },
+            onDelete = { uri -> confirmDeletePhotoUri = uri; fullScreenPhotoIndex = null }
+        )
+    }
+
+    confirmDeletePhotoUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { confirmDeletePhotoUri = null },
+            title = { Text(stringResource(R.string.delete_photo_title)) },
+            text = { Text(stringResource(R.string.delete_photo_body)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deletePhoto(uri); confirmDeletePhotoUri = null }) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeletePhotoUri = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 

@@ -34,6 +34,9 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     suspend fun addLog(log: CareLog): Long =
         careLogDao.insertLog(log.toEntity())
 
+    suspend fun updateLog(log: CareLog) =
+        careLogDao.updateLog(log.toEntity())
+
     suspend fun deleteLog(log: CareLog) =
         careLogDao.deleteLog(log.toEntity())
 }

@@ -11,6 +11,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.ui.components.TimeRange
 import java.util.concurrent.TimeUnit
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -36,11 +38,15 @@ class PlantDetailViewModel(
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val plantPhotos: StateFlow<List<PlantPhoto>> =
+        plantPhotoRepository.getPhotosForPlant(plantId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val galleryPhotos: StateFlow<List<GalleryPhoto>> = combine(
-        plantPhotoRepository.getPhotosForPlant(plantId),
+        plantPhotos,
         careLogRepository.getPhotoLogsForPlant(plantId)
-    ) { plantPhotos, careLogPhotos ->
-        val fromPlant = plantPhotos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
+    ) { photos, careLogPhotos ->
+        val fromPlant = photos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
         val fromLogs = careLogPhotos.mapNotNull { log ->
             log.photoUri?.let { GalleryPhoto(uri = it, timestamp = log.loggedAt) }
         }
@@ -119,6 +125,31 @@ class PlantDetailViewModel(
 
     fun deleteLog(log: CareLog) {
         viewModelScope.launch { careLogRepository.deleteLog(log) }
+    }
+
+    fun deletePhoto(photoUri: String) {
+        viewModelScope.launch {
+            val logs = careLogRepository.getLogsForPlant(plantId).first()
+            val log = logs.firstOrNull { it.photoUri == photoUri }
+            if (log != null) {
+                careLogRepository.updateLog(log.copy(photoUri = null))
+            }
+            val photos = plantPhotoRepository.getPhotosForPlant(plantId).first()
+            val plantPhoto = photos.firstOrNull { it.uri == photoUri }
+            if (plantPhoto != null) {
+                plantPhotoRepository.deletePhoto(plantPhoto)
+            }
+            plant.value?.let { p ->
+                if (p.coverPhotoUri == photoUri) {
+                    val nextCover = photos
+                        .filter { it.uri != photoUri }
+                        .maxByOrNull { it.capturedAt }?.uri
+                    plantRepository.updatePlant(
+                        p.copy(coverPhotoUri = nextCover, updatedAt = System.currentTimeMillis())
+                    )
+                }
+            }
+        }
     }
 
     sealed class Event {
