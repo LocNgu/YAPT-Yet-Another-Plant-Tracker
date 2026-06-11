@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
@@ -91,7 +92,16 @@ fun PlantDetailScreen(
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
-    var confirmDeletePhotoUri by remember { mutableStateOf<String?>(null) }
+    var photoToDelete by remember { mutableStateOf<GalleryPhoto?>(null) }
+
+    LaunchedEffect(galleryPhotos) {
+        val idx = fullScreenPhotoIndex ?: return@LaunchedEffect
+        if (galleryPhotos.isEmpty()) {
+            fullScreenPhotoIndex = null
+        } else if (idx >= galleryPhotos.size) {
+            fullScreenPhotoIndex = galleryPhotos.lastIndex
+        }
+    }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -128,29 +138,30 @@ fun PlantDetailScreen(
         }
     }
 
+    photoToDelete?.let { photo ->
+        AlertDialog(
+            onDismissRequest = { photoToDelete = null },
+            title = { Text(stringResource(R.string.delete_photo)) },
+            text = { Text(stringResource(R.string.delete_photo_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deletePhoto(photo)
+                    photoToDelete = null
+                }) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { photoToDelete = null }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
     fullScreenPhotoIndex?.let { index ->
         FullScreenPhotoViewer(
             uris = galleryUris,
             initialIndex = index,
             onDismiss = { fullScreenPhotoIndex = null },
-            onDelete = { uri -> confirmDeletePhotoUri = uri; fullScreenPhotoIndex = null }
-        )
-    }
-
-    confirmDeletePhotoUri?.let { uri ->
-        AlertDialog(
-            onDismissRequest = { confirmDeletePhotoUri = null },
-            title = { Text(stringResource(R.string.delete_photo_title)) },
-            text = { Text(stringResource(R.string.delete_photo_body)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deletePhoto(uri); confirmDeletePhotoUri = null }) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDeletePhotoUri = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onDelete = { uri ->
+                photoToDelete = galleryPhotos.firstOrNull { it.uri == uri }
             }
         )
     }
@@ -350,6 +361,9 @@ fun PlantDetailScreen(
                             photoUris = galleryUris,
                             onPhotoClick = { uri ->
                                 fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                            },
+                            onPhotoLongPress = { uri ->
+                                photoToDelete = galleryPhotos.firstOrNull { it.uri == uri }
                             }
                         )
                         Spacer(Modifier.height(16.dp))

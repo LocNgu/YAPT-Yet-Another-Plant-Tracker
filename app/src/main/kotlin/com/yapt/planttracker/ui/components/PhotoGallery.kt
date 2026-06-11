@@ -1,6 +1,6 @@
 package com.yapt.planttracker.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -20,6 +20,7 @@ import com.yapt.planttracker.R
 fun PhotoGallery(
     photoUris: List<String>,
     onPhotoClick: (String) -> Unit,
+    onPhotoLongPress: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (photoUris.isEmpty()) return
@@ -37,7 +38,10 @@ fun PhotoGallery(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onPhotoClick(uri) }
+                    .combinedClickable(
+                        onClick = { onPhotoClick(uri) },
+                        onLongClick = { onPhotoLongPress?.invoke(uri) }
+                    )
             )
         }
     }

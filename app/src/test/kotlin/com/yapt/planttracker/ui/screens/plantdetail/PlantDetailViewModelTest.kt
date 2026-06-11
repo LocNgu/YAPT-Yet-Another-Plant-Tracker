@@ -6,6 +6,8 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -307,5 +309,86 @@ class PlantDetailViewModelTest {
             assertEquals(1000L, photos[1].timestamp)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `deletePhoto plant photo calls deletePhoto on plantPhotoRepository`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 1000L)
+        every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
+        coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
+        coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns emptyList()
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        vm.deletePhoto(photo)
+
+        coVerify { plantPhotoRepo.deletePhoto(plantPhoto) }
+    }
+
+    @Test
+    fun `deletePhoto cover plant photo updates coverPhotoUri to next most-recent`() = runTest {
+        val nextPhoto = PlantPhoto(id = 2L, plantId = 1L, uri = "file:///next.jpg", capturedAt = 500L)
+        val monstera = plant().copy(coverPhotoUri = "file:///plant.jpg")
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 1000L)
+        every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
+        coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
+        coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns listOf(nextPhoto)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.deletePhoto(photo)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == nextPhoto.uri }) }
+    }
+
+    @Test
+    fun `deletePhoto last plant photo clears coverPhotoUri to null`() = runTest {
+        val monstera = plant().copy(coverPhotoUri = "file:///plant.jpg")
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 1000L)
+        every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
+        coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
+        coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns emptyList()
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.deletePhoto(photo)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == null }) }
+    }
+
+    @Test
+    fun `deletePhoto care log photo nulls out photoUri via updateLog`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val careLog = CareLog(
+            id = 5L, plantId = 1L,
+            careType = CareType.PHOTO,
+            loggedAt = 2000L,
+            photoUri = "file:///care.jpg"
+        )
+        every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(listOf(careLog))
+        coEvery { careLogRepo.getLogById(5L) } returns careLog
+        coEvery { careLogRepo.updateLog(any()) } just runs
+        val vm = makeVm()
+
+        val photo = GalleryPhoto(uri = careLog.photoUri!!, timestamp = careLog.loggedAt, source = GalleryPhotoSource.FromCareLog(careLog.id))
+        vm.deletePhoto(photo)
+
+        coVerify { careLogRepo.updateLog(match { it.id == 5L && it.photoUri == null }) }
     }
 }
