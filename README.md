@@ -19,7 +19,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Keep screen on** — Optional toggle in Settings keeps the display awake while you tend your plants
 - **Watering history chart** — Line chart on the plant detail screen showing average days between waterings per calendar month; selectable time ranges (1M / 3M / 6M / 12M / All)
 - **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
-- **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer; add photos via the gallery picker or by taking a new photo with the in-app camera
+- **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
 - **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
 - **Offline-first** — No account, no cloud, no network calls. All data stays on device
 

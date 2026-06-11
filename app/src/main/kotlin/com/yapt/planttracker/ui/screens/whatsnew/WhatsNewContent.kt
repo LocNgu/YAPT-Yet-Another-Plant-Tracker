@@ -11,6 +11,19 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 200,
+            versionName = "0.10.0",
+            added = listOf(
+                "Delete photos from the gallery — long-press a thumbnail or tap the trash icon in the full-screen viewer; care log entries are preserved when their photo is deleted"
+            ),
+            fixed = listOf(
+                "Adding the same photo to a plant twice no longer shows a duplicate thumbnail"
+            ),
+            changed = listOf(
+                "Saving a Photo care log entry now updates the plant's cover photo to the attached image"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 190,
             versionName = "0.9.0",
             added = listOf(
