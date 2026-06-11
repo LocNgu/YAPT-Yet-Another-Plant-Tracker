@@ -21,6 +21,9 @@ object WhatsNewContent {
             fixed = listOf(
                 "Photo care log: the Save button is now disabled until a photo is attached, with an inline error hint below the photo picker",
                 "Duplicate photos can no longer be added to the gallery"
+            ),
+            changed = listOf(
+                "Quick-water button now opens a soil feedback sheet (Still wet / Just right / Too dry). Just right stays the default — one more tap gets you there."
             )
         ),
         ReleaseNotes(
