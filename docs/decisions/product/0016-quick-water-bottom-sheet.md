@@ -1,4 +1,4 @@
-# Product ADR-0015: Quick-water opens a feedback bottom sheet
+# Product ADR-0016: Quick-water opens a feedback bottom sheet
 
 **Status**: accepted, supersedes [ADR-0002](0002-default-feedback-just-right.md)
 
