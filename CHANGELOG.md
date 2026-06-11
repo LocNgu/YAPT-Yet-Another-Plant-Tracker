@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
+
 ---
 
 ## [0.9.0] - 2026-06-08
