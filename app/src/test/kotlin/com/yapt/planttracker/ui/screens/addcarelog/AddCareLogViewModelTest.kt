@@ -288,4 +288,29 @@ class AddCareLogViewModelTest {
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
+
+    @Test
+    fun `edit mode save PHOTO log with photoUri updates plant coverPhotoUri`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.PHOTO,
+            loggedAt = now,
+            photoUri = "content://photo.jpg"
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == "content://photo.jpg" }) }
+    }
 }
