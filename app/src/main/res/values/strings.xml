@@ -78,6 +78,7 @@
         <item quantity="other">%d days</item>
     </plurals>
     <string name="water_feedback_sheet_title">Water %s?</string>
+    <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>
     <string name="quick_log_water_cd">Quick water</string>
     <string name="quick_log_fertilize_cd">Quick fertilize</string>

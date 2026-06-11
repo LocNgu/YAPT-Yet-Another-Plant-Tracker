@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Combined quick-water-fertilize button on liquid-fertilizer PlantCards now opens a feedback bottom sheet before logging, matching the standalone quick-water button behaviour; adaptive interval suggestion fires after save (#344)
+
 ---
 
 ## [0.10.0] - 2026-06-11

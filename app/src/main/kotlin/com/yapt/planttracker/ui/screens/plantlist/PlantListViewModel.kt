@@ -190,6 +190,50 @@ class PlantListViewModel(
         }
     }
 
+    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback) {
+        viewModelScope.launch {
+            val plant = plantsWithStatus.value
+                .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
+            val plantName = plant.name
+            val now = System.currentTimeMillis()
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = plantId,
+                    careType = CareType.FERTILIZE,
+                    loggedAt = now,
+                    wateringFeedback = null,
+                    fertilizerType = FertilizerType.LIQUID
+                )
+            )
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = plantId,
+                    careType = CareType.WATER,
+                    loggedAt = now,
+                    wateringFeedback = feedback
+                )
+            )
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                if (p.wateringDueDateOverride != null)
+                    plantRepository.updatePlant(
+                        p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                    )
+            }
+            val lastTwo = careLogRepository.getLastTwoWaterings(plantId)
+            if (lastTwo.size >= 2) {
+                val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
+                val current = plant.wateringIntervalDays
+                if (current != null && actual > 0) {
+                    val suggestion = CareSchedule.computeSuggestedInterval(feedback, actual, current)
+                    if (suggestion != current) {
+                        _quickWaterSuggestion.emit(QuickWaterSuggestion(plantId, plantName, suggestion))
+                    }
+                }
+            }
+            _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plantName))
+        }
+    }
+
     fun applySuggestedIntervalFromList(plantId: Long, newInterval: Int) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
