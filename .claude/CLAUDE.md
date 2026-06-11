@@ -297,6 +297,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - GitHub Release auto-created on push to `main` with signed APK + auto-generated notes; `--target SHA` anchors tag to the exact triggering commit (#205)
 - Debug keystore committed to repo for in-place upgrades between local and CI APKs (#17)
 - Release build: `isMinifyEnabled = true`, `isShrinkResources = true`; ProGuard rules for WorkManager workers and Room DAOs (#4)
+- Redundant `ANDROID_HOME` env overrides removed from all Gradle steps; deprecated `Icons.Filled.Notes` replaced with `Icons.AutoMirrored.Filled.Notes`; `@Suppress("DEPRECATION")` on `statusBarColor`; `@OptIn(ExperimentalCoroutinesApi::class)` added to ViewModel test classes (#336)
 
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
