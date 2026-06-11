@@ -867,6 +867,36 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `quickLiquidFertilizeWithFeedback TOO_SOON emits interval suggestion when interval differs`() = runTest {
+        val now = System.currentTimeMillis()
+        val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
+        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
+        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+        )
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.quickWaterSuggestion.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.quickLiquidFertilizeWithFeedback(1L, WateringFeedback.TOO_SOON)
+                cancelAndIgnoreRemainingEvents()
+            }
+            val suggestion = awaitItem()
+            assertEquals(1L, suggestion.plantId)
+            // actual=5 < current=7 → TOO_SOON base=current=7, suggestion=7+1=8
+            assertEquals(8, suggestion.suggestedInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `quickLiquidFertilizeWithFeedback clears wateringDueDateOverride`() = runTest {
         val override = System.currentTimeMillis() + 86_400_000L
         val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringDueDateOverride = override, createdAt = 0L, updatedAt = 0L)
