@@ -18,6 +18,9 @@ class PlantPhotoRepository(private val plantPhotoDao: PlantPhotoDao) {
         plantPhotoDao.insertAll(photos.map { it.toEntity() })
     }
 
+    suspend fun getPhotosForPlantOnce(plantId: Long): List<PlantPhoto> =
+        plantPhotoDao.getPhotosForPlantOnce(plantId).map { it.toDomain() }
+
     suspend fun deletePhoto(photo: PlantPhoto) =
         plantPhotoDao.deletePhoto(photo.toEntity())
 }

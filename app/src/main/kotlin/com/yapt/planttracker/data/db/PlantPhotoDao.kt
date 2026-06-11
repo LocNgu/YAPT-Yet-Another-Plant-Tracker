@@ -22,6 +22,9 @@ interface PlantPhotoDao {
     @Delete
     suspend fun deletePhoto(photo: PlantPhotoEntity)
 
+    @Query("SELECT * FROM plant_photos WHERE plantId = :plantId ORDER BY capturedAt DESC")
+    suspend fun getPhotosForPlantOnce(plantId: Long): List<PlantPhotoEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(photos: List<PlantPhotoEntity>): List<Long>
 
