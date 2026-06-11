@@ -1,6 +1,6 @@
 # Product ADR-0012: Cover photo updates only from AddEditPlant, not from care-log photos
 
-**Status**: accepted  
+**Status**: superseded by [ADR-0015](0015-photo-carelog-updates-cover-photo.md)  
 **Date**: 2026-06-07
 
 ## Context

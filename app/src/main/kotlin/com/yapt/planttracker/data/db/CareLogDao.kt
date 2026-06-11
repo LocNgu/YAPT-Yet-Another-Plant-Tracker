@@ -37,6 +37,9 @@ interface CareLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: CareLogEntity): Long
 
+    @Update
+    suspend fun updateLog(log: CareLogEntity)
+
     @Delete
     suspend fun deleteLog(log: CareLogEntity)
 

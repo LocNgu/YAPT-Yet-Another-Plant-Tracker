@@ -14,9 +14,25 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.10.0] - 2026-06-11
+
+### Added
+- Delete individual photos from the plant gallery: long-press a thumbnail or tap the trash icon in the full-screen viewer; deleting a care-log photo preserves the log entry (#306)
+
+### Changed
+- Saving a Photo care log entry now updates the plant's cover photo to the attached image (#304)
+- Quick-water button on plant cards now opens a feedback bottom sheet (Still wet / Just right / Too dry) with Just right pre-selected; tapping Log in the default state still requires only 2 taps. Feedback other than Just right can now be recorded without opening the Add Care Log screen, and the adaptive watering interval suggestion fires from this path too (#126).
+
+### Fixed
+- Adding the same photo URI twice in Add/Edit Plant no longer shows a duplicate thumbnail (#317)
+- `BackupSerializerTest.fullRoot()` now includes all `BackupPlant` fields so future nullable additions are caught by the round-trip test (#288)
+
+---
+
 ## [0.9.0] - 2026-06-08
 
 ### Added
+- Photo gallery: delete individual photos from the full-screen viewer; a confirmation dialog removes the photo from the care log entry (the log is preserved; the photo file stays on the device); if the deleted photo was the cover, the cover falls back to the next most-recent gallery photo (#306)
 - Tapping the cover photo on Plant Detail opens the full-screen photo viewer (#307)
 - Full-screen photo viewer now supports swipe left/right to navigate all gallery photos; opens at the tapped photo's index; shows a "2 / 5" position indicator when there are multiple photos (#308)
 - Per-plant photo gallery: adding a photo in AddEditPlant now appends to a gallery instead of replacing the cover; Plant Detail shows a unified scrollable gallery of plant and care-log photos sorted by date, with a full-screen viewer on tap; backup/restore includes all gallery photos (#290)

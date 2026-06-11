@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,10 +26,12 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -39,12 +43,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantCard
+import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +69,12 @@ fun PlantListScreen(
     val hasUnassignedPlants by viewModel.hasUnassignedPlants.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuExpanded by remember { mutableStateOf(false) }
+    var waterFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
+    var pendingIntervalSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
+    var intervalFieldText by remember(pendingIntervalSuggestion) {
+        mutableStateOf(pendingIntervalSuggestion?.suggestedInterval?.toString().orEmpty())
+    }
+    val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
 
     LaunchedEffect(restoreMessage) {
         if (restoreMessage != null) {
@@ -72,6 +85,12 @@ fun PlantListScreen(
     LaunchedEffect(Unit) {
         viewModel.quickLogEvent.collect { message ->
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.quickWaterSuggestion.collect { suggestion ->
+            pendingIntervalSuggestion = suggestion
         }
     }
 
@@ -195,7 +214,7 @@ fun PlantListScreen(
                         PlantCard(
                             status = status,
                             onClick = { onNavigateToPlant(status.plant.id) },
-                            onQuickWater = { viewModel.quickLog(status.plant.id, CareType.WATER) },
+                            onQuickWater = { waterFeedbackPlant = status },
                             onQuickFertilize = { viewModel.quickLog(status.plant.id, CareType.FERTILIZE) }
                         )
                     }
@@ -203,5 +222,62 @@ fun PlantListScreen(
                 }
             }
         }
+    }
+
+    waterFeedbackPlant?.let { s ->
+        WaterFeedbackBottomSheet(
+            plantName = s.plant.name,
+            onDismiss = { waterFeedbackPlant = null },
+            onLog = { feedback ->
+                viewModel.quickWaterWithFeedback(s.plant.id, feedback)
+                waterFeedbackPlant = null
+            }
+        )
+    }
+
+    pendingIntervalSuggestion?.let { suggestion ->
+        val currentInterval = plantsWithStatus
+            .firstOrNull { it.plant.id == suggestion.plantId }
+            ?.plant?.wateringIntervalDays ?: 0
+        AlertDialog(
+            onDismissRequest = { pendingIntervalSuggestion = null },
+            title = { Text(stringResource(R.string.interval_suggestion_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.interval_suggestion_body,
+                            suggestion.suggestedInterval,
+                            currentInterval
+                        )
+                    )
+                    OutlinedTextField(
+                        value = intervalFieldText,
+                        onValueChange = { intervalFieldText = it.filter(Char::isDigit) },
+                        label = { Text(stringResource(R.string.interval_suggestion_field_label)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        parsedInterval?.let {
+                            viewModel.applySuggestedIntervalFromList(suggestion.plantId, it)
+                        }
+                        pendingIntervalSuggestion = null
+                    },
+                    enabled = parsedInterval != null
+                ) {
+                    Text(stringResource(R.string.interval_suggestion_apply))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingIntervalSuggestion = null }) {
+                    Text(stringResource(R.string.dismiss))
+                }
+            }
+        )
     }
 }

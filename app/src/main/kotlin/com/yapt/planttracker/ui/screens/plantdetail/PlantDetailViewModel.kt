@@ -9,8 +9,10 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.ui.components.TimeRange
 import java.util.concurrent.TimeUnit
@@ -36,13 +38,21 @@ class PlantDetailViewModel(
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val plantPhotos: StateFlow<List<PlantPhoto>> =
+        plantPhotoRepository.getPhotosForPlant(plantId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val galleryPhotos: StateFlow<List<GalleryPhoto>> = combine(
-        plantPhotoRepository.getPhotosForPlant(plantId),
+        plantPhotos,
         careLogRepository.getPhotoLogsForPlant(plantId)
     ) { plantPhotos, careLogPhotos ->
-        val fromPlant = plantPhotos.map { GalleryPhoto(uri = it.uri, timestamp = it.capturedAt) }
+        val fromPlant = plantPhotos.map {
+            GalleryPhoto(uri = it.uri, timestamp = it.capturedAt, source = GalleryPhotoSource.FromPlant(it))
+        }
         val fromLogs = careLogPhotos.mapNotNull { log ->
-            log.photoUri?.let { GalleryPhoto(uri = it, timestamp = log.loggedAt) }
+            log.photoUri?.let {
+                GalleryPhoto(uri = it, timestamp = log.loggedAt, source = GalleryPhotoSource.FromCareLog(log.id))
+            }
         }
         (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -113,6 +123,27 @@ class PlantDetailViewModel(
                 )
                 val proposed = (p.wateringIntervalDays ?: 0) + days
                 _events.emit(Event.SkipConfirmed(days, proposed))
+            }
+        }
+    }
+
+    fun deletePhoto(photo: GalleryPhoto) {
+        viewModelScope.launch {
+            when (val src = photo.source) {
+                is GalleryPhotoSource.FromPlant -> {
+                    plantPhotoRepository.deletePhoto(src.photo)
+                    val currentPlant = plant.value ?: return@launch
+                    if (photo.uri == currentPlant.coverPhotoUri) {
+                        val nextCover = plantPhotoRepository.getPhotosForPlantOnce(plantId).firstOrNull()
+                        plantRepository.updatePlant(
+                            currentPlant.copy(coverPhotoUri = nextCover?.uri, updatedAt = System.currentTimeMillis())
+                        )
+                    }
+                }
+                is GalleryPhotoSource.FromCareLog -> {
+                    val log = careLogRepository.getLogById(src.logId) ?: return@launch
+                    careLogRepository.updateLog(log.copy(photoUri = null))
+                }
             }
         }
     }

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
@@ -91,6 +92,16 @@ fun PlantDetailScreen(
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
+    var photoToDelete by remember { mutableStateOf<GalleryPhoto?>(null) }
+
+    LaunchedEffect(galleryPhotos) {
+        val idx = fullScreenPhotoIndex ?: return@LaunchedEffect
+        if (galleryPhotos.isEmpty()) {
+            fullScreenPhotoIndex = null
+        } else if (idx >= galleryPhotos.size) {
+            fullScreenPhotoIndex = galleryPhotos.lastIndex
+        }
+    }
 
     var isExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
@@ -127,11 +138,31 @@ fun PlantDetailScreen(
         }
     }
 
+    photoToDelete?.let { photo ->
+        AlertDialog(
+            onDismissRequest = { photoToDelete = null },
+            title = { Text(stringResource(R.string.delete_photo)) },
+            text = { Text(stringResource(R.string.delete_photo_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deletePhoto(photo)
+                    photoToDelete = null
+                }) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { photoToDelete = null }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
     fullScreenPhotoIndex?.let { index ->
         FullScreenPhotoViewer(
             uris = galleryUris,
             initialIndex = index,
-            onDismiss = { fullScreenPhotoIndex = null }
+            onDismiss = { fullScreenPhotoIndex = null },
+            onDelete = { uri ->
+                photoToDelete = galleryPhotos.firstOrNull { it.uri == uri }
+            }
         )
     }
 
