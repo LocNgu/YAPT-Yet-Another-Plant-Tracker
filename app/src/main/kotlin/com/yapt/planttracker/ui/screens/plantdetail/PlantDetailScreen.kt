@@ -361,9 +361,6 @@ fun PlantDetailScreen(
                             photoUris = galleryUris,
                             onPhotoClick = { uri ->
                                 fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
-                            },
-                            onPhotoLongPress = { uri ->
-                                photoToDelete = galleryPhotos.firstOrNull { it.uri == uri }
                             }
                         )
                         Spacer(Modifier.height(16.dp))
