@@ -350,9 +350,10 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
-        vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
-
         vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
+            advanceUntilIdle()
             val items = awaitItem()
             assertEquals(1, items.size)
             assertEquals("Snake Plant", items[0].plant.name)
