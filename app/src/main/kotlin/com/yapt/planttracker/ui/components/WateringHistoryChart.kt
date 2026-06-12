@@ -104,7 +104,7 @@ private class CareEventDecoration(
             markers.groupBy { it.timestamp / DAY_IN_MS }.forEach { (_, dayMarkers) ->
                 val monthIndex = dayMarkers.first().monthIndex
                 val cx = layerBounds.left + layerDimensions.startPadding +
-                    ((monthIndex - ranges.minX) / ranges.xStep) *
+                    ((monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                     layerDimensions.xSpacing - scroll
                 if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                 dayMarkers.forEachIndexed { stackIndex, marker ->
