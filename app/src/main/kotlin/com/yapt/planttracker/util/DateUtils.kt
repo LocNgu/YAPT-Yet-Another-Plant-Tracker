@@ -7,7 +7,6 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 internal fun Long.toLocalDate(): LocalDate =
     Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -15,8 +14,7 @@ internal fun Long.toLocalDate(): LocalDate =
 object DateUtils {
 
     fun formatRelative(timestampMs: Long, now: Long = System.currentTimeMillis()): String {
-        val diffMs = now - timestampMs
-        val days = TimeUnit.MILLISECONDS.toDays(diffMs)
+        val days = ChronoUnit.DAYS.between(timestampMs.toLocalDate(), now.toLocalDate())
         return when {
             days == 0L -> "Today"
             days == 1L -> "Yesterday"
