@@ -73,10 +73,7 @@ fun WateringHistoryChart(
     val wateringLogs = careLogs.filter { it.careType == CareType.WATER }
         .sortedBy { it.loggedAt }
 
-    // Capture once so it stays stable across recompositions — using a fresh
-    // System.currentTimeMillis() each recomposition would defeat the
-    // remember-keys on the month-aggregation block below.
-    val now = remember { System.currentTimeMillis() }
+    val now = remember(wateringLogs) { System.currentTimeMillis() }
     val rangeStartMs = when (selectedRange) {
         TimeRange.ALL_TIME -> wateringLogs.minByOrNull { it.loggedAt }?.loggedAt ?: now
         else -> now - (selectedRange.daysBack.toLong() * DAY_IN_MS)

@@ -31,6 +31,7 @@ import com.yapt.planttracker.ui.util.labelRes
 @Composable
 fun WaterFeedbackBottomSheet(
     plantName: String,
+    title: String = stringResource(R.string.water_feedback_sheet_title, plantName),
     onDismiss: () -> Unit,
     onLog: (WateringFeedback) -> Unit
 ) {
@@ -46,7 +47,7 @@ fun WaterFeedbackBottomSheet(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
         ) {
             Text(
-                text = stringResource(R.string.water_feedback_sheet_title, plantName),
+                text = title,
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(Modifier.height(8.dp))
