@@ -103,10 +103,11 @@ class PlantDetailViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         val vm = makeVm()
 
-        vm.suggestedWateringInterval.value = 10
-        vm.clearSuggestedInterval()
-
         vm.suggestedWateringInterval.test {
+            assertNull(awaitItem())
+            vm.suggestedWateringInterval.value = 10
+            assertEquals(10, awaitItem())
+            vm.clearSuggestedInterval()
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
