@@ -2,10 +2,10 @@ package com.yapt.planttracker.ui.util
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.LocalFlorist
-import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Shower
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
@@ -31,7 +31,7 @@ fun CareType.icon(): ImageVector = when (this) {
     CareType.PRUNE -> Icons.Filled.ContentCut
     CareType.MIST -> Icons.Filled.Shower
     CareType.REPOT -> Icons.Filled.LocalFlorist
-    CareType.NOTE -> Icons.Filled.Notes
+    CareType.NOTE -> Icons.AutoMirrored.Filled.Notes
     CareType.PHOTO -> Icons.Filled.AutoAwesome
 }
 

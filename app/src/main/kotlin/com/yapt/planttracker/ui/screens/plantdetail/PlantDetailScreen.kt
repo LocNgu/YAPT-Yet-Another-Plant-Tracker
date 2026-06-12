@@ -25,11 +25,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
-import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -392,7 +392,7 @@ fun PlantDetailScreen(
                         Box(modifier = Modifier.height(200.dp)) {
                             EmptyStateView(
                                 message = stringResource(R.string.no_care_logs_detail),
-                                icon = Icons.Filled.Notes
+                                icon = Icons.AutoMirrored.Filled.Notes
                             )
                         }
                     }

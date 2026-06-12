@@ -14,6 +14,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Care event markers on the watering history chart: a scrollable strip below the chart shows non-watering care events (REPOT, MIST, PRUNE, FERTILIZE, NOTE, PHOTO) for the selected time range, so users can correlate care actions with interval changes (#231)
+### Fixed
+- "Last: x days ago" on watering and fertilizing chips (PlantDetail, PlantList cards, care-log history) now uses calendar-day comparison instead of a rolling 24-hour window, so a late-evening care event correctly shows "Yesterday" the following morning (#351)
+### Changed
+- CI: opt into Node.js 24 for all actions via `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` before June 16 deadline (#336)
+- CI: remove redundant `ANDROID_HOME` env override from Gradle steps
+- Code: replace deprecated `Icons.Filled.Notes` with `Icons.AutoMirrored.Filled.Notes`
+- Code: suppress deprecated `statusBarColor` API in Theme.kt
+- Tests: add `@OptIn(ExperimentalCoroutinesApi::class)` to ViewModel test classes
+### Fixed
+- Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
+### Changed
+- Combined quick-water-fertilize button on liquid-fertilizer PlantCards now opens a feedback bottom sheet before logging, matching the standalone quick-water button behaviour; adaptive interval suggestion fires after save (#344)
 
 ---
 
