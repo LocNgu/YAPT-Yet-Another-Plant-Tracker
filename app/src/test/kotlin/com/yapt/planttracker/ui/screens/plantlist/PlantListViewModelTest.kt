@@ -106,12 +106,16 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
-        vm.selectRoom("Kitchen")
-
         vm.plantsWithStatus.test {
-            val items = awaitItem()
-            assertEquals(1, items.size)
-            assertEquals("Basil", items[0].plant.name)
+            val initial = awaitItem()
+            assertEquals(2, initial.size)
+
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+
+            val filtered = awaitItem()
+            assertEquals(1, filtered.size)
+            assertEquals("Basil", filtered[0].plant.name)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -124,11 +128,21 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
-        vm.selectRoom(null)
-
         vm.plantsWithStatus.test {
-            val items = awaitItem()
-            assertEquals(2, items.size)
+            val initial = awaitItem()
+            assertEquals(2, initial.size)
+
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+
+            val filtered = awaitItem()
+            assertEquals(1, filtered.size)
+
+            vm.selectRoom(null)
+            advanceUntilIdle()
+
+            val all = awaitItem()
+            assertEquals(2, all.size)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -338,9 +352,10 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
-        vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
-
         vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            vm.selectRoom(PlantListViewModel.UNASSIGNED_ROOM)
+            advanceUntilIdle()
             val items = awaitItem()
             assertEquals(1, items.size)
             assertEquals("Snake Plant", items[0].plant.name)
