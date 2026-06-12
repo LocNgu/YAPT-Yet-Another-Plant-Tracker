@@ -1,6 +1,6 @@
 package com.yapt.planttracker.ui.components
 
-import android.graphics.Paint
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
@@ -44,6 +52,7 @@ import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.ui.util.icon
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -83,28 +92,51 @@ data class CareEventMarker(
     val timestamp: Long
 )
 
-private class CareEventDecoration : Decoration {
-    private val paints = careTypeColors.mapValues { (_, color) ->
-        Paint().apply {
-            this.color = color
-            style = Paint.Style.FILL
-            isAntiAlias = true
-        }
-    }
-
+private class CareEventDecoration(
+    private val iconBitmaps: Map<CareType, Bitmap>,
+) : Decoration {
     override fun drawOverLayers(context: CartesianDrawingContext) {
         val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: return
         if (markers.isEmpty()) return
         with(context) {
-            val radius = density * 4f
-            val cy = layerBounds.bottom - radius - density * 2f
+            val iconSize = density * 14f
+            val cy = layerBounds.bottom - iconSize / 2f - density * 2f
             markers.forEach { marker ->
                 val cx = layerBounds.left + layerDimensions.startPadding +
                     ((marker.monthIndex - ranges.minX) / ranges.xStep).toFloat() *
                     layerDimensions.xSpacing - scroll
                 if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
-                canvas.drawCircle(cx, cy, radius, paints[marker.careType] ?: return@forEach)
+                val bm = iconBitmaps[marker.careType] ?: return@forEach
+                canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
             }
+        }
+    }
+}
+
+@Composable
+private fun rememberCareIconBitmaps(): Map<CareType, Bitmap> {
+    val density = LocalDensity.current
+    val iconSizePx = with(density) { 14.dp.roundToPx() }
+    val painters = careTypeColors.keys.associateWith { rememberVectorPainter(it.icon()) }
+    return remember(iconSizePx) {
+        val drawScope = CanvasDrawScope()
+        painters.entries.associate { (careType, painter) ->
+            val color = careTypeColors.getValue(careType)
+            val bm = Bitmap.createBitmap(iconSizePx, iconSizePx, Bitmap.Config.ARGB_8888)
+            drawScope.draw(
+                density = density,
+                layoutDirection = LayoutDirection.Ltr,
+                canvas = Canvas(android.graphics.Canvas(bm)),
+                size = Size(iconSizePx.toFloat(), iconSizePx.toFloat()),
+            ) {
+                with(painter) {
+                    draw(
+                        size = Size(iconSizePx.toFloat(), iconSizePx.toFloat()),
+                        colorFilter = ColorFilter.tint(Color(color)),
+                    )
+                }
+            }
+            careType to bm
         }
     }
 }
@@ -174,7 +206,8 @@ private fun ChartContent(
     careMarkers: List<CareEventMarker>,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    val careEventDecoration = remember { CareEventDecoration() }
+    val iconBitmaps = rememberCareIconBitmaps()
+    val careEventDecoration = remember(iconBitmaps) { CareEventDecoration(iconBitmaps) }
 
     val (monthlyPoints, monthLabels) = remember(intervals, rangeStartMs, now) {
         val points = mutableListOf<Pair<Float, Float>>()
