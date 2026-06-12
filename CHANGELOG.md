@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Care event markers on the watering history chart: a scrollable strip below the chart shows non-watering care events (REPOT, MIST, PRUNE, FERTILIZE, NOTE, PHOTO) for the selected time range, so users can correlate care actions with interval changes (#231)
+
 ---
 
 ## [0.10.0] - 2026-06-11

@@ -7,8 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +46,8 @@ import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.ui.util.icon
+import com.yapt.planttracker.ui.util.labelRes
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -64,6 +71,12 @@ data class WateringInterval(
     val daysSincePrevious: Float
 )
 
+data class CareEventMarker(
+    val monthIndex: Int,
+    val careType: CareType,
+    val timestamp: Long
+)
+
 @Composable
 fun WateringHistoryChart(
     careLogs: List<CareLog>,
@@ -83,6 +96,8 @@ fun WateringHistoryChart(
     }
 
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
+
+    val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now)
 
     Column(
         modifier = Modifier
@@ -120,6 +135,8 @@ fun WateringHistoryChart(
         } else {
             ChartContent(intervals, rangeStartMs, now)
         }
+
+        CareEventMarkersRow(careMarkers)
     }
 }
 
@@ -302,6 +319,47 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     }
 }
 
+@Composable
+private fun CareEventMarkersRow(markers: List<CareEventMarker>) {
+    if (markers.isEmpty()) return
+
+    val dateFormatter = remember {
+        DateTimeFormatter.ofPattern("MMM d").withZone(ZoneId.systemDefault())
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.care_events_title),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(markers) { marker ->
+                val label = "${stringResource(marker.careType.labelRes())}  ·  " +
+                    dateFormatter.format(Instant.ofEpochMilli(marker.timestamp))
+                SuggestionChip(
+                    onClick = {},
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    icon = {
+                        Icon(
+                            imageVector = marker.careType.icon(),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
 fun computeWateringIntervals(
     wateringLogs: List<CareLog>,
     rangeStartMs: Long,
@@ -328,4 +386,28 @@ fun computeWateringIntervals(
         intervals.add(WateringInterval(curr.loggedAt, daysDiff))
     }
     return intervals
+}
+
+fun computeCareEventMarkers(
+    careLogs: List<CareLog>,
+    rangeStartMs: Long,
+    now: Long
+): List<CareEventMarker> {
+    val inRange = careLogs.filter {
+        it.careType != CareType.WATER && it.loggedAt >= rangeStartMs && it.loggedAt <= now
+    }
+    if (inRange.isEmpty()) return emptyList()
+
+    val zone = ZoneId.systemDefault()
+    val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(rangeStartMs), zone)
+        .withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
+
+    return inRange.map { log ->
+        val logZdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(log.loggedAt), zone)
+        CareEventMarker(
+            monthIndex = ChronoUnit.MONTHS.between(monthBase, logZdt).toInt(),
+            careType = log.careType,
+            timestamp = log.loggedAt
+        )
+    }.sortedBy { it.timestamp }
 }
