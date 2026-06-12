@@ -39,7 +39,6 @@
     <string name="time_range_6m">6M</string>
     <string name="time_range_12m">12M</string>
     <string name="time_range_all">All</string>
-    <string name="care_events_title">Care Events</string>
     <string name="backup_section_title">Backup &amp; Restore</string>
     <string name="backup_export_dialog_title">Export backup</string>
     <string name="backup_export_dialog_text">Create a backup of all your plants and care logs.</string>

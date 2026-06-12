@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.components
 
+import android.graphics.Paint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,13 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +29,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
@@ -40,14 +37,13 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.ui.util.icon
-import com.yapt.planttracker.ui.util.labelRes
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -57,6 +53,16 @@ import kotlin.math.roundToInt
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
+private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
+
+private val careTypeColors = mapOf(
+    CareType.FERTILIZE to 0xFF795548.toInt(),
+    CareType.PRUNE to 0xFF388E3C.toInt(),
+    CareType.MIST to 0xFF6B8F71.toInt(),
+    CareType.REPOT to 0xFFFF8F00.toInt(),
+    CareType.NOTE to 0xFF9E9E9E.toInt(),
+    CareType.PHOTO to 0xFF7B1FA2.toInt(),
+)
 
 enum class TimeRange(val labelRes: Int, val daysBack: Int) {
     ONE_MONTH(R.string.time_range_1m, 30),
@@ -77,6 +83,32 @@ data class CareEventMarker(
     val timestamp: Long
 )
 
+private class CareEventDecoration : Decoration {
+    private val paints = careTypeColors.mapValues { (_, color) ->
+        Paint().apply {
+            this.color = color
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+    }
+
+    override fun drawOverLayers(context: CartesianDrawingContext) {
+        val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: return
+        if (markers.isEmpty()) return
+        with(context) {
+            val radius = density * 4f
+            val cy = layerBounds.bottom - radius - density * 2f
+            markers.forEach { marker ->
+                val cx = layerBounds.left + layerDimensions.startPadding +
+                    ((marker.monthIndex - ranges.minX) / ranges.xStep).toFloat() *
+                    layerDimensions.xSpacing - scroll
+                if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
+                canvas.drawCircle(cx, cy, radius, paints[marker.careType] ?: return@forEach)
+            }
+        }
+    }
+}
+
 @Composable
 fun WateringHistoryChart(
     careLogs: List<CareLog>,
@@ -93,7 +125,6 @@ fun WateringHistoryChart(
     }
 
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
-
     val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now)
 
     Column(
@@ -130,16 +161,20 @@ fun WateringHistoryChart(
                 modifier = Modifier.padding(vertical = 32.dp)
             )
         } else {
-            ChartContent(intervals, rangeStartMs, now)
+            ChartContent(intervals, rangeStartMs, now, careMarkers)
         }
-
-        CareEventMarkersRow(careMarkers)
     }
 }
 
 @Composable
-private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, now: Long) {
+private fun ChartContent(
+    intervals: List<WateringInterval>,
+    rangeStartMs: Long,
+    now: Long,
+    careMarkers: List<CareEventMarker>,
+) {
     val modelProducer = remember { CartesianChartModelProducer() }
+    val careEventDecoration = remember { CareEventDecoration() }
 
     val (monthlyPoints, monthLabels) = remember(intervals, rangeStartMs, now) {
         val points = mutableListOf<Pair<Float, Float>>()
@@ -188,11 +223,10 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
         points to labels
     }
 
-    // Key on both intervals and rangeStartMs so the effect also fires when Room data
-    // first arrives (intervals goes from empty to populated) and when range changes.
-    // Labels are stored in the ExtraStore alongside the data so they are always read
-    // from the same model snapshot, eliminating any label/data timing mismatch.
-    LaunchedEffect(intervals, rangeStartMs) {
+    // Key on intervals, rangeStartMs, AND careMarkers so the transaction re-runs when
+    // care events change. Labels and markers are written atomically with line data to
+    // prevent any draw pass seeing mismatched label/data/marker snapshots (ADR-0004).
+    LaunchedEffect(intervals, rangeStartMs, careMarkers) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
@@ -200,7 +234,10 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
                     y = monthlyPoints.map { it.second }
                 )
             }
-            extras { store -> store[MonthLabelsKey] = monthLabels }
+            extras { store ->
+                store[MonthLabelsKey] = monthLabels
+                store[CareMarkersKey] = careMarkers
+            }
         }
     }
 
@@ -260,6 +297,7 @@ private fun ChartContent(intervals: List<WateringInterval>, rangeStartMs: Long, 
                 bottomAxis = HorizontalAxis.rememberBottom(
                     valueFormatter = dateFormatter
                 ),
+                decorations = listOf(careEventDecoration),
             ),
             modelProducer = modelProducer,
             modifier = Modifier
@@ -312,47 +350,6 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun CareEventMarkersRow(markers: List<CareEventMarker>) {
-    if (markers.isEmpty()) return
-
-    val dateFormatter = remember {
-        DateTimeFormatter.ofPattern("MMM d").withZone(ZoneId.systemDefault())
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.care_events_title),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(markers) { marker ->
-                val label = "${stringResource(marker.careType.labelRes())}  ·  " +
-                    dateFormatter.format(Instant.ofEpochMilli(marker.timestamp))
-                SuggestionChip(
-                    onClick = {},
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                    icon = {
-                        Icon(
-                            imageVector = marker.careType.icon(),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                )
-            }
         }
     }
 }
