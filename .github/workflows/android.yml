@@ -18,7 +18,7 @@ jobs:
       instrumented: ${{ steps.filter.outputs.instrumented }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -72,13 +72,9 @@ jobs:
 
       - name: Run unit tests
         run: gradle testDebugUnitTest --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Run lint
         run: gradle lintDebug --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Upload test results
         if: always()
@@ -120,8 +116,6 @@ jobs:
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -219,7 +213,6 @@ jobs:
       - name: Run release unit tests
         run: gradle testReleaseUnitTest --no-daemon
         env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
@@ -227,7 +220,6 @@ jobs:
       - name: Run release lint
         run: gradle lintRelease --no-daemon
         env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}

@@ -12,6 +12,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- CI: remove redundant `ANDROID_HOME` env override from Gradle steps
+- Code: replace deprecated `Icons.Filled.Notes` with `Icons.AutoMirrored.Filled.Notes`
+- Code: suppress deprecated `statusBarColor` API in Theme.kt
+- Tests: add `@OptIn(ExperimentalCoroutinesApi::class)` to ViewModel test classes
 ### Fixed
 - Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
 ### Changed
