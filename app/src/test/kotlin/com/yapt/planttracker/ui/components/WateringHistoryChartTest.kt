@@ -302,8 +302,10 @@ class WateringHistoryChartTest {
         val endMs = ZonedDateTime.of(2025, 4, 30, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
         val result = computeCareEventMarkers(listOf(marchLog, aprilLog), baseMs, endMs)
         assertEquals(2, result.size)
-        assertEquals(0, result[0].monthIndex) // March = month 0
-        assertEquals(1, result[1].monthIndex) // April = month 1
+        // March 11 = day 11 of 31 → 0 + 10/31 ≈ 0.32
+        assertEquals(0.32f, result[0].monthIndex, 0.05f)
+        // April 5 = day 5 of 30 → 1 + 4/30 ≈ 1.13
+        assertEquals(1.13f, result[1].monthIndex, 0.05f)
     }
 
     @Test
@@ -351,7 +353,8 @@ class WateringHistoryChartTest {
             effectiveStartMs = effectiveStartMs,
         )
         assertEquals(1, result.size)
-        // Chart month 0 = February, month 1 = March — marker must be at monthIndex 1.
-        assertEquals(1, result[0].monthIndex)
+        // Chart month 0 = February, month 1 = March.
+        // March 11 = day 11 of 31 → 1 + 10/31 ≈ 1.32
+        assertEquals(1.32f, result[0].monthIndex, 0.05f)
     }
 }

@@ -87,7 +87,7 @@ data class WateringInterval(
 )
 
 data class CareEventMarker(
-    val monthIndex: Int,
+    val monthIndex: Float,
     val careType: CareType,
     val timestamp: Long
 )
@@ -101,9 +101,10 @@ private class CareEventDecoration(
         with(context) {
             val iconSize = density * 14f
             val gap = density * 2f
-            markers.groupBy { it.monthIndex }.forEach { (monthIndex, monthMarkers) ->
+            markers.groupBy { it.timestamp / DAY_IN_MS }.forEach { (_, dayMarkers) ->
+                val monthIndex = dayMarkers.first().monthIndex
                 val cx = layerBounds.left + layerDimensions.startPadding +
-                    ((monthIndex - ranges.minX) / ranges.xStep).toFloat() *
+                    ((monthIndex - ranges.minX) / ranges.xStep) *
                     layerDimensions.xSpacing - scroll
                 if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                 monthMarkers.forEachIndexed { stackIndex, marker ->
@@ -435,8 +436,11 @@ fun computeCareEventMarkers(
 
     return inRange.map { log ->
         val logZdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(log.loggedAt), zone)
+        val completedMonths = ChronoUnit.MONTHS.between(monthBase, logZdt).toInt()
+        val monthStartZdt = monthBase.plusMonths(completedMonths.toLong())
+        val daysInMonth = monthStartZdt.toLocalDate().lengthOfMonth()
         CareEventMarker(
-            monthIndex = ChronoUnit.MONTHS.between(monthBase, logZdt).toInt(),
+            monthIndex = completedMonths + (logZdt.dayOfMonth - 1).toFloat() / daysInMonth,
             careType = log.careType,
             timestamp = log.loggedAt
         )
