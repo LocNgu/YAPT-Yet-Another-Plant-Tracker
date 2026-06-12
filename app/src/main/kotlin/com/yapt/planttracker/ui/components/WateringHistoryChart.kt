@@ -107,7 +107,7 @@ private class CareEventDecoration(
                     ((monthIndex - ranges.minX) / ranges.xStep) *
                     layerDimensions.xSpacing - scroll
                 if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
-                monthMarkers.forEachIndexed { stackIndex, marker ->
+                dayMarkers.forEachIndexed { stackIndex, marker ->
                     val cy = layerBounds.bottom - iconSize / 2f - gap -
                         stackIndex * (iconSize + gap)
                     val bm = iconBitmaps[marker.careType] ?: return@forEachIndexed
