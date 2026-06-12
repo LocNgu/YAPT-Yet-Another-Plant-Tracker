@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- Care event markers on the watering history chart: small colored circles are drawn inside the chart (via Vico `Decoration` API) at the bottom of the plot area, aligned to each care event's month; markers scroll with the chart and update with time-range chip changes (#231)
+- Care event markers on the watering history chart: per-care-type Material icons drawn inside the chart (via Vico `Decoration` API) at the bottom of the plot area, positioned at day-level precision within each month column; same-day events stack vertically; markers scroll with the chart and update with time-range chip changes (#231)
 ### Fixed
 - "Last: x days ago" on watering and fertilizing chips (PlantDetail, PlantList cards, care-log history) now uses calendar-day comparison instead of a rolling 24-hour window, so a late-evening care event correctly shows "Yesterday" the following morning (#351)
 - Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
