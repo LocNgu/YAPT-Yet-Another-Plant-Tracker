@@ -100,14 +100,18 @@ private class CareEventDecoration(
         if (markers.isEmpty()) return
         with(context) {
             val iconSize = density * 14f
-            val cy = layerBounds.bottom - iconSize / 2f - density * 2f
-            markers.forEach { marker ->
+            val gap = density * 2f
+            markers.groupBy { it.monthIndex }.forEach { (monthIndex, monthMarkers) ->
                 val cx = layerBounds.left + layerDimensions.startPadding +
-                    ((marker.monthIndex - ranges.minX) / ranges.xStep).toFloat() *
+                    ((monthIndex - ranges.minX) / ranges.xStep).toFloat() *
                     layerDimensions.xSpacing - scroll
                 if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
-                val bm = iconBitmaps[marker.careType] ?: return@forEach
-                canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+                monthMarkers.forEachIndexed { stackIndex, marker ->
+                    val cy = layerBounds.bottom - iconSize / 2f - gap -
+                        stackIndex * (iconSize + gap)
+                    val bm = iconBitmaps[marker.careType] ?: return@forEachIndexed
+                    canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+                }
             }
         }
     }
