@@ -14,6 +14,23 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
+### Changed
+- Combined quick-water-fertilize button on liquid-fertilizer PlantCards now opens a feedback bottom sheet before logging, matching the standalone quick-water button behaviour; adaptive interval suggestion fires after save (#344)
+
+---
+
+## [0.10.0] - 2026-06-11
+
+### Added
+- Delete individual photos from the plant gallery: long-press a thumbnail or tap the trash icon in the full-screen viewer; deleting a care-log photo preserves the log entry (#306)
+
+### Changed
+- Saving a Photo care log entry now updates the plant's cover photo to the attached image (#304)
+- Quick-water button on plant cards now opens a feedback bottom sheet (Still wet / Just right / Too dry) with Just right pre-selected; tapping Log in the default state still requires only 2 taps. Feedback other than Just right can now be recorded without opening the Add Care Log screen, and the adaptive watering interval suggestion fires from this path too (#126).
+
+### Fixed
+- Adding the same photo URI twice in Add/Edit Plant no longer shows a duplicate thumbnail (#317)
+- `BackupSerializerTest.fullRoot()` now includes all `BackupPlant` fields so future nullable additions are caught by the round-trip test (#288)
 
 ---
 

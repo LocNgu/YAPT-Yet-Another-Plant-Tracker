@@ -17,7 +17,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
 
@@ -27,12 +26,10 @@ class SettingsScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    @get:Rule
-    val tmpFolder = TemporaryFolder()
-
     private lateinit var database: PlantDatabase
     private lateinit var dataStoreScope: CoroutineScope
     private lateinit var viewModel: SettingsViewModel
+    private lateinit var dataStoreFile: File
 
     @Before
     fun setUp() {
@@ -42,9 +39,10 @@ class SettingsScreenTest {
             .build()
 
         dataStoreScope = CoroutineScope(Dispatchers.IO)
+        dataStoreFile = File(context.cacheDir, "settings_test_${System.nanoTime()}.preferences_pb")
         val dataStore = PreferenceDataStoreFactory.create(
             scope = dataStoreScope,
-            produceFile = { File(tmpFolder.newFolder(), "settings.preferences_pb") }
+            produceFile = { dataStoreFile }
         )
 
         viewModel = SettingsViewModel(dataStore, context, database)
@@ -54,6 +52,7 @@ class SettingsScreenTest {
     fun tearDown() {
         database.close()
         dataStoreScope.cancel()
+        dataStoreFile.delete()
     }
 
     @Test

@@ -173,6 +173,16 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
+    fun `addPhoto with duplicate URI is ignored in pendingPhotos but coverPhotoUri still updates`() = runTest {
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.addPhoto("file:///photo1.jpg")
+        vm.addPhoto("file:///photo1.jpg")
+
+        assertEquals(1, vm.pendingPhotos.size)
+        assertEquals("file:///photo1.jpg", vm.coverPhotoUri)
+    }
+
+    @Test
     fun `save in new mode inserts pending photos via plantPhotoRepo`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 10L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
