@@ -336,4 +336,22 @@ class WateringHistoryChartTest {
         val result = computeCareEventMarkers(listOf(exactly), baseMs, baseMs + dayMs(30))
         assertEquals(1, result.size)
     }
+
+    @Test
+    fun computeCareEventMarkers_monthIndex_alignsWithEffectiveStart() {
+        // Regression: when effectiveStartMs is earlier than rangeStartMs (predecessor-interval
+        // optimization), monthIndex must be relative to effectiveStartMs so icons land on the
+        // correct x position on the chart.
+        val effectiveStartMs = baseMs - dayMs(28) // Feb 1, 2025 UTC
+        val marchLog = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(10))
+        val result = computeCareEventMarkers(
+            careLogs = listOf(marchLog),
+            rangeStartMs = baseMs,
+            now = baseMs + dayMs(30),
+            effectiveStartMs = effectiveStartMs,
+        )
+        assertEquals(1, result.size)
+        // Chart month 0 = February, month 1 = March — marker must be at monthIndex 1.
+        assertEquals(1, result[0].monthIndex)
+    }
 }

@@ -48,14 +48,24 @@ cx = layerBounds.left + layerDimensions.startPadding
 
 ## Decision
 
-Use Option 3. `CareEventDecoration` implements `Decoration` and draws small filled circles (radius 4 dp, one per care event) at the bottom of the chart (`cy = layerBounds.bottom - radius - 2 dp`). Each `CareType` has a distinct opaque color. Care event data (`List<CareEventMarker>`) is written to `ExtraStore` atomically inside the same `runTransaction` block as the line series (preserving the atomicity invariant from ADR-0004). The decoration reads it back via `context.model.extraStore.getOrNull(CareMarkersKey)`.
+Use Option 3. `CareEventDecoration` implements `Decoration` and draws the care-type icon for each event at the bottom of the chart. Icons are 14 dp, tinted with a per-`CareType` opaque color, and centered at `cy = layerBounds.bottom - iconSize/2 - 2 dp`. When multiple events share the same month, icons stack vertically (bottom-to-top, earliest event at the bottom) using a `stackIndex` multiplier so no two icons overlap.
+
+Care event data (`List<CareEventMarker>`) is written to `ExtraStore` atomically inside the same `runTransaction` block as the line series (preserving the atomicity invariant from ADR-0004). The decoration reads it back via `context.model.extraStore.getOrNull(CareMarkersKey)`.
 
 `rememberCartesianChart` accepts `decorations = listOf(careEventDecoration)`.
+
+### Icon rendering
+
+`CareType.icon()` returns a Compose `ImageVector`; Vico's `drawOverLayers` provides an Android `Canvas`. The bridge is `rememberCareIconBitmaps()`: a private `@Composable` that calls `rememberVectorPainter(careType.icon())` for each care type at composable scope, then rasterizes each painter to an `android.graphics.Bitmap` via `CanvasDrawScope.draw()` inside a `remember(iconSizePx)` block. The resulting `Map<CareType, Bitmap>` is passed to `CareEventDecoration` at construction time. Bitmaps are recreated only when screen density changes.
+
+### Month-index alignment
+
+`computeCareEventMarkers` accepts an `effectiveStartMs` parameter (defaulting to `rangeStartMs`) and anchors `monthBase` to that value. `WateringHistoryChart` computes `effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)` — the same origin used by `ChartContent`'s monthly-points loop — so marker x-positions always align with the correct chart column even when the predecessor-interval optimisation pulls the chart's start month earlier than `rangeStartMs`.
 
 ## Consequences
 
 - Care event markers are rendered inside the chart and scroll in sync with the watering interval line.
 - Markers do not interfere with the y-axis scale or the line layer.
 - The `LaunchedEffect` key is expanded to include `careMarkers`, so adding a new care log triggers a transaction re-run that updates ExtraStore atomically.
-- Multiple events in the same month draw at the same x-coordinate (circles overlap); their distinct colors remain perceptible through color mixing.
-- `CareEventDecoration` pre-allocates one `Paint` per care type at construction time, avoiding per-frame allocations in `drawOverLayers`.
+- Multiple events in the same month stack vertically; all icons remain individually visible regardless of how many events share a month.
+- `CareEventDecoration` receives pre-rasterized `Bitmap` objects; no `Paint` objects are allocated in `drawOverLayers`, keeping per-frame overhead minimal.

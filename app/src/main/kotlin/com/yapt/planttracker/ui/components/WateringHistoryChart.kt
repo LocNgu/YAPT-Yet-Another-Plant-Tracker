@@ -161,7 +161,8 @@ fun WateringHistoryChart(
     }
 
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
-    val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now)
+    val effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)
+    val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now, effectiveStartMs)
 
     Column(
         modifier = Modifier
@@ -218,13 +219,7 @@ private fun ChartContent(
         val indexToZdt = mutableListOf<ZonedDateTime>()
 
         var monthIndex = 0
-        // When a pre-range interval exists (e.g. 0 in-window logs for an infrequently-watered
-        // plant), start the month loop from that interval's month so the data point is visible.
-        val effectiveStartMs = if (intervals.isNotEmpty()) {
-            minOf(rangeStartMs, intervals.minOf { it.timestamp })
-        } else {
-            rangeStartMs
-        }
+        val effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)
         var monthStart = ZonedDateTime.ofInstant(
             Instant.ofEpochMilli(effectiveStartMs), ZoneId.systemDefault()
         ).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
@@ -419,10 +414,15 @@ fun computeWateringIntervals(
     return intervals
 }
 
+fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
+    if (intervals.isNotEmpty()) minOf(rangeStartMs, intervals.minOf { it.timestamp })
+    else rangeStartMs
+
 fun computeCareEventMarkers(
     careLogs: List<CareLog>,
     rangeStartMs: Long,
-    now: Long
+    now: Long,
+    effectiveStartMs: Long = rangeStartMs,
 ): List<CareEventMarker> {
     val inRange = careLogs.filter {
         it.careType != CareType.WATER && it.loggedAt >= rangeStartMs && it.loggedAt <= now
@@ -430,7 +430,7 @@ fun computeCareEventMarkers(
     if (inRange.isEmpty()) return emptyList()
 
     val zone = ZoneId.systemDefault()
-    val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(rangeStartMs), zone)
+    val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(effectiveStartMs), zone)
         .withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
 
     return inRange.map { log ->
