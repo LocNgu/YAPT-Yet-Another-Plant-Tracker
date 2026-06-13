@@ -101,18 +101,21 @@ private class CareEventDecoration(
         with(context) {
             val iconSize = density * 14f
             val gap = density * 2f
-            markers.groupBy { it.timestamp / DAY_IN_MS }.forEach { (_, dayMarkers) ->
-                val monthIndex = dayMarkers.first().monthIndex
+            val markerPositions = markers.map { marker ->
                 val cx = layerBounds.left + layerDimensions.startPadding +
-                    ((monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                    ((marker.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                     layerDimensions.xSpacing - scroll
-                if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
-                dayMarkers.forEachIndexed { stackIndex, marker ->
-                    val cy = layerBounds.bottom - iconSize / 2f - gap -
-                        stackIndex * (iconSize + gap)
-                    val bm = iconBitmaps[marker.careType] ?: return@forEachIndexed
-                    canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
-                }
+                cx to marker
+            }.filter { (cx, _) -> cx >= layerBounds.left && cx <= layerBounds.right }
+            clusterMarkersByCx(markerPositions, iconSize).forEach { cluster ->
+                val clusterCx = cluster.map { it.first }.average().toFloat()
+                cluster.map { it.second }.sortedBy { it.timestamp }
+                    .forEachIndexed { stackIndex, marker ->
+                        val cy = layerBounds.bottom - iconSize / 2f - gap -
+                            stackIndex * (iconSize + gap)
+                        val bm = iconBitmaps[marker.careType] ?: return@forEachIndexed
+                        canvas.drawBitmap(bm, clusterCx - bm.width / 2f, cy - bm.height / 2f, null)
+                    }
             }
         }
     }
@@ -445,4 +448,25 @@ fun computeCareEventMarkers(
             timestamp = log.loggedAt
         )
     }.sortedBy { it.timestamp }
+}
+
+internal fun clusterMarkersByCx(
+    markerPositions: List<Pair<Float, CareEventMarker>>,
+    iconSize: Float,
+): List<List<Pair<Float, CareEventMarker>>> {
+    if (markerPositions.isEmpty()) return emptyList()
+    val sorted = markerPositions.sortedBy { it.first }
+    val clusters = mutableListOf<MutableList<Pair<Float, CareEventMarker>>>()
+    var current = mutableListOf(sorted[0])
+    for (i in 1 until sorted.size) {
+        val item = sorted[i]
+        if (item.first - current.last().first > iconSize) {
+            clusters.add(current)
+            current = mutableListOf(item)
+        } else {
+            current.add(item)
+        }
+    }
+    clusters.add(current)
+    return clusters
 }
