@@ -2,19 +2,25 @@ package com.yapt.planttracker.ui.screens.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.io.File
 
 class SettingsViewModelTest {
 
@@ -85,5 +91,40 @@ class SettingsViewModelTest {
             assertEquals(true, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `first-launch default write sets hour=9 and minute=0 when key is absent`() = runTest {
+        val tempFile = File.createTempFile("settings_test_defaults_", ".preferences_pb")
+        tempFile.deleteOnExit()
+        val realDataStore = PreferenceDataStoreFactory.create(
+            scope = this,
+            produceFile = { tempFile }
+        )
+
+        writeDefaultReminderTimeIfAbsent(realDataStore)
+
+        val written = realDataStore.data.first()
+        assertEquals(9, written[SettingsKeys.REMINDER_HOUR])
+        assertEquals(0, written[SettingsKeys.REMINDER_MINUTE])
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `first-launch default write is skipped when REMINDER_HOUR is already present`() = runTest {
+        val tempFile = File.createTempFile("settings_test_existing_", ".preferences_pb")
+        tempFile.deleteOnExit()
+        val realDataStore = PreferenceDataStoreFactory.create(
+            scope = this,
+            produceFile = { tempFile }
+        )
+
+        realDataStore.edit { it[SettingsKeys.REMINDER_HOUR] = 8 }
+
+        writeDefaultReminderTimeIfAbsent(realDataStore)
+
+        val written = realDataStore.data.first()
+        assertEquals(8, written[SettingsKeys.REMINDER_HOUR])
     }
 }

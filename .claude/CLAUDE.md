@@ -231,6 +231,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - `CareSchedule.computeStatus()`: calendar-day comparisons via `Long.toLocalDate()` in `DateUtils.kt`; `isOverdue`/`isDueSoon` use `LocalDate.isBefore()` / `==` — no millisecond division (see technical ADR-0013)
 - `CareSchedule.computeSuggestedInterval()`: JUST_RIGHT suggests when actual ≠ current; TOO_SOON uses `currentInterval` as base when actual < stored; TOO_LATE clamps to `min(actual, stored)`; `daysBetween()` uses `ChronoUnit.DAYS` — no spurious "interval − 1" suggestion
 - `CareSchedule.computeWateringIntervals()`: calendar-month intervals for chart; predecessor-anchor so infrequent waterers get data points for in-window logs
+- `DateUtils.formatRelative()`: uses calendar-day comparison (`ChronoUnit.DAYS.between`) so "Last: X days ago" on plant chips always reflects calendar days, not a rolling 24-hour window — a late-evening care event shows "Yesterday" the next morning (#351)
 
 **Screens & Navigation**
 - All 5 screens: PlantList, AddEditPlant, PlantDetail, AddCareLog, Settings; all reusable components: PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto, CareTypeSelector
@@ -242,7 +243,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Care Features**
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
 - Adaptive watering interval: modal `AlertDialog` with editable TextField shown after WATER logs (see product ADR-0006); JUST_RIGHT, TOO_SOON, TOO_LATE all produce correct suggestions; default feedback pre-selected to JUST_RIGHT; quick-water opens `WaterFeedbackBottomSheet` (JUST_RIGHT pre-selected, 2-tap happy path) and fires interval suggestion AlertDialog from PlantListScreen (see product ADR-0015, #126)
-- Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp with JUST_RIGHT feedback; backup schema v2 (see product ADR-0008, #56)
+- Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp; combined quick-water-fertilize button on PlantCard opens `WaterFeedbackBottomSheet` before committing logs (title "Water & fertilize [plant]?"); `quickLiquidFertilizeWithFeedback()` in ViewModel fires interval suggestion; backup schema v2 (see product ADR-0008, ADR-0017, #56, #344)
 - Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
 - Photo care log validation: save FAB disabled (0.38f alpha, click-blocked) when `CareType.PHOTO` is selected and no photo is attached; inline error hint shown below photo picker (#305)
@@ -258,7 +259,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Plant Detail UI**
 - Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29); tapping the hero `AsyncImage` opens `FullScreenPhotoViewer` at the cover photo URI; placeholder (no cover photo) has no clickable modifier (#307)
 - StatChip: icon + label header with `next:` / `last:` lines for watering and fertilizing
-- Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs (#18 #117)
+- Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs; `now` keyed on `wateringLogs` so a freshly-logged watering appears immediately without navigating away (#18 #117 #114); care event markers (per-type Material icons via Vico `Decoration` API) drawn at the bottom of the chart at day-level precision within each month column; same-day events stack vertically; proximity-based clustering groups icons within 14 dp (#231 #355)
 - Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
 - Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290); saving a Photo care log entry updates the plant's cover photo to the attached image (#304)
 - Full-screen photo viewer: `HorizontalPager` replaces single `AsyncImage`; swipe left/right navigates all gallery photos; opens at tapped index; "2 / 5" position indicator shown when > 1 photo (#308); trash icon in viewer + long-press on gallery thumbnail delete individual photos; care-log photo deletion preserves the log entry; cover falls back to next most-recent photo (#306)
@@ -269,6 +270,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Deep-link: notification tap → `MainActivity` intent extra `plantId` → `YaptNavGraph` navigates to PlantDetailScreen (#7)
 - `SkipWateringReceiver` handles "Skip watering" notification action (+1 day override); guards on `intent.action` before processing (#178)
 - `BootReceiver` reschedules using stored time; uses `goAsync()`
+- Default reminder time (hour=9, minute=0) written to DataStore on first launch in `YaptApplication.onCreate()` so `SettingsViewModel.setNotificationsEnabled()` and `BootReceiver` `?: 9` fallbacks never silently re-anchor the schedule (#356)
 
 **Backup & Restore**
 - `.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compatibility warning dialog (#22); backup schema v3 includes `plantPhotos: List<BackupPlantPhoto>`; old v2 backups deserialize with `plantPhotos = emptyList()` for forward compat (#290)
@@ -297,6 +299,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - GitHub Release auto-created on push to `main` with signed APK + auto-generated notes; `--target SHA` anchors tag to the exact triggering commit (#205)
 - Debug keystore committed to repo for in-place upgrades between local and CI APKs (#17)
 - Release build: `isMinifyEnabled = true`, `isShrinkResources = true`; ProGuard rules for WorkManager workers and Room DAOs (#4)
+- Redundant `ANDROID_HOME` env overrides removed from all Gradle steps; deprecated `Icons.Filled.Notes` replaced with `Icons.AutoMirrored.Filled.Notes`; `@Suppress("DEPRECATION")` on `statusBarColor`; `@OptIn(ExperimentalCoroutinesApi::class)` added to ViewModel test classes (#336)
 
 **Process & Docs**
 - CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)

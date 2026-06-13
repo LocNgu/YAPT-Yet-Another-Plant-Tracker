@@ -56,6 +56,20 @@ class DateUtilsTest {
     }
 
     @Test
+    fun `formatRelative same calendar day but over 1h ago returns Today`() {
+        // now = 2023-11-14 22:13 UTC; 6h ago = 16:13 same day
+        val timestamp = now - TimeUnit.HOURS.toMillis(6)
+        assertEquals("Today", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
+    fun `formatRelative previous calendar day but less than 24h ago returns Yesterday`() {
+        // now = 2023-11-14 22:13 UTC; 23h ago = 2023-11-13 23:13 — different calendar day
+        val timestamp = now - TimeUnit.HOURS.toMillis(23)
+        assertEquals("Yesterday", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
     fun `formatHourMinute zero-padded`() {
         assertEquals("09:05", DateUtils.formatHourMinute(9, 5))
     }

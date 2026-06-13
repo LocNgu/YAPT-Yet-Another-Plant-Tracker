@@ -4,9 +4,20 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+import java.util.TimeZone
 
 class WateringHistoryChartTest {
+
+    @Before
+    fun setUp() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
 
     @Test
     fun computeWateringIntervals_emptyLogs() {
@@ -240,5 +251,176 @@ class WateringHistoryChartTest {
         assertTrue("X values should be different across days", xValues[0] != xValues[1])
         assertEquals(1f, result[0].daysSincePrevious, 0.01f)
         assertEquals(1f, result[1].daysSincePrevious, 0.01f)
+    }
+
+    // --- computeCareEventMarkers tests ---
+
+    private fun dayMs(days: Long) = days * 24L * 60 * 60 * 1000
+
+    private val baseMs: Long = ZonedDateTime.of(2025, 3, 1, 0, 0, 0, 0, ZoneId.of("UTC"))
+        .toInstant().toEpochMilli()
+
+    @Test
+    fun computeCareEventMarkers_emptyLogs() {
+        val result = computeCareEventMarkers(emptyList(), baseMs, baseMs + dayMs(30))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun computeCareEventMarkers_waterLogsExcluded() {
+        val waterLog = CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = baseMs + dayMs(1))
+        val result = computeCareEventMarkers(listOf(waterLog), baseMs, baseMs + dayMs(30))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun computeCareEventMarkers_outOfRangeExcluded() {
+        val before = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs - dayMs(1))
+        val after = CareLog(id = 2, plantId = 1, careType = CareType.MIST, loggedAt = baseMs + dayMs(31))
+        val result = computeCareEventMarkers(listOf(before, after), baseMs, baseMs + dayMs(30))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun computeCareEventMarkers_inRangeReturned() {
+        val repot = CareLog(id = 1, plantId = 1, careType = CareType.REPOT, loggedAt = baseMs + dayMs(5))
+        val result = computeCareEventMarkers(listOf(repot), baseMs, baseMs + dayMs(30))
+        assertEquals(1, result.size)
+        assertEquals(CareType.REPOT, result[0].careType)
+        assertEquals(baseMs + dayMs(5), result[0].timestamp)
+    }
+
+    @Test
+    fun computeCareEventMarkers_correctMonthIndex() {
+        val zone = ZoneId.of("UTC")
+        // rangeStartMs is 2025-03-01; month 0 = March, month 1 = April
+        val marchLog = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(10))
+        val aprilLog = CareLog(
+            id = 2, plantId = 1, careType = CareType.MIST,
+            loggedAt = ZonedDateTime.of(2025, 4, 5, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        )
+        val endMs = ZonedDateTime.of(2025, 4, 30, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val result = computeCareEventMarkers(listOf(marchLog, aprilLog), baseMs, endMs)
+        assertEquals(2, result.size)
+        // March 11 = day 11 of 31 → 0 + 10/31 ≈ 0.32
+        assertEquals(0.32f, result[0].monthIndex, 0.05f)
+        // April 5 = day 5 of 30 → 1 + 4/30 ≈ 1.13
+        assertEquals(1.13f, result[1].monthIndex, 0.05f)
+    }
+
+    @Test
+    fun computeCareEventMarkers_multipleTypesAllReturned() {
+        val prune = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(1))
+        val mist = CareLog(id = 2, plantId = 1, careType = CareType.MIST, loggedAt = baseMs + dayMs(2))
+        val repot = CareLog(id = 3, plantId = 1, careType = CareType.REPOT, loggedAt = baseMs + dayMs(3))
+        val result = computeCareEventMarkers(listOf(prune, mist, repot), baseMs, baseMs + dayMs(30))
+        assertEquals(3, result.size)
+        val types = result.map { it.careType }
+        assertTrue(types.contains(CareType.PRUNE))
+        assertTrue(types.contains(CareType.MIST))
+        assertTrue(types.contains(CareType.REPOT))
+    }
+
+    @Test
+    fun computeCareEventMarkers_sortedByTimestamp() {
+        val log3 = CareLog(id = 3, plantId = 1, careType = CareType.REPOT, loggedAt = baseMs + dayMs(15))
+        val log1 = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(5))
+        val log2 = CareLog(id = 2, plantId = 1, careType = CareType.MIST, loggedAt = baseMs + dayMs(10))
+        val result = computeCareEventMarkers(listOf(log3, log1, log2), baseMs, baseMs + dayMs(30))
+        assertEquals(3, result.size)
+        assertTrue(result[0].timestamp < result[1].timestamp)
+        assertTrue(result[1].timestamp < result[2].timestamp)
+    }
+
+    @Test
+    fun computeCareEventMarkers_nowBoundaryIncludes() {
+        val exactly = CareLog(id = 1, plantId = 1, careType = CareType.MIST, loggedAt = baseMs + dayMs(30))
+        val result = computeCareEventMarkers(listOf(exactly), baseMs, baseMs + dayMs(30))
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun computeCareEventMarkers_monthIndex_alignsWithEffectiveStart() {
+        // Regression: when effectiveStartMs is earlier than rangeStartMs (predecessor-interval
+        // optimization), monthIndex must be relative to effectiveStartMs so icons land on the
+        // correct x position on the chart.
+        val effectiveStartMs = baseMs - dayMs(28) // Feb 1, 2025 UTC
+        val marchLog = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(10))
+        val result = computeCareEventMarkers(
+            careLogs = listOf(marchLog),
+            rangeStartMs = baseMs,
+            now = baseMs + dayMs(30),
+            effectiveStartMs = effectiveStartMs,
+        )
+        assertEquals(1, result.size)
+        // Chart month 0 = February, month 1 = March.
+        // March 11 = day 11 of 31 → 1 + 10/31 ≈ 1.32
+        assertEquals(1.32f, result[0].monthIndex, 0.05f)
+    }
+}
+
+class ClusterMarkersByCxTest {
+    private fun marker(cx: Float, ts: Long = 0L): Pair<Float, CareEventMarker> =
+        cx to CareEventMarker(monthIndex = 0f, careType = CareType.PRUNE, timestamp = ts)
+
+    @Test
+    fun empty_returnsEmpty() {
+        assertTrue(clusterMarkersByCx(emptyList(), 14f).isEmpty())
+    }
+
+    @Test
+    fun single_returnsOneCluster() {
+        val result = clusterMarkersByCx(listOf(marker(5f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].size)
+    }
+
+    @Test
+    fun twoWithin_clustered() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(10f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].size)
+    }
+
+    @Test
+    fun twoAtThreshold_clustered() {
+        // Exactly iconSize apart: 14f - 0f == 14f, not > 14f, so they cluster
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(14f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].size)
+    }
+
+    @Test
+    fun twoBeyond_separateClusters() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(15f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(1, result[0].size)
+        assertEquals(1, result[1].size)
+    }
+
+    @Test
+    fun threeFirstTwoClose_thirdFar() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(5f), marker(20f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(2, result[0].size)
+        assertEquals(1, result[1].size)
+    }
+
+    @Test
+    fun threeLastTwoClose_firstFar() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(15f), marker(20f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(1, result[0].size)
+        assertEquals(2, result[1].size)
+    }
+
+    @Test
+    fun bridging_usesLastMemberNotAnchor() {
+        // Items at 0, 13, 14.5 with iconSize=14. Using first() as anchor:
+        // 14.5 - 0 = 14.5 > 14 → splits, cluster avg = 6.5, next item at 14.5 → overlap.
+        // Using last() as anchor: 14.5 - 13 = 1.5 <= 14 → all three cluster together.
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(13f), marker(14.5f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(3, result[0].size)
     }
 }

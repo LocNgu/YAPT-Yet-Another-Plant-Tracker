@@ -70,6 +70,7 @@ fun PlantListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var waterFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
+    var liquidFertilizeFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
     var pendingIntervalSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
     var intervalFieldText by remember(pendingIntervalSuggestion) {
         mutableStateOf(pendingIntervalSuggestion?.suggestedInterval?.toString().orEmpty())
@@ -215,7 +216,13 @@ fun PlantListScreen(
                             status = status,
                             onClick = { onNavigateToPlant(status.plant.id) },
                             onQuickWater = { waterFeedbackPlant = status },
-                            onQuickFertilize = { viewModel.quickLog(status.plant.id, CareType.FERTILIZE) }
+                            onQuickFertilize = {
+                                if (status.plant.useLiquidFertilizer) {
+                                    liquidFertilizeFeedbackPlant = status
+                                } else {
+                                    viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+                                }
+                            }
                         )
                     }
                     item { Spacer(Modifier.height(8.dp)) }
@@ -231,6 +238,18 @@ fun PlantListScreen(
             onLog = { feedback ->
                 viewModel.quickWaterWithFeedback(s.plant.id, feedback)
                 waterFeedbackPlant = null
+            }
+        )
+    }
+
+    liquidFertilizeFeedbackPlant?.let { s ->
+        WaterFeedbackBottomSheet(
+            plantName = s.plant.name,
+            title = stringResource(R.string.water_fertilize_feedback_sheet_title, s.plant.name),
+            onDismiss = { liquidFertilizeFeedbackPlant = null },
+            onLog = { feedback ->
+                viewModel.quickLiquidFertilizeWithFeedback(s.plant.id, feedback)
+                liquidFertilizeFeedbackPlant = null
             }
         )
     }
