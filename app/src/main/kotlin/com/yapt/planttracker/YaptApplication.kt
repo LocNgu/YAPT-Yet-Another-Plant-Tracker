@@ -20,9 +20,19 @@ import kotlinx.coroutines.launch
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+internal suspend fun writeDefaultReminderTimeIfAbsent(dataStore: DataStore<Preferences>) {
+    val prefs = dataStore.data.first()
+    if (prefs[SettingsKeys.REMINDER_HOUR] == null) {
+        dataStore.edit {
+            it[SettingsKeys.REMINDER_HOUR] = 9
+            it[SettingsKeys.REMINDER_MINUTE] = 0
+        }
+    }
+}
+
 class YaptApplication : Application() {
 
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val database by lazy { PlantDatabase.getInstance(this) }
 
@@ -33,14 +43,8 @@ class YaptApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
-        applicationScope.launch(Dispatchers.IO) {
-            val prefs = settingsDataStore.data.first()
-            if (prefs[SettingsKeys.REMINDER_HOUR] == null) {
-                settingsDataStore.edit {
-                    it[SettingsKeys.REMINDER_HOUR] = 9
-                    it[SettingsKeys.REMINDER_MINUTE] = 0
-                }
-            }
+        applicationScope.launch {
+            writeDefaultReminderTimeIfAbsent(settingsDataStore)
         }
     }
 }

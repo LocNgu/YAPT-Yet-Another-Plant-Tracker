@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.every
 import io.mockk.mockk
@@ -102,13 +103,7 @@ class SettingsViewModelTest {
             produceFile = { tempFile }
         )
 
-        val prefs = realDataStore.data.first()
-        if (prefs[SettingsKeys.REMINDER_HOUR] == null) {
-            realDataStore.edit {
-                it[SettingsKeys.REMINDER_HOUR] = 9
-                it[SettingsKeys.REMINDER_MINUTE] = 0
-            }
-        }
+        writeDefaultReminderTimeIfAbsent(realDataStore)
 
         val written = realDataStore.data.first()
         assertEquals(9, written[SettingsKeys.REMINDER_HOUR])
@@ -127,13 +122,7 @@ class SettingsViewModelTest {
 
         realDataStore.edit { it[SettingsKeys.REMINDER_HOUR] = 8 }
 
-        val prefs = realDataStore.data.first()
-        if (prefs[SettingsKeys.REMINDER_HOUR] == null) {
-            realDataStore.edit {
-                it[SettingsKeys.REMINDER_HOUR] = 9
-                it[SettingsKeys.REMINDER_MINUTE] = 0
-            }
-        }
+        writeDefaultReminderTimeIfAbsent(realDataStore)
 
         val written = realDataStore.data.first()
         assertEquals(8, written[SettingsKeys.REMINDER_HOUR])

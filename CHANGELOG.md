@@ -13,10 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Fixed
-- Reminder could fire at 09:00 instead of the user-configured time on installs where the time picker was never explicitly confirmed; default reminder time is now written to DataStore on first launch so rescheduling paths always use the correct hour (#356)
-
-### Notes
-- Notification timing on some OEM devices (Samsung, MIUI, etc.) may be delayed by OS battery optimisation; exempting YAPT from battery optimisation in device settings improves reliability
+- Reminder could fire at 09:00 instead of the user-configured time on installs where the time picker was never explicitly confirmed; default reminder time is now written to DataStore on first launch so rescheduling paths always use the correct hour (note: on some OEM devices such as Samsung and MIUI, notification timing may still be delayed by OS battery optimisation; exempting YAPT from battery optimisation in device settings improves reliability) (#356)
 
 ---
 
