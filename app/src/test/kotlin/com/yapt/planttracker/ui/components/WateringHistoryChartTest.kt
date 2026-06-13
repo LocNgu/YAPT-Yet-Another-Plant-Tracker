@@ -358,3 +358,59 @@ class WateringHistoryChartTest {
         assertEquals(1.32f, result[0].monthIndex, 0.05f)
     }
 }
+
+class ClusterMarkersByCxTest {
+    private fun marker(cx: Float, ts: Long = 0L): Pair<Float, CareEventMarker> =
+        cx to CareEventMarker(monthIndex = 0f, careType = CareType.PRUNE, timestamp = ts)
+
+    @Test
+    fun empty_returnsEmpty() {
+        assertTrue(clusterMarkersByCx(emptyList(), 14f).isEmpty())
+    }
+
+    @Test
+    fun single_returnsOneCluster() {
+        val result = clusterMarkersByCx(listOf(marker(5f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].size)
+    }
+
+    @Test
+    fun twoWithin_clustered() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(10f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].size)
+    }
+
+    @Test
+    fun twoAtThreshold_clustered() {
+        // Exactly iconSize apart: 14f - 0f == 14f, not > 14f, so they cluster
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(14f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].size)
+    }
+
+    @Test
+    fun twoBeyond_separateClusters() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(15f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(1, result[0].size)
+        assertEquals(1, result[1].size)
+    }
+
+    @Test
+    fun threeFirstTwoClose_thirdFar() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(5f), marker(20f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(2, result[0].size)
+        assertEquals(1, result[1].size)
+    }
+
+    @Test
+    fun threeLastTwoClose_firstFar() {
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(15f), marker(20f)), 14f)
+        assertEquals(2, result.size)
+        assertEquals(1, result[0].size)
+        assertEquals(2, result[1].size)
+    }
+}
