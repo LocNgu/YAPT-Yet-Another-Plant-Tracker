@@ -413,4 +413,14 @@ class ClusterMarkersByCxTest {
         assertEquals(1, result[0].size)
         assertEquals(2, result[1].size)
     }
+
+    @Test
+    fun bridging_usesLastMemberNotAnchor() {
+        // Items at 0, 13, 14.5 with iconSize=14. Using first() as anchor:
+        // 14.5 - 0 = 14.5 > 14 → splits, cluster avg = 6.5, next item at 14.5 → overlap.
+        // Using last() as anchor: 14.5 - 13 = 1.5 <= 14 → all three cluster together.
+        val result = clusterMarkersByCx(listOf(marker(0f), marker(13f), marker(14.5f)), 14f)
+        assertEquals(1, result.size)
+        assertEquals(3, result[0].size)
+    }
 }

@@ -460,7 +460,7 @@ internal fun clusterMarkersByCx(
     var current = mutableListOf(sorted[0])
     for (i in 1 until sorted.size) {
         val item = sorted[i]
-        if (item.first - current.first().first > iconSize) {
+        if (item.first - current.last().first > iconSize) {
             clusters.add(current)
             current = mutableListOf(item)
         } else {
