@@ -1,6 +1,6 @@
 # Product ADR-0008: Liquid fertilizer mode auto-creates a paired WATER log
 
-**Status**: accepted
+**Status**: accepted, partially superseded by [ADR-0017](0017-quick-fertilize-bottom-sheet.md) (quick-fertilize JUST_RIGHT hardcoding on the plant list only)
 **Date**: 2026-06-02
 
 ## Context
