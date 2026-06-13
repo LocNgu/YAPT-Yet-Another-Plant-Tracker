@@ -17,8 +17,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Care event icons now stack when logged on consecutive days (proximity-based clustering groups icons within 14 dp of each other, not just exact same-day events) (#355)
 
 ### Fixed
+- Reminder could fire at 09:00 instead of the user-configured time on installs where the time picker was never explicitly confirmed; default reminder time is now written to DataStore on first launch so rescheduling paths always use the correct hour (#356)
 - "Last: x days ago" on watering and fertilizing chips (PlantDetail, PlantList cards, care-log history) now uses calendar-day comparison instead of a rolling 24-hour window, so a late-evening care event correctly shows "Yesterday" the following morning (#351)
 - Watering chart now updates immediately when a new watering is logged while the detail screen is open (#114)
+
 ### Changed
 - CI: opt into Node.js 24 for all actions via `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` before June 16 deadline (#336)
 - CI: remove redundant `ANDROID_HOME` env override from Gradle steps

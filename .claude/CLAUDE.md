@@ -269,6 +269,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Deep-link: notification tap → `MainActivity` intent extra `plantId` → `YaptNavGraph` navigates to PlantDetailScreen (#7)
 - `SkipWateringReceiver` handles "Skip watering" notification action (+1 day override); guards on `intent.action` before processing (#178)
 - `BootReceiver` reschedules using stored time; uses `goAsync()`
+- Default reminder time (hour=9, minute=0) written to DataStore on first launch in `YaptApplication.onCreate()` so `SettingsViewModel.setNotificationsEnabled()` and `BootReceiver` `?: 9` fallbacks never silently re-anchor the schedule (#356)
 
 **Backup & Restore**
 - `.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compatibility warning dialog (#22); backup schema v3 includes `plantPhotos: List<BackupPlantPhoto>`; old v2 backups deserialize with `plantPhotos = emptyList()` for forward compat (#290)
