@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- Watering events now appear as water-drop icons on the watering history chart line, centred on each monthly data point — waterings are now visible as care events alongside the bottom-row markers for other care types (#362)
+- Watering events now appear as individual water-drop icons on the watering history chart, positioned at day-level precision within each month column at the Y height corresponding to that watering's interval — waterings are now visible as care events alongside the bottom-row markers for other care types (#362)
 
 ### Fixed
 - Reminders now fire at the user-configured time instead of always at 09:00; `MainActivity` was calling `ReminderScheduler.schedule()` without hour/minute on every launch, resetting the periodic work to the 9:00 default
