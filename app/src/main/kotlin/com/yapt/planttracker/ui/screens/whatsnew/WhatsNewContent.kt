@@ -11,6 +11,21 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 210,
+            versionName = "0.11.0",
+            added = listOf(
+                "Care event markers on the watering history chart — icons appear at the bottom of the chart for each care type logged that month; same-day events stack"
+            ),
+            fixed = listOf(
+                "Daily reminder now fires at your configured time on first install (default time is saved to settings on launch)",
+                "\"Last: X days ago\" on plant cards and the detail screen now uses calendar days, not a rolling 24-hour window",
+                "Watering history chart refreshes immediately when a new watering is logged while the screen is open"
+            ),
+            changed = listOf(
+                "Quick-water+fertilize button on liquid-fertilizer plant cards now opens a soil feedback sheet before logging, matching the standalone quick-water button"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 200,
             versionName = "0.10.0",
             added = listOf(

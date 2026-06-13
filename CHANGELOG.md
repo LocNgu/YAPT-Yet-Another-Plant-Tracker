@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.11.0] - 2026-06-13
+
 ### Added
 - Care event markers on the watering history chart: per-care-type Material icons drawn inside the chart (via Vico `Decoration` API) at the bottom of the plot area, positioned at day-level precision within each month column; same-day events stack vertically; markers scroll with the chart and update with time-range chip changes (#231)
 - Care event icons now stack when logged on consecutive days (proximity-based clustering groups icons within 14 dp of each other, not just exact same-day events) (#355)
