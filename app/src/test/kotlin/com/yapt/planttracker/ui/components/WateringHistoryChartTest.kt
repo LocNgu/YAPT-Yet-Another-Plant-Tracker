@@ -424,3 +424,30 @@ class ClusterMarkersByCxTest {
         assertEquals(3, result[0].size)
     }
 }
+
+class MarkerCyTest {
+
+    // Layer bounds: top = 100 (small y), bottom = 300 (large y). On a canvas, smaller y is
+    // higher up, so the largest data value maps to `top` and the smallest to `bottom`.
+
+    @Test
+    fun minValueMapsToBottom() {
+        assertEquals(300f, markerCy(avgDays = 2f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun maxValueMapsToTop() {
+        assertEquals(100f, markerCy(avgDays = 10f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun midpointMapsToMiddle() {
+        assertEquals(200f, markerCy(avgDays = 6f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun degenerateRangeMapsToVerticalCenter() {
+        // yMax == yMin (all points equal) → vertical centre, no division by zero.
+        assertEquals(200f, markerCy(avgDays = 5f, yMin = 5f, yMax = 5f, top = 100f, bottom = 300f), 0.01f)
+    }
+}

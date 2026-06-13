@@ -66,10 +66,12 @@ private const val DATE_FORMAT_MONTH_YEAR = "MMM yy"
 private const val DATE_FORMAT_MONTH_DAY_YEAR = "MMM d, yyyy"
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
+private val WaterPointsKey = ExtraStore.Key<List<WaterDataPoint>>()
 
 internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
 
 private val careTypeColors = mapOf(
+    CareType.WATER to 0xFF1565C0.toInt(),
     CareType.FERTILIZE to 0xFF795548.toInt(),
     CareType.PRUNE to 0xFF388E3C.toInt(),
     CareType.MIST to 0xFF6B8F71.toInt(),
@@ -97,15 +99,52 @@ data class CareEventMarker(
     val timestamp: Long
 )
 
+data class WaterDataPoint(
+    val monthIndex: Int,
+    val avgDays: Float,
+    val timestamps: List<Long>
+)
+
+/**
+ * Maps a y-value (average days between waterings) to a canvas y-coordinate within the
+ * layer bounds, matching how Vico's line layer positions points. Returns the vertical
+ * centre for a degenerate range (all points equal), mirroring Vico's own behaviour.
+ */
+internal fun markerCy(
+    avgDays: Float,
+    yMin: Float,
+    yMax: Float,
+    top: Float,
+    bottom: Float
+): Float =
+    if (yMax > yMin) bottom - ((avgDays - yMin) / (yMax - yMin)) * (bottom - top)
+    else (top + bottom) / 2f
+
 private class CareEventDecoration(
     private val iconBitmaps: Map<CareType, Bitmap>,
 ) : Decoration {
     override fun drawOverLayers(context: CartesianDrawingContext) {
-        val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: return
-        if (markers.isEmpty()) return
+        val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: emptyList()
+        val waterPoints = context.model.extraStore.getOrNull(WaterPointsKey) ?: emptyList()
+        if (markers.isEmpty() && waterPoints.isEmpty()) return
         with(context) {
             val iconSize = density * 14f
             val gap = density * 2f
+
+            // Watering icons sit directly on the line, centred on each monthly point.
+            val yRange = ranges.getYRange(null)
+            val yMin = yRange.minY.toFloat()
+            val yMax = yRange.maxY.toFloat()
+            waterPoints.forEach { wp ->
+                val cx = layerBounds.left + layerDimensions.startPadding +
+                    ((wp.monthIndex.toFloat() - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                    layerDimensions.xSpacing - scroll
+                if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
+                val cy = markerCy(wp.avgDays, yMin, yMax, layerBounds.top, layerBounds.bottom)
+                val bm = iconBitmaps[CareType.WATER] ?: return@forEach
+                canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+            }
+
             val markerPositions = markers.map { marker ->
                 val cx = layerBounds.left + layerDimensions.startPadding +
                     ((marker.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
@@ -223,8 +262,9 @@ private fun ChartContent(
     val iconBitmaps = rememberCareIconBitmaps()
     val careEventDecoration = remember(iconBitmaps) { CareEventDecoration(iconBitmaps) }
 
-    val (monthlyPoints, monthLabels) = remember(intervals, rangeStartMs, now) {
+    val (monthlyPoints, monthLabels, waterDataPoints) = remember(intervals, rangeStartMs, now) {
         val points = mutableListOf<Pair<Float, Float>>()
+        val waterPoints = mutableListOf<WaterDataPoint>()
         val indexToZdt = mutableListOf<ZonedDateTime>()
 
         var monthIndex = 0
@@ -243,6 +283,9 @@ private fun ChartContent(
             if (monthIntervals.isNotEmpty()) {
                 val y = monthIntervals.map { it.daysSincePrevious }.average().toFloat()
                 points.add(monthIndex.toFloat() to y)
+                waterPoints.add(
+                    WaterDataPoint(monthIndex, y, monthIntervals.map { it.timestamp })
+                )
             }
             indexToZdt.add(monthStart)
 
@@ -261,7 +304,7 @@ private fun ChartContent(
         }
         val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
 
-        points to labels
+        Triple(points, labels, waterPoints.toList())
     }
 
     // Key on intervals, rangeStartMs, AND careMarkers so the transaction re-runs when
@@ -278,6 +321,7 @@ private fun ChartContent(
             extras { store ->
                 store[MonthLabelsKey] = monthLabels
                 store[CareMarkersKey] = careMarkers
+                store[WaterPointsKey] = waterDataPoints
             }
         }
     }
