@@ -127,18 +127,22 @@ private class CareEventDecoration(
             val iconSize = density * 14f
             val gap = density * 2f
 
-            // Watering icons sit directly on the line, centred on each monthly point.
-            val yRange = ranges.getYRange(null)
-            val yMin = yRange.minY.toFloat()
-            val yMax = yRange.maxY.toFloat()
-            waterPoints.forEach { wp ->
-                val cx = layerBounds.left + layerDimensions.startPadding +
-                    ((wp.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
-                    layerDimensions.xSpacing - scroll
-                if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
-                val cy = markerCy(wp.daysSincePrevious, yMin, yMax, layerBounds.top, layerBounds.bottom)
-                val bm = iconBitmaps[CareType.WATER] ?: return@forEach
-                canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+            // Water icons: only drawn when there is line data to position them against.
+            // getYRange(null) requires a non-empty line series; guard to prevent NPE when
+            // the plant has care events but no waterings in the selected range.
+            if (waterPoints.isNotEmpty()) {
+                val yRange = ranges.getYRange(null) ?: return
+                val yMin = yRange.minY.toFloat()
+                val yMax = yRange.maxY.toFloat()
+                waterPoints.forEach { wp ->
+                    val cx = layerBounds.left + layerDimensions.startPadding +
+                        ((wp.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                        layerDimensions.xSpacing - scroll
+                    if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
+                    val cy = markerCy(wp.daysSincePrevious, yMin, yMax, layerBounds.top, layerBounds.bottom)
+                    val bm = iconBitmaps[CareType.WATER] ?: return@forEach
+                    canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+                }
             }
 
             val markerPositions = markers.map { marker ->
@@ -207,7 +211,9 @@ fun WateringHistoryChart(
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
     val effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)
     val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now, effectiveStartMs)
-    val waterMarkers = computeWaterEventMarkers(intervals, rangeStartMs, now, effectiveStartMs)
+    // Use effectiveStartMs (not rangeStartMs) as the filter floor so pre-range anchor
+    // intervals are included in the line data — the old monthly-bucket code included them.
+    val waterMarkers = computeWaterEventMarkers(intervals, effectiveStartMs, now, effectiveStartMs)
 
     Column(
         modifier = Modifier
