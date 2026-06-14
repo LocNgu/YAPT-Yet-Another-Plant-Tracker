@@ -366,7 +366,7 @@ private fun ChartContent(
                     valueFormatter = dateFormatter,
                     // Place ticks at integer month boundaries only; without this Vico
                     // would emit one tick per fractional event position, cluttering the axis.
-                    itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = 1) },
+                    itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }) },
                 ),
                 decorations = listOf(careEventDecoration),
             ),
