@@ -28,14 +28,11 @@ import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.point
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
-import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
-import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.Scroll
@@ -48,7 +45,6 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
-import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -247,15 +243,15 @@ fun WateringHistoryChart(
                 modifier = Modifier.padding(vertical = 32.dp)
             )
         } else {
-            ChartContent(intervals, rangeStartMs, now, careMarkers, waterMarkers)
+            ChartContent(effectiveStartMs, now, careMarkers, waterMarkers)
+            ChartLegend(intervals)
         }
     }
 }
 
 @Composable
 private fun ChartContent(
-    intervals: List<WateringInterval>,
-    rangeStartMs: Long,
+    effectiveStartMs: Long,
     now: Long,
     careMarkers: List<CareEventMarker>,
     waterMarkers: List<WaterDataPoint>,
@@ -264,56 +260,49 @@ private fun ChartContent(
     val iconBitmaps = rememberCareIconBitmaps()
     val careEventDecoration = remember(iconBitmaps) { CareEventDecoration(iconBitmaps) }
 
-    val (monthlyPoints, monthLabels) = remember(intervals, rangeStartMs, now) {
-        val points = mutableListOf<Pair<Float, Float>>()
-        val indexToZdt = mutableListOf<ZonedDateTime>()
+    val (eventPoints, monthLabels) = remember(waterMarkers, effectiveStartMs, now) {
+        // Line data: one point per watering event at its fractional day-level position.
+        val eventPoints = waterMarkers.sortedBy { it.monthIndex }
+            .map { it.monthIndex to it.daysSincePrevious }
 
-        var monthIndex = 0
-        val effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)
-        var monthStart = ZonedDateTime.ofInstant(
-            Instant.ofEpochMilli(effectiveStartMs), ZoneId.systemDefault()
-        ).withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
-
-        while (!monthStart.toInstant().isAfter(Instant.ofEpochMilli(now))) {
-            val monthStartMs = monthStart.toInstant().toEpochMilli()
-            val monthEndMs = monthStart.plusMonths(1).toInstant().toEpochMilli()
-
-            val monthIntervals = intervals.filter {
-                it.timestamp >= monthStartMs && it.timestamp < monthEndMs
-            }
-            if (monthIntervals.isNotEmpty()) {
-                val y = monthIntervals.map { it.daysSincePrevious }.average().toFloat()
-                points.add(monthIndex.toFloat() to y)
-            }
-            indexToZdt.add(monthStart)
-
-            monthIndex++
-            monthStart = monthStart.plusMonths(1)
+        // Month labels: iterate from effectiveStartMs to now so empty trailing months
+        // still appear on the X axis (same range as the old monthly-bucket code).
+        val zone = ZoneId.systemDefault()
+        val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(effectiveStartMs), zone)
+            .withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
+        val nowZdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(now), zone)
+        val indexToZdt = mutableListOf<Pair<Int, ZonedDateTime>>()
+        var m = 0
+        var ms = monthBase
+        while (!ms.isAfter(nowZdt)) {
+            indexToZdt.add(m to ms)
+            m++
+            ms = monthBase.plusMonths(m.toLong())
         }
 
         // If any short month name repeats (e.g. "May" twice in a 12-month range that
         // crosses a year boundary), fall back to "MMM yy" so each label is unique.
         val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(ZoneId.systemDefault())
-        val shortNames = indexToZdt.map { fmtShort.format(it) }
+        val shortNames = indexToZdt.map { (_, zdt) -> fmtShort.format(zdt) }
         val fmt = if (shortNames.toSet().size < shortNames.size) {
             DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(ZoneId.systemDefault())
         } else {
             fmtShort
         }
-        val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
+        val labels = indexToZdt.associate { (idx, zdt) -> idx to fmt.format(zdt) }
 
-        points to labels
+        eventPoints to labels
     }
 
-    // Key on intervals, rangeStartMs, careMarkers, AND waterMarkers so the transaction
-    // re-runs when line data or any marker set changes. All data written atomically to
-    // prevent any draw pass seeing mismatched label/data/marker snapshots (ADR-0004).
-    LaunchedEffect(intervals, rangeStartMs, careMarkers, waterMarkers) {
+    // Key on waterMarkers, careMarkers, effectiveStartMs, AND now so the transaction
+    // re-runs when any of these change. All data written atomically to prevent mismatched
+    // label/data/marker snapshots (ADR-0004).
+    LaunchedEffect(waterMarkers, careMarkers, effectiveStartMs, now) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
-                    x = monthlyPoints.map { it.first },
-                    y = monthlyPoints.map { it.second }
+                    x = eventPoints.map { it.first },
+                    y = eventPoints.map { it.second }
                 )
             }
             extras { store ->
@@ -350,10 +339,13 @@ private fun ChartContent(
         )
 
         val totalMonths = monthLabels.size
+        // Extend maxX slightly past the last label so a watering on the last day of the
+        // final month (fractional index ~N−0.03) isn't clipped, while keeping it under
+        // the next integer so ItemPlacer.aligned doesn't emit a blank overflow tick.
         val rangeProvider = remember(totalMonths) {
             CartesianLayerRangeProvider.fixed(
                 minX = 0.0,
-                maxX = (totalMonths - 1).toDouble()
+                maxX = totalMonths.toDouble() - 0.001
             )
         }
 
@@ -361,16 +353,9 @@ private fun ChartContent(
             chart = rememberCartesianChart(
                 rememberLineCartesianLayer(
                     lineProvider = LineCartesianLayer.LineProvider.series(
-                        LineCartesianLayer.rememberLine(
-                            pointProvider = LineCartesianLayer.PointProvider.single(
-                                LineCartesianLayer.point(
-                                    rememberShapeComponent(
-                                        fill = fill(MaterialTheme.colorScheme.primary),
-                                        shape = CorneredShape.Pill,
-                                    )
-                                )
-                            )
-                        )
+                        // No pointProvider: water-drop icons from CareEventDecoration
+                        // already mark each event, so Vico dots would be redundant.
+                        LineCartesianLayer.rememberLine()
                     ),
                     rangeProvider = rangeProvider,
                 ),
@@ -378,7 +363,10 @@ private fun ChartContent(
                     valueFormatter = dayFormatter
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = dateFormatter
+                    valueFormatter = dateFormatter,
+                    // Place ticks at integer month boundaries only; without this Vico
+                    // would emit one tick per fractional event position, cluttering the axis.
+                    itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = 1) },
                 ),
                 decorations = listOf(careEventDecoration),
             ),
@@ -402,9 +390,6 @@ private fun ChartContent(
         )
     }
 
-    if (intervals.isNotEmpty()) {
-        ChartLegend(intervals)
-    }
 }
 
 @Composable
