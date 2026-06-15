@@ -10,6 +10,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.repository.PlantRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -45,7 +46,8 @@ class SettingsScreenTest {
             produceFile = { dataStoreFile }
         )
 
-        viewModel = SettingsViewModel(dataStore, context, database)
+        val plantRepository = PlantRepository(database.plantDao())
+        viewModel = SettingsViewModel(dataStore, context, database, plantRepository)
     }
 
     @After
@@ -110,6 +112,37 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
+        assert(called)
+    }
+
+    @Test
+    fun graveyardRow_isDisplayed() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun graveyardRow_onClick_invokesCallback() {
+        var called = false
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {},
+                onNavigateToGraveyard = { called = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
         assert(called)
     }
 }

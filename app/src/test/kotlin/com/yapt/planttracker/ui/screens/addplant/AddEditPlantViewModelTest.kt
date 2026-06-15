@@ -74,20 +74,23 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `edit mode deletePlant calls repo deletePlant and emits Deleted`() = runTest {
+    fun `edit mode deletePlant archives plant and emits ArchivedForUndo`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.deletePlant(any()) } just runs
+        coEvery { plantRepo.archivePlant(any(), any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         vm.events.test {
             vm.deletePlant()
             val event = awaitItem()
-            assertTrue(event is AddEditPlantViewModel.Event.Deleted)
+            assertTrue(event is AddEditPlantViewModel.Event.ArchivedForUndo)
+            val archived = event as AddEditPlantViewModel.Event.ArchivedForUndo
+            assertEquals(1L, archived.plantId)
+            assertEquals("Monstera", archived.plantName)
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.deletePlant(monstera) }
+        coVerify { plantRepo.archivePlant(1L, any()) }
     }
 
     @Test

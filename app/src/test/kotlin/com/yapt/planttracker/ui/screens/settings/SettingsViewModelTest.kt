@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.every
@@ -31,6 +32,7 @@ class SettingsViewModelTest {
     private val mockDataStore: DataStore<Preferences> = mockk()
     private val mockContext: Context = mockk(relaxed = true)
     private val mockDatabase: PlantDatabase = mockk(relaxed = true)
+    private val mockPlantRepository: PlantRepository = mockk(relaxed = true)
 
     private lateinit var vm: SettingsViewModel
 
@@ -38,6 +40,7 @@ class SettingsViewModelTest {
     fun setup() {
         every { mockDataStore.data } returns flowOf(mockPrefs)
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
+        every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
     @Test
@@ -45,7 +48,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns false
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase, mockPlantRepository)
 
         vm.notificationsEnabled.test {
             assertEquals(false, awaitItem())
@@ -58,7 +61,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns 21
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase, mockPlantRepository)
 
         vm.reminderHour.test {
             assertEquals(21, awaitItem())
@@ -71,7 +74,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns 30
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase, mockPlantRepository)
 
         vm.reminderMinute.test {
             assertEquals(30, awaitItem())
@@ -85,7 +88,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns true
-        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase)
+        vm = SettingsViewModel(mockDataStore, mockContext, mockDatabase, mockPlantRepository)
 
         vm.keepScreenOn.test {
             assertEquals(true, awaitItem())

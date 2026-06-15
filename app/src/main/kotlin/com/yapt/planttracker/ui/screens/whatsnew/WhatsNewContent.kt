@@ -11,6 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 220,
+            versionName = "0.12.0",
+            added = listOf(
+                "Plant Graveyard — deleted plants are now archived instead of immediately removed; restore them or permanently delete from Settings → Plant Graveyard"
+            ),
+            fixed = listOf(
+                "Backup export and import now block navigation while in progress, preventing corrupt exports or incomplete restores"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 210,
             versionName = "0.11.0",
             added = listOf(
