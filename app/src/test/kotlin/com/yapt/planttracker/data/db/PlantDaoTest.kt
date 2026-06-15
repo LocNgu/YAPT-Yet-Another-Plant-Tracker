@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -179,6 +180,94 @@ class PlantDaoTest {
 
         dao.getAllPlants().test {
             assertEquals(3, awaitItem().size)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `archivePlant excludes plant from getAllPlants`() = runTest {
+        val id = dao.insertPlant(plant(name = "Monstera"))
+        dao.archivePlant(id, timestamp = 5000L)
+
+        dao.getAllPlants().test {
+            assertEquals(0, awaitItem().size)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `archivePlant appears in getArchivedPlants`() = runTest {
+        val id = dao.insertPlant(plant(name = "Fern"))
+        dao.archivePlant(id, timestamp = 6000L)
+
+        dao.getArchivedPlants().test {
+            val list = awaitItem()
+            assertEquals(1, list.size)
+            assertEquals("Fern", list[0].name)
+            assertEquals(6000L, list[0].archivedAt)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `restorePlant reappears in getAllPlants`() = runTest {
+        val id = dao.insertPlant(plant(name = "Cactus"))
+        dao.archivePlant(id, timestamp = 7000L)
+        dao.restorePlant(id)
+
+        dao.getAllPlants().test {
+            val list = awaitItem()
+            assertEquals(1, list.size)
+            assertEquals("Cactus", list[0].name)
+            assertNull(list[0].archivedAt)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getArchivedCount increments on archive`() = runTest {
+        val id1 = dao.insertPlant(plant(name = "Rose"))
+        val id2 = dao.insertPlant(plant(name = "Tulip"))
+
+        dao.getArchivedCount().test {
+            assertEquals(0, awaitItem())
+            dao.archivePlant(id1, timestamp = 1L)
+            assertEquals(1, awaitItem())
+            dao.archivePlant(id2, timestamp = 2L)
+            assertEquals(2, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `deleteAllArchived keeps active plants`() = runTest {
+        val id1 = dao.insertPlant(plant(name = "Active"))
+        val id2 = dao.insertPlant(plant(name = "Archived"))
+        dao.archivePlant(id2, timestamp = 8000L)
+        dao.deleteAllArchived()
+
+        dao.getAllPlants().test {
+            val list = awaitItem()
+            assertEquals(1, list.size)
+            assertEquals("Active", list[0].name)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        dao.getArchivedPlants().test {
+            assertEquals(0, awaitItem().size)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getAllRooms excludes archived plants rooms`() = runTest {
+        dao.insertPlant(plant(name = "A", room = "Living Room"))
+        val id = dao.insertPlant(plant(name = "B", room = "Bedroom"))
+        dao.archivePlant(id, timestamp = 9000L)
+
+        dao.getAllRooms().test {
+            val rooms = awaitItem()
+            assertEquals(listOf("Living Room"), rooms)
             cancelAndConsumeRemainingEvents()
         }
     }

@@ -12,7 +12,7 @@ import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
     entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class PlantDatabase : RoomDatabase() {
@@ -83,6 +83,12 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN archivedAt INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -90,7 +96,7 @@ abstract class PlantDatabase : RoomDatabase() {
                     PlantDatabase::class.java,
                     "yapt_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }

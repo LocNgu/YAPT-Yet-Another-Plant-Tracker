@@ -45,6 +45,9 @@ class SettingsViewModel(
         .map { it[SettingsKeys.REMINDER_MINUTE] ?: 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val graveyardCount: StateFlow<Int> = database.plantDao().getArchivedCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val _backupResult = MutableSharedFlow<BackupResult>()
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
 

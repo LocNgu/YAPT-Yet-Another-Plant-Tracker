@@ -112,4 +112,35 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
         assert(called)
     }
+
+    @Test
+    fun graveyardRow_isDisplayed() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun graveyardRow_onClick_invokesCallback() {
+        var called = false
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {},
+                onNavigateToGraveyard = { called = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
+        assert(called)
+    }
 }

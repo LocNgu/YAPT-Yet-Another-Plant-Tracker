@@ -24,6 +24,18 @@ class PlantRepository(private val plantDao: PlantDao) {
 
     suspend fun deletePlant(plant: Plant) =
         plantDao.deletePlant(plant.toEntity())
+
+    fun getArchivedPlants(): Flow<List<Plant>> =
+        plantDao.getArchivedPlants().map { list -> list.map { it.toDomain() } }
+
+    fun getArchivedCount(): Flow<Int> = plantDao.getArchivedCount()
+
+    suspend fun archivePlant(id: Long, timestamp: Long = System.currentTimeMillis()) =
+        plantDao.archivePlant(id, timestamp)
+
+    suspend fun restorePlant(id: Long) = plantDao.restorePlant(id)
+
+    suspend fun deleteAllArchived() = plantDao.deleteAllArchived()
 }
 
 private fun PlantEntity.toDomain() = Plant(
@@ -38,7 +50,8 @@ private fun PlantEntity.toDomain() = Plant(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
-    useLiquidFertilizer = useLiquidFertilizer
+    useLiquidFertilizer = useLiquidFertilizer,
+    archivedAt = archivedAt
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -53,5 +66,6 @@ private fun Plant.toEntity() = PlantEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
-    useLiquidFertilizer = useLiquidFertilizer
+    useLiquidFertilizer = useLiquidFertilizer,
+    archivedAt = archivedAt
 )

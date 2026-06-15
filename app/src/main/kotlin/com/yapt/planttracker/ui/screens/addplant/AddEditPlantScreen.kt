@@ -66,7 +66,8 @@ import kotlin.math.roundToInt
 @Composable
 fun AddEditPlantScreen(
     viewModel: AddEditPlantViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onPlantArchived: (plantId: Long, plantName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -98,7 +99,8 @@ fun AddEditPlantScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is AddEditPlantViewModel.Event.Saved -> onNavigateBack()
-                is AddEditPlantViewModel.Event.Deleted -> onNavigateBack()
+                is AddEditPlantViewModel.Event.ArchivedForUndo ->
+                    onPlantArchived(event.plantId, event.plantName)
                 is AddEditPlantViewModel.Event.ValidationError ->
                     snackbarHostState.showSnackbar(event.message)
             }
@@ -108,13 +110,13 @@ fun AddEditPlantScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.delete_plant)) },
-            text = { Text(stringResource(R.string.delete_plant_confirm)) },
+            title = { Text(stringResource(R.string.archive_plant)) },
+            text = { Text(stringResource(R.string.archive_plant_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     viewModel.deletePlant()
-                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.move_to_graveyard)) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }

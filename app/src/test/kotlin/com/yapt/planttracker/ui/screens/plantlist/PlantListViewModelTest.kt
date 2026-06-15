@@ -938,4 +938,17 @@ class PlantListViewModelTest {
             plantRepo.updatePlant(match { it.wateringDueDateOverride == null })
         }
     }
+
+    @Test
+    fun `undoArchive calls restorePlant`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantRepo.restorePlant(any()) } just Unit
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.undoArchive(42L)
+        advanceUntilIdle()
+
+        coVerify { plantRepo.restorePlant(42L) }
+    }
 }

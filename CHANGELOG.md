@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Plant Graveyard: deleting a plant now moves it to an archive; restore or permanently delete archived plants from Settings → Plant Graveyard (#329)
+
 ---
 
 ## [0.11.0] - 2026-06-13
