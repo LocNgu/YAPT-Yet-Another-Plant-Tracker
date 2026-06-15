@@ -27,6 +27,8 @@ import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
+import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
+import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
@@ -82,6 +84,16 @@ fun YaptNavGraph(
                     app.settingsDataStore
                 )
             )
+            LaunchedEffect(vm) {
+                backStackEntry.savedStateHandle.getStateFlow<Long?>("archivedPlantId", null)
+                    .collect { plantId ->
+                        if (plantId != null) {
+                            val plantName = backStackEntry.savedStateHandle.remove<String>("archivedPlantName") ?: ""
+                            backStackEntry.savedStateHandle.remove<Long>("archivedPlantId")
+                            vm.onPlantArchived(plantId, plantName)
+                        }
+                    }
+            }
             PlantListScreen(
                 viewModel = vm,
                 restoreMessage = restoreMessage,
@@ -117,7 +129,14 @@ fun YaptNavGraph(
             )
             AddEditPlantScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onPlantArchived = { archivedId, archivedName ->
+                    navController.getBackStackEntry(Screen.PlantList.route)
+                        .savedStateHandle["archivedPlantId"] = archivedId
+                    navController.getBackStackEntry(Screen.PlantList.route)
+                        .savedStateHandle["archivedPlantName"] = archivedName
+                    navController.popBackStack(Screen.PlantList.route, inclusive = false)
+                }
             )
         }
 
@@ -191,7 +210,7 @@ fun YaptNavGraph(
 
         composable(Screen.Settings.route) {
             val vm: SettingsViewModel = viewModel(
-                factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database)
+                factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database, app.plantRepository)
             )
             SettingsScreen(
                 viewModel = vm,
@@ -202,7 +221,18 @@ fun YaptNavGraph(
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onShowWhatsNew = { showWhatsNew = true }
+                onShowWhatsNew = { showWhatsNew = true },
+                onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) }
+            )
+        }
+
+        composable(Screen.Graveyard.route) {
+            val vm: GraveyardViewModel = viewModel(
+                factory = GraveyardViewModel.Factory(app.plantRepository)
+            )
+            GraveyardScreen(
+                viewModel = vm,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

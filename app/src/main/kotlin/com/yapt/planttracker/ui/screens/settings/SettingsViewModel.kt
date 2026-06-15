@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
     private val context: Context,
-    private val database: PlantDatabase
+    private val database: PlantDatabase,
+    private val plantRepository: PlantRepository
 ) : ViewModel() {
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
@@ -45,6 +47,9 @@ class SettingsViewModel(
 
     val reminderMinute: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_MINUTE] ?: 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _backupResult = MutableSharedFlow<BackupResult>()
@@ -124,10 +129,11 @@ class SettingsViewModel(
     class Factory(
         private val dataStore: DataStore<Preferences>,
         private val context: Context,
-        private val database: PlantDatabase
+        private val database: PlantDatabase,
+        private val plantRepository: PlantRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(dataStore, context, database) as T
+            SettingsViewModel(dataStore, context, database, plantRepository) as T
     }
 }

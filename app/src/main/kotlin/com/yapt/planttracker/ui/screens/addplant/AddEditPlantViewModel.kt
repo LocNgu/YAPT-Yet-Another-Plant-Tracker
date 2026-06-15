@@ -118,9 +118,9 @@ class AddEditPlantViewModel(
     fun deletePlant() {
         plantId ?: return
         viewModelScope.launch {
-            plantRepository.getPlantById(plantId).first()?.let {
-                plantRepository.deletePlant(it)
-                _events.emit(Event.Deleted)
+            plantRepository.getPlantById(plantId).first()?.let { plant ->
+                plantRepository.archivePlant(plant.id)
+                _events.emit(Event.ArchivedForUndo(plant.id, plant.name))
             }
         }
     }
@@ -134,7 +134,7 @@ class AddEditPlantViewModel(
 
     sealed class Event {
         data class Saved(val plantId: Long) : Event()
-        object Deleted : Event()
+        data class ArchivedForUndo(val plantId: Long, val plantName: String) : Event()
         data class ValidationError(val message: String) : Event()
     }
 

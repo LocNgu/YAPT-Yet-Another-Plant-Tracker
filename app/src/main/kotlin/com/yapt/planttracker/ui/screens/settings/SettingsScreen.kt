@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -53,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,7 +71,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
     onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit,
-    onShowWhatsNew: () -> Unit
+    onShowWhatsNew: () -> Unit,
+    onNavigateToGraveyard: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val versionName = remember {
@@ -77,6 +80,7 @@ fun SettingsScreen(
     }
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
@@ -357,6 +361,13 @@ fun SettingsScreen(
                 title = stringResource(R.string.backup_restore_item_title),
                 subtitle = stringResource(R.string.backup_restore_item_subtitle),
                 onClick = if (isBackupInProgress) null else ({ openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) })
+            )
+
+            SettingsItemRow(
+                icon = Icons.Filled.DeleteSweep,
+                title = stringResource(R.string.graveyard_settings_title),
+                subtitle = pluralStringResource(R.plurals.graveyard_settings_subtitle, graveyardCount, graveyardCount),
+                onClick = onNavigateToGraveyard
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

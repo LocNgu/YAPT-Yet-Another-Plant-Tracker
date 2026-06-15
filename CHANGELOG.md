@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Plant Graveyard: deleting a plant now moves it to an archive; restore or permanently delete archived plants from Settings → Plant Graveyard (#329)
 ### Fixed
 - Navigation is now blocked during backup export and import; a non-dismissable progress dialog prevents leaving the Settings screen mid-operation, avoiding corrupt exports and incomplete restores (#365)
 

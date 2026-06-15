@@ -21,4 +21,6 @@ sealed class Screen(val route: String) {
         fun createRoute(plantId: Long, careLogId: Long = 0L) =
             "add_care_log/$plantId?careLogId=$careLogId"
     }
+
+    object Graveyard : Screen("graveyard")
 }

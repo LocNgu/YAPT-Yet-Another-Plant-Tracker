@@ -105,6 +105,19 @@ class PlantListViewModel(
     private val _quickWaterSuggestion = MutableSharedFlow<QuickWaterSuggestion>()
     val quickWaterSuggestion: SharedFlow<QuickWaterSuggestion> = _quickWaterSuggestion.asSharedFlow()
 
+    data class ArchivedEvent(val plantId: Long, val plantName: String)
+
+    private val _archivedEvent = MutableSharedFlow<ArchivedEvent>()
+    val archivedEvent: SharedFlow<ArchivedEvent> = _archivedEvent.asSharedFlow()
+
+    fun onPlantArchived(plantId: Long, plantName: String) {
+        viewModelScope.launch { _archivedEvent.emit(ArchivedEvent(plantId, plantName)) }
+    }
+
+    fun undoArchive(plantId: Long) {
+        viewModelScope.launch { plantRepository.restorePlant(plantId) }
+    }
+
     fun quickLog(plantId: Long, careType: CareType) {
         if (careType == CareType.WATER) {
             quickWaterWithFeedback(plantId, WateringFeedback.JUST_RIGHT)

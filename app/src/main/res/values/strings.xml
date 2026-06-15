@@ -14,10 +14,11 @@
     <string name="log_care">Log Care</string>
     <string name="care_history">Care History</string>
     <string name="settings">Settings</string>
-    <string name="delete_plant">Delete Plant</string>
-    <string name="delete_plant_confirm">Delete this plant and all its care history?</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
+    <string name="archive_plant">Move to Graveyard</string>
+    <string name="archive_plant_confirm">This plant will be moved to the Plant Graveyard. You can restore it later from Settings.</string>
+    <string name="move_to_graveyard">Move to Graveyard</string>
     <string name="save">Save</string>
     <string name="notifications_enabled">Enable Reminders</string>
     <string name="reminder_time">Daily Reminder Time</string>
@@ -61,6 +62,7 @@
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
     <string name="settings_section_display">Display</string>
+    <string name="graveyard_settings_title">Plant Graveyard</string>
     <string name="settings_section_about">About</string>
     <string name="settings_about_app_name">YAPT – Yet Another Plant Tracker</string>
     <string name="settings_about_version">Version %s · Offline-first · No data collection</string>
@@ -120,6 +122,7 @@
     <string name="placeholder_location">e.g. Living Room</string>
     <string name="field_notes">Notes</string>
     <string name="cd_back">Back</string>
+    <string name="cd_more_options">More options</string>
     <string name="cd_add_photo">Add photo</string>
     <string name="field_amount_optional">Amount (optional)</string>
     <string name="placeholder_amount">e.g. 200ml</string>
@@ -199,4 +202,23 @@
     <string name="photo_viewer_page_indicator">%1$d / %2$d</string>
     <string name="delete_photo">Delete photo</string>
     <string name="delete_photo_confirm">Remove this photo? This cannot be undone.</string>
+    <string name="snackbar_moved_to_graveyard">Moved to Plant Graveyard</string>
+    <string name="snackbar_undo">UNDO</string>
+    <string name="graveyard_title">Plant Graveyard</string>
+    <string name="graveyard_empty_state">No plants in the graveyard</string>
+    <string name="graveyard_restore_button">Restore</string>
+    <string name="cd_graveyard_delete_forever">Delete permanently</string>
+    <string name="graveyard_overflow_empty">Empty Graveyard</string>
+    <string name="graveyard_delete_permanent_title">Delete Permanently?</string>
+    <string name="graveyard_delete_permanent_confirm">This plant and all its care history will be deleted forever. This cannot be undone.</string>
+    <string name="graveyard_delete_button">Delete Forever</string>
+    <string name="graveyard_empty_title">Empty Graveyard?</string>
+    <string name="graveyard_empty_confirm">All archived plants and their care history will be permanently deleted. This cannot be undone.</string>
+    <string name="graveyard_restored_snackbar">Plant restored</string>
+    <string name="graveyard_deleted_snackbar">Plant permanently deleted</string>
+    <string name="graveyard_emptied_snackbar">Graveyard emptied</string>
+    <plurals name="graveyard_settings_subtitle">
+        <item quantity="one">1 plant archived</item>
+        <item quantity="other">%d plants archived</item>
+    </plurals>
 </resources>
