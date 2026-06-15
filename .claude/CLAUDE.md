@@ -278,6 +278,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Restore: photos streamed to `cacheDir` temp files (never loaded into memory) — prevents OOM; temp files tracked in map before copy so `finally` always cleans up (#193 #195 #196)
 - Single bulk `getAllLogs()` query (not N+1 per plant); unreadable photo URIs silently skipped; ReminderScheduler called with restored time; navigate to PlantList + Snackbar on success (#36 #37 #40 #41)
 - All backup/restore UI strings in `strings.xml` (#39)
+- Navigation blocked during export/import via a non-dismissable `BackupProgressDialog`; prevents leaving Settings mid-operation and avoids corrupt exports or incomplete restores (#365)
 
 **Settings**
 - Reminder time picker: Material 3 TimePicker dialog; hour + minute DataStore-persisted (#10)
