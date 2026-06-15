@@ -14,10 +14,12 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -50,6 +52,9 @@ class SettingsViewModel(
 
     private val _backupResult = MutableSharedFlow<BackupResult>()
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
+
+    private val _isBackupInProgress = MutableStateFlow(false)
+    val isBackupInProgress: StateFlow<Boolean> = _isBackupInProgress.asStateFlow()
 
     private val backupManager = BackupManager(context, database, dataStore)
 
@@ -87,25 +92,31 @@ class SettingsViewModel(
     }
 
     fun exportBackup(uri: Uri, includePhotos: Boolean) {
+        _isBackupInProgress.value = true
         viewModelScope.launch {
             val result = backupManager.exportBackup(uri, includePhotos)
             _backupResult.emit(result)
+            _isBackupInProgress.value = false
         }
     }
 
     fun importBackup(uri: Uri) {
+        _isBackupInProgress.value = true
         viewModelScope.launch {
             val result = backupManager.importBackup(uri)
             _backupResult.emit(result)
+            _isBackupInProgress.value = false
         }
     }
 
     fun proceedWithFutureSchemaImport(onProceed: suspend () -> BackupResult) {
+        _isBackupInProgress.value = true
         viewModelScope.launch {
             val result = runCatching { onProceed() }.getOrElse { e ->
                 BackupResult.Error(e.message ?: "Import failed")
             }
             _backupResult.emit(result)
+            _isBackupInProgress.value = false
         }
     }
 

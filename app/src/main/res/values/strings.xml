@@ -59,6 +59,7 @@
     <string name="backup_restore_item_subtitle">Replace all data from a .yapt file</string>
     <string name="backup_export_success">Backup saved (%1$d plants, %2$d logs)</string>
     <string name="backup_error">Error: %s</string>
+    <string name="backup_in_progress_title">Please wait…</string>
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
