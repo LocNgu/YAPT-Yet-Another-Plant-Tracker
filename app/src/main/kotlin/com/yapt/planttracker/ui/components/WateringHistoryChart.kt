@@ -55,6 +55,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
 private const val DATE_FORMAT_MONTH = "MMM"
@@ -96,7 +97,10 @@ data class CareEventMarker(
 )
 
 data class WaterDataPoint(
-    val monthIndex: Float,
+    // Double, rounded to 4 decimals: this is a Vico line-series x-coordinate, and Vico's
+    // getXDeltaGcd throws if x values exceed 4 decimal places. Float can't hold a 4-dp
+    // value exactly, so widening to Double would reintroduce precision noise.
+    val monthIndex: Double,
     val daysSincePrevious: Float,
     val timestamp: Long,
 )
@@ -136,7 +140,7 @@ private class CareEventDecoration(
                 val yMax = yRange.maxY.toFloat()
                 waterPoints.forEach { wp ->
                     val cx = layerBounds.left + layerDimensions.startPadding +
-                        ((wp.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                        ((wp.monthIndex.toFloat() - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                         layerDimensions.xSpacing - scroll
                     if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                     val cy = markerCy(wp.daysSincePrevious, yMin, yMax, layerBounds.top, layerBounds.bottom)
@@ -506,10 +510,12 @@ fun computeWaterEventMarkers(
         val completedMonths = ChronoUnit.MONTHS.between(monthBase, zdt).toInt()
         val monthStartZdt = monthBase.plusMonths(completedMonths.toLong())
         val daysInMonth = monthStartZdt.toLocalDate().lengthOfMonth()
+        // Round to 4 decimals in Double space: Vico 2.0.0's getXDeltaGcd throws if line-series
+        // x values exceed 4 decimal places. Doing this in Double (not Float) keeps the value a
+        // clean multiple of 1e-4 once Vico reads it, so the delta-GCD never underflows to 0.
+        val rawIndex = completedMonths + (zdt.dayOfMonth - 1).toDouble() / daysInMonth
         WaterDataPoint(
-            // Round to 4 decimal places: Vico 2.0.0 throws IllegalArgumentException if x
-            // values have more than 4 decimal places (it uses GCD precision internally).
-            monthIndex = completedMonths + ((zdt.dayOfMonth - 1).toFloat() / daysInMonth * 10000).roundToInt() / 10000f,
+            monthIndex = (rawIndex * 10_000).roundToLong() / 10_000.0,
             daysSincePrevious = interval.daysSincePrevious,
             timestamp = interval.timestamp,
         )
