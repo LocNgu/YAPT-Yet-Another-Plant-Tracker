@@ -18,7 +18,9 @@ import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -943,7 +945,7 @@ class PlantListViewModelTest {
     fun `undoArchive calls restorePlant`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.restorePlant(any()) } just Unit
+        coEvery { plantRepo.restorePlant(any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
 
         vm.undoArchive(42L)
