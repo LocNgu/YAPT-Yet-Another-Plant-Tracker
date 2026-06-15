@@ -270,7 +270,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !isBackupInProgress) {
+                    IconButton(onClick = onNavigateBack, enabled = !isBackupInProgress && !showFutureSchemaDialog) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
@@ -349,14 +349,14 @@ fun SettingsScreen(
                 icon = Icons.Filled.CloudUpload,
                 title = stringResource(R.string.backup_export_item_title),
                 subtitle = stringResource(R.string.backup_export_item_subtitle),
-                onClick = { showExportDialog = true }
+                onClick = if (isBackupInProgress) null else ({ showExportDialog = true })
             )
 
             SettingsItemRow(
                 icon = Icons.Filled.CloudDownload,
                 title = stringResource(R.string.backup_restore_item_title),
                 subtitle = stringResource(R.string.backup_restore_item_subtitle),
-                onClick = { openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) }
+                onClick = if (isBackupInProgress) null else ({ openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) })
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

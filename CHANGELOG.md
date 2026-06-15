@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Navigation is now blocked during backup export and import; a non-dismissable progress dialog prevents leaving the Settings screen mid-operation, avoiding corrupt exports and incomplete restores (#365)
+
 ---
 
 ## [0.11.0] - 2026-06-13
