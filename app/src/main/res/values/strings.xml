@@ -14,8 +14,6 @@
     <string name="log_care">Log Care</string>
     <string name="care_history">Care History</string>
     <string name="settings">Settings</string>
-    <string name="delete_plant">Delete Plant</string>
-    <string name="delete_plant_confirm">Delete this plant and all its care history?</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
     <string name="archive_plant">Move to Graveyard</string>

@@ -58,7 +58,8 @@ class BackupManager(
             val plants = plantDao.getAllPlants().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
             val careLogs = plants.flatMap { allLogs[it.id].orEmpty() }
-            val allPlantPhotos = plantPhotoDao.getAllPhotos().first()
+            val activePlantIds = plants.map { it.id }.toSet()
+            val allPlantPhotos = plantPhotoDao.getAllPhotos().first().filter { it.plantId in activePlantIds }
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
