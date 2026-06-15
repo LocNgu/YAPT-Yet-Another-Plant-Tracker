@@ -365,13 +365,6 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            Text(
-                text = stringResource(R.string.settings_section_plants),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            )
-
             SettingsItemRow(
                 icon = Icons.Filled.DeleteSweep,
                 title = stringResource(R.string.graveyard_settings_title),
