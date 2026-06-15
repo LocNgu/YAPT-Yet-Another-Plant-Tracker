@@ -363,8 +363,6 @@ fun SettingsScreen(
                 onClick = if (isBackupInProgress) null else ({ openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) })
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
             SettingsItemRow(
                 icon = Icons.Filled.DeleteSweep,
                 title = stringResource(R.string.graveyard_settings_title),
