@@ -1,9 +1,11 @@
 package com.yapt.planttracker.ui.screens.settings
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -76,6 +79,9 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
+    val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
+
+    BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
     var showTimePicker by remember { mutableStateOf(false) }
     val timePickerState = key(reminderHour, reminderMinute) {
         rememberTimePickerState(
@@ -245,13 +251,26 @@ fun SettingsScreen(
         )
     }
 
+    if (isBackupInProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.backup_in_progress_title)) },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, enabled = !isBackupInProgress && !showFutureSchemaDialog) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
@@ -330,14 +349,14 @@ fun SettingsScreen(
                 icon = Icons.Filled.CloudUpload,
                 title = stringResource(R.string.backup_export_item_title),
                 subtitle = stringResource(R.string.backup_export_item_subtitle),
-                onClick = { showExportDialog = true }
+                onClick = if (isBackupInProgress) null else ({ showExportDialog = true })
             )
 
             SettingsItemRow(
                 icon = Icons.Filled.CloudDownload,
                 title = stringResource(R.string.backup_restore_item_title),
                 subtitle = stringResource(R.string.backup_restore_item_subtitle),
-                onClick = { openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) }
+                onClick = if (isBackupInProgress) null else ({ openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) })
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
