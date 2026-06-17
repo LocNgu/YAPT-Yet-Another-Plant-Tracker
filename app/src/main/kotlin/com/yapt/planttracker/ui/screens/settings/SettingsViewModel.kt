@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.backup.BackupManager
+import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
@@ -30,7 +31,8 @@ class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
     private val context: Context,
     private val database: PlantDatabase,
-    private val plantRepository: PlantRepository
+    private val plantRepository: PlantRepository,
+    private val backupManager: BackupManagerInterface = BackupManager(context, database, dataStore)
 ) : ViewModel() {
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
@@ -57,8 +59,6 @@ class SettingsViewModel(
 
     private val _isBackupInProgress = MutableStateFlow(false)
     val isBackupInProgress: StateFlow<Boolean> = _isBackupInProgress.asStateFlow()
-
-    private val backupManager = BackupManager(context, database, dataStore)
 
     fun setKeepScreenOn(enabled: Boolean) {
         viewModelScope.launch {
