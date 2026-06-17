@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Fixed
-- `quickLog()` now clears `wateringDueDateOverride` after inserting a WATER log (direct quick-water) and after inserting the paired WATER log for liquid-fertilizer plants; `quickLiquidFertilizeWithFeedback()` likewise clears the override — consistent with `AddCareLogViewModel.saveLog()` behaviour (#211)
+- Confirmed `quickLog()` clears `wateringDueDateOverride` on all WATER paths (direct quick-water, paired WATER for liquid-fert, `quickLiquidFertilizeWithFeedback`) — fix was previously landed in #264 and #345 (#211)
 
 ### Changed
 - Refactored `clusterMarkersByCx` in `WateringHistoryChart.kt` to use a named `PositionedMarker(cx, marker)` data class instead of `Pair<Float, CareEventMarker>`, improving readability (#359)
