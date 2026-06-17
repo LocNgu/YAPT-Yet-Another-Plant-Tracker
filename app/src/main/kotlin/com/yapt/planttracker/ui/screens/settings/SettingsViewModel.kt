@@ -107,7 +107,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             val result = backupManager.importBackup(uri)
             _backupResult.emit(result)
-            _isBackupInProgress.value = false
+            // Keep true while the FutureSchemaWarning dialog is shown; reset in dismiss/proceed.
+            if (result !is BackupResult.FutureSchemaWarning) {
+                _isBackupInProgress.value = false
+            }
         }
     }
 
@@ -123,7 +126,10 @@ class SettingsViewModel(
     }
 
     fun dismissFutureSchemaImport(onDismiss: suspend () -> Unit) {
-        viewModelScope.launch { onDismiss() }
+        viewModelScope.launch {
+            onDismiss()
+            _isBackupInProgress.value = false
+        }
     }
 
     class Factory(

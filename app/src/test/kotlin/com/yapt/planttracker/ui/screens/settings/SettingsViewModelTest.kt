@@ -179,7 +179,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `isBackupInProgress resets to false after dismissFutureSchemaImport`() = runTest {
+    fun `isBackupInProgress remains true during FutureSchemaWarning and resets to false after dismissFutureSchemaImport`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
@@ -190,15 +190,18 @@ class SettingsViewModelTest {
         )
         vm = buildVm()
 
-        vm.importBackup(Uri.EMPTY)
-        advanceUntilIdle()
+        vm.isBackupInProgress.test {
+            assertEquals(false, awaitItem())
 
-        assertFalse(vm.isBackupInProgress.value)
+            vm.importBackup(Uri.EMPTY)
+            assertEquals(true, awaitItem())
+            // isBackupInProgress stays true while FutureSchemaWarning dialog is visible
 
-        vm.dismissFutureSchemaImport {}
-        advanceUntilIdle()
+            vm.dismissFutureSchemaImport {}
+            assertEquals(false, awaitItem())
 
-        assertFalse(vm.isBackupInProgress.value)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
