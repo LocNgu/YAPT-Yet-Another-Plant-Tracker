@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Refactored `clusterMarkersByCx` in `WateringHistoryChart.kt` to use a named `PositionedMarker(cx, marker)` data class instead of `Pair<Float, CareEventMarker>`, improving readability (#359)
+
 ---
 
 ## [0.12.0] - 2026-06-15
