@@ -245,7 +245,8 @@ class BackupManagerTest {
             zip.closeEntry()
         }
 
-        backupManager.importBackup(Uri.fromFile(zipFile))
+        val result = backupManager.importBackup(Uri.fromFile(zipFile))
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
 
         // Security property: the malicious entry must not land outside filesDir.
         // (On some Android versions the ZipEntry name is normalized and the entry is
@@ -278,7 +279,8 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_MINUTE] = 0
         }
 
-        backupManager.importBackup(exportUri)
+        val result = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
 
         val prefs = dataStore.data.first()
         assertFalse(
