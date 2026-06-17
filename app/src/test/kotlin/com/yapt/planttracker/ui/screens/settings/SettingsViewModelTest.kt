@@ -1,7 +1,6 @@
 package com.yapt.planttracker.ui.screens.settings
 
 import android.content.Context
-import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -133,7 +132,7 @@ class SettingsViewModelTest {
         vm.isBackupInProgress.test {
             assertEquals(false, awaitItem())
 
-            vm.exportBackup(Uri.EMPTY, includePhotos = false)
+            vm.exportBackup(mockk(), includePhotos = false)
             assertEquals(true, awaitItem())
             assertEquals(false, awaitItem())
 
@@ -152,7 +151,7 @@ class SettingsViewModelTest {
         vm.isBackupInProgress.test {
             assertEquals(false, awaitItem())
 
-            vm.importBackup(Uri.EMPTY)
+            vm.importBackup(mockk())
             assertEquals(true, awaitItem())
             assertEquals(false, awaitItem())
 
@@ -193,7 +192,7 @@ class SettingsViewModelTest {
         vm.isBackupInProgress.test {
             assertEquals(false, awaitItem())
 
-            vm.importBackup(Uri.EMPTY)
+            vm.importBackup(mockk())
             assertEquals(true, awaitItem())
             // isBackupInProgress stays true while FutureSchemaWarning dialog is visible
 
