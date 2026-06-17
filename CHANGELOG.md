@@ -17,6 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - Refactored `clusterMarkersByCx` in `WateringHistoryChart.kt` to use a named `PositionedMarker(cx, marker)` data class instead of `Pair<Float, CareEventMarker>`, improving readability (#359)
+- Extracted `BackupManagerInterface` from `BackupManager` and injected it into `SettingsViewModel` constructor (default remains the real `BackupManager`) to enable unit-testing with a fake; added 5 `SettingsViewModelTest` cases covering all `isBackupInProgress` state transitions (#372)
 
 ---
 
