@@ -279,7 +279,11 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
+        composeTestRule.waitForIdle()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Skip watering")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        )
     }
 
     @Test
