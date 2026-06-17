@@ -360,8 +360,8 @@ class WateringHistoryChartTest {
 }
 
 class ClusterMarkersByCxTest {
-    private fun marker(cx: Float, ts: Long = 0L): Pair<Float, CareEventMarker> =
-        cx to CareEventMarker(monthIndex = 0f, careType = CareType.PRUNE, timestamp = ts)
+    private fun marker(cx: Float, ts: Long = 0L): PositionedMarker =
+        PositionedMarker(cx, CareEventMarker(monthIndex = 0f, careType = CareType.PRUNE, timestamp = ts))
 
     @Test
     fun empty_returnsEmpty() {

@@ -64,6 +64,8 @@ private const val DAY_IN_MS = 24L * 60 * 60 * 1000
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
 
+internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
+
 private val careTypeColors = mapOf(
     CareType.FERTILIZE to 0xFF795548.toInt(),
     CareType.PRUNE to 0xFF388E3C.toInt(),
@@ -105,11 +107,11 @@ private class CareEventDecoration(
                 val cx = layerBounds.left + layerDimensions.startPadding +
                     ((marker.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                     layerDimensions.xSpacing - scroll
-                cx to marker
-            }.filter { (cx, _) -> cx >= layerBounds.left && cx <= layerBounds.right }
+                PositionedMarker(cx, marker)
+            }.filter { it.cx >= layerBounds.left && it.cx <= layerBounds.right }
             clusterMarkersByCx(markerPositions, iconSize).forEach { cluster ->
-                val clusterCx = cluster.map { it.first }.average().toFloat()
-                cluster.map { it.second }.sortedBy { it.timestamp }
+                val clusterCx = cluster.map { it.cx }.average().toFloat()
+                cluster.map { it.marker }.sortedBy { it.timestamp }
                     .forEachIndexed { stackIndex, marker ->
                         val cy = layerBounds.bottom - iconSize / 2f - gap -
                             stackIndex * (iconSize + gap)
@@ -451,16 +453,16 @@ fun computeCareEventMarkers(
 }
 
 internal fun clusterMarkersByCx(
-    markerPositions: List<Pair<Float, CareEventMarker>>,
+    markerPositions: List<PositionedMarker>,
     iconSize: Float,
-): List<List<Pair<Float, CareEventMarker>>> {
+): List<List<PositionedMarker>> {
     if (markerPositions.isEmpty()) return emptyList()
-    val sorted = markerPositions.sortedBy { it.first }
-    val clusters = mutableListOf<MutableList<Pair<Float, CareEventMarker>>>()
+    val sorted = markerPositions.sortedBy { it.cx }
+    val clusters = mutableListOf<MutableList<PositionedMarker>>()
     var current = mutableListOf(sorted[0])
     for (i in 1 until sorted.size) {
         val item = sorted[i]
-        if (item.first - current.last().first > iconSize) {
+        if (item.cx - current.last().cx > iconSize) {
             clusters.add(current)
             current = mutableListOf(item)
         } else {
