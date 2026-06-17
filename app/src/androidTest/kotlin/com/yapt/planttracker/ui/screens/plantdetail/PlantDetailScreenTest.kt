@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -254,5 +255,50 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithContentDescription("Close photo viewer")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    @Test
+    fun skipWateringFab_isDisplayedWhenOverdue() {
+        // wateringDueDateOverride = 0L (epoch, Jan 1 1970) is long before today → isOverdue = true
+        val plant = Plant(
+            id = 10L,
+            name = "Overdue Plant",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = 0L,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
+    }
+
+    @Test
+    fun skipWateringFab_isHiddenWhenNotDue() {
+        // No wateringIntervalDays → FAB condition fails, button not composed
+        val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Skip watering").assertDoesNotExist()
     }
 }

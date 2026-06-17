@@ -31,8 +31,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -172,8 +174,9 @@ fun PlantDetailScreen(
             title = { Text(stringResource(R.string.skip_watering_title)) },
             text = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     IconButton(
                         onClick = { if (skipDays > 1) skipDays-- },
@@ -330,14 +333,6 @@ fun PlantDetailScreen(
                 careStatus?.let { status ->
                     item {
                         StatsRow(status = status)
-                        if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
-                            TextButton(
-                                onClick = { viewModel.requestSkip() },
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Text(stringResource(R.string.skip_watering_title))
-                            }
-                        }
                         Spacer(Modifier.height(16.dp))
                     }
                 }
@@ -467,6 +462,21 @@ fun PlantDetailScreen(
                     tint = iconTint
                 )
             }
+        }
+
+        if (plant?.wateringIntervalDays != null &&
+                (careStatus?.isOverdue == true || careStatus?.isDueSoon == true)) {
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.requestSkip() },
+                icon = { Icon(Icons.Filled.WaterDrop, contentDescription = null) },
+                text = { Text(stringResource(R.string.skip_watering_title)) },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(16.dp)
+            )
         }
 
         FloatingActionButton(

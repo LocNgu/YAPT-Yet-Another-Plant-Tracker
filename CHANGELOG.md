@@ -12,6 +12,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Skip watering button on Plant Detail is now an `ExtendedFloatingActionButton` anchored bottom-start (secondary container colours, WaterDrop icon); previously a plain `TextButton` inside scrollable content that lost visibility when scrolled (#170)
+
+### Fixed
+- Skip watering stepper dialog: the +/− row now fills the dialog width with centred layout, visually balanced with the Cancel/Confirm action row (#170)
+
 ---
 
 ## [0.12.0] - 2026-06-15
