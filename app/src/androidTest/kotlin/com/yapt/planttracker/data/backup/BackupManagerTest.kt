@@ -245,11 +245,11 @@ class BackupManagerTest {
             zip.closeEntry()
         }
 
-        backupManager.importBackup(Uri.fromFile(zipFile))
+        val result = backupManager.importBackup(Uri.fromFile(zipFile))
+        // BackupManager strictly rejects backups containing zip-slip paths.
+        assertTrue("Expected Error on zip-slip attempt", result is BackupResult.Error)
 
         // Security property: the malicious entry must not land outside filesDir.
-        // (On some Android versions the ZipEntry name is normalized and the entry is
-        // silently dropped, which also satisfies the security requirement.)
         assertFalse(
             "Zip-slip file must NOT land in filesDir root",
             File(context.filesDir, "prefs.xml").exists()
@@ -278,7 +278,8 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_MINUTE] = 0
         }
 
-        backupManager.importBackup(exportUri)
+        val result = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
 
         val prefs = dataStore.data.first()
         assertFalse(
