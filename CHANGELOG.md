@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- build.gradle.kts: add file-existence guard and fail-fast error messages for release signing config (fixes #129)
+
 ---
 
 ## [0.12.0] - 2026-06-15
