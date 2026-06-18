@@ -287,7 +287,7 @@ class PlantDetailScreenTest {
 
     @Test
     fun skipWateringButton_isHiddenWhenNotDue() {
-        // No wateringIntervalDays → FAB condition fails, button not composed
+        // No wateringIntervalDays → button condition fails, button not composed
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -301,6 +301,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        composeTestRule.waitForIdle()
         assertTrue(
             composeTestRule.onAllNodesWithText("Skip watering")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
