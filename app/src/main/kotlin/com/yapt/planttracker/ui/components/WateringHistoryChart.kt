@@ -6,15 +6,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -51,6 +58,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.icon
+import com.yapt.planttracker.ui.util.labelRes
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -67,6 +75,18 @@ private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
 private val WaterPointsKey = ExtraStore.Key<List<WaterDataPoint>>()
 
 internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
+
+/**
+ * A care icon as actually rendered on the chart canvas, retained after each draw pass so
+ * tap gestures can hit-test against it. Coordinates are in the composable's local physical
+ * pixels — the same space as Compose's `detectTapGestures` offsets.
+ */
+data class DrawnMarkerInfo(
+    val cx: Float,
+    val cy: Float,
+    val careType: CareType,
+    val timestamps: List<Long>,
+)
 
 private val careTypeColors = mapOf(
     CareType.WATER to 0xFF1565C0.toInt(),
@@ -129,10 +149,22 @@ private class CareEventDecoration(
         strokeJoin = android.graphics.Paint.Join.ROUND
     }
 
+    /**
+     * Positions of the icons drawn in the most recent [drawOverLayers] pass, used for tap
+     * hit-testing. A plain `var` (not `MutableState`) is intentional: Vico draws on the main
+     * thread and `pointerInput` callbacks also run on the main thread, so reads see the latest
+     * value, and we avoid triggering recomposition on every frame.
+     */
+    var drawnMarkers: List<DrawnMarkerInfo> = emptyList()
+
     override fun drawOverLayers(context: CartesianDrawingContext) {
         val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: emptyList()
         val waterPoints = context.model.extraStore.getOrNull(WaterPointsKey) ?: emptyList()
-        if (markers.isEmpty() && waterPoints.isEmpty()) return
+        if (markers.isEmpty() && waterPoints.isEmpty()) {
+            drawnMarkers = emptyList()
+            return
+        }
+        val newDrawn = mutableListOf<DrawnMarkerInfo>()
         with(context) {
             val iconSize = density * 14f
             val gap = density * 2f
@@ -189,9 +221,13 @@ private class CareEventDecoration(
                             stackIndex * (iconSize + gap)
                         val bm = iconBitmaps[marker.careType] ?: return@forEachIndexed
                         canvas.drawBitmap(bm, clusterCx - bm.width / 2f, cy - bm.height / 2f, null)
+                        newDrawn.add(
+                            DrawnMarkerInfo(clusterCx, cy, marker.careType, listOf(marker.timestamp))
+                        )
                     }
             }
         }
+        drawnMarkers = newDrawn
     }
 }
 
@@ -299,6 +335,7 @@ private fun ChartContent(
     val careEventDecoration = remember(iconBitmaps, primaryColor) {
         CareEventDecoration(iconBitmaps, primaryColor)
     }
+    var selectedMarker by remember { mutableStateOf<DrawnMarkerInfo?>(null) }
 
     val zone = ZoneId.systemDefault()
 
@@ -419,7 +456,26 @@ private fun ChartContent(
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp),
+                .height(250.dp)
+                // Key on the stable decoration so the lambda is recreated only when icon
+                // bitmaps change; it always reads the latest drawnMarkers via field access.
+                .pointerInput(careEventDecoration) {
+                    detectTapGestures { tapOffset ->
+                        val thresholdPx = 28.dp.toPx()
+                        val hit = careEventDecoration.drawnMarkers.minByOrNull { dm ->
+                            val dx = dm.cx - tapOffset.x
+                            val dy = dm.cy - tapOffset.y
+                            dx * dx + dy * dy
+                        }
+                        if (hit != null) {
+                            val dx = hit.cx - tapOffset.x
+                            val dy = hit.cy - tapOffset.y
+                            if (dx * dx + dy * dy <= thresholdPx * thresholdPx) {
+                                selectedMarker = hit
+                            }
+                        }
+                    }
+                },
             scrollState = rememberVicoScrollState(
                 scrollEnabled = true,
                 initialScroll = Scroll.Absolute.End,
@@ -436,6 +492,26 @@ private fun ChartContent(
         )
     }
 
+
+    selectedMarker?.let { marker ->
+        EventMarkerDialog(marker = marker, onDismiss = { selectedMarker = null })
+    }
+}
+
+@Composable
+private fun EventMarkerDialog(marker: DrawnMarkerInfo, onDismiss: () -> Unit) {
+    val datesText = remember(marker.timestamps) {
+        val fmt = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_DAY_YEAR).withZone(ZoneId.systemDefault())
+        marker.timestamps.sorted().joinToString("\n") { fmt.format(Instant.ofEpochMilli(it)) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(marker.careType.labelRes())) },
+        text = { Text(datesText) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+        }
+    )
 }
 
 @Composable
