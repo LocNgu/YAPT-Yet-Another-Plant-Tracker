@@ -31,15 +31,14 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -335,6 +334,19 @@ fun PlantDetailScreen(
                         StatsRow(status = status)
                         Spacer(Modifier.height(16.dp))
                     }
+                    if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
+                        item {
+                            OutlinedButton(
+                                onClick = { viewModel.requestSkip() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Text(stringResource(R.string.skip_watering_title))
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
                 }
 
                 item {
@@ -462,21 +474,6 @@ fun PlantDetailScreen(
                     tint = iconTint
                 )
             }
-        }
-
-        if (plant?.wateringIntervalDays != null &&
-                (careStatus?.isOverdue == true || careStatus?.isDueSoon == true)) {
-            ExtendedFloatingActionButton(
-                onClick = { viewModel.requestSkip() },
-                icon = { Icon(Icons.Filled.WaterDrop, contentDescription = null) },
-                text = { Text(stringResource(R.string.skip_watering_title)) },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .navigationBarsPadding()
-                    .padding(16.dp)
-            )
         }
 
         FloatingActionButton(

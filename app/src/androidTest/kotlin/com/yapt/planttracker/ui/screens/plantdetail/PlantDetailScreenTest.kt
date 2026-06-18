@@ -257,7 +257,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun skipWateringFab_isDisplayedWhenOverdue() {
+    fun skipWateringButton_isDisplayedWhenOverdue() {
         // wateringDueDateOverride = 0L (epoch, Jan 1 1970) is long before today → isOverdue = true
         val plant = Plant(
             id = 10L,
@@ -286,7 +286,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun skipWateringFab_isHiddenWhenNotDue() {
+    fun skipWateringButton_isHiddenWhenNotDue() {
         // No wateringIntervalDays → FAB condition fails, button not composed
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
