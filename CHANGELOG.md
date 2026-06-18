@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- BackupManager: skip photo file cleanup after a successful DB transaction to prevent dangling URI references (fixes #175)
+
 ---
 
 ## [0.12.0] - 2026-06-15

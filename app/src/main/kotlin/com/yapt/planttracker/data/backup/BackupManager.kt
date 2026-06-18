@@ -258,6 +258,7 @@ class BackupManager(
     ): BackupResult = withContext(Dispatchers.IO) {
         val restoredPhotosDir = context.filesDir.resolve("restored_photos").also { it.mkdirs() }
         val writtenFiles = mutableListOf<File>()
+        var dbCommitted = false
         try {
             val zipPathToLocalPath = mutableMapOf<String, String>()
             for ((zipPath, tmpFile) in photoTempFiles) {
@@ -318,6 +319,7 @@ class BackupManager(
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
             }
+            dbCommitted = true
 
             dataStore.edit { prefs ->
                 prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
@@ -334,7 +336,7 @@ class BackupManager(
 
             BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
         } catch (e: Exception) {
-            writtenFiles.forEach { it.delete() }
+            if (!dbCommitted) writtenFiles.forEach { it.delete() }
             throw e
         }
     }

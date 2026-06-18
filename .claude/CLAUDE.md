@@ -112,7 +112,6 @@ Tracked as GitHub issues:
 | # | Description | Severity |
 |---|---|---|
 | [#170](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/170) | Skip watering button: replace `TextButton` with `ExtendedFloatingActionButton` bottom-start; fix stepper dialog alignment | Enhancement |
-| [#175](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/175) | BackupManager: photo cleanup on failure can delete committed-DB files if exception fires after DB transaction but before ImportSuccess | Enhancement |
 
 ---
 
@@ -279,6 +278,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Single bulk `getAllLogs()` query (not N+1 per plant); unreadable photo URIs silently skipped; ReminderScheduler called with restored time; navigate to PlantList + Snackbar on success (#36 #37 #40 #41)
 - All backup/restore UI strings in `strings.xml` (#39)
 - Navigation blocked during export/import via a non-dismissable `BackupProgressDialog`; prevents leaving Settings mid-operation and avoids corrupt exports or incomplete restores (#365)
+- `performImport` guards photo file cleanup with a `dbCommitted` flag; written files are only deleted if the DB transaction has not yet committed, preventing dangling URI references when `dataStore.edit` or `ReminderScheduler` throws after the transaction succeeds (#175)
 
 **Settings**
 - Reminder time picker: Material 3 TimePicker dialog; hour + minute DataStore-persisted (#10)
