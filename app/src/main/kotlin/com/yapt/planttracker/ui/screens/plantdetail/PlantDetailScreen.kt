@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -172,8 +173,9 @@ fun PlantDetailScreen(
             title = { Text(stringResource(R.string.skip_watering_title)) },
             text = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     IconButton(
                         onClick = { if (skipDays > 1) skipDays-- },
@@ -330,15 +332,20 @@ fun PlantDetailScreen(
                 careStatus?.let { status ->
                     item {
                         StatsRow(status = status)
-                        if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
-                            TextButton(
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
+                        item {
+                            OutlinedButton(
                                 onClick = { viewModel.requestSkip() },
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
                             ) {
                                 Text(stringResource(R.string.skip_watering_title))
                             }
+                            Spacer(Modifier.height(16.dp))
                         }
-                        Spacer(Modifier.height(16.dp))
                     }
                 }
 
