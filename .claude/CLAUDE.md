@@ -111,7 +111,6 @@ Tracked as GitHub issues:
 
 | # | Description | Severity |
 |---|---|---|
-| [#170](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/170) | Skip watering button: replace `TextButton` with `ExtendedFloatingActionButton` bottom-start; fix stepper dialog alignment | Enhancement |
 | [#175](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/175) | BackupManager: photo cleanup on failure can delete committed-DB files if exception fires after DB transaction but before ImportSuccess | Enhancement |
 
 ---
@@ -244,7 +243,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
 - Adaptive watering interval: modal `AlertDialog` with editable TextField shown after WATER logs (see product ADR-0006); JUST_RIGHT, TOO_SOON, TOO_LATE all produce correct suggestions; default feedback pre-selected to JUST_RIGHT; quick-water opens `WaterFeedbackBottomSheet` (JUST_RIGHT pre-selected, 2-tap happy path) and fires interval suggestion AlertDialog from PlantListScreen (see product ADR-0015, #126)
 - Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp; combined quick-water-fertilize button on PlantCard opens `WaterFeedbackBottomSheet` before committing logs (title "Water & fertilize [plant]?"); `quickLiquidFertilizeWithFeedback()` in ViewModel fires interval suggestion; backup schema v2 (see product ADR-0008, ADR-0017, #56, #344)
-- Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210)
+- Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210); skip button is an `OutlinedButton` in scrollable content below StatsRow (visible when overdue or due soon); stepper Row uses `fillMaxWidth` + `SpaceEvenly` for balanced layout (#170)
 - Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
 - Photo care log validation: save FAB disabled (0.38f alpha, click-blocked) when `CareType.PHOTO` is selected and no photo is attached; inline error hint shown below photo picker (#305)
 
