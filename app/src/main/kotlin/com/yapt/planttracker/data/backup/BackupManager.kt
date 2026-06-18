@@ -40,13 +40,18 @@ sealed class BackupResult {
     data class Error(val message: String) : BackupResult()
 }
 
+interface BackupManagerInterface {
+    suspend fun exportBackup(destinationUri: Uri, includePhotos: Boolean): BackupResult
+    suspend fun importBackup(sourceUri: Uri): BackupResult
+}
+
 class BackupManager(
     private val context: Context,
     private val database: PlantDatabase,
     private val dataStore: DataStore<Preferences>
-) {
+) : BackupManagerInterface {
 
-    suspend fun exportBackup(
+    override suspend fun exportBackup(
         destinationUri: Uri,
         includePhotos: Boolean
     ): BackupResult = withContext(Dispatchers.IO) {
@@ -189,7 +194,7 @@ class BackupManager(
         }
     }
 
-    suspend fun importBackup(sourceUri: Uri): BackupResult = withContext(Dispatchers.IO) {
+    override suspend fun importBackup(sourceUri: Uri): BackupResult = withContext(Dispatchers.IO) {
         val photoTempFiles = mutableMapOf<String, File>()
         // When FutureSchemaWarning is returned, onProceed owns cleanup; skip the finally block.
         var deferCleanup = false
