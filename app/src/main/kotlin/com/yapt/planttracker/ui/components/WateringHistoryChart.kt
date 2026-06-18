@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -33,6 +34,7 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.Scroll
@@ -55,7 +57,6 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
-import kotlin.math.roundToLong
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
 private const val DATE_FORMAT_MONTH = "MMM"
@@ -97,10 +98,7 @@ data class CareEventMarker(
 )
 
 data class WaterDataPoint(
-    // Double, rounded to 4 decimals: this is a Vico line-series x-coordinate, and Vico's
-    // getXDeltaGcd throws if x values exceed 4 decimal places. Float can't hold a 4-dp
-    // value exactly, so widening to Double would reintroduce precision noise.
-    val monthIndex: Double,
+    val monthIndex: Float,
     val daysSincePrevious: Float,
     val timestamp: Long,
 )
@@ -122,7 +120,15 @@ internal fun markerCy(
 
 private class CareEventDecoration(
     private val iconBitmaps: Map<CareType, Bitmap>,
+    private val lineColor: Int,
 ) : Decoration {
+    private val linePaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        style = android.graphics.Paint.Style.STROKE
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        strokeJoin = android.graphics.Paint.Join.ROUND
+    }
+
     override fun drawOverLayers(context: CartesianDrawingContext) {
         val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: emptyList()
         val waterPoints = context.model.extraStore.getOrNull(WaterPointsKey) ?: emptyList()
@@ -138,12 +144,32 @@ private class CareEventDecoration(
                 val yRange = ranges.getYRange(null) ?: return
                 val yMin = yRange.minY.toFloat()
                 val yMax = yRange.maxY.toFloat()
-                waterPoints.forEach { wp ->
+
+                val sorted = waterPoints.sortedBy { it.monthIndex }
+
+                // Compute canvas coords for every point — off-screen points included so
+                // the polyline extends continuously to the chart edge during scrolling.
+                val coords = sorted.map { wp ->
                     val cx = layerBounds.left + layerDimensions.startPadding +
-                        ((wp.monthIndex.toFloat() - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                        ((wp.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                         layerDimensions.xSpacing - scroll
-                    if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                     val cy = markerCy(wp.daysSincePrevious, yMin, yMax, layerBounds.top, layerBounds.bottom)
+                    cx to cy
+                }
+
+                // Draw connecting polyline
+                linePaint.color = lineColor
+                linePaint.strokeWidth = density * 2f
+                for (i in 0 until coords.size - 1) {
+                    val (x1, y1) = coords[i]
+                    val (x2, y2) = coords[i + 1]
+                    canvas.drawLine(x1, y1, x2, y2, linePaint)
+                }
+
+                // Draw water-drop icons on top of line (only on-screen points)
+                sorted.zip(coords).forEach { (_, pair) ->
+                    val (cx, cy) = pair
+                    if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                     val bm = iconBitmaps[CareType.WATER] ?: return@forEach
                     canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
                 }
@@ -253,7 +279,7 @@ fun WateringHistoryChart(
                 modifier = Modifier.padding(vertical = 32.dp)
             )
         } else {
-            ChartContent(effectiveStartMs, now, careMarkers, waterMarkers)
+            ChartContent(intervals, effectiveStartMs, now, careMarkers, waterMarkers)
             ChartLegend(intervals)
         }
     }
@@ -261,6 +287,7 @@ fun WateringHistoryChart(
 
 @Composable
 private fun ChartContent(
+    intervals: List<WateringInterval>,
     effectiveStartMs: Long,
     now: Long,
     careMarkers: List<CareEventMarker>,
@@ -268,51 +295,56 @@ private fun ChartContent(
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
     val iconBitmaps = rememberCareIconBitmaps()
-    val careEventDecoration = remember(iconBitmaps) { CareEventDecoration(iconBitmaps) }
+    val primaryColor = MaterialTheme.colorScheme.primary.toArgb()
+    val careEventDecoration = remember(iconBitmaps, primaryColor) {
+        CareEventDecoration(iconBitmaps, primaryColor)
+    }
 
-    val (eventPoints, monthLabels) = remember(waterMarkers, effectiveStartMs, now) {
-        // Line data: one point per watering event at its fractional day-level position.
-        val eventPoints = waterMarkers.sortedBy { it.monthIndex }
-            .map { it.monthIndex to it.daysSincePrevious }
+    val zone = ZoneId.systemDefault()
 
-        // Month labels: iterate from effectiveStartMs to now so empty trailing months
-        // still appear on the X axis (same range as the old monthly-bucket code).
-        val zone = ZoneId.systemDefault()
+    val (monthlyPoints, monthLabels) = remember(intervals, effectiveStartMs, now) {
+        val points = mutableListOf<Pair<Float, Float>>()
+        val indexToZdt = mutableListOf<ZonedDateTime>()
         val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(effectiveStartMs), zone)
             .withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
         val nowZdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(now), zone)
-        val indexToZdt = mutableListOf<Pair<Int, ZonedDateTime>>()
-        var m = 0
-        var ms = monthBase
-        while (!ms.isAfter(nowZdt)) {
-            indexToZdt.add(m to ms)
-            m++
-            ms = monthBase.plusMonths(m.toLong())
+        var monthIndex = 0
+        var monthStart = monthBase
+        while (!monthStart.isAfter(nowZdt)) {
+            val monthStartMs = monthStart.toInstant().toEpochMilli()
+            val monthEndMs = monthStart.plusMonths(1).toInstant().toEpochMilli()
+            val monthIntervals = intervals.filter {
+                it.timestamp >= monthStartMs && it.timestamp < monthEndMs
+            }
+            if (monthIntervals.isNotEmpty()) {
+                points.add(monthIndex.toFloat() to monthIntervals.map { it.daysSincePrevious }.average().toFloat())
+            }
+            indexToZdt.add(monthStart)
+            monthIndex++
+            monthStart = monthBase.plusMonths(monthIndex.toLong())
         }
 
         // If any short month name repeats (e.g. "May" twice in a 12-month range that
         // crosses a year boundary), fall back to "MMM yy" so each label is unique.
-        val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(ZoneId.systemDefault())
-        val shortNames = indexToZdt.map { (_, zdt) -> fmtShort.format(zdt) }
-        val fmt = if (shortNames.toSet().size < shortNames.size) {
-            DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(ZoneId.systemDefault())
-        } else {
-            fmtShort
-        }
-        val labels = indexToZdt.associate { (idx, zdt) -> idx to fmt.format(zdt) }
+        val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(zone)
+        val shortNames = indexToZdt.map { fmtShort.format(it) }
+        val fmt = if (shortNames.toSet().size < shortNames.size)
+            DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(zone)
+        else fmtShort
+        val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
 
-        eventPoints to labels
+        points to labels
     }
 
     // Key on waterMarkers, careMarkers, effectiveStartMs, AND now so the transaction
     // re-runs when any of these change. All data written atomically to prevent mismatched
     // label/data/marker snapshots (ADR-0004).
-    LaunchedEffect(waterMarkers, careMarkers, effectiveStartMs, now) {
+    LaunchedEffect(intervals, careMarkers, effectiveStartMs, now, waterMarkers) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
-                    x = eventPoints.map { it.first },
-                    y = eventPoints.map { it.second }
+                    x = monthlyPoints.map { it.first },   // integers — no Vico precision issue
+                    y = monthlyPoints.map { it.second }
                 )
             }
             extras { store ->
@@ -349,13 +381,15 @@ private fun ChartContent(
         )
 
         val totalMonths = monthLabels.size
-        // Extend maxX slightly past the last label so a watering on the last day of the
-        // final month (fractional index ~N−0.03) isn't clipped, while keeping it under
-        // the next integer so ItemPlacer.aligned doesn't emit a blank overflow tick.
-        val rangeProvider = remember(totalMonths) {
+        val yMax = remember(waterMarkers) {
+            if (waterMarkers.isNotEmpty()) waterMarkers.maxOf { it.daysSincePrevious }.toDouble() else 1.0
+        }
+        val rangeProvider = remember(totalMonths, yMax) {
             CartesianLayerRangeProvider.fixed(
                 minX = 0.0,
-                maxX = totalMonths.toDouble() - 0.001
+                maxX = totalMonths.toDouble() - 0.001,
+                minY = 0.0,
+                maxY = yMax,
             )
         }
 
@@ -363,9 +397,11 @@ private fun ChartContent(
             chart = rememberCartesianChart(
                 rememberLineCartesianLayer(
                     lineProvider = LineCartesianLayer.LineProvider.series(
-                        // No pointProvider: water-drop icons from CareEventDecoration
-                        // already mark each event, so Vico dots would be redundant.
-                        LineCartesianLayer.rememberLine()
+                        // Vico's monthly-bucket line is invisible; the decoration draws the
+                        // per-event polyline and water-drop icons directly on the canvas.
+                        LineCartesianLayer.rememberLine(
+                            fill = LineCartesianLayer.LineFill.single(fill(Color.Transparent))
+                        )
                     ),
                     rangeProvider = rangeProvider,
                 ),
@@ -510,12 +546,8 @@ fun computeWaterEventMarkers(
         val completedMonths = ChronoUnit.MONTHS.between(monthBase, zdt).toInt()
         val monthStartZdt = monthBase.plusMonths(completedMonths.toLong())
         val daysInMonth = monthStartZdt.toLocalDate().lengthOfMonth()
-        // Round to 4 decimals in Double space: Vico 2.0.0's getXDeltaGcd throws if line-series
-        // x values exceed 4 decimal places. Doing this in Double (not Float) keeps the value a
-        // clean multiple of 1e-4 once Vico reads it, so the delta-GCD never underflows to 0.
-        val rawIndex = completedMonths + (zdt.dayOfMonth - 1).toDouble() / daysInMonth
         WaterDataPoint(
-            monthIndex = (rawIndex * 10_000).roundToLong() / 10_000.0,
+            monthIndex = completedMonths + (zdt.dayOfMonth - 1).toFloat() / daysInMonth,
             daysSincePrevious = interval.daysSincePrevious,
             timestamp = interval.timestamp,
         )

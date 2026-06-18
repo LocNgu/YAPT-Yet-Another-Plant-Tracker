@@ -514,7 +514,7 @@ class ComputeWaterEventMarkersTest {
         val ts = baseMs + dayMs * 15   // 2025-03-16 00:00 UTC
         val iv = interval(ts)
         val result = computeWaterEventMarkers(listOf(iv), baseMs, baseMs + dayMs * 30)
-        assertEquals(0.484, result[0].monthIndex, 0.01)
+        assertEquals(0.484f, result[0].monthIndex, 0.01f)
     }
 
     @Test
@@ -541,17 +541,6 @@ class ComputeWaterEventMarkersTest {
         )
         // Chart month 0 = February (effectiveStartMs), month 1 = March.
         // March 11 = day 11 of 31 → 1 + 10/31 ≈ 1.32
-        assertEquals(1.32, result[0].monthIndex, 0.05)
-    }
-
-    @Test
-    fun monthIndex_hasAtMostFourDecimals() {
-        // Vico's getXDeltaGcd throws if line-series x values exceed 4 decimal places.
-        val intervals = (0..30).map { interval(baseMs + dayMs * it) } // every day for a month
-        val result = computeWaterEventMarkers(intervals, baseMs, baseMs + dayMs * 31)
-        result.forEach { wp ->
-            val scaled = wp.monthIndex * 10_000
-            assertEquals(scaled, Math.round(scaled).toDouble(), 1e-6)
-        }
+        assertEquals(1.32f, result[0].monthIndex, 0.05f)
     }
 }
