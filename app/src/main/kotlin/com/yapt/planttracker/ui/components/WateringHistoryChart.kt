@@ -61,6 +61,9 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
+private const val DATE_FORMAT_MONTH = "MMM"
+private const val DATE_FORMAT_MONTH_YEAR = "MMM yy"
+private const val DATE_FORMAT_MONTH_DAY_YEAR = "MMM d, yyyy"
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
 
@@ -247,10 +250,10 @@ private fun ChartContent(
 
         // If any short month name repeats (e.g. "May" twice in a 12-month range that
         // crosses a year boundary), fall back to "MMM yy" so each label is unique.
-        val fmtShort = DateTimeFormatter.ofPattern("MMM").withZone(ZoneId.systemDefault())
+        val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(ZoneId.systemDefault())
         val shortNames = indexToZdt.map { fmtShort.format(it) }
         val fmt = if (shortNames.toSet().size < shortNames.size) {
-            DateTimeFormatter.ofPattern("MMM yy").withZone(ZoneId.systemDefault())
+            DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(ZoneId.systemDefault())
         } else {
             fmtShort
         }
@@ -370,7 +373,7 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     ) {
         if (intervals.isNotEmpty()) {
             val lastInterval = intervals.last()
-            val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+            val dateFormatter = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_DAY_YEAR)
                 .withZone(ZoneId.systemDefault())
             val dateStr = dateFormatter.format(Instant.ofEpochMilli(lastInterval.timestamp))
 

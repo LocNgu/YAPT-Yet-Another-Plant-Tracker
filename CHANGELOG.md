@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- WateringHistoryChart: extract hardcoded date format patterns to named constants (fixes #109)
+
 ---
 
 ## [0.12.0] - 2026-06-15
