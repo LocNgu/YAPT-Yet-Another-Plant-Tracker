@@ -18,8 +18,7 @@ object DateUtils {
         return when {
             days == 0L -> "Today"
             days == 1L -> "Yesterday"
-            days < 7L -> "$days days ago"
-            days < 30L -> "${days / 7} week${if (days / 7 > 1) "s" else ""} ago"
+            days <= 7L -> "$days days ago"
             else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
                 .format(Date(timestampMs))
         }

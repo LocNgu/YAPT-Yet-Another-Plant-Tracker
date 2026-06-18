@@ -36,15 +36,21 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatRelative 7 days returns 1 week ago`() {
+    fun `formatRelative 7 days returns 7 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
-        assertEquals("1 week ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals("7 days ago", DateUtils.formatRelative(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 14 days returns 2 weeks ago`() {
+    fun `formatRelative 8 days returns exact date`() {
+        val timestamp = now - TimeUnit.DAYS.toMillis(8)
+        assertEquals("Nov 6, 2023", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
+    fun `formatRelative 14 days returns exact date`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(14)
-        assertEquals("2 weeks ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals("Oct 31, 2023", DateUtils.formatRelative(timestamp, now))
     }
 
     @Test

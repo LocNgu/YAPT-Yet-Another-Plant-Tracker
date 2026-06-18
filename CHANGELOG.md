@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- Care history and PlantCard "last watered" chip now show an exact date (e.g. "Jun 10, 2026") for events older than 7 days instead of "X weeks ago"
 - Skip watering button on Plant Detail is now an `OutlinedButton` below the watering stats row; previously a plain `TextButton` (#170)
 - Extracted `BackupManagerInterface` from `BackupManager` and injected it into `SettingsViewModel` constructor (default remains the real `BackupManager`) to enable unit-testing with a fake; `importBackup()` now keeps `isBackupInProgress` true while the `FutureSchemaWarning` dialog is shown; added 5 `SettingsViewModelTest` cases covering all `isBackupInProgress` state transitions (#372)
 - Refactored `clusterMarkersByCx` in `WateringHistoryChart.kt` to use a named `PositionedMarker(cx, marker)` data class instead of `Pair<Float, CareEventMarker>`, improving readability (#359)
