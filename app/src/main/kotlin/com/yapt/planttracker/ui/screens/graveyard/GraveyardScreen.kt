@@ -190,7 +190,7 @@ fun GraveyardScreen(
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Text(
-                                    text = DateUtils.formatRelative(plant.archivedAt!!),
+                                    text = DateUtils.formatRelative(plant.archivedAt!!, maxRelativeDays = 14),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

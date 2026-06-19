@@ -76,7 +76,7 @@ fun CareLogItem(
                 }
             }
             Text(
-                text = DateUtils.formatRelative(log.loggedAt),
+                text = DateUtils.formatRelative(log.loggedAt, maxRelativeDays = 14),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
