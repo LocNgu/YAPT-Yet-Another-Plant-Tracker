@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Fixed
+- BackupManager: skip photo file cleanup after a successful DB transaction to prevent dangling URI references (fixes #175)
 - build.gradle.kts: add file-existence guard and fail-fast error messages for release signing config (fixes #129)
 ### Changed
 - WateringHistoryChart: extract hardcoded date format patterns to named constants (fixes #109)
