@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- build.gradle.kts: add file-existence guard and fail-fast error messages for release signing config (fixes #129)
 ### Changed
 - Skip watering button on Plant Detail is now an `OutlinedButton` below the watering stats row; previously a plain `TextButton` (#170)
 - Extracted `BackupManagerInterface` from `BackupManager` and injected it into `SettingsViewModel` constructor (default remains the real `BackupManager`) to enable unit-testing with a fake; `importBackup()` now keeps `isBackupInProgress` true while the `FutureSchemaWarning` dialog is shown; added 5 `SettingsViewModelTest` cases covering all `isBackupInProgress` state transitions (#372)

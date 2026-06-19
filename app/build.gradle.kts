@@ -40,10 +40,15 @@ android {
             }
         }
         create("release") {
-            storeFile = releaseKeystore
-            storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "yapt-release"
-            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: ""
+            if (releaseKeystore.exists()) {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                    ?: error("RELEASE_STORE_PASSWORD not set")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                    ?: error("RELEASE_KEY_ALIAS not set")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                    ?: error("RELEASE_KEY_PASSWORD not set")
+            }
         }
     }
 
@@ -55,7 +60,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+            if (releaseKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
