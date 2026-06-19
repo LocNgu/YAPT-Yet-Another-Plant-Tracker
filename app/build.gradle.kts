@@ -42,12 +42,9 @@ android {
         create("release") {
             if (releaseKeystore.exists()) {
                 storeFile = releaseKeystore
-                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
-                    ?: error("RELEASE_STORE_PASSWORD not set")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                    ?: error("RELEASE_KEY_ALIAS not set")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-                    ?: error("RELEASE_KEY_PASSWORD not set")
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: ""
             }
         }
     }

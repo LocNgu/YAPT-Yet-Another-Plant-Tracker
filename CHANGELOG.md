@@ -14,7 +14,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - BackupManager: skip photo file cleanup after a successful DB transaction to prevent dangling URI references (fixes #175)
-- build.gradle.kts: add file-existence guard and fail-fast error messages for release signing config (fixes #129)
+- build.gradle.kts: add file-existence guard for release signing config; revert `?: error(...)` env-var fallbacks to `?: ""` so `assembleDebug` never breaks on machines that have `release.keystore` but no env vars set (fixes #129)
+
 ### Changed
 - WateringHistoryChart: extract hardcoded date format patterns to named constants (fixes #109)
 - Skip watering button on Plant Detail is now an `OutlinedButton` below the watering stats row; previously a plain `TextButton` (#170)
