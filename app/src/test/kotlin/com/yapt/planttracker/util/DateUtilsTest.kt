@@ -36,23 +36,39 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatRelative 7 days returns 1 week ago`() {
+    fun `formatRelative 7 days returns 7 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
-        assertEquals("1 week ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals("7 days ago", DateUtils.formatRelative(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 14 days returns 2 weeks ago`() {
+    fun `formatRelative 30 days with default returns relative`() {
+        val timestamp = now - TimeUnit.DAYS.toMillis(30)
+        assertEquals("30 days ago", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
+    fun `formatRelative maxRelativeDays 14, 14 days returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(14)
-        assertEquals("2 weeks ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals("14 days ago", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
     }
 
     @Test
-    fun `formatRelative 60 days returns formatted date`() {
+    fun `formatRelative maxRelativeDays 14, 15 days returns exact date`() {
+        val timestamp = now - TimeUnit.DAYS.toMillis(15)
+        assertEquals("Oct 30, 2023", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
+    }
+
+    @Test
+    fun `formatRelative maxRelativeDays 14, 7 days returns relative`() {
+        val timestamp = now - TimeUnit.DAYS.toMillis(7)
+        assertEquals("7 days ago", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
+    }
+
+    @Test
+    fun `formatRelative 60 days with default returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(60)
-        val result = DateUtils.formatRelative(timestamp, now)
-        assertTrue(result.isNotEmpty())
-        assertTrue(result.contains("2023"))
+        assertEquals("60 days ago", DateUtils.formatRelative(timestamp, now))
     }
 
     @Test
