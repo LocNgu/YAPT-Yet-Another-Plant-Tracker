@@ -11,6 +11,18 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 230,
+            versionName = "0.12.1",
+            fixed = listOf(
+                "Care history and Plant Graveyard entries older than 14 days now show an exact date (e.g. \"Jun 10, 2026\") instead of a relative \"X days ago\" label",
+                "BackupManager: photo files are no longer deleted if an exception occurs after a successful DB transaction, preventing dangling photo URIs",
+                "Skip watering stepper dialog: +/− buttons now fill the dialog width evenly, matching the Cancel/Confirm action row layout"
+            ),
+            changed = listOf(
+                "Skip watering button on Plant Detail is now an OutlinedButton below the watering stats row"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 220,
             versionName = "0.12.0",
             added = listOf(
