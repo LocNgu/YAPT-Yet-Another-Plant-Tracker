@@ -107,12 +107,7 @@ Decisions are documented in `docs/decisions/`:
 
 ## Known Issues / Technical Debt
 
-Tracked as GitHub issues:
-
-| # | Description | Severity |
-|---|---|---|
-| [#170](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/170) | Skip watering button: replace `TextButton` with `ExtendedFloatingActionButton` bottom-start; fix stepper dialog alignment | Enhancement |
-| [#175](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/175) | BackupManager: photo cleanup on failure can delete committed-DB files if exception fires after DB transaction but before ImportSuccess | Enhancement |
+No open known issues at this time.
 
 ---
 
@@ -231,7 +226,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - `CareSchedule.computeStatus()`: calendar-day comparisons via `Long.toLocalDate()` in `DateUtils.kt`; `isOverdue`/`isDueSoon` use `LocalDate.isBefore()` / `==` — no millisecond division (see technical ADR-0013)
 - `CareSchedule.computeSuggestedInterval()`: JUST_RIGHT suggests when actual ≠ current; TOO_SOON uses `currentInterval` as base when actual < stored; TOO_LATE clamps to `min(actual, stored)`; `daysBetween()` uses `ChronoUnit.DAYS` — no spurious "interval − 1" suggestion
 - `CareSchedule.computeWateringIntervals()`: calendar-month intervals for chart; predecessor-anchor so infrequent waterers get data points for in-window logs
-- `DateUtils.formatRelative()`: uses calendar-day comparison (`ChronoUnit.DAYS.between`) so "Last: X days ago" on plant chips always reflects calendar days, not a rolling 24-hour window — a late-evening care event shows "Yesterday" the next morning (#351)
+- `DateUtils.formatRelative()`: uses calendar-day comparison (`ChronoUnit.DAYS.between`) so "Last: X days ago" on plant chips always reflects calendar days, not a rolling 24-hour window — a late-evening care event shows "Yesterday" the next morning (#351); care history list and Plant Graveyard entries show an exact date (e.g. "Jun 10, 2026") for events older than 14 days; PlantCard chips and Plant Detail stats always show the relative form (#387)
 
 **Screens & Navigation**
 - All 5 screens: PlantList, AddEditPlant, PlantDetail, AddCareLog, Settings; all reusable components: PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto, CareTypeSelector
