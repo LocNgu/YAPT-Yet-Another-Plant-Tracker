@@ -40,13 +40,18 @@ sealed class BackupResult {
     data class Error(val message: String) : BackupResult()
 }
 
+interface BackupManagerInterface {
+    suspend fun exportBackup(destinationUri: Uri, includePhotos: Boolean): BackupResult
+    suspend fun importBackup(sourceUri: Uri): BackupResult
+}
+
 class BackupManager(
     private val context: Context,
     private val database: PlantDatabase,
     private val dataStore: DataStore<Preferences>
-) {
+) : BackupManagerInterface {
 
-    suspend fun exportBackup(
+    override suspend fun exportBackup(
         destinationUri: Uri,
         includePhotos: Boolean
     ): BackupResult = withContext(Dispatchers.IO) {
@@ -189,7 +194,7 @@ class BackupManager(
         }
     }
 
-    suspend fun importBackup(sourceUri: Uri): BackupResult = withContext(Dispatchers.IO) {
+    override suspend fun importBackup(sourceUri: Uri): BackupResult = withContext(Dispatchers.IO) {
         val photoTempFiles = mutableMapOf<String, File>()
         // When FutureSchemaWarning is returned, onProceed owns cleanup; skip the finally block.
         var deferCleanup = false
@@ -258,6 +263,7 @@ class BackupManager(
     ): BackupResult = withContext(Dispatchers.IO) {
         val restoredPhotosDir = context.filesDir.resolve("restored_photos").also { it.mkdirs() }
         val writtenFiles = mutableListOf<File>()
+        var dbCommitted = false
         try {
             val zipPathToLocalPath = mutableMapOf<String, String>()
             for ((zipPath, tmpFile) in photoTempFiles) {
@@ -318,6 +324,7 @@ class BackupManager(
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
             }
+            dbCommitted = true
 
             dataStore.edit { prefs ->
                 prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled
@@ -334,7 +341,7 @@ class BackupManager(
 
             BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
         } catch (e: Exception) {
-            writtenFiles.forEach { it.delete() }
+            if (!dbCommitted) writtenFiles.forEach { it.delete() }
             throw e
         }
     }

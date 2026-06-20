@@ -61,8 +61,13 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
+private const val DATE_FORMAT_MONTH = "MMM"
+private const val DATE_FORMAT_MONTH_YEAR = "MMM yy"
+private const val DATE_FORMAT_MONTH_DAY_YEAR = "MMM d, yyyy"
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
+
+internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
 
 private val careTypeColors = mapOf(
     CareType.FERTILIZE to 0xFF795548.toInt(),
@@ -105,11 +110,11 @@ private class CareEventDecoration(
                 val cx = layerBounds.left + layerDimensions.startPadding +
                     ((marker.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
                     layerDimensions.xSpacing - scroll
-                cx to marker
-            }.filter { (cx, _) -> cx >= layerBounds.left && cx <= layerBounds.right }
+                PositionedMarker(cx, marker)
+            }.filter { it.cx >= layerBounds.left && it.cx <= layerBounds.right }
             clusterMarkersByCx(markerPositions, iconSize).forEach { cluster ->
-                val clusterCx = cluster.map { it.first }.average().toFloat()
-                cluster.map { it.second }.sortedBy { it.timestamp }
+                val clusterCx = cluster.map { it.cx }.average().toFloat()
+                cluster.map { it.marker }.sortedBy { it.timestamp }
                     .forEachIndexed { stackIndex, marker ->
                         val cy = layerBounds.bottom - iconSize / 2f - gap -
                             stackIndex * (iconSize + gap)
@@ -247,10 +252,10 @@ private fun ChartContent(
 
         // If any short month name repeats (e.g. "May" twice in a 12-month range that
         // crosses a year boundary), fall back to "MMM yy" so each label is unique.
-        val fmtShort = DateTimeFormatter.ofPattern("MMM").withZone(ZoneId.systemDefault())
+        val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(ZoneId.systemDefault())
         val shortNames = indexToZdt.map { fmtShort.format(it) }
         val fmt = if (shortNames.toSet().size < shortNames.size) {
-            DateTimeFormatter.ofPattern("MMM yy").withZone(ZoneId.systemDefault())
+            DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(ZoneId.systemDefault())
         } else {
             fmtShort
         }
@@ -370,7 +375,7 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     ) {
         if (intervals.isNotEmpty()) {
             val lastInterval = intervals.last()
-            val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+            val dateFormatter = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_DAY_YEAR)
                 .withZone(ZoneId.systemDefault())
             val dateStr = dateFormatter.format(Instant.ofEpochMilli(lastInterval.timestamp))
 
@@ -451,16 +456,16 @@ fun computeCareEventMarkers(
 }
 
 internal fun clusterMarkersByCx(
-    markerPositions: List<Pair<Float, CareEventMarker>>,
+    markerPositions: List<PositionedMarker>,
     iconSize: Float,
-): List<List<Pair<Float, CareEventMarker>>> {
+): List<List<PositionedMarker>> {
     if (markerPositions.isEmpty()) return emptyList()
-    val sorted = markerPositions.sortedBy { it.first }
-    val clusters = mutableListOf<MutableList<Pair<Float, CareEventMarker>>>()
+    val sorted = markerPositions.sortedBy { it.cx }
+    val clusters = mutableListOf<MutableList<PositionedMarker>>()
     var current = mutableListOf(sorted[0])
     for (i in 1 until sorted.size) {
         val item = sorted[i]
-        if (item.first - current.last().first > iconSize) {
+        if (item.cx - current.last().cx > iconSize) {
             clusters.add(current)
             current = mutableListOf(item)
         } else {
