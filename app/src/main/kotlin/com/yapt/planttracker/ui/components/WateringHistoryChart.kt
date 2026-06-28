@@ -140,8 +140,8 @@ private class CareEventDecoration(
             // Water icons: only drawn when there is line data to position them against.
             // getYRange(null) requires a non-empty line series; guard to prevent NPE when
             // the plant has care events but no waterings in the selected range.
-            if (waterPoints.isNotEmpty()) {
-                val yRange = ranges.getYRange(null) ?: return
+            val yRange = if (waterPoints.isNotEmpty()) ranges.getYRange(null) else null
+            if (waterPoints.isNotEmpty() && yRange != null) {
                 val yMin = yRange.minY.toFloat()
                 val yMax = yRange.maxY.toFloat()
 
