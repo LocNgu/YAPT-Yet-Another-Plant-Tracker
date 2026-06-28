@@ -256,6 +256,7 @@ fun PlantDetailScreen(
     if (showPhotoReminderDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissPhotoReminder() },
+            title = { Text(stringResource(R.string.photo_reminder_dialog_title)) },
             text = { Text(stringResource(R.string.photo_reminder_dialog_text, photoReminderDaysSince.toInt())) },
             confirmButton = {
                 TextButton(onClick = {
