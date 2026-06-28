@@ -1,8 +1,12 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import android.net.Uri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -15,13 +19,19 @@ import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.ui.components.TimeRange
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,7 +39,8 @@ class PlantDetailViewModel(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val plantId: Long
+    private val plantId: Long,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
 
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
@@ -77,6 +88,47 @@ class PlantDetailViewModel(
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
+
+    private val photoReminderEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _showPhotoReminderDialog = MutableStateFlow(false)
+    val showPhotoReminderDialog: StateFlow<Boolean> = _showPhotoReminderDialog.asStateFlow()
+
+    private val _photoReminderDaysSince = MutableStateFlow(0L)
+    val photoReminderDaysSince: StateFlow<Long> = _photoReminderDaysSince.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(plant, galleryPhotos, photoReminderEnabled) { p, photos, enabled ->
+                Triple(p, photos, enabled)
+            }.collect { (p, photos, enabled) ->
+                if (!enabled || p == null) return@collect
+                if (p.id in shownThisSession) return@collect
+                val lastPhotoTs = photos.firstOrNull()?.timestamp
+                val daysSince = lastPhotoDaysSince(lastPhotoTs, p.createdAt)
+                if (daysSince >= PHOTO_REMINDER_INTERVAL_DAYS) {
+                    shownThisSession.add(p.id)
+                    _photoReminderDaysSince.value = daysSince
+                    _showPhotoReminderDialog.value = true
+                }
+            }
+        }
+    }
+
+    fun dismissPhotoReminder() {
+        _showPhotoReminderDialog.value = false
+    }
+
+    fun saveReminderPhoto(uri: Uri) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            val now = System.currentTimeMillis()
+            plantPhotoRepository.addPhoto(PlantPhoto(plantId = p.id, uri = uri.toString(), capturedAt = now))
+            plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
+        }
+    }
 
     fun clearSuggestedInterval() {
         suggestedWateringInterval.value = null
@@ -157,14 +209,37 @@ class PlantDetailViewModel(
         data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()
     }
 
+    companion object {
+        internal val shownThisSession = mutableSetOf<Long>()
+        const val PHOTO_REMINDER_INTERVAL_DAYS = 30L
+
+        fun lastPhotoDaysSince(
+            lastPhotoTimestampMs: Long?,
+            plantCreatedAtMs: Long,
+            nowDate: LocalDate = LocalDate.now()
+        ): Long {
+            val anchorMs = lastPhotoTimestampMs ?: plantCreatedAtMs
+            val anchorDate = Instant.ofEpochMilli(anchorMs)
+                .atZone(ZoneId.systemDefault()).toLocalDate()
+            return ChronoUnit.DAYS.between(anchorDate, nowDate)
+        }
+
+        fun shouldShowPhotoReminder(
+            lastPhotoTimestampMs: Long?,
+            plantCreatedAtMs: Long,
+            nowDate: LocalDate = LocalDate.now()
+        ): Boolean = lastPhotoDaysSince(lastPhotoTimestampMs, plantCreatedAtMs, nowDate) >= PHOTO_REMINDER_INTERVAL_DAYS
+    }
+
     class Factory(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
-        private val plantId: Long
+        private val plantId: Long,
+        private val dataStore: DataStore<Preferences>
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId) as T
+            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId, dataStore) as T
     }
 }

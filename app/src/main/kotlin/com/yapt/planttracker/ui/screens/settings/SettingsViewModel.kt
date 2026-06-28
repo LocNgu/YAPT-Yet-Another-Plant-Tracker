@@ -43,6 +43,10 @@ class SettingsViewModel(
         .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val photoReminderEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val reminderHour: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_HOUR] ?: 9 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
@@ -63,6 +67,12 @@ class SettingsViewModel(
     fun setKeepScreenOn(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.KEEP_SCREEN_ON] = enabled }
+        }
+    }
+
+    fun setPhotoReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.PHOTO_REMINDER_ENABLED] = enabled }
         }
     }
 

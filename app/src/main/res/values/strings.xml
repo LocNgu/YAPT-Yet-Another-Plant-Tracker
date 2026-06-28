@@ -221,4 +221,8 @@
         <item quantity="one">1 plant archived</item>
         <item quantity="other">%d plants archived</item>
     </plurals>
+
+    <string name="photo_reminder_setting_title">Photo reminder</string>
+    <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
+    <string name="photo_reminder_dialog_text">No photo in %1$d days — take one?</string>
 </resources>
