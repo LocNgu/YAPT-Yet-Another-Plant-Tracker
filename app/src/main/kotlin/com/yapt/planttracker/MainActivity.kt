@@ -23,6 +23,7 @@ import com.yapt.planttracker.worker.ReminderWorker
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scheduleReminderFromPrefs() {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val prefs = settingsDataStore.data.first()
             val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
             if (!enabled) return@launch
