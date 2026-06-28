@@ -101,7 +101,9 @@ class PlantDetailViewModel(
 
     init {
         viewModelScope.launch {
-            combine(plant, galleryPhotos, photoReminderEnabled) { p, photos, enabled ->
+            // drop(1) skips the stateIn seed (emptyList) and waits for the first real DB result,
+            // preventing a false-positive reminder on plants that have recent photos.
+            combine(plant, galleryPhotos.drop(1), photoReminderEnabled) { p, photos, enabled ->
                 Triple(p, photos, enabled)
             }.collect { (p, photos, enabled) ->
                 if (!enabled || p == null) return@collect
