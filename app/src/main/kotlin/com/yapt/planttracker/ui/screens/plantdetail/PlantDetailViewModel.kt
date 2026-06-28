@@ -105,7 +105,8 @@ class PlantDetailViewModel(
             // preventing a false-positive reminder on plants that have recent photos.
             combine(plant, galleryPhotos.drop(1), photoReminderEnabled) { p, photos, enabled ->
                 Triple(p, photos, enabled)
-            }.collect { (p, photos, enabled) ->
+            }.collect { triple ->
+                val (p, photos, enabled) = triple
                 if (!enabled || p == null) return@collect
                 if (p.id in shownThisSession) return@collect
                 val lastPhotoTs = photos.firstOrNull()?.timestamp
