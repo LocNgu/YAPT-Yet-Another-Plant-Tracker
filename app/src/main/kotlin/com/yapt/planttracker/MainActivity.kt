@@ -21,7 +21,9 @@ import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +34,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            ReminderScheduler.schedule(this)
+            scheduleReminderFromPrefs()
         }
     }
 
@@ -47,7 +49,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            ReminderScheduler.schedule(this)
+            scheduleReminderFromPrefs()
         }
 
         val app = application as YaptApplication
@@ -79,5 +81,16 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         initialPlantId = intent.getLongExtra(ReminderWorker.EXTRA_PLANT_ID, 0L).takeIf { it != 0L }
+    }
+
+    private fun scheduleReminderFromPrefs() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val prefs = settingsDataStore.data.first()
+            val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
+            if (!enabled) return@launch
+            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
+            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+            ReminderScheduler.schedule(this@MainActivity, hour, minute)
+        }
     }
 }

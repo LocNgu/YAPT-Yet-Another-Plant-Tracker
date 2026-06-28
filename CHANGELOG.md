@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Reminders now fire at the user-configured time instead of always at 09:00; `MainActivity` was calling `ReminderScheduler.schedule()` without hour/minute on every launch, resetting the periodic work to the 9:00 default
+
 ---
 
 ## [0.12.1] - 2026-06-20
