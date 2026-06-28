@@ -199,11 +199,12 @@ private class CareEventDecoration(
                 }
 
                 // Draw water-drop icons on top of line (only on-screen points)
-                sorted.zip(coords).forEach { (_, pair) ->
+                sorted.zip(coords).forEach { (wp, pair) ->
                     val (cx, cy) = pair
                     if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
                     val bm = iconBitmaps[CareType.WATER] ?: return@forEach
                     canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+                    newDrawn.add(DrawnMarkerInfo(cx, cy, CareType.WATER, listOf(wp.timestamp)))
                 }
             }
 
