@@ -103,12 +103,9 @@ class PlantDetailViewModel(
         viewModelScope.launch {
             // drop(1) skips the stateIn seed (emptyList) and waits for the first real DB result,
             // preventing a false-positive reminder on plants that have recent photos.
-            combine(plant, galleryPhotos.drop(1), photoReminderEnabled) { p, photos, enabled ->
-                Triple(p, photos, enabled)
-            }.collect { triple ->
-                val (p, photos, enabled) = triple
-                if (!enabled || p == null) return@collect
-                if (p.id in shownThisSession) return@collect
+            combine(plant, galleryPhotos.drop(1), photoReminderEnabled) { p: Plant?, photos: List<GalleryPhoto>, enabled: Boolean ->
+                if (!enabled || p == null) return@combine
+                if (p.id in shownThisSession) return@combine
                 val lastPhotoTs = photos.firstOrNull()?.timestamp
                 val daysSince = lastPhotoDaysSince(lastPhotoTs, p.createdAt)
                 if (daysSince >= PHOTO_REMINDER_INTERVAL_DAYS) {
@@ -116,7 +113,7 @@ class PlantDetailViewModel(
                     _photoReminderDaysSince.value = daysSince
                     _showPhotoReminderDialog.value = true
                 }
-            }
+            }.collect()
         }
     }
 
