@@ -11,6 +11,18 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 240,
+            versionName = "0.13.0",
+            added = listOf(
+                "Watering history chart now shows a water-drop icon for each individual watering, with the line connecting each event at day-level precision",
+                "Tap a care event icon on the watering history chart to see the care type and the date(s) of the event(s)",
+                "Photo reminder — an optional Settings toggle prompts you to photograph a plant you haven't pictured in 30 days; a \"Take photo\" button opens the in-app camera and saves straight to the plant's gallery"
+            ),
+            fixed = listOf(
+                "Daily reminder now fires at your configured time instead of always at 09:00"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 230,
             versionName = "0.12.1",
             fixed = listOf(
