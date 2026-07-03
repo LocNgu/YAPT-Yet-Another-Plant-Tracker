@@ -528,7 +528,7 @@ fun computeCareEventMarkers(
     }.sortedBy { it.timestamp }
 }
 
-fun computeWaterEventMarkers(
+internal fun computeWaterEventMarkers(
     intervals: List<WateringInterval>,
     rangeStartMs: Long,
     now: Long,
