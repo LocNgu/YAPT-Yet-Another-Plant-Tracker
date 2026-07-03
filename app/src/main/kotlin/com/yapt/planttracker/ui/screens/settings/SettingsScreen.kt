@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -80,6 +81,7 @@ fun SettingsScreen(
     }
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -318,6 +320,18 @@ fun SettingsScreen(
                     onClick = { showTimePicker = true }
                 )
             }
+
+            SettingsItemRow(
+                icon = Icons.Filled.CameraAlt,
+                title = stringResource(R.string.photo_reminder_setting_title),
+                subtitle = stringResource(R.string.photo_reminder_setting_subtitle),
+                trailingContent = {
+                    Switch(
+                        checked = photoReminderEnabled,
+                        onCheckedChange = { viewModel.setPhotoReminderEnabled(it) }
+                    )
+                }
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 

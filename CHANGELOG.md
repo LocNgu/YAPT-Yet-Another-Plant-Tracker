@@ -14,6 +14,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.13.0] - 2026-07-03
+
+### Added
+- Watering events now appear as individual water-drop icons on the watering history chart; the chart line connects each individual watering at day-level precision (instead of monthly averages) so each icon sits exactly on the line (#362 #366)
+- Tapping a care event marker icon on the watering history chart now opens a popup showing the care type and the date(s) of the event(s) at that position (#363)
+- Photo reminder: optional global toggle in Settings that prompts you to take a photo when a plant hasn't been photographed in 30 days; shown once per session per plant when opening Plant Detail; "Take photo" button launches in-app camera and saves to the plant's photo gallery (closes #233)
+
+### Fixed
+- Reminders now fire at the user-configured time instead of always at 09:00; `MainActivity` was calling `ReminderScheduler.schedule()` without hour/minute on every launch, resetting the periodic work to the 9:00 default
+
+---
+
 ## [0.12.1] - 2026-06-20
 
 ### Fixed
