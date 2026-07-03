@@ -371,7 +371,7 @@ private fun ChartContent(
         else fmtShort
         val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
 
-        monthlyPoints to labels
+        points to labels
     }
 
     // Key on waterMarkers, careMarkers, effectiveStartMs, AND now so the transaction
