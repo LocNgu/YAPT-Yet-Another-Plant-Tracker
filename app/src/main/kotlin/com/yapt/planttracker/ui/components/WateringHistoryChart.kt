@@ -81,7 +81,7 @@ internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
  * tap gestures can hit-test against it. Coordinates are in the composable's local physical
  * pixels — the same space as Compose's `detectTapGestures` offsets.
  */
-data class DrawnMarkerInfo(
+internal data class DrawnMarkerInfo(
     val cx: Float,
     val cy: Float,
     val careType: CareType,
@@ -371,7 +371,7 @@ private fun ChartContent(
         else fmtShort
         val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
 
-        eventPoints to labels
+        monthlyPoints to labels
     }
 
     // Key on waterMarkers, careMarkers, effectiveStartMs, AND now so the transaction
