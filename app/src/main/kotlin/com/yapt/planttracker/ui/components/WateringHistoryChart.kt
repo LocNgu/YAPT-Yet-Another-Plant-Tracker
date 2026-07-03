@@ -97,7 +97,7 @@ data class CareEventMarker(
     val timestamp: Long
 )
 
-data class WaterDataPoint(
+internal data class WaterDataPoint(
     val monthIndex: Float,
     val daysSincePrevious: Float,
     val timestamp: Long,
