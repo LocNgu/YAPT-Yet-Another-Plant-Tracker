@@ -424,3 +424,123 @@ class ClusterMarkersByCxTest {
         assertEquals(3, result[0].size)
     }
 }
+
+class MarkerCyTest {
+
+    // Layer bounds: top = 100 (small y), bottom = 300 (large y). On a canvas, smaller y is
+    // higher up, so the largest data value maps to `top` and the smallest to `bottom`.
+
+    @Test
+    fun minValueMapsToBottom() {
+        assertEquals(300f, markerCy(daysSincePrevious = 2f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun maxValueMapsToTop() {
+        assertEquals(100f, markerCy(daysSincePrevious = 10f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun midpointMapsToMiddle() {
+        assertEquals(200f, markerCy(daysSincePrevious = 6f, yMin = 2f, yMax = 10f, top = 100f, bottom = 300f), 0.01f)
+    }
+
+    @Test
+    fun degenerateRangeMapsToVerticalCenter() {
+        // yMax == yMin (all points equal) → vertical centre, no division by zero.
+        assertEquals(200f, markerCy(daysSincePrevious = 5f, yMin = 5f, yMax = 5f, top = 100f, bottom = 300f), 0.01f)
+    }
+}
+
+class ComputeWaterEventMarkersTest {
+
+    @Before
+    fun setUp() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
+
+    private val baseMs: Long = ZonedDateTime.of(2025, 3, 1, 0, 0, 0, 0, ZoneId.of("UTC"))
+        .toInstant().toEpochMilli()
+    private val dayMs = 24L * 60 * 60 * 1000
+
+    private fun interval(loggedAt: Long, daysSince: Float = 7f) =
+        WateringInterval(timestamp = loggedAt, daysSincePrevious = daysSince)
+
+    @Test
+    fun emptyIntervals_returnsEmpty() {
+        val result = computeWaterEventMarkers(emptyList(), baseMs, baseMs + dayMs * 30)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun intervalBeforeRangeStart_excluded() {
+        val before = interval(baseMs - dayMs)
+        val result = computeWaterEventMarkers(listOf(before), baseMs, baseMs + dayMs * 30)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun intervalAfterNow_excluded() {
+        val after = interval(baseMs + dayMs * 31)
+        val result = computeWaterEventMarkers(listOf(after), baseMs, baseMs + dayMs * 30)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun intervalAtNowBoundary_included() {
+        val exactly = interval(baseMs + dayMs * 30)
+        val result = computeWaterEventMarkers(listOf(exactly), baseMs, baseMs + dayMs * 30)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun daysSincePreviousPreserved() {
+        val iv = interval(baseMs + dayMs * 5, daysSince = 14f)
+        val result = computeWaterEventMarkers(listOf(iv), baseMs, baseMs + dayMs * 30)
+        assertEquals(14f, result[0].daysSincePrevious, 0.01f)
+    }
+
+    @Test
+    fun timestampPreserved() {
+        val ts = baseMs + dayMs * 10
+        val iv = interval(ts)
+        val result = computeWaterEventMarkers(listOf(iv), baseMs, baseMs + dayMs * 30)
+        assertEquals(ts, result[0].timestamp)
+    }
+
+    @Test
+    fun fractionalMonthIndex_midMonth() {
+        // March 16 = day 16 of 31 → monthIndex = 0 + 15/31 ≈ 0.484
+        val ts = baseMs + dayMs * 15   // 2025-03-16 00:00 UTC
+        val iv = interval(ts)
+        val result = computeWaterEventMarkers(listOf(iv), baseMs, baseMs + dayMs * 30)
+        assertEquals(0.484f, result[0].monthIndex, 0.01f)
+    }
+
+    @Test
+    fun twoWateringsInSameMonth_distinctFractionalPositions() {
+        val early = interval(baseMs + dayMs * 2)   // March 3
+        val late  = interval(baseMs + dayMs * 20)  // March 21
+        val result = computeWaterEventMarkers(listOf(early, late), baseMs, baseMs + dayMs * 30)
+        assertEquals(2, result.size)
+        assertTrue(result[0].monthIndex < result[1].monthIndex)
+    }
+
+    @Test
+    fun effectiveStartMs_alignment() {
+        // Regression: when effectiveStartMs is earlier than rangeStartMs the monthIndex
+        // must be relative to effectiveStartMs, matching the chart's month-walk origin.
+        val effectiveStartMs = baseMs - dayMs * 28  // Feb 1, 2025 UTC
+        val marchTs = baseMs + dayMs * 10           // March 11
+        val iv = interval(marchTs)
+        val result = computeWaterEventMarkers(
+            intervals = listOf(iv),
+            rangeStartMs = baseMs,
+            now = baseMs + dayMs * 30,
+            effectiveStartMs = effectiveStartMs,
+        )
+        // Chart month 0 = February (effectiveStartMs), month 1 = March.
+        // March 11 = day 11 of 31 → 1 + 10/31 ≈ 1.32
+        assertEquals(1.32f, result[0].monthIndex, 0.05f)
+    }
+}

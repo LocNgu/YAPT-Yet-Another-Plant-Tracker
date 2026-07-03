@@ -66,10 +66,12 @@ private const val DATE_FORMAT_MONTH_YEAR = "MMM yy"
 private const val DATE_FORMAT_MONTH_DAY_YEAR = "MMM d, yyyy"
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
+private val WaterPointsKey = ExtraStore.Key<List<WaterDataPoint>>()
 
 internal data class PositionedMarker(val cx: Float, val marker: CareEventMarker)
 
 private val careTypeColors = mapOf(
+    CareType.WATER to 0xFF1565C0.toInt(),
     CareType.FERTILIZE to 0xFF795548.toInt(),
     CareType.PRUNE to 0xFF388E3C.toInt(),
     CareType.MIST to 0xFF6B8F71.toInt(),
@@ -97,15 +99,52 @@ data class CareEventMarker(
     val timestamp: Long
 )
 
+data class WaterDataPoint(
+    val monthIndex: Float,
+    val daysSincePrevious: Float,
+    val timestamp: Long,
+)
+
+/**
+ * Maps a y-value (days since previous watering) to a canvas y-coordinate within the
+ * layer bounds, matching how Vico's line layer positions points. Returns the vertical
+ * centre for a degenerate range (all points equal), mirroring Vico's own behaviour.
+ */
+internal fun markerCy(
+    daysSincePrevious: Float,
+    yMin: Float,
+    yMax: Float,
+    top: Float,
+    bottom: Float
+): Float =
+    if (yMax > yMin) bottom - ((daysSincePrevious - yMin) / (yMax - yMin)) * (bottom - top)
+    else (top + bottom) / 2f
+
 private class CareEventDecoration(
     private val iconBitmaps: Map<CareType, Bitmap>,
 ) : Decoration {
     override fun drawOverLayers(context: CartesianDrawingContext) {
-        val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: return
-        if (markers.isEmpty()) return
+        val markers = context.model.extraStore.getOrNull(CareMarkersKey) ?: emptyList()
+        val waterPoints = context.model.extraStore.getOrNull(WaterPointsKey) ?: emptyList()
+        if (markers.isEmpty() && waterPoints.isEmpty()) return
         with(context) {
             val iconSize = density * 14f
             val gap = density * 2f
+
+            // Watering icons sit directly on the line, centred on each monthly point.
+            val yRange = ranges.getYRange(null)
+            val yMin = yRange.minY.toFloat()
+            val yMax = yRange.maxY.toFloat()
+            waterPoints.forEach { wp ->
+                val cx = layerBounds.left + layerDimensions.startPadding +
+                    ((wp.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
+                    layerDimensions.xSpacing - scroll
+                if (cx < layerBounds.left || cx > layerBounds.right) return@forEach
+                val cy = markerCy(wp.daysSincePrevious, yMin, yMax, layerBounds.top, layerBounds.bottom)
+                val bm = iconBitmaps[CareType.WATER] ?: return@forEach
+                canvas.drawBitmap(bm, cx - bm.width / 2f, cy - bm.height / 2f, null)
+            }
+
             val markerPositions = markers.map { marker ->
                 val cx = layerBounds.left + layerDimensions.startPadding +
                     ((marker.monthIndex - ranges.minX.toFloat()) / ranges.xStep.toFloat()) *
@@ -172,6 +211,7 @@ fun WateringHistoryChart(
     val intervals = computeWateringIntervals(wateringLogs, rangeStartMs, now)
     val effectiveStartMs = computeEffectiveStartMs(intervals, rangeStartMs)
     val careMarkers = computeCareEventMarkers(careLogs, rangeStartMs, now, effectiveStartMs)
+    val waterMarkers = computeWaterEventMarkers(intervals, rangeStartMs, now, effectiveStartMs)
 
     Column(
         modifier = Modifier
@@ -207,7 +247,7 @@ fun WateringHistoryChart(
                 modifier = Modifier.padding(vertical = 32.dp)
             )
         } else {
-            ChartContent(intervals, rangeStartMs, now, careMarkers)
+            ChartContent(intervals, rangeStartMs, now, careMarkers, waterMarkers)
         }
     }
 }
@@ -218,6 +258,7 @@ private fun ChartContent(
     rangeStartMs: Long,
     now: Long,
     careMarkers: List<CareEventMarker>,
+    waterMarkers: List<WaterDataPoint>,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
     val iconBitmaps = rememberCareIconBitmaps()
@@ -264,10 +305,10 @@ private fun ChartContent(
         points to labels
     }
 
-    // Key on intervals, rangeStartMs, AND careMarkers so the transaction re-runs when
-    // care events change. Labels and markers are written atomically with line data to
+    // Key on intervals, rangeStartMs, careMarkers, AND waterMarkers so the transaction
+    // re-runs when line data or any marker set changes. All data written atomically to
     // prevent any draw pass seeing mismatched label/data/marker snapshots (ADR-0004).
-    LaunchedEffect(intervals, rangeStartMs, careMarkers) {
+    LaunchedEffect(intervals, rangeStartMs, careMarkers, waterMarkers) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
@@ -278,6 +319,7 @@ private fun ChartContent(
             extras { store ->
                 store[MonthLabelsKey] = monthLabels
                 store[CareMarkersKey] = careMarkers
+                store[WaterPointsKey] = waterMarkers
             }
         }
     }
@@ -453,6 +495,32 @@ fun computeCareEventMarkers(
             timestamp = log.loggedAt
         )
     }.sortedBy { it.timestamp }
+}
+
+fun computeWaterEventMarkers(
+    intervals: List<WateringInterval>,
+    rangeStartMs: Long,
+    now: Long,
+    effectiveStartMs: Long = rangeStartMs,
+): List<WaterDataPoint> {
+    val inRange = intervals.filter { it.timestamp >= rangeStartMs && it.timestamp <= now }
+    if (inRange.isEmpty()) return emptyList()
+
+    val zone = ZoneId.systemDefault()
+    val monthBase = ZonedDateTime.ofInstant(Instant.ofEpochMilli(effectiveStartMs), zone)
+        .withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
+
+    return inRange.map { interval ->
+        val zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(interval.timestamp), zone)
+        val completedMonths = ChronoUnit.MONTHS.between(monthBase, zdt).toInt()
+        val monthStartZdt = monthBase.plusMonths(completedMonths.toLong())
+        val daysInMonth = monthStartZdt.toLocalDate().lengthOfMonth()
+        WaterDataPoint(
+            monthIndex = completedMonths + (zdt.dayOfMonth - 1).toFloat() / daysInMonth,
+            daysSincePrevious = interval.daysSincePrevious,
+            timestamp = interval.timestamp,
+        )
+    }
 }
 
 internal fun clusterMarkersByCx(
