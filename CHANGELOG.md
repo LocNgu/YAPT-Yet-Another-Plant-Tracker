@@ -14,6 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Watering events now appear as individual water-drop icons on the watering history chart; the chart line connects each individual watering at day-level precision (instead of monthly averages) so each icon sits exactly on the line (#362 #366)
+- Tapping a care event marker icon on the watering history chart now opens a popup showing the care type and the date(s) of the event(s) at that position (#363)
 - Photo reminder: optional global toggle in Settings that prompts you to take a photo when a plant hasn't been photographed in 30 days; shown once per session per plant when opening Plant Detail; "Take photo" button launches in-app camera and saves to the plant's photo gallery (closes #233)
 
 ### Fixed
