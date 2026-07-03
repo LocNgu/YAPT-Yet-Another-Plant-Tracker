@@ -1,6 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import app.cash.turbine.test
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -35,6 +38,9 @@ class PlantDetailViewModelTest {
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
     private val plantPhotoRepo: PlantPhotoRepository = mockk()
+    private val dataStore: DataStore<Preferences> = mockk {
+        every { data } returns flowOf(emptyPreferences())
+    }
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
@@ -47,7 +53,7 @@ class PlantDetailViewModelTest {
         every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plantId) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plantId) } returns flowOf(emptyList())
-        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plantId)
+        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plantId, dataStore)
     }
 
     @Test
@@ -126,7 +132,7 @@ class PlantDetailViewModelTest {
         every { careLogRepo.getLogsForPlant(2L) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(2L) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(2L) } returns flowOf(emptyList())
-        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 2L)
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 2L, dataStore)
 
         vm.careStatus.test {
             val status = awaitItem()
@@ -236,7 +242,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(listOf(careLog))
 
-        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L)
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L, dataStore)
 
         vm.galleryPhotos.test {
             val photos = awaitItem()

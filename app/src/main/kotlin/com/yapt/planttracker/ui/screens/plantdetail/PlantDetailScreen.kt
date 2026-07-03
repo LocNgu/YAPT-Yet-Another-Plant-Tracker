@@ -40,6 +40,8 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,12 +66,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WateringHistoryChart
+import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 
 @Composable
 fun PlantDetailScreen(
@@ -86,6 +90,14 @@ fun PlantDetailScreen(
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showSkipDialog by viewModel.showSkipDialog.collectAsStateWithLifecycle()
+    val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
+    val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        viewModel.saveReminderPhoto(uri)
+        viewModel.dismissPhotoReminder()
+    }
 
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
@@ -235,6 +247,25 @@ fun PlantDetailScreen(
                 TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
                     Text(stringResource(R.string.dismiss))
                 }
+            }
+        )
+    }
+
+    CameraPhotoDialogs(reminderCameraState)
+
+    if (showPhotoReminderDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissPhotoReminder() },
+            title = { Text(stringResource(R.string.photo_reminder_dialog_title)) },
+            text = { Text(stringResource(R.string.photo_reminder_dialog_text, photoReminderDaysSince.toInt())) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.dismissPhotoReminder()
+                    reminderCameraState.launch()
+                }) { Text(stringResource(R.string.photo_source_take_photo)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissPhotoReminder() }) { Text(stringResource(R.string.dismiss)) }
             }
         )
     }
@@ -485,6 +516,14 @@ fun PlantDetailScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 88.dp)
+        )
 
         }
     }
