@@ -12,4 +12,5 @@ object SettingsKeys {
     val SORT_ASCENDING = booleanPreferencesKey("sort_ascending")
     val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
     val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+    val PHOTO_REMINDER_ENABLED = booleanPreferencesKey("photo_reminder_enabled")
 }

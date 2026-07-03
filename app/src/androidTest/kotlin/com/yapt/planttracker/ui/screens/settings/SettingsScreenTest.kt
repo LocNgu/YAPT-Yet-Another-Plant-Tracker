@@ -82,7 +82,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Restore from backup").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Restore from backup").performScrollTo().assertIsDisplayed()
     }
 
     @Test

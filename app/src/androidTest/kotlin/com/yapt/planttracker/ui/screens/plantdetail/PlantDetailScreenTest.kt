@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -30,6 +33,10 @@ class PlantDetailScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    private val mockDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(emptyPreferences())
+    }
+
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
@@ -38,7 +45,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id)
+        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore)
     }
 
     @Test
@@ -112,7 +119,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -155,7 +162,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -191,7 +198,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -218,7 +225,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore)
 
         composeTestRule.setContent {
             PlantDetailScreen(
