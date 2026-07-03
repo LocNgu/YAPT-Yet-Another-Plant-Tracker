@@ -9,6 +9,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Adaptive watering intervals** — After each watering, mark it as *too soon*, *just right*, or *too late*. YAPT suggests an updated interval based on your actual observed rhythm
 - **Care history timeline** — Full chronological log per plant with photos
 - **Care reminders** — Daily local notifications for overdue or due-today plants
+- **Photo reminder** — Optional Settings toggle prompts you to photograph a plant you haven't pictured in 30 days; a one-tap "Take photo" button opens the in-app camera and saves straight to the plant's gallery
 - **Room grouping** — Assign plants to rooms and filter the home screen by room; an "Unassigned" chip filters to plants with no room yet
 - **Location suggestion chips** — Previously used room names appear as tappable chips on the Add/Edit Plant screen; tap to fill the field instantly
 - **Countdown labels** — Each plant card shows "In X days", "Due today", or "Overdue by X days" for watering and fertilizing, colour-coded green/orange/red
@@ -17,7 +18,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Skip watering** — Push the next due date forward 1–7 days from the plant detail screen; optionally make the change permanent via an interval adjustment dialog
 - **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
 - **Keep screen on** — Optional toggle in Settings keeps the display awake while you tend your plants
-- **Watering history chart** — Line chart on the plant detail screen showing average days between waterings per calendar month; selectable time ranges (1M / 3M / 6M / 12M / All); care event markers show which care types were logged each month
+- **Watering history chart** — Line chart on the plant detail screen with a water-drop icon for each individual watering, connected at day-level precision; selectable time ranges (1M / 3M / 6M / 12M / All); care event markers show which care types were logged, and tapping a marker reveals the care type and date(s)
 - **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
 - **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
 - **Plant Graveyard** — Deleted plants move to an archive in Settings; restore them or remove them permanently

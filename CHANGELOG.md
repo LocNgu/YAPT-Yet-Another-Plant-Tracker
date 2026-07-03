@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.13.0] - 2026-07-03
+
 ### Added
 - Watering events now appear as individual water-drop icons on the watering history chart; the chart line connects each individual watering at day-level precision (instead of monthly averages) so each icon sits exactly on the line (#362 #366)
 - Tapping a care event marker icon on the watering history chart now opens a popup showing the care type and the date(s) of the event(s) at that position (#363)
