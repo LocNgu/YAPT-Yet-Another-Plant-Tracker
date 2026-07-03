@@ -305,8 +305,8 @@ private fun ChartContent(
         points to labels
     }
 
-    // Key on intervals, rangeStartMs, AND careMarkers so the transaction re-runs when
-    // care events change. Labels and markers are written atomically with line data to
+    // Key on intervals, rangeStartMs, careMarkers, AND waterMarkers so the transaction
+    // re-runs when line data or any marker set changes. All data written atomically to
     // prevent any draw pass seeing mismatched label/data/marker snapshots (ADR-0004).
     LaunchedEffect(intervals, rangeStartMs, careMarkers, waterMarkers) {
         modelProducer.runTransaction {
