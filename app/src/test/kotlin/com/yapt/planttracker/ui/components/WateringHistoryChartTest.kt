@@ -587,4 +587,19 @@ class CatmullRomSegmentsTest {
             assertEquals(s.c2x, s.c2y, 1e-4f)
         }
     }
+
+    @Test
+    fun controlPointsDoNotOvershootEndpointYRange() {
+        // A sharp asymmetric peak — unclamped Catmull-Rom would push a control point above the
+        // peak value (e.g. 45 + (20-5)/6 = 47.5). Clamping must keep every control-point y within
+        // the [min, max] of its own segment's endpoints, so the curve never bulges past a point.
+        val points = listOf(0f to 5f, 1f to 45f, 2f to 20f, 3f to 5f)
+        val segments = catmullRomSegments(points)
+        segments.forEachIndexed { i, s ->
+            val lo = minOf(points[i].second, points[i + 1].second)
+            val hi = maxOf(points[i].second, points[i + 1].second)
+            assertTrue("c1y ${s.c1y} outside [$lo, $hi]", s.c1y in lo..hi)
+            assertTrue("c2y ${s.c2y} outside [$lo, $hi]", s.c2y in lo..hi)
+        }
+    }
 }

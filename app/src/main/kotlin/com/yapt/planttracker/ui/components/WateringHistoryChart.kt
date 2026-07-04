@@ -149,6 +149,9 @@ private class CareEventDecoration(
         strokeJoin = android.graphics.Paint.Join.ROUND
     }
 
+    // Reused across draw passes (main-thread only) to avoid per-frame allocation, like linePaint.
+    private val linePath = android.graphics.Path()
+
     /**
      * Positions of the icons drawn in the most recent [drawOverLayers] pass, used for tap
      * hit-testing. A plain `var` (not `MutableState`) is intentional: Vico draws on the main
@@ -195,13 +198,13 @@ private class CareEventDecoration(
                 linePaint.strokeWidth = density * 2f
                 val segments = catmullRomSegments(coords)
                 if (segments.isNotEmpty()) {
-                    val path = android.graphics.Path()
+                    linePath.rewind()
                     val (startX, startY) = coords.first()
-                    path.moveTo(startX, startY)
+                    linePath.moveTo(startX, startY)
                     segments.forEach { s ->
-                        path.cubicTo(s.c1x, s.c1y, s.c2x, s.c2y, s.endX, s.endY)
+                        linePath.cubicTo(s.c1x, s.c1y, s.c2x, s.c2y, s.endX, s.endY)
                     }
-                    canvas.drawPath(path, linePaint)
+                    canvas.drawPath(linePath, linePaint)
                 }
 
                 // Draw water-drop icons on top of line (only on-screen points)
@@ -679,6 +682,12 @@ internal data class CubicSegment(
  *
  * Returns an empty list for fewer than two points (nothing to connect). Collinear input yields
  * control points that lie on the line, so straight runs stay straight.
+ *
+ * Each segment's control-point y is clamped to the `[min, max]` of that segment's two endpoint
+ * y-values. A cubic Bézier is contained in the convex hull of its control points, so this keeps
+ * the curve's y within the band of consecutive data points — preventing the classic Catmull-Rom
+ * overshoot from bulging the line above the chart's declared `maxY` near an asymmetric peak. Only
+ * y is clamped; x is left untouched to preserve horizontal smoothness (x is already monotonic).
  */
 internal fun catmullRomSegments(points: List<Pair<Float, Float>>): List<CubicSegment> {
     if (points.size < 2) return emptyList()
@@ -689,12 +698,14 @@ internal fun catmullRomSegments(points: List<Pair<Float, Float>>): List<CubicSeg
         val p1 = points[i]
         val p2 = points[i + 1]
         val p3 = points[if (i + 2 > last) last else i + 2]
+        val loY = minOf(p1.second, p2.second)
+        val hiY = maxOf(p1.second, p2.second)
         segments.add(
             CubicSegment(
                 c1x = p1.first + (p2.first - p0.first) / 6f,
-                c1y = p1.second + (p2.second - p0.second) / 6f,
+                c1y = (p1.second + (p2.second - p0.second) / 6f).coerceIn(loY, hiY),
                 c2x = p2.first - (p3.first - p1.first) / 6f,
-                c2y = p2.second - (p3.second - p1.second) / 6f,
+                c2y = (p2.second - (p3.second - p1.second) / 6f).coerceIn(loY, hiY),
                 endX = p2.first,
                 endY = p2.second,
             )
