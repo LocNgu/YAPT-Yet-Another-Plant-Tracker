@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Watering history chart line is now a smooth cubic (Catmull-Rom) curve through the watering points instead of straight zig-zag segments (#125)
+
 ---
 
 ## [0.13.0] - 2026-07-03

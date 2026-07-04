@@ -189,13 +189,19 @@ private class CareEventDecoration(
                     cx to cy
                 }
 
-                // Draw connecting polyline
+                // Draw connecting curve as a smooth cubic (Catmull-Rom) spline through every
+                // point, instead of straight zig-zag segments. A single point draws no line.
                 linePaint.color = lineColor
                 linePaint.strokeWidth = density * 2f
-                for (i in 0 until coords.size - 1) {
-                    val (x1, y1) = coords[i]
-                    val (x2, y2) = coords[i + 1]
-                    canvas.drawLine(x1, y1, x2, y2, linePaint)
+                val segments = catmullRomSegments(coords)
+                if (segments.isNotEmpty()) {
+                    val path = android.graphics.Path()
+                    val (startX, startY) = coords.first()
+                    path.moveTo(startX, startY)
+                    segments.forEach { s ->
+                        path.cubicTo(s.c1x, s.c1y, s.c2x, s.c2y, s.endX, s.endY)
+                    }
+                    canvas.drawPath(path, linePaint)
                 }
 
                 // Draw water-drop icons on top of line (only on-screen points)
@@ -436,7 +442,8 @@ private fun ChartContent(
                 rememberLineCartesianLayer(
                     lineProvider = LineCartesianLayer.LineProvider.series(
                         // Vico's monthly-bucket line is invisible; the decoration draws the
-                        // per-event polyline and water-drop icons directly on the canvas.
+                        // per-event smooth cubic-spline curve and water-drop icons directly on
+                        // the canvas.
                         LineCartesianLayer.rememberLine(
                             fill = LineCartesianLayer.LineFill.single(fill(Color.Transparent))
                         )
@@ -652,4 +659,46 @@ internal fun clusterMarkersByCx(
     }
     clusters.add(current)
     return clusters
+}
+
+internal data class CubicSegment(
+    val c1x: Float,
+    val c1y: Float,
+    val c2x: Float,
+    val c2y: Float,
+    val endX: Float,
+    val endY: Float,
+)
+
+/**
+ * Converts a polyline of `(x, y)` canvas coordinates into a sequence of cubic Bézier segments
+ * following a Catmull-Rom spline with clamped endpoints, producing a smooth curve that passes
+ * through every input point. Vico's own line is invisible here (the decoration hand-draws the
+ * line so water-drop icons align on it), so smoothing is applied to these points directly rather
+ * than via a Vico cubic connector.
+ *
+ * Returns an empty list for fewer than two points (nothing to connect). Collinear input yields
+ * control points that lie on the line, so straight runs stay straight.
+ */
+internal fun catmullRomSegments(points: List<Pair<Float, Float>>): List<CubicSegment> {
+    if (points.size < 2) return emptyList()
+    val last = points.size - 1
+    val segments = ArrayList<CubicSegment>(last)
+    for (i in 0 until last) {
+        val p0 = points[if (i == 0) 0 else i - 1]
+        val p1 = points[i]
+        val p2 = points[i + 1]
+        val p3 = points[if (i + 2 > last) last else i + 2]
+        segments.add(
+            CubicSegment(
+                c1x = p1.first + (p2.first - p0.first) / 6f,
+                c1y = p1.second + (p2.second - p0.second) / 6f,
+                c2x = p2.first - (p3.first - p1.first) / 6f,
+                c2y = p2.second - (p3.second - p1.second) / 6f,
+                endX = p2.first,
+                endY = p2.second,
+            )
+        )
+    }
+    return segments
 }
