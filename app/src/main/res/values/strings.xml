@@ -176,6 +176,11 @@
     <string name="sort_fertilizing_due">Fertilizing due</string>
     <string name="sort_recently_added">Recently added</string>
     <string name="sort_both_due">Water + Fertilize due</string>
+    <string name="date_group_overdue">Overdue</string>
+    <string name="date_group_today">Today</string>
+    <string name="date_group_tomorrow">Tomorrow</string>
+    <string name="date_group_later">Later</string>
+    <string name="date_group_not_scheduled">Not scheduled</string>
     <string name="water_label_never_watered">Never watered</string>
     <string name="care_type_watered">Watered</string>
     <string name="care_type_fertilized">Fertilized</string>

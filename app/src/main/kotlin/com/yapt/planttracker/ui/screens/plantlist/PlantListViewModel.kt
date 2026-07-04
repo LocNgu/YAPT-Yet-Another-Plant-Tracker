@@ -99,6 +99,13 @@ class PlantListViewModel(
         applySortOrder(statusList, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val plantListItems: StateFlow<List<PlantListItem>> = combine(
+        plantsWithStatus,
+        _sortOrder
+    ) { statuses, sort ->
+        groupPlantsByDueDate(statuses, sort)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _quickLogEvent = MutableSharedFlow<String>()
     val quickLogEvent: SharedFlow<String> = _quickLogEvent.asSharedFlow()
 

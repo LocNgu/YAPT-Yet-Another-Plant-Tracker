@@ -23,6 +23,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantCard
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
+import com.yapt.planttracker.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +67,7 @@ fun PlantListScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
+    val plantListItems by viewModel.plantListItems.collectAsStateWithLifecycle()
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val selectedRoom by viewModel.selectedRoom.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
@@ -228,19 +231,25 @@ fun PlantListScreen(
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp)
                 ) {
-                    items(plantsWithStatus) { status ->
-                        PlantCard(
-                            status = status,
-                            onClick = { onNavigateToPlant(status.plant.id) },
-                            onQuickWater = { waterFeedbackPlant = status },
-                            onQuickFertilize = {
-                                if (status.plant.useLiquidFertilizer) {
-                                    liquidFertilizeFeedbackPlant = status
-                                } else {
-                                    viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                                }
+                    items(plantListItems) { listItem ->
+                        when (listItem) {
+                            is PlantListItem.DateHeader -> DateGroupHeader(listItem.bucket)
+                            is PlantListItem.PlantRow -> {
+                                val status = listItem.status
+                                PlantCard(
+                                    status = status,
+                                    onClick = { onNavigateToPlant(status.plant.id) },
+                                    onQuickWater = { waterFeedbackPlant = status },
+                                    onQuickFertilize = {
+                                        if (status.plant.useLiquidFertilizer) {
+                                            liquidFertilizeFeedbackPlant = status
+                                        } else {
+                                            viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                     item { Spacer(Modifier.height(8.dp)) }
                 }
@@ -315,5 +324,29 @@ fun PlantListScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun DateGroupHeader(bucket: DateBucket) {
+    val label = when (bucket) {
+        DateBucket.Overdue -> stringResource(R.string.date_group_overdue)
+        DateBucket.Today -> stringResource(R.string.date_group_today)
+        DateBucket.Tomorrow -> stringResource(R.string.date_group_tomorrow)
+        is DateBucket.Dated -> DateUtils.formatWeekdayDate(bucket.epochDay)
+        DateBucket.Later -> stringResource(R.string.date_group_later)
+        DateBucket.NotScheduled -> stringResource(R.string.date_group_not_scheduled)
+    }
+    Column(
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(4.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
