@@ -1062,6 +1062,47 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `plantListItems recomputes headers when room filter changes`() = runTest {
+        val now = System.currentTimeMillis()
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        val kitchenPlant = Plant(id = 1L, name = "Kitchen Plant", room = "Kitchen", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val bedroomPlant = Plant(id = 2L, name = "Bedroom Plant", room = "Bedroom", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenPlant, bedroomPlant))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
+        // Kitchen plant is overdue (due 2 days ago); Bedroom plant is due today.
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - (3 * oneDayMs))
+        coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
+            CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        advanceUntilIdle()
+
+        vm.plantListItems.test {
+            // All rooms: both plants → Overdue + Today headers
+            val all = expectMostRecentItem()
+            assertEquals(
+                listOf(DateBucket.Overdue, DateBucket.Today),
+                all.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            )
+
+            // Filter to Kitchen → only the overdue plant, so only the Overdue header remains
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+            val filtered = expectMostRecentItem()
+            assertEquals(
+                listOf(DateBucket.Overdue),
+                filtered.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            )
+            val rows = filtered.filterIsInstance<PlantListItem.PlantRow>()
+            assertEquals(1, rows.size)
+            assertEquals("Kitchen Plant", rows[0].status.plant.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 private fun Long.toEpochDayForTest(): Long =

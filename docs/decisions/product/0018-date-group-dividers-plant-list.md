@@ -31,7 +31,7 @@ Several decisions needed to be made:
 
 **New edge case surfaced during spec:** plants with no due date for the active care type (no interval configured) are currently sorted nulls-last. They get a terminal `Not scheduled` bucket.
 
-**Bucket order (ascending sort direction):** `Overdue → Today → Tomorrow → +2 → +3 → Later → Not scheduled`.
+**Canonical bucket order (by ascending rank; this is what renders under the *default* direction, which is DESC for date sorts per ADR-0004):** `Overdue → Today → Tomorrow → +2 → +3 → Later → Not scheduled`. Toggling to the non-default direction reverses this whole sequence (see Q5).
 
 **Q5 — DESC direction:** The group sequence reverses along with the toggle, including the `Not scheduled` bucket moving from the tail to the head. Grouping is a pure transform layered on top of the already-sorted list: it partitions statuses into buckets (preserving each item's relative order within its bucket, which always follows the existing per-item sort order), then orders the buckets themselves — canonical (`Overdue → … → Later → Not scheduled`) for the default direction, fully reversed for the toggled direction. Both due has no direction toggle (ADR-0004), so it always reads in canonical order.
 
