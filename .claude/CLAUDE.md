@@ -150,10 +150,10 @@ After review + QA complete, the orchestrating Claude instance posts a brief summ
 
 **One branch and one PR per feature or bug fix.** Never mix unrelated changes on the same branch.
 
-- Branch off `develop`: `git checkout -b claude/<kebab-description> origin/develop`
+- **Always fetch first, then branch off the freshly-fetched `origin/develop`** — never branch from a stale local ref: `git fetch origin develop && git checkout -b claude/<kebab-description> origin/develop`. This prevents branches starting from an outdated `develop` (which otherwise forces a later rebase).
 - All commits for the task go on that branch
 - PR targets `develop`
-- Go back to `develop` before starting anything new
+- Before starting anything new, return to an up-to-date `develop`: `git fetch origin develop` first
 
 Branch naming convention: `claude/<kebab-case-description>`
 Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claude/fix-5-enum-valueof`
