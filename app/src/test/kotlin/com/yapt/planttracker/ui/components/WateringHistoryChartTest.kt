@@ -544,3 +544,62 @@ class ComputeWaterEventMarkersTest {
         assertEquals(1.32f, result[0].monthIndex, 0.05f)
     }
 }
+
+class CatmullRomSegmentsTest {
+
+    @Test
+    fun emptyInput_returnsEmpty() {
+        assertTrue(catmullRomSegments(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun singlePoint_returnsEmpty() {
+        assertTrue(catmullRomSegments(listOf(1f to 2f)).isEmpty())
+    }
+
+    @Test
+    fun twoPoints_oneSegment_endsAtSecondPoint() {
+        val segments = catmullRomSegments(listOf(0f to 0f, 10f to 5f))
+        assertEquals(1, segments.size)
+        assertEquals(10f, segments[0].endX, 1e-4f)
+        assertEquals(5f, segments[0].endY, 1e-4f)
+    }
+
+    @Test
+    fun curvePassesThroughEveryPoint() {
+        val points = listOf(0f to 1f, 1f to 4f, 2f to 2f, 3f to 6f)
+        val segments = catmullRomSegments(points)
+        assertEquals(points.size - 1, segments.size)
+        // The end of segment i is exactly input point i+1, so the curve interpolates each point.
+        segments.forEachIndexed { i, s ->
+            assertEquals(points[i + 1].first, s.endX, 1e-4f)
+            assertEquals(points[i + 1].second, s.endY, 1e-4f)
+        }
+    }
+
+    @Test
+    fun collinearPoints_controlPointsStayOnLine() {
+        // Points on y = x; a Catmull-Rom spline through collinear points must keep every
+        // Bézier control point on the same line, so a straight run renders straight (no wobble).
+        val points = listOf(0f to 0f, 1f to 1f, 2f to 2f, 3f to 3f)
+        catmullRomSegments(points).forEach { s ->
+            assertEquals(s.c1x, s.c1y, 1e-4f)
+            assertEquals(s.c2x, s.c2y, 1e-4f)
+        }
+    }
+
+    @Test
+    fun controlPointsDoNotOvershootEndpointYRange() {
+        // A sharp asymmetric peak — unclamped Catmull-Rom would push a control point above the
+        // peak value (e.g. 45 + (20-5)/6 = 47.5). Clamping must keep every control-point y within
+        // the [min, max] of its own segment's endpoints, so the curve never bulges past a point.
+        val points = listOf(0f to 5f, 1f to 45f, 2f to 20f, 3f to 5f)
+        val segments = catmullRomSegments(points)
+        segments.forEachIndexed { i, s ->
+            val lo = minOf(points[i].second, points[i + 1].second)
+            val hi = maxOf(points[i].second, points[i + 1].second)
+            assertTrue("c1y ${s.c1y} outside [$lo, $hi]", s.c1y in lo..hi)
+            assertTrue("c2y ${s.c2y} outside [$lo, $hi]", s.c2y in lo..hi)
+        }
+    }
+}
