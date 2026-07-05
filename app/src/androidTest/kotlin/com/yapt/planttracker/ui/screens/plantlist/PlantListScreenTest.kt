@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -37,6 +39,7 @@ class PlantListScreenTest {
         val dataStore = mockk<DataStore<Preferences>> {
             every { data } returns flowOf(emptyPreferences())
         }
+        coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { plantRepo.getAllRooms() } returns flowOf(rooms)
         every { careLogRepo.logCount } returns flowOf(0)
@@ -84,5 +87,42 @@ class PlantListScreenTest {
         }
 
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun sortingByWateringDue_showsDateGroupHeader() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Sort plants").performClick()
+        composeTestRule.onNodeWithText("Watering due").performClick()
+
+        composeTestRule.onNodeWithText("Not scheduled").assertIsDisplayed()
+    }
+
+    @Test
+    fun sortingAlphabetically_showsNoDateGroupHeader() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNode(hasText("Not scheduled", substring = true)).assertDoesNotExist()
     }
 }
