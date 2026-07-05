@@ -35,9 +35,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
+import java.time.ZoneId
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,6 +76,7 @@ class PlantListViewModelTest {
 
     @Before
     fun setup() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
@@ -1032,4 +1037,152 @@ class PlantListViewModelTest {
 
         coVerify { plantRepo.restorePlant(42L) }
     }
+
+    // plantListItems date-group divider tests
+
+    @Test
+    fun `plantListItems produces no headers for ALPHABETICAL sort`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.plantListItems.test {
+            val items = awaitItem()
+            assertEquals(1, items.size)
+            assertTrue(items.all { it is PlantListItem.PlantRow })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `plantListItems assigns each plant to the correct bucket for WATERING_DUE sort`() = runTest {
+        val now = System.currentTimeMillis()
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        fun plantDueIn(id: Long, name: String, days: Long?) = Plant(
+            id = id,
+            name = name,
+            wateringIntervalDays = if (days != null) 1 else null,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val overdue = plantDueIn(1L, "Overdue", -2L)
+        val today = plantDueIn(2L, "Today", 0L)
+        val tomorrow = plantDueIn(3L, "Tomorrow", 1L)
+        val plusTwo = plantDueIn(4L, "PlusTwo", 2L)
+        val plusThree = plantDueIn(5L, "PlusThree", 3L)
+        val later = plantDueIn(6L, "Later", 10L)
+        val notScheduled = plantDueIn(7L, "NotScheduled", null)
+        val plants = listOf(overdue, today, tomorrow, plusTwo, plusThree, later, notScheduled)
+        every { plantRepo.getAllPlants() } returns flowOf(plants)
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+
+        val dayOffsets = mapOf(1L to -2L, 2L to 0L, 3L to 1L, 4L to 2L, 5L to 3L, 6L to 10L)
+        for ((id, days) in dayOffsets) {
+            coEvery { careLogRepo.getLastLogOfType(id, CareType.WATER) } returns
+                CareLog(plantId = id, careType = CareType.WATER, loggedAt = now + days * oneDayMs - oneDayMs)
+        }
+        coEvery { careLogRepo.getLastLogOfType(7L, CareType.WATER) } returns null
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        advanceUntilIdle()
+
+        vm.plantListItems.test {
+            val items = awaitItem()
+            val headerBuckets = items.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            assertEquals(
+                listOf(
+                    DateBucket.Overdue,
+                    DateBucket.Today,
+                    DateBucket.Tomorrow,
+                    DateBucket.Dated((now + 2 * oneDayMs).toEpochDayForTest()),
+                    DateBucket.Dated((now + 3 * oneDayMs).toEpochDayForTest()),
+                    DateBucket.Later,
+                    DateBucket.NotScheduled
+                ),
+                headerBuckets
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `plantListItems reverses group sequence when toggled to ASC`() = runTest {
+        val now = System.currentTimeMillis()
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        val overduePlant = Plant(id = 1L, name = "Overdue", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val todayPlant = Plant(id = 2L, name = "Today", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val laterPlant = Plant(id = 3L, name = "Later", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(overduePlant, todayPlant, laterPlant))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - (3 * oneDayMs))
+        coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
+            CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
+        coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns
+            CareLog(plantId = 3L, careType = CareType.WATER, loggedAt = now + (9 * oneDayMs))
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        advanceUntilIdle()
+
+        vm.plantListItems.test {
+            val descItems = awaitItem()
+            val descBuckets = descItems.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            assertEquals(listOf(DateBucket.Overdue, DateBucket.Today, DateBucket.Later), descBuckets)
+
+            vm.toggleSort(SortOption.WATERING_DUE)
+            advanceUntilIdle()
+            val ascItems = awaitItem()
+            val ascBuckets = ascItems.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            assertEquals(listOf(DateBucket.Later, DateBucket.Today, DateBucket.Overdue), ascBuckets)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `plantListItems recomputes headers when room filter changes`() = runTest {
+        val now = System.currentTimeMillis()
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        val kitchenPlant = Plant(id = 1L, name = "Kitchen Plant", room = "Kitchen", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val bedroomPlant = Plant(id = 2L, name = "Bedroom Plant", room = "Bedroom", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenPlant, bedroomPlant))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
+        // Kitchen plant is overdue (due 2 days ago); Bedroom plant is due today.
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - (3 * oneDayMs))
+        coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
+            CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+
+        vm.toggleSort(SortOption.WATERING_DUE)
+        advanceUntilIdle()
+
+        vm.plantListItems.test {
+            // All rooms: both plants → Overdue + Today headers
+            val all = expectMostRecentItem()
+            assertEquals(
+                listOf(DateBucket.Overdue, DateBucket.Today),
+                all.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            )
+
+            // Filter to Kitchen → only the overdue plant, so only the Overdue header remains
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+            val filtered = expectMostRecentItem()
+            assertEquals(
+                listOf(DateBucket.Overdue),
+                filtered.filterIsInstance<PlantListItem.DateHeader>().map { it.bucket }
+            )
+            val rows = filtered.filterIsInstance<PlantListItem.PlantRow>()
+            assertEquals(1, rows.size)
+            assertEquals("Kitchen Plant", rows[0].status.plant.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
+
+private fun Long.toEpochDayForTest(): Long =
+    Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()

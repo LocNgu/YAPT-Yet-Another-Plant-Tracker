@@ -12,7 +12,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- Plant list: date-group dividers (Overdue / Today / Tomorrow / dated / Later / Not scheduled) when sorting by Watering due, Fertilizing due, or Both due; toggling ASC/DESC reverses the whole group sequence, including Not scheduled moving to the front on ASC. Alphabetical and Recently added stay flat (#399)
+
 ### Changed
+- Watering history chart line is now a smooth cubic (Catmull-Rom) curve through the watering points instead of straight zig-zag segments (#125)
 - Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list — not just when opening Plant Detail; the reminder still respects the Settings toggle, the 30-day interval, and the once-per-session-per-plant rule (shared with Plant Detail), and its "Take photo" button launches the in-app camera and saves to the plant's gallery
 
 ---

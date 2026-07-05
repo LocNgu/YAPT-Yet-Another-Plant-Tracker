@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
@@ -170,5 +171,13 @@ class DateUtilsTest {
     fun `formatCountdown due in multiple days returns plural`() {
         val dueAt = now + TimeUnit.DAYS.toMillis(7)
         assertEquals("In 7 days", DateUtils.formatCountdown(dueAt, now))
+    }
+
+    // formatWeekdayDate
+
+    @Test
+    fun `formatWeekdayDate returns weekday and date`() {
+        val epochDay = LocalDate.of(2023, 11, 14).toEpochDay()
+        assertEquals("Tue, Nov 14", DateUtils.formatWeekdayDate(epochDay))
     }
 }

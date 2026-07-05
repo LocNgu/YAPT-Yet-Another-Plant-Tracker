@@ -44,7 +44,7 @@ The orchestrator passes you:
 
 **Each feature or bug fix gets its own branch and PR.** Never stack unrelated work on the same branch.
 
-1. Branch off `develop`: `git checkout -b claude/<short-description> origin/develop`
+1. **Fetch first, then branch off the freshly-fetched `origin/develop`** (never a stale local ref): `git fetch origin develop && git checkout -b claude/<short-description> origin/develop`. Skipping the fetch starts the branch from an outdated `develop` and forces a rebase later.
 2. Make all commits for this feature/fix on that branch.
 3. Push the branch (`git push -u origin claude/<short-description>`). You cannot open the PR yourself — return the PR title and body in your response so the orchestrator opens it via `mcp__github__create_pull_request` targeting `develop`.
 4. Return to `develop` before starting the next task.

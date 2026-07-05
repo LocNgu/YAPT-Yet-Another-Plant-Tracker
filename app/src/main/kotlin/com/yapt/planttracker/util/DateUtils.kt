@@ -48,4 +48,9 @@ object DateUtils {
 
     fun formatHourMinute(hour: Int, minute: Int): String =
         String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+
+    fun formatWeekdayDate(epochDay: Long): String {
+        val timestampMs = LocalDate.ofEpochDay(epochDay).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        return SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(timestampMs))
+    }
 }
