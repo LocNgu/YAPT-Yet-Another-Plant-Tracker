@@ -81,6 +81,7 @@ fun YaptNavGraph(
                     app,
                     app.plantRepository,
                     app.careLogRepository,
+                    app.plantPhotoRepository,
                     app.settingsDataStore
                 )
             )

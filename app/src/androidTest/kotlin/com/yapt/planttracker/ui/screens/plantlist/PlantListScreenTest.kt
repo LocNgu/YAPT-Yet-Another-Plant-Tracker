@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -34,6 +35,7 @@ class PlantListScreenTest {
     ): PlantListViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
         val dataStore = mockk<DataStore<Preferences>> {
             every { data } returns flowOf(emptyPreferences())
         }
@@ -47,6 +49,7 @@ class PlantListScreenTest {
             ApplicationProvider.getApplicationContext<Application>(),
             plantRepo,
             careLogRepo,
+            plantPhotoRepo,
             dataStore
         )
     }
