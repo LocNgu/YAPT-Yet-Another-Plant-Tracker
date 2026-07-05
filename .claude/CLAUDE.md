@@ -113,6 +113,8 @@ No open known issues at this time.
 
 ## Development Workflow
 
+**Issue-first rule (always):** When the human files a feature request or reports a bug, do **not** start implementing. First create a GitHub issue (title + description; repro steps for bugs, acceptance criteria for features) via `mcp__github__issue_write`, share the issue link, and wait for explicit go-ahead before writing any code, branches, or PRs. This gate precedes step 1 below.
+
 Every feature and bug fix follows these steps in order:
 
 1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
