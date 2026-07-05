@@ -39,6 +39,7 @@ class PlantListScreenTest {
         val dataStore = mockk<DataStore<Preferences>> {
             every { data } returns flowOf(emptyPreferences())
         }
+        coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { plantRepo.getAllRooms() } returns flowOf(rooms)
         every { careLogRepo.logCount } returns flowOf(0)
