@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -54,6 +55,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
+import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantCard
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
@@ -84,7 +86,7 @@ fun PlantListScreen(
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
-    var reminderPlantId by remember { mutableStateOf<Long?>(null) }
+    var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         reminderPlantId?.let { viewModel.saveReminderPhoto(it, uri) }
         reminderPlantId = null
@@ -341,24 +343,14 @@ fun PlantListScreen(
     // request stays in ViewModel state and surfaces once the interval dialog is dismissed.
     photoReminderRequest?.let { request ->
         if (pendingIntervalSuggestion == null) {
-            AlertDialog(
-                onDismissRequest = { viewModel.dismissPhotoReminder() },
-                title = { Text(stringResource(R.string.photo_reminder_dialog_title)) },
-                text = {
-                    Text(stringResource(R.string.photo_reminder_dialog_text, request.daysSince.toInt()))
+            PhotoReminderDialog(
+                daysSince = request.daysSince.toInt(),
+                onTakePhoto = {
+                    reminderPlantId = request.plantId
+                    viewModel.dismissPhotoReminder()
+                    reminderCameraState.launch()
                 },
-                confirmButton = {
-                    TextButton(onClick = {
-                        reminderPlantId = request.plantId
-                        viewModel.dismissPhotoReminder()
-                        reminderCameraState.launch()
-                    }) { Text(stringResource(R.string.photo_source_take_photo)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.dismissPhotoReminder() }) {
-                        Text(stringResource(R.string.dismiss))
-                    }
-                }
+                onDismiss = { viewModel.dismissPhotoReminder() }
             )
         }
     }

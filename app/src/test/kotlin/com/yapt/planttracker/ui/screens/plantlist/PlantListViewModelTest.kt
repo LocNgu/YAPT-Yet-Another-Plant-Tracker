@@ -36,6 +36,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -77,11 +78,19 @@ class PlantListViewModelTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        // shownThisSession is a process-wide static set shared with PlantDetailViewModel; clear it
+        // before and after each test so ordering (and PlantDetailViewModel's own tests) can't leak.
+        PlantDetailViewModel.shownThisSession.clear()
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { dataStore.updateData(any()) } returns emptyPreferences()
+    }
+
+    @After
+    fun tearDown() {
+        PlantDetailViewModel.shownThisSession.clear()
     }
 
     @Test
@@ -290,6 +299,31 @@ class PlantListViewModelTest {
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns listOf(
             PlantPhoto(plantId = 1L, uri = "content://recent", capturedAt = System.currentTimeMillis())
         )
+        every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
+        val enabledDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
+        }
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.quickLog(1L, CareType.FERTILIZE)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.photoReminderRequest.value)
+    }
+
+    @Test
+    fun `quickLog does not emit photo reminder when plant already reminded this session`() = runTest {
+        // Simulate the plant having already been reminded on the detail screen this session.
+        PlantDetailViewModel.shownThisSession.add(1L)
+        val monstera = plant(id = 1L, name = "Monstera") // createdAt = 0L (far past, would otherwise trigger)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns emptyList()
         every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
