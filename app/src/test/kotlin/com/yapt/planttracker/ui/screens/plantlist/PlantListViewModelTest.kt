@@ -1079,7 +1079,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
 
         vm.plantListItems.test {
             val items = awaitItem()
@@ -1117,7 +1117,7 @@ class PlantListViewModelTest {
                 CareLog(plantId = id, careType = CareType.WATER, loggedAt = now + days * oneDayMs - oneDayMs)
         }
         coEvery { careLogRepo.getLastLogOfType(7L, CareType.WATER) } returns null
-        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
 
         vm.toggleSort(SortOption.WATERING_DUE)
         advanceUntilIdle()
@@ -1156,7 +1156,7 @@ class PlantListViewModelTest {
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns
             CareLog(plantId = 3L, careType = CareType.WATER, loggedAt = now + (9 * oneDayMs))
-        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
 
         vm.toggleSort(SortOption.WATERING_DUE)
         advanceUntilIdle()
@@ -1189,7 +1189,7 @@ class PlantListViewModelTest {
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - (3 * oneDayMs))
         coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
-        vm = PlantListViewModel(application, plantRepo, careLogRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
 
         vm.toggleSort(SortOption.WATERING_DUE)
         advanceUntilIdle()
