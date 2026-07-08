@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 // no destination (a blank white screen). Guarding on RESUMED short-circuits
 // the second call: the entry's lifecycle transitions to STARTED as soon as
 // the first pop begins.
-private fun NavController.popBackStackOnce(
+internal fun NavController.popBackStackOnce(
     entry: NavBackStackEntry,
     route: String? = null,
     inclusive: Boolean = false
