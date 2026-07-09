@@ -17,7 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - Watering history chart line is now a smooth cubic (Catmull-Rom) curve through the watering points instead of straight zig-zag segments (#125)
-- Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list — not just when opening Plant Detail; the reminder still respects the Settings toggle, the 30-day interval, and the once-per-session-per-plant rule (shared with Plant Detail), and its "Take photo" button launches the in-app camera and saves to the plant's gallery
+- Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list — not just when opening Plant Detail; the reminder still respects the Settings toggle, the 30-day interval, and the once-per-session-per-plant rule (shared with Plant Detail), and its "Take photo" button launches the in-app camera and saves to the plant's gallery (#407)
 
 ---
 
