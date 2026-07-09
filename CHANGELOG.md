@@ -17,6 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Changed
 - Watering history chart line is now a smooth cubic (Catmull-Rom) curve through the watering points instead of straight zig-zag segments (#125)
+- Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list — not just when opening Plant Detail; the reminder still respects the Settings toggle, the 30-day interval, and the once-per-session-per-plant rule (shared with Plant Detail), and its "Take photo" button launches the in-app camera and saves to the plant's gallery (#407)
 
 ### Fixed
 - Plant Detail (and every other screen with a back arrow): rapidly double-tapping the back button no longer leaves the app on a blank white screen. `popBackStack()` calls are now guarded on the owning back stack entry's lifecycle so a second same-frame tap no-ops instead of popping a second entry off the stack (#408)

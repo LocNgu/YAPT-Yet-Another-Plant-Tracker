@@ -71,6 +71,7 @@ import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
+import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
@@ -254,19 +255,13 @@ fun PlantDetailScreen(
     CameraPhotoDialogs(reminderCameraState)
 
     if (showPhotoReminderDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissPhotoReminder() },
-            title = { Text(stringResource(R.string.photo_reminder_dialog_title)) },
-            text = { Text(stringResource(R.string.photo_reminder_dialog_text, photoReminderDaysSince.toInt())) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.dismissPhotoReminder()
-                    reminderCameraState.launch()
-                }) { Text(stringResource(R.string.photo_source_take_photo)) }
+        PhotoReminderDialog(
+            daysSince = photoReminderDaysSince.toInt(),
+            onTakePhoto = {
+                viewModel.dismissPhotoReminder()
+                reminderCameraState.launch()
             },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissPhotoReminder() }) { Text(stringResource(R.string.dismiss)) }
-            }
+            onDismiss = { viewModel.dismissPhotoReminder() }
         )
     }
 

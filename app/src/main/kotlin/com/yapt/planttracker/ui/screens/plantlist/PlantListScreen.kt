@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,9 +53,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
+import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantCard
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
+import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +85,13 @@ fun PlantListScreen(
         mutableStateOf(pendingIntervalSuggestion?.suggestedInterval?.toString().orEmpty())
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
+    val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
+    var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        reminderPlantId?.let { viewModel.saveReminderPhoto(it, uri) }
+        reminderPlantId = null
+        viewModel.dismissPhotoReminder()
+    }
 
     LaunchedEffect(restoreMessage) {
         if (restoreMessage != null) {
@@ -324,6 +335,24 @@ fun PlantListScreen(
                 }
             }
         )
+    }
+
+    CameraPhotoDialogs(reminderCameraState)
+
+    // Suppressed while an interval suggestion is showing so the two dialogs never stack; the
+    // request stays in ViewModel state and surfaces once the interval dialog is dismissed.
+    photoReminderRequest?.let { request ->
+        if (pendingIntervalSuggestion == null) {
+            PhotoReminderDialog(
+                daysSince = request.daysSince.toInt(),
+                onTakePhoto = {
+                    reminderPlantId = request.plantId
+                    viewModel.dismissPhotoReminder()
+                    reminderCameraState.launch()
+                },
+                onDismiss = { viewModel.dismissPhotoReminder() }
+            )
+        }
     }
 }
 
