@@ -18,6 +18,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - Watering history chart line is now a smooth cubic (Catmull-Rom) curve through the watering points instead of straight zig-zag segments (#125)
 
+### Fixed
+- Plant Detail (and every other screen with a back arrow): rapidly double-tapping the back button no longer leaves the app on a blank white screen. `popBackStack()` calls are now guarded on the owning back stack entry's lifecycle so a second same-frame tap no-ops instead of popping a second entry off the stack (#408)
+
 ---
 
 ## [0.13.0] - 2026-07-03

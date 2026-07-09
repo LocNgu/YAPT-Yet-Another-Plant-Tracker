@@ -9,7 +9,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.datastore.preferences.core.edit
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +37,22 @@ import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+// Rapid double-taps on a back button can fire two clicks in the same frame,
+// causing popBackStack() to run twice before Navigation processes the first
+// pop — that pops both the current entry and its parent, leaving NavHost with
+// no destination (a blank white screen). Guarding on RESUMED short-circuits
+// the second call: the entry's lifecycle transitions to STARTED as soon as
+// the first pop begins.
+@androidx.annotation.VisibleForTesting
+internal fun NavController.popBackStackOnce(
+    entry: NavBackStackEntry,
+    route: String? = null,
+    inclusive: Boolean = false
+): Boolean {
+    if (!entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return false
+    return if (route != null) popBackStack(route, inclusive) else popBackStack()
+}
 
 @Composable
 fun YaptNavGraph(
@@ -109,13 +128,13 @@ fun YaptNavGraph(
             )
         }
 
-        composable(Screen.AddPlant.route) {
+        composable(Screen.AddPlant.route) { backStackEntry ->
             val vm: AddEditPlantViewModel = viewModel(
                 factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, null)
             )
             AddEditPlantScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
             )
         }
 
@@ -129,13 +148,13 @@ fun YaptNavGraph(
             )
             AddEditPlantScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                 onPlantArchived = { archivedId, archivedName ->
                     navController.getBackStackEntry(Screen.PlantList.route)
                         .savedStateHandle["archivedPlantId"] = archivedId
                     navController.getBackStackEntry(Screen.PlantList.route)
                         .savedStateHandle["archivedPlantName"] = archivedName
-                    navController.popBackStack(Screen.PlantList.route, inclusive = false)
+                    navController.popBackStackOnce(backStackEntry, Screen.PlantList.route)
                 }
             )
         }
@@ -166,7 +185,7 @@ fun YaptNavGraph(
 
             PlantDetailScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                 onNavigateToEdit = {
                     navController.navigate(Screen.EditPlant.createRoute(plantId))
                 },
@@ -204,18 +223,18 @@ fun YaptNavGraph(
                             ?.savedStateHandle
                             ?.set("suggestedWateringInterval", interval)
                     }
-                    navController.popBackStack()
+                    navController.popBackStackOnce(backStackEntry)
                 }
             )
         }
 
-        composable(Screen.Settings.route) {
+        composable(Screen.Settings.route) { backStackEntry ->
             val vm: SettingsViewModel = viewModel(
                 factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database, app.plantRepository)
             )
             SettingsScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                 onRestoreSuccess = { plantCount, logCount ->
                     val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
                     navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
@@ -227,13 +246,13 @@ fun YaptNavGraph(
             )
         }
 
-        composable(Screen.Graveyard.route) {
+        composable(Screen.Graveyard.route) { backStackEntry ->
             val vm: GraveyardViewModel = viewModel(
                 factory = GraveyardViewModel.Factory(app.plantRepository)
             )
             GraveyardScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
             )
         }
     }
