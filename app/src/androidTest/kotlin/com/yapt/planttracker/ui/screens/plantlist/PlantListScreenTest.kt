@@ -4,13 +4,16 @@ import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -34,9 +37,11 @@ class PlantListScreenTest {
     ): PlantListViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
         val dataStore = mockk<DataStore<Preferences>> {
             every { data } returns flowOf(emptyPreferences())
         }
+        coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { plantRepo.getAllRooms() } returns flowOf(rooms)
         every { careLogRepo.logCount } returns flowOf(0)
@@ -47,6 +52,7 @@ class PlantListScreenTest {
             ApplicationProvider.getApplicationContext<Application>(),
             plantRepo,
             careLogRepo,
+            plantPhotoRepo,
             dataStore
         )
     }
@@ -84,5 +90,42 @@ class PlantListScreenTest {
         }
 
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun sortingByWateringDue_showsDateGroupHeader() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Sort plants").performClick()
+        composeTestRule.onNodeWithText("Watering due").performClick()
+
+        composeTestRule.onNodeWithText("Not scheduled").assertIsDisplayed()
+    }
+
+    @Test
+    fun sortingAlphabetically_showsNoDateGroupHeader() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNode(hasText("Not scheduled", substring = true)).assertDoesNotExist()
     }
 }

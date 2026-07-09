@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
+import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -10,14 +11,17 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.util.labelRes
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,10 +41,14 @@ private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction
 /** Carries a watering-interval suggestion from the quick-water bottom sheet to PlantListScreen. */
 data class QuickWaterSuggestion(val plantId: Long, val plantName: String, val suggestedInterval: Int)
 
+/** Carries a photo-reminder prompt from a quick action to PlantListScreen. */
+data class PhotoReminderRequest(val plantId: Long, val plantName: String, val daysSince: Long)
+
 class PlantListViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
+    private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
 
@@ -99,11 +107,21 @@ class PlantListViewModel(
         applySortOrder(statusList, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val plantListItems: StateFlow<List<PlantListItem>> = combine(
+        plantsWithStatus,
+        _sortOrder
+    ) { statuses, sort ->
+        groupPlantsByDueDate(statuses, sort)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _quickLogEvent = MutableSharedFlow<String>()
     val quickLogEvent: SharedFlow<String> = _quickLogEvent.asSharedFlow()
 
     private val _quickWaterSuggestion = MutableSharedFlow<QuickWaterSuggestion>()
     val quickWaterSuggestion: SharedFlow<QuickWaterSuggestion> = _quickWaterSuggestion.asSharedFlow()
+
+    private val _photoReminderRequest = MutableStateFlow<PhotoReminderRequest?>(null)
+    val photoReminderRequest: StateFlow<PhotoReminderRequest?> = _photoReminderRequest.asStateFlow()
 
     data class ArchivedEvent(val plantId: Long, val plantName: String)
 
@@ -161,6 +179,7 @@ class PlantListViewModel(
                 else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plantName)
             }
             _quickLogEvent.emit(message)
+            maybeTriggerPhotoReminder(plant)
         }
     }
 
@@ -200,6 +219,7 @@ class PlantListViewModel(
                 }
             }
             _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plantName))
+            maybeTriggerPhotoReminder(plant)
         }
     }
 
@@ -244,6 +264,45 @@ class PlantListViewModel(
                 }
             }
             _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plantName))
+            maybeTriggerPhotoReminder(plant)
+        }
+    }
+
+    /**
+     * After a quick action, shows a photo reminder for [plant] if the feature is enabled, the
+     * plant hasn't already been reminded this session (shared with PlantDetailScreen via
+     * [PlantDetailViewModel.shownThisSession]), and the newest photo across plant photos and
+     * care-log photos is at least [PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS] days old.
+     */
+    private suspend fun maybeTriggerPhotoReminder(plant: Plant) {
+        val enabled = dataStore.data.first()[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
+        if (!enabled) return
+        if (plant.id in PlantDetailViewModel.shownThisSession) return
+        val lastPlantPhotoTs = plantPhotoRepository.getPhotosForPlantOnce(plant.id)
+            .maxOfOrNull { it.capturedAt }
+        val lastCareLogPhotoTs = careLogRepository.getPhotoLogsForPlant(plant.id).first()
+            .mapNotNull { log -> log.photoUri?.let { log.loggedAt } }
+            .maxOrNull()
+        val lastPhotoTs = listOfNotNull(lastPlantPhotoTs, lastCareLogPhotoTs).maxOrNull()
+        val daysSince = PlantDetailViewModel.lastPhotoDaysSince(lastPhotoTs, plant.createdAt)
+        if (daysSince >= PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS) {
+            PlantDetailViewModel.shownThisSession.add(plant.id)
+            _photoReminderRequest.value = PhotoReminderRequest(plant.id, plant.name, daysSince)
+        }
+    }
+
+    fun dismissPhotoReminder() {
+        _photoReminderRequest.value = null
+    }
+
+    fun saveReminderPhoto(plantId: Long, uri: Uri) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            plantPhotoRepository.addPhoto(PlantPhoto(plantId = plantId, uri = uri.toString(), capturedAt = now))
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
+            }
+            _photoReminderRequest.value = null
         }
     }
 
@@ -369,10 +428,11 @@ class PlantListViewModel(
         private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
+        private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantListViewModel(application, plantRepository, careLogRepository, dataStore) as T
+            PlantListViewModel(application, plantRepository, careLogRepository, plantPhotoRepository, dataStore) as T
     }
 }
