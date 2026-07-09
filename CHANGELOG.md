@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.14.0] - 2026-07-10
+
 ### Added
 - Plant list: date-group dividers (Overdue / Today / Tomorrow / dated / Later / Not scheduled) when sorting by Watering due, Fertilizing due, or Both due; toggling ASC/DESC reverses the whole group sequence, including Not scheduled moving to the front on ASC. Alphabetical and Recently added stay flat (#399)
 

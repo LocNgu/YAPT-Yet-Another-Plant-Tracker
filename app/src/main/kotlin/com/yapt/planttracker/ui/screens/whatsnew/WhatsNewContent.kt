@@ -11,6 +11,20 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 250,
+            versionName = "0.14.0",
+            added = listOf(
+                "Plant list now shows date-group dividers (Overdue / Today / Tomorrow / Later / Not scheduled) when sorted by Watering due, Fertilizing due, or Both due"
+            ),
+            fixed = listOf(
+                "Rapidly double-tapping the back button no longer leaves the app on a blank white screen"
+            ),
+            changed = listOf(
+                "Watering history chart line is now a smooth curve instead of straight zig-zag segments",
+                "Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list, not just when opening Plant Detail"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 240,
             versionName = "0.13.0",
             added = listOf(

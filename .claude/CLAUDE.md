@@ -236,6 +236,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 - `collectAsStateWithLifecycle()` everywhere; `imePadding()` on AddEditPlant and AddCareLog scrollable columns so keyboard never obscures Notes field
 - Location suggestion chips on AddEditPlant: `FlowRow` of `SuggestionChip`s below Location field; tapping fills field and hides keyboard; case-insensitive match highlights chip (#137)
 - In-app camera capture: `PhotoSourceBottomSheet` lets user choose "Take photo" or "Choose from gallery"; runtime CAMERA permission with rationale dialog on first denial and Settings deep-link on permanent denial; Snackbar error on devices without a camera (#134); shared `rememberCameraPhotoState` + `CameraPhotoDialogs` composable extracted to avoid duplicating ~80-line camera block across AddEditPlantScreen and AddCareLogScreen (#293)
+- Rapid double-tapping a back button no longer leaves a blank white screen: `popBackStack()` calls are guarded on the owning back stack entry's lifecycle so a second same-frame tap no-ops instead of popping a second entry off the stack (#408)
 
 **Care Features**
 - Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
