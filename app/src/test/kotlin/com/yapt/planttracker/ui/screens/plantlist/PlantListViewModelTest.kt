@@ -1216,6 +1216,35 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `saveReminderPhoto adds a PHOTO care log, plant_photos row, and updates cover`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
+        val uri: android.net.Uri = mockk { every { toString() } returns "content://reminder.jpg" }
+
+        vm.saveReminderPhoto(1L, uri)
+        advanceUntilIdle()
+
+        coVerify {
+            plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
+        }
+        coVerify {
+            careLogRepo.addLog(match {
+                it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
+            })
+        }
+        coVerify {
+            plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
+        }
+        assertNull(vm.photoReminderRequest.value)
+    }
 }
 
 private fun Long.toEpochDayForTest(): Long =
