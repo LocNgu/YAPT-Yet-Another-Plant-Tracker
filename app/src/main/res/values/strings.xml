@@ -241,6 +241,7 @@
         <item quantity="one">%1$d plant due</item>
         <item quantity="other">%1$d plants due</item>
     </plurals>
+    <string name="calendar_badge_state_overdue">overdue</string>
     <string name="calendar_chip_water">Water</string>
     <string name="calendar_chip_fertilize">Fertilize</string>
 </resources>

@@ -378,6 +378,7 @@ private fun CalendarDayCell(
                 val isOverdueBadge = isToday && entry?.containsOverdue == true
                 val badgeColor = if (isOverdueBadge) OverdueRed else SageGreen
                 val badgeDescription = pluralStringResource(R.plurals.calendar_badge_cd, plantCount, plantCount)
+                val overdueStateDescription = stringResource(R.string.calendar_badge_state_overdue)
                 Box(
                     modifier = Modifier
                         .size(18.dp)
@@ -386,7 +387,7 @@ private fun CalendarDayCell(
                         .testTag("calendar_badge_${day.date}")
                         .semantics {
                             contentDescription = badgeDescription
-                            if (isOverdueBadge) stateDescription = "overdue"
+                            if (isOverdueBadge) stateDescription = overdueStateDescription
                         },
                     contentAlignment = Alignment.Center
                 ) {
