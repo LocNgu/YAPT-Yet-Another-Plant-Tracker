@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import android.net.Uri
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -311,6 +312,36 @@ class PlantDetailViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == null }) }
+    }
+
+    @Test
+    fun `saveReminderPhoto adds a PHOTO care log, plant_photos row, and updates cover`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+        val uri: Uri = mockk()
+        every { uri.toString() } returns "content://reminder.jpg"
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.saveReminderPhoto(uri)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
+        }
+        coVerify {
+            careLogRepo.addLog(match {
+                it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
+            })
+        }
+        coVerify {
+            plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
+        }
     }
 
     @Test

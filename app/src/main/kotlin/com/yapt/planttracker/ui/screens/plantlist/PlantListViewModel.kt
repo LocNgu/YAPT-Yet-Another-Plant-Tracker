@@ -299,6 +299,14 @@ class PlantListViewModel(
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             plantPhotoRepository.addPhoto(PlantPhoto(plantId = plantId, uri = uri.toString(), capturedAt = now))
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = plantId,
+                    careType = CareType.PHOTO,
+                    loggedAt = now,
+                    photoUri = uri.toString()
+                )
+            )
             plantRepository.getPlantById(plantId).first()?.let { p ->
                 plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
             }
