@@ -389,16 +389,16 @@ private fun CalendarDayCell(
                         .size(18.dp)
                         .clip(CircleShape)
                         .background(badgeColor)
-                        // clearAndSetSemantics collapses the descendant Text so TalkBack
-                        // reads the plural description once, not description + digit.
-                        // .testTag afterwards adds a semantics block that merges into this
-                        // node (siblings on the same layout), so the tag survives while the
-                        // subtree stays cleared.
+                        // Semantics modifiers on one node are folded tail-to-head, and
+                        // clearAndSetSemantics resets whatever was folded in before it (i.e.
+                        // anything later/more-tail in this chain). testTag must therefore come
+                        // before clearAndSetSemantics so it survives the reset instead of being
+                        // wiped by it.
+                        .testTag(badgeTag)
                         .clearAndSetSemantics {
                             contentDescription = badgeDescription
                             if (isOverdueBadge) stateDescription = overdueStateDescription
-                        }
-                        .testTag(badgeTag),
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
