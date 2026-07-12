@@ -383,6 +383,7 @@ private fun CalendarDayCell(
                         .size(18.dp)
                         .clip(CircleShape)
                         .background(badgeColor)
+                        .testTag("calendar_badge_${day.date}")
                         .semantics {
                             contentDescription = badgeDescription
                             if (isOverdueBadge) stateDescription = "overdue"

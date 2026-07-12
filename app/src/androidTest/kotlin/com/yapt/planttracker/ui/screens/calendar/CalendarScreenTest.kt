@@ -67,6 +67,7 @@ class CalendarScreenTest {
     }
 
     private val todayTag get() = "calendar_day_${LocalDate.now()}"
+    private val todayBadgeTag get() = "calendar_badge_${LocalDate.now()}"
     private val overdueStateMatcher = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "overdue")
 
     @Test
@@ -93,7 +94,7 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayTag).and(hasContentDescription("1 plant due")))
+            .onNode(hasTestTag(todayBadgeTag).and(hasContentDescription("1 plant due")))
             .assertExists()
     }
 
@@ -110,7 +111,7 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayTag).and(overdueStateMatcher))
+            .onNode(hasTestTag(todayBadgeTag).and(overdueStateMatcher))
             .assertExists()
     }
 
@@ -127,7 +128,7 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayTag).and(overdueStateMatcher))
+            .onNode(hasTestTag(todayBadgeTag).and(overdueStateMatcher))
             .assertDoesNotExist()
     }
 
