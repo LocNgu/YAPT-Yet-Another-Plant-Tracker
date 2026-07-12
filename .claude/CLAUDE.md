@@ -35,8 +35,9 @@ app/src/main/kotlin/com/yapt/planttracker/
 │                     (entity ↔ domain mapping via extension functions)
 ├── domain/
 │   ├── model/        Plant, CareLog, CareType, WateringFeedback,
-│   │                 PlantCareStatus
-│   └── schedule/     CareSchedule  (pure business logic — overdue + adaptive interval)
+│   │                 PlantCareStatus, QuickWaterSuggestion, PhotoReminderRequest
+│   ├── schedule/     CareSchedule  (pure business logic — overdue + adaptive interval)
+│   └── usecase/      QuickLogUseCase (shared water/fertilize quick-log + photo-reminder logic)
 ├── notification/     NotificationHelper (channel creation)
 ├── ui/
 │   ├── components/   PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto
