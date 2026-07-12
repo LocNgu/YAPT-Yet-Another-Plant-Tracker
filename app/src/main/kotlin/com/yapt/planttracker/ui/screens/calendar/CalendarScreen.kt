@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -87,7 +88,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -307,6 +307,7 @@ private fun CalendarMonthHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        val locale = LocalConfiguration.current.locales[0]
         IconButton(onClick = onPrevious) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -314,7 +315,7 @@ private fun CalendarMonthHeader(
             )
         }
         Text(
-            text = visibleYearMonth.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())),
+            text = visibleYearMonth.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -329,10 +330,11 @@ private fun CalendarMonthHeader(
 
 @Composable
 private fun CalendarWeekHeader(firstDayOfWeek: DayOfWeek) {
+    val locale = LocalConfiguration.current.locales[0]
     Row(modifier = Modifier.fillMaxWidth()) {
         daysOfWeek(firstDayOfWeek).forEach { dow ->
             Text(
-                text = dow.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                text = dow.getDisplayName(TextStyle.SHORT, locale),
                 modifier = Modifier
                     .weight(1f)
                     .padding(vertical = 4.dp),
@@ -423,11 +425,12 @@ private fun CalendarDaySheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState()
     ) {
+        val locale = LocalConfiguration.current.locales[0]
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             val title = if (day == today) {
                 stringResource(R.string.date_group_today)
             } else {
-                day.format(DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()))
+                day.format(DateTimeFormatter.ofPattern("EEEE, MMM d", locale))
             }
             Text(
                 text = title,
