@@ -1227,7 +1227,8 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { plantRepo.updatePlant(any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
-        val uri: android.net.Uri = mockk { every { toString() } returns "content://reminder.jpg" }
+        val uri: android.net.Uri = mockk()
+        every { uri.toString() } returns "content://reminder.jpg"
 
         vm.saveReminderPhoto(1L, uri)
         advanceUntilIdle()

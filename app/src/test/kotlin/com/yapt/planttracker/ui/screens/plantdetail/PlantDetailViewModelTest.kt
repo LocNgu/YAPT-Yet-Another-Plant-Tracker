@@ -322,7 +322,8 @@ class PlantDetailViewModelTest {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
-        val uri: Uri = mockk { every { toString() } returns "content://reminder.jpg" }
+        val uri: Uri = mockk()
+        every { uri.toString() } returns "content://reminder.jpg"
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
