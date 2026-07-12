@@ -98,7 +98,10 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayBadgeTag).and(hasContentDescription("1 plant due")))
+            .onNode(
+                hasTestTag(todayBadgeTag).and(hasContentDescription("1 plant due")),
+                useUnmergedTree = true
+            )
             .assertExists()
     }
 
@@ -119,7 +122,7 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayBadgeTag))
+            .onNode(hasTestTag(todayBadgeTag), useUnmergedTree = true)
             .onChildren()
             .assertCountEquals(0)
     }
@@ -137,7 +140,10 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayBadgeTag).and(overdueStateMatcher))
+            .onNode(
+                hasTestTag(todayBadgeTag).and(overdueStateMatcher),
+                useUnmergedTree = true
+            )
             .assertExists()
     }
 
@@ -154,7 +160,10 @@ class CalendarScreenTest {
         }
 
         composeTestRule
-            .onNode(hasTestTag(todayBadgeTag).and(overdueStateMatcher))
+            .onNode(
+                hasTestTag(todayBadgeTag).and(overdueStateMatcher),
+                useUnmergedTree = true
+            )
             .assertDoesNotExist()
     }
 
