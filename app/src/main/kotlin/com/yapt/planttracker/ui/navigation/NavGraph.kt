@@ -161,7 +161,8 @@ fun YaptNavGraph(
                     app.plantRepository,
                     app.careLogRepository,
                     app.plantPhotoRepository,
-                    app.settingsDataStore
+                    app.settingsDataStore,
+                    app.quickLogUseCase
                 )
             )
             LaunchedEffect(vm) {
@@ -324,7 +325,8 @@ fun YaptNavGraph(
                     app.plantRepository,
                     app.careLogRepository,
                     app.plantPhotoRepository,
-                    app.settingsDataStore
+                    app.settingsDataStore,
+                    app.quickLogUseCase
                 )
             )
             CalendarScreen(

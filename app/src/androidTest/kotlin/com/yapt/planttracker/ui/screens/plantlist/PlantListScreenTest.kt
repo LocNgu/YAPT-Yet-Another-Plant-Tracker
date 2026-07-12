@@ -17,6 +17,7 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -48,12 +49,15 @@ class PlantListScreenTest {
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
         return PlantListViewModel(
-            ApplicationProvider.getApplicationContext<Application>(),
+            application,
             plantRepo,
             careLogRepo,
             plantPhotoRepo,
-            dataStore
+            dataStore,
+            quickLogUseCase
         )
     }
 

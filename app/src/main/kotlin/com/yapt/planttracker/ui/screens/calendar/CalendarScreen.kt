@@ -79,7 +79,7 @@ import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.screens.plantlist.QuickWaterSuggestion
+import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.SageGreen
 import java.time.DayOfWeek
