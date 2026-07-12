@@ -383,16 +383,19 @@ private fun CalendarDayCell(
                 val badgeColor = if (isOverdueBadge) OverdueRed else SageGreen
                 val badgeDescription = pluralStringResource(R.plurals.calendar_badge_cd, plantCount, plantCount)
                 val overdueStateDescription = stringResource(R.string.calendar_badge_state_overdue)
+                val badgeTag = "calendar_badge_${day.date}"
                 Box(
                     modifier = Modifier
                         .size(18.dp)
                         .clip(CircleShape)
                         .background(badgeColor)
-                        .testTag("calendar_badge_${day.date}")
                         // clearAndSetSemantics collapses this subtree to a single accessibility
                         // node so TalkBack announces the plural description once instead of
                         // reading both it and the inner count Text's own text node back-to-back.
+                        // testTag must live inside this block; Modifier.testTag before
+                        // clearAndSetSemantics is wiped along with the descendant semantics.
                         .clearAndSetSemantics {
+                            testTag = badgeTag
                             contentDescription = badgeDescription
                             if (isOverdueBadge) stateDescription = overdueStateDescription
                         },
