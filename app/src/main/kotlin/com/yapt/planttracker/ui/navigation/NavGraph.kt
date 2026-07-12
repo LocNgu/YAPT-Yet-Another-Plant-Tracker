@@ -1,6 +1,16 @@
 package com.yapt.planttracker.ui.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -8,17 +18,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.yapt.planttracker.BuildConfig
+import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.settingsDataStore
@@ -26,6 +41,8 @@ import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
 import com.yapt.planttracker.ui.screens.addplant.AddEditPlantScreen
 import com.yapt.planttracker.ui.screens.addplant.AddEditPlantViewModel
+import com.yapt.planttracker.ui.screens.calendar.CalendarScreen
+import com.yapt.planttracker.ui.screens.calendar.CalendarViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
@@ -80,10 +97,53 @@ fun YaptNavGraph(
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = Screen.PlantList.route
-    ) {
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute == Screen.PlantList.route || currentRoute == Screen.Calendar.route
+
+    Scaffold(
+        // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
+        // still reserve the status-bar inset at the top of every screen's content (since there's
+        // no top bar to consume it), breaking PlantDetailScreen's edge-to-edge hero photo (#29)
+        // and other screens' own inset handling. Each nested screen manages its own insets;
+        // this outer Scaffold's only job is to reserve room for the bottom nav bar.
+        contentWindowInsets = WindowInsets(0),
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.PlantList.route,
+                        onClick = {
+                            navController.navigate(Screen.PlantList.createRoute()) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Filled.LocalFlorist, contentDescription = null) },
+                        label = { Text(stringResource(R.string.nav_tab_plants)) }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Calendar.route,
+                        onClick = {
+                            navController.navigate(Screen.Calendar.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                        label = { Text(stringResource(R.string.nav_tab_calendar)) }
+                    )
+                }
+            }
+        }
+    ) { scaffoldPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = Screen.PlantList.route,
+            modifier = Modifier.padding(scaffoldPadding)
+        ) {
         composable(
             route = Screen.PlantList.route,
             arguments = listOf(
@@ -255,6 +315,25 @@ fun YaptNavGraph(
                 viewModel = vm,
                 onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
             )
+        }
+
+        composable(Screen.Calendar.route) {
+            val vm: CalendarViewModel = viewModel(
+                factory = CalendarViewModel.Factory(
+                    app,
+                    app.plantRepository,
+                    app.careLogRepository,
+                    app.plantPhotoRepository,
+                    app.settingsDataStore
+                )
+            )
+            CalendarScreen(
+                viewModel = vm,
+                onNavigateToPlant = { plantId ->
+                    navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                }
+            )
+        }
         }
     }
 
