@@ -931,7 +931,7 @@ class PlantListViewModelTest {
         coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { plantRepo.updatePlant(any()) } just runs
-        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
         val uri: android.net.Uri = mockk()
         every { uri.toString() } returns "content://reminder.jpg"
 
