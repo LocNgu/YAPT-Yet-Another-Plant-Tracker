@@ -53,8 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -385,7 +385,10 @@ private fun CalendarDayCell(
                         .clip(CircleShape)
                         .background(badgeColor)
                         .testTag("calendar_badge_${day.date}")
-                        .semantics {
+                        // clearAndSetSemantics collapses this subtree to a single accessibility
+                        // node so TalkBack announces the plural description once instead of
+                        // reading both it and the inner count Text's own text node back-to-back.
+                        .clearAndSetSemantics {
                             contentDescription = badgeDescription
                             if (isOverdueBadge) stateDescription = overdueStateDescription
                         },

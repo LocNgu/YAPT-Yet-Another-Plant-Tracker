@@ -3,12 +3,14 @@ package com.yapt.planttracker.ui.screens.calendar
 import android.app.Application
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -100,6 +102,28 @@ class CalendarScreenTest {
         composeTestRule
             .onNode(hasTestTag(todayBadgeTag).and(hasContentDescription("1 plant due")))
             .assertExists()
+    }
+
+    @Test
+    fun dayDueToday_badgeCollapsesToSingleSemanticsNode() {
+        // Regression coverage: before clearAndSetSemantics, the badge's plural contentDescription
+        // and the inner count Text's own text node were two separate accessibility nodes, so
+        // TalkBack announced the count twice (e.g. "1 plant due", then "1"). Asserting the badge
+        // node has zero semantics children proves the subtree collapsed to a single node.
+        val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(listOf(plant))
+        val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
+
+        composeTestRule.setContent {
+            CalendarScreen(viewModel = viewModel, onNavigateToPlant = {})
+        }
+
+        composeTestRule
+            .onNode(hasTestTag(todayBadgeTag))
+            .onChildren()
+            .assertCountEquals(0)
     }
 
     @Test
