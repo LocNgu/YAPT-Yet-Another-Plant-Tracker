@@ -3,12 +3,11 @@ package com.yapt.planttracker.ui.screens.calendar
 import android.app.Application
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -29,6 +28,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -106,11 +106,18 @@ class CalendarScreenTest {
     }
 
     @Test
-    fun dayDueToday_badgeCollapsesToSingleSemanticsNode() {
+    fun dayDueToday_badgeCountNotAnnouncedAsSeparateText() {
         // Regression coverage: before clearAndSetSemantics, the badge's plural contentDescription
-        // and the inner count Text's own text node were two separate accessibility nodes, so
-        // TalkBack announced the count twice (e.g. "1 plant due", then "1"). Asserting the badge
-        // node has zero semantics children proves the subtree collapsed to a single node.
+        // and the inner count Text were two separate accessibility announcements, so TalkBack
+        // read the count twice (e.g. "1 plant due", then "1").
+        //
+        // The badge node itself cannot be asserted on directly in either semantics tree: the
+        // day cell's clickable merges descendants, and TestTag never merges into ancestors, so
+        // the badge tag is absent from the merged tree; the unmerged tree in turn exposes
+        // clearAndSetSemantics-replaced descendants by design, so a children-count check can
+        // never pass there. Assert on the merged day-cell node instead — it must carry the
+        // badge's contentDescription, and its merged text must contain only the day number
+        // (proving the badge digit was cleared and is not announced separately).
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(listOf(plant))
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
@@ -121,15 +128,10 @@ class CalendarScreenTest {
             CalendarScreen(viewModel = viewModel, onNavigateToPlant = {})
         }
 
-        // Deliberately queries the merged tree (no useUnmergedTree): SemanticsNode.getChildren()
-        // only hides a clearAndSetSemantics node's descendants when includeReplacedSemantics is
-        // false, which is the merged-tree default. The unmerged tree always exposes replaced
-        // semantics (by design, for debugging), so it would report the inner Text as a child
-        // regardless of clearAndSetSemantics and defeat this regression check.
-        composeTestRule
-            .onNode(hasTestTag(todayBadgeTag))
-            .onChildren()
-            .assertCountEquals(0)
+        val dayCell = composeTestRule.onNodeWithTag(todayTag)
+        dayCell.assert(hasContentDescription("1 plant due"))
+        val mergedTexts = dayCell.fetchSemanticsNode().config[SemanticsProperties.Text].map { it.text }
+        assertEquals(listOf(LocalDate.now().dayOfMonth.toString()), mergedTexts)
     }
 
     @Test
