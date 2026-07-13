@@ -12,10 +12,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
-### Fixed
-- Photo reminder: taking a photo from the reminder dialog now also creates a `PHOTO` care log entry (not just a `plant_photos` row). The photo shows up in the plant's care history and as a marker on the watering-history chart, matching the "Add photo care log" flow (#416)
+---
+
+## [0.15.0] - 2026-07-13
+
 ### Added
 - Calendar tab with month view showing plants due per day, with quick-log from the day sheet (#414)
+
+### Fixed
+- Photo reminder: taking a photo from the reminder dialog now also creates a `PHOTO` care log entry (not just a `plant_photos` row). The photo shows up in the plant's care history and as a marker on the watering-history chart, matching the "Add photo care log" flow (#416)
 
 ---
 
