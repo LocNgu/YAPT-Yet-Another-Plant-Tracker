@@ -23,4 +23,6 @@ sealed class Screen(val route: String) {
     }
 
     object Graveyard : Screen("graveyard")
+
+    object Calendar : Screen("calendar")
 }

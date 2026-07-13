@@ -127,6 +127,14 @@ class PlantDetailViewModel(
             val p = plant.value ?: return@launch
             val now = System.currentTimeMillis()
             plantPhotoRepository.addPhoto(PlantPhoto(plantId = p.id, uri = uri.toString(), capturedAt = now))
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = p.id,
+                    careType = CareType.PHOTO,
+                    loggedAt = now,
+                    photoUri = uri.toString()
+                )
+            )
             plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
         }
     }

@@ -11,6 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 260,
+            versionName = "0.15.0",
+            added = listOf(
+                "New Calendar tab — a month view shows how many plants need care on each day; tap a day to see the plants and water or fertilize them right from the list"
+            ),
+            fixed = listOf(
+                "Taking a photo from the photo reminder now also adds a photo entry to the plant's care history and the watering chart"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 250,
             versionName = "0.14.0",
             added = listOf(

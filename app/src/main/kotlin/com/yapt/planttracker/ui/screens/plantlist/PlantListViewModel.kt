@@ -18,11 +18,11 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
-import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,18 +38,13 @@ import kotlinx.coroutines.launch
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
-/** Carries a watering-interval suggestion from the quick-water bottom sheet to PlantListScreen. */
-data class QuickWaterSuggestion(val plantId: Long, val plantName: String, val suggestedInterval: Int)
-
-/** Carries a photo-reminder prompt from a quick action to PlantListScreen. */
-data class PhotoReminderRequest(val plantId: Long, val plantName: String, val daysSince: Long)
-
 class PlantListViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val quickLogUseCase: QuickLogUseCase
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -144,42 +139,9 @@ class PlantListViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val plantName = plant.name
-            val now = System.currentTimeMillis()
-            val log = CareLog(
-                plantId = plantId,
-                careType = careType,
-                loggedAt = now,
-                wateringFeedback = null,
-                fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
-            )
-            careLogRepository.addLog(log)
-            if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
-                careLogRepository.addLog(
-                    CareLog(
-                        plantId = plantId,
-                        careType = CareType.WATER,
-                        loggedAt = now,
-                        wateringFeedback = WateringFeedback.JUST_RIGHT
-                    )
-                )
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null)
-                        plantRepository.updatePlant(
-                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                        )
-                }
-            }
-            val message = when (careType) {
-                CareType.FERTILIZE -> if (plant.useLiquidFertilizer) {
-                    application.getString(R.string.quick_log_watered_and_fertilized, plantName)
-                } else {
-                    application.getString(R.string.quick_log_fertilized, plantName)
-                }
-                else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plantName)
-            }
+            val message = quickLogUseCase.quickLog(plant, careType)
             _quickLogEvent.emit(message)
-            maybeTriggerPhotoReminder(plant)
+            maybeTriggerPhotoReminder(plant.id)
         }
     }
 
@@ -192,34 +154,12 @@ class PlantListViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val plantName = plant.name
-            val now = System.currentTimeMillis()
-            val log = CareLog(
-                plantId = plantId,
-                careType = CareType.WATER,
-                loggedAt = now,
-                wateringFeedback = feedback
-            )
-            careLogRepository.addLog(log)
-            plantRepository.getPlantById(plantId).first()?.let { p ->
-                if (p.wateringDueDateOverride != null)
-                    plantRepository.updatePlant(
-                        p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                    )
+            val suggestion = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            if (suggestion != null) {
+                _quickWaterSuggestion.emit(suggestion)
             }
-            val lastTwo = careLogRepository.getLastTwoWaterings(plantId)
-            if (lastTwo.size >= 2) {
-                val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
-                val current = plant.wateringIntervalDays
-                if (current != null && actual > 0) {
-                    val suggestion = CareSchedule.computeSuggestedInterval(feedback, actual, current)
-                    if (suggestion != current) {
-                        _quickWaterSuggestion.emit(QuickWaterSuggestion(plantId, plantName, suggestion))
-                    }
-                }
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plantName))
-            maybeTriggerPhotoReminder(plant)
+            _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plant.name))
+            maybeTriggerPhotoReminder(plant.id)
         }
     }
 
@@ -227,67 +167,22 @@ class PlantListViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val plantName = plant.name
-            val now = System.currentTimeMillis()
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = plantId,
-                    careType = CareType.FERTILIZE,
-                    loggedAt = now,
-                    wateringFeedback = null,
-                    fertilizerType = FertilizerType.LIQUID
-                )
-            )
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = plantId,
-                    careType = CareType.WATER,
-                    loggedAt = now,
-                    wateringFeedback = feedback
-                )
-            )
-            plantRepository.getPlantById(plantId).first()?.let { p ->
-                if (p.wateringDueDateOverride != null)
-                    plantRepository.updatePlant(
-                        p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                    )
+            val suggestion = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            if (suggestion != null) {
+                _quickWaterSuggestion.emit(suggestion)
             }
-            val lastTwo = careLogRepository.getLastTwoWaterings(plantId)
-            if (lastTwo.size >= 2) {
-                val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
-                val current = plant.wateringIntervalDays
-                if (current != null && actual > 0) {
-                    val suggestion = CareSchedule.computeSuggestedInterval(feedback, actual, current)
-                    if (suggestion != current) {
-                        _quickWaterSuggestion.emit(QuickWaterSuggestion(plantId, plantName, suggestion))
-                    }
-                }
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plantName))
-            maybeTriggerPhotoReminder(plant)
+            _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plant.name))
+            maybeTriggerPhotoReminder(plant.id)
         }
     }
 
     /**
-     * After a quick action, shows a photo reminder for [plant] if the feature is enabled, the
-     * plant hasn't already been reminded this session (shared with PlantDetailScreen via
-     * [PlantDetailViewModel.shownThisSession]), and the newest photo across plant photos and
-     * care-log photos is at least [PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS] days old.
+     * After a quick action, shows a photo reminder for [plantId] if [QuickLogUseCase] determines
+     * one is due (feature enabled, not already shown this session, photo stale enough).
      */
-    private suspend fun maybeTriggerPhotoReminder(plant: Plant) {
-        val enabled = dataStore.data.first()[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
-        if (!enabled) return
-        if (plant.id in PlantDetailViewModel.shownThisSession) return
-        val lastPlantPhotoTs = plantPhotoRepository.getPhotosForPlantOnce(plant.id)
-            .maxOfOrNull { it.capturedAt }
-        val lastCareLogPhotoTs = careLogRepository.getPhotoLogsForPlant(plant.id).first()
-            .mapNotNull { log -> log.photoUri?.let { log.loggedAt } }
-            .maxOrNull()
-        val lastPhotoTs = listOfNotNull(lastPlantPhotoTs, lastCareLogPhotoTs).maxOrNull()
-        val daysSince = PlantDetailViewModel.lastPhotoDaysSince(lastPhotoTs, plant.createdAt)
-        if (daysSince >= PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS) {
-            PlantDetailViewModel.shownThisSession.add(plant.id)
-            _photoReminderRequest.value = PhotoReminderRequest(plant.id, plant.name, daysSince)
+    private suspend fun maybeTriggerPhotoReminder(plantId: Long) {
+        quickLogUseCase.maybeBuildPhotoReminderRequest(plantId)?.let { request ->
+            _photoReminderRequest.value = request
         }
     }
 
@@ -299,6 +194,14 @@ class PlantListViewModel(
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             plantPhotoRepository.addPhoto(PlantPhoto(plantId = plantId, uri = uri.toString(), capturedAt = now))
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = plantId,
+                    careType = CareType.PHOTO,
+                    loggedAt = now,
+                    photoUri = uri.toString()
+                )
+            )
             plantRepository.getPlantById(plantId).first()?.let { p ->
                 plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
             }
@@ -429,10 +332,11 @@ class PlantListViewModel(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
-        private val dataStore: DataStore<Preferences>
+        private val dataStore: DataStore<Preferences>,
+        private val quickLogUseCase: QuickLogUseCase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantListViewModel(application, plantRepository, careLogRepository, plantPhotoRepository, dataStore) as T
+            PlantListViewModel(application, plantRepository, careLogRepository, plantPhotoRepository, dataStore, quickLogUseCase) as T
     }
 }
