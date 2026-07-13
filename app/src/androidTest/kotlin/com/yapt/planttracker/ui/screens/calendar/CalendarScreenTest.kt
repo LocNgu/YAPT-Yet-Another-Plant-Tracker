@@ -121,8 +121,13 @@ class CalendarScreenTest {
             CalendarScreen(viewModel = viewModel, onNavigateToPlant = {})
         }
 
+        // Deliberately queries the merged tree (no useUnmergedTree): SemanticsNode.getChildren()
+        // only hides a clearAndSetSemantics node's descendants when includeReplacedSemantics is
+        // false, which is the merged-tree default. The unmerged tree always exposes replaced
+        // semantics (by design, for debugging), so it would report the inner Text as a child
+        // regardless of clearAndSetSemantics and defeat this regression check.
         composeTestRule
-            .onNode(hasTestTag(todayBadgeTag), useUnmergedTree = true)
+            .onNode(hasTestTag(todayBadgeTag))
             .onChildren()
             .assertCountEquals(0)
     }
