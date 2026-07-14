@@ -449,7 +449,7 @@ private fun CalendarDaySheet(
             )
 
             if (day == today) {
-                val (overdue, dueToday) = plants.partition { it.status.isOverdue || it.status.isFertilizingOverdue }
+                val (overdue, dueToday) = plants.partition { isOverdueEntry(it) }
                 val sortedOverdue = overdue.sortedBy { it.status.plant.name.lowercase() }
                 val sortedToday = dueToday.sortedBy { it.status.plant.name.lowercase() }
                 if (sortedOverdue.isNotEmpty()) {
