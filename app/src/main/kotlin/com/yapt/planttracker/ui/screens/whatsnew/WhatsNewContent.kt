@@ -11,6 +11,13 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 270,
+            versionName = "0.15.1",
+            fixed = listOf(
+                "Calendar no longer shows a separate fertilize entry for plants using liquid fertilizer — they're fertilized together with watering, so they now appear only on their watering day"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 260,
             versionName = "0.15.0",
             added = listOf(

@@ -14,6 +14,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.15.1] - 2026-07-14
+
+### Fixed
+- Calendar: plants with liquid fertilizer enabled no longer show a standalone fertilize entry — since fertilizing happens together with watering (ADR-0008/ADR-0017), these plants now contribute to the Calendar only via their watering due date, and the day sheet no longer sorts them into "Overdue" solely because fertilizing is overdue (#423)
+
+---
+
 ## [0.15.0] - 2026-07-13
 
 ### Added
