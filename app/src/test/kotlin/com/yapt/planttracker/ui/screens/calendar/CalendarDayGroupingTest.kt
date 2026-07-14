@@ -31,9 +31,10 @@ class CalendarDayGroupingTest {
         nextWateringDueAt: LocalDate? = null,
         isOverdue: Boolean = false,
         nextFertilizingDueAt: LocalDate? = null,
-        isFertilizingOverdue: Boolean = false
+        isFertilizingOverdue: Boolean = false,
+        useLiquidFertilizer: Boolean = false
     ) = PlantCareStatus(
-        plant = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L),
+        plant = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L, useLiquidFertilizer = useLiquidFertilizer),
         lastWateredAt = null,
         lastFertilizedAt = null,
         daysSinceLastWatering = null,
@@ -170,5 +171,135 @@ class CalendarDayGroupingTest {
         val result = computePlantsByDay(listOf(s), futureMonth, today)
 
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `liquid-fertilizer plant with a future fertilize date produces no entry for that date`() {
+        val waterDate = today.plusDays(5)
+        val fertilizeDate = today.plusDays(10)
+        val s = status(
+            nextWateringDueAt = waterDate,
+            nextFertilizingDueAt = fertilizeDate,
+            useLiquidFertilizer = true
+        )
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        assertFalse(result.containsKey(fertilizeDate))
+        assertEquals(1, result.getValue(waterDate).plants.size)
+        assertTrue(result.getValue(waterDate).plants[0].waterDue)
+        assertFalse(result.getValue(waterDate).plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `liquid-fertilizer plant with only fertilizing overdue does not land on today`() {
+        val s = status(
+            nextWateringDueAt = today.plusDays(4),
+            nextFertilizingDueAt = today.minusDays(2),
+            isFertilizingOverdue = true,
+            useLiquidFertilizer = true
+        )
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        assertFalse(result.containsKey(today))
+        val entry = result.getValue(today.plusDays(4))
+        assertFalse(entry.containsOverdue)
+        assertTrue(entry.plants[0].waterDue)
+        assertFalse(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `liquid-fertilizer plant on its watering day has fertilizeDue false`() {
+        val s = status(
+            nextWateringDueAt = today,
+            isOverdue = false,
+            nextFertilizingDueAt = today,
+            isFertilizingOverdue = false,
+            useLiquidFertilizer = true
+        )
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        val entry = result.getValue(today)
+        assertEquals(1, entry.plants.size)
+        assertFalse(entry.containsOverdue)
+        assertTrue(entry.plants[0].waterDue)
+        assertFalse(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `liquid-fertilizer plant with overdue watering and overdue fertilizing rolls to today once`() {
+        val s = status(
+            nextWateringDueAt = today.minusDays(1),
+            isOverdue = true,
+            nextFertilizingDueAt = today.minusDays(1),
+            isFertilizingOverdue = true,
+            useLiquidFertilizer = true
+        )
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        val entry = result.getValue(today)
+        assertEquals(1, entry.plants.size)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants[0].waterDue)
+        assertFalse(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `liquid-fertilizer plant with null watering date contributes nothing`() {
+        val s = status(
+            nextWateringDueAt = null,
+            nextFertilizingDueAt = today.plusDays(3),
+            useLiquidFertilizer = true
+        )
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `regular plant future fertilize date and overdue fertilizing behaviour unchanged`() {
+        val fertilizeDate = today.plusDays(7)
+        val futurePlant = status(id = 1L, nextFertilizingDueAt = fertilizeDate)
+        val overduePlant = status(
+            id = 2L,
+            nextFertilizingDueAt = today.minusDays(2),
+            isFertilizingOverdue = true
+        )
+
+        val result = computePlantsByDay(listOf(futurePlant, overduePlant), visibleMonth, today)
+
+        assertEquals(1, result.getValue(fertilizeDate).plants.size)
+        assertTrue(result.getValue(fertilizeDate).plants[0].fertilizeDue)
+
+        val todayEntry = result.getValue(today)
+        assertTrue(todayEntry.containsOverdue)
+        assertTrue(todayEntry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `isOverdueEntry ignores fertilizing-overdue for liquid-fertilizer plants`() {
+        val liquidFertilizeOnlyOverdue = PlantDayInfo(
+            status = status(isFertilizingOverdue = true, useLiquidFertilizer = true),
+            waterDue = false,
+            fertilizeDue = false
+        )
+        val liquidWaterOverdue = PlantDayInfo(
+            status = status(isOverdue = true, useLiquidFertilizer = true),
+            waterDue = true,
+            fertilizeDue = false
+        )
+        val regularFertilizeOverdue = PlantDayInfo(
+            status = status(isFertilizingOverdue = true),
+            waterDue = false,
+            fertilizeDue = true
+        )
+
+        assertFalse(isOverdueEntry(liquidFertilizeOnlyOverdue))
+        assertTrue(isOverdueEntry(liquidWaterOverdue))
+        assertTrue(isOverdueEntry(regularFertilizeOverdue))
     }
 }

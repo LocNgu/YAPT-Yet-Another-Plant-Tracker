@@ -31,6 +31,11 @@ private data class Contribution(val date: LocalDate, val info: PlantDayInfo, val
  * contributing at most once regardless of how many actions are overdue/due. A plant due exactly
  * today (not overdue) also lands on today. Future due dates land on their exact calendar date;
  * a plant with two different future due dates (water vs. fertilize) can appear on both days.
+ *
+ * Per issue #423: liquid-fertilizer plants (`plant.useLiquidFertilizer`) fertilize together with
+ * watering (ADR-0008/ADR-0017), so their `nextFertilizingDueAt` / `isFertilizingOverdue` are
+ * ignored entirely — they only contribute via watering, and [PlantDayInfo.fertilizeDue] is
+ * always false for them.
  */
 fun computePlantsByDay(
     statuses: List<PlantCareStatus>,
@@ -40,10 +45,11 @@ fun computePlantsByDay(
     val contributions = mutableListOf<Contribution>()
 
     for (status in statuses) {
+        val isLiquidFertilizer = status.plant.useLiquidFertilizer
         val waterDate = status.nextWateringDueAt?.toLocalDate()
-        val fertilizeDate = status.nextFertilizingDueAt?.toLocalDate()
+        val fertilizeDate = if (isLiquidFertilizer) null else status.nextFertilizingDueAt?.toLocalDate()
         val waterOverdue = status.isOverdue
-        val fertilizeOverdue = status.isFertilizingOverdue
+        val fertilizeOverdue = if (isLiquidFertilizer) false else status.isFertilizingOverdue
 
         val landsToday = waterOverdue || fertilizeOverdue ||
             waterDate == today || fertilizeDate == today
@@ -84,4 +90,15 @@ fun computePlantsByDay(
                 containsOverdue = entries.any { it.overdue }
             )
         }
+}
+
+/**
+ * Whether [info] belongs in the today-sheet's "Overdue" section rather than "Today".
+ *
+ * Per issue #423: liquid-fertilizer plants fertilize together with watering, so an overdue
+ * fertilizing date alone (with watering not overdue) must not sort them into "Overdue".
+ */
+fun isOverdueEntry(info: PlantDayInfo): Boolean {
+    val status = info.status
+    return status.isOverdue || (!status.plant.useLiquidFertilizer && status.isFertilizingOverdue)
 }
