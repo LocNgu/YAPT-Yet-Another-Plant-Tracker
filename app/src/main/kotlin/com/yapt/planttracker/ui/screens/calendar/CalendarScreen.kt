@@ -80,6 +80,7 @@ import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.components.QuickLogButtons
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
@@ -531,20 +532,13 @@ private fun CalendarDayPlantRow(
             }
         }
         Spacer(Modifier.width(8.dp))
-        if (plant.useLiquidFertilizer) {
-            IconButton(onClick = { onQuickFertilize(info.status) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(16.dp))
-                    Icon(Icons.Filled.Spa, null, Modifier.size(16.dp))
-                }
-            }
-        } else {
-            IconButton(onClick = { onQuickWater(info.status) }) {
-                Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_water_cd), Modifier.size(20.dp))
-            }
-            IconButton(onClick = { onQuickFertilize(info.status) }) {
-                Icon(Icons.Filled.Spa, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(20.dp))
-            }
-        }
+        // Shared with PlantCard so the two surfaces never drift: a water-only button plus a
+        // fertilize button (combined water+fertilize for liquid-fertilizer plants), so the user
+        // can water without fertilizing on a day when only watering is due.
+        QuickLogButtons(
+            status = info.status,
+            onQuickWater = { onQuickWater(info.status) },
+            onQuickFertilize = { onQuickFertilize(info.status) }
+        )
     }
 }

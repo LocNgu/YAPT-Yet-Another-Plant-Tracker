@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +31,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
@@ -178,42 +176,12 @@ fun PlantCard(
                 }
             }
 
-            Column(
-                modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                IconButton(
-                    onClick = onQuickWater,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.WaterDrop,
-                        contentDescription = stringResource(R.string.quick_log_water_cd),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(
-                    onClick = onQuickFertilize,
-                    modifier = Modifier.size(if (status.plant.useLiquidFertilizer) 44.dp else 36.dp)
-                ) {
-                    if (status.plant.useLiquidFertilizer) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                text = "+",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 2.dp)
-                            )
-                            Icon(Icons.Filled.Spa, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else {
-                        Icon(Icons.Filled.Spa, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+            QuickLogButtons(
+                status = status,
+                onQuickWater = onQuickWater,
+                onQuickFertilize = onQuickFertilize,
+                modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
+            )
         }
     }
 }

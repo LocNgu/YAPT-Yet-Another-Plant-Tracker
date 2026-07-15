@@ -193,6 +193,37 @@ class CalendarScreenTest {
     }
 
     @Test
+    fun liquidFertilizerPlant_daySheet_showsBothWaterOnlyAndCombinedButtons() {
+        // Regression: a liquid-fertilizer plant landing on a day (via its watering due date)
+        // must offer a water-only quick-log button in addition to the combined
+        // water+fertilize button, mirroring PlantCard, so the user can water without
+        // fertilizing when only watering is due.
+        val plant = Plant(
+            id = 1L,
+            name = "Pothos",
+            wateringIntervalDays = 5,
+            fertilizingIntervalDays = 30,
+            useLiquidFertilizer = true,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(listOf(plant))
+        val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
+
+        composeTestRule.setContent {
+            CalendarScreen(viewModel = viewModel, onNavigateToPlant = {})
+        }
+
+        composeTestRule.onNodeWithTag(todayTag).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithContentDescription("Quick water").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Quick fertilize").assertIsDisplayed()
+    }
+
+    @Test
     fun monthNavArrows_changeVisibleMonth() {
         val viewModel = makeViewModel()
 

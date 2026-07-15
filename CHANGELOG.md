@@ -12,6 +12,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Calendar: liquid-fertilizer plants in the day sheet now show a water-only quick-log button alongside the combined water+fertilize button, mirroring the plant list card. Previously the only quick action was water+fertilize, forcing a fertilizing log even on a day when only watering was due.
+
+### Changed
+- The quick-log water/fertilize buttons are now a single shared `QuickLogButtons` component used by both the plant list card and the calendar day sheet, so the two surfaces stay identical in appearance and behaviour. The calendar day-sheet buttons adopt the plant card's styling (vertical stack, combined water+fertilize button with a `+`).
+
 ---
 
 ## [0.16.0] - 2026-07-15
