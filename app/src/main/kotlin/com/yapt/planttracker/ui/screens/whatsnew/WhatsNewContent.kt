@@ -11,6 +11,19 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 290,
+            versionName = "0.17.0",
+            added = listOf(
+                "Log a watering or fertilizing straight from a plant's detail page — just tap the Watering or Fertilizing stat chip. No need to open the separate Add Care Log screen for a quick log"
+            ),
+            fixed = listOf(
+                "Calendar day sheet now offers a water-only button for liquid-fertilizer plants, so you can water on a day when only watering is due without also logging a fertilizing"
+            ),
+            changed = listOf(
+                "The quick water/fertilize buttons on the plant list and the calendar day sheet now look and behave identically"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 280,
             versionName = "0.16.0",
             changed = listOf(
