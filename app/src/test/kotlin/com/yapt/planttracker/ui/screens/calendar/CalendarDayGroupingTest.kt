@@ -281,6 +281,34 @@ class CalendarDayGroupingTest {
     }
 
     @Test
+    fun `never-watered plant (nextWateringDueAt = today, per CareSchedule#428) lands on today, not overdue`() {
+        // CareSchedule.computeStatus() resolves a never-watered plant's nextWateringDueAt to `now`
+        // (today), isDueSoon true, isOverdue false — the pure transform reads that effective date.
+        val s = status(nextWateringDueAt = today, isOverdue = false)
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        val entry = result.getValue(today)
+        assertEquals(1, entry.plants.size)
+        assertFalse(entry.containsOverdue)
+        assertTrue(entry.plants[0].waterDue)
+    }
+
+    @Test
+    fun `never-fertilized plant with createdAt 30+ days ago (per CareSchedule#428) rolls to today as overdue`() {
+        // CareSchedule.computeStatus() resolves a never-fertilized plant's nextFertilizingDueAt to
+        // createdAt + 30 days; once that date is in the past, isFertilizingOverdue becomes true.
+        val s = status(nextFertilizingDueAt = today.minusDays(15), isFertilizingOverdue = true)
+
+        val result = computePlantsByDay(listOf(s), visibleMonth, today)
+
+        val entry = result.getValue(today)
+        assertEquals(1, entry.plants.size)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
     fun `isOverdueEntry ignores fertilizing-overdue for liquid-fertilizer plants`() {
         val liquidFertilizeOnlyOverdue = PlantDayInfo(
             status = status(isFertilizingOverdue = true, useLiquidFertilizer = true),

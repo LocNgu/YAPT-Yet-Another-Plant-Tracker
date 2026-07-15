@@ -132,4 +132,44 @@ class PlantListScreenTest {
 
         composeTestRule.onNode(hasText("Not scheduled", substring = true)).assertDoesNotExist()
     }
+
+    @Test
+    fun neverWateredPlantWithInterval_showsNeverWateredLabel() {
+        val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Never watered").assertIsDisplayed()
+    }
+
+    @Test
+    fun neverFertilizedPlantWithInterval_showsNeverFertilizedLabel() {
+        val plant = Plant(
+            id = 1L,
+            name = "Monstera",
+            fertilizingIntervalDays = 14,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Never fertilized").assertIsDisplayed()
+    }
 }

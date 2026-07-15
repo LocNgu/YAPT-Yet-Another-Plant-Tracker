@@ -125,11 +125,10 @@ fun PlantCard(
                     }
                     val neverWateredLabel = stringResource(R.string.water_label_never_watered)
                     val waterLabel = when {
+                        status.lastWateredAt == null -> neverWateredLabel
                         status.nextWateringDueAt != null ->
                             DateUtils.formatCountdown(status.nextWateringDueAt)
-                        status.lastWateredAt != null ->
-                            DateUtils.formatRelative(status.lastWateredAt)
-                        else -> neverWateredLabel
+                        else -> DateUtils.formatRelative(status.lastWateredAt)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,11 +160,10 @@ fun PlantCard(
                             status.plant.useLiquidFertilizer &&
                                     (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
                                 stringResource(R.string.fert_label_due_with_watering)
+                            status.lastFertilizedAt == null -> fertLabelNever
                             status.nextFertilizingDueAt != null ->
                                 DateUtils.formatCountdown(status.nextFertilizingDueAt)
-                            status.lastFertilizedAt != null ->
-                                fertLabelFertilizing ?: fertLabelNever
-                            else -> fertLabelNever
+                            else -> fertLabelFertilizing ?: fertLabelNever
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Spa, null, Modifier.size(12.dp), tint = fertColor)
