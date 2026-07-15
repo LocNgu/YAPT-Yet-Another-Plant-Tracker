@@ -58,7 +58,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -96,7 +95,6 @@ fun PlantDetailScreen(
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
 
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
     var showLiquidFertilizeSheet by remember { mutableStateOf(false) }
@@ -157,15 +155,20 @@ fun PlantDetailScreen(
         }
     }
 
+    // Resource templates resolved in composition (not via LocalContext, which lint forbids); the
+    // plant name from the event is substituted when the message fires.
+    val wateredTemplate = stringResource(R.string.quick_log_watered)
+    val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
+    val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
                 is PlantDetailViewModel.QuickLogMessage.Watered ->
-                    context.getString(R.string.quick_log_watered, message.plantName)
+                    String.format(wateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Fertilized ->
-                    context.getString(R.string.quick_log_fertilized, message.plantName)
+                    String.format(fertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
-                    context.getString(R.string.quick_log_watered_and_fertilized, message.plantName)
+                    String.format(wateredAndFertilizedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }
