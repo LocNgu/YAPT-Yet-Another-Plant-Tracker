@@ -137,7 +137,7 @@ class PlantDetailViewModelTest {
         every { careLogRepo.getLogsForPlant(2L) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(2L) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(2L) } returns flowOf(emptyList())
-        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 2L, dataStore)
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 2L, dataStore, quickLogUseCase)
 
         vm.careStatus.test {
             val status = awaitItem()
@@ -320,7 +320,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(listOf(careLog))
 
-        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L, dataStore)
+        val vm = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, 1L, dataStore, quickLogUseCase)
 
         vm.galleryPhotos.test {
             val photos = awaitItem()
