@@ -14,6 +14,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.17.0] - 2026-07-15
+
+### Added
+- Plant Detail: the Watering and Fertilizing stat chips are now tappable to quick-log care in place, so common care actions no longer require opening the separate Add Care Log screen. Tapping the Watering chip opens the water-feedback bottom sheet (soil-state question) and logs a watering; tapping the Fertilizing chip logs a fertilizing directly for regular plants, or opens the combined "Water & fertilize" sheet for liquid-fertilizer plants (paired water+fertilize, ADR-0008/ADR-0017). Reuses the shared `QuickLogUseCase` and the interval-suggestion / photo-reminder dialogs already on the screen (photo reminder suppressed while the suggestion dialog is showing, matching PlantListScreen). The `+` FAB and full Add Care Log screen are unchanged for other care types (#434)
+
+### Fixed
+- Calendar: liquid-fertilizer plants in the day sheet now show a water-only quick-log button alongside the combined water+fertilize button, mirroring the plant list card. Previously the only quick action was water+fertilize, forcing a fertilizing log even on a day when only watering was due.
+
+### Changed
+- The quick-log water/fertilize buttons are now a single shared `QuickLogButtons` component used by both the plant list card and the calendar day sheet, so the two surfaces stay identical in appearance and behaviour. The calendar day-sheet buttons adopt the plant card's styling (vertical stack, combined water+fertilize button with a `+`).
+
+---
+
 ## [0.16.0] - 2026-07-15
 
 ### Changed
