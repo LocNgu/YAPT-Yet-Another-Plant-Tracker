@@ -28,6 +28,6 @@ Closes #
 - [ ] `WhatsNewContent.kt` updated if there's a user-visible change (not required for `chore:`/docs-only PRs)
 - [ ] `.claude/CLAUDE.md` updated if architecture, conventions, or completed features changed
 - [ ] All new UI strings live in `strings.xml` (no hardcoded strings in Compose)
-- [ ] Room schema JSON committed under `app/schemas/` if the DB version was bumped
+- [ ] Room schema JSON committed under `app/schemas/` and a `Migration` added if the DB version was bumped
 - [ ] New/changed behaviour covered by tests, or explained above why not
 - [ ] Relevant ADRs in `docs/decisions/` consulted; new/superseding ADR added if a decision changed
