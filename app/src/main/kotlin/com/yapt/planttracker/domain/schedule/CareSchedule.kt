@@ -12,6 +12,14 @@ object CareSchedule {
 
     private val ONE_DAY_MS = TimeUnit.DAYS.toMillis(1)
 
+    /**
+     * Never-fertilized plants get a grace period before they start being flagged as due, anchored
+     * to when the plant was added. Nursery mixes typically contain slow-release fertilizer and
+     * new plants are acclimating, so a single fertilizing interval (often ~2 weeks) is too short
+     * a hold-off (issue #428).
+     */
+    const val FIRST_FERTILIZE_GRACE_DAYS = 30
+
     fun computeStatus(
         plant: Plant,
         lastWateredAt: Long?,
@@ -23,9 +31,13 @@ object CareSchedule {
             (now - it) / ONE_DAY_MS
         }
 
-        val computedNextDueAt = if (plant.wateringIntervalDays != null && lastWateredAt != null) {
+        val computedNextDueAt = if (plant.wateringIntervalDays == null) {
+            null
+        } else if (lastWateredAt != null) {
             lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
-        } else null
+        } else {
+            now
+        }
 
         val nextDueAt = when {
             computedNextDueAt == null -> plant.wateringDueDateOverride
@@ -37,9 +49,13 @@ object CareSchedule {
         val isOverdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)
         val isDueSoon = nextDueAt != null && !isOverdue && nextDueAt.toLocalDate() == nowDate
 
-        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays != null && lastFertilizedAt != null) {
+        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
+            null
+        } else if (lastFertilizedAt != null) {
             lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
-        } else null
+        } else {
+            plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+        }
         val isFertilizingOverdue = nextFertilizingDueAt != null &&
             nextFertilizingDueAt.toLocalDate().isBefore(nowDate)
         val isFertilizingDueSoon = nextFertilizingDueAt != null && !isFertilizingOverdue &&

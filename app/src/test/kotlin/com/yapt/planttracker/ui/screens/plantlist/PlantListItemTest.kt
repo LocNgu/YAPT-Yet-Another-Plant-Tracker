@@ -191,6 +191,58 @@ class PlantListItemTest {
     }
 
     @Test
+    fun `never-watered plant (nextWateringDueAt = now, per CareSchedule#428) lands in Today bucket`() {
+        val neverWatered = PlantCareStatus(
+            plant = Plant(id = 1L, name = "NeverWatered", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            daysSinceLastWatering = null,
+            nextWateringDueAt = now,
+            isOverdue = false,
+            isDueSoon = true,
+            nextFertilizingDueAt = null,
+            isFertilizingOverdue = false,
+            isFertilizingDueSoon = false,
+            totalCareLogs = 0
+        )
+
+        val result = groupPlantsByDueDate(
+            listOf(neverWatered),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+
+        assertEquals(listOf(DateBucket.Today), headerBuckets(result))
+    }
+
+    @Test
+    fun `never-fertilized plant with createdAt 30+ days ago (per CareSchedule#428) lands in Overdue bucket`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(45)
+        val overdueDueAt = createdAt + TimeUnit.DAYS.toMillis(30)
+        val neverFertilized = PlantCareStatus(
+            plant = Plant(id = 1L, name = "NeverFertilized", fertilizingIntervalDays = 14, createdAt = createdAt, updatedAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            daysSinceLastWatering = null,
+            nextWateringDueAt = null,
+            isOverdue = false,
+            isDueSoon = false,
+            nextFertilizingDueAt = overdueDueAt,
+            isFertilizingOverdue = true,
+            isFertilizingDueSoon = false,
+            totalCareLogs = 0
+        )
+
+        val result = groupPlantsByDueDate(
+            listOf(neverFertilized),
+            SortOrder(SortOption.FERTILIZING_DUE, SortDirection.DESC),
+            now
+        )
+
+        assertEquals(listOf(DateBucket.Overdue), headerBuckets(result))
+    }
+
+    @Test
     fun `ASC direction moves the Not scheduled bucket to the front`() {
         val overdue = statusWithWateringDueIn(1L, -2L)
         val notScheduled = statusWithWateringDueIn(2L, null)
