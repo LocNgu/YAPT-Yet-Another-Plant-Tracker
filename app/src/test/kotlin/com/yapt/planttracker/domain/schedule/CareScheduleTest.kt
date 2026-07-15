@@ -65,6 +65,22 @@ class CareScheduleTest {
     }
 
     @Test
+    fun `no watering history with interval set and expired past override still due today`() {
+        // maxOf(computedNextDueAt=now, override) picks `now` since the override is stale
+        val override = now - TimeUnit.DAYS.toMillis(5)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(now, status.nextWateringDueAt)
+        assertTrue(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
     fun `no watering history and no interval set stays not scheduled`() {
         val status = CareSchedule.computeStatus(
             plant = plantWith(wateringIntervalDays = null),
