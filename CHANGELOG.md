@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- `CareSchedule`: a plant with a watering interval configured but no watering history is now reported as due today (instead of "Not scheduled"), so it shows the due-today treatment on the plant list, the daily reminder run, and the calendar; a `wateringDueDateOverride` (skip watering) still takes precedence. A plant with a fertilizing interval configured but never fertilized becomes due 30 days after the plant was added (`createdAt + 30d`), giving newly acquired plants a grace period before feeding, then follows normal overdue math thereafter. Plants with no interval configured remain "Not scheduled" (#428, supersedes #391)
+
 ---
 
 ## [0.15.1] - 2026-07-14

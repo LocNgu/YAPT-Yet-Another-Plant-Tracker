@@ -23,17 +23,19 @@ class CareScheduleTest {
     private fun plantWith(
         wateringIntervalDays: Int? = null,
         fertilizingIntervalDays: Int? = null,
-        wateringDueDateOverride: Long? = null
+        wateringDueDateOverride: Long? = null,
+        createdAt: Long = now
     ) = Plant(
         id = 1L,
         name = "Test Plant",
         wateringIntervalDays = wateringIntervalDays,
         fertilizingIntervalDays = fertilizingIntervalDays,
-        wateringDueDateOverride = wateringDueDateOverride
+        wateringDueDateOverride = wateringDueDateOverride,
+        createdAt = createdAt
     )
 
     @Test
-    fun `no watering history returns null daysSince and nextDue and isOverdue false`() {
+    fun `no watering history with interval set is due today`() {
         val status = CareSchedule.computeStatus(
             plant = plantWith(wateringIntervalDays = 7),
             lastWateredAt = null,
@@ -42,8 +44,39 @@ class CareScheduleTest {
             now = now
         )
         assertNull(status.daysSinceLastWatering)
+        assertEquals(now, status.nextWateringDueAt)
+        assertTrue(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
+    fun `no watering history with interval set and future override uses override`() {
+        val override = now + TimeUnit.DAYS.toMillis(5)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(override, status.nextWateringDueAt)
+        assertFalse(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
+    fun `no watering history and no interval set stays not scheduled`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = null),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.daysSinceLastWatering)
         assertNull(status.nextWateringDueAt)
         assertFalse(status.isOverdue)
+        assertFalse(status.isDueSoon)
     }
 
     @Test
@@ -240,6 +273,63 @@ class CareScheduleTest {
             now = now
         )
         assertFalse(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `never fertilized with recent createdAt is not yet due`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(5)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(fertilizingIntervalDays = 14, createdAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        val expected = createdAt + TimeUnit.DAYS.toMillis(CareSchedule.FIRST_FERTILIZE_GRACE_DAYS.toLong())
+        assertEquals(expected, status.nextFertilizingDueAt)
+        assertFalse(status.isFertilizingDueSoon)
+        assertFalse(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `never fertilized with createdAt exactly 30 days ago is due today`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(CareSchedule.FIRST_FERTILIZE_GRACE_DAYS.toLong())
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(fertilizingIntervalDays = 14, createdAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isFertilizingDueSoon)
+        assertFalse(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `never fertilized with createdAt more than 30 days ago is overdue`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(45)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(fertilizingIntervalDays = 14, createdAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `never fertilized with no fertilizing interval stays null`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(fertilizingIntervalDays = null, createdAt = now - TimeUnit.DAYS.toMillis(45)),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.nextFertilizingDueAt)
+        assertFalse(status.isFertilizingOverdue)
+        assertFalse(status.isFertilizingDueSoon)
     }
 
     @Test
