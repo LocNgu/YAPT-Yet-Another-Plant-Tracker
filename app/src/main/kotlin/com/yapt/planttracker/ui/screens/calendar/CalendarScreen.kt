@@ -531,6 +531,12 @@ private fun CalendarDayPlantRow(
             }
         }
         Spacer(Modifier.width(8.dp))
+        // Mirror PlantCard: liquid-fertilizer plants get a water-only button *and* a combined
+        // water+fertilize button, so the user can water without fertilizing on a day when only
+        // watering is due (fertilizing rides along with watering, but is not mandatory).
+        IconButton(onClick = { onQuickWater(info.status) }) {
+            Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_water_cd), Modifier.size(20.dp))
+        }
         if (plant.useLiquidFertilizer) {
             IconButton(onClick = { onQuickFertilize(info.status) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -539,9 +545,6 @@ private fun CalendarDayPlantRow(
                 }
             }
         } else {
-            IconButton(onClick = { onQuickWater(info.status) }) {
-                Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_water_cd), Modifier.size(20.dp))
-            }
             IconButton(onClick = { onQuickFertilize(info.status) }) {
                 Icon(Icons.Filled.Spa, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(20.dp))
             }

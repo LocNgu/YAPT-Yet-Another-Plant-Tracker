@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Calendar: liquid-fertilizer plants in the day sheet now show a water-only quick-log button alongside the combined water+fertilize button, mirroring the plant list card. Previously the only quick action was water+fertilize, forcing a fertilizing log even on a day when only watering was due.
+
 ---
 
 ## [0.16.0] - 2026-07-15
