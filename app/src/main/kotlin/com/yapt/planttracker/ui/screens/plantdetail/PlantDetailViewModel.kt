@@ -17,7 +17,9 @@ import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
 import java.time.Instant
 import java.time.LocalDate
@@ -41,7 +43,8 @@ class PlantDetailViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val plantId: Long,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val quickLogUseCase: QuickLogUseCase
 ) : ViewModel() {
 
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
@@ -100,6 +103,9 @@ class PlantDetailViewModel(
     private val _photoReminderDaysSince = MutableStateFlow(0L)
     val photoReminderDaysSince: StateFlow<Long> = _photoReminderDaysSince.asStateFlow()
 
+    private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
+    val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
+
     init {
         viewModelScope.launch {
             // drop(1) skips the stateIn seed (emptyList) and waits for the first real DB result,
@@ -136,6 +142,54 @@ class PlantDetailViewModel(
                 )
             )
             plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
+        }
+    }
+
+    /**
+     * Quick-logs a watering with [feedback] from the tappable watering stat chip. Reuses the shared
+     * [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any adaptive
+     * interval suggestion feeds the existing interval-suggestion dialog via [suggestedWateringInterval].
+     */
+    fun quickWater(feedback: WateringFeedback) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            quickLogUseCase.quickWaterWithFeedback(p, feedback)?.let {
+                suggestedWateringInterval.value = it.suggestedInterval
+            }
+            _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
+            maybeTriggerPhotoReminder(p.id)
+        }
+    }
+
+    /** Quick-logs a fertilizing from the tappable fertilizing stat chip (non-liquid-fertilizer plants). */
+    fun quickFertilize() {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            quickLogUseCase.quickLog(p, CareType.FERTILIZE)
+            _quickLogMessage.emit(QuickLogMessage.Fertilized(p.name))
+            maybeTriggerPhotoReminder(p.id)
+        }
+    }
+
+    /**
+     * Quick-logs a paired fertilize + watering for liquid-fertilizer plants from the fertilizing stat
+     * chip, mirroring the combined water+fertilize path on PlantCard (ADR-0008/ADR-0017).
+     */
+    fun quickLiquidFertilize(feedback: WateringFeedback) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)?.let {
+                suggestedWateringInterval.value = it.suggestedInterval
+            }
+            _quickLogMessage.emit(QuickLogMessage.WateredAndFertilized(p.name))
+            maybeTriggerPhotoReminder(p.id)
+        }
+    }
+
+    private suspend fun maybeTriggerPhotoReminder(plantId: Long) {
+        quickLogUseCase.maybeBuildPhotoReminderRequest(plantId)?.let { request ->
+            _photoReminderDaysSince.value = request.daysSince
+            _showPhotoReminderDialog.value = true
         }
     }
 
@@ -218,6 +272,13 @@ class PlantDetailViewModel(
         data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()
     }
 
+    /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips. */
+    sealed class QuickLogMessage {
+        data class Watered(val plantName: String) : QuickLogMessage()
+        data class Fertilized(val plantName: String) : QuickLogMessage()
+        data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
+    }
+
     companion object {
         internal val shownThisSession = mutableSetOf<Long>()
         const val PHOTO_REMINDER_INTERVAL_DAYS = 30L
@@ -245,10 +306,11 @@ class PlantDetailViewModel(
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long,
-        private val dataStore: DataStore<Preferences>
+        private val dataStore: DataStore<Preferences>,
+        private val quickLogUseCase: QuickLogUseCase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId, dataStore) as T
+            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId, dataStore, quickLogUseCase) as T
     }
 }

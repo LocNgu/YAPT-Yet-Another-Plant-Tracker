@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,7 +34,9 @@ import com.yapt.planttracker.util.DateUtils
 @Composable
 fun StatsRow(
     status: PlantCareStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onWaterClick: (() -> Unit)? = null,
+    onFertilizeClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -52,7 +55,9 @@ fun StatsRow(
             nextLine = status.nextWateringDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
             nextColor = if (status.nextWateringDueAt != null) waterColor else null,
             lastLine = status.lastWateredAt?.let { DateUtils.formatRelative(it).lowercase() },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            onClick = onWaterClick,
+            onClickLabel = stringResource(R.string.cd_quick_log_watering)
         )
 
         if (status.plant.fertilizingIntervalDays != null) {
@@ -67,7 +72,9 @@ fun StatsRow(
                 nextLine = status.nextFertilizingDueAt?.let { DateUtils.formatCountdown(it).lowercase() },
                 nextColor = if (status.nextFertilizingDueAt != null) fertColor else null,
                 lastLine = status.lastFertilizedAt?.let { DateUtils.formatRelative(it).lowercase() },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = onFertilizeClick,
+                onClickLabel = stringResource(R.string.cd_quick_log_fertilizing)
             )
         }
     }
@@ -80,10 +87,16 @@ private fun StatChip(
     nextLine: String?,
     nextColor: Color?,
     lastLine: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null
 ) {
     Card(
-        modifier = modifier,
+        modifier = if (onClick != null) {
+            modifier.clickable(onClickLabel = onClickLabel, onClick = onClick)
+        } else {
+            modifier
+        },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )

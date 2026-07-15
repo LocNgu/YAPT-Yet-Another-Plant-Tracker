@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -73,6 +74,7 @@ import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.StatsRow
+import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 
@@ -94,7 +96,10 @@ fun PlantDetailScreen(
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var showWaterSheet by remember { mutableStateOf(false) }
+    var showLiquidFertilizeSheet by remember { mutableStateOf(false) }
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         viewModel.saveReminderPhoto(uri)
         viewModel.dismissPhotoReminder()
@@ -149,6 +154,20 @@ fun PlantDetailScreen(
                 }
                 else -> {}
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.quickLogMessage.collect { message ->
+            val text = when (message) {
+                is PlantDetailViewModel.QuickLogMessage.Watered ->
+                    context.getString(R.string.quick_log_watered, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Fertilized ->
+                    context.getString(R.string.quick_log_fertilized, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
+                    context.getString(R.string.quick_log_watered_and_fertilized, message.plantName)
+            }
+            snackbarHostState.showSnackbar(text)
         }
     }
 
@@ -254,7 +273,9 @@ fun PlantDetailScreen(
 
     CameraPhotoDialogs(reminderCameraState)
 
-    if (showPhotoReminderDialog) {
+    // Suppressed while the interval-suggestion dialog is showing so the two never stack
+    // (matches PlantListScreen).
+    if (showPhotoReminderDialog && !showDialog) {
         PhotoReminderDialog(
             daysSince = photoReminderDaysSince.toInt(),
             onTakePhoto = {
@@ -263,6 +284,33 @@ fun PlantDetailScreen(
             },
             onDismiss = { viewModel.dismissPhotoReminder() }
         )
+    }
+
+    if (showWaterSheet) {
+        plant?.let { p ->
+            WaterFeedbackBottomSheet(
+                plantName = p.name,
+                onDismiss = { showWaterSheet = false },
+                onLog = { feedback ->
+                    viewModel.quickWater(feedback)
+                    showWaterSheet = false
+                }
+            )
+        }
+    }
+
+    if (showLiquidFertilizeSheet) {
+        plant?.let { p ->
+            WaterFeedbackBottomSheet(
+                plantName = p.name,
+                title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
+                onDismiss = { showLiquidFertilizeSheet = false },
+                onLog = { feedback ->
+                    viewModel.quickLiquidFertilize(feedback)
+                    showLiquidFertilizeSheet = false
+                }
+            )
+        }
     }
 
     Surface(
@@ -357,7 +405,17 @@ fun PlantDetailScreen(
 
                 careStatus?.let { status ->
                     item {
-                        StatsRow(status = status)
+                        StatsRow(
+                            status = status,
+                            onWaterClick = { showWaterSheet = true },
+                            onFertilizeClick = {
+                                if (plant?.useLiquidFertilizer == true) {
+                                    showLiquidFertilizeSheet = true
+                                } else {
+                                    viewModel.quickFertilize()
+                                }
+                            }
+                        )
                         Spacer(Modifier.height(16.dp))
                     }
                     if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {

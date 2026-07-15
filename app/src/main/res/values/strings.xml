@@ -142,6 +142,8 @@
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
     <string name="stat_label_watering">Watering</string>
     <string name="stat_label_fertilizing">Fertilizing</string>
+    <string name="cd_quick_log_watering">Log watering</string>
+    <string name="cd_quick_log_fertilizing">Log fertilizing</string>
     <string name="stat_label_never">never</string>
     <string name="stat_label_next">next: %1$s</string>
     <string name="stat_label_last">last: %1$s</string>
