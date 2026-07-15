@@ -11,6 +11,14 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 280,
+            versionName = "0.16.0",
+            changed = listOf(
+                "A plant with a watering interval set but no waterings logged yet now counts as due today — it shows up in the due-today list, the daily reminder, and the Calendar instead of \"Not scheduled\"",
+                "A plant with a fertilizing interval set but never fertilized becomes due 30 days after you added it, giving new plants a grace period before feeding"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 270,
             versionName = "0.15.1",
             fixed = listOf(
