@@ -275,6 +275,30 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun `quickFertilize on a liquid-fertilizer plant emits the combined message`() = runTest {
+        val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Watered and fertilized Monstera"
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickLogMessage.test {
+                vm.quickFertilize()
+                assertEquals(
+                    PlantDetailViewModel.QuickLogMessage.WateredAndFertilized("Monstera"),
+                    awaitItem()
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
+    }
+
+    @Test
     fun `quickLiquidFertilize logs paired care and emits combined message`() = runTest {
         val monstera = plant().copy(
             useLiquidFertilizer = true,

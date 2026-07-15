@@ -371,4 +371,38 @@ class PlantDetailScreenTest {
         }
         composeTestRule.onNodeWithText("Water & fertilize Ivy?").assertIsDisplayed()
     }
+
+    @Test
+    fun fertilizingChip_regularPlant_tapLogsDirectlyWithoutSheet() {
+        val plant = Plant(
+            id = 22L,
+            name = "Basil",
+            fertilizingIntervalDays = 30,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Fertilizing").performClick()
+        // A regular plant logs the fertilizing directly and shows a snackbar; no feedback sheet opens.
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Fertilized Basil")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        assertTrue(
+            composeTestRule.onAllNodesWithText("How was the soil?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
 }

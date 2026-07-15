@@ -161,12 +161,22 @@ class PlantDetailViewModel(
         }
     }
 
-    /** Quick-logs a fertilizing from the tappable fertilizing stat chip (non-liquid-fertilizer plants). */
+    /**
+     * Quick-logs a fertilizing from the tappable fertilizing stat chip. The screen only routes
+     * regular (non-liquid) plants here, but the snackbar is derived from the plant type so it stays
+     * correct even if called for a liquid-fertilizer plant — `QuickLogUseCase.quickLog` already
+     * inserts the paired WATER log in that case (ADR-0008/ADR-0017).
+     */
     fun quickFertilize() {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
             quickLogUseCase.quickLog(p, CareType.FERTILIZE)
-            _quickLogMessage.emit(QuickLogMessage.Fertilized(p.name))
+            val message = if (p.useLiquidFertilizer) {
+                QuickLogMessage.WateredAndFertilized(p.name)
+            } else {
+                QuickLogMessage.Fertilized(p.name)
+            }
+            _quickLogMessage.emit(message)
             maybeTriggerPhotoReminder(p.id)
         }
     }
