@@ -137,6 +137,10 @@ Every feature and bug fix follows these steps in order:
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
+**PR creation is pre-authorized:** at step 2, once the implementer has pushed the `claude/*` branch, the orchestrator opens the PR targeting `develop` **without asking first** — this is a standing instruction that overrides the default "don't open a PR unless the user explicitly asks" behaviour. It applies only to opening the step-2 feature/bug-fix PR against `develop` (and the two release PRs in the Release Workflow); merging still requires a human (step 6), and this authorization does not extend to force-pushes or any action the permission table marks as requiring a prompt.
+
+**Review auto-kicks on green CI:** immediately after opening the step-2 PR, the orchestrator subscribes to the PR's activity (`subscribe_pr_activity`). Whenever new commits land on the branch — the initial implementation or any subsequent implementer fix — **and** that PR's CI finishes green, the orchestrator automatically launches the next `reviewer` round (step 3) **without waiting for the human to ask**. If CI is red, the orchestrator diagnoses and re-kicks or reports the failure rather than reviewing. The step-3 two-round cap still applies: after round 2 the orchestrator stops and waits for the human. This automation only holds while a subscribed session is alive — it is delivered via the PR-activity subscription (webhooks don't cover CI success, so the orchestrator also re-checks on its scheduled self check-in), not a `settings.json` hook, since no local hook fires on remote CI status. Merging remains human-only.
+
 **Comment cadence** — the orchestrator posts each phase as its own separate comment, in order. Never bundle multiple phases or rounds into one comment:
 
 | Phase | Where | Tool |
