@@ -137,6 +137,8 @@ Every feature and bug fix follows these steps in order:
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
 6. **Merge** — **human merges only**; Claude never merges a PR
 
+**PR creation is pre-authorized:** at step 2, once the implementer has pushed the `claude/*` branch, the orchestrator opens the PR targeting `develop` **without asking first** — this is a standing instruction that overrides the default "don't open a PR unless the user explicitly asks" behaviour. It applies only to opening the step-2 feature/bug-fix PR against `develop` (and the two release PRs in the Release Workflow); merging still requires a human (step 6), and this authorization does not extend to force-pushes or any action the permission table marks as requiring a prompt.
+
 **Comment cadence** — the orchestrator posts each phase as its own separate comment, in order. Never bundle multiple phases or rounds into one comment:
 
 | Phase | Where | Tool |
