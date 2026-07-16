@@ -180,4 +180,18 @@ class DateUtilsTest {
         val epochDay = LocalDate.of(2023, 11, 14).toEpochDay()
         assertEquals("Tue, Nov 14", DateUtils.formatWeekdayDate(epochDay))
     }
+
+    // todayRangeMillis
+
+    @Test
+    fun `todayRangeMillis returns midnight-to-midnight window containing now`() {
+        val (start, end) = DateUtils.todayRangeMillis(now)
+        val startOfDay = LocalDate.of(2023, 11, 14).atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        assertEquals(startOfDay, start)
+        assertEquals(startOfDay + TimeUnit.DAYS.toMillis(1), end)
+        assertTrue(now >= start && now < end)
+        // Window spans exactly one day: [start, end).
+        assertEquals(TimeUnit.DAYS.toMillis(1), end - start)
+    }
 }

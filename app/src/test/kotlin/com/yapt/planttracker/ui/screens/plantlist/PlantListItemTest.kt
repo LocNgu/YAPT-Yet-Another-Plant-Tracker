@@ -81,6 +81,20 @@ class PlantListItemTest {
     }
 
     @Test
+    fun `CARED_FOR_TODAY produces flat list with no date headers`() {
+        val statuses = listOf(
+            statusWithWateringDueIn(1L, -2L),
+            statusWithWateringDueIn(2L, 0L),
+            statusWithWateringDueIn(3L, 5L)
+        )
+
+        val result = groupPlantsByDueDate(statuses, SortOrder(SortOption.CARED_FOR_TODAY, SortDirection.DESC), now)
+
+        assertEquals(3, result.size)
+        assertTrue(result.all { it is PlantListItem.PlantRow })
+    }
+
+    @Test
     fun `WATERING_DUE DESC assigns each plant to the correct bucket in canonical order`() {
         val overdue = statusWithWateringDueIn(1L, -2L)
         val today = statusWithWateringDueIn(2L, 0L)

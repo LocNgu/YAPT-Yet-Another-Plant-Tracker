@@ -23,6 +23,7 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -99,7 +100,13 @@ class PlantListViewModel(
         for (plant in filtered) {
             statusList.add(buildStatus(plant))
         }
-        applySortOrder(statusList, sort)
+        val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
+            val (start, end) = DateUtils.todayRangeMillis()
+            careLogRepository.getLastCareAtBetween(start, end)
+        } else {
+            emptyMap()
+        }
+        applySortOrder(statusList, sort, caredTodayAt)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val plantListItems: StateFlow<List<PlantListItem>> = combine(
@@ -237,6 +244,7 @@ class PlantListViewModel(
                 SortOption.ALPHABETICAL -> SortDirection.ASC
                 SortOption.WATERING_DUE, SortOption.FERTILIZING_DUE -> SortDirection.DESC
                 SortOption.RECENTLY_ADDED, SortOption.BOTH_DUE -> SortDirection.DESC
+                SortOption.CARED_FOR_TODAY -> SortDirection.DESC
             }
             SortOrder(option = option, direction = defaultDirection)
         }
@@ -249,7 +257,11 @@ class PlantListViewModel(
         }
     }
 
-    private fun applySortOrder(list: List<PlantCareStatus>, sort: SortOrder): List<PlantCareStatus> {
+    private fun applySortOrder(
+        list: List<PlantCareStatus>,
+        sort: SortOrder,
+        caredTodayAt: Map<Long, Long> = emptyMap()
+    ): List<PlantCareStatus> {
         val tiebreak = compareByDescending<PlantCareStatus> { it.plant.id }
         return when (sort.option) {
             SortOption.ALPHABETICAL -> {
@@ -307,6 +319,16 @@ class PlantListViewModel(
                         (s.isOverdue || s.isDueSoon) && (s.isFertilizingOverdue || s.isFertilizingDueSoon)
                     }
                     .sortedWith(nullsLast.then(tiebreak))
+            }
+            SortOption.CARED_FOR_TODAY -> {
+                // Keep only plants with ≥ 1 care log today; order by most-recent care-log
+                // timestamp. DESC = most-recently-cared first, ASC = earliest-in-the-day first.
+                val comparator = if (sort.direction == SortDirection.ASC) {
+                    compareBy<PlantCareStatus> { caredTodayAt[it.plant.id] ?: 0L }.then(tiebreak)
+                } else {
+                    compareByDescending<PlantCareStatus> { caredTodayAt[it.plant.id] ?: 0L }.then(tiebreak)
+                }
+                list.filter { caredTodayAt.containsKey(it.plant.id) }.sortedWith(comparator)
             }
         }
     }

@@ -84,6 +84,8 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        // Default: no plant cared for today unless a test explicitly stubs otherwise.
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns emptyMap()
         coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         // Default: no photo reminder unless a test explicitly stubs otherwise.
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(any()) } returns null
@@ -491,6 +493,33 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `toggleSort CARED_FOR_TODAY first tap sets DESC direction`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+    }
+
+    @Test
+    fun `toggleSort CARED_FOR_TODAY second tap sets ASC direction`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.ASC, vm.sortOrder.value.direction)
+    }
+
+    @Test
     fun `toggleSort switching from ALPHABETICAL to WATERING_DUE resets to DESC`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
@@ -627,6 +656,65 @@ class PlantListViewModelTest {
         vm.plantsWithStatus.test {
             val items = awaitItem()
             assertEquals(listOf(3L, 2L, 1L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY DESC keeps only plants cared today, most recent first`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", createdAt = 0L, updatedAt = 0L)
+        val p3 = Plant(id = 3L, name = "P3", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2, p3))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        // p1 cared at 300 (most recent), p2 at 100; p3 not cared today -> excluded.
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(1L, 2L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY ASC orders earliest cared first`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(2L, 1L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY emits empty when nothing cared today`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns emptyMap()
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(0, items.size)
             cancelAndIgnoreRemainingEvents()
         }
     }
