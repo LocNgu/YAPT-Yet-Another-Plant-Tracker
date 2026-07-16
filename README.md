@@ -19,6 +19,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Liquid fertilizer mode** — Mark a plant as using liquid fertilizer; fertilize logs automatically create a paired watering log at the same time
 - **Skip watering** — Push the next due date forward 1–7 days from the plant detail screen; optionally make the change permanent via an interval adjustment dialog
 - **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
+- **Cared for today** — A sort-dropdown entry that filters the list to just the plants you've logged any care for today, ordered by most-recent care first (toggle for earliest-first)
 - **Date-group dividers** — When sorted by Watering due, Fertilizing due, or Both due, the plant list groups cards under Overdue / Today / Tomorrow / dated / Later / Not scheduled headers
 - **Keep screen on** — Optional toggle in Settings keeps the display awake while you tend your plants
 - **Watering history chart** — Line chart on the plant detail screen with a water-drop icon for each individual watering, connected at day-level precision; selectable time ranges (1M / 3M / 6M / 12M / All); care event markers show which care types were logged, and tapping a marker reveals the care type and date(s)
