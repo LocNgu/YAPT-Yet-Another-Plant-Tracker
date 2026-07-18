@@ -14,6 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Plant list sort dropdown: new "Cared for today" entry (below the existing sort options) that filters the list to only plants with at least one care log recorded today (`loggedAt.toLocalDate() == today`, any care type — Water, Fertilize, Prune, Mist, Repot, Note, or Photo). Rows are ordered by most-recent care-log timestamp; the ASC/DESC toggle acts on that recency (DESC = most-recently-cared first, ASC = earliest-in-the-day first). The selection persists in DataStore alongside the other sort options, room filter chips still apply on top, no date-group headers are shown, and an empty state ("No plants cared for yet today") appears when nothing has been cared for today. No new database column or migration — computed from existing `care_logs` (#415)
+- Plant list: tap and hold a plant to enter multi-select mode. A checkbox indicator appears on every plant card and the top bar switches to a contextual bar showing the selected count, a clear button, and a select-all action. A floating "Actions" button opens a bottom modal offering bulk care actions (Water, Fertilize, Prune, Mist, Repot) plus "Move to Graveyard", each applied to every selected plant. Bulk care logs directly with sensible defaults (watering uses "Just right" feedback) and skips the per-plant interval-suggestion and photo-reminder dialogs; bulk "Move to Graveyard" asks for confirmation and shows an undo snackbar.
 
 ---
 

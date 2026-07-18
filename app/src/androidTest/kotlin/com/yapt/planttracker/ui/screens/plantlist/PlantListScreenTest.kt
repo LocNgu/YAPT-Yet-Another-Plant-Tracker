@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -131,6 +133,31 @@ class PlantListScreenTest {
         }
 
         composeTestRule.onNode(hasText("Not scheduled", substring = true)).assertDoesNotExist()
+    }
+
+    @Test
+    fun longPressPlant_entersSelectionMode_andOpensBulkActionSheet() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+
+        // Contextual selection bar appears with the count and the FAB switches to "Actions".
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Actions").performClick()
+
+        // The bulk-action modal offers care actions plus the destructive graveyard action.
+        composeTestRule.onNodeWithText("Move to Graveyard").assertIsDisplayed()
     }
 
     @Test

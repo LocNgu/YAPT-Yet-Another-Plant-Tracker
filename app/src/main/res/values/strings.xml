@@ -248,4 +248,39 @@
     <string name="calendar_badge_state_overdue">overdue</string>
     <string name="calendar_chip_water">Water</string>
     <string name="calendar_chip_fertilize">Fertilize</string>
+
+    <!-- Multi-select (tap and hold) bulk care actions -->
+    <plurals name="bulk_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="cd_bulk_select_plant">Select plant</string>
+    <string name="cd_bulk_clear_selection">Clear selection</string>
+    <string name="cd_bulk_select_all">Select all</string>
+    <string name="bulk_actions_fab">Actions</string>
+    <plurals name="bulk_action_sheet_title">
+        <item quantity="one">Apply to %d plant</item>
+        <item quantity="other">Apply to %d plants</item>
+    </plurals>
+    <string name="bulk_action_water">Water</string>
+    <string name="bulk_action_fertilize">Fertilize</string>
+    <string name="bulk_action_prune">Prune</string>
+    <string name="bulk_action_mist">Mist</string>
+    <string name="bulk_action_repot">Repot</string>
+    <string name="bulk_action_move_to_graveyard">Move to Graveyard</string>
+    <plurals name="bulk_snackbar_logged">
+        <item quantity="one">%1$s · 1 plant</item>
+        <item quantity="other">%1$s · %2$d plants</item>
+    </plurals>
+    <plurals name="bulk_moved_to_graveyard">
+        <item quantity="one">1 plant moved to Graveyard</item>
+        <item quantity="other">%d plants moved to Graveyard</item>
+    </plurals>
+    <string name="bulk_delete_confirm_title">Move to Graveyard?</string>
+    <plurals name="bulk_delete_confirm_text">
+        <item quantity="one">Move 1 plant to the Graveyard? You can restore it later.</item>
+        <item quantity="other">Move %d plants to the Graveyard? You can restore them later.</item>
+    </plurals>
+    <string name="bulk_delete_confirm_button">Move</string>
+    <string name="bulk_delete_cancel_button">Cancel</string>
 </resources>

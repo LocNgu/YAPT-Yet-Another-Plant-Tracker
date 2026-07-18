@@ -1,6 +1,8 @@
 package com.yapt.planttracker.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalFlorist
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,22 +43,35 @@ import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
 import com.yapt.planttracker.util.DateUtils
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlantCard(
     status: PlantCareStatus,
     onClick: () -> Unit,
     onQuickWater: () -> Unit,
     onQuickFertilize: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onLongClick: () -> Unit = {},
+    onToggleSelect: () -> Unit = {}
 ) {
     Card(
-        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .combinedClickable(
+                onClick = { if (selectionMode) onToggleSelect() else onClick() },
+                onLongClick = onLongClick,
+                onLongClickLabel = stringResource(R.string.cd_bulk_select_plant)
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Row(
@@ -87,6 +104,18 @@ fun PlantCard(
                             modifier = Modifier.size(32.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                    }
+                }
+
+                if (selectionMode) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                    ) {
+                        Checkbox(checked = selected, onCheckedChange = null)
                     }
                 }
             }
@@ -176,12 +205,14 @@ fun PlantCard(
                 }
             }
 
-            QuickLogButtons(
-                status = status,
-                onQuickWater = onQuickWater,
-                onQuickFertilize = onQuickFertilize,
-                modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
-            )
+            if (!selectionMode) {
+                QuickLogButtons(
+                    status = status,
+                    onQuickWater = onQuickWater,
+                    onQuickFertilize = onQuickFertilize,
+                    modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
+                )
+            }
         }
     }
 }

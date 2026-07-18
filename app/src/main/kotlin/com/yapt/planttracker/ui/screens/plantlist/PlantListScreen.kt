@@ -11,11 +11,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -45,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +60,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
+import com.yapt.planttracker.ui.components.BulkActionSheet
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
@@ -87,6 +94,11 @@ fun PlantListScreen(
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
+    val selectedPlantIds by viewModel.selectedPlantIds.collectAsStateWithLifecycle()
+    val selectionMode = selectedPlantIds.isNotEmpty()
+    var showBulkActionSheet by remember { mutableStateOf(false) }
+    var showBulkArchiveConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         reminderPlantId?.let { viewModel.saveReminderPhoto(it, uri) }
@@ -127,9 +139,60 @@ fun PlantListScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.bulkArchivedEvent.collect { event ->
+            val message = context.resources.getQuantityString(
+                R.plurals.bulk_moved_to_graveyard,
+                event.plantIds.size,
+                event.plantIds.size
+            )
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoBulkArchive(event.plantIds)
+            }
+        }
+    }
+
+    // While selecting, the system back button exits selection mode instead of leaving the screen.
+    BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            if (selectionMode) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.bulk_selected_count,
+                                selectedPlantIds.size,
+                                selectedPlantIds.size
+                            )
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(),
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_bulk_clear_selection)
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.selectAll() }) {
+                            Icon(
+                                Icons.Filled.DoneAll,
+                                contentDescription = stringResource(R.string.cd_bulk_select_all)
+                            )
+                        }
+                    }
+                )
+            } else {
             TopAppBar(
                 title = { Text(stringResource(R.string.my_plants)) },
                 colors = TopAppBarDefaults.topAppBarColors(),
@@ -183,13 +246,22 @@ fun PlantListScreen(
                     }
                 }
             )
+            }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToAdd,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.add_plant)) }
-            )
+            if (selectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = { showBulkActionSheet = true },
+                    icon = { Icon(Icons.Filled.PlaylistAddCheck, contentDescription = null) },
+                    text = { Text(stringResource(R.string.bulk_actions_fab)) }
+                )
+            } else {
+                ExtendedFloatingActionButton(
+                    onClick = onNavigateToAdd,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.add_plant)) }
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -254,7 +326,11 @@ fun PlantListScreen(
                                 val status = listItem.status
                                 PlantCard(
                                     status = status,
+                                    selectionMode = selectionMode,
+                                    selected = status.plant.id in selectedPlantIds,
                                     onClick = { onNavigateToPlant(status.plant.id) },
+                                    onLongClick = { viewModel.toggleSelection(status.plant.id) },
+                                    onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
                                     onQuickWater = { waterFeedbackPlant = status },
                                     onQuickFertilize = {
                                         if (status.plant.useLiquidFertilizer) {
@@ -337,6 +413,47 @@ fun PlantListScreen(
             dismissButton = {
                 TextButton(onClick = { pendingIntervalSuggestion = null }) {
                     Text(stringResource(R.string.dismiss))
+                }
+            }
+        )
+    }
+
+    if (showBulkActionSheet) {
+        BulkActionSheet(
+            selectedCount = selectedPlantIds.size,
+            onCareAction = { careType ->
+                showBulkActionSheet = false
+                viewModel.bulkLog(careType)
+            },
+            onMoveToGraveyard = {
+                showBulkActionSheet = false
+                showBulkArchiveConfirm = true
+            },
+            onDismiss = { showBulkActionSheet = false }
+        )
+    }
+
+    if (showBulkArchiveConfirm) {
+        val count = selectedPlantIds.size
+        AlertDialog(
+            onDismissRequest = { showBulkArchiveConfirm = false },
+            title = { Text(stringResource(R.string.bulk_delete_confirm_title)) },
+            text = {
+                Text(pluralStringResource(R.plurals.bulk_delete_confirm_text, count, count))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBulkArchiveConfirm = false
+                        viewModel.bulkArchive()
+                    }
+                ) {
+                    Text(stringResource(R.string.bulk_delete_confirm_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkArchiveConfirm = false }) {
+                    Text(stringResource(R.string.bulk_delete_cancel_button))
                 }
             }
         )
