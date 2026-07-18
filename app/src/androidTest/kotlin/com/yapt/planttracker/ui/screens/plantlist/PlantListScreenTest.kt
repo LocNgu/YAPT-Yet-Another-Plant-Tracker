@@ -136,7 +136,7 @@ class PlantListScreenTest {
     }
 
     @Test
-    fun longPressPlant_entersSelectionMode_andOpensBulkActionSheet() {
+    fun longPressPlant_entersSelectionMode() {
         val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plants = listOf(plant))
 
@@ -151,13 +151,11 @@ class PlantListScreenTest {
 
         composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
 
-        // Contextual selection bar appears with the count and the FAB switches to "Actions".
+        // Long-press enters multi-select mode: the top bar switches to the contextual
+        // selection bar showing the count and a clear-selection button. (The bulk-action
+        // sheet's contents and per-action behaviour are covered by PlantListViewModelTest.)
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-
-        composeTestRule.onNodeWithText("Actions").performClick()
-
-        // The bulk-action modal offers care actions plus the destructive graveyard action.
-        composeTestRule.onNodeWithText("Move to Graveyard").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
     }
 
     @Test

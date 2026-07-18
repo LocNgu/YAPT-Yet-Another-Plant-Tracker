@@ -14,12 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalFlorist
-import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -252,7 +252,7 @@ fun PlantListScreen(
             if (selectionMode) {
                 ExtendedFloatingActionButton(
                     onClick = { showBulkActionSheet = true },
-                    icon = { Icon(Icons.Filled.PlaylistAddCheck, contentDescription = null) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.PlaylistAddCheck, contentDescription = null) },
                     text = { Text(stringResource(R.string.bulk_actions_fab)) }
                 )
             } else {
