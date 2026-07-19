@@ -15,6 +15,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - Plant list sort dropdown: new "Cared for today" entry (below the existing sort options) that filters the list to only plants with at least one care log recorded today (`loggedAt.toLocalDate() == today`, any care type — Water, Fertilize, Prune, Mist, Repot, Note, or Photo). Rows are ordered by most-recent care-log timestamp; the ASC/DESC toggle acts on that recency (DESC = most-recently-cared first, ASC = earliest-in-the-day first). The selection persists in DataStore alongside the other sort options, room filter chips still apply on top, no date-group headers are shown, and an empty state ("No plants cared for yet today") appears when nothing has been cared for today. No new database column or migration — computed from existing `care_logs` (#415)
 
+### Fixed
+- `CareSchedule.computeSuggestedInterval()` no longer suggests a 0-day watering interval when two waterings land on the same calendar day (`JUST_RIGHT` branch). The result is now clamped to a minimum of 1 day for all feedback branches (#446)
+
 ---
 
 ## [0.17.0] - 2026-07-15
