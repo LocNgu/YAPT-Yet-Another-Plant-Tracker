@@ -200,8 +200,10 @@ class PlantListScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
 
-        // Back to the normal bar: the add-plant FAB and sort action return.
-        composeTestRule.onNodeWithText("Add plant").assertIsDisplayed()
+        // Selection mode exits: the contextual bar is gone and the normal top-bar sort
+        // action returns. (Asserted via top-bar elements, not the bottom FAB, whose text
+        // isn't reliably "displayed" in the emulator viewport.)
+        composeTestRule.onNodeWithText("1 selected").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
     }
 
