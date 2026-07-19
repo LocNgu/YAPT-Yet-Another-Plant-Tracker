@@ -159,6 +159,53 @@ class PlantListScreenTest {
     }
 
     @Test
+    fun selectionMode_selectAll_selectsEveryPlant() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        // "Select all" is the DoneAll action in the contextual bar; a plain icon-button click.
+        composeTestRule.onNodeWithContentDescription("Select all").performClick()
+        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectionMode_clearSelection_returnsToNormalBar() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
+
+        // Back to the normal bar: the add-plant FAB and sort action return.
+        composeTestRule.onNodeWithText("Add plant").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
+    }
+
+    @Test
     fun neverWateredPlantWithInterval_showsNeverWateredLabel() {
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plants = listOf(plant))

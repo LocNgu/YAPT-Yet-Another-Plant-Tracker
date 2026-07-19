@@ -34,6 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
@@ -56,6 +59,9 @@ fun PlantCard(
     onLongClick: () -> Unit = {},
     onToggleSelect: () -> Unit = {}
 ) {
+    // Local copy so the semantics lambda below can reference it without colliding with the
+    // write-only `selected` SemanticsPropertyReceiver property of the same name.
+    val isSelected = selected
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -63,7 +69,17 @@ fun PlantCard(
             .combinedClickable(
                 onClick = { if (selectionMode) onToggleSelect() else onClick() },
                 onLongClick = onLongClick,
-                onLongClickLabel = stringResource(R.string.cd_bulk_select_plant)
+                onLongClickLabel = stringResource(R.string.cd_bulk_select_plant),
+                role = Role.Button
+            )
+            // In selection mode, expose the checked state so TalkBack announces
+            // "selected" / "not selected" as the user moves between cards.
+            .then(
+                if (selectionMode) {
+                    Modifier.semantics { selected = isSelected }
+                } else {
+                    Modifier
+                }
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(

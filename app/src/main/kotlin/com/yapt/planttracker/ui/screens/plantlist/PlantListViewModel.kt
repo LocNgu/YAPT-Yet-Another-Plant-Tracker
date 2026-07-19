@@ -200,14 +200,14 @@ class PlantListViewModel(
         val ids = _selectedPlantIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            ids.forEach { plantRepository.archivePlant(it) }
+            for (id in ids) { plantRepository.archivePlant(id) }
             clearSelection()
             _bulkArchivedEvent.emit(BulkArchivedEvent(ids))
         }
     }
 
     fun undoBulkArchive(plantIds: List<Long>) {
-        viewModelScope.launch { plantIds.forEach { plantRepository.restorePlant(it) } }
+        viewModelScope.launch { for (id in plantIds) { plantRepository.restorePlant(id) } }
     }
 
     fun quickLog(plantId: Long, careType: CareType) {
