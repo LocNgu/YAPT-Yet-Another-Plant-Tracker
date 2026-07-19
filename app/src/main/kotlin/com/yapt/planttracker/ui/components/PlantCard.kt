@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -220,14 +221,18 @@ fun PlantCard(
                 }
             }
 
-            if (!selectionMode) {
-                QuickLogButtons(
-                    status = status,
-                    onQuickWater = onQuickWater,
-                    onQuickFertilize = onQuickFertilize,
-                    modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
-                )
-            }
+            // Always compose the quick-log buttons so the card keeps the same height in
+            // selection mode; while selecting they're hidden (alpha 0) and disabled, so taps
+            // over that area fall through to the card's selection toggle instead of quick-logging.
+            QuickLogButtons(
+                status = status,
+                onQuickWater = onQuickWater,
+                onQuickFertilize = onQuickFertilize,
+                enabled = !selectionMode,
+                modifier = Modifier
+                    .padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
+                    .then(if (selectionMode) Modifier.alpha(0f) else Modifier)
+            )
         }
     }
 }

@@ -1,26 +1,29 @@
 package com.yapt.planttracker.ui.components
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
@@ -31,7 +34,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.icon
 
 /**
- * The care types offered as one-tap bulk actions in [BulkActionSheet]. NOTE and PHOTO are excluded
+ * The care types offered as one-tap bulk actions in [BulkActionBar]. NOTE and PHOTO are excluded
  * because they require per-plant input (free text / an image) that a fire-and-forget bulk action
  * can't supply.
  */
@@ -55,31 +58,45 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
 }
 
 /**
- * Modal bottom sheet shown while the plant list is in multi-select mode. Offers a one-tap bulk
- * care action (Water, Fertilize, Prune, Mist, Repot) plus a destructive "Move to Graveyard" action,
- * each applied to every currently selected plant.
+ * Persistent bottom action sheet shown while the plant list is in multi-select mode. It slides up
+ * the moment the first plant is marked (see `PlantListScreen`) and stays up — non-modal, so the list
+ * above remains scrollable and tappable and the user can keep adding/removing plants before acting.
  *
- * The care actions log directly with sensible defaults (watering uses `JUST_RIGHT` feedback) and do
- * not raise the per-plant interval-suggestion or photo-reminder dialogs — those would stack up once
- * per plant and overwhelm a bulk operation.
+ * Offers a one-tap bulk care action (Water, Fertilize, Prune, Mist, Repot) plus a destructive
+ * "Move to Graveyard" action, each applied to every currently selected plant. The care actions log
+ * directly with sensible defaults (watering uses `JUST_RIGHT` feedback) and do not raise the
+ * per-plant interval-suggestion or photo-reminder dialogs — those would stack up once per plant and
+ * overwhelm a bulk operation.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BulkActionSheet(
+fun BulkActionBar(
     selectedCount: Int,
     onCareAction: (CareType) -> Unit,
     onMoveToGraveyard: () -> Unit,
-    onDismiss: () -> Unit
+    modifier: Modifier = Modifier
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState()
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        shadowElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 8.dp)
         ) {
+            // Drag-handle-style pill, echoing the pull-up sheet look.
+            Spacer(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 4.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .size(width = 32.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
             Text(
                 text = pluralStringResource(
                     R.plurals.bulk_action_sheet_title,
@@ -98,7 +115,7 @@ fun BulkActionSheet(
                 )
             }
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(vertical = 4.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
             BulkActionRow(
@@ -123,7 +140,7 @@ private fun BulkActionRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))

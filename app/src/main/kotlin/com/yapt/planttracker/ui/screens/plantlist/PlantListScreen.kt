@@ -12,9 +12,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -60,7 +62,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.ui.components.BulkActionSheet
+import com.yapt.planttracker.ui.components.BulkActionBar
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
@@ -96,7 +98,6 @@ fun PlantListScreen(
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
     val selectedPlantIds by viewModel.selectedPlantIds.collectAsStateWithLifecycle()
     val selectionMode = selectedPlantIds.isNotEmpty()
-    var showBulkActionSheet by remember { mutableStateOf(false) }
     var showBulkArchiveConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -249,17 +250,27 @@ fun PlantListScreen(
             }
         },
         floatingActionButton = {
-            if (selectionMode) {
-                ExtendedFloatingActionButton(
-                    onClick = { showBulkActionSheet = true },
-                    icon = { Icon(Icons.AutoMirrored.Filled.PlaylistAddCheck, contentDescription = null) },
-                    text = { Text(stringResource(R.string.bulk_actions_fab)) }
-                )
-            } else {
+            // Hidden while selecting — the bulk action bar occupies the bottom instead.
+            if (!selectionMode) {
                 ExtendedFloatingActionButton(
                     onClick = onNavigateToAdd,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text(stringResource(R.string.add_plant)) }
+                )
+            }
+        },
+        bottomBar = {
+            // Slides up the moment the first plant is marked and stays up (non-modal) so the
+            // list above remains interactive for adding/removing more plants before acting.
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it }
+            ) {
+                BulkActionBar(
+                    selectedCount = selectedPlantIds.size,
+                    onCareAction = { careType -> viewModel.bulkLog(careType) },
+                    onMoveToGraveyard = { showBulkArchiveConfirm = true }
                 )
             }
         }
@@ -415,21 +426,6 @@ fun PlantListScreen(
                     Text(stringResource(R.string.dismiss))
                 }
             }
-        )
-    }
-
-    if (showBulkActionSheet) {
-        BulkActionSheet(
-            selectedCount = selectedPlantIds.size,
-            onCareAction = { careType ->
-                showBulkActionSheet = false
-                viewModel.bulkLog(careType)
-            },
-            onMoveToGraveyard = {
-                showBulkActionSheet = false
-                showBulkArchiveConfirm = true
-            },
-            onDismiss = { showBulkActionSheet = false }
         )
     }
 

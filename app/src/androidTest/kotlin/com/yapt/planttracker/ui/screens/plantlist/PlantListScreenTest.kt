@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -156,6 +157,27 @@ class PlantListScreenTest {
         // sheet's contents and per-action behaviour are covered by PlantListViewModelTest.)
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
+    }
+
+    @Test
+    fun longPressPlant_showsBulkActionBarImmediately() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+
+        // The bulk action bar slides up on marking — no intermediate button. `assertExists`
+        // checks tree membership (reliable) rather than pixel display of the bottom bar.
+        composeTestRule.onNodeWithText("Move to Graveyard").assertExists()
     }
 
     @Test

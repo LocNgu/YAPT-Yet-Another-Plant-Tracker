@@ -257,7 +257,6 @@
     <string name="cd_bulk_select_plant">Select plant</string>
     <string name="cd_bulk_clear_selection">Clear selection</string>
     <string name="cd_bulk_select_all">Select all</string>
-    <string name="bulk_actions_fab">Actions</string>
     <plurals name="bulk_action_sheet_title">
         <item quantity="one">Apply to %d plant</item>
         <item quantity="other">Apply to %d plants</item>
