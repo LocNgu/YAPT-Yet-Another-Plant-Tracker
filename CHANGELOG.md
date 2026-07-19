@@ -17,6 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - `CareSchedule.computeSuggestedInterval()` no longer suggests a 0-day watering interval when two waterings land on the same calendar day (`JUST_RIGHT` branch). The result is now clamped to a minimum of 1 day for all feedback branches (#446)
+- Watering history chart: displayed watering intervals are now floored at 1 day, so two waterings less than 24h apart no longer produce a sub-1 "Average interval" (e.g. "0.5 days") or a fractional chart point. The interval y-axis now shows whole-number, de-duplicated "Nd" labels instead of repeated truncated values like "0d" appearing twice (#446)
 
 ---
 
