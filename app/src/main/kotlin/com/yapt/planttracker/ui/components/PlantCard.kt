@@ -59,9 +59,6 @@ fun PlantCard(
     onLongClick: () -> Unit = {},
     onToggleSelect: () -> Unit = {}
 ) {
-    // Local copy so the semantics lambda below can reference it without colliding with the
-    // write-only `selected` SemanticsPropertyReceiver property of the same name.
-    val isSelected = selected
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -76,7 +73,9 @@ fun PlantCard(
             // "selected" / "not selected" as the user moves between cards.
             .then(
                 if (selectionMode) {
-                    Modifier.semantics { selected = isSelected }
+                    // `this.` targets the SemanticsPropertyReceiver.selected extension, not the
+                    // composable's `selected` parameter (which would otherwise shadow it).
+                    Modifier.semantics { this.selected = selected }
                 } else {
                     Modifier
                 }
