@@ -1,7 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
