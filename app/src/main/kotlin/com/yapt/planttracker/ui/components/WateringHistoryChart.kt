@@ -64,6 +64,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
@@ -410,7 +411,7 @@ private fun ChartContent(
 
     val dayFormatter = remember {
         CartesianValueFormatter { _, y, _ ->
-            "${y.toInt()}d"
+            "${y.roundToInt()}d"
         }
     }
 
@@ -431,6 +432,9 @@ private fun ChartContent(
         val yMax = remember(waterMarkers) {
             if (waterMarkers.isNotEmpty()) waterMarkers.maxOf { it.daysSincePrevious }.toDouble() else 1.0
         }
+        // Whole-number step derived from yMax so ticks land on distinct integer days and
+        // the axis never shows more than ~6 labels, regardless of the data's range.
+        val yStep = remember(yMax) { computeYAxisStep(yMax) }
         val rangeProvider = remember(totalMonths, yMax) {
             CartesianLayerRangeProvider.fixed(
                 minX = 0.0,
@@ -454,7 +458,13 @@ private fun ChartContent(
                     rangeProvider = rangeProvider,
                 ),
                 startAxis = VerticalAxis.rememberStart(
-                    valueFormatter = dayFormatter
+                    valueFormatter = dayFormatter,
+                    // Force a fixed whole-day step instead of Vico's default automatic
+                    // step (which can land on fractional values like 0.5, 1.5 and, after
+                    // truncation/rounding, produce duplicate "Nd" labels).
+                    itemPlacer = remember(yStep) {
+                        VerticalAxis.ItemPlacer.step(step = { yStep.toDouble() })
+                    },
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
                     valueFormatter = dateFormatter,
@@ -577,7 +587,11 @@ fun computeWateringIntervals(
     for (i in 1 until workingList.size) {
         val prev = workingList[i - 1]
         val curr = workingList[i]
-        val daysDiff = (curr.loggedAt - prev.loggedAt) / (24 * 60 * 60 * 1000).toFloat()
+        // Floor at 1 day: this is the displayed tracking interval, so a genuine sub-day
+        // watering (two waterings <24h apart) still plots as a meaningful 1-day point
+        // instead of a near-zero fraction that skews the chart and the average.
+        val daysDiff = ((curr.loggedAt - prev.loggedAt) / (24 * 60 * 60 * 1000).toFloat())
+            .coerceAtLeast(1f)
         intervals.add(WateringInterval(curr.loggedAt, daysDiff))
     }
     return intervals
@@ -586,6 +600,13 @@ fun computeWateringIntervals(
 fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
     if (intervals.isNotEmpty()) minOf(rangeStartMs, intervals.minOf { it.timestamp })
     else rangeStartMs
+
+/**
+ * Whole-number y-axis tick step for the watering interval chart, derived from the data's
+ * maximum value so the axis shows roughly 5-6 ticks regardless of range. Always at least 1,
+ * so ticks never collapse to a single repeated label.
+ */
+internal fun computeYAxisStep(yMax: Double): Int = maxOf(1, ceil(yMax / 5.0).toInt())
 
 fun computeCareEventMarkers(
     careLogs: List<CareLog>,

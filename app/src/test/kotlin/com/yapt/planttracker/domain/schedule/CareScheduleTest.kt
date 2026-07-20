@@ -369,6 +369,12 @@ class CareScheduleTest {
     }
 
     @Test
+    fun `JUST_RIGHT with same-day waterings clamps to 1`() {
+        // actualIntervalDays=0 when two waterings land on the same calendar day
+        assertEquals(1, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 0))
+    }
+
+    @Test
     fun `daysBetween exactly one day`() {
         val earlier = now
         val later = now + TimeUnit.DAYS.toMillis(1)
