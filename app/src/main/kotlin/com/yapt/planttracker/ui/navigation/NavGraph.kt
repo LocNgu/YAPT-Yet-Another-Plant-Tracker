@@ -99,7 +99,10 @@ fun YaptNavGraph(
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute == Screen.PlantList.route || currentRoute == Screen.Calendar.route
+    // Hidden while the plant list is in multi-select mode so the bulk action bar can use that space.
+    var plantListSelectionActive by remember { mutableStateOf(false) }
+    val showBottomBar = (currentRoute == Screen.PlantList.route || currentRoute == Screen.Calendar.route) &&
+        !plantListSelectionActive
 
     Scaffold(
         // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
@@ -186,7 +189,8 @@ fun YaptNavGraph(
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
-                }
+                },
+                onSelectionModeChanged = { plantListSelectionActive = it }
             )
         }
 

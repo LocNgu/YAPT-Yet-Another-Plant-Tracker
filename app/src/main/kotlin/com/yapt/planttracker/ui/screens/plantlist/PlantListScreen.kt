@@ -44,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,7 +79,8 @@ fun PlantListScreen(
     restoreMessage: String? = null,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onSelectionModeChanged: (Boolean) -> Unit = {}
 ) {
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
     val plantListItems by viewModel.plantListItems.collectAsStateWithLifecycle()
@@ -160,6 +162,12 @@ fun PlantListScreen(
 
     // While selecting, the system back button exits selection mode instead of leaving the screen.
     BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
+
+    // Report selection state up so the host can hide the Plants/Calendar bottom nav while selecting,
+    // giving the bulk action bar (and the list above it) more room. Reset on dispose so the nav
+    // never stays hidden if this screen leaves composition mid-selection.
+    LaunchedEffect(selectionMode) { onSelectionModeChanged(selectionMode) }
+    DisposableEffect(Unit) { onDispose { onSelectionModeChanged(false) } }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
