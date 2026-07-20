@@ -100,6 +100,12 @@ fun PlantListScreen(
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
     val selectedPlantIds by viewModel.selectedPlantIds.collectAsStateWithLifecycle()
     val selectionMode = selectedPlantIds.isNotEmpty()
+    // Count shown in the bulk bar; holds the last non-zero value so the bar doesn't flash
+    // "Apply to 0 plants" for a frame while it slides out after an action clears the selection.
+    var bulkBarCount by remember { mutableStateOf(0) }
+    LaunchedEffect(selectedPlantIds.size) {
+        if (selectedPlantIds.isNotEmpty()) bulkBarCount = selectedPlantIds.size
+    }
     var showBulkArchiveConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -276,7 +282,7 @@ fun PlantListScreen(
                 exit = slideOutVertically { it }
             ) {
                 BulkActionBar(
-                    selectedCount = selectedPlantIds.size,
+                    selectedCount = bulkBarCount,
                     onCareAction = { careType -> viewModel.bulkLog(careType) },
                     onMoveToGraveyard = { showBulkArchiveConfirm = true }
                 )

@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -231,7 +232,18 @@ fun PlantCard(
                 enabled = !selectionMode,
                 modifier = Modifier
                     .padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
-                    .then(if (selectionMode) Modifier.alpha(0f) else Modifier)
+                    // While selecting, hide them and drop them from the a11y tree so TalkBack
+                    // doesn't stop on two dimmed buttons per card — the card's own `selected`
+                    // Button semantics are the only thing that should be announced.
+                    .then(
+                        if (selectionMode) {
+                            Modifier
+                                .alpha(0f)
+                                .clearAndSetSemantics {}
+                        } else {
+                            Modifier
+                        }
+                    )
             )
         }
     }

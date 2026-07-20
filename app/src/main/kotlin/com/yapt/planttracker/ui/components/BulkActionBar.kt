@@ -111,7 +111,7 @@ fun BulkActionBar(
             ) {
                 Text(
                     text = pluralStringResource(
-                        R.plurals.bulk_action_sheet_title,
+                        R.plurals.bulk_action_bar_title,
                         selectedCount,
                         selectedCount
                     ),
