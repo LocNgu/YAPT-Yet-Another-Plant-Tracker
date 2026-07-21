@@ -4,6 +4,9 @@ import androidx.room.*
 import com.yapt.planttracker.data.entity.CareLogEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Projection of the most recent care-log timestamp for a plant within a queried window. */
+data class PlantLastCare(val plantId: Long, val lastCareAt: Long)
+
 @Dao
 interface CareLogDao {
 
@@ -27,6 +30,16 @@ interface CareLogDao {
 
     @Query("SELECT COUNT(*) FROM care_logs WHERE plantId = :plantId")
     suspend fun getCareLogCount(plantId: Long): Int
+
+    /**
+     * The most recent care-log timestamp per plant for logs in the half-open window
+     * `[startMillis, endMillis)`. One row per plant that has ≥ 1 log in the window.
+     */
+    @Query(
+        "SELECT plantId, MAX(loggedAt) AS lastCareAt FROM care_logs " +
+            "WHERE loggedAt >= :startMillis AND loggedAt < :endMillis GROUP BY plantId"
+    )
+    suspend fun getLastCareBetween(startMillis: Long, endMillis: Long): List<PlantLastCare>
 
     @Query("SELECT * FROM care_logs WHERE photoUri IS NOT NULL AND plantId = :plantId ORDER BY loggedAt DESC")
     fun getPhotoLogsForPlant(plantId: Long): Flow<List<CareLogEntity>>

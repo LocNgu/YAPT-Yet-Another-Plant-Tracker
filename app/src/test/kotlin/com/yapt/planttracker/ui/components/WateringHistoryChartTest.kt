@@ -218,7 +218,9 @@ class WateringHistoryChartTest {
     }
 
     @Test
-    fun computeWateringIntervals_sameDayDifferentTimes() {
+    fun computeWateringIntervals_sameDayDifferentTimes_flooredToMinimumOneDay() {
+        // Sub-day gaps are floored to a minimum of 1 displayed day, so two waterings an hour
+        // apart don't plot as a near-zero fractional interval on the chart.
         val hourInMs = 60 * 60 * 1000L
         val baseTime = 1712102400000L
         val logs = listOf(
@@ -230,9 +232,26 @@ class WateringHistoryChartTest {
         assertEquals(2, result.size)
         assertEquals(baseTime + hourInMs, result[0].timestamp)
         assertEquals(baseTime + (hourInMs * 2), result[1].timestamp)
-        val expectedInterval = (1.0f / 24.0f)
-        assertEquals(expectedInterval, result[0].daysSincePrevious, 0.01f)
-        assertEquals(expectedInterval, result[1].daysSincePrevious, 0.01f)
+        assertEquals(1f, result[0].daysSincePrevious, 0.01f)
+        assertEquals(1f, result[1].daysSincePrevious, 0.01f)
+    }
+
+    @Test
+    fun computeWateringIntervals_averageOfMixedGaps_isAtLeastOneDay() {
+        // A mix of a sub-day gap and a multi-day gap must never pull the average interval
+        // (shown in the chart legend) below 1 day.
+        val hourInMs = 60 * 60 * 1000L
+        val dayInMs = 24 * hourInMs
+        val baseTime = 1712102400000L
+        val logs = listOf(
+            CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = baseTime),
+            CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + hourInMs),
+            CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = baseTime + hourInMs + dayInMs * 3)
+        )
+        val result = computeWateringIntervals(logs, 0L, baseTime + hourInMs + dayInMs * 3 + 1)
+        assertEquals(2, result.size)
+        val average = result.map { it.daysSincePrevious }.average()
+        assertTrue("Average interval should never drop below 1 day even with a sub-day gap", average >= 1.0)
     }
 
     @Test
@@ -601,5 +620,34 @@ class CatmullRomSegmentsTest {
             assertTrue("c1y ${s.c1y} outside [$lo, $hi]", s.c1y in lo..hi)
             assertTrue("c2y ${s.c2y} outside [$lo, $hi]", s.c2y in lo..hi)
         }
+    }
+}
+
+class ComputeYAxisStepTest {
+
+    @Test
+    fun smallRange_stepIsOne() {
+        assertEquals(1, computeYAxisStep(1.0))
+        assertEquals(1, computeYAxisStep(5.0))
+    }
+
+    @Test
+    fun largerRange_stepScalesUp() {
+        assertEquals(2, computeYAxisStep(6.0))
+        assertEquals(6, computeYAxisStep(30.0))
+    }
+
+    @Test
+    fun stepNeverProducesMoreThanSixTicks() {
+        listOf(1.0, 7.0, 13.0, 45.0, 200.0).forEach { yMax ->
+            val step = computeYAxisStep(yMax)
+            val tickCount = (yMax / step).let { kotlin.math.ceil(it).toInt() } + 1
+            assertTrue("yMax=$yMax step=$step produced $tickCount ticks", tickCount <= 6)
+        }
+    }
+
+    @Test
+    fun stepIsNeverBelowOne() {
+        assertEquals(1, computeYAxisStep(0.0))
     }
 }

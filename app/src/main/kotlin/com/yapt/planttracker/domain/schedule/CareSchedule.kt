@@ -93,7 +93,7 @@ object CareSchedule {
                     currentIntervalDays else actualIntervalDays
                 base + 1
             }
-        }
+        }.coerceAtLeast(1)
     }
 
     fun daysBetween(earlierMs: Long, laterMs: Long): Int =

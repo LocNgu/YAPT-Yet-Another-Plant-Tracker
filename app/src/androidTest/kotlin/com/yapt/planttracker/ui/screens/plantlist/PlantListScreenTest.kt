@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -131,6 +133,99 @@ class PlantListScreenTest {
         }
 
         composeTestRule.onNode(hasText("Not scheduled", substring = true)).assertDoesNotExist()
+    }
+
+    @Test
+    fun longPressPlant_entersSelectionMode() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+
+        // Long-press enters multi-select mode: the top bar switches to the contextual
+        // selection bar showing the count and a clear-selection button. (The bulk-action
+        // sheet's contents and per-action behaviour are covered by PlantListViewModelTest.)
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
+    }
+
+    @Test
+    fun longPressPlant_showsBulkActionBarImmediately() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+
+        // The bulk action bar slides up on marking — no intermediate button. `assertExists`
+        // checks tree membership (reliable) rather than pixel display of the bottom bar.
+        composeTestRule.onNodeWithText("Move to Graveyard").assertExists()
+    }
+
+    @Test
+    fun selectionMode_selectAll_selectsEveryPlant() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        // "Select all" is the DoneAll action in the contextual bar; a plain icon-button click.
+        composeTestRule.onNodeWithContentDescription("Select all").performClick()
+        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectionMode_clearSelection_returnsToNormalBar() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
+
+        // Selection mode exits: the contextual bar is gone and the normal top-bar sort
+        // action returns. (Asserted via top-bar elements, not the bottom FAB, whose text
+        // isn't reliably "displayed" in the emulator viewport.)
+        composeTestRule.onNodeWithText("1 selected").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
     }
 
     @Test

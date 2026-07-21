@@ -56,6 +56,13 @@ class PlantListViewModelTest {
         every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
         every { getString(R.string.quick_log_other, any(), any()) } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
+        every { getString(R.string.care_type_watered) } returns "Watered"
+        every { getString(R.string.care_type_fertilized) } returns "Fertilized"
+        // Bulk-action snackbars go through Resources.getQuantityString; stub it loosely since the
+        // exact wording isn't what these tests assert (they verify the use-case calls + selection).
+        every { resources } returns mockk {
+            every { getQuantityString(any(), any(), *anyVararg()) } returns "bulk snackbar"
+        }
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
@@ -84,6 +91,8 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        // Default: no plant cared for today unless a test explicitly stubs otherwise.
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns emptyMap()
         coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         // Default: no photo reminder unless a test explicitly stubs otherwise.
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(any()) } returns null
@@ -491,6 +500,33 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `toggleSort CARED_FOR_TODAY first tap sets DESC direction`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+    }
+
+    @Test
+    fun `toggleSort CARED_FOR_TODAY second tap sets ASC direction`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.ASC, vm.sortOrder.value.direction)
+    }
+
+    @Test
     fun `toggleSort switching from ALPHABETICAL to WATERING_DUE resets to DESC`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
@@ -627,6 +663,65 @@ class PlantListViewModelTest {
         vm.plantsWithStatus.test {
             val items = awaitItem()
             assertEquals(listOf(3L, 2L, 1L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY DESC keeps only plants cared today, most recent first`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", createdAt = 0L, updatedAt = 0L)
+        val p3 = Plant(id = 3L, name = "P3", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2, p3))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        // p1 cared at 300 (most recent), p2 at 100; p3 not cared today -> excluded.
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(1L, 2L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY ASC orders earliest cared first`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(2L, 1L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder CARED_FOR_TODAY emits empty when nothing cared today`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns emptyMap()
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(0, items.size)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -775,6 +870,138 @@ class PlantListViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.restorePlant(42L) }
+    }
+
+    // Multi-select (tap and hold) bulk care actions
+
+    @Test
+    fun `toggleSelection adds then removes a plant id`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+        vm.toggleSelection(5L)
+        assertEquals(setOf(5L), vm.selectedPlantIds.value)
+        vm.toggleSelection(5L)
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `selectAll selects every visible plant and clearSelection empties`() = runTest {
+        val a = plant(id = 1L, name = "A")
+        val b = plant(id = 2L, name = "B")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.selectAll()
+            assertEquals(setOf(1L, 2L), vm.selectedPlantIds.value)
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.clearSelection()
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `bulkLog water routes each selected plant through quickWaterWithFeedback and clears selection`() = runTest {
+        val a = plant(id = 1L, name = "A")
+        val b = plant(id = 2L, name = "B")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { quickLogUseCase.quickWaterWithFeedback(any(), WateringFeedback.JUST_RIGHT) } returns null
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.toggleSelection(1L)
+            vm.toggleSelection(2L)
+            vm.bulkLog(CareType.WATER)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.quickWaterWithFeedback(a, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickWaterWithFeedback(b, WateringFeedback.JUST_RIGHT) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `bulkLog fertilize routes each selected plant through quickLog`() = runTest {
+        val a = plant(id = 1L, name = "A")
+        val b = plant(id = 2L, name = "B")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { quickLogUseCase.quickLog(any(), CareType.FERTILIZE) } returns "Fertilized"
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.toggleSelection(1L)
+            vm.toggleSelection(2L)
+            vm.bulkLog(CareType.FERTILIZE)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.quickLog(a, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.quickLog(b, CareType.FERTILIZE) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `bulkLog with no selection is a no-op`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.bulkLog(CareType.WATER)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { quickLogUseCase.quickWaterWithFeedback(any(), any()) }
+    }
+
+    @Test
+    fun `bulkArchive archives all selected plants, clears selection, and emits event`() = runTest {
+        val a = plant(id = 1L, name = "A")
+        val b = plant(id = 2L, name = "B")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantRepo.archivePlant(any(), any()) } just runs
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.bulkArchivedEvent.test {
+            vm.plantsWithStatus.test {
+                awaitItem()
+                vm.toggleSelection(1L)
+                vm.toggleSelection(2L)
+                vm.bulkArchive()
+                cancelAndIgnoreRemainingEvents()
+            }
+            val event = awaitItem()
+            assertEquals(listOf(1L, 2L), event.plantIds.sorted())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.archivePlant(1L, any()) }
+        coVerify { plantRepo.archivePlant(2L, any()) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `undoBulkArchive restores every given plant id`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantRepo.restorePlant(any()) } just runs
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.undoBulkArchive(listOf(3L, 4L))
+        advanceUntilIdle()
+
+        coVerify { plantRepo.restorePlant(3L) }
+        coVerify { plantRepo.restorePlant(4L) }
     }
 
     // plantListItems date-group divider tests

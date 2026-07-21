@@ -49,6 +49,18 @@ object DateUtils {
     fun formatHourMinute(hour: Int, minute: Int): String =
         String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
 
+    /**
+     * The half-open epoch-millis range `[startOfToday, startOfTomorrow)` for the calendar day
+     * containing [now], in the system default zone. Used to select care logs whose
+     * `loggedAt.toLocalDate() == today` without repeating date math inline (technical ADR-0013).
+     */
+    fun todayRangeMillis(now: Long = System.currentTimeMillis()): Pair<Long, Long> {
+        val today = now.toLocalDate()
+        val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startOfTomorrow = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        return startOfToday to startOfTomorrow
+    }
+
     fun formatWeekdayDate(epochDay: Long): String {
         val timestampMs = LocalDate.ofEpochDay(epochDay).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         return SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(timestampMs))
