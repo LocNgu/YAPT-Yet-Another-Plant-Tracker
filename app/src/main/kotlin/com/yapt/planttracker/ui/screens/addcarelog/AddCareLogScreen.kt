@@ -5,9 +5,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,8 +27,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,7 +78,7 @@ import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddCareLogScreen(
     viewModel: AddCareLogViewModel,
@@ -115,18 +122,6 @@ fun AddCareLogScreen(
                 is AddCareLogViewModel.Event.NavigateBack ->
                     onNavigateBack(null)
             }
-        }
-    }
-
-    // Auto-open the source sheet the moment PHOTO is chosen so the user goes
-    // straight to the camera/gallery choice with no extra AddAPhoto tap (#443).
-    // Keyed on selectedCareType, so it fires only on the transition into PHOTO —
-    // not on every recomposition, and not again if the user dismisses the sheet
-    // while staying on PHOTO (they re-open via the AddAPhoto button). In edit mode
-    // a PHOTO log that already has a photo does not auto-open (photoUri != null).
-    LaunchedEffect(viewModel.selectedCareType) {
-        if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
-            showPhotoSourceSheet = true
         }
     }
 
@@ -343,23 +338,63 @@ fun AddCareLogScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (viewModel.photoUri != null) {
-                        PlantPhoto(
-                            uri = viewModel.photoUri,
-                            size = 72.dp,
-                            rounded = false
-                        )
-                    }
-                    IconButton(onClick = { showPhotoSourceSheet = true }) {
-                        Icon(
-                            Icons.Filled.AddAPhoto,
-                            contentDescription = stringResource(R.string.cd_add_photo),
-                            modifier = Modifier.size(32.dp)
-                        )
+                if (viewModel.photoUri != null) {
+                    PlantPhoto(
+                        uri = viewModel.photoUri,
+                        size = 72.dp,
+                        rounded = false
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                // When PHOTO is the selected care type, reveal the two source
+                // actions inline (Take photo / Choose from gallery) so the user
+                // goes straight to the camera or picker with no intermediate sheet.
+                // Other care types keep the compact icon that opens the source
+                // sheet, since a photo is only an optional attachment there (#443).
+                AnimatedContent(
+                    targetState = viewModel.selectedCareType == CareType.PHOTO,
+                    label = "photoSourceActions"
+                ) { isPhotoCareType ->
+                    if (isPhotoCareType) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AssistChip(
+                                onClick = { cameraState.launch() },
+                                label = { Text(stringResource(R.string.photo_source_take_photo)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.CameraAlt,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(AssistChipDefaults.IconSize)
+                                    )
+                                }
+                            )
+                            AssistChip(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                label = { Text(stringResource(R.string.photo_source_choose_gallery)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.PhotoLibrary,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(AssistChipDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { showPhotoSourceSheet = true }) {
+                            Icon(
+                                Icons.Filled.AddAPhoto,
+                                contentDescription = stringResource(R.string.cd_add_photo),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
                 }
                 if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
