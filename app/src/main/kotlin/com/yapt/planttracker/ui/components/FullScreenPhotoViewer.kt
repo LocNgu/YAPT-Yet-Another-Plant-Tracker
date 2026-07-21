@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,7 +50,8 @@ fun FullScreenPhotoViewer(
         // black background fully covers the screen instead of leaving a strip that reveals the
         // underlying PlantDetail content (#444). statusBarsPadding() below still keeps the
         // action buttons clear of the status bar.
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        val view = LocalView.current
+        val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
         if (dialogWindow != null) {
             SideEffect {
                 WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
