@@ -118,6 +118,18 @@ fun AddCareLogScreen(
         }
     }
 
+    // Auto-open the source sheet the moment PHOTO is chosen so the user goes
+    // straight to the camera/gallery choice with no extra AddAPhoto tap (#443).
+    // Keyed on selectedCareType, so it fires only on the transition into PHOTO —
+    // not on every recomposition, and not again if the user dismisses the sheet
+    // while staying on PHOTO (they re-open via the AddAPhoto button). In edit mode
+    // a PHOTO log that already has a photo does not auto-open (photoUri != null).
+    LaunchedEffect(viewModel.selectedCareType) {
+        if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
+            showPhotoSourceSheet = true
+        }
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },

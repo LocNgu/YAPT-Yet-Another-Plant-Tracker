@@ -131,6 +131,24 @@ class AddCareLogScreenTest {
     }
 
     @Test
+    fun selectingPhotoCareType_autoOpensSourceSheet() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(CareType.PHOTO.labelRes())
+        composeTestRule.onNodeWithText(photoLabel).performClick()
+        composeTestRule.waitForIdle()
+
+        // Source sheet appears without an extra AddAPhoto tap (#443).
+        composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+    }
+
+    @Test
     fun takePhoto_noCameraHardware_showsSnackbar() {
         val mockPm = mockk<PackageManager>(relaxed = true)
         every { mockPm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) } returns false
