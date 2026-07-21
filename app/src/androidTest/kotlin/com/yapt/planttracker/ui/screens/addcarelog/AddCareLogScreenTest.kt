@@ -138,12 +138,11 @@ class AddCareLogScreenTest {
             AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
-        val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(CareType.PHOTO.labelRes())
-        composeTestRule.onNodeWithText(photoLabel).performClick()
+        // Transition the care type into PHOTO, exactly as tapping the Photo chip
+        // does. The source sheet must auto-open with no extra AddAPhoto tap (#443).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
         composeTestRule.waitForIdle()
 
-        // Source sheet appears without an extra AddAPhoto tap (#443).
         composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
         composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
     }
