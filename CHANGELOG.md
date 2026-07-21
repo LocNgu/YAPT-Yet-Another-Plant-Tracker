@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- Full-screen photo viewer now covers the entire screen edge-to-edge. Opening a photo from a plant's gallery no longer leaves a thin strip under the status/notification bar that revealed the PlantDetail screen behind it — the viewer's black background draws behind the status bar while the close/delete buttons stay clear of it (#444)
+
 ---
 
 ## [0.18.0] - 2026-07-21
