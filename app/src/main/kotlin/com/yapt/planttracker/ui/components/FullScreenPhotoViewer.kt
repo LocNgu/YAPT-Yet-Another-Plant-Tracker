@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
@@ -46,14 +47,20 @@ fun FullScreenPhotoViewer(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        // Let the dialog window draw edge-to-edge behind the status/navigation bars so the
-        // black background fully covers the screen instead of leaving a strip that reveals the
-        // underlying PlantDetail content (#444). statusBarsPadding() below still keeps the
-        // action buttons clear of the status bar.
+        // Make the dialog window fill the entire screen and draw edge-to-edge behind the
+        // status/navigation bars so the black background fully covers the screen instead of
+        // leaving a strip that reveals the underlying PlantDetail content (#444).
+        // `usePlatformDefaultWidth = false` only stretches the width, so without forcing the
+        // window layout to MATCH_PARENT the window stays below the status bar. `statusBarsPadding()`
+        // below still keeps the action buttons clear of the status bar.
         val view = LocalView.current
         val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
         if (dialogWindow != null) {
             SideEffect {
+                dialogWindow.setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
                 WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
             }
         }
