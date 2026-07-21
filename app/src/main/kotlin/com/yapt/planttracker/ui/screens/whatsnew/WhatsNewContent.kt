@@ -11,6 +11,17 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 300,
+            versionName = "0.18.0",
+            added = listOf(
+                "Tap and hold a plant to enter multi-select mode, then water, fertilize, prune, mist, repot, or move to the Graveyard for every selected plant at once from a bottom action sheet",
+                "New \"Cared for today\" option in the plant list sort dropdown — filters the list to just the plants you've logged any care for today, most-recently-cared first (toggle for earliest-first)"
+            ),
+            fixed = listOf(
+                "Watering two plants on the same day no longer suggests a 0-day interval or shows a fractional \"0.5 days\" average on the watering history chart — intervals are now floored at 1 day"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 290,
             versionName = "0.17.0",
             added = listOf(
