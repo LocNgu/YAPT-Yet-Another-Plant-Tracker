@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -26,6 +27,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.ui.util.labelRes
@@ -145,6 +147,60 @@ class AddCareLogScreenTest {
 
         composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
         composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+    }
+
+    @Test
+    fun photoSource_closedWhileOnPhoto_doesNotReopen() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            CompositionLocalProvider(
+                LocalActivityResultRegistryOwner provides noOpRegistryOwner()
+            ) {
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            }
+        }
+
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+
+        // Close the sheet while the care type stays PHOTO. The auto-open effect is
+        // keyed on selectedCareType, so it must not re-fire and re-open the sheet;
+        // the user re-opens via the AddAPhoto button instead (#443).
+        composeTestRule.onNodeWithText("Choose from gallery").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Choose from gallery").assertDoesNotExist()
+    }
+
+    @Test
+    fun editModePhotoLogWithPhoto_doesNotAutoOpenSourceSheet() {
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantRepo = mockk<PlantRepository>()
+        val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant)
+        coEvery { careLogRepo.getLogById(5L) } returns CareLog(
+            id = 5L,
+            plantId = 1L,
+            careType = CareType.PHOTO,
+            loggedAt = 0L,
+            photoUri = "content://photo/1"
+        )
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        val viewModel = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 5L)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.waitForIdle()
+
+        // Editing an existing PHOTO log that already has a photo must not auto-open
+        // the source sheet (#443).
+        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Choose from gallery").assertDoesNotExist()
     }
 
     @Test
