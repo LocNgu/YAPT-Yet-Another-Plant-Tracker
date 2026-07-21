@@ -36,7 +36,8 @@ fun QuickLogButtons(
     status: PlantCareStatus,
     onQuickWater: () -> Unit,
     onQuickFertilize: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     Column(
         modifier = modifier,
@@ -45,6 +46,7 @@ fun QuickLogButtons(
     ) {
         IconButton(
             onClick = onQuickWater,
+            enabled = enabled,
             modifier = Modifier.size(36.dp)
         ) {
             Icon(
@@ -56,6 +58,7 @@ fun QuickLogButtons(
         }
         IconButton(
             onClick = onQuickFertilize,
+            enabled = enabled,
             modifier = Modifier.size(if (status.plant.useLiquidFertilizer) 44.dp else 36.dp)
         ) {
             if (status.plant.useLiquidFertilizer) {

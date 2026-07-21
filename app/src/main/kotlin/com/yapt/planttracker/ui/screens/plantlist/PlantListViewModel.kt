@@ -23,6 +23,7 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -136,6 +137,77 @@ class PlantListViewModel(
 
     fun undoArchive(plantId: Long) {
         viewModelScope.launch { plantRepository.restorePlant(plantId) }
+    }
+
+    // --- Multi-select (tap and hold) bulk care actions ---
+
+    private val _selectedPlantIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedPlantIds: StateFlow<Set<Long>> = _selectedPlantIds.asStateFlow()
+
+    /** Toggles [plantId] in the selection set; adding the first plant enters selection mode. */
+    fun toggleSelection(plantId: Long) {
+        _selectedPlantIds.value = _selectedPlantIds.value.let {
+            if (plantId in it) it - plantId else it + plantId
+        }
+    }
+
+    fun selectAll() {
+        _selectedPlantIds.value = plantsWithStatus.value.map { it.plant.id }.toSet()
+    }
+
+    fun clearSelection() {
+        _selectedPlantIds.value = emptySet()
+    }
+
+    data class BulkArchivedEvent(val plantIds: List<Long>)
+
+    private val _bulkArchivedEvent = MutableSharedFlow<BulkArchivedEvent>()
+    val bulkArchivedEvent: SharedFlow<BulkArchivedEvent> = _bulkArchivedEvent.asSharedFlow()
+
+    /**
+     * Logs [careType] for every currently selected plant, then clears the selection and emits a
+     * snackbar summarising how many plants were affected. Watering uses `JUST_RIGHT` feedback and
+     * fertilizing routes through [QuickLogUseCase.quickLog] so liquid-fertilizer plants still get a
+     * paired watering; per-plant interval-suggestion and photo-reminder dialogs are intentionally
+     * skipped in bulk to avoid a dialog storm.
+     */
+    fun bulkLog(careType: CareType) {
+        val ids = _selectedPlantIds.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val plants = plantsWithStatus.value.filter { it.plant.id in ids }.map { it.plant }
+            for (plant in plants) {
+                if (careType == CareType.WATER) {
+                    quickLogUseCase.quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
+                } else {
+                    quickLogUseCase.quickLog(plant, careType)
+                }
+            }
+            clearSelection()
+            _quickLogEvent.emit(
+                application.resources.getQuantityString(
+                    R.plurals.bulk_snackbar_logged,
+                    plants.size,
+                    application.getString(careType.labelRes()),
+                    plants.size
+                )
+            )
+        }
+    }
+
+    /** Archives every selected plant, clears the selection, and emits an undo event. */
+    fun bulkArchive() {
+        val ids = _selectedPlantIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            for (id in ids) { plantRepository.archivePlant(id) }
+            clearSelection()
+            _bulkArchivedEvent.emit(BulkArchivedEvent(ids))
+        }
+    }
+
+    fun undoBulkArchive(plantIds: List<Long>) {
+        viewModelScope.launch { for (id in plantIds) { plantRepository.restorePlant(id) } }
     }
 
     fun quickLog(plantId: Long, careType: CareType) {

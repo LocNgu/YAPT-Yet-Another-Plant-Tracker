@@ -11,10 +11,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -38,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +63,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
+import com.yapt.planttracker.ui.components.BulkActionBar
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
@@ -69,7 +79,8 @@ fun PlantListScreen(
     restoreMessage: String? = null,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onSelectionModeChanged: (Boolean) -> Unit = {}
 ) {
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
     val plantListItems by viewModel.plantListItems.collectAsStateWithLifecycle()
@@ -87,6 +98,16 @@ fun PlantListScreen(
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
+    val selectedPlantIds by viewModel.selectedPlantIds.collectAsStateWithLifecycle()
+    val selectionMode = selectedPlantIds.isNotEmpty()
+    // Count shown in the bulk bar; holds the last non-zero value so the bar doesn't flash
+    // "Apply to 0 plants" for a frame while it slides out after an action clears the selection.
+    var bulkBarCount by remember { mutableStateOf(0) }
+    LaunchedEffect(selectedPlantIds.size) {
+        if (selectedPlantIds.isNotEmpty()) bulkBarCount = selectedPlantIds.size
+    }
+    var showBulkArchiveConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         reminderPlantId?.let { viewModel.saveReminderPhoto(it, uri) }
@@ -127,9 +148,66 @@ fun PlantListScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.bulkArchivedEvent.collect { event ->
+            val message = context.resources.getQuantityString(
+                R.plurals.bulk_moved_to_graveyard,
+                event.plantIds.size,
+                event.plantIds.size
+            )
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoBulkArchive(event.plantIds)
+            }
+        }
+    }
+
+    // While selecting, the system back button exits selection mode instead of leaving the screen.
+    BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
+
+    // Report selection state up so the host can hide the Plants/Calendar bottom nav while selecting,
+    // giving the bulk action bar (and the list above it) more room. Reset on dispose so the nav
+    // never stays hidden if this screen leaves composition mid-selection.
+    LaunchedEffect(selectionMode) { onSelectionModeChanged(selectionMode) }
+    DisposableEffect(Unit) { onDispose { onSelectionModeChanged(false) } }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            if (selectionMode) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.bulk_selected_count,
+                                selectedPlantIds.size,
+                                selectedPlantIds.size
+                            )
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(),
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_bulk_clear_selection)
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.selectAll() }) {
+                            Icon(
+                                Icons.Filled.DoneAll,
+                                contentDescription = stringResource(R.string.cd_bulk_select_all)
+                            )
+                        }
+                    }
+                )
+            } else {
             TopAppBar(
                 title = { Text(stringResource(R.string.my_plants)) },
                 colors = TopAppBarDefaults.topAppBarColors(),
@@ -183,13 +261,32 @@ fun PlantListScreen(
                     }
                 }
             )
+            }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToAdd,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.add_plant)) }
-            )
+            // Hidden while selecting — the bulk action bar occupies the bottom instead.
+            if (!selectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = onNavigateToAdd,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.add_plant)) }
+                )
+            }
+        },
+        bottomBar = {
+            // Slides up the moment the first plant is marked and stays up (non-modal) so the
+            // list above remains interactive for adding/removing more plants before acting.
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it }
+            ) {
+                BulkActionBar(
+                    selectedCount = bulkBarCount,
+                    onCareAction = { careType -> viewModel.bulkLog(careType) },
+                    onMoveToGraveyard = { showBulkArchiveConfirm = true }
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -254,7 +351,11 @@ fun PlantListScreen(
                                 val status = listItem.status
                                 PlantCard(
                                     status = status,
+                                    selectionMode = selectionMode,
+                                    selected = status.plant.id in selectedPlantIds,
                                     onClick = { onNavigateToPlant(status.plant.id) },
+                                    onLongClick = { viewModel.toggleSelection(status.plant.id) },
+                                    onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
                                     onQuickWater = { waterFeedbackPlant = status },
                                     onQuickFertilize = {
                                         if (status.plant.useLiquidFertilizer) {
@@ -337,6 +438,32 @@ fun PlantListScreen(
             dismissButton = {
                 TextButton(onClick = { pendingIntervalSuggestion = null }) {
                     Text(stringResource(R.string.dismiss))
+                }
+            }
+        )
+    }
+
+    if (showBulkArchiveConfirm) {
+        val count = selectedPlantIds.size
+        AlertDialog(
+            onDismissRequest = { showBulkArchiveConfirm = false },
+            title = { Text(stringResource(R.string.bulk_delete_confirm_title)) },
+            text = {
+                Text(pluralStringResource(R.plurals.bulk_delete_confirm_text, count, count))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBulkArchiveConfirm = false
+                        viewModel.bulkArchive()
+                    }
+                ) {
+                    Text(stringResource(R.string.bulk_delete_confirm_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkArchiveConfirm = false }) {
+                    Text(stringResource(R.string.bulk_delete_cancel_button))
                 }
             }
         )
