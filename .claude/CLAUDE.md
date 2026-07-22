@@ -108,7 +108,7 @@ Decisions are documented in `docs/decisions/`:
 
 ## Known Issues / Technical Debt
 
-- **#419** — Claude Code cloud sessions cannot build the project (network policy blocks `dl.google.com`/`maven.google.com`), so pre-push build/lint/test verification is impossible there and CI is the only compiler
+- **#419 (resolved)** — Cloud sessions **can** now build the project. Enablement lives in the environment config, not the repo: allowlist `dl.google.com` (Network access → Custom, keep the default package managers) and set `ANDROID_HOME=/opt/android-sdk`, then run `scripts/cloud-setup.sh` as the environment's setup script. It installs the Android SDK (`platforms;android-36`, `build-tools;35.0.0`, `platform-tools`), points Gradle at it, and seeds the Gradle wrapper's dist cache from the pre-installed Gradle (the pinned wrapper distribution is a GitHub release asset the session proxy blocks; dependency artifacts resolve online from `maven.google.com`/Maven Central). With that in place `./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug` runs in-session, so the dev-workflow "implementer runs build/lint/tests before pushing" step is satisfiable. Note: `./gradlew --version` reports the pre-installed Gradle (a patch off the pinned version); CI still uses the pinned build. Instrumented tests still require CI's emulator
 - **#420** — CLAUDE.md lacks a Compose-testing convention (assert user-visible semantics, never tree structure; two-strikes rule on failing-test fix attempts) — docs change pending
 
 ---
