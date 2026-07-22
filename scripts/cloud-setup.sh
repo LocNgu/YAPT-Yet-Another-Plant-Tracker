@@ -7,8 +7,12 @@
 #        Network access -> Custom -> Allowed domains.
 #   2. Points Gradle at that SDK.
 #   3. Seeds the Gradle wrapper's dist cache from the pre-installed Gradle so
-#      `./gradlew` runs offline (the pinned wrapper version is fetched from a
+#      `./gradlew` can start (the pinned wrapper version is fetched from a
 #      GitHub release asset that the session's proxy blocks).
+#
+# Dependency artifacts (AGP, androidx) still resolve over the network from
+# maven.google.com / Maven Central, which are reachable — so builds run online,
+# not with --offline. Only the wrapper's own Gradle distribution is blocked.
 #
 # Idempotent: safe to re-run when the environment cache is rebuilt.
 set -euo pipefail
@@ -50,7 +54,7 @@ if [ -f settings.gradle.kts ] || [ -f settings.gradle ] || [ -f build.gradle.kts
   fi
 fi
 
-echo "==> Seeding Gradle wrapper dist so ./gradlew runs offline"
+echo "==> Seeding Gradle wrapper dist so ./gradlew can start (its dist download is proxy-blocked)"
 WRAPPER_PROPS="gradle/wrapper/gradle-wrapper.properties"
 if [ -f "$WRAPPER_PROPS" ]; then
   WRAPPER_VER="$(sed -nE 's#.*gradle-([0-9.]+)-(bin|all)\.zip.*#\1#p' "$WRAPPER_PROPS" | head -1)"
@@ -79,5 +83,8 @@ if [ -f "$WRAPPER_PROPS" ]; then
   fi
 fi
 
-echo "==> Verifying: ./gradlew compileDebugKotlin (offline)"
-./gradlew --offline compileDebugKotlin -q >/dev/null && echo "OK — cloud build works"
+echo "==> Verifying: ./gradlew compileDebugKotlin"
+# Online build: dependency artifacts (AGP, androidx) resolve from
+# maven.google.com / Maven Central. Do NOT use --offline here — on a cold
+# dependency cache it blocks AGP resolution and fails.
+./gradlew compileDebugKotlin -q >/dev/null && echo "OK — cloud build works"
