@@ -154,6 +154,35 @@ class AddCareLogScreenTest {
     }
 
     @Test
+    fun inlineTakePhotoButton_tapped_routesThroughCameraPermissionFlow() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Reveal the inline source buttons, then mock (after reveal so composition
+        // is unaffected, matching the sheet-path camera tests).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+
+        mockkStatic(ContextCompat::class)
+        mockkStatic(ActivityCompat::class)
+        every {
+            ContextCompat.checkSelfPermission(any(), Manifest.permission.CAMERA)
+        } returns PackageManager.PERMISSION_DENIED
+        every {
+            ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
+        } returns true
+
+        // Tapping the inline Take photo button drives the same shared
+        // cameraState.launch() permission flow as the sheet path (#443).
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Camera access is required to take photos of your plants.").assertIsDisplayed()
+    }
+
+    @Test
     fun switchingAwayFromPhoto_hidesInlineSourceButtons() {
         val viewModel = makeViewModel()
 
