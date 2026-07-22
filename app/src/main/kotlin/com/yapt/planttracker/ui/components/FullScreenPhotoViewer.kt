@@ -47,12 +47,13 @@ fun FullScreenPhotoViewer(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        // Make the dialog window fill the entire screen and draw edge-to-edge behind the
-        // status/navigation bars so the black background fully covers the screen instead of
-        // leaving a strip that reveals the underlying PlantDetail content (#444).
-        // `usePlatformDefaultWidth = false` only stretches the width, so without forcing the
-        // window layout to MATCH_PARENT the window stays below the status bar. `statusBarsPadding()`
-        // below still keeps the action buttons clear of the status bar.
+        // The dialog window cannot reliably extend behind the status bar on all devices, so any
+        // screen area the window doesn't cover would reveal the underlying PlantDetail content
+        // (#444). Instead of fighting the window bounds, paint everything behind the dialog fully
+        // black via the window dim (a dialog's dim layer spans the whole screen, including the
+        // status-bar strip) so the viewer reads as one deliberate full-dark overlay. Light
+        // status-bar icons keep the bar legible over black; `statusBarsPadding()` below keeps the
+        // action buttons clear of the status bar.
         val view = LocalView.current
         val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
         if (dialogWindow != null) {
@@ -62,6 +63,10 @@ fun FullScreenPhotoViewer(
                     WindowManager.LayoutParams.MATCH_PARENT
                 )
                 WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
+                dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                dialogWindow.setDimAmount(1f)
+                WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
+                    .isAppearanceLightStatusBars = false
             }
         }
         Box(
