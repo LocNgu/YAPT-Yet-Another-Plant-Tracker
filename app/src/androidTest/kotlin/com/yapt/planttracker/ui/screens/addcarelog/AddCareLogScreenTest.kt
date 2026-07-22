@@ -10,8 +10,10 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -180,6 +182,28 @@ class AddCareLogScreenTest {
 
         composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
         composeTestRule.onNodeWithText("Camera access is required to take photos of your plants.").assertIsDisplayed()
+    }
+
+    @Test
+    fun openingSheetThenSwitchingToPhoto_closesSheetWithNoOverlap() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Open the source sheet from a non-PHOTO care type (compact icon path).
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
+
+        // Switching to PHOTO must close the sheet so only the inline buttons
+        // remain — no duplicate Take photo / Choose from gallery from the sheet
+        // and the inline buttons showing at once (#443).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onAllNodesWithText("Take photo").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Choose from gallery").assertCountEquals(1)
     }
 
     @Test

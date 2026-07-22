@@ -124,6 +124,15 @@ fun AddCareLogScreen(
         }
     }
 
+    // PHOTO uses the inline source buttons, not the sheet. If the source sheet was
+    // left open from a non-PHOTO care type and the user then switches to PHOTO,
+    // close it so the sheet items and the inline buttons don't overlap (#443).
+    LaunchedEffect(viewModel.selectedCareType) {
+        if (viewModel.selectedCareType == CareType.PHOTO) {
+            showPhotoSourceSheet = false
+        }
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
