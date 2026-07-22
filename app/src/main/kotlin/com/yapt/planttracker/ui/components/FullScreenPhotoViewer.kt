@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.components
 
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -17,14 +18,19 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 
@@ -41,6 +47,28 @@ fun FullScreenPhotoViewer(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        // The dialog window cannot reliably extend behind the status bar on all devices, so any
+        // screen area the window doesn't cover would reveal the underlying PlantDetail content
+        // (#444). Instead of fighting the window bounds, paint everything behind the dialog fully
+        // black via the window dim (a dialog's dim layer spans the whole screen, including the
+        // status-bar strip) so the viewer reads as one deliberate full-dark overlay. Light
+        // status-bar icons keep the bar legible over black; `statusBarsPadding()` below keeps the
+        // action buttons clear of the status bar.
+        val view = LocalView.current
+        val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
+        if (dialogWindow != null) {
+            SideEffect {
+                dialogWindow.setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
+                WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
+                dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                dialogWindow.setDimAmount(1f)
+                WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
+                    .isAppearanceLightStatusBars = false
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
