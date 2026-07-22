@@ -10,8 +10,10 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -128,6 +130,101 @@ class AddCareLogScreenTest {
 
         composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
         composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectingPhotoCareType_revealsInlineSourceButtons() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Default care type (WATER): a photo is optional, so only the compact
+        // add-photo icon shows — no inline source buttons.
+        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Add photo").assertExists()
+
+        // Selecting PHOTO reveals the Take photo / Choose from gallery actions
+        // inline, so the user reaches the camera/picker with no extra tap and no
+        // pop-up sheet (#443).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Choose from gallery").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun inlineTakePhotoButton_tapped_routesThroughCameraPermissionFlow() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Reveal the inline source buttons, then mock (after reveal so composition
+        // is unaffected, matching the sheet-path camera tests).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+
+        mockkStatic(ContextCompat::class)
+        mockkStatic(ActivityCompat::class)
+        every {
+            ContextCompat.checkSelfPermission(any(), Manifest.permission.CAMERA)
+        } returns PackageManager.PERMISSION_DENIED
+        every {
+            ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
+        } returns true
+
+        // Tapping the inline Take photo button drives the same shared
+        // cameraState.launch() permission flow as the sheet path (#443).
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Camera access is required to take photos of your plants.").assertIsDisplayed()
+    }
+
+    @Test
+    fun openingSheetThenSwitchingToPhoto_closesSheetWithNoOverlap() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        // Open the source sheet from a non-PHOTO care type (compact icon path).
+        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
+
+        // Switching to PHOTO must close the sheet so only the inline buttons
+        // remain — no duplicate Take photo / Choose from gallery from the sheet
+        // and the inline buttons showing at once (#443).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onAllNodesWithText("Take photo").assertCountEquals(1)
+        composeTestRule.onAllNodesWithText("Choose from gallery").assertCountEquals(1)
+    }
+
+    @Test
+    fun switchingAwayFromPhoto_hidesInlineSourceButtons() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().assertIsDisplayed()
+
+        // Switching to a non-PHOTO care type collapses the inline buttons back to
+        // the compact add-photo icon, since a photo is optional there (#443).
+        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.WATER }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Add photo").assertExists()
     }
 
     @Test
