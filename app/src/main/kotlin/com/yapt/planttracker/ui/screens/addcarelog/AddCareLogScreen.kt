@@ -387,14 +387,6 @@ fun AddCareLogScreen(
                         }
                     }
                 }
-                if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.photo_required_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
             }
 
             OutlinedTextField(
