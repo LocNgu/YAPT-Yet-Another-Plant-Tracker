@@ -12,6 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.19.0] - 2026-07-23
+
+### Changed
+- Add Care Log: selecting the **Photo** care type now reveals **Take photo** and **Choose from gallery** buttons inline, right in the photo section, so a single tap goes straight to the camera or the system picker — no intermediate pop-up sheet and no separate add-photo tap. Other care types (where a photo is an optional attachment) keep the compact add-photo icon that opens the source sheet. The redundant "a photo is required" hint was dropped — the two prominent buttons make the requirement self-evident, and the Save button stays disabled until a photo is added. The camera permission rationale / settings deep-link behaviour is unchanged (#443)
+
 ### Fixed
 - Full-screen photo viewer no longer reveals a thin strip of the PlantDetail screen under the status/notification bar. Everything behind the viewer is now painted solid black (including the status-bar area, with light status-bar icons on top), so it reads as one deliberate full-dark overlay; the close/delete buttons stay clear of the status bar (#444)
 
@@ -38,7 +45,6 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Calendar: liquid-fertilizer plants in the day sheet now show a water-only quick-log button alongside the combined water+fertilize button, mirroring the plant list card. Previously the only quick action was water+fertilize, forcing a fertilizing log even on a day when only watering was due.
 
 ### Changed
-- Add Care Log: selecting the **Photo** care type now reveals **Take photo** and **Choose from gallery** buttons inline, right in the photo section, so a single tap goes straight to the camera or the system picker — no intermediate pop-up sheet and no separate add-photo tap. Other care types (where a photo is an optional attachment) keep the compact add-photo icon that opens the source sheet. The redundant "a photo is required" hint was dropped — the two prominent buttons make the requirement self-evident, and the Save button stays disabled until a photo is added. The camera permission rationale / settings deep-link behaviour is unchanged (#443)
 - The quick-log water/fertilize buttons are now a single shared `QuickLogButtons` component used by both the plant list card and the calendar day sheet, so the two surfaces stay identical in appearance and behaviour. The calendar day-sheet buttons adopt the plant card's styling (vertical stack, combined water+fertilize button with a `+`).
 
 ---
