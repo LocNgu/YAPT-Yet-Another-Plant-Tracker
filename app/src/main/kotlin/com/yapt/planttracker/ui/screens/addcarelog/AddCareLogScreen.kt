@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,11 +26,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -115,6 +121,15 @@ fun AddCareLogScreen(
                 is AddCareLogViewModel.Event.NavigateBack ->
                     onNavigateBack(null)
             }
+        }
+    }
+
+    // PHOTO uses the inline source buttons, not the sheet. If the source sheet was
+    // left open from a non-PHOTO care type and the user then switches to PHOTO,
+    // close it so the sheet items and the inline buttons don't overlap (#443).
+    LaunchedEffect(viewModel.selectedCareType) {
+        if (viewModel.selectedCareType == CareType.PHOTO) {
+            showPhotoSourceSheet = false
         }
     }
 
@@ -313,15 +328,6 @@ fun AddCareLogScreen(
                 )
             }
 
-            OutlinedTextField(
-                value = viewModel.notes,
-                onValueChange = { viewModel.notes = it },
-                label = { Text(stringResource(R.string.field_notes_optional)) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                maxLines = 5
-            )
-
             Column {
                 Text(
                     text = if (viewModel.selectedCareType == CareType.PHOTO)
@@ -331,34 +337,75 @@ fun AddCareLogScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (viewModel.photoUri != null) {
-                        PlantPhoto(
-                            uri = viewModel.photoUri,
-                            size = 72.dp,
-                            rounded = false
-                        )
-                    }
-                    IconButton(onClick = { showPhotoSourceSheet = true }) {
-                        Icon(
-                            Icons.Filled.AddAPhoto,
-                            contentDescription = stringResource(R.string.cd_add_photo),
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-                if (viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.photo_required_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                if (viewModel.photoUri != null) {
+                    PlantPhoto(
+                        uri = viewModel.photoUri,
+                        size = 72.dp,
+                        rounded = false
                     )
+                    Spacer(Modifier.height(8.dp))
+                }
+                // When PHOTO is the selected care type, reveal the two source
+                // actions inline (Take photo / Choose from gallery) as full-width
+                // buttons so the user goes straight to the camera or picker with no
+                // intermediate sheet. Other care types keep the compact icon that
+                // opens the source sheet, since a photo is only an optional
+                // attachment there (#443).
+                AnimatedContent(
+                    targetState = viewModel.selectedCareType == CareType.PHOTO,
+                    label = "photoSourceActions"
+                ) { isPhotoCareType ->
+                    if (isPhotoCareType) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(
+                                onClick = { cameraState.launch() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Filled.CameraAlt,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.photo_source_take_photo))
+                            }
+                            FilledTonalButton(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    Icons.Filled.PhotoLibrary,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.photo_source_choose_gallery))
+                            }
+                        }
+                    } else {
+                        IconButton(onClick = { showPhotoSourceSheet = true }) {
+                            Icon(
+                                Icons.Filled.AddAPhoto,
+                                contentDescription = stringResource(R.string.cd_add_photo),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
                 }
             }
+
+            OutlinedTextField(
+                value = viewModel.notes,
+                onValueChange = { viewModel.notes = it },
+                label = { Text(stringResource(R.string.field_notes_optional)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 5
+            )
 
             Spacer(Modifier.height(72.dp))
         }

@@ -11,6 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 310,
+            versionName = "0.19.0",
+            changed = listOf(
+                "Add Care Log: picking the Photo type now shows Take photo and Choose from gallery buttons right in the photo section, so one tap goes straight to the camera or picker — no extra pop-up sheet"
+            ),
+            fixed = listOf(
+                "Full-screen photo viewer no longer shows a thin strip of the screen behind it under the status bar — the whole background is now solid black for a clean, full-dark view"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 300,
             versionName = "0.18.0",
             added = listOf(

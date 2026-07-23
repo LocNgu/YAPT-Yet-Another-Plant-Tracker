@@ -164,7 +164,6 @@
     <string name="fertilizer_also_logs_watering">Also logs a watering</string>
     <string name="care_log_photo_label">Photo (optional)</string>
     <string name="care_log_photo_label_required">Photo</string>
-    <string name="photo_required_hint">A photo is required for this entry type</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
