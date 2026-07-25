@@ -193,7 +193,7 @@ fun PlantDetailScreen(
 
     fullScreenPhotoIndex?.let { index ->
         FullScreenPhotoViewer(
-            uris = galleryUris,
+            photos = galleryPhotos,
             initialIndex = index,
             onDismiss = { fullScreenPhotoIndex = null },
             onDelete = { uri ->
