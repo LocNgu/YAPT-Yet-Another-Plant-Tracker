@@ -1,11 +1,13 @@
 package com.yapt.planttracker.util
 
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
@@ -13,9 +15,25 @@ class DateUtilsTest {
 
     private val now = 1_700_000_000_000L // 2023-11-14 22:13:20 UTC
 
+    private lateinit var originalTimeZone: TimeZone
+    private lateinit var originalLocale: Locale
+
     @Before
     fun setUp() {
+        originalTimeZone = TimeZone.getDefault()
+        originalLocale = Locale.getDefault()
+        // Pin timezone and locale so calendar-day math and English month/weekday
+        // abbreviations (e.g. "Tue, Nov 14") are stable regardless of the machine's
+        // defaults. Production DateUtils intentionally stays locale-aware — this pin
+        // is test-only.
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        Locale.setDefault(Locale.US)
+    }
+
+    @After
+    fun tearDown() {
+        TimeZone.setDefault(originalTimeZone)
+        Locale.setDefault(originalLocale)
     }
 
     @Test
