@@ -131,6 +131,7 @@
     <string name="cd_plant_cover_photo">Plant cover photo</string>
     <string name="cd_plant_photo_fullscreen">Full-screen plant photo</string>
     <string name="cd_close_photo_viewer">Close photo viewer</string>
+    <string name="cd_photo_viewer_date">Photo taken %1$s</string>
     <string name="cd_edit_plant">Edit plant</string>
     <string name="cd_log_care">Log care</string>
     <string name="cd_edit_log">Edit log</string>
