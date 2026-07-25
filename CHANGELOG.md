@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Developer tooling: added **Detekt** (with the `detekt-formatting` plugin, wrapping ktlint's formatting rules) for automated code-style and code-smell enforcement. Runs on every PR via a new `Run Detekt` step in the `test` CI job and fails the build on new violations. Configuration lives in `config/detekt/detekt.yml` (formatting rules on; the noisy `FunctionNaming` and `MagicNumber` rules are disabled as false-positives for `@Composable`/test naming and Compose `dp`/`sp` literals). Existing non-auto-fixable smells are frozen in `config/detekt/baseline.xml` so only newly-introduced issues fail. All auto-fixable formatting was applied across the codebase in the same change; no runtime behaviour changed (#85)
+
 ### Added
 - Full-screen photo viewer now shows each photo's exact capture/log date (e.g. "Jun 10, 2026") as a labelled chip near the bottom, below the "N / M" page indicator. The date is shown for every photo — including when there's only a single photo and the position indicator is hidden — and reads from the photo's own timestamp so swiping updates it per page. Grid thumbnails are unchanged (#445)
 

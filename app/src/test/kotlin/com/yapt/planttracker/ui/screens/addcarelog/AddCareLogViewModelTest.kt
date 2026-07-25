@@ -190,7 +190,11 @@ class AddCareLogViewModelTest {
         }
 
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
-        coVerify { careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }) }
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+            )
+        }
     }
 
     @Test

@@ -234,7 +234,13 @@ class PlantListItemTest {
         val createdAt = now - TimeUnit.DAYS.toMillis(45)
         val overdueDueAt = createdAt + TimeUnit.DAYS.toMillis(30)
         val neverFertilized = PlantCareStatus(
-            plant = Plant(id = 1L, name = "NeverFertilized", fertilizingIntervalDays = 14, createdAt = createdAt, updatedAt = createdAt),
+            plant = Plant(
+                id = 1L,
+                name = "NeverFertilized",
+                fertilizingIntervalDays = 14,
+                createdAt = createdAt,
+                updatedAt = createdAt
+            ),
             lastWateredAt = null,
             lastFertilizedAt = null,
             daysSinceLastWatering = null,

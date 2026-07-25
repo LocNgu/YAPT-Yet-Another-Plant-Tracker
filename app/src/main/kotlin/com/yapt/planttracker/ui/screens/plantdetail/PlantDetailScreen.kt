@@ -215,16 +215,28 @@ fun PlantDetailScreen(
                     IconButton(
                         onClick = { if (skipDays > 1) skipDays-- },
                         enabled = skipDays > 1
-                    ) { Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.skip_watering_decrease_cd)) }
+                    ) {
+                        Icon(
+                            Icons.Filled.Remove,
+                            contentDescription = stringResource(R.string.skip_watering_decrease_cd)
+                        )
+                    }
                     Text(pluralStringResource(R.plurals.skip_watering_days, skipDays, skipDays))
                     IconButton(
                         onClick = { if (skipDays < 7) skipDays++ },
                         enabled = skipDays < 7
-                    ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.skip_watering_increase_cd)) }
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.skip_watering_increase_cd)
+                        )
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmSkip(skipDays) }) { Text(stringResource(R.string.skip_watering_confirm)) }
+                TextButton(
+                    onClick = { viewModel.confirmSkip(skipDays) }
+                ) { Text(stringResource(R.string.skip_watering_confirm)) }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
@@ -321,266 +333,273 @@ fun PlantDetailScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         Box(Modifier.fillMaxSize()) {
-        if (plant != null) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    bottom = 88.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                ),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(280.dp)
-                    ) {
-                        if (plant?.coverPhotoUri != null) {
-                            AsyncImage(
-                                model = plant!!.coverPhotoUri,
-                                contentDescription = stringResource(R.string.cd_plant_cover_photo),
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == plant!!.coverPhotoUri }.takeIf { it >= 0 } }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(80.dp)
-                                    .align(Alignment.TopStart)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(
-                                                Color.Black.copy(alpha = 0.4f),
-                                                Color.Transparent
+            if (plant != null) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        bottom = 88.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(280.dp)
+                        ) {
+                            if (plant?.coverPhotoUri != null) {
+                                AsyncImage(
+                                    model = plant!!.coverPhotoUri,
+                                    contentDescription = stringResource(R.string.cd_plant_cover_photo),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable { fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == plant!!.coverPhotoUri }.takeIf { it >= 0 } }
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp)
+                                        .align(Alignment.TopStart)
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Color.Black.copy(alpha = 0.4f),
+                                                    Color.Transparent
+                                                )
                                             )
                                         )
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.LocalFlorist,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(80.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = plant!!.name,
+                                style = MaterialTheme.typography.headlineMedium
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.LocalFlorist,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(80.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            plant?.species?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            plant?.room?.let {
+                                Text(
+                                    text = stringResource(R.string.plant_detail_location, it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            plant?.wateringIntervalDays?.let {
+                                Text(
+                                    text = stringResource(R.string.plant_detail_watering_interval, it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    careStatus?.let { status ->
+                        item {
+                            StatsRow(
+                                status = status,
+                                onWaterClick = { showWaterSheet = true },
+                                onFertilizeClick = {
+                                    if (plant?.useLiquidFertilizer == true) {
+                                        showLiquidFertilizeSheet = true
+                                    } else {
+                                        viewModel.quickFertilize()
+                                    }
+                                }
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
+                        if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
+                            item {
+                                OutlinedButton(
+                                    onClick = { viewModel.requestSkip() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+                                    Text(stringResource(R.string.skip_watering_title))
+                                }
+                                Spacer(Modifier.height(16.dp))
+                            }
+                        }
+                    }
+
+                    item {
+                        WateringHistoryChart(
+                            careLogs = careLogs,
+                            selectedRange = selectedTimeRange,
+                            onRangeSelected = { viewModel.setTimeRange(it) }
+                        )
+                    }
+
+                    if (galleryPhotos.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.plant_detail_photos_section),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                            PhotoGallery(
+                                photoUris = galleryUris,
+                                onPhotoClick = { uri ->
+                                    fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                                }
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.care_history),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.plant_detail_care_logs_count, careLogs.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (careLogs.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.height(200.dp)) {
+                                EmptyStateView(
+                                    message = stringResource(R.string.no_care_logs_detail),
+                                    icon = Icons.AutoMirrored.Filled.Notes
+                                )
+                            }
+                        }
+                    } else {
+                        val visibleLogs = if (isExpanded) careLogs else careLogs.take(5)
+                        items(visibleLogs, key = { it.id }) { log ->
+                            CareLogItem(
+                                log = log,
+                                onEdit = { onNavigateToEditLog(log.id) },
+                                onDelete = { viewModel.deleteLog(log) }
+                            )
+                        }
+
+                        if (careLogs.size > 5) {
+                            item {
+                                val remaining = careLogs.size - 5
+                                AssistChip(
+                                    onClick = { isExpanded = !isExpanded },
+                                    label = {
+                                        Text(
+                                            if (isExpanded) {
+                                                stringResource(R.string.care_history_show_less)
+                                            } else {
+                                                pluralStringResource(
+                                                    R.plurals.care_history_show_more,
+                                                    remaining,
+                                                    remaining
+                                                )
+                                            }
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.ExpandMore,
+                                            contentDescription = if (isExpanded) {
+                                                stringResource(R.string.care_history_collapse_cd)
+                                            } else {
+                                                stringResource(R.string.care_history_expand_cd)
+                                            },
+                                            modifier = Modifier.rotate(chevronRotation)
+                                        )
+                                    },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
                             }
                         }
                     }
                 }
+            }
 
-                item {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = plant!!.name,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        plant?.species?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        plant?.room?.let {
-                            Text(
-                                text = stringResource(R.string.plant_detail_location, it),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        plant?.wateringIntervalDays?.let {
-                            Text(
-                                text = stringResource(R.string.plant_detail_watering_interval, it),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-
-                careStatus?.let { status ->
-                    item {
-                        StatsRow(
-                            status = status,
-                            onWaterClick = { showWaterSheet = true },
-                            onFertilizeClick = {
-                                if (plant?.useLiquidFertilizer == true) {
-                                    showLiquidFertilizeSheet = true
-                                } else {
-                                    viewModel.quickFertilize()
-                                }
-                            }
-                        )
-                        Spacer(Modifier.height(16.dp))
-                    }
-                    if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
-                        item {
-                            OutlinedButton(
-                                onClick = { viewModel.requestSkip() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                            ) {
-                                Text(stringResource(R.string.skip_watering_title))
-                            }
-                            Spacer(Modifier.height(16.dp))
-                        }
-                    }
-                }
-
-                item {
-                    WateringHistoryChart(
-                        careLogs = careLogs,
-                        selectedRange = selectedTimeRange,
-                        onRangeSelected = { viewModel.setTimeRange(it) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = iconContainerColor
+                    )
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.cd_back),
+                        tint = iconTint
                     )
                 }
-
-                if (galleryPhotos.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.plant_detail_photos_section),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        PhotoGallery(
-                            photoUris = galleryUris,
-                            onPhotoClick = { uri ->
-                                fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
-                            }
-                        )
-                        Spacer(Modifier.height(16.dp))
-                    }
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.care_history),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.plant_detail_care_logs_count, careLogs.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (careLogs.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier.height(200.dp)) {
-                            EmptyStateView(
-                                message = stringResource(R.string.no_care_logs_detail),
-                                icon = Icons.AutoMirrored.Filled.Notes
-                            )
-                        }
-                    }
-                } else {
-                    val visibleLogs = if (isExpanded) careLogs else careLogs.take(5)
-                    items(visibleLogs, key = { it.id }) { log ->
-                        CareLogItem(
-                            log = log,
-                            onEdit = { onNavigateToEditLog(log.id) },
-                            onDelete = { viewModel.deleteLog(log) }
-                        )
-                    }
-
-                    if (careLogs.size > 5) {
-                        item {
-                            val remaining = careLogs.size - 5
-                            AssistChip(
-                                onClick = { isExpanded = !isExpanded },
-                                label = {
-                                    Text(
-                                        if (isExpanded) stringResource(R.string.care_history_show_less)
-                                        else pluralStringResource(R.plurals.care_history_show_more, remaining, remaining)
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.ExpandMore,
-                                        contentDescription = if (isExpanded)
-                                            stringResource(R.string.care_history_collapse_cd)
-                                        else
-                                            stringResource(R.string.care_history_expand_cd),
-                                        modifier = Modifier.rotate(chevronRotation)
-                                    )
-                                },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = onNavigateToEdit,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = iconContainerColor
+                    )
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = stringResource(R.string.cd_edit_plant),
+                        tint = iconTint
+                    )
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .align(Alignment.TopStart),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onNavigateBack,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = iconContainerColor
-                )
+            FloatingActionButton(
+                onClick = onNavigateToAddLog,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(16.dp)
             ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.cd_back),
-                    tint = iconTint
-                )
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
             }
-            Spacer(Modifier.weight(1f))
-            IconButton(
-                onClick = onNavigateToEdit,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = iconContainerColor
-                )
-            ) {
-                Icon(
-                    Icons.Filled.Edit,
-                    contentDescription = stringResource(R.string.cd_edit_plant),
-                    tint = iconTint
-                )
-            }
-        }
 
-        FloatingActionButton(
-            onClick = onNavigateToAddLog,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(16.dp)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
-        }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 88.dp)
-        )
-
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 88.dp)
+            )
         }
     }
 }

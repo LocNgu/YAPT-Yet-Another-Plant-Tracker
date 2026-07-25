@@ -25,8 +25,8 @@ import androidx.core.content.ContextCompat
 import com.yapt.planttracker.R
 import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.util.findActivity
-import java.io.File
 import kotlinx.coroutines.launch
+import java.io.File
 
 class CameraPhotoState {
     var showPermissionRationale by mutableStateOf(false)
@@ -112,13 +112,15 @@ fun rememberCameraPhotoState(
     state.onLaunch = {
         if (!hasCameraHardware) {
             scope.launch { snackbarHostState.showSnackbar(noCameraMessage) }
-        } else when {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+        } else {
+            when {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED -> launchCamera()
-            context.findActivity()?.let {
-                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-            } == true -> state.showPermissionRationale = true
-            else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                context.findActivity()?.let {
+                    ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                } == true -> state.showPermissionRationale = true
+                else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
         }
     }
 

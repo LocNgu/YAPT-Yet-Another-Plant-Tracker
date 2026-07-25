@@ -106,7 +106,8 @@ fun AddCareLogScreen(
             cameraState.onGallerySelected()
             try {
                 context.contentResolver.takePersistableUriPermission(
-                    it, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: SecurityException) {}
             viewModel.photoUri = it.toString()
@@ -147,8 +148,11 @@ fun AddCareLogScreen(
                         pickerCal.timeInMillis = utcMidnightMs
                         val localCal = Calendar.getInstance()
                         localCal.timeInMillis =
-                            if (viewModel.isEditMode) viewModel.loggedAt
-                            else System.currentTimeMillis()
+                            if (viewModel.isEditMode) {
+                                viewModel.loggedAt
+                            } else {
+                                System.currentTimeMillis()
+                            }
                         localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
                         localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
                         localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))
@@ -187,7 +191,13 @@ fun AddCareLogScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) stringResource(R.string.care_log_title_edit) else stringResource(R.string.care_log_title_add)) },
+                title = {
+                    Text(
+                        if (viewModel.isEditMode) stringResource(
+                            R.string.care_log_title_edit
+                        ) else stringResource(R.string.care_log_title_add)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { onNavigateBack(null) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
@@ -279,7 +289,15 @@ fun AddCareLogScreen(
                                     viewModel.selectedFeedback =
                                         if (viewModel.selectedFeedback == feedback) null else feedback
                                 },
-                                label = { Text(stringResource(R.string.feedback_label_format, stringResource(feedback.emojiRes()), stringResource(feedback.labelRes()))) }
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.feedback_label_format,
+                                            stringResource(feedback.emojiRes()),
+                                            stringResource(feedback.labelRes())
+                                        )
+                                    )
+                                }
                             )
                         }
                     }
@@ -295,7 +313,10 @@ fun AddCareLogScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(FertilizerType.LIQUID to stringResource(R.string.fertilizer_type_liquid), FertilizerType.SOLID to stringResource(R.string.fertilizer_type_solid)).forEach { (type, label) ->
+                        listOf(
+                            FertilizerType.LIQUID to stringResource(R.string.fertilizer_type_liquid),
+                            FertilizerType.SOLID to stringResource(R.string.fertilizer_type_solid)
+                        ).forEach { (type, label) ->
                             FilterChip(
                                 selected = viewModel.selectedFertilizerType == type,
                                 onClick = {
@@ -330,10 +351,11 @@ fun AddCareLogScreen(
 
             Column {
                 Text(
-                    text = if (viewModel.selectedCareType == CareType.PHOTO)
+                    text = if (viewModel.selectedCareType == CareType.PHOTO) {
                         stringResource(R.string.care_log_photo_label_required)
-                    else
-                        stringResource(R.string.care_log_photo_label),
+                    } else {
+                        stringResource(R.string.care_log_photo_label)
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))

@@ -200,7 +200,11 @@ class AddEditPlantViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantPhotoRepo.addPhotos(match { photos -> photos.any { it.plantId == 10L && it.uri == "file:///cactus.jpg" } }) }
+        coVerify {
+            plantPhotoRepo.addPhotos(
+                match { photos -> photos.any { it.plantId == 10L && it.uri == "file:///cactus.jpg" } }
+            )
+        }
     }
 
     @Test

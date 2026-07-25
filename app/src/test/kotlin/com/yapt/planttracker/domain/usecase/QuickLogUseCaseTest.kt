@@ -36,8 +36,12 @@ class QuickLogUseCaseTest {
 
     private val application: Application = mockk {
         every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_other, any(), any()) } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
+        every {
+            getString(R.string.quick_log_watered_and_fertilized, any())
+        } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
+        every {
+            getString(R.string.quick_log_other, any(), any())
+        } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
     }
     private val plantRepo: PlantRepository = mockk()
@@ -92,7 +96,9 @@ class QuickLogUseCaseTest {
         assertEquals("Fertilized Monstera", message)
         coVerify(exactly = 1) { careLogRepo.addLog(any()) }
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.wateringFeedback == null && it.fertilizerType == FertilizerType.UNSPECIFIED })
+            careLogRepo.addLog(match {
+                it.careType == CareType.FERTILIZE && it.wateringFeedback == null && it.fertilizerType == FertilizerType.UNSPECIFIED
+            })
         }
     }
 
@@ -106,10 +112,14 @@ class QuickLogUseCaseTest {
         assertEquals("Watered and fertilized Monstera", message)
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID })
+            careLogRepo.addLog(
+                match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
+            )
         }
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+            )
         }
     }
 
@@ -156,7 +166,9 @@ class QuickLogUseCaseTest {
         useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
 
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+            )
         }
     }
 
@@ -238,10 +250,14 @@ class QuickLogUseCaseTest {
 
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID })
+            careLogRepo.addLog(
+                match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
+            )
         }
         coVerify {
-            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT })
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+            )
         }
     }
 

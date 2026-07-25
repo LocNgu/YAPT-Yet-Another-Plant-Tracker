@@ -24,9 +24,9 @@ class MigrationTest5To6 {
         helper.createDatabase(TEST_DB_EXISTING, 5).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
-                "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
-                "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
-                "(1, 'Monstera', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
+                    "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
+                    "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
+                    "(1, 'Monstera', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
             )
         }
 
@@ -46,9 +46,9 @@ class MigrationTest5To6 {
         helper.createDatabase(TEST_DB_SET, 5).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
-                "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
-                "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
-                "(1, 'Fern', NULL, NULL, NULL, NULL, NULL, NULL, 2000, 2000, NULL, 0)"
+                    "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
+                    "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
+                    "(1, 'Fern', NULL, NULL, NULL, NULL, NULL, NULL, 2000, 2000, NULL, 0)"
             )
         }
 

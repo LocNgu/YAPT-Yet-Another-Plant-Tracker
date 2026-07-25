@@ -19,8 +19,8 @@ import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.util.toLocalDate
-import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
+import java.time.temporal.ChronoUnit
 
 class ReminderWorker(
     private val context: Context,
@@ -45,10 +45,14 @@ class ReminderWorker(
         for (plant in plants) {
             val lastWatering = if (plant.wateringIntervalDays != null) {
                 app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
-            } else null
+            } else {
+                null
+            }
             val lastFertilizing = if (plant.fertilizingIntervalDays != null) {
                 app.careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
-            } else null
+            } else {
+                null
+            }
 
             val status = CareSchedule.computeStatus(
                 plant = plant,
@@ -60,7 +64,9 @@ class ReminderWorker(
 
             if (!status.isOverdue && !status.isDueSoon &&
                 !status.isFertilizingOverdue && !status.isFertilizingDueSoon
-            ) continue
+            ) {
+                continue
+            }
 
             val body = buildCareBody(status, now)
             if (body.isEmpty()) continue
@@ -122,7 +128,9 @@ class ReminderWorker(
             } else {
                 if (status.isFertilizingOverdue) {
                     val days = ChronoUnit.DAYS.between(status.nextFertilizingDueAt!!.toLocalDate(), nowDate).toInt()
-                    parts.add(context.resources.getQuantityString(R.plurals.notification_fertilizing_overdue, days, days))
+                    parts.add(
+                        context.resources.getQuantityString(R.plurals.notification_fertilizing_overdue, days, days)
+                    )
                 } else {
                     parts.add(context.getString(R.string.notification_fertilizing_due_today))
                 }
