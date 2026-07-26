@@ -203,6 +203,38 @@ class PlantListScreenTest {
     }
 
     @Test
+    fun selectionMode_quickLogButtonsAreInert_soTapsCannotMisfireAQuickLog() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        // Outside selection mode the quick-log buttons are present and actionable.
+        composeTestRule.onNodeWithContentDescription("Quick water").assertExists()
+        composeTestRule.onNodeWithContentDescription("Quick fertilize").assertExists()
+
+        // Enter selection mode by long-pressing the plant.
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        // While selecting, the quick-log buttons stay composed (so the card keeps its height) but
+        // are disabled and dropped from the semantics tree (alpha 0 + clearAndSetSemantics), so
+        // they expose no announced/actionable target. A tap over that region therefore can't
+        // trigger a quick-log — it can only fall through to the card's selection toggle. We assert
+        // the user-visible contract (the affordance is inert) rather than pixel-level tap geometry,
+        // per the Compose-testing convention in CLAUDE.md.
+        composeTestRule.onNodeWithContentDescription("Quick water").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Quick fertilize").assertDoesNotExist()
+    }
+
+    @Test
     fun selectionMode_clearSelection_returnsToNormalBar() {
         val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plants = listOf(plant))
