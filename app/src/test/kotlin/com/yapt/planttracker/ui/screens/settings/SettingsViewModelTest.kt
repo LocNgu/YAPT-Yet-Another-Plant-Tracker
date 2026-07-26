@@ -11,15 +11,14 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

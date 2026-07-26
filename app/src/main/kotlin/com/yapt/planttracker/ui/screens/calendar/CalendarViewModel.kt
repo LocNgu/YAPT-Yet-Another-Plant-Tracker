@@ -12,16 +12,14 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import java.time.LocalDate
-import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +31,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.YearMonth
 
 class CalendarViewModel(
     private val application: Application,
@@ -192,6 +192,13 @@ class CalendarViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            CalendarViewModel(application, plantRepository, careLogRepository, plantPhotoRepository, dataStore, quickLogUseCase) as T
+            CalendarViewModel(
+                application,
+                plantRepository,
+                careLogRepository,
+                plantPhotoRepository,
+                dataStore,
+                quickLogUseCase
+            ) as T
     }
 }

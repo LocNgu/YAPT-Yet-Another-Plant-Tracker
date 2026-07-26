@@ -88,7 +88,8 @@ fun AddEditPlantScreen(
             cameraState.onGallerySelected()
             try {
                 context.contentResolver.takePersistableUriPermission(
-                    it, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: SecurityException) {}
             viewModel.addPhoto(it.toString())
@@ -146,7 +147,11 @@ fun AddEditPlantScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) stringResource(R.string.edit_plant) else stringResource(R.string.add_plant)) },
+                title = { Text(
+                    if (viewModel.isEditMode) stringResource(
+                        R.string.edit_plant
+                    ) else stringResource(R.string.add_plant)
+                ) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
@@ -238,11 +243,13 @@ fun AddEditPlantScreen(
                                 keyboardController?.hide()
                             },
                             label = { Text(chip) },
-                            colors = if (isMatch)
+                            colors = if (isMatch) {
                                 SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer
                                 )
-                            else SuggestionChipDefaults.suggestionChipColors()
+                            } else {
+                                SuggestionChipDefaults.suggestionChipColors()
+                            }
                         )
                     }
                 }
@@ -255,9 +262,11 @@ fun AddEditPlantScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (viewModel.wateringIntervalEnabled)
+                        text = if (viewModel.wateringIntervalEnabled) {
                             stringResource(R.string.watering_interval_label, viewModel.wateringIntervalDays)
-                        else stringResource(R.string.watering_reminder_label),
+                        } else {
+                            stringResource(R.string.watering_reminder_label)
+                        },
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(
@@ -282,9 +291,11 @@ fun AddEditPlantScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (viewModel.fertilizingIntervalEnabled)
+                        text = if (viewModel.fertilizingIntervalEnabled) {
                             stringResource(R.string.fertilizing_interval_label, viewModel.fertilizingIntervalDays)
-                        else stringResource(R.string.fertilizing_reminder_label),
+                        } else {
+                            stringResource(R.string.fertilizing_reminder_label)
+                        },
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(

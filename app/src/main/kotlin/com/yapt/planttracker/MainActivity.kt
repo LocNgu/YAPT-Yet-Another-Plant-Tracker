@@ -20,10 +20,10 @@ import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -60,8 +60,11 @@ class MainActivity : ComponentActivity() {
                     .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
                     .distinctUntilChanged()
                     .collect { on ->
-                        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        if (on) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
                     }
             }
         }

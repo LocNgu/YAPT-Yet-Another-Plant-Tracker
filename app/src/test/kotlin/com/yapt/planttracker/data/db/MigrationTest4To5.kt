@@ -24,9 +24,9 @@ class MigrationTest4To5 {
         helper.createDatabase(TEST_DB_NO_DUPS, 4).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
-                "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
-                "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
-                "(1, 'Monstera', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
+                    "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
+                    "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
+                    "(1, 'Monstera', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
             )
             db.execSQL(
                 "INSERT INTO plant_photos (plantId, uri, capturedAt) VALUES (1, 'content://photo/a', 1000)"
@@ -58,9 +58,9 @@ class MigrationTest4To5 {
         helper.createDatabase(TEST_DB_DUPS, 4).use { db ->
             db.execSQL(
                 "INSERT INTO plants (id, name, species, room, coverPhotoUri, notes, " +
-                "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
-                "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
-                "(1, 'Fern', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
+                    "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
+                    "wateringDueDateOverride, useLiquidFertilizer) VALUES " +
+                    "(1, 'Fern', NULL, NULL, NULL, NULL, 7, NULL, 1000, 1000, NULL, 0)"
             )
             db.execSQL(
                 "INSERT INTO plant_photos (plantId, uri, capturedAt) VALUES (1, 'content://photo/dup', 1000)"

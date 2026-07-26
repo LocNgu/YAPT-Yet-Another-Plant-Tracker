@@ -6,10 +6,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 import java.util.TimeZone
 
 class WateringHistoryChartTest {
@@ -84,8 +82,8 @@ class WateringHistoryChartTest {
         // log1 is before rangeStart → becomes synthetic predecessor for log2
         val result = computeWateringIntervals(logs, rangeStart, rangeEnd)
         assertEquals(2, result.size)
-        assertEquals(1f, result[0].daysSincePrevious, 0.01f)  // log1 → log2
-        assertEquals(2f, result[1].daysSincePrevious, 0.01f)  // log2 → log3
+        assertEquals(1f, result[0].daysSincePrevious, 0.01f) // log1 → log2
+        assertEquals(2f, result[1].daysSincePrevious, 0.01f) // log2 → log3
     }
 
     @Test
@@ -119,11 +117,11 @@ class WateringHistoryChartTest {
             CareLog(id = 2, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 10),
             CareLog(id = 3, plantId = 1, careType = CareType.WATER, loggedAt = 100L + dayInMs * 25)
         )
-        val rangeStart = 100L + dayInMs * 5  // log1 is before range
+        val rangeStart = 100L + dayInMs * 5 // log1 is before range
         val result = computeWateringIntervals(logs, rangeStart, 100L + dayInMs * 30)
         assertEquals(2, result.size)
-        assertEquals(10f, result[0].daysSincePrevious, 0.01f)  // log1 → log2
-        assertEquals(15f, result[1].daysSincePrevious, 0.01f)  // log2 → log3
+        assertEquals(10f, result[0].daysSincePrevious, 0.01f) // log1 → log2
+        assertEquals(15f, result[1].daysSincePrevious, 0.01f) // log2 → log3
     }
 
     @Test
@@ -315,7 +313,9 @@ class WateringHistoryChartTest {
         // rangeStartMs is 2025-03-01; month 0 = March, month 1 = April
         val marchLog = CareLog(id = 1, plantId = 1, careType = CareType.PRUNE, loggedAt = baseMs + dayMs(10))
         val aprilLog = CareLog(
-            id = 2, plantId = 1, careType = CareType.MIST,
+            id = 2,
+            plantId = 1,
+            careType = CareType.MIST,
             loggedAt = ZonedDateTime.of(2025, 4, 5, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
         )
         val endMs = ZonedDateTime.of(2025, 4, 30, 0, 0, 0, 0, zone).toInstant().toEpochMilli()
@@ -530,7 +530,7 @@ class ComputeWaterEventMarkersTest {
     @Test
     fun fractionalMonthIndex_midMonth() {
         // March 16 = day 16 of 31 → monthIndex = 0 + 15/31 ≈ 0.484
-        val ts = baseMs + dayMs * 15   // 2025-03-16 00:00 UTC
+        val ts = baseMs + dayMs * 15 // 2025-03-16 00:00 UTC
         val iv = interval(ts)
         val result = computeWaterEventMarkers(listOf(iv), baseMs, baseMs + dayMs * 30)
         assertEquals(0.484f, result[0].monthIndex, 0.01f)
@@ -538,8 +538,8 @@ class ComputeWaterEventMarkersTest {
 
     @Test
     fun twoWateringsInSameMonth_distinctFractionalPositions() {
-        val early = interval(baseMs + dayMs * 2)   // March 3
-        val late  = interval(baseMs + dayMs * 20)  // March 21
+        val early = interval(baseMs + dayMs * 2) // March 3
+        val late = interval(baseMs + dayMs * 20) // March 21
         val result = computeWaterEventMarkers(listOf(early, late), baseMs, baseMs + dayMs * 30)
         assertEquals(2, result.size)
         assertTrue(result[0].monthIndex < result[1].monthIndex)
@@ -549,8 +549,8 @@ class ComputeWaterEventMarkersTest {
     fun effectiveStartMs_alignment() {
         // Regression: when effectiveStartMs is earlier than rangeStartMs the monthIndex
         // must be relative to effectiveStartMs, matching the chart's month-walk origin.
-        val effectiveStartMs = baseMs - dayMs * 28  // Feb 1, 2025 UTC
-        val marchTs = baseMs + dayMs * 10           // March 11
+        val effectiveStartMs = baseMs - dayMs * 28 // Feb 1, 2025 UTC
+        val marchTs = baseMs + dayMs * 10 // March 11
         val iv = interval(marchTs)
         val result = computeWaterEventMarkers(
             intervals = listOf(iv),

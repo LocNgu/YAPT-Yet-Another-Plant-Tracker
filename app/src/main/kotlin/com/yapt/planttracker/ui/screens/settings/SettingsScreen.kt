@@ -374,7 +374,17 @@ fun SettingsScreen(
                 icon = Icons.Filled.CloudDownload,
                 title = stringResource(R.string.backup_restore_item_title),
                 subtitle = stringResource(R.string.backup_restore_item_subtitle),
-                onClick = if (isBackupInProgress) null else ({ openDocumentLauncher.launch(arrayOf("application/octet-stream", "*/*")) })
+                onClick = if (isBackupInProgress) {
+                    null
+                } else {
+                    (
+                        {
+                            openDocumentLauncher.launch(
+                                arrayOf("application/octet-stream", "*/*")
+                            )
+                        }
+                        )
+                }
             )
 
             SettingsItemRow(
@@ -417,7 +427,6 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_whats_new_subtitle),
                 onClick = { onShowWhatsNew() }
             )
-
         }
     }
 }

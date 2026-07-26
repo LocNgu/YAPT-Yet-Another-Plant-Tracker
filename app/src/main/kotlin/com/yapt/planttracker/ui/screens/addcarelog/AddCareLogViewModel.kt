@@ -34,6 +34,7 @@ class AddCareLogViewModel(
     var loggedAt by mutableStateOf(System.currentTimeMillis())
     var selectedFeedback by mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
+
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
 
@@ -91,19 +92,21 @@ class AddCareLogViewModel(
                     )
                 )
                 plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null)
+                    if (p.wateringDueDateOverride != null) {
                         plantRepository.updatePlant(
                             p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
                         )
+                    }
                 }
             }
 
             if (!isEditMode && selectedCareType == CareType.WATER) {
                 plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null)
+                    if (p.wateringDueDateOverride != null) {
                         plantRepository.updatePlant(
                             p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
                         )
+                    }
                 }
             }
 

@@ -3,8 +3,11 @@ package com.yapt.planttracker.ui.navigation
 sealed class Screen(val route: String) {
     object PlantList : Screen("plant_list?restoreMessage={restoreMessage}") {
         fun createRoute(restoreMessage: String? = null) =
-            if (restoreMessage != null) "plant_list?restoreMessage=$restoreMessage"
-            else "plant_list"
+            if (restoreMessage != null) {
+                "plant_list?restoreMessage=$restoreMessage"
+            } else {
+                "plant_list"
+            }
     }
     object AddPlant : Screen("add_plant")
     object Settings : Screen("settings")

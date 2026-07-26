@@ -43,12 +43,12 @@ import com.yapt.planttracker.ui.screens.addplant.AddEditPlantScreen
 import com.yapt.planttracker.ui.screens.addplant.AddEditPlantViewModel
 import com.yapt.planttracker.ui.screens.calendar.CalendarScreen
 import com.yapt.planttracker.ui.screens.calendar.CalendarViewModel
+import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
+import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
-import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
-import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
@@ -147,200 +147,203 @@ fun YaptNavGraph(
             startDestination = Screen.PlantList.route,
             modifier = Modifier.padding(scaffoldPadding)
         ) {
-        composable(
-            route = Screen.PlantList.route,
-            arguments = listOf(
-                navArgument("restoreMessage") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
-        ) { backStackEntry ->
-            val restoreMessage = backStackEntry.arguments?.getString("restoreMessage")
-            val vm: PlantListViewModel = viewModel(
-                factory = PlantListViewModel.Factory(
-                    app,
-                    app.plantRepository,
-                    app.careLogRepository,
-                    app.plantPhotoRepository,
-                    app.settingsDataStore,
-                    app.quickLogUseCase
+            composable(
+                route = Screen.PlantList.route,
+                arguments = listOf(
+                    navArgument("restoreMessage") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
                 )
-            )
-            LaunchedEffect(vm) {
-                backStackEntry.savedStateHandle.getStateFlow<Long?>("archivedPlantId", null)
-                    .collect { plantId ->
-                        if (plantId != null) {
-                            val plantName = backStackEntry.savedStateHandle.remove<String>("archivedPlantName") ?: ""
-                            backStackEntry.savedStateHandle.remove<Long>("archivedPlantId")
-                            vm.onPlantArchived(plantId, plantName)
+            ) { backStackEntry ->
+                val restoreMessage = backStackEntry.arguments?.getString("restoreMessage")
+                val vm: PlantListViewModel = viewModel(
+                    factory = PlantListViewModel.Factory(
+                        app,
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.plantPhotoRepository,
+                        app.settingsDataStore,
+                        app.quickLogUseCase
+                    )
+                )
+                LaunchedEffect(vm) {
+                    backStackEntry.savedStateHandle.getStateFlow<Long?>("archivedPlantId", null)
+                        .collect { plantId ->
+                            if (plantId != null) {
+                                val plantName = backStackEntry.savedStateHandle.remove<String>("archivedPlantName") ?: ""
+                                backStackEntry.savedStateHandle.remove<Long>("archivedPlantId")
+                                vm.onPlantArchived(plantId, plantName)
+                            }
                         }
-                    }
-            }
-            PlantListScreen(
-                viewModel = vm,
-                restoreMessage = restoreMessage,
-                onNavigateToPlant = { plantId ->
-                    navController.navigate(Screen.PlantDetail.createRoute(plantId))
-                },
-                onNavigateToAdd = {
-                    navController.navigate(Screen.AddPlant.route)
-                },
-                onNavigateToSettings = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                onSelectionModeChanged = { plantListSelectionActive = it }
-            )
-        }
-
-        composable(Screen.AddPlant.route) { backStackEntry ->
-            val vm: AddEditPlantViewModel = viewModel(
-                factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, null)
-            )
-            AddEditPlantScreen(
-                viewModel = vm,
-                onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
-            )
-        }
-
-        composable(
-            route = Screen.EditPlant.route,
-            arguments = listOf(navArgument("plantId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val plantId = backStackEntry.arguments!!.getLong("plantId")
-            val vm: AddEditPlantViewModel = viewModel(
-                factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, plantId)
-            )
-            AddEditPlantScreen(
-                viewModel = vm,
-                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
-                onPlantArchived = { archivedId, archivedName ->
-                    navController.getBackStackEntry(Screen.PlantList.route)
-                        .savedStateHandle["archivedPlantId"] = archivedId
-                    navController.getBackStackEntry(Screen.PlantList.route)
-                        .savedStateHandle["archivedPlantName"] = archivedName
-                    navController.popBackStackOnce(backStackEntry, Screen.PlantList.route)
                 }
-            )
-        }
-
-        composable(
-            route = Screen.PlantDetail.route,
-            arguments = listOf(navArgument("plantId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val plantId = backStackEntry.arguments!!.getLong("plantId")
-            val vm: PlantDetailViewModel = viewModel(
-                factory = PlantDetailViewModel.Factory(
-                    app.plantRepository,
-                    app.careLogRepository,
-                    app.plantPhotoRepository,
-                    plantId,
-                    app.settingsDataStore,
-                    app.quickLogUseCase
+                PlantListScreen(
+                    viewModel = vm,
+                    restoreMessage = restoreMessage,
+                    onNavigateToPlant = { plantId ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                    },
+                    onNavigateToAdd = {
+                        navController.navigate(Screen.AddPlant.route)
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
+                    },
+                    onSelectionModeChanged = { plantListSelectionActive = it }
                 )
-            )
-
-            val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-            LaunchedEffect(savedStateHandle) {
-                val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
-                if (suggestedInterval != null) {
-                    vm.suggestedWateringInterval.value = suggestedInterval
-                    savedStateHandle.remove<Int>("suggestedWateringInterval")
-                }
             }
 
-            PlantDetailScreen(
-                viewModel = vm,
-                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
-                onNavigateToEdit = {
-                    navController.navigate(Screen.EditPlant.createRoute(plantId))
-                },
-                onNavigateToAddLog = {
-                    navController.navigate(Screen.AddCareLog.createRoute(plantId))
-                },
-                onNavigateToEditLog = { careLogId ->
-                    navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.AddCareLog.route,
-            arguments = listOf(
-                navArgument("plantId") { type = NavType.LongType },
-                navArgument("careLogId") { type = NavType.LongType; defaultValue = 0L }
-            )
-        ) { backStackEntry ->
-            val plantId = backStackEntry.arguments!!.getLong("plantId")
-            val careLogId = backStackEntry.arguments!!.getLong("careLogId")
-            val vm: AddCareLogViewModel = viewModel(
-                factory = AddCareLogViewModel.Factory(
-                    app.careLogRepository,
-                    app.plantRepository,
-                    plantId,
-                    careLogId
+            composable(Screen.AddPlant.route) { backStackEntry ->
+                val vm: AddEditPlantViewModel = viewModel(
+                    factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, null)
                 )
-            )
-            AddCareLogScreen(
-                viewModel = vm,
-                onNavigateBack = { suggestedInterval ->
-                    suggestedInterval?.let { interval ->
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("suggestedWateringInterval", interval)
-                    }
-                    navController.popBackStackOnce(backStackEntry)
-                }
-            )
-        }
-
-        composable(Screen.Settings.route) { backStackEntry ->
-            val vm: SettingsViewModel = viewModel(
-                factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database, app.plantRepository)
-            )
-            SettingsScreen(
-                viewModel = vm,
-                onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
-                onRestoreSuccess = { plantCount, logCount ->
-                    val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
-                    navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onShowWhatsNew = { showWhatsNew = true },
-                onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) }
-            )
-        }
-
-        composable(Screen.Graveyard.route) { backStackEntry ->
-            val vm: GraveyardViewModel = viewModel(
-                factory = GraveyardViewModel.Factory(app.plantRepository)
-            )
-            GraveyardScreen(
-                viewModel = vm,
-                onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
-            )
-        }
-
-        composable(Screen.Calendar.route) {
-            val vm: CalendarViewModel = viewModel(
-                factory = CalendarViewModel.Factory(
-                    app,
-                    app.plantRepository,
-                    app.careLogRepository,
-                    app.plantPhotoRepository,
-                    app.settingsDataStore,
-                    app.quickLogUseCase
+                AddEditPlantScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
                 )
-            )
-            CalendarScreen(
-                viewModel = vm,
-                onNavigateToPlant = { plantId ->
-                    navController.navigate(Screen.PlantDetail.createRoute(plantId))
+            }
+
+            composable(
+                route = Screen.EditPlant.route,
+                arguments = listOf(navArgument("plantId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val plantId = backStackEntry.arguments!!.getLong("plantId")
+                val vm: AddEditPlantViewModel = viewModel(
+                    factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, plantId)
+                )
+                AddEditPlantScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onPlantArchived = { archivedId, archivedName ->
+                        navController.getBackStackEntry(Screen.PlantList.route)
+                            .savedStateHandle["archivedPlantId"] = archivedId
+                        navController.getBackStackEntry(Screen.PlantList.route)
+                            .savedStateHandle["archivedPlantName"] = archivedName
+                        navController.popBackStackOnce(backStackEntry, Screen.PlantList.route)
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.PlantDetail.route,
+                arguments = listOf(navArgument("plantId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val plantId = backStackEntry.arguments!!.getLong("plantId")
+                val vm: PlantDetailViewModel = viewModel(
+                    factory = PlantDetailViewModel.Factory(
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.plantPhotoRepository,
+                        plantId,
+                        app.settingsDataStore,
+                        app.quickLogUseCase
+                    )
+                )
+
+                val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+                LaunchedEffect(savedStateHandle) {
+                    val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
+                    if (suggestedInterval != null) {
+                        vm.suggestedWateringInterval.value = suggestedInterval
+                        savedStateHandle.remove<Int>("suggestedWateringInterval")
+                    }
                 }
-            )
-        }
+
+                PlantDetailScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToEdit = {
+                        navController.navigate(Screen.EditPlant.createRoute(plantId))
+                    },
+                    onNavigateToAddLog = {
+                        navController.navigate(Screen.AddCareLog.createRoute(plantId))
+                    },
+                    onNavigateToEditLog = { careLogId ->
+                        navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.AddCareLog.route,
+                arguments = listOf(
+                    navArgument("plantId") { type = NavType.LongType },
+                    navArgument("careLogId") {
+                        type = NavType.LongType;
+                        defaultValue = 0L
+                    }
+                )
+            ) { backStackEntry ->
+                val plantId = backStackEntry.arguments!!.getLong("plantId")
+                val careLogId = backStackEntry.arguments!!.getLong("careLogId")
+                val vm: AddCareLogViewModel = viewModel(
+                    factory = AddCareLogViewModel.Factory(
+                        app.careLogRepository,
+                        app.plantRepository,
+                        plantId,
+                        careLogId
+                    )
+                )
+                AddCareLogScreen(
+                    viewModel = vm,
+                    onNavigateBack = { suggestedInterval ->
+                        suggestedInterval?.let { interval ->
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("suggestedWateringInterval", interval)
+                        }
+                        navController.popBackStackOnce(backStackEntry)
+                    }
+                )
+            }
+
+            composable(Screen.Settings.route) { backStackEntry ->
+                val vm: SettingsViewModel = viewModel(
+                    factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database, app.plantRepository)
+                )
+                SettingsScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onRestoreSuccess = { plantCount, logCount ->
+                        val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
+                        navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onShowWhatsNew = { showWhatsNew = true },
+                    onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) }
+                )
+            }
+
+            composable(Screen.Graveyard.route) { backStackEntry ->
+                val vm: GraveyardViewModel = viewModel(
+                    factory = GraveyardViewModel.Factory(app.plantRepository)
+                )
+                GraveyardScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
+                )
+            }
+
+            composable(Screen.Calendar.route) {
+                val vm: CalendarViewModel = viewModel(
+                    factory = CalendarViewModel.Factory(
+                        app,
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.plantPhotoRepository,
+                        app.settingsDataStore,
+                        app.quickLogUseCase
+                    )
+                )
+                CalendarScreen(
+                    viewModel = vm,
+                    onNavigateToPlant = { plantId ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                    }
+                )
+            }
         }
     }
 
