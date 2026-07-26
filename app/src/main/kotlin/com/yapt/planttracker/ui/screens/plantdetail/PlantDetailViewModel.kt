@@ -86,7 +86,7 @@ class PlantDetailViewModel(
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
-    val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
+    internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
     val showSkipDialog = MutableStateFlow(false)
 
@@ -207,7 +207,7 @@ class PlantDetailViewModel(
         suggestedWateringInterval.value = null
     }
 
-    fun setTimeRange(range: TimeRange) {
+    internal fun setTimeRange(range: TimeRange) {
         selectedTimeRange.value = range
     }
 
