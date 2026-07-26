@@ -84,6 +84,8 @@ After saving a WATER log, `AddCareLogViewModel` queries the last two waterings t
 - **`DateUtils.formatRelative()`** for all date display — never compute `(now - ts) / 86_400_000` inline
 - **Enums stored as String** in Room — use `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` when reading, not plain `.valueOf()`
 - **No libs.versions.toml** — dependency versions are inlined in `app/build.gradle.kts`; the Compose BOM handles Compose artifact versions
+- **Compose UI tests assert user-visible semantics** — what is announced (`contentDescription`/`stateDescription`), displayed (text), or actionable — **never tree structure** (child counts, node merge mechanics, `testTag` reachability across merge boundaries). A `testTag` never merges upward past an ancestor `clickable`/merged node, and `clearAndSetSemantics`-replaced descendants are intentionally still exposed in the unmerged tree, so structural assertions are unreliable in *both* trees. If a fix is about accessibility announcements, assert the announcement (e.g. the merged node carries the expected `contentDescription` and its merged text contains only what should be read aloud), not the node topology that produces it (#420).
+- **Two-strikes rule on failing tests** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or reduce to a minimal repro) before the next push, and reconsider whether the test is asserting the wrong thing (structure vs. user-visible contract) (#420).
 
 ### CHANGELOG.md
 Format: [Keep a Changelog](https://keepachangelog.com/). File lives at repo root alongside `README.md`.
@@ -109,7 +111,7 @@ Decisions are documented in `docs/decisions/`:
 ## Known Issues / Technical Debt
 
 - **#419 (resolved)** — Cloud sessions **can** now build the project. Enablement lives in the environment config, not the repo: allowlist `dl.google.com` (Network access → Custom, keep the default package managers) and set `ANDROID_HOME=/opt/android-sdk`, then run `scripts/cloud-setup.sh` as the environment's setup script. It installs the Android SDK (`platforms;android-36`, `build-tools;35.0.0`, `platform-tools`), points Gradle at it, and seeds the Gradle wrapper's dist cache from the pre-installed Gradle (the pinned wrapper distribution is a GitHub release asset the session proxy blocks; dependency artifacts resolve online from `maven.google.com`/Maven Central). With that in place `./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug` runs in-session, so the dev-workflow "implementer runs build/lint/tests before pushing" step is satisfiable. Note: `./gradlew --version` reports the pre-installed Gradle (a patch off the pinned version); CI still uses the pinned build. Instrumented tests still require CI's emulator
-- **#420** — CLAUDE.md lacks a Compose-testing convention (assert user-visible semantics, never tree structure; two-strikes rule on failing-test fix attempts) — docs change pending
+- **#420 (resolved)** — the Compose-testing convention (assert user-visible semantics, never tree structure; two-strikes rule on failing-test fix attempts) now lives in **Patterns & Conventions** above
 
 ---
 
