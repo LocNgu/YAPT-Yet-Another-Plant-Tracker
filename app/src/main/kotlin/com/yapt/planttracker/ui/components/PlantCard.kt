@@ -139,9 +139,11 @@ fun PlantCard(
 
             Spacer(Modifier.width(12.dp))
 
-            Column(modifier = Modifier
-                .weight(1f)
-                .padding(top = 12.dp, bottom = 12.dp, end = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 12.dp, bottom = 12.dp, end = 8.dp)
+            ) {
                 Text(
                     text = status.plant.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -202,7 +204,7 @@ fun PlantCard(
                         }
                         val fertLabel = when {
                             status.plant.useLiquidFertilizer &&
-                                    (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
+                                (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
                                 stringResource(R.string.fert_label_due_with_watering)
                             status.lastFertilizedAt == null -> fertLabelNever
                             status.nextFertilizingDueAt != null ->

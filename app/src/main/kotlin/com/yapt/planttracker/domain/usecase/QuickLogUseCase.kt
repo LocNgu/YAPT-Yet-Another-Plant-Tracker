@@ -11,8 +11,8 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
-import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -66,7 +66,11 @@ class QuickLogUseCase(
             } else {
                 application.getString(R.string.quick_log_fertilized, plant.name)
             }
-            else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plant.name)
+            else -> application.getString(
+                R.string.quick_log_other,
+                application.getString(careType.labelRes()),
+                plant.name
+            )
         }
     }
 
@@ -153,7 +157,9 @@ class QuickLogUseCase(
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {
         plantRepository.getPlantById(plantId).first()?.let { p ->
             if (p.wateringDueDateOverride != null) {
-                plantRepository.updatePlant(p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis()))
+                plantRepository.updatePlant(
+                    p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                )
             }
         }
     }

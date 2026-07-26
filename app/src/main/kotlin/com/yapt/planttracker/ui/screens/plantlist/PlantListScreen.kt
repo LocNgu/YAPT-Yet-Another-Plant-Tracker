@@ -1,5 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -208,59 +208,64 @@ fun PlantListScreen(
                     }
                 )
             } else {
-            TopAppBar(
-                title = { Text(stringResource(R.string.my_plants)) },
-                colors = TopAppBarDefaults.topAppBarColors(),
-                actions = {
-                    Box {
-                        IconButton(onClick = { sortMenuExpanded = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.cd_sort_plants))
-                        }
-                        DropdownMenu(
-                            expanded = sortMenuExpanded,
-                            onDismissRequest = { sortMenuExpanded = false }
-                        ) {
-                            val sortAlpha = stringResource(R.string.sort_alphabetical)
-                            val sortAlphaAsc = stringResource(R.string.sort_alphabetical_asc)
-                            val sortAlphaDesc = stringResource(R.string.sort_alphabetical_desc)
-                            val sortWatering = stringResource(R.string.sort_watering_due)
-                            val sortFertilizing = stringResource(R.string.sort_fertilizing_due)
-                            val sortRecent = stringResource(R.string.sort_recently_added)
-                            val sortBothDue = stringResource(R.string.sort_both_due)
-                            val sortCaredToday = stringResource(R.string.sort_cared_for_today)
-                            SortOption.entries.forEach { option ->
-                                val isActive = sortOrder.option == option
-                                val label = when (option) {
-                                    SortOption.ALPHABETICAL -> if (isActive) {
-                                        if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc
-                                    } else sortAlpha
-                                    SortOption.WATERING_DUE -> sortWatering
-                                    SortOption.FERTILIZING_DUE -> sortFertilizing
-                                    SortOption.RECENTLY_ADDED -> sortRecent
-                                    SortOption.BOTH_DUE -> sortBothDue
-                                    SortOption.CARED_FOR_TODAY -> sortCaredToday
-                                }
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = label,
-                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.toggleSort(option)
-                                        sortMenuExpanded = false
-                                    }
+                TopAppBar(
+                    title = { Text(stringResource(R.string.my_plants)) },
+                    colors = TopAppBarDefaults.topAppBarColors(),
+                    actions = {
+                        Box {
+                            IconButton(onClick = { sortMenuExpanded = true }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = stringResource(R.string.cd_sort_plants)
                                 )
                             }
+                            DropdownMenu(
+                                expanded = sortMenuExpanded,
+                                onDismissRequest = { sortMenuExpanded = false }
+                            ) {
+                                val sortAlpha = stringResource(R.string.sort_alphabetical)
+                                val sortAlphaAsc = stringResource(R.string.sort_alphabetical_asc)
+                                val sortAlphaDesc = stringResource(R.string.sort_alphabetical_desc)
+                                val sortWatering = stringResource(R.string.sort_watering_due)
+                                val sortFertilizing = stringResource(R.string.sort_fertilizing_due)
+                                val sortRecent = stringResource(R.string.sort_recently_added)
+                                val sortBothDue = stringResource(R.string.sort_both_due)
+                                val sortCaredToday = stringResource(R.string.sort_cared_for_today)
+                                SortOption.entries.forEach { option ->
+                                    val isActive = sortOrder.option == option
+                                    val label = when (option) {
+                                        SortOption.ALPHABETICAL -> if (isActive) {
+                                            if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc
+                                        } else {
+                                            sortAlpha
+                                        }
+                                        SortOption.WATERING_DUE -> sortWatering
+                                        SortOption.FERTILIZING_DUE -> sortFertilizing
+                                        SortOption.RECENTLY_ADDED -> sortRecent
+                                        SortOption.BOTH_DUE -> sortBothDue
+                                        SortOption.CARED_FOR_TODAY -> sortCaredToday
+                                    }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = label,
+                                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.toggleSort(option)
+                                            sortMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
                         }
                     }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                    }
-                }
-            )
+                )
             }
         },
         floatingActionButton = {
@@ -315,7 +320,7 @@ fun PlantListScreen(
                             )
                         }
                     }
-                    items(rooms) { room ->
+                    items(rooms, key = { room -> "room-$room" }) { room ->
                         FilterChip(
                             selected = selectedRoom == room,
                             onClick = { viewModel.selectRoom(room) },
@@ -344,7 +349,15 @@ fun PlantListScreen(
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp)
                 ) {
-                    items(plantListItems) { listItem ->
+                    items(
+                        plantListItems,
+                        key = { listItem ->
+                            when (listItem) {
+                                is PlantListItem.DateHeader -> "header-${listItem.bucket}"
+                                is PlantListItem.PlantRow -> "plant-${listItem.status.plant.id}"
+                            }
+                        }
+                    ) { listItem ->
                         when (listItem) {
                             is PlantListItem.DateHeader -> DateGroupHeader(listItem.bucket)
                             is PlantListItem.PlantRow -> {
@@ -368,7 +381,7 @@ fun PlantListScreen(
                             }
                         }
                     }
-                    item { Spacer(Modifier.height(8.dp)) }
+                    item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                 }
             }
         }

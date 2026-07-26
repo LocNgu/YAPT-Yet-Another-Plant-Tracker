@@ -2,8 +2,6 @@ package com.yapt.planttracker.ui.screens.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -40,14 +41,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,6 +76,7 @@ import com.kizitonwose.calendar.core.previousMonth
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
@@ -83,15 +84,14 @@ import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.QuickLogButtons
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.SageGreen
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -505,7 +505,11 @@ private fun CalendarDayPlantRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = plant.name, style = MaterialTheme.typography.titleMedium)
             plant.room?.let {
-                Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -516,7 +520,11 @@ private fun CalendarDayPlantRow(
                         onClick = {},
                         label = { Text(stringResource(R.string.calendar_chip_water)) },
                         leadingIcon = {
-                            Icon(Icons.Filled.WaterDrop, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                            Icon(
+                                Icons.Filled.WaterDrop,
+                                contentDescription = null,
+                                modifier = Modifier.size(AssistChipDefaults.IconSize)
+                            )
                         }
                     )
                 }
@@ -525,7 +533,11 @@ private fun CalendarDayPlantRow(
                         onClick = {},
                         label = { Text(stringResource(R.string.calendar_chip_fertilize)) },
                         leadingIcon = {
-                            Icon(Icons.Filled.Spa, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                            Icon(
+                                Icons.Filled.Spa,
+                                contentDescription = null,
+                                modifier = Modifier.size(AssistChipDefaults.IconSize)
+                            )
                         }
                     )
                 }

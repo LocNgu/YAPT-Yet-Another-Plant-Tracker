@@ -1,0 +1,87 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:ReminderWorker.kt$ReminderWorker$!status.isOverdue &amp;&amp; !status.isDueSoon &amp;&amp; !status.isFertilizingOverdue &amp;&amp; !status.isFertilizingDueSoon</ID>
+    <ID>CyclomaticComplexMethod:AddCareLogScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddCareLogScreen( viewModel: AddCareLogViewModel, onNavigateBack: (suggestedInterval: Int?) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:AddCareLogViewModel.kt$AddCareLogViewModel$fun saveLog()</ID>
+    <ID>CyclomaticComplexMethod:AddEditPlantScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun AddEditPlantScreen( viewModel: AddEditPlantViewModel, onNavigateBack: () -&gt; Unit, onPlantArchived: (plantId: Long, plantName: String) -&gt; Unit = { _, _ -&gt; } )</ID>
+    <ID>CyclomaticComplexMethod:BackupManager.kt$BackupManager$override suspend fun exportBackup( destinationUri: Uri, includePhotos: Boolean ): BackupResult</ID>
+    <ID>CyclomaticComplexMethod:BackupManager.kt$BackupManager$override suspend fun importBackup(sourceUri: Uri): BackupResult</ID>
+    <ID>CyclomaticComplexMethod:CalendarDayGrouping.kt$fun computePlantsByDay( statuses: List&lt;PlantCareStatus&gt;, visibleMonth: YearMonth, today: LocalDate ): Map&lt;LocalDate, DayEntry&gt;</ID>
+    <ID>CyclomaticComplexMethod:CareSchedule.kt$CareSchedule$fun computeStatus( plant: Plant, lastWateredAt: Long?, lastFertilizedAt: Long?, totalLogs: Int, now: Long = System.currentTimeMillis() ): PlantCareStatus</ID>
+    <ID>CyclomaticComplexMethod:PlantCard.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun PlantCard( status: PlantCareStatus, onClick: () -&gt; Unit, onQuickWater: () -&gt; Unit, onQuickFertilize: () -&gt; Unit, modifier: Modifier = Modifier, selectionMode: Boolean = false, selected: Boolean = false, onLongClick: () -&gt; Unit = {}, onToggleSelect: () -&gt; Unit = {} )</ID>
+    <ID>CyclomaticComplexMethod:PlantDetailScreen.kt$@Composable fun PlantDetailScreen( viewModel: PlantDetailViewModel, onNavigateBack: () -&gt; Unit, onNavigateToEdit: () -&gt; Unit, onNavigateToAddLog: () -&gt; Unit, onNavigateToEditLog: (careLogId: Long) -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:PlantListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun PlantListScreen( viewModel: PlantListViewModel, restoreMessage: String? = null, onNavigateToPlant: (Long) -&gt; Unit, onNavigateToAdd: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, onSelectionModeChanged: (Boolean) -&gt; Unit = {} )</ID>
+    <ID>CyclomaticComplexMethod:PlantListViewModel.kt$PlantListViewModel$private fun applySortOrder( list: List&lt;PlantCareStatus&gt;, sort: SortOrder, caredTodayAt: Map&lt;Long, Long&gt; = emptyMap() ): List&lt;PlantCareStatus&gt;</ID>
+    <ID>CyclomaticComplexMethod:ReminderWorker.kt$ReminderWorker$override suspend fun doWork(): Result</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, onNavigateBack: () -&gt; Unit, onRestoreSuccess: (plantCount: Int, logCount: Int) -&gt; Unit, onShowWhatsNew: () -&gt; Unit, onNavigateToGraveyard: () -&gt; Unit = {} )</ID>
+    <ID>CyclomaticComplexMethod:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
+    <ID>LargeClass:PlantListViewModelTest.kt$PlantListViewModelTest</ID>
+    <ID>LongMethod:AddCareLogScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddCareLogScreen( viewModel: AddCareLogViewModel, onNavigateBack: (suggestedInterval: Int?) -&gt; Unit )</ID>
+    <ID>LongMethod:AddEditPlantScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun AddEditPlantScreen( viewModel: AddEditPlantViewModel, onNavigateBack: () -&gt; Unit, onPlantArchived: (plantId: Long, plantName: String) -&gt; Unit = { _, _ -&gt; } )</ID>
+    <ID>LongMethod:BackupManager.kt$BackupManager$override suspend fun exportBackup( destinationUri: Uri, includePhotos: Boolean ): BackupResult</ID>
+    <ID>LongMethod:BackupManager.kt$BackupManager$private suspend fun performImport( backup: BackupRoot, photoTempFiles: Map&lt;String, File&gt; ): BackupResult</ID>
+    <ID>LongMethod:BulkActionBar.kt$@Composable fun BulkActionBar( selectedCount: Int, onCareAction: (CareType) -&gt; Unit, onMoveToGraveyard: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:CalendarScreen.kt$@Composable private fun CalendarDayPlantRow( info: PlantDayInfo, onNavigateToPlant: (Long) -&gt; Unit, onQuickWater: (PlantCareStatus) -&gt; Unit, onQuickFertilize: (PlantCareStatus) -&gt; Unit )</ID>
+    <ID>LongMethod:CalendarScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun CalendarScreen( viewModel: CalendarViewModel, onNavigateToPlant: (Long) -&gt; Unit )</ID>
+    <ID>LongMethod:CareLogItem.kt$@Composable fun CareLogItem( log: CareLog, onDelete: (() -&gt; Unit)? = null, onEdit: (() -&gt; Unit)? = null, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:FullScreenPhotoViewer.kt$@Composable fun FullScreenPhotoViewer( photos: List&lt;GalleryPhoto&gt;, initialIndex: Int = 0, onDismiss: () -&gt; Unit, onDelete: ((uri: String) -&gt; Unit)? = null )</ID>
+    <ID>LongMethod:GraveyardScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun GraveyardScreen( viewModel: GraveyardViewModel, onNavigateBack: () -&gt; Unit )</ID>
+    <ID>LongMethod:NavGraph.kt$@Composable fun YaptNavGraph( app: YaptApplication, initialPlantId: Long? = null, onDeepLinkConsumed: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:PlantCard.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun PlantCard( status: PlantCareStatus, onClick: () -&gt; Unit, onQuickWater: () -&gt; Unit, onQuickFertilize: () -&gt; Unit, modifier: Modifier = Modifier, selectionMode: Boolean = false, selected: Boolean = false, onLongClick: () -&gt; Unit = {}, onToggleSelect: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:PlantDetailScreen.kt$@Composable fun PlantDetailScreen( viewModel: PlantDetailViewModel, onNavigateBack: () -&gt; Unit, onNavigateToEdit: () -&gt; Unit, onNavigateToAddLog: () -&gt; Unit, onNavigateToEditLog: (careLogId: Long) -&gt; Unit )</ID>
+    <ID>LongMethod:PlantListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun PlantListScreen( viewModel: PlantListViewModel, restoreMessage: String? = null, onNavigateToPlant: (Long) -&gt; Unit, onNavigateToAdd: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, onSelectionModeChanged: (Boolean) -&gt; Unit = {} )</ID>
+    <ID>LongMethod:PlantListViewModel.kt$PlantListViewModel$private fun applySortOrder( list: List&lt;PlantCareStatus&gt;, sort: SortOrder, caredTodayAt: Map&lt;Long, Long&gt; = emptyMap() ): List&lt;PlantCareStatus&gt;</ID>
+    <ID>LongMethod:ReminderWorker.kt$ReminderWorker$override suspend fun doWork(): Result</ID>
+    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, onNavigateBack: () -&gt; Unit, onRestoreSuccess: (plantCount: Int, logCount: Int) -&gt; Unit, onShowWhatsNew: () -&gt; Unit, onNavigateToGraveyard: () -&gt; Unit = {} )</ID>
+    <ID>LongMethod:WateringHistoryChart.kt$@Composable private fun ChartContent( intervals: List&lt;WateringInterval&gt;, effectiveStartMs: Long, now: Long, careMarkers: List&lt;CareEventMarker&gt;, waterMarkers: List&lt;WaterDataPoint&gt;, )</ID>
+    <ID>LongMethod:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
+    <ID>LongParameterList:CalendarDayGroupingTest.kt$CalendarDayGroupingTest$( id: Long = 1L, name: String = "Plant$id", nextWateringDueAt: LocalDate? = null, isOverdue: Boolean = false, nextFertilizingDueAt: LocalDate? = null, isFertilizingOverdue: Boolean = false, useLiquidFertilizer: Boolean = false )</ID>
+    <ID>LongParameterList:CalendarScreen.kt$( day: LocalDate, today: LocalDate, plants: List&lt;PlantDayInfo&gt;, onDismiss: () -&gt; Unit, onNavigateToPlant: (Long) -&gt; Unit, onQuickWater: (PlantCareStatus) -&gt; Unit, onQuickFertilize: (PlantCareStatus) -&gt; Unit )</ID>
+    <ID>LongParameterList:CareLogDaoTest.kt$CareLogDaoTest$( plantId: Long, careType: String = CareType.WATER.name, loggedAt: Long = System.currentTimeMillis(), notes: String? = null, photoUri: String? = null, wateringFeedback: String? = null )</ID>
+    <ID>LongParameterList:CareLogRepositoryTest.kt$CareLogRepositoryTest$( id: Long = 0L, plantId: Long, careType: CareType = CareType.WATER, loggedAt: Long = System.currentTimeMillis(), notes: String? = null, photoUri: String? = null, wateringFeedback: WateringFeedback? = null )</ID>
+    <ID>LongParameterList:PlantCard.kt$( status: PlantCareStatus, onClick: () -&gt; Unit, onQuickWater: () -&gt; Unit, onQuickFertilize: () -&gt; Unit, modifier: Modifier = Modifier, selectionMode: Boolean = false, selected: Boolean = false, onLongClick: () -&gt; Unit = {}, onToggleSelect: () -&gt; Unit = {} )</ID>
+    <ID>LongParameterList:PlantListScreen.kt$( viewModel: PlantListViewModel, restoreMessage: String? = null, onNavigateToPlant: (Long) -&gt; Unit, onNavigateToAdd: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, onSelectionModeChanged: (Boolean) -&gt; Unit = {} )</ID>
+    <ID>LongParameterList:PlantRepositoryTest.kt$PlantRepositoryTest$( name: String = "Monstera", species: String? = "Monstera deliciosa", room: String? = "Living Room", wateringIntervalDays: Int? = 7, fertilizingIntervalDays: Int? = 30, coverPhotoUri: String? = "content://photo/1", notes: String? = "Loves indirect light" )</ID>
+    <ID>LongParameterList:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$( id: Long = 1L, name: String = "Monstera", useLiquidFertilizer: Boolean = false, wateringIntervalDays: Int? = null, wateringDueDateOverride: Long? = null, createdAt: Long = 0L )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant, trailingContent: (@Composable () -&gt; Unit)? = null )</ID>
+    <ID>LongParameterList:StatsRow.kt$( icon: ImageVector, label: String, nextLine: String?, nextColor: Color?, lastLine: String?, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, onClickLabel: String? = null )</ID>
+    <ID>LoopWithTooManyJumpStatements:ReminderWorker.kt$ReminderWorker$for</ID>
+    <ID>MaximumLineLength:AddCareLogScreen.kt$ </ID>
+    <ID>MaximumLineLength:AddCareLogViewModel.kt$AddCareLogViewModel$ </ID>
+    <ID>MaximumLineLength:AddCareLogViewModelTest.kt$AddCareLogViewModelTest$ </ID>
+    <ID>MaximumLineLength:NavGraph.kt$ </ID>
+    <ID>MaximumLineLength:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$ </ID>
+    <ID>MaximumLineLength:PlantDetailScreen.kt$ </ID>
+    <ID>MaximumLineLength:PlantDetailViewModelTest.kt$PlantDetailViewModelTest$ </ID>
+    <ID>MaximumLineLength:PlantListScreen.kt$ </ID>
+    <ID>MaximumLineLength:PlantListViewModelTest.kt$PlantListViewModelTest$ </ID>
+    <ID>MaximumLineLength:QuickLogUseCase.kt$QuickLogUseCase$ </ID>
+    <ID>MaximumLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$ </ID>
+    <ID>MaximumLineLength:SettingsViewModelTest.kt$SettingsViewModelTest$ </ID>
+    <ID>MaximumLineLength:WhatsNewContent.kt$WhatsNewContent$ </ID>
+    <ID>MultiLineIfElse:AddCareLogScreen.kt$stringResource( R.string.care_log_title_edit )</ID>
+    <ID>MultiLineIfElse:AddCareLogScreen.kt$stringResource(R.string.care_log_title_add)</ID>
+    <ID>MultiLineIfElse:AddEditPlantScreen.kt$stringResource( R.string.edit_plant )</ID>
+    <ID>MultiLineIfElse:AddEditPlantScreen.kt$stringResource(R.string.add_plant)</ID>
+    <ID>NestedBlockDepth:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
+    <ID>NoSemicolons:NavGraph.kt$;</ID>
+    <ID>NoWildcardImports:CareLogDao.kt$import androidx.room.*</ID>
+    <ID>NoWildcardImports:PlantDao.kt$import androidx.room.*</ID>
+    <ID>ReturnCount:AddCareLogViewModel.kt$AddCareLogViewModel$private suspend fun computeSuggestedInterval(): Int?</ID>
+    <ID>ReturnCount:QuickLogUseCase.kt$QuickLogUseCase$private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback): QuickWaterSuggestion?</ID>
+    <ID>ReturnCount:QuickLogUseCase.kt$QuickLogUseCase$suspend fun maybeBuildPhotoReminderRequest(plantId: Long): PhotoReminderRequest?</ID>
+    <ID>TooGenericExceptionCaught:BackupManager.kt$BackupManager$e: Exception</ID>
+    <ID>TooManyFunctions:CareLogDao.kt$CareLogDao</ID>
+    <ID>TooManyFunctions:PlantDao.kt$PlantDao</ID>
+    <ID>TooManyFunctions:PlantDetailViewModel.kt$PlantDetailViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:PlantListViewModel.kt$PlantListViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:PlantRepository.kt$PlantRepository</ID>
+    <ID>TooManyFunctions:WateringHistoryChart.kt$com.yapt.planttracker.ui.components.WateringHistoryChart.kt</ID>
+    <ID>WildcardImport:CareLogDao.kt$import androidx.room.*</ID>
+    <ID>WildcardImport:PlantDao.kt$import androidx.room.*</ID>
+    <ID>Wrapping:AddEditPlantScreen.kt$Text( if (viewModel.isEditMode) stringResource( R.string.edit_plant ) else stringResource(R.string.add_plant) )</ID>
+    <ID>Wrapping:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$(</ID>
+  </CurrentIssues>
+</SmellBaseline>

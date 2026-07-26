@@ -11,8 +11,8 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -29,12 +29,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -53,8 +53,12 @@ class PlantListViewModelTest {
         // getString is a Java Object... vararg method; MockK captures the vararg as an array at args[1]
         every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${(args[1] as Array<*>)[0]}" }
         every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_other, any(), any()) } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
+        every {
+            getString(R.string.quick_log_watered_and_fertilized, any())
+        } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
+        every {
+            getString(R.string.quick_log_other, any(), any())
+        } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
         every { getString(R.string.care_type_watered) } returns "Watered"
         every { getString(R.string.care_type_fertilized) } returns "Fertilized"
@@ -814,7 +818,15 @@ class PlantListViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits the watered-and-fertilized message, no interval suggestion`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera =
+            Plant(
+                id = 1L,
+                name = "Monstera",
+                useLiquidFertilizer = true,
+                wateringIntervalDays = 7,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
@@ -839,7 +851,15 @@ class PlantListViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits the suggestion returned by the use case`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera =
+            Plant(
+                id = 1L,
+                name = "Monstera",
+                useLiquidFertilizer = true,
+                wateringIntervalDays = 7,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_SOON) } returns
@@ -1112,8 +1132,24 @@ class PlantListViewModelTest {
     fun `plantListItems recomputes headers when room filter changes`() = runTest {
         val now = System.currentTimeMillis()
         val oneDayMs = TimeUnit.DAYS.toMillis(1)
-        val kitchenPlant = Plant(id = 1L, name = "Kitchen Plant", room = "Kitchen", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
-        val bedroomPlant = Plant(id = 2L, name = "Bedroom Plant", room = "Bedroom", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val kitchenPlant =
+            Plant(
+                id = 1L,
+                name = "Kitchen Plant",
+                room = "Kitchen",
+                wateringIntervalDays = 1,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        val bedroomPlant =
+            Plant(
+                id = 2L,
+                name = "Bedroom Plant",
+                room = "Bedroom",
+                wateringIntervalDays = 1,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenPlant, bedroomPlant))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         // Kitchen plant is overdue (due 2 days ago); Bedroom plant is due today.
@@ -1169,9 +1205,11 @@ class PlantListViewModelTest {
             plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
         }
         coVerify {
-            careLogRepo.addLog(match {
-                it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-            })
+            careLogRepo.addLog(
+                match {
+                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
+                }
+            )
         }
         coVerify {
             plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })

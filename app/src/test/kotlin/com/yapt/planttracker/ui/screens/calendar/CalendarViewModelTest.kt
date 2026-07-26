@@ -10,8 +10,8 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -41,7 +41,9 @@ class CalendarViewModelTest {
 
     private val application: Application = mockk {
         every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
+        every {
+            getString(R.string.quick_log_watered_and_fertilized, any())
+        } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
@@ -177,7 +179,14 @@ class CalendarViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits watered-and-fertilized message, no interval suggestion`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera = Plant(
+            id = 1L,
+            name = "Monstera",
+            useLiquidFertilizer = true,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
@@ -201,7 +210,14 @@ class CalendarViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits the suggestion returned by the use case`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera = Plant(
+            id = 1L,
+            name = "Monstera",
+            useLiquidFertilizer = true,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
             QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)

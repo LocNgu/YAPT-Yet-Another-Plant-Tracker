@@ -72,6 +72,9 @@ jobs:
       - name: Decode debug keystore
         run: echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > app/debug.keystore
 
+      - name: Run Detekt
+        run: gradle detekt --no-daemon
+
       - name: Run unit tests
         run: gradle testDebugUnitTest --no-daemon
 
@@ -86,6 +89,7 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/reports/lint-results-debug.html
+            app/build/reports/detekt/
           retention-days: 7
 
   build:

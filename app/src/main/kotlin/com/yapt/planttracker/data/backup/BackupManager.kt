@@ -10,8 +10,8 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
-import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -302,7 +302,11 @@ class BackupManager(
                     photoUri = bl.photoUri?.let { zipPathToLocalPath[it] ?: it },
                     amount = bl.amount,
                     wateringFeedback = bl.wateringFeedback,
-                    fertilizerType = runCatching { FertilizerType.valueOf(bl.fertilizerType) }.getOrDefault(FertilizerType.UNSPECIFIED).name
+                    fertilizerType = runCatching {
+                        FertilizerType.valueOf(
+                            bl.fertilizerType
+                        )
+                    }.getOrDefault(FertilizerType.UNSPECIFIED).name
                 )
             }
 

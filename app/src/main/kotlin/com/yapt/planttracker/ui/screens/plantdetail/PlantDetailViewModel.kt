@@ -21,11 +21,6 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -37,6 +32,11 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 
 class PlantDetailViewModel(
     private val plantRepository: PlantRepository,
@@ -110,7 +110,11 @@ class PlantDetailViewModel(
         viewModelScope.launch {
             // drop(1) skips the stateIn seed (emptyList) and waits for the first real DB result,
             // preventing a false-positive reminder on plants that have recent photos.
-            combine(plant, galleryPhotos.drop(1), photoReminderEnabled) { p: Plant?, photos: List<GalleryPhoto>, enabled: Boolean ->
+            combine(
+                plant,
+                galleryPhotos.drop(1),
+                photoReminderEnabled
+            ) { p: Plant?, photos: List<GalleryPhoto>, enabled: Boolean ->
                 if (!enabled || p == null) return@combine
                 if (p.id in shownThisSession) return@combine
                 val lastPhotoTs = photos.firstOrNull()?.timestamp
@@ -321,6 +325,13 @@ class PlantDetailViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantDetailViewModel(plantRepository, careLogRepository, plantPhotoRepository, plantId, dataStore, quickLogUseCase) as T
+            PlantDetailViewModel(
+                plantRepository,
+                careLogRepository,
+                plantPhotoRepository,
+                plantId,
+                dataStore,
+                quickLogUseCase
+            ) as T
     }
 }
