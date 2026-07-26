@@ -35,6 +35,8 @@ style:
   # are not genuine smells here.
   MagicNumber:
     active: false
+  # Disabled in favour of the ktlint-equivalent formatting.MaximumLineLength
+  # above (also 120). Enabling both flags every over-length line twice and
+  # doubles the baseline entries.
   MaxLineLength:
-    active: true
-    maxLineLength: 120
+    active: false

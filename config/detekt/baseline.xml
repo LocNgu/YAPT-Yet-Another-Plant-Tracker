@@ -48,69 +48,6 @@
     <ID>LongParameterList:SettingsScreen.kt$( icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant, trailingContent: (@Composable () -&gt; Unit)? = null )</ID>
     <ID>LongParameterList:StatsRow.kt$( icon: ImageVector, label: String, nextLine: String?, nextColor: Color?, lastLine: String?, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, onClickLabel: String? = null )</ID>
     <ID>LoopWithTooManyJumpStatements:ReminderWorker.kt$ReminderWorker$for</ID>
-    <ID>MaxLineLength:AddCareLogScreen.kt$if (viewModel.selectedFertilizerType == type) FertilizerType.UNSPECIFIED else type</ID>
-    <ID>MaxLineLength:AddCareLogScreen.kt$viewModel.selectedFeedback = if (type == CareType.WATER) WateringFeedback.JUST_RIGHT else null</ID>
-    <ID>MaxLineLength:AddCareLogViewModel.kt$AddCareLogViewModel$fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED</ID>
-    <ID>MaxLineLength:AddCareLogViewModel.kt$AddCareLogViewModel$if</ID>
-    <ID>MaxLineLength:AddCareLogViewModelTest.kt$AddCareLogViewModelTest$fun</ID>
-    <ID>MaxLineLength:NavGraph.kt$val plantName = backStackEntry.savedStateHandle.remove&lt;String&gt;("archivedPlantName") ?: ""</ID>
-    <ID>MaxLineLength:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$"CREATE UNIQUE INDEX IF NOT EXISTS `index_plant_photos_plantId_uri` ON `plant_photos` (`plantId`, `uri`)"</ID>
-    <ID>MaxLineLength:PlantDetailScreen.kt$.</ID>
-    <ID>MaxLineLength:PlantDetailScreen.kt$fullScreenPhotoIndex = galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it &gt;= 0 }</ID>
-    <ID>MaxLineLength:PlantDetailViewModelTest.kt$PlantDetailViewModelTest$fun</ID>
-    <ID>MaxLineLength:PlantListScreen.kt$color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface</ID>
-    <ID>MaxLineLength:PlantListScreen.kt$if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc</ID>
-    <ID>MaxLineLength:PlantListViewModelTest.kt$PlantListViewModelTest$fun</ID>
-    <ID>MaxLineLength:QuickLogUseCase.kt$QuickLogUseCase$fertilizerType = if (careType == CareType.FERTILIZE &amp;&amp; plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED</ID>
-    <ID>MaxLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)</ID>
-    <ID>MaxLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fourteenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)</ID>
-    <ID>MaxLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)</ID>
-    <ID>MaxLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)</ID>
-    <ID>MaxLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$it.careType == CareType.FERTILIZE &amp;&amp; it.wateringFeedback == null &amp;&amp; it.fertilizerType == FertilizerType.UNSPECIFIED</ID>
-    <ID>MaxLineLength:SettingsViewModelTest.kt$SettingsViewModelTest$fun</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"A plant with a fertilizing interval set but never fertilized becomes due 30 days after you added it, giving new plants a grace period before feeding"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"A plant with a watering interval set but no waterings logged yet now counts as due today — it shows up in the due-today list, the daily reminder, and the Calendar instead of \"Not scheduled\""</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Add Care Log: picking the Photo type now shows Take photo and Choose from gallery buttons right in the photo section, so one tap goes straight to the camera or picker — no extra pop-up sheet"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Backup export and import now block navigation while in progress, preventing corrupt exports or incomplete restores"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"BackupManager: photo files are no longer deleted if an exception occurs after a successful DB transaction, preventing dangling photo URIs"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Calendar day sheet now offers a water-only button for liquid-fertilizer plants, so you can water on a day when only watering is due without also logging a fertilizing"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Calendar no longer shows a separate fertilize entry for plants using liquid fertilizer — they're fertilized together with watering, so they now appear only on their watering day"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Care event markers on the watering history chart — icons appear at the bottom of the chart for each care type logged that month; same-day events stack"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Care history and Plant Graveyard entries older than 14 days now show an exact date (e.g. \"Jun 10, 2026\") instead of a relative \"X days ago\" label"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Care history collapses to the 5 most recent logs — tap the chevron chip to expand all entries and tap again to collapse"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Daily reminder now fires at your configured time on first install (default time is saved to settings on launch)"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Delete photos from the gallery — long-press a thumbnail or tap the trash icon in the full-screen viewer; care log entries are preserved when their photo is deleted"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Exporting a backup to cloud destinations (e.g. Google Drive) no longer produces a broken empty ZIP file"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Full-screen photo viewer no longer shows a thin strip of the screen behind it under the status bar — the whole background is now solid black for a clean, full-dark view"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Full-screen photo viewer — tap any photo to open it full-screen; swipe left/right to browse all gallery photos; a page indicator (e.g. \"2 / 5\") appears when there are multiple photos"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"In-app camera capture — tap the photo button on any screen to choose between taking a new photo or picking from the gallery; graceful error if the device has no camera"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Liquid fertilizer mode: mark a plant as using liquid fertilizer and logging a fertilize event will automatically pair it with a watering log"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Liquid-fertilizer plant cards now show a time-based countdown instead of a static \"With watering\" label"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Log a watering or fertilizing straight from a plant's detail page — just tap the Watering or Fertilizing stat chip. No need to open the separate Add Care Log screen for a quick log"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"New Calendar tab — a month view shows how many plants need care on each day; tap a day to see the plants and water or fertilize them right from the list"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"New \"Cared for today\" option in the plant list sort dropdown — filters the list to just the plants you've logged any care for today, most-recently-cared first (toggle for earliest-first)"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Per-plant photo gallery — photos you add on the Add/Edit Plant screen now build a gallery instead of replacing the cover; the Plant Detail screen shows a scrollable gallery of all plant and care-log photos sorted by date"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Photo care log: the Save button is now disabled until a photo is attached, with an inline error hint below the photo picker"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Photo reminder now also triggers after using the quick water/fertilize buttons on the plant list, not just when opening Plant Detail"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Photo reminder — an optional Settings toggle prompts you to photograph a plant you haven't pictured in 30 days; a \"Take photo\" button opens the in-app camera and saves straight to the plant's gallery"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Plant Graveyard — deleted plants are now archived instead of immediately removed; restore them or permanently delete from Settings → Plant Graveyard"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Plant list cards and detail screen show a \"With watering\" label on the fertilizing chip for liquid-fertilizer plants"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Plant list now shows date-group dividers (Overdue / Today / Tomorrow / Later / Not scheduled) when sorted by Watering due, Fertilizing due, or Both due"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Quick-water button now opens a soil feedback sheet (Still wet / Just right / Too dry). Just right stays the default — one more tap gets you there."</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Quick-water+fertilize button on liquid-fertilizer plant cards now opens a soil feedback sheet before logging, matching the standalone quick-water button"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Restoring a large backup with many photos no longer crashes the app (photos are now streamed instead of loaded into memory)"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Skip watering stepper dialog: +/− buttons now fill the dialog width evenly, matching the Cancel/Confirm action row layout"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Sort controls on the plant list — Alphabetical, Watering due, Fertilizing due, Recently added; choice persists across restarts"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Taking a photo from the photo reminder now also adds a photo entry to the plant's care history and the watering chart"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Tap a care event icon on the watering history chart to see the care type and the date(s) of the event(s)"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Tap and hold a plant to enter multi-select mode, then water, fertilize, prune, mist, repot, or move to the Graveyard for every selected plant at once from a bottom action sheet"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"The quick water/fertilize buttons on the plant list and the calendar day sheet now look and behave identically"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Watering feedback renamed: \"Still wet\" (was Too soon), \"Just right\" (unchanged), \"Too dry\" (was Too late); question is now \"What did you find?\""</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Watering history chart now appears for infrequently-watered plants and for plants with only 2 waterings"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Watering history chart now shows a water-drop icon for each individual watering, with the line connecting each event at day-level precision"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"Watering two plants on the same day no longer suggests a 0-day interval or shows a fractional \"0.5 days\" average on the watering history chart — intervals are now floored at 1 day"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"What's New sheet now shows the full release history, scrollable and grouped by version — reopen it any time from Settings"</ID>
-    <ID>MaxLineLength:WhatsNewContent.kt$WhatsNewContent$"\"Last: X days ago\" on plant cards and the detail screen now uses calendar days, not a rolling 24-hour window"</ID>
     <ID>MaximumLineLength:AddCareLogScreen.kt$ </ID>
     <ID>MaximumLineLength:AddCareLogViewModel.kt$AddCareLogViewModel$ </ID>
     <ID>MaximumLineLength:AddCareLogViewModelTest.kt$AddCareLogViewModelTest$ </ID>
