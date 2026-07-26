@@ -1,0 +1,42 @@
+# Dependabot configuration — automated dependency updates.
+# See #201. Dependency versions are inlined in app/build.gradle.kts (no
+# libs.versions.toml); the Compose BOM aligns Compose artifacts.
+#
+# Coupling note: several dependency groups must move together or CI breaks —
+# AGP / Kotlin / KSP are a matched toolchain, and the KotlinX libraries and MockK
+# are compiled against a specific Kotlin stdlib, so bumping any of them without
+# also bumping the Kotlin compiler fails with a metadata binary-version mismatch.
+# To prevent Dependabot from opening a PR that immediately red-CIs, all of these
+# stdlib-coupled artifacts share a single group so they only ever move together.
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # AGP + Kotlin + KSP + the KotlinX libraries + MockK all move together:
+      # they are coupled through the Kotlin stdlib version and break CI if bumped
+      # independently. One PR keeps them consistent.
+      kotlin-toolchain:
+        patterns:
+          - "com.android.application"
+          - "com.android.library"
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp"
+          - "org.jetbrains.kotlinx:kotlinx-coroutines*"
+          - "org.jetbrains.kotlinx:kotlinx-serialization*"
+          - "io.mockk*"
+
+  # Keep the GitHub Actions used by the CI workflow current (low-risk, and the
+  # pull_request CI validates any bump before it can merge).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
