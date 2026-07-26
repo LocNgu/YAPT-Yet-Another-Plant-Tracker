@@ -99,7 +99,7 @@ private val careTypeColors = mapOf(
     CareType.PHOTO to 0xFF7B1FA2.toInt(),
 )
 
-enum class TimeRange(val labelRes: Int, val daysBack: Int) {
+internal enum class TimeRange(val labelRes: Int, val daysBack: Int) {
     ONE_MONTH(R.string.time_range_1m, 30),
     THREE_MONTHS(R.string.time_range_3m, 90),
     SIX_MONTHS(R.string.time_range_6m, 180),
@@ -107,12 +107,12 @@ enum class TimeRange(val labelRes: Int, val daysBack: Int) {
     ALL_TIME(R.string.time_range_all, Int.MAX_VALUE)
 }
 
-data class WateringInterval(
+internal data class WateringInterval(
     val timestamp: Long,
     val daysSincePrevious: Float
 )
 
-data class CareEventMarker(
+internal data class CareEventMarker(
     val monthIndex: Float,
     val careType: CareType,
     val timestamp: Long
@@ -274,7 +274,7 @@ private fun rememberCareIconBitmaps(): Map<CareType, Bitmap> {
 }
 
 @Composable
-fun WateringHistoryChart(
+internal fun WateringHistoryChart(
     careLogs: List<CareLog>,
     selectedRange: TimeRange = TimeRange.TWELVE_MONTHS,
     onRangeSelected: (TimeRange) -> Unit
@@ -569,7 +569,7 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     }
 }
 
-fun computeWateringIntervals(
+internal fun computeWateringIntervals(
     wateringLogs: List<CareLog>,
     rangeStartMs: Long,
     now: Long
@@ -601,7 +601,7 @@ fun computeWateringIntervals(
     return intervals
 }
 
-fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
+internal fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
     if (intervals.isNotEmpty()) {
         minOf(rangeStartMs, intervals.minOf { it.timestamp })
     } else {
@@ -615,7 +615,7 @@ fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Lon
  */
 internal fun computeYAxisStep(yMax: Double): Int = maxOf(1, ceil(yMax / 5.0).toInt())
 
-fun computeCareEventMarkers(
+internal fun computeCareEventMarkers(
     careLogs: List<CareLog>,
     rangeStartMs: Long,
     now: Long,
