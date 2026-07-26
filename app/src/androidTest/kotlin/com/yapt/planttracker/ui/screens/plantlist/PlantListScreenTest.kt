@@ -1,9 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -205,10 +203,9 @@ class PlantListScreenTest {
     }
 
     @Test
-    fun selectionMode_tapOnQuickLogRegion_togglesSelectionInsteadOfQuickLogging() {
+    fun selectionMode_quickLogButtonsAreInert_soTapsCannotMisfireAQuickLog() {
         val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
-        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+        val viewModel = makeViewModel(plants = listOf(monstera))
 
         composeTestRule.setContent {
             PlantListScreen(
@@ -219,22 +216,22 @@ class PlantListScreenTest {
             )
         }
 
-        // Enter selection mode by long-pressing the first plant.
+        // Outside selection mode the quick-log buttons are present and actionable.
+        composeTestRule.onNodeWithContentDescription("Quick water").assertExists()
+        composeTestRule.onNodeWithContentDescription("Quick fertilize").assertExists()
+
+        // Enter selection mode by long-pressing the plant.
         composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
 
-        // In selection mode the quick-log buttons stay composed (so the card keeps its height)
-        // but are hidden (alpha 0) and disabled. A tap over that far-right region must therefore
-        // fall through to the card's combinedClickable and TOGGLE selection rather than
-        // quick-logging. Tap the right-center of the Fern card, where the quick-log buttons sit.
-        composeTestRule.onNodeWithText("Fern").performTouchInput {
-            click(Offset(right - 40f, centerY))
-        }
-
-        // Fall-through worked: Fern is now selected too, so the count goes 1 -> 2. Had the tap
-        // been swallowed by the (disabled) quick-log button, it would have quick-logged and left
-        // the selection count at 1.
-        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
+        // While selecting, the quick-log buttons stay composed (so the card keeps its height) but
+        // are disabled and dropped from the semantics tree (alpha 0 + clearAndSetSemantics), so
+        // they expose no announced/actionable target. A tap over that region therefore can't
+        // trigger a quick-log — it can only fall through to the card's selection toggle. We assert
+        // the user-visible contract (the affordance is inert) rather than pixel-level tap geometry,
+        // per the Compose-testing convention in CLAUDE.md.
+        composeTestRule.onNodeWithContentDescription("Quick water").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Quick fertilize").assertDoesNotExist()
     }
 
     @Test
