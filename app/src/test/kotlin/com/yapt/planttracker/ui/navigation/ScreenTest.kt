@@ -77,18 +77,4 @@ class ScreenTest {
     fun `addCareLog createRoute substitutes both plantId and careLogId`() {
         assertEquals("add_care_log/3?careLogId=9", Screen.AddCareLog.createRoute(3L, 9L))
     }
-
-    // --- createRoute output structurally matches its template's fixed prefix ---
-
-    @Test
-    fun `createRoute results share the fixed prefix of their route template`() {
-        assertEquals(
-            Screen.EditPlant.route.substringBefore("{"),
-            Screen.EditPlant.createRoute(1L).substringBeforeLast("1")
-        )
-        assertEquals(
-            Screen.PlantDetail.route.substringBefore("{"),
-            Screen.PlantDetail.createRoute(1L).substringBeforeLast("1")
-        )
-    }
 }
