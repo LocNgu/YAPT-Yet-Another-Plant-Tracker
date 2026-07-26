@@ -1,8 +1,13 @@
 name: Android CI/CD
 
 on:
+  # Only build on direct pushes to main (post-merge release builds). All develop
+  # work goes through PRs, which the pull_request trigger already covers — this
+  # avoids the double CI run when a develop → main release PR is open, where a push
+  # to develop would otherwise fire both `push` (develop) and `pull_request`
+  # (synchronize) events. See #260.
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
 
 env:
