@@ -1,7 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -199,6 +201,39 @@ class PlantListScreenTest {
 
         // "Select all" is the DoneAll action in the contextual bar; a plain icon-button click.
         composeTestRule.onNodeWithContentDescription("Select all").performClick()
+        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectionMode_tapOnQuickLogRegion_togglesSelectionInsteadOfQuickLogging() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        // Enter selection mode by long-pressing the first plant.
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        // In selection mode the quick-log buttons stay composed (so the card keeps its height)
+        // but are hidden (alpha 0) and disabled. A tap over that far-right region must therefore
+        // fall through to the card's combinedClickable and TOGGLE selection rather than
+        // quick-logging. Tap the right-center of the Fern card, where the quick-log buttons sit.
+        composeTestRule.onNodeWithText("Fern").performTouchInput {
+            click(Offset(right - 40f, centerY))
+        }
+
+        // Fall-through worked: Fern is now selected too, so the count goes 1 -> 2. Had the tap
+        // been swallowed by the (disabled) quick-log button, it would have quick-logged and left
+        // the selection count at 1.
         composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
     }
 
