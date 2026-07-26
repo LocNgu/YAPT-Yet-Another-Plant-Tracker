@@ -315,7 +315,7 @@ fun PlantListScreen(
                             )
                         }
                     }
-                    items(rooms) { room ->
+                    items(rooms, key = { room -> "room-$room" }) { room ->
                         FilterChip(
                             selected = selectedRoom == room,
                             onClick = { viewModel.selectRoom(room) },
@@ -344,7 +344,15 @@ fun PlantListScreen(
                 LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp)
                 ) {
-                    items(plantListItems) { listItem ->
+                    items(
+                        plantListItems,
+                        key = { listItem ->
+                            when (listItem) {
+                                is PlantListItem.DateHeader -> "header-${listItem.bucket}"
+                                is PlantListItem.PlantRow -> "plant-${listItem.status.plant.id}"
+                            }
+                        }
+                    ) { listItem ->
                         when (listItem) {
                             is PlantListItem.DateHeader -> DateGroupHeader(listItem.bucket)
                             is PlantListItem.PlantRow -> {
@@ -368,7 +376,7 @@ fun PlantListScreen(
                             }
                         }
                     }
-                    item { Spacer(Modifier.height(8.dp)) }
+                    item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                 }
             }
         }
