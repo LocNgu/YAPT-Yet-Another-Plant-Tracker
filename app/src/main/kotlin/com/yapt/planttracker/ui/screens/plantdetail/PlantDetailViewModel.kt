@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
@@ -32,10 +33,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 class PlantDetailViewModel(
@@ -116,11 +113,11 @@ class PlantDetailViewModel(
                 photoReminderEnabled
             ) { p: Plant?, photos: List<GalleryPhoto>, enabled: Boolean ->
                 if (!enabled || p == null) return@combine
-                if (p.id in shownThisSession) return@combine
+                if (p.id in PhotoReminderPolicy.shownThisSession) return@combine
                 val lastPhotoTs = photos.firstOrNull()?.timestamp
-                val daysSince = lastPhotoDaysSince(lastPhotoTs, p.createdAt)
-                if (daysSince >= PHOTO_REMINDER_INTERVAL_DAYS) {
-                    shownThisSession.add(p.id)
+                val daysSince = PhotoReminderPolicy.lastPhotoDaysSince(lastPhotoTs, p.createdAt)
+                if (daysSince >= PhotoReminderPolicy.PHOTO_REMINDER_INTERVAL_DAYS) {
+                    PhotoReminderPolicy.shownThisSession.add(p.id)
                     _photoReminderDaysSince.value = daysSince
                     _showPhotoReminderDialog.value = true
                 }
@@ -291,28 +288,6 @@ class PlantDetailViewModel(
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
-    }
-
-    companion object {
-        internal val shownThisSession = mutableSetOf<Long>()
-        const val PHOTO_REMINDER_INTERVAL_DAYS = 30L
-
-        fun lastPhotoDaysSince(
-            lastPhotoTimestampMs: Long?,
-            plantCreatedAtMs: Long,
-            nowDate: LocalDate = LocalDate.now()
-        ): Long {
-            val anchorMs = lastPhotoTimestampMs ?: plantCreatedAtMs
-            val anchorDate = Instant.ofEpochMilli(anchorMs)
-                .atZone(ZoneId.systemDefault()).toLocalDate()
-            return ChronoUnit.DAYS.between(anchorDate, nowDate)
-        }
-
-        fun shouldShowPhotoReminder(
-            lastPhotoTimestampMs: Long?,
-            plantCreatedAtMs: Long,
-            nowDate: LocalDate = LocalDate.now()
-        ): Boolean = lastPhotoDaysSince(lastPhotoTimestampMs, plantCreatedAtMs, nowDate) >= PHOTO_REMINDER_INTERVAL_DAYS
     }
 
     class Factory(

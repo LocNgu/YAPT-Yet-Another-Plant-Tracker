@@ -16,7 +16,7 @@ import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -72,7 +72,7 @@ class QuickLogUseCaseTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
@@ -81,7 +81,7 @@ class QuickLogUseCaseTest {
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     // quickLog
@@ -308,7 +308,7 @@ class QuickLogUseCaseTest {
 
     @Test
     fun `maybeBuildPhotoReminderRequest returns null when plant already reminded this session`() = runTest {
-        PlantDetailViewModel.shownThisSession.add(1L)
+        PhotoReminderPolicy.shownThisSession.add(1L)
         val monstera = plant(createdAt = 0L)
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
@@ -351,7 +351,7 @@ class QuickLogUseCaseTest {
 
         assertNotNull(request)
         assertEquals(1L, request!!.plantId)
-        assertEquals(true, 1L in PlantDetailViewModel.shownThisSession)
+        assertEquals(true, 1L in PhotoReminderPolicy.shownThisSession)
     }
 
     @Test

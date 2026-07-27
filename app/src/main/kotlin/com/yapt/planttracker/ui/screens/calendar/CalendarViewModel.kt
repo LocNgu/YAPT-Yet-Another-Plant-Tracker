@@ -137,7 +137,7 @@ class CalendarViewModel(
     /**
      * Mirrors [com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel]'s equivalent method:
      * both delegate to the shared [QuickLogUseCase], which owns the once-per-session-per-plant
-     * gating via the shared `PlantDetailViewModel.shownThisSession` set.
+     * gating via the shared `PhotoReminderPolicy.shownThisSession` set.
      */
     private suspend fun maybeTriggerPhotoReminder(plantId: Long) {
         quickLogUseCase.maybeBuildPhotoReminderRequest(plantId)?.let { request ->

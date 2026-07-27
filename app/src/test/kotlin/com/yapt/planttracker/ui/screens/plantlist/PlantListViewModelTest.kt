@@ -15,8 +15,8 @@ import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -88,9 +88,9 @@ class PlantListViewModelTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        // shownThisSession is a process-wide static set shared with PlantDetailViewModel; clear it
-        // before and after each test so ordering (and PlantDetailViewModel's own tests) can't leak.
-        PlantDetailViewModel.shownThisSession.clear()
+        // shownThisSession is a process-wide static set shared across surfaces via
+        // PhotoReminderPolicy; clear it before and after each test so ordering can't leak.
+        PhotoReminderPolicy.shownThisSession.clear()
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
@@ -104,7 +104,7 @@ class PlantListViewModelTest {
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     @Test
