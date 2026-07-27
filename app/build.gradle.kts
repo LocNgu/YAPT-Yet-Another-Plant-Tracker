@@ -25,7 +25,7 @@ val versionProps = Properties().apply {
 
 android {
     namespace = "com.yapt.planttracker"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.yapt.planttracker"
