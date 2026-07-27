@@ -20,8 +20,8 @@ set -euo pipefail
 ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 # Keep these in sync with app/build.gradle.kts (compileSdk) and the AGP-required
-# build-tools revision (AGP 8.13.2 -> build-tools;35.0.0).
-SDK_PACKAGES=("platform-tools" "platforms;android-36" "build-tools;35.0.0")
+# build-tools revision (AGP 9.3.1 -> build-tools;35.0.0).
+SDK_PACKAGES=("platform-tools" "platforms;android-37" "build-tools;35.0.0")
 
 echo "==> Android SDK -> $ANDROID_HOME"
 export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"

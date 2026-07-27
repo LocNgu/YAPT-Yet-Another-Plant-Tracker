@@ -66,23 +66,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.14.5
+      - name: Setup Gradle 9.6.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14.5'
+          gradle-version: '9.6.1'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Decode debug keystore
-        # Dependabot (and fork) PR runs don't receive Actions secrets, so this
-        # resolves to an empty string and would write a 0-byte keystore that
-        # keytool rejects ("Tag number over 30 is not supported"). Skip it when
-        # the secret is absent — build.gradle.kts guards debug signing on the
-        # file existing and falls back to the auto-generated debug key, so the
-        # build stays green without the shared keystore.
-        if: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > app/debug.keystore
+        # Dependabot (and fork) PR runs don't receive Actions secrets, so the
+        # secret resolves to an empty string and a naive decode would write a
+        # 0-byte keystore that keytool rejects ("Tag number over 30 is not
+        # supported"). Guard in the shell rather than in `if:` — the `secrets`
+        # context is NOT allowed in step `if:` conditionals (it's a workflow
+        # validation error that fails the whole run at startup with 0 jobs), so
+        # the secret is mapped to env and checked with the shell. When it's
+        # absent, build.gradle.kts falls back to AGP's auto-generated debug key.
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
+          else
+            echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
+          fi
 
       - name: Run Detekt
         run: gradle detekt --no-daemon
@@ -121,23 +129,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.14.5
+      - name: Setup Gradle 9.6.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14.5'
+          gradle-version: '9.6.1'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Decode debug keystore
-        # Dependabot (and fork) PR runs don't receive Actions secrets, so this
-        # resolves to an empty string and would write a 0-byte keystore that
-        # keytool rejects ("Tag number over 30 is not supported"). Skip it when
-        # the secret is absent — build.gradle.kts guards debug signing on the
-        # file existing and falls back to the auto-generated debug key, so the
-        # build stays green without the shared keystore.
-        if: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > app/debug.keystore
+        # Dependabot (and fork) PR runs don't receive Actions secrets, so the
+        # secret resolves to an empty string and a naive decode would write a
+        # 0-byte keystore that keytool rejects ("Tag number over 30 is not
+        # supported"). Guard in the shell rather than in `if:` — the `secrets`
+        # context is NOT allowed in step `if:` conditionals (it's a workflow
+        # validation error that fails the whole run at startup with 0 jobs), so
+        # the secret is mapped to env and checked with the shell. When it's
+        # absent, build.gradle.kts falls back to AGP's auto-generated debug key.
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
+          else
+            echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
+          fi
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
@@ -172,23 +188,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.14.5
+      - name: Setup Gradle 9.6.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14.5'
+          gradle-version: '9.6.1'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Decode debug keystore
-        # Dependabot (and fork) PR runs don't receive Actions secrets, so this
-        # resolves to an empty string and would write a 0-byte keystore that
-        # keytool rejects ("Tag number over 30 is not supported"). Skip it when
-        # the secret is absent — build.gradle.kts guards debug signing on the
-        # file existing and falls back to the auto-generated debug key, so the
-        # build stays green without the shared keystore.
-        if: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > app/debug.keystore
+        # Dependabot (and fork) PR runs don't receive Actions secrets, so the
+        # secret resolves to an empty string and a naive decode would write a
+        # 0-byte keystore that keytool rejects ("Tag number over 30 is not
+        # supported"). Guard in the shell rather than in `if:` — the `secrets`
+        # context is NOT allowed in step `if:` conditionals (it's a workflow
+        # validation error that fails the whole run at startup with 0 jobs), so
+        # the secret is mapped to env and checked with the shell. When it's
+        # absent, build.gradle.kts falls back to AGP's auto-generated debug key.
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
+          else
+            echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
+          fi
 
       - name: Enable KVM
         run: |
@@ -231,10 +255,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.14.5
+      - name: Setup Gradle 9.6.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14.5'
+          gradle-version: '9.6.1'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true

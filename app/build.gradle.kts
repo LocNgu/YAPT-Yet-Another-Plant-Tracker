@@ -1,8 +1,11 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    // Kotlin compilation is provided by AGP 9's built-in Kotlin support — the
+    // org.jetbrains.kotlin.android plugin is intentionally not applied (AGP 9
+    // rejects it). https://developer.android.com/build/migrate-to-built-in-kotlin
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
@@ -22,7 +25,7 @@ val versionProps = Properties().apply {
 
 android {
     namespace = "com.yapt.planttracker"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.yapt.planttracker"
@@ -81,10 +84,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -115,10 +114,16 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
-    val composeBom = platform("androidx.compose:compose-bom:2026.05.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -131,9 +136,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
 
     implementation("androidx.navigation:navigation-compose:2.9.8")
 
@@ -146,18 +151,18 @@ dependencies {
 
     implementation("androidx.work:work-runtime-ktx:2.11.2")
 
-    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.core:core-ktx:1.19.0")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.13.12")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("app.cash.turbine:turbine:1.2.1")
     testImplementation("androidx.room:room-testing:2.8.4")
     testImplementation("org.robolectric:robolectric:4.16.1")
@@ -165,7 +170,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("io.mockk:mockk-android:1.13.12")
+    androidTestImplementation("io.mockk:mockk-android:1.14.11")
     androidTestImplementation("androidx.datastore:datastore-preferences-core:1.2.1")
 
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
