@@ -22,6 +22,9 @@ The orchestrator passes you:
 3. Fetch the PR metadata and diff:
    - `mcp__github__pull_request_read` with `method: "get"`, `get_diff`, and `get_files`
 4. Read every changed file in full, not just the diff hunks.
+5. **Compile the branch — never sign off on static analysis alone.** Cloud sessions can build in-session (issue #419 is resolved), so actually run the compile before forming findings:
+   - `./gradlew compileDebugKotlin compileDebugUnitTestKotlin` (add `compileDebugAndroidTestKotlin` when `androidTest/` changed).
+   A red compile is a **BLOCKING** finding — quote the exact `error:` line. Only if the toolchain is genuinely unavailable may you fall back to static analysis, and then you must state explicitly that **the build was not verified** so the orchestrator and human know the compile is unconfirmed.
 
 ## BLOCKING vs NON-BLOCKING
 

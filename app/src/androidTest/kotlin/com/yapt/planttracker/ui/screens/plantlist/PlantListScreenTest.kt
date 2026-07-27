@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
@@ -52,7 +53,7 @@ class PlantListScreenTest {
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         val application = ApplicationProvider.getApplicationContext<Application>()
-        val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
+        val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, mockk<PlantDatabase>())
         return PlantListViewModel(
             application,
             plantRepo,
