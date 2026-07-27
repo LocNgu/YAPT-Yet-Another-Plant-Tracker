@@ -14,8 +14,8 @@ import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -58,7 +58,7 @@ class CalendarViewModelTest {
 
     @Before
     fun setup() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
@@ -68,7 +68,7 @@ class CalendarViewModelTest {
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     // quickLog/quickWaterWithFeedback/quickLiquidFertilizeWithFeedback delegate the actual
@@ -142,7 +142,7 @@ class CalendarViewModelTest {
     @Test
     fun `quickLog does not emit photo reminder when plant already reminded this session`() = runTest {
         // Simulates the plant having already been reminded on Plants tab or Plant Detail this session.
-        PlantDetailViewModel.shownThisSession.add(1L)
+        PhotoReminderPolicy.shownThisSession.add(1L)
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Fertilized Monstera"
