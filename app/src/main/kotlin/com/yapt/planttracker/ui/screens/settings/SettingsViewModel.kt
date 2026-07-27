@@ -47,6 +47,10 @@ class SettingsViewModel(
         .map { it[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val combineNotifications: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val reminderHour: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_HOUR] ?: 9 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
@@ -73,6 +77,12 @@ class SettingsViewModel(
     fun setPhotoReminderEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.PHOTO_REMINDER_ENABLED] = enabled }
+        }
+    }
+
+    fun setCombineNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = enabled }
         }
     }
 

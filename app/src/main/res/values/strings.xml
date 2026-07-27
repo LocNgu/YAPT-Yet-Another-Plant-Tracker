@@ -105,6 +105,10 @@
         <item quantity="one">Fertilizing overdue by 1 day</item>
         <item quantity="other">Fertilizing overdue by %d days</item>
     </plurals>
+    <plurals name="notification_combined_title">
+        <item quantity="one">1 plant needs care</item>
+        <item quantity="other">%d plants need care</item>
+    </plurals>
     <string name="care_history_expand_cd">Expand care history</string>
     <string name="care_history_collapse_cd">Collapse care history</string>
     <string name="interval_suggestion_title">Adjust watering interval?</string>
@@ -233,6 +237,8 @@
 
     <string name="photo_reminder_setting_title">Photo reminder</string>
     <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
+    <string name="combine_notifications_title">Combine reminders</string>
+    <string name="combine_notifications_subtitle">Show all due plants in one notification</string>
     <string name="photo_reminder_dialog_title">Time for a photo!</string>
     <string name="photo_reminder_dialog_text">No photo in %1$d days — take one?</string>
 
