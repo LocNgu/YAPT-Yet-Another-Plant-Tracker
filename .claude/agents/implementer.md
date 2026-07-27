@@ -45,7 +45,18 @@ The orchestrator passes you:
 **Each feature or bug fix gets its own branch and PR.** Never stack unrelated work on the same branch.
 
 1. **Fetch first, then branch off the freshly-fetched `origin/develop`** (never a stale local ref): `git fetch origin develop && git checkout -b claude/<short-description> origin/develop`. Skipping the fetch starts the branch from an outdated `develop` and forces a rebase later.
-2. Make all commits for this feature/fix on that branch.
+2. **Commit and push at each logical layer checkpoint — not once at the very end.** The remote container is discarded after inactivity, so uncommitted work is lost if a session times out mid-task; and a single giant diff gives the reviewer no signal about ordering or which layer introduced a regression. Commit (and `git push`) after finishing each layer that the change touches:
+
+   | Checkpoint | What to commit |
+   |---|---|
+   | Data layer | Entity changes, DAO, Room migration, exported schema JSON |
+   | Domain / repository | Domain models, repository mapping, `CareSchedule`/use-case logic |
+   | UI | Screens, composables, `strings.xml`, resources |
+   | Tests | Unit tests, instrumented tests, Compose screen tests |
+   | Docs | `CHANGELOG.md`, `.claude/CLAUDE.md`, `WhatsNewContent.kt` |
+   | Each reviewer fix round | One commit per round, after addressing that round's BLOCKING findings |
+
+   Not every change touches every layer — commit only the layers that apply. **Intermediate commits may not compile** (e.g. an entity written before its ViewModel); that is acceptable because CI only runs on PRs, not on raw pushes to `claude/*` branches. Run the build/tests before opening the PR (the "When finished" checklist), not necessarily at every checkpoint.
 3. Push the branch (`git push -u origin claude/<short-description>`). You cannot open the PR yourself — return the PR title and body in your response so the orchestrator opens it via `mcp__github__create_pull_request` targeting `develop`.
 4. Return to `develop` before starting the next task.
 
