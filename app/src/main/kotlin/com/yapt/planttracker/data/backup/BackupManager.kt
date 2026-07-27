@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -69,8 +70,8 @@ class BackupManager(
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
-            val reminderHour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
-            val reminderMinute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+            val reminderHour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
+            val reminderMinute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
             val keepScreenOn = prefs[SettingsKeys.KEEP_SCREEN_ON] ?: false
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
 
