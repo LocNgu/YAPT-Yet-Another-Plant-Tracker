@@ -23,7 +23,7 @@ Please search existing issues first to avoid duplicates.
 ## Development setup
 
 - **Android Studio** (latest stable) or the command-line Gradle wrapper.
-- **JDK 17** and the **Android SDK** (`platforms;android-36`,
+- **JDK 17** and the **Android SDK** (`platforms;android-37`,
   `build-tools;35.0.0`).
 - Clone the repo and let Gradle sync; the build uses the Gradle wrapper
   (`./gradlew`), so no separate Gradle install is required.
