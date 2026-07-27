@@ -1,7 +1,10 @@
 package com.yapt.planttracker.ui.screens.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -113,6 +116,56 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
         assert(called)
+    }
+
+    @Test
+    fun combineNotificationsRow_isDisplayed_whenNotificationsEnabled() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Combine reminders").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun combineNotificationsRow_isHidden_whenNotificationsDisabled() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("notifications_enabled_switch").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Combine reminders").assertDoesNotExist()
+    }
+
+    @Test
+    fun combineNotificationsSwitch_startsOff_andTogglingInvokesViewModelSetter() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("combine_notifications_switch").performScrollTo().assertIsOff()
+
+        composeTestRule.onNodeWithTag("combine_notifications_switch").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("combine_notifications_switch").assertIsOn()
     }
 
     @Test

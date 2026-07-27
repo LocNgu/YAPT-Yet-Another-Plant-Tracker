@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -82,6 +84,7 @@ fun SettingsScreen(
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
+    val combineNotifications by viewModel.combineNotifications.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -302,6 +305,7 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_notifications_subtitle),
                 trailingContent = {
                     Switch(
+                        modifier = Modifier.testTag("notifications_enabled_switch"),
                         checked = notificationsEnabled,
                         onCheckedChange = {
                             viewModel.setNotificationsEnabled(it)
@@ -318,6 +322,19 @@ fun SettingsScreen(
                     subtitle = DateUtils.formatHourMinute(reminderHour, reminderMinute),
                     subtitleColor = MaterialTheme.colorScheme.primary,
                     onClick = { showTimePicker = true }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Layers,
+                    title = stringResource(R.string.combine_notifications_title),
+                    subtitle = stringResource(R.string.combine_notifications_subtitle),
+                    trailingContent = {
+                        Switch(
+                            modifier = Modifier.testTag("combine_notifications_switch"),
+                            checked = combineNotifications,
+                            onCheckedChange = { viewModel.setCombineNotifications(it) }
+                        )
+                    }
                 )
             }
 
