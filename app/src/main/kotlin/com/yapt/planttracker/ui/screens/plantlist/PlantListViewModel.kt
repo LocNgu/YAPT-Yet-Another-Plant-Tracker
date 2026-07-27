@@ -176,13 +176,7 @@ class PlantListViewModel(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             val plants = plantsWithStatus.value.filter { it.plant.id in ids }.map { it.plant }
-            for (plant in plants) {
-                if (careType == CareType.WATER) {
-                    quickLogUseCase.quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
-                } else {
-                    quickLogUseCase.quickLog(plant, careType)
-                }
-            }
+            quickLogUseCase.bulkLog(plants, careType)
             clearSelection()
             _quickLogEvent.emit(
                 application.resources.getQuantityString(
@@ -200,14 +194,14 @@ class PlantListViewModel(
         val ids = _selectedPlantIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            for (id in ids) { plantRepository.archivePlant(id) }
+            plantRepository.archivePlants(ids)
             clearSelection()
             _bulkArchivedEvent.emit(BulkArchivedEvent(ids))
         }
     }
 
     fun undoBulkArchive(plantIds: List<Long>) {
-        viewModelScope.launch { for (id in plantIds) { plantRepository.restorePlant(id) } }
+        viewModelScope.launch { plantRepository.restorePlants(plantIds) }
     }
 
     fun quickLog(plantId: Long, careType: CareType) {

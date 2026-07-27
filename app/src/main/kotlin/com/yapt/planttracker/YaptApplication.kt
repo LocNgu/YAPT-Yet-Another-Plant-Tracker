@@ -42,7 +42,7 @@ class YaptApplication : Application() {
     val careLogRepository by lazy { CareLogRepository(database.careLogDao()) }
     val plantPhotoRepository by lazy { PlantPhotoRepository(database.plantPhotoDao()) }
     val quickLogUseCase by lazy {
-        QuickLogUseCase(this, plantRepository, careLogRepository, plantPhotoRepository, settingsDataStore)
+        QuickLogUseCase(this, plantRepository, careLogRepository, plantPhotoRepository, settingsDataStore, database)
     }
 
     override fun onCreate() {

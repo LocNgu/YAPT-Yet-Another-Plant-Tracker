@@ -21,6 +21,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - Full-screen photo viewer now shows each photo's exact capture/log date (e.g. "Jun 10, 2026") as a labelled chip near the bottom, below the "N / M" page indicator. The date is shown for every photo — including when there's only a single photo and the position indicator is hidden — and reads from the photo's own timestamp so swiping updates it per page. Grid thumbnails are unchanged (#445)
 - Settings → Reminders: new "Combine reminders" toggle lets you get a single digest notification ("3 plants need care") instead of one notification per overdue/due-soon plant. Default is off (one per plant, unchanged behaviour); the combined notification opens the Plants list and doesn't offer the per-plant "Skip watering" action. Round-trips through backup/restore (backup schema bumped to v4) (#474)
 
+### Fixed
+- Bulk multi-select actions (bulk care logging, "Move to Graveyard", and its undo) now apply as a single atomic database transaction. Previously each selected plant was written one at a time, so a process kill mid-action could leave the batch partially applied (e.g. 3 of 5 plants archived); the change is invisible in normal use but prevents that inconsistent state (#448)
+
 ---
 
 ## [0.19.0] - 2026-07-23

@@ -43,6 +43,14 @@ interface PlantDao {
     @Query("UPDATE plants SET archivedAt = NULL WHERE id = :id")
     suspend fun restorePlant(id: Long)
 
+    // Single-statement batch variants so bulk archive/restore apply atomically — a killed
+    // process can't leave some of the selected plants archived and others not (#448).
+    @Query("UPDATE plants SET archivedAt = :timestamp WHERE id IN (:ids)")
+    suspend fun archivePlants(ids: List<Long>, timestamp: Long)
+
+    @Query("UPDATE plants SET archivedAt = NULL WHERE id IN (:ids)")
+    suspend fun restorePlants(ids: List<Long>)
+
     @Query("DELETE FROM plants WHERE archivedAt IS NOT NULL")
     suspend fun deleteAllArchived()
 }
