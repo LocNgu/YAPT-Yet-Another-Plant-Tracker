@@ -266,6 +266,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = false
             prefs[SettingsKeys.REMINDER_HOUR] = 21
             prefs[SettingsKeys.REMINDER_MINUTE] = 30
+            prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = true
         }
 
         val exportFile = tmpFolder.newFile("settings_backup.yapt")
@@ -276,6 +277,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = true
             prefs[SettingsKeys.REMINDER_HOUR] = 9
             prefs[SettingsKeys.REMINDER_MINUTE] = 0
+            prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = false
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -288,6 +290,10 @@ class BackupManagerTest {
         )
         assertEquals(21, prefs[SettingsKeys.REMINDER_HOUR])
         assertEquals(30, prefs[SettingsKeys.REMINDER_MINUTE])
+        assertTrue(
+            "photoReminderEnabled should be restored to true",
+            prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
+        )
     }
 
     @Test

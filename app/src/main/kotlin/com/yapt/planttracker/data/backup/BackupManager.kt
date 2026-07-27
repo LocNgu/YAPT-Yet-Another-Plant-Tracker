@@ -22,11 +22,12 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 5 (#480): photoReminderEnabled added to BackupSettings.
 // Schema 4 (#474): combineNotifications added to BackupSettings.
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 4
+const val CURRENT_SCHEMA_VERSION = 5
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -73,6 +74,7 @@ class BackupManager(
             val reminderMinute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
             val keepScreenOn = prefs[SettingsKeys.KEEP_SCREEN_ON] ?: false
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
+            val photoReminderEnabled = prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -151,7 +153,8 @@ class BackupManager(
                     reminderHour = reminderHour,
                     reminderMinute = reminderMinute,
                     keepScreenOn = keepScreenOn,
-                    combineNotifications = combineNotifications
+                    combineNotifications = combineNotifications,
+                    photoReminderEnabled = photoReminderEnabled
                 )
             )
 
@@ -339,6 +342,7 @@ class BackupManager(
                 prefs[SettingsKeys.REMINDER_MINUTE] = backup.settings.reminderMinute
                 prefs[SettingsKeys.KEEP_SCREEN_ON] = backup.settings.keepScreenOn
                 prefs[SettingsKeys.COMBINE_NOTIFICATIONS] = backup.settings.combineNotifications
+                prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = backup.settings.photoReminderEnabled
             }
 
             if (backup.settings.notificationsEnabled) {

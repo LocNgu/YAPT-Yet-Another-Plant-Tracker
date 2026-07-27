@@ -71,7 +71,7 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Export backup").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Export backup").performScrollTo().assertIsDisplayed()
     }
 
     @Test
