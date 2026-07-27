@@ -95,6 +95,11 @@ The orchestrator will surface the question to the human and restart you once res
 ## When finished
 
 1. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
+2. **Write an ADR if this PR records a significant new design decision.** If the change makes a product or technical decision that would shape how a future implementer approaches the same area — a new default, a chosen framework/pattern, a non-obvious behavioural rule — create a new ADR rather than burying it in `CLAUDE.md` prose or the PR body:
+   - Copy `docs/decisions/template.md` into `docs/decisions/product/` (product/UX decisions) or `docs/decisions/technical/` (implementation/framework constraints).
+   - Number it sequentially within that folder (next `ADR-XXXX`), and set **Status** to `accepted`.
+   - If it supersedes an existing ADR, update that ADR's Status line to `superseded by [ADR-XXXX](filename.md)` (the only permitted edit to a finalized ADR).
+   Not every PR needs one — routine bug fixes and mechanical changes do not. When unsure, note it in your summary so the reviewer/human can decide.
 
 Then summarise:
 - Which files were changed and why
