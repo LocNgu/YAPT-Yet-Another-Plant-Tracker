@@ -67,6 +67,27 @@ If there were clarifying questions, return a single comment recording all decisi
 
 Only include sections that had meaningful answers — omit empty sections.
 
+### 4. Assess scope — propose a split for large issues
+
+After the ambiguities are resolved, judge whether the issue is **large**. It is large if any of these fire:
+
+- It touches **3 or more independently shippable layers** (e.g. data, UI, and tests each stand alone).
+- It requires a **Room DB migration** *and* **new UI** *and* **new tests**.
+- It has **clearly separable deliverables** that could be reviewed and merged separately without breaking the app.
+
+If large, append a `## Suggested sub-tasks` section to the clarifications comment — a numbered list of proposed sub-issues **in dependency order**, each with a one-line scope description, plus a note that the human can adjust the split before the orchestrator acts on it. The human decides whether to split; the spec agent only proposes.
+
+```
+## Suggested sub-tasks
+This issue is large. Suggested split (adjust before approving):
+1. Data layer — add `lastFertilizedAt` column, migration, DAO query
+2. Domain — update `CareSchedule.computeStatus()` for fertilizing
+3. UI — fertilizing countdown chip on PlantCard + PlantDetail StatChip
+4. Tests — unit tests for the new schedule + migration
+```
+
+If the issue is not large, omit this section entirely.
+
 ## Rules
 - Never write a vague issue. If you're unsure, ask another question.
 - Acceptance criteria must be testable, not subjective.
