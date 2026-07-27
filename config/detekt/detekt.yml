@@ -26,15 +26,22 @@ formatting:
 naming:
   # @Composable functions are intentionally PascalCase and would each trip
   # FunctionNaming; test methods use backtick / underscore names. Both are
-  # deliberate project conventions, so the rule is off rather than baselined.
+  # deliberate project conventions. Rather than disable the rule everywhere, it is
+  # scoped away from the UI layer and tests so it still catches genuinely
+  # misnamed functions in domain/, data/, worker/, notification/, and util/ (#463).
   FunctionNaming:
-    active: false
+    active: true
+    excludes: ['**/ui/**', '**/test/**', '**/androidTest/**']
 
 style:
   # Compose dp/sp literals and similar UI constants dominate MagicNumber hits and
-  # are not genuine smells here.
+  # are not genuine smells there. Scope the rule away from the UI layer and tests
+  # rather than disabling it globally, so a real magic number introduced in
+  # domain/, data/, worker/, etc. is still flagged (CLAUDE.md prefers named
+  # constants like CareSchedule.FIRST_FERTILIZE_GRACE_DAYS in those layers) (#463).
   MagicNumber:
-    active: false
+    active: true
+    excludes: ['**/ui/**', '**/test/**', '**/androidTest/**']
   # Disabled in favour of the ktlint-equivalent formatting.MaximumLineLength
   # above (also 120). Enabling both flags every over-length line twice and
   # doubles the baseline entries.

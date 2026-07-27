@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -25,8 +26,8 @@ internal suspend fun writeDefaultReminderTimeIfAbsent(dataStore: DataStore<Prefe
     val prefs = dataStore.data.first()
     if (prefs[SettingsKeys.REMINDER_HOUR] == null) {
         dataStore.edit {
-            it[SettingsKeys.REMINDER_HOUR] = 9
-            it[SettingsKeys.REMINDER_MINUTE] = 0
+            it[SettingsKeys.REMINDER_HOUR] = SettingsDefaults.REMINDER_HOUR
+            it[SettingsKeys.REMINDER_MINUTE] = SettingsDefaults.REMINDER_MINUTE
         }
     }
 }

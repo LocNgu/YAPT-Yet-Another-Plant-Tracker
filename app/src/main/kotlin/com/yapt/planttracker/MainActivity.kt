@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.YaptTheme
@@ -91,8 +92,8 @@ class MainActivity : ComponentActivity() {
             val prefs = settingsDataStore.data.first()
             val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
             if (!enabled) return@launch
-            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
-            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
+            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
             ReminderScheduler.schedule(this@MainActivity, hour, minute)
         }
     }
