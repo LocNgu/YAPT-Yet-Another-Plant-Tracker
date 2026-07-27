@@ -44,7 +44,8 @@ class BackupSerializerTest {
             reminderHour = 9,
             reminderMinute = 0,
             keepScreenOn = true,
-            combineNotifications = true
+            combineNotifications = true,
+            photoReminderEnabled = true
         ),
         plantPhotos = listOf(
             BackupPlantPhoto(
