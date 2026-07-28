@@ -22,12 +22,17 @@ The orchestrator passes you:
 3. Fetch the PR metadata and diff:
    - `mcp__github__pull_request_read` with `method: "get"`, `get_diff`, and `get_files`
 4. Read every changed file in full, not just the diff hunks.
+5. **Compile the code — never sign off on static analysis alone.** Cloud sessions can build in-session (issue #419 is resolved), so actually run the compile before forming findings:
+   - `./gradlew compileDebugKotlin compileDebugUnitTestKotlin`
+   - **Also `compileDebugAndroidTestKotlin`** whenever the PR changes `androidTest/` **or** touches a production API that instrumented tests consume (a changed constructor, function signature, or visibility can break `androidTest` even when no `androidTest/` file is in the diff — this is a common miss).
+   A red compile is a **BLOCKING** finding — quote the exact `error:` line. Only if the toolchain is genuinely unavailable may you fall back to static analysis, and then you must state explicitly that **the build was not verified** so the orchestrator and human know the compile is unconfirmed. "Looks grammatically valid" is not verification.
 
 ## BLOCKING vs NON-BLOCKING
 
 Classify every finding:
 
 **BLOCKING** — must be fixed before merge:
+- Code that does not compile (verify by building — see "Before reviewing" step 5; a red `compileDebug*Kotlin` is always BLOCKING)
 - Correctness bugs (crashes, wrong output, broken acceptance criteria)
 - Architecture violations (UI touching Room entities, Activity context in a ViewModel, `preferencesDataStore` declared inside a class, DataStore read in a composable without a ViewModel)
 - Missing `runCatching` on enum reads from the DB
@@ -45,6 +50,8 @@ Classify every finding:
 ## Review checklist
 
 - [ ] Does the change satisfy every acceptance criterion from the issue + spec clarifications?
+- [ ] Does the code compile? (`compileDebugKotlin compileDebugUnitTestKotlin`, plus `compileDebugAndroidTestKotlin` when a production API used by instrumented tests changed — run it, don't assume)
+- [ ] MockK stubs mock **member** functions, not package-level/extension functions. `DataStore.edit`, `RoomDatabase.withTransaction`, and most Flow operators are extensions — `coEvery { mock.edit(...) }` / `coEvery { mock.withTransaction(...) }` looks valid but fails to compile/resolve. Mock the underlying member instead (e.g. `DataStore.updateData`) or use a real instance. Verify by checking whether each stubbed symbol is a member or an extension.
 - [ ] Suspend functions only called from a coroutine scope / another suspend function?
 - [ ] No `List.map {}` with a suspend lambda?
 - [ ] Enum reads from the DB wrapped with `runCatching`?
