@@ -35,6 +35,13 @@ class PlantRepository(private val plantDao: PlantDao) {
 
     suspend fun restorePlant(id: Long) = plantDao.restorePlant(id)
 
+    /** Archives every id in a single atomic statement (bulk graveyard action, #448). */
+    suspend fun archivePlants(ids: List<Long>, timestamp: Long = System.currentTimeMillis()) =
+        plantDao.archivePlants(ids, timestamp)
+
+    /** Restores every id in a single atomic statement (bulk-archive undo, #448). */
+    suspend fun restorePlants(ids: List<Long>) = plantDao.restorePlants(ids)
+
     suspend fun deleteAllArchived() = plantDao.deleteAllArchived()
 }
 

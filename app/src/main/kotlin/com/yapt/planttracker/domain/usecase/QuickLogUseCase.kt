@@ -3,7 +3,9 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.room.withTransaction
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -35,8 +37,29 @@ class QuickLogUseCase(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val database: PlantDatabase
 ) {
+
+    /**
+     * Logs [careType] for every plant in [plants] inside a single Room transaction, so a bulk
+     * care action is applied atomically — a killed process can't leave some of the selected
+     * plants logged and others not (#448). Watering uses [WateringFeedback.JUST_RIGHT]; other
+     * care types route through [quickLog] so liquid-fertilizer plants still get a paired watering.
+     * Per-plant interval-suggestion and photo-reminder side effects are intentionally not surfaced
+     * here — bulk callers skip those dialogs.
+     */
+    suspend fun bulkLog(plants: List<Plant>, careType: CareType) {
+        database.withTransaction {
+            for (plant in plants) {
+                if (careType == CareType.WATER) {
+                    quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
+                } else {
+                    quickLog(plant, careType)
+                }
+            }
+        }
+    }
 
     /** Logs [careType] for [plant] and returns the snackbar message to show. */
     suspend fun quickLog(plant: Plant, careType: CareType): String {

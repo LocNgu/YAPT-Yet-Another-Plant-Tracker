@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -50,6 +51,10 @@ class QuickLogUseCaseTest {
     private val dataStore: DataStore<Preferences> = mockk {
         every { data } returns flowOf(emptyPreferences())
     }
+
+    // Unused by these single-log tests (only bulkLog opens a transaction); bulkLog's atomic
+    // behaviour is covered by QuickLogUseCaseBulkLogTest against a real in-memory database.
+    private val database: PlantDatabase = mockk()
     private lateinit var useCase: QuickLogUseCase
 
     private fun plant(
@@ -76,7 +81,7 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database)
     }
 
     @After
@@ -313,7 +318,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns emptyList()
         every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
@@ -328,7 +333,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(null)
 
         val request = useCase.maybeBuildPhotoReminderRequest(1L)
@@ -342,7 +347,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns emptyList()
         every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
@@ -360,7 +365,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns listOf(
             PlantPhoto(plantId = 1L, uri = "content://recent", capturedAt = System.currentTimeMillis())
