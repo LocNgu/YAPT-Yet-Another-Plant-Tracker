@@ -30,8 +30,8 @@
     <string name="channel_description">Reminders to water and care for your plants</string>
     <string name="keep_screen_on">Keep screen on</string>
     <string name="keep_screen_on_subtitle">Screen stays awake while the app is open</string>
-    <string name="settings_theme_title">Theme</string>
-    <string name="theme_mode_system">System default</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="theme_mode_system">System</string>
     <string name="theme_mode_light">Light</string>
     <string name="theme_mode_dark">Dark</string>
     <string name="watering_history">Watering History</string>

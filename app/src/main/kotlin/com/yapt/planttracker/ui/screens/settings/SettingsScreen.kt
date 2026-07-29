@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,7 +22,6 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
@@ -38,8 +35,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -63,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
@@ -100,7 +98,6 @@ fun SettingsScreen(
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
     var showTimePicker by remember { mutableStateOf(false) }
-    var showThemeDialog by remember { mutableStateOf(false) }
     val timePickerState = key(reminderHour, reminderMinute) {
         rememberTimePickerState(
             initialHour = reminderHour,
@@ -269,41 +266,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text(stringResource(R.string.settings_theme_title)) },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    ThemeMode.entries.forEach { mode ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = mode == themeMode,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        viewModel.setThemeMode(mode)
-                                        showThemeDialog = false
-                                    }
-                                )
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = mode == themeMode, onClick = null)
-                            Spacer(Modifier.width(16.dp))
-                            Text(stringResource(mode.labelRes()))
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showThemeDialog = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-
     if (isBackupInProgress) {
         AlertDialog(
             onDismissRequest = {},
@@ -336,6 +298,32 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            Text(
+                text = stringResource(R.string.settings_section_appearance),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
+
+            val themeOptions = listOf(ThemeMode.LIGHT, ThemeMode.SYSTEM, ThemeMode.DARK)
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                themeOptions.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = mode == themeMode,
+                        onClick = { viewModel.setThemeMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size)
+                    ) {
+                        Text(stringResource(mode.labelRes()))
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             Text(
                 text = stringResource(R.string.settings_section_reminders),
                 style = MaterialTheme.typography.labelLarge,
@@ -401,13 +389,6 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            )
-
-            SettingsItemRow(
-                icon = Icons.Filled.DarkMode,
-                title = stringResource(R.string.settings_theme_title),
-                subtitle = stringResource(themeMode.labelRes()),
-                onClick = { showThemeDialog = true }
             )
 
             SettingsItemRow(

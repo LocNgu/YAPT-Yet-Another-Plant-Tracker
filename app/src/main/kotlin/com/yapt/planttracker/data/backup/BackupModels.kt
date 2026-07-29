@@ -38,7 +38,8 @@ data class BackupSettings(
     val reminderMinute: Int,
     val keepScreenOn: Boolean = false,
     val combineNotifications: Boolean = false,
-    val photoReminderEnabled: Boolean = false
+    val photoReminderEnabled: Boolean = false,
+    val themeMode: String = "SYSTEM"
 )
 
 @Serializable

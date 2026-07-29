@@ -267,6 +267,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_HOUR] = 21
             prefs[SettingsKeys.REMINDER_MINUTE] = 30
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = true
+            prefs[SettingsKeys.THEME_MODE] = "DARK"
         }
 
         val exportFile = tmpFolder.newFile("settings_backup.yapt")
@@ -278,6 +279,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_HOUR] = 9
             prefs[SettingsKeys.REMINDER_MINUTE] = 0
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = false
+            prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -294,6 +296,29 @@ class BackupManagerTest {
             "photoReminderEnabled should be restored to true",
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
         )
+        assertEquals("DARK", prefs[SettingsKeys.THEME_MODE])
+    }
+
+    @Test
+    fun themeMode_oldBackupWithoutField_defaultsToSystem() = runBlocking {
+        dataStore.edit { prefs -> prefs[SettingsKeys.THEME_MODE] = "DARK" }
+
+        val oldJson = """
+            {"schemaVersion":5,"exportedAt":1000,"appVersion":"1.0","plants":[],"careLogs":[],"settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+
+        val zipFile = tmpFolder.newFile("old_no_theme.yapt")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("backup.json"))
+            zip.write(oldJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+
+        val importResult = backupManager.importBackup(Uri.fromFile(zipFile))
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val prefs = dataStore.data.first()
+        assertEquals("SYSTEM", prefs[SettingsKeys.THEME_MODE])
     }
 
     @Test
