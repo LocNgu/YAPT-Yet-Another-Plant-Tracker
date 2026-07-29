@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,12 +75,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val themeMode by app.settingsDataStore.data
-                .map { prefs ->
+            val themeModeFlow = remember {
+                app.settingsDataStore.data.map { prefs ->
                     runCatching { ThemeMode.valueOf(prefs[SettingsKeys.THEME_MODE] ?: "") }
                         .getOrDefault(ThemeMode.SYSTEM)
                 }
-                .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            }
+            val themeMode by themeModeFlow.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
