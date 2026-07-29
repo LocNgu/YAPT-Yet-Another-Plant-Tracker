@@ -123,7 +123,7 @@ Decisions are documented in `docs/decisions/`:
 
 Every feature and bug fix follows these steps in order:
 
-1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue
+1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue. It also assesses scope: if the issue is large (spans 3+ independently shippable layers, or a migration + new UI + new tests), it appends a `## Suggested sub-tasks` split (dependency-ordered) to the clarifications for the human to adjust before implementation begins. The implementer can also flag an oversized scope mid-implementation if it only becomes apparent then (#299)
 2. **Implement** (`implementer` agent) — reads the spec, writes code, pushes a `claude/*` branch, and returns the PR title/body as text; the **orchestrating Claude instance** opens the PR targeting `develop` via `mcp__github__create_pull_request`
 3. **Review** (`reviewer` agent) — iterative rounds of review:
    - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING**; the reviewer also tags each NON-BLOCKING finding as **SMALL** (localised, ≤ a few lines, no design risk) or **LARGE** (cross-cutting, architectural, or requires its own spec)

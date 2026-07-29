@@ -92,6 +92,12 @@ NEXT: human | reason: ambiguity discovered mid-implementation — <one-line summ
 
 The orchestrator will surface the question to the human and restart you once resolved.
 
+**Flag an oversized issue.** If the issue turns out to span several independently shippable layers (data + UI + tests that each stand alone, or a migration plus new UI plus new tests) and is heading toward one massive PR, stop before going deep and propose a split — a numbered list of sub-tasks in dependency order — rather than pushing everything on one branch. (The spec agent proposes splits up front; this is the safety net when a large scope only becomes apparent during implementation.) End with:
+
+```
+NEXT: human | reason: issue is larger than one PR — proposing a sub-task split
+```
+
 ## When finished
 
 1. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
