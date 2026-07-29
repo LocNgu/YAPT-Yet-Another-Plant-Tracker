@@ -15,6 +15,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,13 @@ class SettingsViewModel(
         .map { it[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val themeMode: StateFlow<ThemeMode> = dataStore.data
+        .map { prefs ->
+            runCatching { ThemeMode.valueOf(prefs[SettingsKeys.THEME_MODE] ?: "") }
+                .getOrDefault(ThemeMode.SYSTEM)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.SYSTEM)
+
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -72,6 +80,12 @@ class SettingsViewModel(
     fun setKeepScreenOn(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.KEEP_SCREEN_ON] = enabled }
+        }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.THEME_MODE] = mode.name }
         }
     }
 

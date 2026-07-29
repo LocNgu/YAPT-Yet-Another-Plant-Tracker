@@ -23,12 +23,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 6 (#139): themeMode added to BackupSettings.
 // Schema 5 (#480): photoReminderEnabled added to BackupSettings.
 // Schema 4 (#474): combineNotifications added to BackupSettings.
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 5
+const val CURRENT_SCHEMA_VERSION = 6
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -76,6 +77,7 @@ class BackupManager(
             val keepScreenOn = prefs[SettingsKeys.KEEP_SCREEN_ON] ?: false
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
             val photoReminderEnabled = prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
+            val themeMode = prefs[SettingsKeys.THEME_MODE] ?: "SYSTEM"
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -155,7 +157,8 @@ class BackupManager(
                     reminderMinute = reminderMinute,
                     keepScreenOn = keepScreenOn,
                     combineNotifications = combineNotifications,
-                    photoReminderEnabled = photoReminderEnabled
+                    photoReminderEnabled = photoReminderEnabled,
+                    themeMode = themeMode
                 )
             )
 
@@ -344,6 +347,7 @@ class BackupManager(
                 prefs[SettingsKeys.KEEP_SCREEN_ON] = backup.settings.keepScreenOn
                 prefs[SettingsKeys.COMBINE_NOTIFICATIONS] = backup.settings.combineNotifications
                 prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = backup.settings.photoReminderEnabled
+                prefs[SettingsKeys.THEME_MODE] = backup.settings.themeMode
             }
 
             if (backup.settings.notificationsEnabled) {
