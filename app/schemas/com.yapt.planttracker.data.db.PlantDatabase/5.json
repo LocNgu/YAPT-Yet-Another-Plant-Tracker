@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "PLACEHOLDER_REGENERATED_BY_KSP_ON_BUILD",
+    "identityHash": "8f2a9d3e07bc7fb376e40f608f3b44bf",
     "entities": [
       {
         "tableName": "plants",
@@ -240,7 +240,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'PLACEHOLDER_REGENERATED_BY_KSP_ON_BUILD')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8f2a9d3e07bc7fb376e40f608f3b44bf')"
     ]
   }
 }

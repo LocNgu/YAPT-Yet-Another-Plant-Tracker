@@ -2,7 +2,9 @@ package com.yapt.planttracker.ui.components
 
 import android.view.WindowManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -33,16 +37,19 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.util.DateUtils
 
 @Composable
 fun FullScreenPhotoViewer(
-    uris: List<String>,
+    photos: List<GalleryPhoto>,
     initialIndex: Int = 0,
     onDismiss: () -> Unit,
     onDelete: ((uri: String) -> Unit)? = null
 ) {
-    if (uris.isEmpty()) return
-    val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, uris.lastIndex)) { uris.size }
+    if (photos.isEmpty()) return
+    val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, photos.lastIndex)) { photos.size }
+    val photoDateCd = stringResource(R.string.cd_photo_viewer_date)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -79,24 +86,44 @@ fun FullScreenPhotoViewer(
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 AsyncImage(
-                    model = uris[page],
+                    model = photos[page].uri,
                     contentDescription = stringResource(R.string.cd_plant_photo_fullscreen),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            if (uris.size > 1) {
+            // The date label is shown for every photo (even a single one, when the "N / M"
+            // indicator is hidden); the page indicator sits above it when there's more than one.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+            ) {
+                if (photos.size > 1) {
+                    Text(
+                        text = stringResource(
+                            R.string.photo_viewer_page_indicator,
+                            pagerState.currentPage + 1,
+                            photos.size
+                        ),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+                val photoDate = DateUtils.formatDate(photos[pagerState.currentPage].timestamp)
                 Text(
-                    text = stringResource(
-                        R.string.photo_viewer_page_indicator,
-                        pagerState.currentPage + 1,
-                        uris.size
-                    ),
+                    text = photoDate,
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp)
+                        .semantics {
+                            contentDescription = photoDateCd.format(photoDate)
+                        }
                         .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 )
@@ -109,7 +136,7 @@ fun FullScreenPhotoViewer(
             ) {
                 if (onDelete != null) {
                     IconButton(
-                        onClick = { onDelete(uris[pagerState.currentPage]) },
+                        onClick = { onDelete(photos[pagerState.currentPage].uri) },
                         colors = IconButtonDefaults.iconButtonColors(
                             containerColor = Color.Black.copy(alpha = 0.60f)
                         )

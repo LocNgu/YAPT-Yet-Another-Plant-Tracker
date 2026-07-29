@@ -245,6 +245,36 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun fullScreenViewer_showsPhotoDateLabel() {
+        val plant = Plant(id = 8L, name = "Fiddle Leaf", coverPhotoUri = "content://fake/photo", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo8 = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
+            PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
+        ))
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Plant cover photo").performClick()
+        // The exact date is timezone-dependent; assert the labelled date chip is present via its
+        // content-description prefix rather than a hard-coded date string.
+        composeTestRule.onNodeWithContentDescription("Photo taken", substring = true).assertIsDisplayed()
+    }
+
+    @Test
     fun coverPhoto_placeholderTapDoesNotOpenFullScreenViewer() {
         val plant = Plant(id = 7L, name = "Cactus", coverPhotoUri = null, createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)

@@ -1,9 +1,9 @@
-package com.yapt.planttracker.ui.screens.plantdetail
+package com.yapt.planttracker.domain.reminder
 
-import java.time.LocalDate
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class PhotoReminderTest {
 
@@ -17,7 +17,7 @@ class PhotoReminderTest {
     @Test
     fun `no photos and plant is 29 days old does not show reminder`() {
         assertFalse(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = null,
                 plantCreatedAtMs = daysAgo(29),
                 nowDate = now
@@ -28,7 +28,7 @@ class PhotoReminderTest {
     @Test
     fun `no photos and plant is exactly 30 days old shows reminder`() {
         assertTrue(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = null,
                 plantCreatedAtMs = daysAgo(30),
                 nowDate = now
@@ -39,7 +39,7 @@ class PhotoReminderTest {
     @Test
     fun `no photos and plant is more than 30 days old shows reminder`() {
         assertTrue(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = null,
                 plantCreatedAtMs = daysAgo(60),
                 nowDate = now
@@ -50,7 +50,7 @@ class PhotoReminderTest {
     @Test
     fun `last photo from plant_photos 35 days ago shows reminder`() {
         assertTrue(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = daysAgo(35),
                 plantCreatedAtMs = daysAgo(90),
                 nowDate = now
@@ -61,7 +61,7 @@ class PhotoReminderTest {
     @Test
     fun `last photo from care_log 15 days ago does not show reminder`() {
         assertFalse(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = daysAgo(15),
                 plantCreatedAtMs = daysAgo(90),
                 nowDate = now
@@ -74,7 +74,7 @@ class PhotoReminderTest {
         // plant_photos has photo 20 days ago, care_log has photo 40 days ago
         // galleryPhotos sorts newest-first, so caller passes daysAgo(20) as lastPhotoTimestampMs
         assertFalse(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = daysAgo(20),
                 plantCreatedAtMs = daysAgo(90),
                 nowDate = now
@@ -87,7 +87,7 @@ class PhotoReminderTest {
         // plant_photos has photo 30 days ago, care_log has photo 40 days ago
         // galleryPhotos sorts newest-first, so caller passes daysAgo(30) as lastPhotoTimestampMs
         assertTrue(
-            PlantDetailViewModel.shouldShowPhotoReminder(
+            PhotoReminderPolicy.shouldShowPhotoReminder(
                 lastPhotoTimestampMs = daysAgo(30),
                 plantCreatedAtMs = daysAgo(90),
                 nowDate = now

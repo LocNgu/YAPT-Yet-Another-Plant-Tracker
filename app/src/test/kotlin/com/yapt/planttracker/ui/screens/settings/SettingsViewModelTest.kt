@@ -11,9 +11,10 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,6 +48,7 @@ class SettingsViewModelTest {
     fun setup() {
         every { mockDataStore.data } returns flowOf(mockPrefs)
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
+        every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
@@ -109,6 +111,47 @@ class SettingsViewModelTest {
             assertEquals(true, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `combineNotifications defaults to false when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.combineNotifications.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `combineNotifications emits true when DataStore returns true`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns true
+        vm = buildVm()
+
+        vm.combineNotifications.test {
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setCombineNotifications persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setCombineNotifications(true)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
     }
 
     @Test

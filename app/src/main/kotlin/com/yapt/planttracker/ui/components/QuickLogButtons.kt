@@ -63,17 +63,32 @@ fun QuickLogButtons(
         ) {
             if (status.plant.useLiquidFertilizer) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.WaterDrop, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Filled.WaterDrop,
+                        stringResource(R.string.quick_log_fertilize_cd),
+                        Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
                         text = "+",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 2.dp)
                     )
-                    Icon(Icons.Filled.Spa, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Filled.Spa,
+                        null,
+                        Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
-                Icon(Icons.Filled.Spa, stringResource(R.string.quick_log_fertilize_cd), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Filled.Spa,
+                    stringResource(R.string.quick_log_fertilize_cd),
+                    Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

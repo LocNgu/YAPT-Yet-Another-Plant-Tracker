@@ -148,8 +148,14 @@ class BackupModelsTest {
     @Test
     fun `CareLogEntity round-trip with all-null optionals`() {
         val minimal = CareLogEntity(
-            id = 5L, plantId = 1L, careType = "FERTILIZE", loggedAt = 1_600_000_000_000L,
-            notes = null, photoUri = null, amount = null, wateringFeedback = null
+            id = 5L,
+            plantId = 1L,
+            careType = "FERTILIZE",
+            loggedAt = 1_600_000_000_000L,
+            notes = null,
+            photoUri = null,
+            amount = null,
+            wateringFeedback = null
         )
         assertEquals(minimal, minimal.toBackupCareLog().toCareLogEntity())
     }

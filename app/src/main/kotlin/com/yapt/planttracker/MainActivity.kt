@@ -15,15 +15,16 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -60,8 +61,11 @@ class MainActivity : ComponentActivity() {
                     .map { it[SettingsKeys.KEEP_SCREEN_ON] ?: false }
                     .distinctUntilChanged()
                     .collect { on ->
-                        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        if (on) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
                     }
             }
         }
@@ -88,8 +92,8 @@ class MainActivity : ComponentActivity() {
             val prefs = settingsDataStore.data.first()
             val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
             if (!enabled) return@launch
-            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
-            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
+            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
             ReminderScheduler.schedule(this@MainActivity, hour, minute)
         }
     }

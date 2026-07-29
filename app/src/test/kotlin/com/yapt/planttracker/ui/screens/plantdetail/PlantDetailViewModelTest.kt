@@ -1,10 +1,10 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
-import app.cash.turbine.test
+import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import android.net.Uri
+import app.cash.turbine.test
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -21,8 +21,8 @@ import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.just
+import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -335,7 +335,8 @@ class PlantDetailViewModelTest {
 
         val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///plant.jpg", capturedAt = 1000L)
         val careLog = CareLog(
-            id = 1L, plantId = 1L,
+            id = 1L,
+            plantId = 1L,
             careType = CareType.PHOTO,
             loggedAt = 2000L,
             photoUri = "file:///care.jpg"
@@ -366,7 +367,12 @@ class PlantDetailViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
 
-        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        val photo =
+            GalleryPhoto(
+                uri = plantPhoto.uri,
+                timestamp = plantPhoto.capturedAt,
+                source = GalleryPhotoSource.FromPlant(plantPhoto)
+            )
         vm.deletePhoto(photo)
 
         coVerify { plantPhotoRepo.deletePhoto(plantPhoto) }
@@ -384,7 +390,12 @@ class PlantDetailViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
 
-        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        val photo =
+            GalleryPhoto(
+                uri = plantPhoto.uri,
+                timestamp = plantPhoto.capturedAt,
+                source = GalleryPhotoSource.FromPlant(plantPhoto)
+            )
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.deletePhoto(photo)
@@ -405,7 +416,12 @@ class PlantDetailViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
 
-        val photo = GalleryPhoto(uri = plantPhoto.uri, timestamp = plantPhoto.capturedAt, source = GalleryPhotoSource.FromPlant(plantPhoto))
+        val photo =
+            GalleryPhoto(
+                uri = plantPhoto.uri,
+                timestamp = plantPhoto.capturedAt,
+                source = GalleryPhotoSource.FromPlant(plantPhoto)
+            )
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.deletePhoto(photo)
@@ -436,9 +452,11 @@ class PlantDetailViewModelTest {
             plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
         }
         coVerify {
-            careLogRepo.addLog(match {
-                it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-            })
+            careLogRepo.addLog(
+                match {
+                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
+                }
+            )
         }
         coVerify {
             plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
@@ -450,7 +468,8 @@ class PlantDetailViewModelTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         val careLog = CareLog(
-            id = 5L, plantId = 1L,
+            id = 5L,
+            plantId = 1L,
             careType = CareType.PHOTO,
             loggedAt = 2000L,
             photoUri = "file:///care.jpg"
@@ -460,7 +479,12 @@ class PlantDetailViewModelTest {
         coEvery { careLogRepo.updateLog(any()) } just runs
         val vm = makeVm()
 
-        val photo = GalleryPhoto(uri = careLog.photoUri!!, timestamp = careLog.loggedAt, source = GalleryPhotoSource.FromCareLog(careLog.id))
+        val photo =
+            GalleryPhoto(
+                uri = careLog.photoUri!!,
+                timestamp = careLog.loggedAt,
+                source = GalleryPhotoSource.FromCareLog(careLog.id)
+            )
         vm.deletePhoto(photo)
 
         coVerify { careLogRepo.updateLog(match { it.id == 5L && it.photoUri == null }) }

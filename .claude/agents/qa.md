@@ -29,6 +29,14 @@ The orchestrator passes you:
 ```
 The build must succeed with zero errors. Warnings are acceptable but should be noted.
 
+**Actually run it — cloud sessions can build in-session (issue #419 is resolved).** Do not sign off on static analysis and do not report the build as "ENV BLOCKED": if the build genuinely cannot run, that is a **NEEDS WORK** (the change is unvalidated), never a PASS.
+
+### Test-source compilation
+```bash
+./gradlew compileDebugAndroidTestKotlin --no-daemon 2>&1 | tail -30
+```
+`assembleDebug` compiles `main` but **not** `androidTest`, so an instrumented test that no longer compiles (e.g. a changed production constructor or signature the tests consume) passes `assembleDebug` yet fails CI. Run this whenever the PR changes `androidTest/` **or** a production API instrumented tests use. A red compile is a **NEEDS WORK** blocker — quote the exact `error:` line.
+
 ### Unit tests (if any exist)
 ```bash
 ./gradlew testDebugUnitTest --no-daemon 2>&1 | tail -50

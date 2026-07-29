@@ -12,7 +12,8 @@ object ImageUtils {
     fun takePersistablePermission(context: Context, uri: Uri) {
         try {
             context.contentResolver.takePersistableUriPermission(
-                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
         } catch (e: SecurityException) {
             Log.w("ImageUtils", "Could not take persistable permission for $uri", e)

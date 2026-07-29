@@ -42,18 +42,18 @@ abstract class PlantDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `plant_photos` (" +
-                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                    "`plantId` INTEGER NOT NULL, " +
-                    "`uri` TEXT NOT NULL, " +
-                    "`capturedAt` INTEGER NOT NULL, " +
-                    "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`uri` TEXT NOT NULL, " +
+                        "`capturedAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_plant_photos_plantId` ON `plant_photos` (`plantId`)"
                 )
                 db.execSQL(
                     "INSERT INTO plant_photos (plantId, uri, capturedAt) " +
-                    "SELECT id, coverPhotoUri, createdAt FROM plants WHERE coverPhotoUri IS NOT NULL"
+                        "SELECT id, coverPhotoUri, createdAt FROM plants WHERE coverPhotoUri IS NOT NULL"
                 )
             }
         }
@@ -62,15 +62,15 @@ abstract class PlantDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `plant_photos_new` (" +
-                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                    "`plantId` INTEGER NOT NULL, " +
-                    "`uri` TEXT NOT NULL, " +
-                    "`capturedAt` INTEGER NOT NULL, " +
-                    "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`uri` TEXT NOT NULL, " +
+                        "`capturedAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
                 )
                 db.execSQL(
                     "INSERT INTO plant_photos_new (id, plantId, uri, capturedAt) " +
-                    "SELECT MIN(id), plantId, uri, MIN(capturedAt) FROM plant_photos GROUP BY plantId, uri"
+                        "SELECT MIN(id), plantId, uri, MIN(capturedAt) FROM plant_photos GROUP BY plantId, uri"
                 )
                 db.execSQL("DROP TABLE plant_photos")
                 db.execSQL("ALTER TABLE plant_photos_new RENAME TO plant_photos")

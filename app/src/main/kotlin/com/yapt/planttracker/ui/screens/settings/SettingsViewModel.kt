@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -47,12 +48,16 @@ class SettingsViewModel(
         .map { it[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val combineNotifications: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val reminderHour: StateFlow<Int> = dataStore.data
-        .map { it[SettingsKeys.REMINDER_HOUR] ?: 9 }
+        .map { it[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
 
     val reminderMinute: StateFlow<Int> = dataStore.data
-        .map { it[SettingsKeys.REMINDER_MINUTE] ?: 0 }
+        .map { it[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
@@ -76,13 +81,19 @@ class SettingsViewModel(
         }
     }
 
+    fun setCombineNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = enabled }
+        }
+    }
+
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.NOTIFICATIONS_ENABLED] = enabled }
             if (enabled) {
                 val prefs = dataStore.data.first()
-                val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: 9
-                val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: 0
+                val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
+                val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
                 ReminderScheduler.schedule(context, hour, minute)
             } else {
                 ReminderScheduler.cancel(context)

@@ -11,12 +11,12 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,12 +29,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -53,8 +53,12 @@ class PlantListViewModelTest {
         // getString is a Java Object... vararg method; MockK captures the vararg as an array at args[1]
         every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${(args[1] as Array<*>)[0]}" }
         every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_watered_and_fertilized, any()) } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
-        every { getString(R.string.quick_log_other, any(), any()) } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
+        every {
+            getString(R.string.quick_log_watered_and_fertilized, any())
+        } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
+        every {
+            getString(R.string.quick_log_other, any(), any())
+        } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
         every { getString(R.string.care_type_watered) } returns "Watered"
         every { getString(R.string.care_type_fertilized) } returns "Fertilized"
@@ -84,9 +88,9 @@ class PlantListViewModelTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        // shownThisSession is a process-wide static set shared with PlantDetailViewModel; clear it
-        // before and after each test so ordering (and PlantDetailViewModel's own tests) can't leak.
-        PlantDetailViewModel.shownThisSession.clear()
+        // shownThisSession is a process-wide static set shared across surfaces via
+        // PhotoReminderPolicy; clear it before and after each test so ordering can't leak.
+        PhotoReminderPolicy.shownThisSession.clear()
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
@@ -100,7 +104,7 @@ class PlantListViewModelTest {
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     @Test
@@ -814,7 +818,15 @@ class PlantListViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits the watered-and-fertilized message, no interval suggestion`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera =
+            Plant(
+                id = 1L,
+                name = "Monstera",
+                useLiquidFertilizer = true,
+                wateringIntervalDays = 7,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
@@ -839,7 +851,15 @@ class PlantListViewModelTest {
 
     @Test
     fun `quickLiquidFertilizeWithFeedback emits the suggestion returned by the use case`() = runTest {
-        val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val monstera =
+            Plant(
+                id = 1L,
+                name = "Monstera",
+                useLiquidFertilizer = true,
+                wateringIntervalDays = 7,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_SOON) } returns
@@ -906,12 +926,12 @@ class PlantListViewModelTest {
     }
 
     @Test
-    fun `bulkLog water routes each selected plant through quickWaterWithFeedback and clears selection`() = runTest {
+    fun `bulkLog water routes the selected plants through the transactional bulk use case and clears selection`() = runTest {
         val a = plant(id = 1L, name = "A")
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(any(), WateringFeedback.JUST_RIGHT) } returns null
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.plantsWithStatus.test {
@@ -923,18 +943,17 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithFeedback(a, WateringFeedback.JUST_RIGHT) }
-        coVerify { quickLogUseCase.quickWaterWithFeedback(b, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.bulkLog(listOf(a, b), CareType.WATER) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
     @Test
-    fun `bulkLog fertilize routes each selected plant through quickLog`() = runTest {
+    fun `bulkLog fertilize routes the selected plants through the transactional bulk use case`() = runTest {
         val a = plant(id = 1L, name = "A")
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(any(), CareType.FERTILIZE) } returns "Fertilized"
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.FERTILIZE) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.plantsWithStatus.test {
@@ -946,8 +965,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(a, CareType.FERTILIZE) }
-        coVerify { quickLogUseCase.quickLog(b, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.bulkLog(listOf(a, b), CareType.FERTILIZE) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
@@ -960,7 +978,7 @@ class PlantListViewModelTest {
         vm.bulkLog(CareType.WATER)
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { quickLogUseCase.quickWaterWithFeedback(any(), any()) }
+        coVerify(exactly = 0) { quickLogUseCase.bulkLog(any(), any()) }
     }
 
     @Test
@@ -969,7 +987,7 @@ class PlantListViewModelTest {
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.archivePlant(any(), any()) } just runs
+        coEvery { plantRepo.archivePlants(any(), any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.bulkArchivedEvent.test {
@@ -985,23 +1003,22 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.archivePlant(1L, any()) }
-        coVerify { plantRepo.archivePlant(2L, any()) }
+        // One atomic batch call for all selected ids, not one call per plant.
+        coVerify(exactly = 1) { plantRepo.archivePlants(match { it.sorted() == listOf(1L, 2L) }, any()) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
     @Test
-    fun `undoBulkArchive restores every given plant id`() = runTest {
+    fun `undoBulkArchive restores all given plant ids in one batch`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.restorePlant(any()) } just runs
+        coEvery { plantRepo.restorePlants(any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.undoBulkArchive(listOf(3L, 4L))
         advanceUntilIdle()
 
-        coVerify { plantRepo.restorePlant(3L) }
-        coVerify { plantRepo.restorePlant(4L) }
+        coVerify(exactly = 1) { plantRepo.restorePlants(listOf(3L, 4L)) }
     }
 
     // plantListItems date-group divider tests
@@ -1112,8 +1129,24 @@ class PlantListViewModelTest {
     fun `plantListItems recomputes headers when room filter changes`() = runTest {
         val now = System.currentTimeMillis()
         val oneDayMs = TimeUnit.DAYS.toMillis(1)
-        val kitchenPlant = Plant(id = 1L, name = "Kitchen Plant", room = "Kitchen", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
-        val bedroomPlant = Plant(id = 2L, name = "Bedroom Plant", room = "Bedroom", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+        val kitchenPlant =
+            Plant(
+                id = 1L,
+                name = "Kitchen Plant",
+                room = "Kitchen",
+                wateringIntervalDays = 1,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        val bedroomPlant =
+            Plant(
+                id = 2L,
+                name = "Bedroom Plant",
+                room = "Bedroom",
+                wateringIntervalDays = 1,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenPlant, bedroomPlant))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         // Kitchen plant is overdue (due 2 days ago); Bedroom plant is due today.
@@ -1169,9 +1202,11 @@ class PlantListViewModelTest {
             plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
         }
         coVerify {
-            careLogRepo.addLog(match {
-                it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-            })
+            careLogRepo.addLog(
+                match {
+                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
+                }
+            )
         }
         coVerify {
             plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })

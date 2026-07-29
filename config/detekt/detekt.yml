@@ -1,0 +1,49 @@
+# Detekt configuration for YAPT.
+# Layered on top of Detekt's default rule set (buildUponDefaultConfig = true in
+# app/build.gradle.kts). Only project-specific overrides live here.
+#
+# The `formatting` rule set is provided by the detekt-formatting plugin, which
+# wraps ktlint's rules. autoCorrect lets `./gradlew detekt` (with the task's
+# autoCorrect flag) fix these mechanically; CI runs without that flag so it only
+# reports.
+
+build:
+  # Fail the build on any issue not covered by the committed baseline.
+  maxIssues: 0
+
+formatting:
+  active: true
+  autoCorrect: true
+  android: true
+  MaximumLineLength:
+    active: true
+    maxLineLength: 120
+  ArgumentListWrapping:
+    active: true
+  NoWildcardImports:
+    active: true
+
+naming:
+  # @Composable functions are intentionally PascalCase and would each trip
+  # FunctionNaming; test methods use backtick / underscore names. Both are
+  # deliberate project conventions. Rather than disable the rule everywhere, it is
+  # scoped away from the UI layer and tests so it still catches genuinely
+  # misnamed functions in domain/, data/, worker/, notification/, and util/ (#463).
+  FunctionNaming:
+    active: true
+    excludes: ['**/ui/**', '**/test/**', '**/androidTest/**']
+
+style:
+  # Compose dp/sp literals and similar UI constants dominate MagicNumber hits and
+  # are not genuine smells there. Scope the rule away from the UI layer and tests
+  # rather than disabling it globally, so a real magic number introduced in
+  # domain/, data/, worker/, etc. is still flagged (CLAUDE.md prefers named
+  # constants like CareSchedule.FIRST_FERTILIZE_GRACE_DAYS in those layers) (#463).
+  MagicNumber:
+    active: true
+    excludes: ['**/ui/**', '**/test/**', '**/androidTest/**']
+  # Disabled in favour of the ktlint-equivalent formatting.MaximumLineLength
+  # above (also 120). Enabling both flags every over-length line twice and
+  # doubles the baseline entries.
+  MaxLineLength:
+    active: false

@@ -3,7 +3,9 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.room.withTransaction
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -11,12 +13,12 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
-import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.util.labelRes
 import kotlinx.coroutines.flow.first
 
@@ -35,8 +37,29 @@ class QuickLogUseCase(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val database: PlantDatabase
 ) {
+
+    /**
+     * Logs [careType] for every plant in [plants] inside a single Room transaction, so a bulk
+     * care action is applied atomically — a killed process can't leave some of the selected
+     * plants logged and others not (#448). Watering uses [WateringFeedback.JUST_RIGHT]; other
+     * care types route through [quickLog] so liquid-fertilizer plants still get a paired watering.
+     * Per-plant interval-suggestion and photo-reminder side effects are intentionally not surfaced
+     * here — bulk callers skip those dialogs.
+     */
+    suspend fun bulkLog(plants: List<Plant>, careType: CareType) {
+        database.withTransaction {
+            for (plant in plants) {
+                if (careType == CareType.WATER) {
+                    quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
+                } else {
+                    quickLog(plant, careType)
+                }
+            }
+        }
+    }
 
     /** Logs [careType] for [plant] and returns the snackbar message to show. */
     suspend fun quickLog(plant: Plant, careType: CareType): String {
@@ -66,7 +89,11 @@ class QuickLogUseCase(
             } else {
                 application.getString(R.string.quick_log_fertilized, plant.name)
             }
-            else -> application.getString(R.string.quick_log_other, application.getString(careType.labelRes()), plant.name)
+            else -> application.getString(
+                R.string.quick_log_other,
+                application.getString(careType.labelRes()),
+                plant.name
+            )
         }
     }
 
@@ -115,16 +142,16 @@ class QuickLogUseCase(
 
     /**
      * Builds a [PhotoReminderRequest] for [plantId] if the feature is enabled, the plant hasn't
-     * already been reminded this session (shared with PlantDetailScreen via
-     * [PlantDetailViewModel.shownThisSession]), and the newest photo across plant photos and
-     * care-log photos is at least [PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS] days old.
+     * already been reminded this session (shared across surfaces via
+     * [PhotoReminderPolicy.shownThisSession]), and the newest photo across plant photos and
+     * care-log photos is at least [PhotoReminderPolicy.PHOTO_REMINDER_INTERVAL_DAYS] days old.
      * Returns null when no reminder should be shown. Callers decide what to do with the result
      * (e.g. suppress it while another dialog is showing) — that UI-level rule stays in the screen.
      */
     suspend fun maybeBuildPhotoReminderRequest(plantId: Long): PhotoReminderRequest? {
         val enabled = dataStore.data.first()[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
         if (!enabled) return null
-        if (plantId in PlantDetailViewModel.shownThisSession) return null
+        if (plantId in PhotoReminderPolicy.shownThisSession) return null
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
         val lastPlantPhotoTs = plantPhotoRepository.getPhotosForPlantOnce(plantId)
             .maxOfOrNull { it.capturedAt }
@@ -132,9 +159,9 @@ class QuickLogUseCase(
             .mapNotNull { log -> log.photoUri?.let { log.loggedAt } }
             .maxOrNull()
         val lastPhotoTs = listOfNotNull(lastPlantPhotoTs, lastCareLogPhotoTs).maxOrNull()
-        val daysSince = PlantDetailViewModel.lastPhotoDaysSince(lastPhotoTs, plant.createdAt)
-        if (daysSince >= PlantDetailViewModel.PHOTO_REMINDER_INTERVAL_DAYS) {
-            PlantDetailViewModel.shownThisSession.add(plantId)
+        val daysSince = PhotoReminderPolicy.lastPhotoDaysSince(lastPhotoTs, plant.createdAt)
+        if (daysSince >= PhotoReminderPolicy.PHOTO_REMINDER_INTERVAL_DAYS) {
+            PhotoReminderPolicy.shownThisSession.add(plantId)
             return PhotoReminderRequest(plantId, plant.name, daysSince)
         }
         return null
@@ -153,7 +180,9 @@ class QuickLogUseCase(
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {
         plantRepository.getPlantById(plantId).first()?.let { p ->
             if (p.wateringDueDateOverride != null) {
-                plantRepository.updatePlant(p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis()))
+                plantRepository.updatePlant(
+                    p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                )
             }
         }
     }

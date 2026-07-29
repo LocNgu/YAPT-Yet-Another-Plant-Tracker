@@ -2,11 +2,11 @@ package com.yapt.planttracker.ui.components
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -21,7 +21,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -29,6 +28,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
@@ -99,7 +99,7 @@ private val careTypeColors = mapOf(
     CareType.PHOTO to 0xFF7B1FA2.toInt(),
 )
 
-enum class TimeRange(val labelRes: Int, val daysBack: Int) {
+internal enum class TimeRange(val labelRes: Int, val daysBack: Int) {
     ONE_MONTH(R.string.time_range_1m, 30),
     THREE_MONTHS(R.string.time_range_3m, 90),
     SIX_MONTHS(R.string.time_range_6m, 180),
@@ -107,12 +107,12 @@ enum class TimeRange(val labelRes: Int, val daysBack: Int) {
     ALL_TIME(R.string.time_range_all, Int.MAX_VALUE)
 }
 
-data class WateringInterval(
+internal data class WateringInterval(
     val timestamp: Long,
     val daysSincePrevious: Float
 )
 
-data class CareEventMarker(
+internal data class CareEventMarker(
     val monthIndex: Float,
     val careType: CareType,
     val timestamp: Long
@@ -136,8 +136,11 @@ internal fun markerCy(
     top: Float,
     bottom: Float
 ): Float =
-    if (yMax > yMin) bottom - ((daysSincePrevious - yMin) / (yMax - yMin)) * (bottom - top)
-    else (top + bottom) / 2f
+    if (yMax > yMin) {
+        bottom - ((daysSincePrevious - yMin) / (yMax - yMin)) * (bottom - top)
+    } else {
+        (top + bottom) / 2f
+    }
 
 private class CareEventDecoration(
     private val iconBitmaps: Map<CareType, Bitmap>,
@@ -271,7 +274,7 @@ private fun rememberCareIconBitmaps(): Map<CareType, Bitmap> {
 }
 
 @Composable
-fun WateringHistoryChart(
+internal fun WateringHistoryChart(
     careLogs: List<CareLog>,
     selectedRange: TimeRange = TimeRange.TWELVE_MONTHS,
     onRangeSelected: (TimeRange) -> Unit
@@ -376,9 +379,11 @@ private fun ChartContent(
         // crosses a year boundary), fall back to "MMM yy" so each label is unique.
         val fmtShort = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH).withZone(zone)
         val shortNames = indexToZdt.map { fmtShort.format(it) }
-        val fmt = if (shortNames.toSet().size < shortNames.size)
+        val fmt = if (shortNames.toSet().size < shortNames.size) {
             DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_YEAR).withZone(zone)
-        else fmtShort
+        } else {
+            fmtShort
+        }
         val labels = indexToZdt.mapIndexed { idx, zdt -> idx to fmt.format(zdt) }.toMap()
 
         points to labels
@@ -391,7 +396,7 @@ private fun ChartContent(
         modelProducer.runTransaction {
             lineSeries {
                 series(
-                    x = monthlyPoints.map { it.first },   // integers — no Vico precision issue
+                    x = monthlyPoints.map { it.first }, // integers — no Vico precision issue
                     y = monthlyPoints.map { it.second }
                 )
             }
@@ -513,7 +518,6 @@ private fun ChartContent(
         )
     }
 
-
     selectedMarker?.let { marker ->
         EventMarkerDialog(marker = marker, onDismiss = { selectedMarker = null })
     }
@@ -565,7 +569,7 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     }
 }
 
-fun computeWateringIntervals(
+internal fun computeWateringIntervals(
     wateringLogs: List<CareLog>,
     rangeStartMs: Long,
     now: Long
@@ -597,9 +601,12 @@ fun computeWateringIntervals(
     return intervals
 }
 
-fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
-    if (intervals.isNotEmpty()) minOf(rangeStartMs, intervals.minOf { it.timestamp })
-    else rangeStartMs
+internal fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Long): Long =
+    if (intervals.isNotEmpty()) {
+        minOf(rangeStartMs, intervals.minOf { it.timestamp })
+    } else {
+        rangeStartMs
+    }
 
 /**
  * Whole-number y-axis tick step for the watering interval chart, derived from the data's
@@ -608,7 +615,7 @@ fun computeEffectiveStartMs(intervals: List<WateringInterval>, rangeStartMs: Lon
  */
 internal fun computeYAxisStep(yMax: Double): Int = maxOf(1, ceil(yMax / 5.0).toInt())
 
-fun computeCareEventMarkers(
+internal fun computeCareEventMarkers(
     careLogs: List<CareLog>,
     rangeStartMs: Long,
     now: Long,

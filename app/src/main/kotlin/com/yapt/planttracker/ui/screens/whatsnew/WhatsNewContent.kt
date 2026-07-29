@@ -11,6 +11,21 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 320,
+            versionName = "0.20.0",
+            added = listOf(
+                "Settings → Reminders: new \"Combine reminders\" toggle sends a single daily digest (\"3 plants need care\") instead of one notification per plant. Off by default",
+                "Full-screen photo viewer now shows each photo's exact date near the bottom, and it updates as you swipe between photos",
+                "The Photo reminder on/off setting is now saved in your backup, so it survives moving to a new device"
+            ),
+            fixed = listOf(
+                "Bulk care and \"Move to Graveyard\" actions on multiple selected plants now apply all-or-nothing, so an interrupted action can't leave the batch half-done"
+            ),
+            changed = listOf(
+                "Updated the app's build toolchain (Android Gradle Plugin, Gradle, Kotlin) — no change to how the app behaves"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 310,
             versionName = "0.19.0",
             changed = listOf(

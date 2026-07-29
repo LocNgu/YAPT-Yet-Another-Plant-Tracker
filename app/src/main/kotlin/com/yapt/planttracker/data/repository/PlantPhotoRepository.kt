@@ -26,9 +26,15 @@ class PlantPhotoRepository(private val plantPhotoDao: PlantPhotoDao) {
 }
 
 private fun PlantPhotoEntity.toDomain() = PlantPhoto(
-    id = id, plantId = plantId, uri = uri, capturedAt = capturedAt
+    id = id,
+    plantId = plantId,
+    uri = uri,
+    capturedAt = capturedAt
 )
 
 private fun PlantPhoto.toEntity() = PlantPhotoEntity(
-    id = id, plantId = plantId, uri = uri, capturedAt = capturedAt
+    id = id,
+    plantId = plantId,
+    uri = uri,
+    capturedAt = capturedAt
 )

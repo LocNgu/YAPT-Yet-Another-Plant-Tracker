@@ -15,10 +15,10 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -176,13 +176,7 @@ class PlantListViewModel(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             val plants = plantsWithStatus.value.filter { it.plant.id in ids }.map { it.plant }
-            for (plant in plants) {
-                if (careType == CareType.WATER) {
-                    quickLogUseCase.quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
-                } else {
-                    quickLogUseCase.quickLog(plant, careType)
-                }
-            }
+            quickLogUseCase.bulkLog(plants, careType)
             clearSelection()
             _quickLogEvent.emit(
                 application.resources.getQuantityString(
@@ -200,14 +194,14 @@ class PlantListViewModel(
         val ids = _selectedPlantIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            for (id in ids) { plantRepository.archivePlant(id) }
+            plantRepository.archivePlants(ids)
             clearSelection()
             _bulkArchivedEvent.emit(BulkArchivedEvent(ids))
         }
     }
 
     fun undoBulkArchive(plantIds: List<Long>) {
-        viewModelScope.launch { for (id in plantIds) { plantRepository.restorePlant(id) } }
+        viewModelScope.launch { plantRepository.restorePlants(plantIds) }
     }
 
     fun quickLog(plantId: Long, careType: CareType) {
@@ -431,6 +425,13 @@ class PlantListViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            PlantListViewModel(application, plantRepository, careLogRepository, plantPhotoRepository, dataStore, quickLogUseCase) as T
+            PlantListViewModel(
+                application,
+                plantRepository,
+                careLogRepository,
+                plantPhotoRepository,
+                dataStore,
+                quickLogUseCase
+            ) as T
     }
 }

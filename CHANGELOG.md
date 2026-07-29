@@ -14,6 +14,22 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.20.0] - 2026-07-29
+
+### Changed
+- Build toolchain upgraded to **Android Gradle Plugin 9.3.1, Gradle 9.6.1, Kotlin 2.3.10, and KSP 2.3.10** (from AGP 8.13.2 / Gradle 8.14.5 / Kotlin 2.1.21). Newer AndroidX libraries require it — `androidx.core:core-ktx` 1.19.0 mandates AGP 9.1.0+ — and this bump also pulls in lifecycle 2.11.0, Compose BOM 2026.06.01, kotlinx-coroutines/serialization 1.11.0, and MockK 1.14.11. No user-facing behaviour changes; this is a developer/build-tooling update (#201)
+- Developer tooling: added **Detekt** (with the `detekt-formatting` plugin, wrapping ktlint's formatting rules) for automated code-style and code-smell enforcement. Runs on every PR via a new `Run Detekt` step in the `test` CI job and fails the build on new violations. Configuration lives in `config/detekt/detekt.yml` (formatting rules on; the noisy `FunctionNaming` and `MagicNumber` rules are disabled as false-positives for `@Composable`/test naming and Compose `dp`/`sp` literals). Existing non-auto-fixable smells are frozen in `config/detekt/baseline.xml` so only newly-introduced issues fail. All auto-fixable formatting was applied across the codebase in the same change; no runtime behaviour changed (#85)
+
+### Added
+- Backup/restore now includes the **Photo reminder** ON/OFF setting (Settings → Reminders), so moving to a new device no longer silently resets it to the default. Backup schema bumped to v5; older backups without the field restore it to the default (off) (#480)
+- Full-screen photo viewer now shows each photo's exact capture/log date (e.g. "Jun 10, 2026") as a labelled chip near the bottom, below the "N / M" page indicator. The date is shown for every photo — including when there's only a single photo and the position indicator is hidden — and reads from the photo's own timestamp so swiping updates it per page. Grid thumbnails are unchanged (#445)
+- Settings → Reminders: new "Combine reminders" toggle lets you get a single digest notification ("3 plants need care") instead of one notification per overdue/due-soon plant. Default is off (one per plant, unchanged behaviour); the combined notification opens the Plants list and doesn't offer the per-plant "Skip watering" action. Round-trips through backup/restore (backup schema bumped to v4) (#474)
+
+### Fixed
+- Bulk multi-select actions (bulk care logging, "Move to Graveyard", and its undo) now apply as a single atomic database transaction. Previously each selected plant was written one at a time, so a process kill mid-action could leave the batch partially applied (e.g. 3 of 5 plants archived); the change is invisible in normal use but prevents that inconsistent state (#448)
+
+---
+
 ## [0.19.0] - 2026-07-23
 
 ### Changed

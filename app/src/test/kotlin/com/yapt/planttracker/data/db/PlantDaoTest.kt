@@ -9,8 +9,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -205,6 +205,46 @@ class PlantDaoTest {
             assertEquals(1, list.size)
             assertEquals("Fern", list[0].name)
             assertEquals(6000L, list[0].archivedAt)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `archivePlants archives every id in the list and leaves others active`() = runTest {
+        val id1 = dao.insertPlant(plant(name = "One"))
+        val id2 = dao.insertPlant(plant(name = "Two"))
+        val id3 = dao.insertPlant(plant(name = "Three"))
+
+        dao.archivePlants(listOf(id1, id3), timestamp = 4200L)
+
+        dao.getAllPlants().test {
+            val active = awaitItem()
+            assertEquals(1, active.size)
+            assertEquals(id2, active[0].id)
+            cancelAndConsumeRemainingEvents()
+        }
+        dao.getArchivedPlants().test {
+            val archived = awaitItem()
+            assertEquals(setOf(id1, id3), archived.map { it.id }.toSet())
+            assertTrue(archived.all { it.archivedAt == 4200L })
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `restorePlants restores every id in the list`() = runTest {
+        val id1 = dao.insertPlant(plant(name = "One"))
+        val id2 = dao.insertPlant(plant(name = "Two"))
+        dao.archivePlants(listOf(id1, id2), timestamp = 4300L)
+
+        dao.restorePlants(listOf(id1, id2))
+
+        dao.getAllPlants().test {
+            assertEquals(2, awaitItem().size)
+            cancelAndConsumeRemainingEvents()
+        }
+        dao.getArchivedPlants().test {
+            assertEquals(0, awaitItem().size)
             cancelAndConsumeRemainingEvents()
         }
     }
