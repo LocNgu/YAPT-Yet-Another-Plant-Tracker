@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -16,7 +17,7 @@ import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -50,6 +51,10 @@ class QuickLogUseCaseTest {
     private val dataStore: DataStore<Preferences> = mockk {
         every { data } returns flowOf(emptyPreferences())
     }
+
+    // Unused by these single-log tests (only bulkLog opens a transaction); bulkLog's atomic
+    // behaviour is covered by QuickLogUseCaseBulkLogTest against a real in-memory database.
+    private val database: PlantDatabase = mockk()
     private lateinit var useCase: QuickLogUseCase
 
     private fun plant(
@@ -72,16 +77,16 @@ class QuickLogUseCaseTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database)
     }
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     // quickLog
@@ -308,12 +313,12 @@ class QuickLogUseCaseTest {
 
     @Test
     fun `maybeBuildPhotoReminderRequest returns null when plant already reminded this session`() = runTest {
-        PlantDetailViewModel.shownThisSession.add(1L)
+        PhotoReminderPolicy.shownThisSession.add(1L)
         val monstera = plant(createdAt = 0L)
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns emptyList()
         every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
@@ -328,7 +333,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(null)
 
         val request = useCase.maybeBuildPhotoReminderRequest(1L)
@@ -342,7 +347,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns emptyList()
         every { careLogRepo.getPhotoLogsForPlant(any()) } returns flowOf(emptyList())
@@ -351,7 +356,7 @@ class QuickLogUseCaseTest {
 
         assertNotNull(request)
         assertEquals(1L, request!!.plantId)
-        assertEquals(true, 1L in PlantDetailViewModel.shownThisSession)
+        assertEquals(true, 1L in PhotoReminderPolicy.shownThisSession)
     }
 
     @Test
@@ -360,7 +365,7 @@ class QuickLogUseCaseTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.PHOTO_REMINDER_ENABLED to true))
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore)
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, database)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(any()) } returns listOf(
             PlantPhoto(plantId = 1L, uri = "content://recent", capturedAt = System.currentTimeMillis())

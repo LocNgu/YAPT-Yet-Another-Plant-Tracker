@@ -15,8 +15,8 @@ import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -88,9 +88,9 @@ class PlantListViewModelTest {
     @Before
     fun setup() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        // shownThisSession is a process-wide static set shared with PlantDetailViewModel; clear it
-        // before and after each test so ordering (and PlantDetailViewModel's own tests) can't leak.
-        PlantDetailViewModel.shownThisSession.clear()
+        // shownThisSession is a process-wide static set shared across surfaces via
+        // PhotoReminderPolicy; clear it before and after each test so ordering can't leak.
+        PhotoReminderPolicy.shownThisSession.clear()
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
@@ -104,7 +104,7 @@ class PlantListViewModelTest {
 
     @After
     fun tearDown() {
-        PlantDetailViewModel.shownThisSession.clear()
+        PhotoReminderPolicy.shownThisSession.clear()
     }
 
     @Test
@@ -926,12 +926,12 @@ class PlantListViewModelTest {
     }
 
     @Test
-    fun `bulkLog water routes each selected plant through quickWaterWithFeedback and clears selection`() = runTest {
+    fun `bulkLog water routes the selected plants through the transactional bulk use case and clears selection`() = runTest {
         val a = plant(id = 1L, name = "A")
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(any(), WateringFeedback.JUST_RIGHT) } returns null
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.plantsWithStatus.test {
@@ -943,18 +943,17 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithFeedback(a, WateringFeedback.JUST_RIGHT) }
-        coVerify { quickLogUseCase.quickWaterWithFeedback(b, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.bulkLog(listOf(a, b), CareType.WATER) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
     @Test
-    fun `bulkLog fertilize routes each selected plant through quickLog`() = runTest {
+    fun `bulkLog fertilize routes the selected plants through the transactional bulk use case`() = runTest {
         val a = plant(id = 1L, name = "A")
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(any(), CareType.FERTILIZE) } returns "Fertilized"
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.FERTILIZE) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.plantsWithStatus.test {
@@ -966,8 +965,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(a, CareType.FERTILIZE) }
-        coVerify { quickLogUseCase.quickLog(b, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.bulkLog(listOf(a, b), CareType.FERTILIZE) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
@@ -980,7 +978,7 @@ class PlantListViewModelTest {
         vm.bulkLog(CareType.WATER)
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { quickLogUseCase.quickWaterWithFeedback(any(), any()) }
+        coVerify(exactly = 0) { quickLogUseCase.bulkLog(any(), any()) }
     }
 
     @Test
@@ -989,7 +987,7 @@ class PlantListViewModelTest {
         val b = plant(id = 2L, name = "B")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.archivePlant(any(), any()) } just runs
+        coEvery { plantRepo.archivePlants(any(), any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.bulkArchivedEvent.test {
@@ -1005,23 +1003,22 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.archivePlant(1L, any()) }
-        coVerify { plantRepo.archivePlant(2L, any()) }
+        // One atomic batch call for all selected ids, not one call per plant.
+        coVerify(exactly = 1) { plantRepo.archivePlants(match { it.sorted() == listOf(1L, 2L) }, any()) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 
     @Test
-    fun `undoBulkArchive restores every given plant id`() = runTest {
+    fun `undoBulkArchive restores all given plant ids in one batch`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.restorePlant(any()) } just runs
+        coEvery { plantRepo.restorePlants(any()) } just runs
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.undoBulkArchive(listOf(3L, 4L))
         advanceUntilIdle()
 
-        coVerify { plantRepo.restorePlant(3L) }
-        coVerify { plantRepo.restorePlant(4L) }
+        coVerify(exactly = 1) { plantRepo.restorePlants(listOf(3L, 4L)) }
     }
 
     // plantListItems date-group divider tests
