@@ -8,7 +8,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Care logging** — Log watering, fertilizing, pruning, misting, repotting, notes, and photos
 - **Adaptive watering intervals** — After each watering, mark it as *too soon*, *just right*, or *too late*. YAPT suggests an updated interval based on your actual observed rhythm
 - **Care history timeline** — Full chronological log per plant with photos
-- **Care reminders** — Daily local notifications for overdue or due-today plants
+- **Care reminders** — Daily local notifications for overdue or due-today plants; an optional "Combine reminders" toggle collapses them into a single daily digest ("3 plants need care") instead of one notification per plant
 - **New-plant scheduling** — A plant with a watering interval but no waterings yet is due today from the start; a never-fertilized plant gets a 30-day grace period after being added before fertilizing comes due
 - **Calendar view** — A bottom-nav Calendar tab shows a month view with a count badge on every day that has plants due (overdue plants roll onto today); tap a day to see the plants and quick-log water/fertilize straight from the list
 - **Photo reminder** — Optional Settings toggle prompts you to photograph a plant you haven't pictured in 30 days; a one-tap "Take photo" button opens the in-app camera and saves straight to the plant's gallery
@@ -25,7 +25,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Keep screen on** — Optional toggle in Settings keeps the display awake while you tend your plants
 - **Watering history chart** — Line chart on the plant detail screen with a water-drop icon for each individual watering, connected at day-level precision; selectable time ranges (1M / 3M / 6M / 12M / All); care event markers show which care types were logged, and tapping a marker reveals the care type and date(s)
 - **Stats** — Next-due countdown and last-care date for watering and fertilizing per plant
-- **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
+- **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer that shows each photo's date; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
 - **Plant Graveyard** — Deleted plants move to an archive in Settings; restore them or remove them permanently
 - **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
 - **Offline-first** — No account, no cloud, no network calls. All data stays on device

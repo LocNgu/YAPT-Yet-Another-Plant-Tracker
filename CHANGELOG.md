@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.20.0] - 2026-07-29
+
 ### Changed
 - Build toolchain upgraded to **Android Gradle Plugin 9.3.1, Gradle 9.6.1, Kotlin 2.3.10, and KSP 2.3.10** (from AGP 8.13.2 / Gradle 8.14.5 / Kotlin 2.1.21). Newer AndroidX libraries require it — `androidx.core:core-ktx` 1.19.0 mandates AGP 9.1.0+ — and this bump also pulls in lifecycle 2.11.0, Compose BOM 2026.06.01, kotlinx-coroutines/serialization 1.11.0, and MockK 1.14.11. No user-facing behaviour changes; this is a developer/build-tooling update (#201)
 - Developer tooling: added **Detekt** (with the `detekt-formatting` plugin, wrapping ktlint's formatting rules) for automated code-style and code-smell enforcement. Runs on every PR via a new `Run Detekt` step in the `test` CI job and fails the build on new violations. Configuration lives in `config/detekt/detekt.yml` (formatting rules on; the noisy `FunctionNaming` and `MagicNumber` rules are disabled as false-positives for `@Composable`/test naming and Compose `dp`/`sp` literals). Existing non-auto-fixable smells are frozen in `config/detekt/baseline.xml` so only newly-introduced issues fail. All auto-fixable formatting was applied across the codebase in the same change; no runtime behaviour changed (#85)
