@@ -308,6 +308,7 @@ No DB migration, no new tests needed for a docs-only release prep PR.
 **Settings**
 - Reminder time picker: Material 3 TimePicker dialog; hour + minute DataStore-persisted (#10)
 - Keep screen on toggle: `FLAG_KEEP_SCREEN_ON` applied in `MainActivity` via `LaunchedEffect`; round-trips through backup (#140)
+- Theme toggle: Settings → Display "Theme" row opens an `AlertDialog` radio group (`ThemeMode` enum SYSTEM/LIGHT/DARK; `THEME_MODE` DataStore key stored as `.name`, read via `runCatching { ThemeMode.valueOf(...) }.getOrDefault(SYSTEM)`); default SYSTEM = the prior `isSystemInDarkTheme()` behaviour. `MainActivity` collects the mode in `setContent` and passes `darkTheme = when(mode){SYSTEM->isSystemInDarkTheme(); LIGHT->false; DARK->true}` into the already-parameterized `YaptTheme(darkTheme=…)`; label strings via `ThemeMode.labelRes()` in `ui/util/EnumResources.kt`; not round-tripped through backup (device-local preference) (#139)
 - "What's New" row: reopens the history sheet at any time without resetting the auto-show trigger (#212)
 - "Plant Graveyard" row in Settings → Plants section: navigates to GraveyardScreen; subtitle shows archived plant count via `graveyardCount` StateFlow (#329)
 

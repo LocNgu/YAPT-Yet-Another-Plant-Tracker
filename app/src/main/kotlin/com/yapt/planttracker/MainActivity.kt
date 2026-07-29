@@ -9,15 +9,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
+import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
@@ -71,7 +74,18 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            YaptTheme {
+            val themeMode by app.settingsDataStore.data
+                .map { prefs ->
+                    runCatching { ThemeMode.valueOf(prefs[SettingsKeys.THEME_MODE] ?: "") }
+                        .getOrDefault(ThemeMode.SYSTEM)
+                }
+                .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val darkTheme = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            YaptTheme(darkTheme = darkTheme) {
                 YaptNavGraph(
                     app = app,
                     initialPlantId = initialPlantId,
