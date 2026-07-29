@@ -10,6 +10,12 @@ import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.settingsDataStore
+import io.mockk.Runs
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -61,5 +67,24 @@ class BootReceiverTest {
         BootReceiver().rescheduleFromStoredPrefs(context)
 
         assertEquals(0, reminderWork().size)
+    }
+
+    @Test
+    fun `rescheduleFromStoredPrefs passes the stored reminder time to the scheduler`() = runBlocking {
+        context.settingsDataStore.edit {
+            it[SettingsKeys.NOTIFICATIONS_ENABLED] = true
+            it[SettingsKeys.REMINDER_HOUR] = 21
+            it[SettingsKeys.REMINDER_MINUTE] = 30
+        }
+        mockkObject(ReminderScheduler)
+        try {
+            every { ReminderScheduler.schedule(any(), any(), any()) } just Runs
+
+            BootReceiver().rescheduleFromStoredPrefs(context)
+
+            verify { ReminderScheduler.schedule(any(), 21, 30) }
+        } finally {
+            unmockkObject(ReminderScheduler)
+        }
     }
 }
