@@ -11,6 +11,13 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 330,
+            versionName = "0.20.1",
+            fixed = listOf(
+                "Internal fix to the release build pipeline — no change to how the app behaves"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 320,
             versionName = "0.20.0",
             added = listOf(

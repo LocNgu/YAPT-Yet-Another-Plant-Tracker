@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.20.1] - 2026-07-30
+
 ### Fixed
 - CI: the release job's `Run release unit tests` step (`gradle testReleaseUnitTest`) was failing on `main` after the AGP 9 toolchain bump, because AGP 9.0 defaults `android.onlyEnableUnitTestForTheTestedBuildType` to `true` and no longer creates unit-test tasks for the release build type. Restored the pre-AGP-9 behaviour via `gradle.properties` so `testReleaseUnitTest` exists again; no user-facing change (#496)
 
