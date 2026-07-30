@@ -3,11 +3,14 @@ package com.yapt.planttracker.worker
 import android.Manifest
 import android.app.Application
 import android.app.NotificationManager
+import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.yapt.planttracker.YaptApplication
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -37,6 +40,14 @@ class ReminderWorkerTest {
     fun tearDown() {
         clearDatabase()
         notificationManager.cancelAll()
+        // Drop the per-test preference override so tests stay order-independent.
+        runBlocking {
+            app.settingsDataStore.edit { it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED) }
+        }
+    }
+
+    private fun setFertilizingNotificationsEnabled(enabled: Boolean) = runBlocking {
+        app.settingsDataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
     }
 
     // Room's synchronous clearAllTables() would run on Robolectric's main thread and throw;
@@ -77,6 +88,50 @@ class ReminderWorkerTest {
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(1, shadowOf(notificationManager).size())
     }
+
+    @Test
+    fun `doWork suppresses a fertilizing-only plant when fertilizing notifications are off`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setFertilizingNotificationsEnabled(false)
+        // Non-liquid plant, created at epoch (past the 30-day fertilize grace), no watering interval
+        // -> only fertilizing is due.
+        app.plantRepository.addPlant(
+            Plant(
+                name = "Pothos",
+                wateringIntervalDays = null,
+                fertilizingIntervalDays = 14,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+
+        val result = runWorker()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `doWork still notifies a watering-and-fertilizing plant when fertilizing notifications are off`() =
+        runBlocking {
+            shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+            setFertilizingNotificationsEnabled(false)
+            // Watering due today (never watered, has interval) AND fertilizing overdue -> full reminder.
+            app.plantRepository.addPlant(
+                Plant(
+                    name = "Calathea",
+                    wateringIntervalDays = 5,
+                    fertilizingIntervalDays = 14,
+                    createdAt = 0L,
+                    updatedAt = 0L
+                )
+            )
+
+            val result = runWorker()
+
+            assertEquals(ListenableWorker.Result.success(), result)
+            assertEquals(1, shadowOf(notificationManager).size())
+        }
 
     @Test
     fun `doWork posts nothing when no plant is due`() = runBlocking {

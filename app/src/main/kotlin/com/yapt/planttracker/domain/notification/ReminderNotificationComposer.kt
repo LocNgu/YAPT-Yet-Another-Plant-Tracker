@@ -46,9 +46,26 @@ object ReminderNotificationComposer {
         return items
     }
 
-    fun computeDueReminders(statuses: List<PlantCareStatus>, now: Long): List<DuePlantReminder> =
+    /**
+     * @param fertilizingNotificationsEnabled when `false`, a plant whose only due care is
+     *   fertilizing (no watering item) is dropped — a fertilize being due is not urgent enough to
+     *   notify on its own (#223). Plants that are also watering-due keep their full body, including
+     *   the fertilizing line, because the watering urgency makes the reminder timely regardless.
+     */
+    fun computeDueReminders(
+        statuses: List<PlantCareStatus>,
+        now: Long,
+        fertilizingNotificationsEnabled: Boolean = true
+    ): List<DuePlantReminder> =
         statuses.mapNotNull { status ->
             val items = computeCareReminderItems(status, now)
-            if (items.isEmpty()) null else DuePlantReminder(status, items)
+            when {
+                items.isEmpty() -> null
+                !fertilizingNotificationsEnabled && !items.hasWateringItem() -> null
+                else -> DuePlantReminder(status, items)
+            }
         }
+
+    private fun List<CareReminderItem>.hasWateringItem(): Boolean =
+        any { it is CareReminderItem.WateringOverdue || it is CareReminderItem.WateringDueToday }
 }

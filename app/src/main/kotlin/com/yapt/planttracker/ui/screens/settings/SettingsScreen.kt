@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -91,6 +92,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
     val combineNotifications by viewModel.combineNotifications.collectAsStateWithLifecycle()
+    val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -354,6 +356,19 @@ fun SettingsScreen(
                     subtitle = DateUtils.formatHourMinute(reminderHour, reminderMinute),
                     subtitleColor = MaterialTheme.colorScheme.primary,
                     onClick = { showTimePicker = true }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Spa,
+                    title = stringResource(R.string.fertilizing_notifications_title),
+                    subtitle = stringResource(R.string.fertilizing_notifications_subtitle),
+                    trailingContent = {
+                        Switch(
+                            modifier = Modifier.testTag("fertilizing_notifications_switch"),
+                            checked = fertilizingNotificationsEnabled,
+                            onCheckedChange = { viewModel.setFertilizingNotificationsEnabled(it) }
+                        )
+                    }
                 )
 
                 SettingsItemRow(
