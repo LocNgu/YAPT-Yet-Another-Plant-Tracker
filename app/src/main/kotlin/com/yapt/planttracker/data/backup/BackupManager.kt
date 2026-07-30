@@ -29,7 +29,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 6
+const val CURRENT_SCHEMA_VERSION = 7
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -112,6 +112,8 @@ class BackupManager(
                     notes = entity.notes,
                     wateringIntervalDays = entity.wateringIntervalDays,
                     fertilizingIntervalDays = entity.fertilizingIntervalDays,
+                    mistingIntervalDays = entity.mistingIntervalDays,
+                    repottingIntervalDays = entity.repottingIntervalDays,
                     createdAt = entity.createdAt,
                     updatedAt = entity.updatedAt,
                     wateringDueDateOverride = entity.wateringDueDateOverride,
@@ -295,6 +297,8 @@ class BackupManager(
                     notes = bp.notes,
                     wateringIntervalDays = bp.wateringIntervalDays,
                     fertilizingIntervalDays = bp.fertilizingIntervalDays,
+                    mistingIntervalDays = bp.mistingIntervalDays,
+                    repottingIntervalDays = bp.repottingIntervalDays,
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,
                     wateringDueDateOverride = bp.wateringDueDateOverride,

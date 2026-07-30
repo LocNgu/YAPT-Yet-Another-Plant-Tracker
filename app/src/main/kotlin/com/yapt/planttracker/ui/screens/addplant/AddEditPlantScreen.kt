@@ -327,6 +327,64 @@ fun AddEditPlantScreen(
                 }
             }
 
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (viewModel.mistingIntervalEnabled) {
+                            stringResource(R.string.misting_interval_label, viewModel.mistingIntervalDays)
+                        } else {
+                            stringResource(R.string.misting_reminder_label)
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = viewModel.mistingIntervalEnabled,
+                        onCheckedChange = { viewModel.mistingIntervalEnabled = it }
+                    )
+                }
+                if (viewModel.mistingIntervalEnabled) {
+                    Slider(
+                        value = viewModel.mistingIntervalDays.toFloat(),
+                        onValueChange = { viewModel.mistingIntervalDays = it.roundToInt() },
+                        valueRange = 1f..30f,
+                        steps = 28
+                    )
+                }
+            }
+
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (viewModel.repottingIntervalEnabled) {
+                            stringResource(R.string.repotting_interval_label, viewModel.repottingIntervalDays)
+                        } else {
+                            stringResource(R.string.repotting_reminder_label)
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = viewModel.repottingIntervalEnabled,
+                        onCheckedChange = { viewModel.repottingIntervalEnabled = it }
+                    )
+                }
+                if (viewModel.repottingIntervalEnabled) {
+                    Slider(
+                        value = viewModel.repottingIntervalDays.toFloat(),
+                        onValueChange = { viewModel.repottingIntervalDays = it.roundToInt() },
+                        valueRange = 30f..730f,
+                        steps = 139
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = viewModel.notes,
                 onValueChange = { viewModel.notes = it },

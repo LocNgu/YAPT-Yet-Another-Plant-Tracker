@@ -101,6 +101,8 @@
     <string name="notification_watering_due_today">Watering due today</string>
     <string name="notification_fertilizing_due_today">Fertilizing due today</string>
     <string name="notification_fertilize_with_watering">Fertilize with watering</string>
+    <string name="notification_misting_due_today">Misting due today</string>
+    <string name="notification_repotting_due_today">Repotting due today</string>
     <plurals name="notification_watering_overdue">
         <item quantity="one">Watering overdue by 1 day</item>
         <item quantity="other">Watering overdue by %d days</item>
@@ -108,6 +110,14 @@
     <plurals name="notification_fertilizing_overdue">
         <item quantity="one">Fertilizing overdue by 1 day</item>
         <item quantity="other">Fertilizing overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_misting_overdue">
+        <item quantity="one">Misting overdue by 1 day</item>
+        <item quantity="other">Misting overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_repotting_overdue">
+        <item quantity="one">Repotting overdue by 1 day</item>
+        <item quantity="other">Repotting overdue by %d days</item>
     </plurals>
     <plurals name="notification_combined_title">
         <item quantity="one">1 plant needs care</item>
@@ -162,6 +172,10 @@
     <string name="watering_reminder_label">Watering reminder</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
+    <string name="misting_interval_label">Mist every %1$d days</string>
+    <string name="misting_reminder_label">Misting reminder</string>
+    <string name="repotting_interval_label">Repot every %1$d days</string>
+    <string name="repotting_reminder_label">Repotting reminder</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>

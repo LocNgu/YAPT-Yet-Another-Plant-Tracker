@@ -58,6 +58,16 @@ class ReminderWorker(
             } else {
                 null
             }
+            val lastMisting = if (plant.mistingIntervalDays != null) {
+                app.careLogRepository.getLastLogOfType(plant.id, CareType.MIST)
+            } else {
+                null
+            }
+            val lastRepotting = if (plant.repottingIntervalDays != null) {
+                app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
+            } else {
+                null
+            }
 
             statuses.add(
                 CareSchedule.computeStatus(
@@ -65,7 +75,9 @@ class ReminderWorker(
                     lastWateredAt = lastWatering?.loggedAt,
                     lastFertilizedAt = lastFertilizing?.loggedAt,
                     totalLogs = 0,
-                    now = now
+                    now = now,
+                    lastMistedAt = lastMisting?.loggedAt,
+                    lastRepottedAt = lastRepotting?.loggedAt
                 )
             )
         }
@@ -174,6 +186,21 @@ class ReminderWorker(
                     context.getString(R.string.notification_fertilizing_due_today)
                 CareReminderItem.FertilizeWithWatering ->
                     context.getString(R.string.notification_fertilize_with_watering)
+                is CareReminderItem.MistingOverdue ->
+                    context.resources.getQuantityString(
+                        R.plurals.notification_misting_overdue,
+                        item.days,
+                        item.days
+                    )
+                CareReminderItem.MistingDueToday -> context.getString(R.string.notification_misting_due_today)
+                is CareReminderItem.RepottingOverdue ->
+                    context.resources.getQuantityString(
+                        R.plurals.notification_repotting_overdue,
+                        item.days,
+                        item.days
+                    )
+                CareReminderItem.RepottingDueToday ->
+                    context.getString(R.string.notification_repotting_due_today)
             }
         }
 

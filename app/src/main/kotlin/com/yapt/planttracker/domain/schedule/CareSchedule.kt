@@ -25,7 +25,9 @@ object CareSchedule {
         lastWateredAt: Long?,
         lastFertilizedAt: Long?,
         totalLogs: Int,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        lastMistedAt: Long? = null,
+        lastRepottedAt: Long? = null
     ): PlantCareStatus {
         val daysSinceWatering = lastWateredAt?.let {
             (now - it) / ONE_DAY_MS
@@ -61,6 +63,16 @@ object CareSchedule {
         val isFertilizingDueSoon = nextFertilizingDueAt != null && !isFertilizingOverdue &&
             nextFertilizingDueAt.toLocalDate() == nowDate
 
+        val nextMistingDueAt = extendedCareDueAt(plant.mistingIntervalDays, lastMistedAt, plant.createdAt)
+        val isMistingOverdue = nextMistingDueAt != null && nextMistingDueAt.toLocalDate().isBefore(nowDate)
+        val isMistingDueSoon = nextMistingDueAt != null && !isMistingOverdue &&
+            nextMistingDueAt.toLocalDate() == nowDate
+
+        val nextRepottingDueAt = extendedCareDueAt(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt)
+        val isRepottingOverdue = nextRepottingDueAt != null && nextRepottingDueAt.toLocalDate().isBefore(nowDate)
+        val isRepottingDueSoon = nextRepottingDueAt != null && !isRepottingOverdue &&
+            nextRepottingDueAt.toLocalDate() == nowDate
+
         return PlantCareStatus(
             plant = plant,
             lastWateredAt = lastWateredAt,
@@ -72,8 +84,28 @@ object CareSchedule {
             nextFertilizingDueAt = nextFertilizingDueAt,
             isFertilizingOverdue = isFertilizingOverdue,
             isFertilizingDueSoon = isFertilizingDueSoon,
-            totalCareLogs = totalLogs
+            totalCareLogs = totalLogs,
+            lastMistedAt = lastMistedAt,
+            nextMistingDueAt = nextMistingDueAt,
+            isMistingOverdue = isMistingOverdue,
+            isMistingDueSoon = isMistingDueSoon,
+            lastRepottedAt = lastRepottedAt,
+            nextRepottingDueAt = nextRepottingDueAt,
+            isRepottingOverdue = isRepottingOverdue,
+            isRepottingDueSoon = isRepottingDueSoon
         )
+    }
+
+    /**
+     * Due date for an extended-care reminder (misting, repotting). Returns `null` when the interval
+     * is unset. For a plant that has never had this care logged, the first due date is anchored to
+     * `createdAt + interval` rather than the day the reminder was enabled — a newly acquired plant
+     * was presumably just misted/repotted, so it should not fire immediately (see product ADR-0021).
+     */
+    private fun extendedCareDueAt(intervalDays: Int?, lastDoneAt: Long?, createdAt: Long): Long? {
+        if (intervalDays == null) return null
+        val base = lastDoneAt ?: createdAt
+        return base + TimeUnit.DAYS.toMillis(intervalDays.toLong())
     }
 
     fun computeSuggestedInterval(

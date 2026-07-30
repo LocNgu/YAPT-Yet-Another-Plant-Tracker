@@ -24,14 +24,18 @@ class CareScheduleTest {
         wateringIntervalDays: Int? = null,
         fertilizingIntervalDays: Int? = null,
         wateringDueDateOverride: Long? = null,
-        createdAt: Long = now
+        createdAt: Long = now,
+        mistingIntervalDays: Int? = null,
+        repottingIntervalDays: Int? = null
     ) = Plant(
         id = 1L,
         name = "Test Plant",
         wateringIntervalDays = wateringIntervalDays,
         fertilizingIntervalDays = fertilizingIntervalDays,
         wateringDueDateOverride = wateringDueDateOverride,
-        createdAt = createdAt
+        createdAt = createdAt,
+        mistingIntervalDays = mistingIntervalDays,
+        repottingIntervalDays = repottingIntervalDays
     )
 
     @Test
@@ -489,5 +493,115 @@ class CareScheduleTest {
             now = now
         )
         assertEquals(computedDue, status.nextWateringDueAt)
+    }
+
+    // ---- Misting reminders (#232) ----
+
+    @Test
+    fun `no misting interval leaves misting status unset`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(mistingIntervalDays = null),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.nextMistingDueAt)
+        assertFalse(status.isMistingDueSoon)
+        assertFalse(status.isMistingOverdue)
+    }
+
+    @Test
+    fun `never misted with interval anchors first due to createdAt plus interval`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(3)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(mistingIntervalDays = 7, createdAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastMistedAt = null
+        )
+        assertEquals(createdAt + TimeUnit.DAYS.toMillis(7), status.nextMistingDueAt)
+        assertFalse(status.isMistingOverdue)
+        assertFalse(status.isMistingDueSoon)
+    }
+
+    @Test
+    fun `misting overdue when last misting older than interval`() {
+        val lastMisted = now - TimeUnit.DAYS.toMillis(10)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(mistingIntervalDays = 3),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastMistedAt = lastMisted
+        )
+        assertEquals(lastMisted + TimeUnit.DAYS.toMillis(3), status.nextMistingDueAt)
+        assertTrue(status.isMistingOverdue)
+        assertFalse(status.isMistingDueSoon)
+    }
+
+    @Test
+    fun `misting due today when last misting exactly one interval ago`() {
+        val lastMisted = now - TimeUnit.DAYS.toMillis(7)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(mistingIntervalDays = 7),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastMistedAt = lastMisted
+        )
+        assertTrue(status.isMistingDueSoon)
+        assertFalse(status.isMistingOverdue)
+    }
+
+    // ---- Repotting reminders (#232) ----
+
+    @Test
+    fun `never repotted with interval anchors first due to createdAt plus interval`() {
+        val createdAt = now - TimeUnit.DAYS.toMillis(30)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(repottingIntervalDays = 365, createdAt = createdAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastRepottedAt = null
+        )
+        assertEquals(createdAt + TimeUnit.DAYS.toMillis(365), status.nextRepottingDueAt)
+        assertFalse(status.isRepottingOverdue)
+        assertFalse(status.isRepottingDueSoon)
+    }
+
+    @Test
+    fun `repotting overdue when last repotting older than interval`() {
+        val lastRepotted = now - TimeUnit.DAYS.toMillis(400)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(repottingIntervalDays = 365),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastRepottedAt = lastRepotted
+        )
+        assertEquals(lastRepotted + TimeUnit.DAYS.toMillis(365), status.nextRepottingDueAt)
+        assertTrue(status.isRepottingOverdue)
+    }
+
+    @Test
+    fun `no repotting interval leaves repotting status unset`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(repottingIntervalDays = null, createdAt = now - TimeUnit.DAYS.toMillis(5000)),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.nextRepottingDueAt)
+        assertFalse(status.isRepottingDueSoon)
+        assertFalse(status.isRepottingOverdue)
     }
 }

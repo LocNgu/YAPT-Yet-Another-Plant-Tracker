@@ -38,6 +38,10 @@ class AddEditPlantViewModel(
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
     var useLiquidFertilizer by mutableStateOf(false)
+    var mistingIntervalDays by mutableIntStateOf(7)
+    var mistingIntervalEnabled by mutableStateOf(false)
+    var repottingIntervalDays by mutableIntStateOf(365)
+    var repottingIntervalEnabled by mutableStateOf(false)
 
     val pendingPhotos = mutableStateListOf<String>()
 
@@ -63,6 +67,14 @@ class AddEditPlantViewModel(
                     plant.fertilizingIntervalDays?.let {
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
+                    }
+                    plant.mistingIntervalDays?.let {
+                        mistingIntervalDays = it
+                        mistingIntervalEnabled = true
+                    }
+                    plant.repottingIntervalDays?.let {
+                        repottingIntervalDays = it
+                        repottingIntervalEnabled = true
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
                 }
@@ -93,6 +105,8 @@ class AddEditPlantViewModel(
                 coverPhotoUri = coverPhotoUri,
                 wateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null,
                 fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
+                mistingIntervalDays = if (mistingIntervalEnabled) mistingIntervalDays else null,
+                repottingIntervalDays = if (repottingIntervalEnabled) repottingIntervalDays else null,
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
                 useLiquidFertilizer = useLiquidFertilizer

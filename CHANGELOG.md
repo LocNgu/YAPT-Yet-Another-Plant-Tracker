@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Misting and repotting reminders**: each plant can now have its own misting and repotting interval (Add/Edit Plant → toggles with a day slider, alongside watering and fertilizing). When set, overdue/due-today misting and repotting are included in the daily care notification, and logging a Mist or Repot care event resets that reminder's schedule. For a plant that has never had that care logged, the first reminder is anchored to the plant's creation date plus one interval, so a newly added plant isn't flagged immediately (see product ADR-0021). Room DB migrated to v7; the intervals round-trip through backup/restore (backup schema v7; older backups restore them as unset). Free-text custom reminders remain a separate follow-up (#232)
+
 ---
 
 ## [0.20.0] - 2026-07-29
