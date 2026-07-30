@@ -11,6 +11,7 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import io.mockk.coEvery
@@ -111,6 +112,49 @@ class SettingsViewModelTest {
             assertEquals(true, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `themeMode defaults to SYSTEM when key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.THEME_MODE] } returns null
+        vm = buildVm()
+
+        vm.themeMode.test {
+            assertEquals(ThemeMode.SYSTEM, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `themeMode emits DARK when DataStore returns DARK`() = runTest {
+        every { mockPrefs[SettingsKeys.THEME_MODE] } returns "DARK"
+        vm = buildVm()
+
+        vm.themeMode.test {
+            assertEquals(ThemeMode.DARK, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `themeMode falls back to SYSTEM on an unrecognised stored value`() = runTest {
+        every { mockPrefs[SettingsKeys.THEME_MODE] } returns "PURPLE"
+        vm = buildVm()
+
+        vm.themeMode.test {
+            assertEquals(ThemeMode.SYSTEM, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setThemeMode persists the value to DataStore`() = runTest {
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setThemeMode(ThemeMode.DARK)
+
+        coVerify { mockDataStore.updateData(any()) }
     }
 
     @Test

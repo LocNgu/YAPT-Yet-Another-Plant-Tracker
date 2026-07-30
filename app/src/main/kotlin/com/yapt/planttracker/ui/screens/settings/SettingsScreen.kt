@@ -36,6 +36,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -63,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupResult
+import com.yapt.planttracker.ui.theme.ThemeMode
+import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -83,6 +88,7 @@ fun SettingsScreen(
     }
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsStateWithLifecycle()
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
     val combineNotifications by viewModel.combineNotifications.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
@@ -292,6 +298,32 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            Text(
+                text = stringResource(R.string.settings_section_appearance),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
+
+            val themeOptions = listOf(ThemeMode.LIGHT, ThemeMode.SYSTEM, ThemeMode.DARK)
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                themeOptions.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = mode == themeMode,
+                        onClick = { viewModel.setThemeMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size)
+                    ) {
+                        Text(stringResource(mode.labelRes()))
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             Text(
                 text = stringResource(R.string.settings_section_reminders),
                 style = MaterialTheme.typography.labelLarge,

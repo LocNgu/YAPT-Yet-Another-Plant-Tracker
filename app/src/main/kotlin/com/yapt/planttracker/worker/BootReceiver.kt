@@ -17,16 +17,22 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val prefs = context.settingsDataStore.data.first()
-                val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
-                if (enabled) {
-                    val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
-                    val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
-                    ReminderScheduler.schedule(context, hour, minute)
-                }
+                rescheduleFromStoredPrefs(context)
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    // Extracted from the goAsync() coroutine so the reschedule behaviour is directly
+    // testable without awaiting a fire-and-forget receiver coroutine (#86).
+    internal suspend fun rescheduleFromStoredPrefs(context: Context) {
+        val prefs = context.settingsDataStore.data.first()
+        val enabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
+        if (enabled) {
+            val hour = prefs[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR
+            val minute = prefs[SettingsKeys.REMINDER_MINUTE] ?: SettingsDefaults.REMINDER_MINUTE
+            ReminderScheduler.schedule(context, hour, minute)
         }
     }
 }

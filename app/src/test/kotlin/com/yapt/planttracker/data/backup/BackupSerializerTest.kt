@@ -45,7 +45,8 @@ class BackupSerializerTest {
             reminderMinute = 0,
             keepScreenOn = true,
             combineNotifications = true,
-            photoReminderEnabled = true
+            photoReminderEnabled = true,
+            themeMode = "DARK"
         ),
         plantPhotos = listOf(
             BackupPlantPhoto(
@@ -109,6 +110,28 @@ class BackupSerializerTest {
         assertNull(log.photoUri)
         assertNull(log.amount)
         assertNull(log.wateringFeedback)
+    }
+
+    @Test
+    fun `settings without themeMode default to SYSTEM`() {
+        val json = """
+            {"schemaVersion":5,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals("SYSTEM", decoded.settings.themeMode)
+    }
+
+    @Test
+    fun `settings themeMode round-trips its stored value`() {
+        val json = """
+            {"schemaVersion":6,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0,"themeMode":"DARK"}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals("DARK", decoded.settings.themeMode)
     }
 
     @Test
