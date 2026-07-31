@@ -23,13 +23,14 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 7 (#223): fertilizingNotificationsEnabled added to BackupSettings.
 // Schema 6 (#139): themeMode added to BackupSettings.
 // Schema 5 (#480): photoReminderEnabled added to BackupSettings.
 // Schema 4 (#474): combineNotifications added to BackupSettings.
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 6
+const val CURRENT_SCHEMA_VERSION = 7
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -78,6 +79,7 @@ class BackupManager(
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
             val photoReminderEnabled = prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
             val themeMode = prefs[SettingsKeys.THEME_MODE] ?: "SYSTEM"
+            val fertilizingNotificationsEnabled = prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -158,7 +160,8 @@ class BackupManager(
                     keepScreenOn = keepScreenOn,
                     combineNotifications = combineNotifications,
                     photoReminderEnabled = photoReminderEnabled,
-                    themeMode = themeMode
+                    themeMode = themeMode,
+                    fertilizingNotificationsEnabled = fertilizingNotificationsEnabled
                 )
             )
 
@@ -348,6 +351,8 @@ class BackupManager(
                 prefs[SettingsKeys.COMBINE_NOTIFICATIONS] = backup.settings.combineNotifications
                 prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = backup.settings.photoReminderEnabled
                 prefs[SettingsKeys.THEME_MODE] = backup.settings.themeMode
+                prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] =
+                    backup.settings.fertilizingNotificationsEnabled
             }
 
             if (backup.settings.notificationsEnabled) {

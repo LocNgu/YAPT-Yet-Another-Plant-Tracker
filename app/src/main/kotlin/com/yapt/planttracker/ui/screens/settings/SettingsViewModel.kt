@@ -53,6 +53,10 @@ class SettingsViewModel(
         .map { it[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val fertilizingNotificationsEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val reminderHour: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 9)
@@ -98,6 +102,12 @@ class SettingsViewModel(
     fun setCombineNotifications(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = enabled }
+        }
+    }
+
+    fun setFertilizingNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
         }
     }
 
