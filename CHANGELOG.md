@@ -15,6 +15,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Added
 - Settings → Reminders now has a **Notify for fertilizing** toggle. When turned off, the daily reminder no longer notifies for a plant whose *only* due care is fertilizing — but a plant that is also watering-due still gets its full reminder, fertilizing line included. Defaults to on (no change for existing users) and round-trips through backup/restore (backup schema v7) (#223)
 
+### Fixed
+- Plant Detail: the watering-history chart's axis labels, axis lines, and guidelines were rendered in white on the light chart surface when the app's in-app theme was set to **Light** while the device's system theme was **Dark**. Vico's default chart theme derives those colours from `isSystemInDarkTheme()` rather than the app's Light/Dark/System toggle (#139), so a forced-Light app on a Dark device drew dark-theme (white) chart chrome. The chart now provides an M3-derived Vico theme (`ProvideVicoTheme(rememberM3VicoTheme())`) so its colours follow the app's actual Material theme in both light and dark modes
+
 ---
 
 ## [0.20.1] - 2026-07-30
