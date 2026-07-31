@@ -114,7 +114,7 @@ object CareSchedule {
      * Due date for an extended-care reminder (misting, repotting). Returns `null` when the interval
      * is unset. For a plant that has never had this care logged, the first due date is anchored to
      * `createdAt + interval` rather than the day the reminder was enabled — a newly acquired plant
-     * was presumably just misted/repotted, so it should not fire immediately (see product ADR-0021).
+     * was presumably just misted/repotted, so it should not fire immediately (see product ADR-0022).
      */
     private fun extendedCareDueAt(intervalDays: Int?, lastDoneAt: Long?, createdAt: Long): Long? {
         if (intervalDays == null) return null

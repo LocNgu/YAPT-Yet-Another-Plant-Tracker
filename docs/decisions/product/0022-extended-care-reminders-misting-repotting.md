@@ -1,4 +1,4 @@
-# Product ADR-0021: Extended care reminders (misting & repotting) and their first-due anchor
+# Product ADR-0022: Extended care reminders (misting & repotting) and their first-due anchor
 
 **Status**: accepted
 
@@ -27,7 +27,7 @@ The generic `reminders`-table approach was rejected for this slice: it would chu
 
 Misting/repotting status is **not** surfaced on the plant list, plant detail, or calendar in this slice — the reminder notification and the Add/Edit toggles are the delivery mechanism the acceptance criteria call for. Surfacing them on those screens is future work.
 
-The settings round-trip through backup/restore as `BackupPlant.mistingIntervalDays` / `repottingIntervalDays` (backup schema bumped 6 → 7; old backups deserialize both to `null` via field defaults).
+The settings round-trip through backup/restore as `BackupPlant.mistingIntervalDays` / `repottingIntervalDays` (backup schema bumped 7 → 8; old backups deserialize both to `null` via field defaults).
 
 ## Consequences
 

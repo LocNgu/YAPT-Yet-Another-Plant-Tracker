@@ -82,6 +82,7 @@
     <ID>TooManyFunctions:PlantDetailViewModel.kt$PlantDetailViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantListViewModel.kt$PlantListViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantRepository.kt$PlantRepository</ID>
+    <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : ViewModel</ID>
     <ID>TooManyFunctions:WateringHistoryChart.kt$com.yapt.planttracker.ui.components.WateringHistoryChart.kt</ID>
     <ID>WildcardImport:CareLogDao.kt$import androidx.room.*</ID>
     <ID>WildcardImport:PlantDao.kt$import androidx.room.*</ID>

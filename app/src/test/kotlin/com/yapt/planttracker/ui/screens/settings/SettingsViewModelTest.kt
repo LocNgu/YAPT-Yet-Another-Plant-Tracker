@@ -50,6 +50,7 @@ class SettingsViewModelTest {
         every { mockDataStore.data } returns flowOf(mockPrefs)
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
         every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
+        every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
@@ -193,6 +194,47 @@ class SettingsViewModelTest {
         vm = buildVm()
 
         vm.setCombineNotifications(true)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `fertilizingNotificationsEnabled defaults to true when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.fertilizingNotificationsEnabled.test {
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `fertilizingNotificationsEnabled emits false when DataStore returns false`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns false
+        vm = buildVm()
+
+        vm.fertilizingNotificationsEnabled.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFertilizingNotificationsEnabled persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setFertilizingNotificationsEnabled(false)
         advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }

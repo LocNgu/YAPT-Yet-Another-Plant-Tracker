@@ -82,11 +82,16 @@ class ReminderWorker(
             )
         }
 
-        val dueReminders = ReminderNotificationComposer.computeDueReminders(statuses, now)
+        val prefs = context.settingsDataStore.data.first()
+        val fertilizingNotificationsEnabled = prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true
+        val dueReminders = ReminderNotificationComposer.computeDueReminders(
+            statuses,
+            now,
+            fertilizingNotificationsEnabled
+        )
 
         if (dueReminders.isNotEmpty()) {
-            val combineNotifications = context.settingsDataStore.data.first()[SettingsKeys.COMBINE_NOTIFICATIONS]
-                ?: false
+            val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
 
             if (combineNotifications) {
                 postCombinedNotification(notificationManager, dueReminders.size)

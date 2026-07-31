@@ -161,6 +161,57 @@ class ReminderNotificationComposerTest {
     }
 
     @Test
+    fun `computeDueReminders drops a fertilizing-only plant when fertilizing notifications are off`() {
+        // Non-liquid plant, never fertilized, created 60 days ago -> past the 30-day grace ->
+        // fertilizing overdue. No watering interval -> watering not due. So only fertilizing is due.
+        val fertilizingOnly = CareSchedule.computeStatus(
+            plant = plantWith(
+                id = 1L,
+                fertilizingIntervalDays = 14,
+                createdAt = now - TimeUnit.DAYS.toMillis(60)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertTrue(
+            ReminderNotificationComposer.computeDueReminders(
+                listOf(fertilizingOnly),
+                now,
+                fertilizingNotificationsEnabled = false
+            ).isEmpty()
+        )
+        // With the toggle on (default) it is still reminded.
+        assertEquals(1, ReminderNotificationComposer.computeDueReminders(listOf(fertilizingOnly), now).size)
+    }
+
+    @Test
+    fun `computeDueReminders keeps a both-due plant when fertilizing notifications are off`() {
+        // Never-watered plant with a watering interval -> due today; also fertilizing overdue.
+        val bothDue = CareSchedule.computeStatus(
+            plant = plantWith(id = 1L, wateringIntervalDays = 7, fertilizingIntervalDays = 14),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(60),
+            totalLogs = 0,
+            now = now
+        )
+
+        val reminders = ReminderNotificationComposer.computeDueReminders(
+            listOf(bothDue),
+            now,
+            fertilizingNotificationsEnabled = false
+        )
+
+        assertEquals(1, reminders.size)
+        // Full body is retained, including the fertilizing line.
+        assertEquals(2, reminders[0].items.size)
+        assertEquals(CareReminderItem.WateringDueToday, reminders[0].items[0])
+        assertTrue(reminders[0].items[1] is CareReminderItem.FertilizingOverdue)
+    }
+
+    @Test
     fun `computeDueReminders count matches the combined notification's plant count`() {
         val statuses = (1..3L).map { id ->
             CareSchedule.computeStatus(

@@ -169,6 +169,57 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun fertilizingNotificationsRow_isDisplayed_whenNotificationsEnabled() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Notify for fertilizing").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizingNotificationsRow_isHidden_whenNotificationsDisabled() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("notifications_enabled_switch").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Notify for fertilizing").assertDoesNotExist()
+    }
+
+    @Test
+    fun fertilizingNotificationsSwitch_startsOn_andTogglingInvokesViewModelSetter() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        // Defaults to on (existing behaviour preserved for existing users).
+        composeTestRule.onNodeWithTag("fertilizing_notifications_switch").performScrollTo().assertIsOn()
+
+        composeTestRule.onNodeWithTag("fertilizing_notifications_switch").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("fertilizing_notifications_switch").assertIsOff()
+    }
+
+    @Test
     fun graveyardRow_isDisplayed() {
         composeTestRule.setContent {
             SettingsScreen(
