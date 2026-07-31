@@ -234,6 +234,6 @@ class AddEditPlantScreenTest {
 
         composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
 
-        composeTestRule.onNodeWithText("Repot every 365 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Repot every 12 months").performScrollTo().assertIsDisplayed()
     }
 }

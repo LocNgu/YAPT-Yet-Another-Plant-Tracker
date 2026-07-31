@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -364,7 +365,11 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.repottingIntervalEnabled) {
-                            stringResource(R.string.repotting_interval_label, viewModel.repottingIntervalDays)
+                            pluralStringResource(
+                                R.plurals.repotting_interval_label,
+                                viewModel.repottingIntervalMonths,
+                                viewModel.repottingIntervalMonths
+                            )
                         } else {
                             stringResource(R.string.repotting_reminder_label)
                         },
@@ -376,11 +381,13 @@ fun AddEditPlantScreen(
                     )
                 }
                 if (viewModel.repottingIntervalEnabled) {
+                    val minMonths = AddEditPlantViewModel.MIN_REPOTTING_MONTHS
+                    val maxMonths = AddEditPlantViewModel.MAX_REPOTTING_MONTHS
                     Slider(
-                        value = viewModel.repottingIntervalDays.toFloat(),
-                        onValueChange = { viewModel.repottingIntervalDays = it.roundToInt() },
-                        valueRange = 30f..730f,
-                        steps = 139
+                        value = viewModel.repottingIntervalMonths.toFloat(),
+                        onValueChange = { viewModel.repottingIntervalMonths = it.roundToInt() },
+                        valueRange = minMonths.toFloat()..maxMonths.toFloat(),
+                        steps = maxMonths - minMonths - 1
                     )
                 }
             }

@@ -147,7 +147,7 @@ class AddEditPlantViewModelTest {
         vm.mistingIntervalEnabled = true
         vm.mistingIntervalDays = 4
         vm.repottingIntervalEnabled = true
-        vm.repottingIntervalDays = 365
+        vm.repottingIntervalMonths = 12
 
         vm.events.test {
             vm.save()
@@ -155,8 +155,9 @@ class AddEditPlantViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
+        // Repotting is picked in months and persisted as months * 30 days.
         coVerify {
-            plantRepo.addPlant(match { it.mistingIntervalDays == 4 && it.repottingIntervalDays == 365 })
+            plantRepo.addPlant(match { it.mistingIntervalDays == 4 && it.repottingIntervalDays == 360 })
         }
     }
 
@@ -180,7 +181,7 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `misting and repotting intervals round-trip through edit mode`() = runTest {
-        val calathea = plant().copy(mistingIntervalDays = 5, repottingIntervalDays = 730)
+        val calathea = plant().copy(mistingIntervalDays = 5, repottingIntervalDays = 720)
         every { plantRepo.getPlantById(1L) } returns flowOf(calathea)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
@@ -188,7 +189,8 @@ class AddEditPlantViewModelTest {
         assertTrue(vm.mistingIntervalEnabled)
         assertEquals(5, vm.mistingIntervalDays)
         assertTrue(vm.repottingIntervalEnabled)
-        assertEquals(730, vm.repottingIntervalDays)
+        // 720 stored days -> 24 months in the picker.
+        assertEquals(24, vm.repottingIntervalMonths)
 
         vm.events.test {
             vm.save()
@@ -197,8 +199,19 @@ class AddEditPlantViewModelTest {
         }
 
         coVerify {
-            plantRepo.updatePlant(match { it.mistingIntervalDays == 5 && it.repottingIntervalDays == 730 })
+            plantRepo.updatePlant(match { it.mistingIntervalDays == 5 && it.repottingIntervalDays == 720 })
         }
+    }
+
+    @Test
+    fun `stored repotting days below the month floor clamp to the minimum`() = runTest {
+        // A 30-day stored interval (1 month) predates the months-based picker / is out of its range.
+        val fastGrower = plant().copy(repottingIntervalDays = 30)
+        every { plantRepo.getPlantById(1L) } returns flowOf(fastGrower)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertTrue(vm.repottingIntervalEnabled)
+        assertEquals(AddEditPlantViewModel.MIN_REPOTTING_MONTHS, vm.repottingIntervalMonths)
     }
 
     @Test

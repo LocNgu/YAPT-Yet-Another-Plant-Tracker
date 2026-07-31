@@ -40,7 +40,14 @@ class AddEditPlantViewModel(
     var useLiquidFertilizer by mutableStateOf(false)
     var mistingIntervalDays by mutableIntStateOf(7)
     var mistingIntervalEnabled by mutableStateOf(false)
-    var repottingIntervalDays by mutableIntStateOf(365)
+
+    /**
+     * Repotting is scheduled in **months**, not days — nobody repots on a day-precise cadence, and
+     * the sane floor is roughly a quarter (fast-growing young plants) with most plants on a 1–3 year
+     * cycle. Persisted as `months * DAYS_PER_MONTH` in `Plant.repottingIntervalDays` so the schedule
+     * logic and the DB schema stay day-based (see product ADR-0022).
+     */
+    var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
     var repottingIntervalEnabled by mutableStateOf(false)
 
     val pendingPhotos = mutableStateListOf<String>()
@@ -73,7 +80,10 @@ class AddEditPlantViewModel(
                         mistingIntervalEnabled = true
                     }
                     plant.repottingIntervalDays?.let {
-                        repottingIntervalDays = it
+                        repottingIntervalMonths = (it / DAYS_PER_MONTH).coerceIn(
+                            MIN_REPOTTING_MONTHS,
+                            MAX_REPOTTING_MONTHS
+                        )
                         repottingIntervalEnabled = true
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
@@ -106,7 +116,11 @@ class AddEditPlantViewModel(
                 wateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null,
                 fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
                 mistingIntervalDays = if (mistingIntervalEnabled) mistingIntervalDays else null,
-                repottingIntervalDays = if (repottingIntervalEnabled) repottingIntervalDays else null,
+                repottingIntervalDays = if (repottingIntervalEnabled) {
+                    repottingIntervalMonths * DAYS_PER_MONTH
+                } else {
+                    null
+                },
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
                 useLiquidFertilizer = useLiquidFertilizer
@@ -150,6 +164,16 @@ class AddEditPlantViewModel(
         data class Saved(val plantId: Long) : Event()
         data class ArchivedForUndo(val plantId: Long, val plantName: String) : Event()
         data class ValidationError(val message: String) : Event()
+    }
+
+    companion object {
+        /** Whole-month approximation used to convert the repotting interval to/from stored days. */
+        const val DAYS_PER_MONTH = 30
+
+        /** Roughly a quarter — the shortest cadence that makes sense for a fast-growing young plant. */
+        const val MIN_REPOTTING_MONTHS = 3
+        const val MAX_REPOTTING_MONTHS = 36
+        const val DEFAULT_REPOTTING_MONTHS = 12
     }
 
     class Factory(

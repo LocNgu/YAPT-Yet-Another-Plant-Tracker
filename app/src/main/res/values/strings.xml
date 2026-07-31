@@ -174,7 +174,10 @@
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
     <string name="misting_interval_label">Mist every %1$d days</string>
     <string name="misting_reminder_label">Misting reminder</string>
-    <string name="repotting_interval_label">Repot every %1$d days</string>
+    <plurals name="repotting_interval_label">
+        <item quantity="one">Repot every month</item>
+        <item quantity="other">Repot every %d months</item>
+    </plurals>
     <string name="repotting_reminder_label">Repotting reminder</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
