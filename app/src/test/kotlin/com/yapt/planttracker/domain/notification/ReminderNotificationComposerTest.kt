@@ -18,6 +18,7 @@ class ReminderNotificationComposerTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     }
 
+    @Suppress("LongParameterList")
     private fun plantWith(
         id: Long = 1L,
         wateringIntervalDays: Int? = null,

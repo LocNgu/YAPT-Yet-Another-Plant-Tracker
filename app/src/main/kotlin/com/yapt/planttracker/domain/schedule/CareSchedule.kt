@@ -4,6 +4,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.toLocalDate
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
@@ -20,6 +21,7 @@ object CareSchedule {
      */
     const val FIRST_FERTILIZE_GRACE_DAYS = 30
 
+    @Suppress("LongParameterList")
     fun computeStatus(
         plant: Plant,
         lastWateredAt: Long?,
@@ -32,46 +34,15 @@ object CareSchedule {
         val daysSinceWatering = lastWateredAt?.let {
             (now - it) / ONE_DAY_MS
         }
-
-        val computedNextDueAt = if (plant.wateringIntervalDays == null) {
-            null
-        } else if (lastWateredAt != null) {
-            lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
-        } else {
-            now
-        }
-
-        val nextDueAt = when {
-            computedNextDueAt == null -> plant.wateringDueDateOverride
-            plant.wateringDueDateOverride == null -> computedNextDueAt
-            else -> maxOf(computedNextDueAt, plant.wateringDueDateOverride)
-        }
-
         val nowDate = now.toLocalDate()
-        val isOverdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)
-        val isDueSoon = nextDueAt != null && !isOverdue && nextDueAt.toLocalDate() == nowDate
 
-        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
-            null
-        } else if (lastFertilizedAt != null) {
-            lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
-        } else {
-            plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
-        }
-        val isFertilizingOverdue = nextFertilizingDueAt != null &&
-            nextFertilizingDueAt.toLocalDate().isBefore(nowDate)
-        val isFertilizingDueSoon = nextFertilizingDueAt != null && !isFertilizingOverdue &&
-            nextFertilizingDueAt.toLocalDate() == nowDate
-
-        val nextMistingDueAt = extendedCareDueAt(plant.mistingIntervalDays, lastMistedAt, plant.createdAt)
-        val isMistingOverdue = nextMistingDueAt != null && nextMistingDueAt.toLocalDate().isBefore(nowDate)
-        val isMistingDueSoon = nextMistingDueAt != null && !isMistingOverdue &&
-            nextMistingDueAt.toLocalDate() == nowDate
-
-        val nextRepottingDueAt = extendedCareDueAt(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt)
-        val isRepottingOverdue = nextRepottingDueAt != null && nextRepottingDueAt.toLocalDate().isBefore(nowDate)
-        val isRepottingDueSoon = nextRepottingDueAt != null && !isRepottingOverdue &&
-            nextRepottingDueAt.toLocalDate() == nowDate
+        val (nextDueAt, isOverdue, isDueSoon) = computeWateringDue(plant, lastWateredAt, now, nowDate)
+        val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
+            computeFertilizingDue(plant, lastFertilizedAt, nowDate)
+        val (nextMistingDueAt, isMistingOverdue, isMistingDueSoon) =
+            computeExtendedCareDue(plant.mistingIntervalDays, lastMistedAt, plant.createdAt, nowDate)
+        val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
+            computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
 
         return PlantCareStatus(
             plant = plant,
@@ -96,6 +67,49 @@ object CareSchedule {
         )
     }
 
+    private fun computeWateringDue(plant: Plant, lastWateredAt: Long?, now: Long, nowDate: LocalDate): DueStatus {
+        val computedNextDueAt = if (plant.wateringIntervalDays == null) {
+            null
+        } else if (lastWateredAt != null) {
+            lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
+        } else {
+            now
+        }
+
+        val nextDueAt = when {
+            computedNextDueAt == null -> plant.wateringDueDateOverride
+            plant.wateringDueDateOverride == null -> computedNextDueAt
+            else -> maxOf(computedNextDueAt, plant.wateringDueDateOverride)
+        }
+
+        return dueStatusFor(nextDueAt, nowDate)
+    }
+
+    private fun computeFertilizingDue(plant: Plant, lastFertilizedAt: Long?, nowDate: LocalDate): DueStatus {
+        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
+            null
+        } else if (lastFertilizedAt != null) {
+            lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
+        } else {
+            plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+        }
+
+        return dueStatusFor(nextFertilizingDueAt, nowDate)
+    }
+
+    private fun computeExtendedCareDue(
+        intervalDays: Int?,
+        lastDoneAt: Long?,
+        createdAt: Long,
+        nowDate: LocalDate
+    ): DueStatus = dueStatusFor(extendedCareDueAt(intervalDays, lastDoneAt, createdAt), nowDate)
+
+    private fun dueStatusFor(nextDueAt: Long?, nowDate: LocalDate): DueStatus {
+        val overdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)
+        val dueSoon = nextDueAt != null && !overdue && nextDueAt.toLocalDate() == nowDate
+        return DueStatus(nextDueAt, overdue, dueSoon)
+    }
+
     /**
      * Due date for an extended-care reminder (misting, repotting). Returns `null` when the interval
      * is unset. For a plant that has never had this care logged, the first due date is anchored to
@@ -107,6 +121,8 @@ object CareSchedule {
         val base = lastDoneAt ?: createdAt
         return base + TimeUnit.DAYS.toMillis(intervalDays.toLong())
     }
+
+    private data class DueStatus(val dueAt: Long?, val isOverdue: Boolean, val isDueSoon: Boolean)
 
     fun computeSuggestedInterval(
         feedback: WateringFeedback,

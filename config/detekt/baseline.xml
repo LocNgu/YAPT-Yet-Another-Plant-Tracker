@@ -9,7 +9,6 @@
     <ID>CyclomaticComplexMethod:BackupManager.kt$BackupManager$override suspend fun exportBackup( destinationUri: Uri, includePhotos: Boolean ): BackupResult</ID>
     <ID>CyclomaticComplexMethod:BackupManager.kt$BackupManager$override suspend fun importBackup(sourceUri: Uri): BackupResult</ID>
     <ID>CyclomaticComplexMethod:CalendarDayGrouping.kt$fun computePlantsByDay( statuses: List&lt;PlantCareStatus&gt;, visibleMonth: YearMonth, today: LocalDate ): Map&lt;LocalDate, DayEntry&gt;</ID>
-    <ID>CyclomaticComplexMethod:CareSchedule.kt$CareSchedule$fun computeStatus( plant: Plant, lastWateredAt: Long?, lastFertilizedAt: Long?, totalLogs: Int, now: Long = System.currentTimeMillis() ): PlantCareStatus</ID>
     <ID>CyclomaticComplexMethod:PlantCard.kt$@OptIn(ExperimentalFoundationApi::class) @Composable fun PlantCard( status: PlantCareStatus, onClick: () -&gt; Unit, onQuickWater: () -&gt; Unit, onQuickFertilize: () -&gt; Unit, modifier: Modifier = Modifier, selectionMode: Boolean = false, selected: Boolean = false, onLongClick: () -&gt; Unit = {}, onToggleSelect: () -&gt; Unit = {} )</ID>
     <ID>CyclomaticComplexMethod:PlantDetailScreen.kt$@Composable fun PlantDetailScreen( viewModel: PlantDetailViewModel, onNavigateBack: () -&gt; Unit, onNavigateToEdit: () -&gt; Unit, onNavigateToAddLog: () -&gt; Unit, onNavigateToEditLog: (careLogId: Long) -&gt; Unit )</ID>
     <ID>CyclomaticComplexMethod:PlantListScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun PlantListScreen( viewModel: PlantListViewModel, restoreMessage: String? = null, onNavigateToPlant: (Long) -&gt; Unit, onNavigateToAdd: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, onSelectionModeChanged: (Boolean) -&gt; Unit = {} )</ID>
@@ -52,6 +51,7 @@
     <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$4</ID>
     <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$5</ID>
     <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$6</ID>
+    <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$7</ID>
     <ID>MaximumLineLength:AddCareLogScreen.kt$ </ID>
     <ID>MaximumLineLength:AddCareLogViewModel.kt$AddCareLogViewModel$ </ID>
     <ID>MaximumLineLength:AddCareLogViewModelTest.kt$AddCareLogViewModelTest$ </ID>

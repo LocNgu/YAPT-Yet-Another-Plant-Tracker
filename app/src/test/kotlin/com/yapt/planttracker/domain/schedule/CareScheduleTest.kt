@@ -20,6 +20,7 @@ class CareScheduleTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     }
 
+    @Suppress("LongParameterList")
     private fun plantWith(
         wateringIntervalDays: Int? = null,
         fertilizingIntervalDays: Int? = null,
