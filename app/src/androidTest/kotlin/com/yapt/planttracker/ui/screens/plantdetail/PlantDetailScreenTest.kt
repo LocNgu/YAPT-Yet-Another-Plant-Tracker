@@ -435,4 +435,68 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }
+
+    @Test
+    fun careTabs_areDisplayed() {
+        val plant = Plant(id = 30L, name = "Aloe", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Water").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_showsEmptyState_onlyAfterSelected() {
+        val plant = Plant(id = 31L, name = "Sage", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // The Fertilize empty state is unique to the Fertilize tab, so it proves the tab switched.
+        assertTrue(
+            composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNodeWithText("No fertilizing logged yet.").assertIsDisplayed()
+    }
+
+    @Test
+    fun photoTab_showsEmptyState_whenNoPhotos() {
+        val plant = Plant(id = 32L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Photo").performClick()
+        composeTestRule.onNodeWithText("No photos yet.").assertIsDisplayed()
+    }
 }

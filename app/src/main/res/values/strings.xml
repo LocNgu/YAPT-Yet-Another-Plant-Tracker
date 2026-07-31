@@ -173,8 +173,16 @@
     <string name="fertilizer_also_logs_watering">Also logs a watering</string>
     <string name="care_log_photo_label">Photo (optional)</string>
     <string name="care_log_photo_label_required">Photo</string>
-    <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
+    <!-- Plant Detail per-action tabs (#436) -->
+    <string name="plant_detail_tab_water">Water</string>
+    <string name="plant_detail_tab_fertilize">Fertilize</string>
+    <string name="plant_detail_tab_repot">Repot</string>
+    <string name="plant_detail_tab_photo">Photo</string>
+    <string name="plant_detail_misting_section">Recent misting</string>
+    <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
+    <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="plant_detail_tab_photo_empty">No photos yet.</string>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
     <string name="plant_detail_location">📍 %1$s</string>
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>
