@@ -23,6 +23,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 7 (#232): mistingIntervalDays/repottingIntervalDays added to BackupPlant.
 // Schema 6 (#139): themeMode added to BackupSettings.
 // Schema 5 (#480): photoReminderEnabled added to BackupSettings.
 // Schema 4 (#474): combineNotifications added to BackupSettings.

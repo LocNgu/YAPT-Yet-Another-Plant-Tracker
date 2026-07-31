@@ -9,11 +9,11 @@ data class Plant(
     val notes: String? = null,
     val wateringIntervalDays: Int? = null,
     val fertilizingIntervalDays: Int? = null,
-    val mistingIntervalDays: Int? = null,
-    val repottingIntervalDays: Int? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
-    val archivedAt: Long? = null
+    val archivedAt: Long? = null,
+    val mistingIntervalDays: Int? = null,
+    val repottingIntervalDays: Int? = null
 )

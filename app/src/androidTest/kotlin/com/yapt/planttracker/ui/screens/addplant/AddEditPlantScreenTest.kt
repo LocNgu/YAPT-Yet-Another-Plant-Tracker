@@ -12,6 +12,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnySibling
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -201,5 +204,41 @@ class AddEditPlantScreenTest {
 
         composeTestRule.onNodeWithText("Camera access denied").assertIsDisplayed()
         composeTestRule.onNodeWithText("Open Settings").assertIsDisplayed()
+    }
+
+    @Test
+    fun mistingToggle_enabled_showsIntervalLabel() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Misting reminder").assertIsDisplayed()
+
+        composeTestRule
+            .onNode(isToggleable().and(hasAnySibling(hasText("Misting reminder"))))
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithText("Mist every 7 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun repottingToggle_enabled_showsIntervalLabel() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Repotting reminder").assertIsDisplayed()
+
+        composeTestRule
+            .onNode(isToggleable().and(hasAnySibling(hasText("Repotting reminder"))))
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithText("Repot every 365 days").assertIsDisplayed()
     }
 }

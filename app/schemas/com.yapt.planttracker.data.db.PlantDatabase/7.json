@@ -6,7 +6,7 @@
     "entities": [
       {
         "tableName": "plants",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `mistingIntervalDays` INTEGER, `repottingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER, `mistingIntervalDays` INTEGER, `repottingIntervalDays` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -51,16 +51,6 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "mistingIntervalDays",
-            "columnName": "mistingIntervalDays",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "repottingIntervalDays",
-            "columnName": "repottingIntervalDays",
-            "affinity": "INTEGER"
-          },
-          {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
             "affinity": "INTEGER",
@@ -86,6 +76,16 @@
           {
             "fieldPath": "archivedAt",
             "columnName": "archivedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mistingIntervalDays",
+            "columnName": "mistingIntervalDays",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "repottingIntervalDays",
+            "columnName": "repottingIntervalDays",
             "affinity": "INTEGER"
           }
         ],
@@ -255,7 +255,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '70264a605900ed3a51fbceb88c7dd3ea')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e1f36331e2d91aae74a930580016f6c5')"
     ]
   }
 }
