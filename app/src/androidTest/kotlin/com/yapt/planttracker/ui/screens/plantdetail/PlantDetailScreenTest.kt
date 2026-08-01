@@ -485,7 +485,8 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
         composeTestRule.onNodeWithText("Fertilize").performClick()
-        composeTestRule.onNodeWithText("No fertilizing logged yet.").assertIsDisplayed()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll it into view.
+        composeTestRule.onNodeWithText("No fertilizing logged yet.").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -504,7 +505,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithText("Photo").performClick()
-        composeTestRule.onNodeWithText("No photos yet.").assertIsDisplayed()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll it into view.
+        composeTestRule.onNodeWithText("No photos yet.").performScrollTo().assertIsDisplayed()
     }
 
     @Test
