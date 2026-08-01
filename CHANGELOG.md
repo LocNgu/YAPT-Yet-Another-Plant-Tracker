@@ -17,6 +17,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Plant Detail tabs now let you adjust a plant's schedule **inline**: change the watering interval on the Water tab, and the fertilizing interval and liquid-fertilizer mode on the Fertilize tab — no need to open the Edit screen. Changes save immediately and the tab's stats/chart update right away; the Edit screen stays the place to change a plant's name, room, notes, and photo (#436)
+- Each Plant Detail tab now shows a small **insights** summary: the Water/Fertilize/Repot tabs show how many times you've done that care and the average interval between events (Repot also shows when it was last done), and the Photo tab shows the photo count and the first/latest photo dates (#436)
 
 ### Added
 - Settings → Reminders now has a **Notify for fertilizing** toggle. When turned off, the daily reminder no longer notifies for a plant whose *only* due care is fertilizing — but a plant that is also watering-due still gets its full reminder, fertilizing line included. Defaults to on (no change for existing users) and round-trips through backup/restore (backup schema v7) (#223)

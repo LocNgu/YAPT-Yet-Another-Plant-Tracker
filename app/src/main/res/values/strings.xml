@@ -183,6 +183,19 @@
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Plant Detail per-tab insights (#436, sub-task 3) -->
+    <string name="insight_waterings">Waterings</string>
+    <string name="insight_fertilizings">Fertilizings</string>
+    <string name="insight_repottings">Repottings</string>
+    <string name="insight_photos">Photos</string>
+    <string name="insight_avg_interval">Avg. interval</string>
+    <string name="insight_last_repotted">Last repotted</string>
+    <string name="insight_first_photo">First photo</string>
+    <string name="insight_latest_photo">Latest photo</string>
+    <plurals name="insight_interval_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
     <string name="plant_detail_location">📍 %1$s</string>
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>

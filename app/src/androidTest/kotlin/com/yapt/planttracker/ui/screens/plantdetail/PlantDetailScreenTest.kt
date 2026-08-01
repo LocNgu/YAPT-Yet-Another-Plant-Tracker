@@ -548,4 +548,40 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithText("Fertilizing reminder").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun repotTab_showsInsightsForMultipleRepots() {
+        val day = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        val plant = Plant(id = 40L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(
+            listOf(
+                CareLog(id = 1L, plantId = 40L, careType = CareType.REPOT, loggedAt = now - 60 * day),
+                CareLog(id = 2L, plantId = 40L, careType = CareType.REPOT, loggedAt = now)
+            )
+        )
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel =
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Two repots → the Repot tab's insights card shows the count and an average interval.
+        composeTestRule.onNodeWithText("Repot").performClick()
+        composeTestRule.onNodeWithText("Repottings").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Avg. interval").performScrollTo().assertIsDisplayed()
+    }
 }

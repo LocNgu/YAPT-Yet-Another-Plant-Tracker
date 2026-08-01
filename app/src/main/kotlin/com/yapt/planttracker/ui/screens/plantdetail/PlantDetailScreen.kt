@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.insights.CareInsights
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -88,6 +89,7 @@ import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.util.DateUtils
 import kotlin.math.roundToInt
 
 @Composable
@@ -482,6 +484,17 @@ fun PlantDetailScreen(
                                 )
                                 Spacer(Modifier.height(16.dp))
                             }
+                            item {
+                                val insights = careTypeInsightItems(
+                                    summary = CareInsights.summarize(careLogs, CareType.WATER),
+                                    countLabel = stringResource(R.string.insight_waterings),
+                                    lastAtLabel = null
+                                )
+                                if (insights.isNotEmpty()) {
+                                    TabInsightsCard(insights)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                             careStatus?.let { status ->
                                 if (plant?.wateringIntervalDays != null &&
                                     (status.isOverdue || status.isDueSoon)
@@ -557,6 +570,17 @@ fun PlantDetailScreen(
                                 }
                                 Spacer(Modifier.height(16.dp))
                             }
+                            item {
+                                val insights = careTypeInsightItems(
+                                    summary = CareInsights.summarize(careLogs, CareType.FERTILIZE),
+                                    countLabel = stringResource(R.string.insight_fertilizings),
+                                    lastAtLabel = null
+                                )
+                                if (insights.isNotEmpty()) {
+                                    TabInsightsCard(insights)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                             val fertLogs = careLogs.filter { it.careType == CareType.FERTILIZE }
                             if (fertLogs.isEmpty()) {
                                 item {
@@ -579,6 +603,17 @@ fun PlantDetailScreen(
                         }
 
                         PlantDetailTab.REPOT -> {
+                            item {
+                                val insights = careTypeInsightItems(
+                                    summary = CareInsights.summarize(careLogs, CareType.REPOT),
+                                    countLabel = stringResource(R.string.insight_repottings),
+                                    lastAtLabel = stringResource(R.string.insight_last_repotted)
+                                )
+                                if (insights.isNotEmpty()) {
+                                    TabInsightsCard(insights)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                             val repotLogs = careLogs.filter { it.careType == CareType.REPOT }
                             if (repotLogs.isEmpty()) {
                                 item {
@@ -601,6 +636,22 @@ fun PlantDetailScreen(
                         }
 
                         PlantDetailTab.PHOTO -> {
+                            item {
+                                val summary = CareInsights.summarizePhotos(galleryPhotos)
+                                if (summary.count > 0) {
+                                    val items = mutableListOf(
+                                        stringResource(R.string.insight_photos) to summary.count.toString()
+                                    )
+                                    val first = summary.firstAt
+                                    val last = summary.lastAt
+                                    if (first != null && last != null && first != last) {
+                                        items += stringResource(R.string.insight_first_photo) to DateUtils.formatDate(first)
+                                        items += stringResource(R.string.insight_latest_photo) to DateUtils.formatDate(last)
+                                    }
+                                    TabInsightsCard(items)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                             if (galleryPhotos.isEmpty()) {
                                 item {
                                     Box(modifier = Modifier.height(160.dp)) {
@@ -821,6 +872,62 @@ private fun InlineIntervalSetting(
                     steps = setting.range.last - setting.range.first - 1
                 )
                 extra()
+            }
+        }
+    }
+}
+
+/**
+ * Builds the label/value rows for a care type's insight card (#436, sub-task 3). Returns an empty
+ * list when there are no events of that type so the caller can skip the card entirely. [lastAtLabel]
+ * adds a "last done" row (used by the Repot tab, which has no summary chip above the tabs); pass
+ * `null` where the StatsRow above the tabs already shows the last event.
+ */
+@Composable
+private fun careTypeInsightItems(
+    summary: CareInsights.CareTypeSummary,
+    countLabel: String,
+    lastAtLabel: String?
+): List<Pair<String, String>> {
+    if (summary.count == 0) return emptyList()
+    val items = mutableListOf(countLabel to summary.count.toString())
+    val lastAt = summary.lastAt
+    if (lastAtLabel != null && lastAt != null) {
+        items += lastAtLabel to DateUtils.formatRelative(lastAt)
+    }
+    val average = summary.averageIntervalDays
+    if (average != null) {
+        items += stringResource(R.string.insight_avg_interval) to
+            pluralStringResource(R.plurals.insight_interval_days, average, average)
+    }
+    return items
+}
+
+/** Presentational card listing label -> value insight rows for a Plant Detail tab (#436). */
+@Composable
+private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            items.forEach { (label, value) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(text = value, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }
