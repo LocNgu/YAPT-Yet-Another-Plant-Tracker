@@ -1,11 +1,13 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +37,8 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,9 +47,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,6 +88,7 @@ import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import kotlin.math.roundToInt
 
 @Composable
 fun PlantDetailScreen(
@@ -461,6 +468,20 @@ fun PlantDetailScreen(
 
                     when (selectedTab) {
                         PlantDetailTab.WATER -> {
+                            item {
+                                InlineIntervalSetting(
+                                    setting = IntervalSetting(
+                                        enabled = plant?.wateringIntervalDays != null,
+                                        days = plant?.wateringIntervalDays
+                                            ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
+                                        range = 1..60,
+                                        enabledLabelRes = R.string.watering_interval_label,
+                                        disabledLabelRes = R.string.watering_reminder_label
+                                    ),
+                                    onIntervalChange = { viewModel.setWateringInterval(it) }
+                                )
+                                Spacer(Modifier.height(16.dp))
+                            }
                             careStatus?.let { status ->
                                 if (plant?.wateringIntervalDays != null &&
                                     (status.isOverdue || status.isDueSoon)
@@ -506,6 +527,36 @@ fun PlantDetailScreen(
                         }
 
                         PlantDetailTab.FERTILIZE -> {
+                            item {
+                                InlineIntervalSetting(
+                                    setting = IntervalSetting(
+                                        enabled = plant?.fertilizingIntervalDays != null,
+                                        days = plant?.fertilizingIntervalDays
+                                            ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
+                                        range = 1..90,
+                                        enabledLabelRes = R.string.fertilizing_interval_label,
+                                        disabledLabelRes = R.string.fertilizing_reminder_label
+                                    ),
+                                    onIntervalChange = { viewModel.setFertilizingInterval(it) }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.liquid_fertilizer_label),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Switch(
+                                            checked = plant?.useLiquidFertilizer == true,
+                                            onCheckedChange = { viewModel.setLiquidFertilizer(it) }
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(16.dp))
+                            }
                             val fertLogs = careLogs.filter { it.careType == CareType.FERTILIZE }
                             if (fertLogs.isEmpty()) {
                                 item {
@@ -701,6 +752,76 @@ fun PlantDetailScreen(
                     .navigationBarsPadding()
                     .padding(bottom = 88.dp)
             )
+        }
+    }
+}
+
+/**
+ * Config for an [InlineIntervalSetting]: whether the schedule is on, the day count to show, the
+ * allowed range, and the label resources for the on/off header. Bundled into one value so the
+ * composable stays within the parameter budget.
+ */
+private data class IntervalSetting(
+    val enabled: Boolean,
+    val days: Int,
+    val range: IntRange,
+    @StringRes val enabledLabelRes: Int,
+    @StringRes val disabledLabelRes: Int
+)
+
+/**
+ * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436, product
+ * ADR-0022): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
+ * changes through [onIntervalChange] — the day count when enabled/committed, or `null` when the
+ * schedule is switched off. The drag persists on release (`onValueChangeFinished`), not per frame.
+ * [extra] renders additional rows inside the card when enabled (the liquid-fertilizer toggle on the
+ * Fertilize tab).
+ */
+@Composable
+private fun InlineIntervalSetting(
+    setting: IntervalSetting,
+    onIntervalChange: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+    extra: @Composable ColumnScope.() -> Unit = {}
+) {
+    var sliderDays by remember(setting.days) { mutableIntStateOf(setting.days) }
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (setting.enabled) {
+                        stringResource(setting.enabledLabelRes, sliderDays)
+                    } else {
+                        stringResource(setting.disabledLabelRes)
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Switch(
+                    checked = setting.enabled,
+                    onCheckedChange = { on -> onIntervalChange(if (on) sliderDays else null) }
+                )
+            }
+            if (setting.enabled) {
+                Slider(
+                    value = sliderDays.toFloat(),
+                    onValueChange = { sliderDays = it.roundToInt() },
+                    onValueChangeFinished = { onIntervalChange(sliderDays) },
+                    valueRange = setting.range.first.toFloat()..setting.range.last.toFloat(),
+                    steps = setting.range.last - setting.range.first - 1
+                )
+                extra()
+            }
         }
     }
 }

@@ -227,6 +227,42 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Inline scheduling edits from the Plant Detail tabs (#436, product ADR-0022). Each persists a
+     * single field straight through [PlantRepository.updatePlant]; the change flows back via the
+     * [plant] StateFlow so the tab insights update immediately. A `null` interval clears the schedule
+     * (the "Not scheduled" state), matching the reminder toggle on Add/Edit Plant.
+     */
+    fun setWateringInterval(days: Int?) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(wateringIntervalDays = days, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun setFertilizingInterval(days: Int?) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(fertilizingIntervalDays = days, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun setLiquidFertilizer(enabled: Boolean) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(useLiquidFertilizer = enabled, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
     fun requestSkip() {
         showSkipDialog.value = true
     }
@@ -276,6 +312,12 @@ class PlantDetailViewModel(
 
     fun deleteLog(log: CareLog) {
         viewModelScope.launch { careLogRepository.deleteLog(log) }
+    }
+
+    companion object {
+        /** Interval a schedule starts at when the user enables it inline on a tab (mirrors Add/Edit). */
+        const val DEFAULT_WATERING_INTERVAL_DAYS = 7
+        const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
     }
 
     sealed class Event {

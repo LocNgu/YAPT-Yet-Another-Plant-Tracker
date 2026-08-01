@@ -503,4 +503,44 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Photo").performClick()
         composeTestRule.onNodeWithText("No photos yet.").assertIsDisplayed()
     }
+
+    @Test
+    fun waterTab_showsInlineWateringIntervalControl() {
+        val plant = Plant(id = 33L, name = "Calathea", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // The inline watering-interval header sits at the top of the default Water tab.
+        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_showsInlineScheduleControl() {
+        // No fertilizing interval → the inline control shows its disabled "Fertilizing reminder" header,
+        // which is unique to this control (the fertilizing stat chip is absent without an interval).
+        val plant = Plant(id = 34L, name = "Oregano", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNodeWithText("Fertilizing reminder").performScrollTo().assertIsDisplayed()
+    }
 }
