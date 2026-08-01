@@ -1,6 +1,8 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -9,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -323,10 +326,10 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Skip watering")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
+        // The Water tab's inline interval card pushes the skip button below the fold; scroll the lazy
+        // list to it (this composes the off-screen item, which waitUntil-on-existence never would).
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasText("Skip watering"))
+        composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
     }
 
     @Test
