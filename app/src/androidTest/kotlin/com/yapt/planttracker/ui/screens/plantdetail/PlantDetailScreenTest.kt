@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -134,7 +135,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watering History").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -177,7 +178,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watering History").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -213,7 +214,10 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.").assertIsDisplayed()
+        // The chart lives under the Water tab, below the tab strip; scroll it into view before asserting.
+        composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
