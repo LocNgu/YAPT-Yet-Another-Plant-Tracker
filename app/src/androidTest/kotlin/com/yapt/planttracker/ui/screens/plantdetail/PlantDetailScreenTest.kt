@@ -1,16 +1,15 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -138,7 +137,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering History").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
+        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
     }
 
     @Test
@@ -181,7 +182,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering History").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
+        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
     }
 
     @Test
@@ -217,9 +220,10 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The chart lives under the Water tab, below the tab strip; scroll it into view before asserting.
+        // The chart lives under the Water tab, below the tab strip; scroll the list to it before asserting.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Need at least 2 watering logs to display watering history."))
         composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.")
-            .performScrollTo()
             .assertIsDisplayed()
     }
 
@@ -326,9 +330,10 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The Water tab's inline interval card pushes the skip button below the fold; scroll the lazy
-        // list to it (this composes the off-screen item, which waitUntil-on-existence never would).
-        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasText("Skip watering"))
+        // The Water tab content pushes the skip button below the fold; scroll the list to it (this
+        // composes the off-screen item, which a waitUntil-on-existence check never would).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Skip watering"))
         composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
     }
 
@@ -485,8 +490,10 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
         composeTestRule.onNodeWithText("Fertilize").performClick()
-        // On CI's 320x640 emulator the empty state sits below the fold; scroll it into view.
-        composeTestRule.onNodeWithText("No fertilizing logged yet.").performScrollTo().assertIsDisplayed()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("No fertilizing logged yet."))
+        composeTestRule.onNodeWithText("No fertilizing logged yet.").assertIsDisplayed()
     }
 
     @Test
@@ -505,8 +512,10 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithText("Photo").performClick()
-        // On CI's 320x640 emulator the empty state sits below the fold; scroll it into view.
-        composeTestRule.onNodeWithText("No photos yet.").performScrollTo().assertIsDisplayed()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("No photos yet."))
+        composeTestRule.onNodeWithText("No photos yet.").assertIsDisplayed()
     }
 
     @Test
@@ -525,7 +534,9 @@ class PlantDetailScreenTest {
         }
 
         // The inline watering-interval header sits at the top of the default Water tab.
-        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
+        composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()
     }
 
     @Test
@@ -546,7 +557,9 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithText("Fertilize").performClick()
-        composeTestRule.onNodeWithText("Fertilizing reminder").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilizing reminder"))
+        composeTestRule.onNodeWithText("Fertilizing reminder").assertIsDisplayed()
     }
 
     @Test
@@ -581,7 +594,9 @@ class PlantDetailScreenTest {
 
         // Two repots → the Repot tab's insights card shows the count and an average interval.
         composeTestRule.onNodeWithText("Repot").performClick()
-        composeTestRule.onNodeWithText("Repottings").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Avg. interval").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repottings"))
+        composeTestRule.onNodeWithText("Repottings").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Avg. interval").assertIsDisplayed()
     }
 }

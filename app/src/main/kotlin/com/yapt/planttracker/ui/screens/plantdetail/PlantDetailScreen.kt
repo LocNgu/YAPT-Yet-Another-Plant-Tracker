@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -91,6 +92,10 @@ import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
 import kotlin.math.roundToInt
+
+/** Test tag on the Plant Detail scrolling `LazyColumn`, so instrumented tests can scroll it to a
+ *  specific node on the small (320x640) CI emulator without ambiguity with the chart's own scroll. */
+internal const val PLANT_DETAIL_CONTENT_TEST_TAG = "plant_detail_content"
 
 @Composable
 fun PlantDetailScreen(
@@ -352,7 +357,9 @@ fun PlantDetailScreen(
         Box(Modifier.fillMaxSize()) {
             if (plant != null) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(PLANT_DETAIL_CONTENT_TEST_TAG),
                     contentPadding = PaddingValues(
                         bottom = 88.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     ),
