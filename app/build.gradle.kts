@@ -142,7 +142,7 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:2.9.8")
 
-    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
+    implementation("com.patrykandpatrick.vico:compose-m3:3.2.3")
     implementation("com.kizitonwose.calendar:compose:2.7.0")
 
     implementation("androidx.room:room-runtime:2.8.4")
