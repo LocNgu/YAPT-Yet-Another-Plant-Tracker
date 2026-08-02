@@ -121,7 +121,7 @@ kotlin {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
