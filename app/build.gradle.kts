@@ -143,7 +143,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.8")
 
     implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
-    implementation("com.kizitonwose.calendar:compose:2.7.0")
+    implementation("com.kizitonwose.calendar:compose:2.10.1")
 
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
@@ -153,7 +153,7 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.19.0")
 
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-compose:2.10.1")
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
