@@ -14,6 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - Settings → Reminders now has a **Notify for fertilizing** toggle. When turned off, the daily reminder no longer notifies for a plant whose *only* due care is fertilizing — but a plant that is also watering-due still gets its full reminder, fertilizing line included. Defaults to on (no change for existing users) and round-trips through backup/restore (backup schema v7) (#223)
+- **Developer mode**: tapping the Settings → About version row 5 times unlocks a hidden **Developer** section at the bottom of Settings, with an AOSP-style tap countdown ("You are 2 taps away…", "…1 tap away…", "Developer mode enabled"). The section has a master on/off switch and four read-only build-info rows (version name/code, build type, Room DB version, device API level). Available in both debug and release builds, defaults off, and is not included in backup/restore. No feature flags or debug actions yet — this ships the unlock gesture and shell only (#520)
 
 ---
 

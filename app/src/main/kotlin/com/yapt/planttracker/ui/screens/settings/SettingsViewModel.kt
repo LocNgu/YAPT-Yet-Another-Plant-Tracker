@@ -75,6 +75,10 @@ class SettingsViewModel(
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val developerModeEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.DEVELOPER_MODE_ENABLED] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private val _backupResult = MutableSharedFlow<BackupResult>()
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
 
@@ -108,6 +112,15 @@ class SettingsViewModel(
     fun setFertilizingNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
+        }
+    }
+
+    fun setDeveloperModeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
+            // Seam for #521: once FeatureFlags exists, call FeatureFlags.resetAll() here
+            // when `enabled` is false, so turning developer mode off also resets every flag
+            // to its registry default. No flags exist yet, so there is nothing to reset.
         }
     }
 

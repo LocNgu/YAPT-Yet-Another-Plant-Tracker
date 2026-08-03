@@ -249,4 +249,75 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
         assert(called)
     }
+
+    private fun tapVersionRow(times: Int) {
+        repeat(times) {
+            composeTestRule.onNodeWithTag("settings_about_version_row").performScrollTo().performClick()
+            composeTestRule.waitForIdle()
+        }
+    }
+
+    @Test
+    fun developerSection_isAbsent_byDefault() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun developerSection_doesNotAppear_afterFourTaps() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(4)
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun developerSection_appears_afterFiveTaps() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").performScrollTo().assertIsOn()
+    }
+
+    @Test
+    fun developerSection_hidden_afterMasterSwitchToggledOff() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        composeTestRule.onNodeWithTag("developer_mode_switch").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
 }

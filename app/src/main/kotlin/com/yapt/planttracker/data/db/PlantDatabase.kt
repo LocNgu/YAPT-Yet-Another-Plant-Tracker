@@ -12,7 +12,7 @@ import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
     entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class],
-    version = 6,
+    version = PlantDatabase.DB_VERSION,
     exportSchema = true
 )
 abstract class PlantDatabase : RoomDatabase() {
@@ -22,6 +22,10 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun plantPhotoDao(): PlantPhotoDao
 
     companion object {
+        // Single source of truth for the schema version, shared with the @Database
+        // annotation above so the developer-mode build-info row can never drift from it (#520).
+        const val DB_VERSION = 6
+
         @Volatile
         private var INSTANCE: PlantDatabase? = null
 

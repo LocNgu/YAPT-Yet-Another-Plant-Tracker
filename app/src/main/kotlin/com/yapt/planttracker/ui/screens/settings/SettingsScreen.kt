@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.settings
 
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,14 +20,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -52,8 +58,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,13 +71,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yapt.planttracker.BuildConfig
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupResult
+import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.domain.devmode.DeveloperModeTapOutcome
+import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,9 +111,17 @@ fun SettingsScreen(
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
+    val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
     var showTimePicker by remember { mutableStateOf(false) }
+    // Screen-scoped: a fresh remember{} on every entry into Settings, so leaving the screen
+    // and returning always starts the countdown over (#520 AC3 — no wall-clock timeout).
+    var versionTapCount by remember { mutableIntStateOf(0) }
+    val coroutineScope = rememberCoroutineScope()
+    val versionRowClickLabel = stringResource(R.string.cd_version_row_show_version)
+    val devModeEnabledMessage = stringResource(R.string.dev_mode_enabled_snackbar)
+    val devModeDisabledMessage = stringResource(R.string.dev_mode_disabled_snackbar)
     val timePickerState = key(reminderHour, reminderMinute) {
         rememberTimePickerState(
             initialHour = reminderHour,
@@ -470,7 +492,28 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable(onClickLabel = versionRowClickLabel, role = Role.Button) {
+                        val result = DeveloperModeUnlock.registerTap(versionTapCount, developerModeEnabled)
+                        versionTapCount = result.newTapCount
+                        when (val outcome = result.outcome) {
+                            is DeveloperModeTapOutcome.Countdown -> coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    context.resources.getQuantityString(
+                                        R.plurals.dev_mode_countdown_taps_away,
+                                        outcome.tapsRemaining,
+                                        outcome.tapsRemaining
+                                    )
+                                )
+                            }
+                            DeveloperModeTapOutcome.Unlocked -> {
+                                viewModel.setDeveloperModeEnabled(true)
+                                coroutineScope.launch { snackbarHostState.showSnackbar(devModeEnabledMessage) }
+                            }
+                            DeveloperModeTapOutcome.Silent, DeveloperModeTapOutcome.Inert -> Unit
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("settings_about_version_row")
             ) {
                 Column {
                     Text(
@@ -491,6 +534,63 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_whats_new_subtitle),
                 onClick = { onShowWhatsNew() }
             )
+
+            if (developerModeEnabled) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Text(
+                    text = stringResource(R.string.dev_mode_section_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Code,
+                    title = stringResource(R.string.dev_mode_master_switch_title),
+                    subtitle = stringResource(R.string.dev_mode_master_switch_subtitle),
+                    trailingContent = {
+                        Switch(
+                            modifier = Modifier.testTag("developer_mode_switch"),
+                            checked = developerModeEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.setDeveloperModeEnabled(enabled)
+                                if (!enabled) {
+                                    coroutineScope.launch { snackbarHostState.showSnackbar(devModeDisabledMessage) }
+                                }
+                            }
+                        )
+                    }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Info,
+                    title = stringResource(R.string.dev_mode_build_info_version_title),
+                    subtitle = stringResource(
+                        R.string.dev_mode_build_info_version_value,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.VERSION_CODE
+                    )
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.BugReport,
+                    title = stringResource(R.string.dev_mode_build_info_build_type_title),
+                    subtitle = BuildConfig.BUILD_TYPE
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Storage,
+                    title = stringResource(R.string.dev_mode_build_info_db_version_title),
+                    subtitle = PlantDatabase.DB_VERSION.toString()
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.PhoneAndroid,
+                    title = stringResource(R.string.dev_mode_build_info_api_level_title),
+                    subtitle = Build.VERSION.SDK_INT.toString()
+                )
+            }
         }
     }
 }
