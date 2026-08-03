@@ -1,13 +1,16 @@
 package com.yapt.planttracker.ui.screens.settings
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -248,5 +251,105 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
         assert(called)
+    }
+
+    /**
+     * Taps the About version row [times] times via its click semantics action rather than an
+     * injected touch.
+     *
+     * From tap 3 onward the gesture shows a countdown Snackbar, which the Scaffold renders at
+     * the bottom of the screen - directly over the version row, since About sits near the end
+     * of Settings. An injected touch would be consumed by the Snackbar, so taps 4 and 5 would
+     * never reach the row. Invoking the semantics action bypasses hit-testing entirely.
+     */
+    private fun tapVersionRow(times: Int) {
+        repeat(times) {
+            composeTestRule.onNodeWithTag("settings_about_version_row")
+                .performSemanticsAction(SemanticsActions.OnClick)
+            composeTestRule.waitForIdle()
+        }
+    }
+
+    /**
+     * Waits for the developer master switch to appear or disappear.
+     *
+     * Toggling developer mode writes to DataStore off the main thread and surfaces via a
+     * `stateIn` flow, so `waitForIdle()` alone returns before the new value has propagated.
+     */
+    private fun waitForDeveloperSwitch(present: Boolean) {
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithTag("developer_mode_switch")
+                .fetchSemanticsNodes().isNotEmpty() == present
+        }
+    }
+
+    @Test
+    fun developerSection_isAbsent_byDefault() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun developerSection_doesNotAppear_afterFourTaps() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(4)
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun developerSection_appears_afterFiveTaps() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertIsOn()
+    }
+
+    @Test
+    fun developerSection_hidden_afterMasterSwitchToggledOff() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        // The "Developer mode enabled" Snackbar is showing over the switch at this point,
+        // so go through the semantics action here too rather than an injected touch.
+        composeTestRule.onNodeWithTag("developer_mode_switch")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForDeveloperSwitch(present = false)
+
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
     }
 }

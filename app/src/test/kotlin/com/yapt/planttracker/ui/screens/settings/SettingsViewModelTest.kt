@@ -51,6 +51,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
         every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
         every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
@@ -235,6 +236,47 @@ class SettingsViewModelTest {
         vm = buildVm()
 
         vm.setFertilizingNotificationsEnabled(false)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `developerModeEnabled defaults to false when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.developerModeEnabled.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `developerModeEnabled emits true when DataStore returns true`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns true
+        vm = buildVm()
+
+        vm.developerModeEnabled.test {
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setDeveloperModeEnabled(true)
         advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }
