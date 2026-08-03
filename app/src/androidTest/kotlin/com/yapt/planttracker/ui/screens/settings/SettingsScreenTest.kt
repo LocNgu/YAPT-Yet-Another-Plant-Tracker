@@ -5,6 +5,9 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isOff
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -15,11 +18,13 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
@@ -305,6 +310,19 @@ class SettingsScreenTest {
         }
     }
 
+    /**
+     * Waits for the injected test flag's switch to report [on], for the same reason as
+     * [waitForDeveloperSwitch]: the switch reflects a DataStore write that round-trips through a
+     * `stateIn` flow off the main thread, so `waitForIdle()` returns before it has propagated.
+     */
+    private fun waitForTestFlagSwitch(on: Boolean) {
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(
+                hasTestTag("feature_flag_switch_test_flag") and if (on) isOn() else isOff()
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     @Test
     fun developerSection_isAbsent_byDefault() {
         composeTestRule.setContent {
@@ -415,6 +433,12 @@ class SettingsScreenTest {
 
     @Test
     fun injectedFeatureFlag_togglingFlipsPersistedValue() {
+        // Unlock developer mode by seeding the preference rather than tapping the version row
+        // 5×. The unlock gesture is already covered by its own tests, and driving it here would
+        // raise the "Developer mode enabled" Snackbar over the bottom of the Settings list —
+        // exactly where the flag switch sits — letting it swallow the tap below.
+        runBlocking { dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = true } }
+
         val flagViewModel = buildViewModelWithFlags(listOf(testFlag))
         composeTestRule.setContent {
             SettingsScreen(
@@ -425,14 +449,14 @@ class SettingsScreenTest {
             )
         }
 
-        tapVersionRow(5)
         waitForDeveloperSwitch(present = true)
 
         composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").performScrollTo().assertIsOff()
         composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").performClick()
-        composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").assertIsOn()
+        // The Switch is a controlled component fed by a DataStore-backed `stateIn` flow, so the
+        // write round-trips off the main thread; `waitForIdle()` returns before it lands.
+        waitForTestFlagSwitch(on = true)
 
         // Read the underlying DataStore directly (rather than the ViewModel's StateFlow) to
         // prove the toggle actually persisted, not just updated in-memory Compose state.
