@@ -91,7 +91,6 @@ abstract class PlantDatabase : RoomDatabase() {
 
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE plants ADD COLUMN mistingIntervalDays INTEGER")
                 db.execSQL("ALTER TABLE plants ADD COLUMN repottingIntervalDays INTEGER")
             }
         }

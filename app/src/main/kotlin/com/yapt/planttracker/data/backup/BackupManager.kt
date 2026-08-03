@@ -23,7 +23,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 8 (#232): mistingIntervalDays/repottingIntervalDays added to BackupPlant.
+// Schema 8 (#232): repottingIntervalDays added to BackupPlant.
 // Schema 7 (#223): fertilizingNotificationsEnabled added to BackupSettings.
 // Schema 6 (#139): themeMode added to BackupSettings.
 // Schema 5 (#480): photoReminderEnabled added to BackupSettings.
@@ -115,7 +115,6 @@ class BackupManager(
                     notes = entity.notes,
                     wateringIntervalDays = entity.wateringIntervalDays,
                     fertilizingIntervalDays = entity.fertilizingIntervalDays,
-                    mistingIntervalDays = entity.mistingIntervalDays,
                     repottingIntervalDays = entity.repottingIntervalDays,
                     createdAt = entity.createdAt,
                     updatedAt = entity.updatedAt,
@@ -301,7 +300,6 @@ class BackupManager(
                     notes = bp.notes,
                     wateringIntervalDays = bp.wateringIntervalDays,
                     fertilizingIntervalDays = bp.fertilizingIntervalDays,
-                    mistingIntervalDays = bp.mistingIntervalDays,
                     repottingIntervalDays = bp.repottingIntervalDays,
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,

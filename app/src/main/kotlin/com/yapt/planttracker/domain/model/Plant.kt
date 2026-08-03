@@ -14,6 +14,5 @@ data class Plant(
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
     val archivedAt: Long? = null,
-    val mistingIntervalDays: Int? = null,
     val repottingIntervalDays: Int? = null
 )

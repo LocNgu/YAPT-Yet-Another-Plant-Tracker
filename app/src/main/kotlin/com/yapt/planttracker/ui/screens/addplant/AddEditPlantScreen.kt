@@ -335,35 +335,6 @@ fun AddEditPlantScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (viewModel.mistingIntervalEnabled) {
-                            stringResource(R.string.misting_interval_label, viewModel.mistingIntervalDays)
-                        } else {
-                            stringResource(R.string.misting_reminder_label)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = viewModel.mistingIntervalEnabled,
-                        onCheckedChange = { viewModel.mistingIntervalEnabled = it }
-                    )
-                }
-                if (viewModel.mistingIntervalEnabled) {
-                    Slider(
-                        value = viewModel.mistingIntervalDays.toFloat(),
-                        onValueChange = { viewModel.mistingIntervalDays = it.roundToInt() },
-                        valueRange = 1f..30f,
-                        steps = 28
-                    )
-                }
-            }
-
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
                         text = if (viewModel.repottingIntervalEnabled) {
                             pluralStringResource(
                                 R.plurals.repotting_interval_label,

@@ -90,21 +90,6 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork posts a reminder for a plant overdue for misting`() = runBlocking {
-        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        // Never-misted plant: first-due anchors at createdAt + interval (far in the past here),
-        // so it is overdue and the worker's conditional lastMisting query must fire.
-        app.plantRepository.addPlant(
-            Plant(name = "Orchid", mistingIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        )
-
-        val result = runWorker()
-
-        assertEquals(ListenableWorker.Result.success(), result)
-        assertEquals(1, shadowOf(notificationManager).size())
-    }
-
-    @Test
     fun `doWork posts a reminder for a plant overdue for repotting`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         // Never-repotted plant: first-due anchors at createdAt + interval (far in the past here),

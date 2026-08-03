@@ -24,7 +24,6 @@ class BackupModelsTest {
         notes = notes,
         wateringIntervalDays = wateringIntervalDays,
         fertilizingIntervalDays = fertilizingIntervalDays,
-        mistingIntervalDays = mistingIntervalDays,
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -39,7 +38,6 @@ class BackupModelsTest {
         notes = notes,
         wateringIntervalDays = wateringIntervalDays,
         fertilizingIntervalDays = fertilizingIntervalDays,
-        mistingIntervalDays = mistingIntervalDays,
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -78,7 +76,6 @@ class BackupModelsTest {
         notes = "Loves humidity",
         wateringIntervalDays = 7,
         fertilizingIntervalDays = 14,
-        mistingIntervalDays = 3,
         repottingIntervalDays = 365,
         createdAt = 1_000_000_000_000L,
         updatedAt = 1_100_000_000_000L
@@ -108,7 +105,6 @@ class BackupModelsTest {
         assertEquals(fullPlant.notes, bp.notes)
         assertEquals(fullPlant.wateringIntervalDays, bp.wateringIntervalDays)
         assertEquals(fullPlant.fertilizingIntervalDays, bp.fertilizingIntervalDays)
-        assertEquals(fullPlant.mistingIntervalDays, bp.mistingIntervalDays)
         assertEquals(fullPlant.repottingIntervalDays, bp.repottingIntervalDays)
         assertEquals(fullPlant.createdAt, bp.createdAt)
         assertEquals(fullPlant.updatedAt, bp.updatedAt)

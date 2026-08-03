@@ -140,12 +140,10 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `misting and repotting intervals saved when enabled in new plant mode`() = runTest {
+    fun `repotting interval saved when enabled in new plant mode`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 7L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Calathea"
-        vm.mistingIntervalEnabled = true
-        vm.mistingIntervalDays = 4
         vm.repottingIntervalEnabled = true
         vm.repottingIntervalMonths = 12
 
@@ -157,16 +155,16 @@ class AddEditPlantViewModelTest {
 
         // Repotting is picked in months and persisted as months * 30 days.
         coVerify {
-            plantRepo.addPlant(match { it.mistingIntervalDays == 4 && it.repottingIntervalDays == 360 })
+            plantRepo.addPlant(match { it.repottingIntervalDays == 360 })
         }
     }
 
     @Test
-    fun `disabled extended intervals are saved as null`() = runTest {
+    fun `disabled repotting interval is saved as null`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 8L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Snake Plant"
-        // mistingIntervalDays/repottingIntervalDays have non-zero defaults but the toggles are off
+        // repottingIntervalMonths has a non-zero default but the toggle is off
 
         vm.events.test {
             vm.save()
@@ -175,19 +173,17 @@ class AddEditPlantViewModelTest {
         }
 
         coVerify {
-            plantRepo.addPlant(match { it.mistingIntervalDays == null && it.repottingIntervalDays == null })
+            plantRepo.addPlant(match { it.repottingIntervalDays == null })
         }
     }
 
     @Test
-    fun `misting and repotting intervals round-trip through edit mode`() = runTest {
-        val calathea = plant().copy(mistingIntervalDays = 5, repottingIntervalDays = 720)
+    fun `repotting interval round-trips through edit mode`() = runTest {
+        val calathea = plant().copy(repottingIntervalDays = 720)
         every { plantRepo.getPlantById(1L) } returns flowOf(calathea)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertTrue(vm.mistingIntervalEnabled)
-        assertEquals(5, vm.mistingIntervalDays)
         assertTrue(vm.repottingIntervalEnabled)
         // 720 stored days -> 24 months in the picker.
         assertEquals(24, vm.repottingIntervalMonths)
@@ -199,7 +195,7 @@ class AddEditPlantViewModelTest {
         }
 
         coVerify {
-            plantRepo.updatePlant(match { it.mistingIntervalDays == 5 && it.repottingIntervalDays == 720 })
+            plantRepo.updatePlant(match { it.repottingIntervalDays == 720 })
         }
     }
 

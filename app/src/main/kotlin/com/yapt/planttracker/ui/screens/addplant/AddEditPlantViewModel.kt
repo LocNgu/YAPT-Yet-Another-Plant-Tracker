@@ -38,8 +38,6 @@ class AddEditPlantViewModel(
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
     var useLiquidFertilizer by mutableStateOf(false)
-    var mistingIntervalDays by mutableIntStateOf(7)
-    var mistingIntervalEnabled by mutableStateOf(false)
 
     /**
      * Repotting is scheduled in **months**, not days — nobody repots on a day-precise cadence, and
@@ -74,10 +72,6 @@ class AddEditPlantViewModel(
                     plant.fertilizingIntervalDays?.let {
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
-                    }
-                    plant.mistingIntervalDays?.let {
-                        mistingIntervalDays = it
-                        mistingIntervalEnabled = true
                     }
                     plant.repottingIntervalDays?.let {
                         repottingIntervalMonths = (it / DAYS_PER_MONTH).coerceIn(
@@ -115,7 +109,6 @@ class AddEditPlantViewModel(
                 coverPhotoUri = coverPhotoUri,
                 wateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null,
                 fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
-                mistingIntervalDays = if (mistingIntervalEnabled) mistingIntervalDays else null,
                 repottingIntervalDays = if (repottingIntervalEnabled) {
                     repottingIntervalMonths * DAYS_PER_MONTH
                 } else {

@@ -28,7 +28,6 @@ object CareSchedule {
         lastFertilizedAt: Long?,
         totalLogs: Int,
         now: Long = System.currentTimeMillis(),
-        lastMistedAt: Long? = null,
         lastRepottedAt: Long? = null
     ): PlantCareStatus {
         val daysSinceWatering = lastWateredAt?.let {
@@ -39,8 +38,6 @@ object CareSchedule {
         val (nextDueAt, isOverdue, isDueSoon) = computeWateringDue(plant, lastWateredAt, now, nowDate)
         val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
-        val (nextMistingDueAt, isMistingOverdue, isMistingDueSoon) =
-            computeExtendedCareDue(plant.mistingIntervalDays, lastMistedAt, plant.createdAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
 
@@ -56,10 +53,6 @@ object CareSchedule {
             isFertilizingOverdue = isFertilizingOverdue,
             isFertilizingDueSoon = isFertilizingDueSoon,
             totalCareLogs = totalLogs,
-            lastMistedAt = lastMistedAt,
-            nextMistingDueAt = nextMistingDueAt,
-            isMistingOverdue = isMistingOverdue,
-            isMistingDueSoon = isMistingDueSoon,
             lastRepottedAt = lastRepottedAt,
             nextRepottingDueAt = nextRepottingDueAt,
             isRepottingOverdue = isRepottingOverdue,
@@ -111,7 +104,7 @@ object CareSchedule {
     }
 
     /**
-     * Due date for an extended-care reminder (misting, repotting). Returns `null` when the interval
+     * Due date for an extended-care reminder (currently repotting). Returns `null` when the interval
      * is unset. For a plant that has never had this care logged, the first due date is anchored to
      * `createdAt + interval` rather than the day the reminder was enabled — a newly acquired plant
      * was presumably just misted/repotted, so it should not fire immediately (see product ADR-0022).

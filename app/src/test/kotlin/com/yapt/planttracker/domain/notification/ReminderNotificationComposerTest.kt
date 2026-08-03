@@ -25,7 +25,6 @@ class ReminderNotificationComposerTest {
         fertilizingIntervalDays: Int? = null,
         useLiquidFertilizer: Boolean = false,
         createdAt: Long = now,
-        mistingIntervalDays: Int? = null,
         repottingIntervalDays: Int? = null
     ) = Plant(
         id = id,
@@ -34,7 +33,6 @@ class ReminderNotificationComposerTest {
         fertilizingIntervalDays = fertilizingIntervalDays,
         useLiquidFertilizer = useLiquidFertilizer,
         createdAt = createdAt,
-        mistingIntervalDays = mistingIntervalDays,
         repottingIntervalDays = repottingIntervalDays
     )
 
@@ -226,23 +224,7 @@ class ReminderNotificationComposerTest {
         assertEquals(3, ReminderNotificationComposer.computeDueReminders(statuses, now).size)
     }
 
-    // ---- Extended care types: misting & repotting (#232) ----
-
-    @Test
-    fun `computeCareReminderItems returns MistingOverdue when misting is overdue`() {
-        val status = CareSchedule.computeStatus(
-            plant = plantWith(mistingIntervalDays = 3),
-            lastWateredAt = null,
-            lastFertilizedAt = null,
-            totalLogs = 0,
-            now = now,
-            lastMistedAt = now - TimeUnit.DAYS.toMillis(10)
-        )
-
-        val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
-        assertEquals(1, items.size)
-        assertTrue(items[0] is CareReminderItem.MistingOverdue)
-    }
+    // ---- Extended care type: repotting (#232) ----
 
     @Test
     fun `computeCareReminderItems returns RepottingDueToday when repotting due soon`() {
@@ -261,20 +243,18 @@ class ReminderNotificationComposerTest {
     }
 
     @Test
-    fun `computeCareReminderItems combines watering misting and repotting when all due`() {
+    fun `computeCareReminderItems combines watering and repotting when both due`() {
         val status = CareSchedule.computeStatus(
-            plant = plantWith(wateringIntervalDays = 7, mistingIntervalDays = 3, repottingIntervalDays = 365),
+            plant = plantWith(wateringIntervalDays = 7, repottingIntervalDays = 365),
             lastWateredAt = now - TimeUnit.DAYS.toMillis(10),
             lastFertilizedAt = null,
             totalLogs = 0,
             now = now,
-            lastMistedAt = now - TimeUnit.DAYS.toMillis(10),
             lastRepottedAt = now - TimeUnit.DAYS.toMillis(400)
         )
 
         val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
         assertTrue(items.any { it is CareReminderItem.WateringOverdue })
-        assertTrue(items.any { it is CareReminderItem.MistingOverdue })
         assertTrue(items.any { it is CareReminderItem.RepottingOverdue })
     }
 }

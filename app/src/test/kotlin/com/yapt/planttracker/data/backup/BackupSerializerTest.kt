@@ -20,7 +20,6 @@ class BackupSerializerTest {
                 notes = "Loves humidity",
                 wateringIntervalDays = 7,
                 fertilizingIntervalDays = 14,
-                mistingIntervalDays = 3,
                 repottingIntervalDays = 365,
                 createdAt = 1_000_000_000_000L,
                 updatedAt = 1_100_000_000_000L,

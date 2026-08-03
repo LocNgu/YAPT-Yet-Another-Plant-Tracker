@@ -12,7 +12,6 @@ data class BackupPlant(
     val notes: String? = null,
     val wateringIntervalDays: Int? = null,
     val fertilizingIntervalDays: Int? = null,
-    val mistingIntervalDays: Int? = null,
     val repottingIntervalDays: Int? = null,
     val createdAt: Long,
     val updatedAt: Long,

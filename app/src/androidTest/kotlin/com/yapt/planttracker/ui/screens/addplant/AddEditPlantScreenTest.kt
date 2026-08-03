@@ -204,25 +204,6 @@ class AddEditPlantScreenTest {
     }
 
     @Test
-    fun mistingToggle_enabled_showsIntervalLabel() {
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
-        }
-
-        // Disabled: the row shows the generic reminder label (scroll it into view — it sits near
-        // the bottom of the scrollable form, below watering and fertilizing).
-        composeTestRule.onNodeWithText("Misting reminder").performScrollTo().assertIsDisplayed()
-
-        // Enabling the toggle is exactly `mistingIntervalEnabled = it`; drive that state directly
-        // (avoids asserting on Row/Column node topology) and verify the interval label is revealed.
-        composeTestRule.runOnIdle { viewModel.mistingIntervalEnabled = true }
-
-        composeTestRule.onNodeWithText("Mist every 7 days").performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
     fun repottingToggle_enabled_showsIntervalLabel() {
         val viewModel = makeViewModel()
 
