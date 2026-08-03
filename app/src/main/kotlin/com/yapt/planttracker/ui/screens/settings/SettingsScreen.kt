@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -118,10 +119,24 @@ fun SettingsScreen(
     // Screen-scoped: a fresh remember{} on every entry into Settings, so leaving the screen
     // and returning always starts the countdown over (#520 AC3 — no wall-clock timeout).
     var versionTapCount by remember { mutableIntStateOf(0) }
+    // Set on the unlocking tap so the LaunchedEffect below scrolls the newly revealed
+    // Developer section into view. Not set when Settings simply opens with it already on.
+    var justUnlockedDeveloperMode by remember { mutableStateOf(false) }
+    val settingsScrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val versionRowClickLabel = stringResource(R.string.cd_version_row_show_version)
     val devModeEnabledMessage = stringResource(R.string.dev_mode_enabled_snackbar)
     val devModeDisabledMessage = stringResource(R.string.dev_mode_disabled_snackbar)
+
+    // The Developer section renders at the very bottom of Settings, so on unlock it would
+    // otherwise appear off-screen with no indication anything happened.
+    LaunchedEffect(developerModeEnabled) {
+        if (developerModeEnabled && justUnlockedDeveloperMode) {
+            justUnlockedDeveloperMode = false
+            withFrameNanos { } // let the newly added section be laid out before measuring
+            settingsScrollState.animateScrollTo(settingsScrollState.maxValue)
+        }
+    }
     val timePickerState = key(reminderHour, reminderMinute) {
         rememberTimePickerState(
             initialHour = reminderHour,
@@ -320,7 +335,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(settingsScrollState)
         ) {
             Text(
                 text = stringResource(R.string.settings_section_appearance),
@@ -497,6 +512,10 @@ fun SettingsScreen(
                         versionTapCount = result.newTapCount
                         when (val outcome = result.outcome) {
                             is DeveloperModeTapOutcome.Countdown -> coroutineScope.launch {
+                                // Replace rather than queue: showSnackbar suspends until the
+                                // current one goes away, so without this a fast tapper reads a
+                                // stale "N taps away" well after unlocking.
+                                snackbarHostState.currentSnackbarData?.dismiss()
                                 snackbarHostState.showSnackbar(
                                     context.resources.getQuantityString(
                                         R.plurals.dev_mode_countdown_taps_away,
@@ -506,8 +525,12 @@ fun SettingsScreen(
                                 )
                             }
                             DeveloperModeTapOutcome.Unlocked -> {
+                                justUnlockedDeveloperMode = true
                                 viewModel.setDeveloperModeEnabled(true)
-                                coroutineScope.launch { snackbarHostState.showSnackbar(devModeEnabledMessage) }
+                                coroutineScope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    snackbarHostState.showSnackbar(devModeEnabledMessage)
+                                }
                             }
                             DeveloperModeTapOutcome.Silent, DeveloperModeTapOutcome.Inert -> Unit
                         }
