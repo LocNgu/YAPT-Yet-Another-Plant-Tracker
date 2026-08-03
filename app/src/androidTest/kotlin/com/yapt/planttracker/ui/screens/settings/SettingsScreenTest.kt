@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.settings
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -251,9 +253,19 @@ class SettingsScreenTest {
         assert(called)
     }
 
+    /**
+     * Taps the About version row [times] times via its click semantics action rather than an
+     * injected touch.
+     *
+     * From tap 3 onward the gesture shows a countdown Snackbar, which the Scaffold renders at
+     * the bottom of the screen - directly over the version row, since About sits near the end
+     * of Settings. An injected touch would be consumed by the Snackbar, so taps 4 and 5 would
+     * never reach the row. Invoking the semantics action bypasses hit-testing entirely.
+     */
     private fun tapVersionRow(times: Int) {
         repeat(times) {
-            composeTestRule.onNodeWithTag("settings_about_version_row").performScrollTo().performClick()
+            composeTestRule.onNodeWithTag("settings_about_version_row")
+                .performSemanticsAction(SemanticsActions.OnClick)
             composeTestRule.waitForIdle()
         }
     }
@@ -315,7 +327,7 @@ class SettingsScreenTest {
         tapVersionRow(5)
         waitForDeveloperSwitch(present = true)
 
-        composeTestRule.onNodeWithTag("developer_mode_switch").performScrollTo().assertIsOn()
+        composeTestRule.onNodeWithTag("developer_mode_switch").assertIsOn()
     }
 
     @Test
@@ -331,7 +343,11 @@ class SettingsScreenTest {
 
         tapVersionRow(5)
         waitForDeveloperSwitch(present = true)
-        composeTestRule.onNodeWithTag("developer_mode_switch").performScrollTo().performClick()
+
+        // The "Developer mode enabled" Snackbar is showing over the switch at this point,
+        // so go through the semantics action here too rather than an injected touch.
+        composeTestRule.onNodeWithTag("developer_mode_switch")
+            .performSemanticsAction(SemanticsActions.OnClick)
         waitForDeveloperSwitch(present = false)
 
         composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
