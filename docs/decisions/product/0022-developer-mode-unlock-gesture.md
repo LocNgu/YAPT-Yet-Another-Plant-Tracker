@@ -38,7 +38,21 @@ Turning developer mode off is done via a master **Developer mode** `Switch` at t
 
 ## Extended by #521
 
-*(Filled in by #521 — do not edit the sections above when adding this.)*
+#521 built the feature-flag mechanism on top of the shell #520 shipped: the `FeatureFlag` data class, an **empty** `FeatureFlagRegistry`, the `FeatureFlags` application singleton, and the registry-driven flag rows in the Developer section.
+
+**Flag registry and mechanism.** `data class FeatureFlag(key, titleRes, descriptionRes, default)` is declared once, in a single `object FeatureFlagRegistry { val all: List<FeatureFlag> }`. The registry **ships empty** — the first real flag arrives with the first experimental feature (#508–#513); no sample/fake flag is shipped to prove the mechanism. `FeatureFlags` is a `YaptApplication` lazy singleton wrapping `settingsDataStore` (technical ADR-0001, ADR-0009), exposing an observable `isEnabled(flag): Flow<Boolean>`, `setEnabled(flag, enabled)`, and `resetAll()`. Each flag's DataStore key is derived from `flag.key` (`"feature_flag_" + key`) so adding or removing a flag never needs a schema/migration. `FeatureFlags` itself carries the flag list it manages (`flags: List<FeatureFlag> = FeatureFlagRegistry.all`) — this is the injectable seam that lets a Compose test supply a test-only registry entry (proving the generic rendering) without shipping that entry to users. The Settings screen renders one row per flag — title, description, `Switch` — generated **generically** from `viewModel.flags`; adding a flag requires only a registry entry and its two string resources, no new Settings UI code. With an empty registry the flag area shows an empty state ("No feature flags in this build"); the master switch and build-info rows still render regardless.
+
+**Defaults: every flag off, in both build types.** A flag's default lives on its own `FeatureFlag.default` field, not hardcoded per build type — but by policy every shipped flag's default is `false`. There is no "flags default on in debug" carve-out (consistent with the availability decision above: developer mode itself behaves identically in debug and release).
+
+**Backup exclusion.** Neither developer mode nor any flag value is written to or read from `BackupSettings` — backup schema stays at v6, untouched by this feature area. Flags are device-local, transient experiment state; a mid-experiment backup restored to a fresh install must not silently enable a half-finished feature that install's build may not even support.
+
+**Reset-on-disable.** Turning developer mode off calls `FeatureFlags.resetAll()`, returning every currently-registered flag to its registry default. This is wired into the master switch's off path (`SettingsViewModel.setDeveloperModeEnabled(false)`) — the seam #520 deliberately left there. Consequence: "developer mode off" always means a stock build with zero hidden state, never a build with a flag silently still on from a previous session. Re-enabling developer mode never restores prior flag values — the user opts back into each flag explicitly.
+
+**No `restartRequired` marker — deliberately deferred, not overlooked.** With the observable-singleton design, "no restart" is the default behaviour of a Flow-backed value: `FeatureFlags.isEnabled()` recomposes any collector immediately on write, so AC15 ("a flag toggle takes effect without an app restart") is satisfied for free by the mechanism itself, not by extra code. A `restartRequired` escape hatch would cost an extra registry field, a string resource, a UI branch, and its own test surface — built for **zero** current flags, since the registry ships empty. It is purely additive to introduce later (one defaulted field on `FeatureFlag`, no migration) on the day a real flag actually needs it (e.g. one that gates a value read once at process start). Until then, every flag in the registry is assumed to be safely hot-swappable.
+
+**Flag lifecycle: flags never accumulate.** When an experimental feature graduates (ships unconditionally) or is abandoned, its `FeatureFlag` entry **and both code paths** (the flag-on and flag-off branches) are deleted in the same PR that makes the decision. The registry is not a permanent settings surface or an audit log — a flag that outlives its experiment is technical debt. This is why the registry is expected to often be empty or near-empty in practice, not just at initial ship.
+
+*(This section was filled in by #521; the sections above are #520's and were not edited.)*
 
 ## Consequences
 

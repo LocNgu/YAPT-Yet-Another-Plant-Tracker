@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.settings
 
+import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -11,16 +12,24 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -37,24 +46,37 @@ class SettingsScreenTest {
     private lateinit var dataStoreScope: CoroutineScope
     private lateinit var viewModel: SettingsViewModel
     private lateinit var dataStoreFile: File
+    private lateinit var context: Context
+    private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var plantRepository: PlantRepository
+
+    private val testFlag = FeatureFlag(
+        key = "test_flag",
+        titleRes = R.string.feature_flag_test_title,
+        descriptionRes = R.string.feature_flag_test_description,
+        default = false
+    )
 
     @Before
     fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context = ApplicationProvider.getApplicationContext()
         database = Room.inMemoryDatabaseBuilder(context, PlantDatabase::class.java)
             .allowMainThreadQueries()
             .build()
 
         dataStoreScope = CoroutineScope(Dispatchers.IO)
         dataStoreFile = File(context.cacheDir, "settings_test_${System.nanoTime()}.preferences_pb")
-        val dataStore = PreferenceDataStoreFactory.create(
+        dataStore = PreferenceDataStoreFactory.create(
             scope = dataStoreScope,
             produceFile = { dataStoreFile }
         )
 
-        val plantRepository = PlantRepository(database.plantDao())
+        plantRepository = PlantRepository(database.plantDao())
         viewModel = SettingsViewModel(dataStore, context, database, plantRepository)
     }
+
+    private fun buildViewModelWithFlags(flags: List<FeatureFlag>) =
+        SettingsViewModel(dataStore, context, database, plantRepository, featureFlags = FeatureFlags(dataStore, flags))
 
     @After
     fun tearDown() {
@@ -351,5 +373,70 @@ class SettingsScreenTest {
         waitForDeveloperSwitch(present = false)
 
         composeTestRule.onNodeWithTag("developer_mode_switch").assertDoesNotExist()
+    }
+
+    @Test
+    fun featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("No feature flags in this build").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun injectedFeatureFlag_rendersTitleDescriptionAndSwitch() {
+        val flagViewModel = buildViewModelWithFlags(listOf(testFlag))
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = flagViewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Test flag").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Used only by Compose tests to prove registry-driven rendering.")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").assertIsOff()
+    }
+
+    @Test
+    fun injectedFeatureFlag_togglingFlipsPersistedValue() {
+        val flagViewModel = buildViewModelWithFlags(listOf(testFlag))
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = flagViewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").performScrollTo().assertIsOff()
+        composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("feature_flag_switch_test_flag").assertIsOn()
+
+        // Read the underlying DataStore directly (rather than the ViewModel's StateFlow) to
+        // prove the toggle actually persisted, not just updated in-memory Compose state.
+        val persisted = runBlocking { dataStore.data.first()[FeatureFlags.preferenceKeyFor(testFlag)] }
+        assertEquals(true, persisted)
     }
 }

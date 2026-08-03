@@ -15,6 +15,8 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -34,8 +37,11 @@ class SettingsViewModel(
     private val context: Context,
     private val database: PlantDatabase,
     private val plantRepository: PlantRepository,
+    private val featureFlags: FeatureFlags = FeatureFlags(dataStore),
     private val backupManager: BackupManagerInterface = BackupManager(context, database, dataStore)
 ) : ViewModel() {
+
+    val flags: List<FeatureFlag> get() = featureFlags.flags
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true }
@@ -79,6 +85,17 @@ class SettingsViewModel(
         .map { it[SettingsKeys.DEVELOPER_MODE_ENABLED] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val featureFlagStates: StateFlow<Map<String, Boolean>> = if (flags.isEmpty()) {
+        MutableStateFlow(emptyMap())
+    } else {
+        combine(flags.map { flag -> featureFlags.isEnabled(flag).map { flag.key to it } }) { pairs -> pairs.toMap() }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                flags.associate { it.key to it.default }
+            )
+    }
+
     private val _backupResult = MutableSharedFlow<BackupResult>()
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
 
@@ -118,9 +135,17 @@ class SettingsViewModel(
     fun setDeveloperModeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
-            // Seam for #521: once FeatureFlags exists, call FeatureFlags.resetAll() here
-            // when `enabled` is false, so turning developer mode off also resets every flag
-            // to its registry default. No flags exist yet, so there is nothing to reset.
+            // Turning developer mode off resets every flag to its registry default (product
+            // ADR-0022) so "developer mode off" always means a stock build with no hidden state.
+            if (!enabled && featureFlags.flags.isNotEmpty()) {
+                featureFlags.resetAll()
+            }
+        }
+    }
+
+    fun setFlagEnabled(flag: FeatureFlag, enabled: Boolean) {
+        viewModelScope.launch {
+            featureFlags.setEnabled(flag, enabled)
         }
     }
 
@@ -194,10 +219,11 @@ class SettingsViewModel(
         private val dataStore: DataStore<Preferences>,
         private val context: Context,
         private val database: PlantDatabase,
-        private val plantRepository: PlantRepository
+        private val plantRepository: PlantRepository,
+        private val featureFlags: FeatureFlags
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(dataStore, context, database, plantRepository) as T
+            SettingsViewModel(dataStore, context, database, plantRepository, featureFlags) as T
     }
 }
