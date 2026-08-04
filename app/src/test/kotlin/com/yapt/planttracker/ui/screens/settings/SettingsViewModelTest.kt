@@ -11,6 +11,8 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
@@ -60,6 +62,17 @@ class SettingsViewModelTest {
         context = mockContext,
         database = mockDatabase,
         plantRepository = mockPlantRepository,
+        backupManager = mockBackupManager
+    )
+
+    private val testFlag = FeatureFlag(key = "test_flag", titleRes = 1, descriptionRes = 2, default = true)
+
+    private fun buildVmWithFlags() = SettingsViewModel(
+        dataStore = mockDataStore,
+        context = mockContext,
+        database = mockDatabase,
+        plantRepository = mockPlantRepository,
+        featureFlags = FeatureFlags(mockDataStore, flags = listOf(testFlag)),
         backupManager = mockBackupManager
     )
 
@@ -280,6 +293,105 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `featureFlagStates is empty when the injected flag list is empty`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.featureFlagStates.test {
+            assertEquals(emptyMap<String, Boolean>(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `featureFlagStates emits the flag's registry default when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns null
+        vm = buildVmWithFlags()
+
+        vm.featureFlagStates.test {
+            assertEquals(mapOf("test_flag" to true), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `featureFlagStates emits the persisted value when present`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns false
+        vm = buildVmWithFlags()
+
+        vm.featureFlagStates.test {
+            assertEquals(mapOf("test_flag" to false), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFlagEnabled persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setFlagEnabled(testFlag, false)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(false) does not touch DataStore a second time when there are no flags`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setDeveloperModeEnabled(false)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(false) resets every flag to its registry default`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setDeveloperModeEnabled(false)
+        advanceUntilIdle()
+
+        // One write for DEVELOPER_MODE_ENABLED, one for FeatureFlags.resetAll(flags).
+        coVerify(exactly = 2) { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(true) does not reset flags`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setDeveloperModeEnabled(true)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { mockDataStore.updateData(any()) }
     }
 
     @Test

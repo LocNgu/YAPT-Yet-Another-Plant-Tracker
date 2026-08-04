@@ -319,4 +319,6 @@
     <string name="dev_mode_build_info_build_type_title">Build type</string>
     <string name="dev_mode_build_info_db_version_title">Database version</string>
     <string name="dev_mode_build_info_api_level_title">Device API level</string>
+    <string name="dev_mode_feature_flags_section_title">Feature flags</string>
+    <string name="dev_mode_feature_flags_empty">No feature flags in this build</string>
 </resources>

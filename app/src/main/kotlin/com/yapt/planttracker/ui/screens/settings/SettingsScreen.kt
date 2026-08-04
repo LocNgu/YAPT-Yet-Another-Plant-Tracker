@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
@@ -113,6 +114,7 @@ fun SettingsScreen(
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
+    val featureFlagStates by viewModel.featureFlagStates.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -613,6 +615,37 @@ fun SettingsScreen(
                     title = stringResource(R.string.dev_mode_build_info_api_level_title),
                     subtitle = Build.VERSION.SDK_INT.toString()
                 )
+
+                Text(
+                    text = stringResource(R.string.dev_mode_feature_flags_section_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+
+                if (viewModel.flags.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.dev_mode_feature_flags_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                } else {
+                    viewModel.flags.forEach { flag ->
+                        SettingsItemRow(
+                            icon = Icons.Filled.Flag,
+                            title = stringResource(flag.titleRes),
+                            subtitle = stringResource(flag.descriptionRes),
+                            trailingContent = {
+                                Switch(
+                                    modifier = Modifier.testTag("feature_flag_switch_${flag.key}"),
+                                    checked = featureFlagStates[flag.key] ?: flag.default,
+                                    onCheckedChange = { enabled -> viewModel.setFlagEnabled(flag, enabled) }
+                                )
+                            }
+                        )
+                    }
+                }
             }
         }
     }
