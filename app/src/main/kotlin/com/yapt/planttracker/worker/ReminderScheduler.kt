@@ -2,6 +2,7 @@ package com.yapt.planttracker.worker
 
 import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.Calendar
@@ -33,5 +34,15 @@ object ReminderScheduler {
 
     fun cancel(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(ReminderWorker.WORK_NAME)
+    }
+
+    /**
+     * Runs [ReminderWorker] once, immediately, outside the daily periodic schedule. Used by the
+     * developer-mode "Run reminder check now" debug action so notification changes can be
+     * verified without waiting for the scheduled time.
+     */
+    fun runNow(context: Context) {
+        val request = OneTimeWorkRequestBuilder<ReminderWorker>().build()
+        WorkManager.getInstance(context).enqueue(request)
     }
 }

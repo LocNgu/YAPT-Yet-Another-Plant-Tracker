@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -462,5 +463,83 @@ class SettingsScreenTest {
         // prove the toggle actually persisted, not just updated in-memory Compose state.
         val persisted = runBlocking { dataStore.data.first()[FeatureFlags.preferenceKeyFor(testFlag)] }
         assertEquals(true, persisted)
+    }
+
+    @Test
+    fun resetWhatsNewRow_isDisplayed_afterUnlock() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Reset What's New seen state").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun resetWhatsNewRow_onClick_showsConfirmationSnackbar() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithTag("dev_mode_reset_whats_new_row").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("What's New seen state reset").assertIsDisplayed()
+    }
+
+    @Test
+    fun runReminderCheckRow_isDisplayed_afterUnlock() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Run reminder check now").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun runReminderCheckRow_onClick_showsSnackbar() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithTag("dev_mode_run_reminder_check_row").performScrollTo().performClick()
+
+        // POST_NOTIFICATIONS may or may not be granted on the test device, so either the
+        // confirmation or the explanatory denied message is an acceptable outcome here - what
+        // matters is that tapping the row always surfaces one of the two, never a crash.
+        composeTestRule.onNode(
+            hasText("Reminder check enqueued") or
+                hasText("Notifications are disabled for this app, so no reminder was posted")
+        ).assertIsDisplayed()
     }
 }

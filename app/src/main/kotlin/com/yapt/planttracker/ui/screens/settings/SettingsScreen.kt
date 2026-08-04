@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Storage
@@ -176,6 +178,13 @@ fun SettingsScreen(
         uri?.let {
             pendingRestoreUri = it
             showRestoreConfirmDialog = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.debugActionEvent.collect { message ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -646,6 +655,29 @@ fun SettingsScreen(
                         )
                     }
                 }
+
+                Text(
+                    text = stringResource(R.string.dev_mode_debug_actions_section_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Restore,
+                    title = stringResource(R.string.dev_mode_action_reset_whats_new_title),
+                    subtitle = stringResource(R.string.dev_mode_action_reset_whats_new_subtitle),
+                    modifier = Modifier.testTag("dev_mode_reset_whats_new_row"),
+                    onClick = { viewModel.resetWhatsNewSeenState() }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.NotificationsActive,
+                    title = stringResource(R.string.dev_mode_action_run_reminder_check_title),
+                    subtitle = stringResource(R.string.dev_mode_action_run_reminder_check_subtitle),
+                    modifier = Modifier.testTag("dev_mode_run_reminder_check_row"),
+                    onClick = { viewModel.runReminderCheckNow() }
+                )
             }
         }
     }

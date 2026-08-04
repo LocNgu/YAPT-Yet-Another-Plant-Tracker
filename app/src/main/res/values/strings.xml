@@ -321,4 +321,12 @@
     <string name="dev_mode_build_info_api_level_title">Device API level</string>
     <string name="dev_mode_feature_flags_section_title">Feature flags</string>
     <string name="dev_mode_feature_flags_empty">No feature flags in this build</string>
+    <string name="dev_mode_debug_actions_section_title">Debug actions</string>
+    <string name="dev_mode_action_reset_whats_new_title">Reset What\'s New seen state</string>
+    <string name="dev_mode_action_reset_whats_new_subtitle">Makes the What\'s New sheet auto-show on next launch</string>
+    <string name="dev_mode_reset_whats_new_snackbar">What\'s New seen state reset</string>
+    <string name="dev_mode_action_run_reminder_check_title">Run reminder check now</string>
+    <string name="dev_mode_action_run_reminder_check_subtitle">Posts real notifications for any plant that\'s due</string>
+    <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
+    <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
 </resources>
