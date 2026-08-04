@@ -10,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -72,6 +73,20 @@ class FeatureFlagsTest {
 
         assertEquals(false, featureFlags.isEnabled(flagOffByDefault).first())
         assertEquals(true, featureFlags.isEnabled(flagOnByDefault).first())
+    }
+
+    @Test
+    fun `constructor throws on duplicate flag keys`() {
+        val duplicateKeyFlag = FeatureFlag(
+            key = flagOffByDefault.key,
+            titleRes = 5,
+            descriptionRes = 6,
+            default = true
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            FeatureFlags(dataStore, flags = listOf(flagOffByDefault, duplicateKeyFlag))
+        }
     }
 
     @Test

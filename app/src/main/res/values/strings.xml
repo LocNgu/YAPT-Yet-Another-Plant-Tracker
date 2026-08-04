@@ -311,9 +311,4 @@
     <string name="dev_mode_build_info_api_level_title">Device API level</string>
     <string name="dev_mode_feature_flags_section_title">Feature flags</string>
     <string name="dev_mode_feature_flags_empty">No feature flags in this build</string>
-    <!-- Test-only strings. Not referenced by FeatureFlagRegistry.all (which ships empty) -
-         used by SettingsScreenTest to prove the registry-driven flag row renders generically
-         from an injected test entry, per #521 AC33. -->
-    <string name="feature_flag_test_title">Test flag</string>
-    <string name="feature_flag_test_description">Used only by Compose tests to prove registry-driven rendering.</string>
 </resources>

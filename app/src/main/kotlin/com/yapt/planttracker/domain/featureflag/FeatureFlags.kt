@@ -23,6 +23,14 @@ class FeatureFlags(
     val flags: List<FeatureFlag> = FeatureFlagRegistry.all
 ) {
 
+    init {
+        val duplicateKeys = flags.groupBy { it.key }.filterValues { it.size > 1 }.keys
+        require(duplicateKeys.isEmpty()) {
+            "Duplicate FeatureFlag key(s) found: $duplicateKeys — each flag must have a unique " +
+                "key, since two flags sharing a key would collide on the same DataStore boolean."
+        }
+    }
+
     fun isEnabled(flag: FeatureFlag): Flow<Boolean> =
         dataStore.data.map { prefs -> prefs[preferenceKeyFor(flag)] ?: flag.default }
 
