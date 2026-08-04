@@ -304,4 +304,19 @@
     </plurals>
     <string name="bulk_delete_confirm_button">Move</string>
     <string name="bulk_delete_cancel_button">Cancel</string>
+    <string name="cd_version_row_show_version">Show app version</string>
+    <plurals name="dev_mode_countdown_taps_away">
+        <item quantity="one">You are 1 tap away from developer mode</item>
+        <item quantity="other">You are %d taps away from developer mode</item>
+    </plurals>
+    <string name="dev_mode_enabled_snackbar">Developer mode enabled</string>
+    <string name="dev_mode_disabled_snackbar">Developer mode disabled</string>
+    <string name="dev_mode_section_title">Developer</string>
+    <string name="dev_mode_master_switch_title">Developer mode</string>
+    <string name="dev_mode_master_switch_subtitle">Turn off to hide this section; tap the version 5 times to return</string>
+    <string name="dev_mode_build_info_version_title">Version</string>
+    <string name="dev_mode_build_info_version_value">%1$s (%2$d)</string>
+    <string name="dev_mode_build_info_build_type_title">Build type</string>
+    <string name="dev_mode_build_info_db_version_title">Database version</string>
+    <string name="dev_mode_build_info_api_level_title">Device API level</string>
 </resources>
