@@ -11,5 +11,9 @@ data class PlantCareStatus(
     val nextFertilizingDueAt: Long?,
     val isFertilizingOverdue: Boolean,
     val isFertilizingDueSoon: Boolean,
-    val totalCareLogs: Int
+    val totalCareLogs: Int,
+    val lastRepottedAt: Long? = null,
+    val nextRepottingDueAt: Long? = null,
+    val isRepottingOverdue: Boolean = false,
+    val isRepottingDueSoon: Boolean = false
 )
