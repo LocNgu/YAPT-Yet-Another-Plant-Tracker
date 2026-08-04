@@ -224,6 +224,30 @@ class ReminderNotificationComposerTest {
         assertEquals(3, ReminderNotificationComposer.computeDueReminders(statuses, now).size)
     }
 
+    @Test
+    fun `computeDueReminders keeps a repotting-only plant when fertilizing notifications are off`() {
+        // Regression: the #223 filter used to drop any plant with no *watering* item, which
+        // silently swallowed repotting-only reminders once repotting (#232) existed. The toggle
+        // must only suppress reminders whose sole reason to fire is fertilizing.
+        val repottingOnly = CareSchedule.computeStatus(
+            plant = plantWith(id = 1L, repottingIntervalDays = 365),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            lastRepottedAt = now - TimeUnit.DAYS.toMillis(400)
+        )
+
+        val reminders = ReminderNotificationComposer.computeDueReminders(
+            listOf(repottingOnly),
+            now,
+            fertilizingNotificationsEnabled = false
+        )
+
+        assertEquals(1, reminders.size)
+        assertTrue(reminders[0].items.any { it is CareReminderItem.RepottingOverdue })
+    }
+
     // ---- Extended care type: repotting (#232) ----
 
     @Test

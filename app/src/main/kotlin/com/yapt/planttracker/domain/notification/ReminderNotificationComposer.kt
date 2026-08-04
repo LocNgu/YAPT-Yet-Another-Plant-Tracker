@@ -56,10 +56,14 @@ object ReminderNotificationComposer {
     }
 
     /**
-     * @param fertilizingNotificationsEnabled when `false`, a plant whose only due care is
-     *   fertilizing (no watering item) is dropped — a fertilize being due is not urgent enough to
-     *   notify on its own (#223). Plants that are also watering-due keep their full body, including
-     *   the fertilizing line, because the watering urgency makes the reminder timely regardless.
+     * @param fertilizingNotificationsEnabled when `false`, a plant whose due care is *only*
+     *   fertilizing is dropped — a fertilize being due is not urgent enough to notify on its own
+     *   (#223). A plant that also has any non-fertilizing item (watering, repotting) keeps its full
+     *   body, including the fertilizing line, because that other care makes the reminder timely
+     *   regardless. Note this deliberately tests "every item is a fertilizing item" rather than
+     *   "has no watering item": those were equivalent when watering and fertilizing were the only
+     *   reminder types, but repotting (#232) made them differ, and the latter would have silently
+     *   suppressed repotting-only reminders.
      */
     fun computeDueReminders(
         statuses: List<PlantCareStatus>,
@@ -70,11 +74,19 @@ object ReminderNotificationComposer {
             val items = computeCareReminderItems(status, now)
             when {
                 items.isEmpty() -> null
-                !fertilizingNotificationsEnabled && !items.hasWateringItem() -> null
+                !fertilizingNotificationsEnabled && items.isFertilizingOnly() -> null
                 else -> DuePlantReminder(status, items)
             }
         }
 
-    private fun List<CareReminderItem>.hasWateringItem(): Boolean =
-        any { it is CareReminderItem.WateringOverdue || it is CareReminderItem.WateringDueToday }
+    /**
+     * True when every composed item is a fertilizing item, i.e. fertilizing is the *only* reason
+     * this plant would be notified. `FertilizeWithWatering` is only ever added alongside a watering
+     * item, so it cannot make a list fertilizing-only on its own.
+     */
+    private fun List<CareReminderItem>.isFertilizingOnly(): Boolean = all {
+        it is CareReminderItem.FertilizingOverdue ||
+            it is CareReminderItem.FertilizingDueToday ||
+            it is CareReminderItem.FertilizeWithWatering
+    }
 }
