@@ -22,7 +22,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.yapt.planttracker.test.R as TestR
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -57,8 +57,8 @@ class SettingsScreenTest {
 
     private val testFlag = FeatureFlag(
         key = "test_flag",
-        titleRes = TestR.string.feature_flag_test_title,
-        descriptionRes = TestR.string.feature_flag_test_description,
+        titleRes = R.string.feature_flag_test_title,
+        descriptionRes = R.string.feature_flag_test_description,
         default = false
     )
 
