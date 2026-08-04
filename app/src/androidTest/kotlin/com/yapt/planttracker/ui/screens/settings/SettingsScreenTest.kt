@@ -6,7 +6,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -518,28 +517,11 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Run reminder check now").performScrollTo().assertIsDisplayed()
     }
 
-    @Test
-    fun runReminderCheckRow_onClick_showsSnackbar() {
-        composeTestRule.setContent {
-            SettingsScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onRestoreSuccess = { _, _ -> },
-                onShowWhatsNew = {}
-            )
-        }
-
-        tapVersionRow(5)
-        waitForDeveloperSwitch(present = true)
-
-        composeTestRule.onNodeWithTag("dev_mode_run_reminder_check_row").performScrollTo().performClick()
-
-        // POST_NOTIFICATIONS may or may not be granted on the test device, so either the
-        // confirmation or the explanatory denied message is an acceptable outcome here - what
-        // matters is that tapping the row always surfaces one of the two, never a crash.
-        composeTestRule.onNode(
-            hasText("Reminder check enqueued") or
-                hasText("Notifications are disabled for this app, so no reminder was posted")
-        ).assertIsDisplayed()
-    }
+    // The click-through outcome of "Run reminder check now" is deliberately not asserted here.
+    // Its two branches depend on the POST_NOTIFICATIONS grant state, which this suite does not
+    // control, so the only assertion possible on-device was "one of the two messages appeared" -
+    // which cannot tell a correct branch from an incorrect one. Both branches are pinned exactly
+    // in SettingsViewModelTest (granted -> ReminderScheduler.runNow + confirmation; denied ->
+    // no enqueue + explanatory message), and the row-click -> debugActionEvent -> snackbar wiring
+    // is covered deterministically by resetWhatsNewRow_onClick_showsConfirmationSnackbar above.
 }
