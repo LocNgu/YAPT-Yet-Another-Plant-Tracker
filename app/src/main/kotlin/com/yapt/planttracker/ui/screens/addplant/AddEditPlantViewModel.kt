@@ -74,10 +74,7 @@ class AddEditPlantViewModel(
                         fertilizingIntervalEnabled = true
                     }
                     plant.repottingIntervalDays?.let {
-                        repottingIntervalMonths = (it / DAYS_PER_MONTH).coerceIn(
-                            MIN_REPOTTING_MONTHS,
-                            MAX_REPOTTING_MONTHS
-                        )
+                        repottingIntervalMonths = daysToRepottingMonths(it)
                         repottingIntervalEnabled = true
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
@@ -162,6 +159,16 @@ class AddEditPlantViewModel(
     companion object {
         /** Whole-month approximation used to convert the repotting interval to/from stored days. */
         const val DAYS_PER_MONTH = 30
+
+        /**
+         * Stored days → the months shown on the slider, rounded to the nearest whole month and
+         * clamped into the slider's range. Values written by this screen are always exact multiples
+         * of [DAYS_PER_MONTH], but a restored backup (or a value from a future/other client) need
+         * not be — rounding keeps 405 days reading as 14 months rather than truncating to 13.
+         */
+        fun daysToRepottingMonths(days: Int): Int =
+            ((days + DAYS_PER_MONTH / 2) / DAYS_PER_MONTH)
+                .coerceIn(MIN_REPOTTING_MONTHS, MAX_REPOTTING_MONTHS)
 
         /** Roughly a quarter — the shortest cadence that makes sense for a fast-growing young plant. */
         const val MIN_REPOTTING_MONTHS = 3

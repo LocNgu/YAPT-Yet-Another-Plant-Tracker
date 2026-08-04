@@ -200,6 +200,18 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
+    fun `stored repotting days not a multiple of 30 round to the nearest month`() = runTest {
+        // 405 days is 13.5 months — rounds up to 14 rather than truncating to 13. Only reachable
+        // via restored/imported data, since this screen always writes exact multiples of 30.
+        val imported = plant().copy(repottingIntervalDays = 405)
+        every { plantRepo.getPlantById(1L) } returns flowOf(imported)
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertTrue(vm.repottingIntervalEnabled)
+        assertEquals(14, vm.repottingIntervalMonths)
+    }
+
+    @Test
     fun `stored repotting days below the month floor clamp to the minimum`() = runTest {
         // A 30-day stored interval (1 month) predates the months-based picker / is out of its range.
         val fastGrower = plant().copy(repottingIntervalDays = 30)
