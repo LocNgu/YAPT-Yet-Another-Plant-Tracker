@@ -88,6 +88,7 @@ import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -161,8 +162,9 @@ fun SettingsScreen(
     // Single ordered stream every snackbar-producing source emits into, collected by exactly one
     // LaunchedEffect below. Prevents the uncoordinated dismiss()+showSnackbar() races that used
     // to happen when multiple coroutines wrote to snackbarHostState directly (#522). A newer
-    // message REPLACES whatever is currently showing rather than queuing behind it — buffer of 1
-    // with DROP_OLDEST keeps only the latest not-yet-collected message.
+    // message REPLACES whatever is currently showing rather than queuing behind it — the buffer
+    // keeps only the latest not-yet-collected message, and the collector below uses
+    // collectLatest so an already-showing snackbar is cancelled rather than waited out.
     val snackbarMessages = remember {
         MutableSharedFlow<String>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     }
@@ -215,9 +217,15 @@ fun SettingsScreen(
 
     // The one and only collector allowed to touch snackbarHostState directly — every other
     // snackbar-producing source above/below emits into snackbarMessages instead.
+    //
+    // collectLatest, not collect: showSnackbar() suspends until its snackbar is dismissed or
+    // times out, so a plain collect would sit parked inside it and only reach the next message
+    // seconds later — turning "replace" into "queue" and making a debug action's confirmation
+    // appear behind stale unlock-countdown text. collectLatest cancels the in-flight
+    // showSnackbar when a newer message arrives, which removes the current snackbar, so no
+    // explicit dismiss() is needed.
     LaunchedEffect(Unit) {
-        snackbarMessages.collect { message ->
-            snackbarHostState.currentSnackbarData?.dismiss()
+        snackbarMessages.collectLatest { message ->
             snackbarHostState.showSnackbar(message)
         }
     }

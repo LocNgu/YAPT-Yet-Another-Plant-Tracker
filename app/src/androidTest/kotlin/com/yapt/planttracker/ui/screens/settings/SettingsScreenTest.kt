@@ -500,6 +500,36 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("What's New seen state reset").assertIsDisplayed()
     }
 
+    /**
+     * Pins the "newer message replaces the current one" contract of the single snackbar stream.
+     *
+     * The 5 version-row taps leave "Developer mode enabled" showing; clicking a debug row
+     * immediately after must swap that message out for the debug confirmation, not queue behind
+     * it. A plain `collect` in the stream's collector parks inside `showSnackbar` until the
+     * current snackbar times out, which regressed this into queueing and made the confirmation
+     * appear seconds late (caught on CI, fixed by collecting with `collectLatest`).
+     */
+    @Test
+    fun debugActionSnackbar_replacesTheUnlockSnackbar_ratherThanQueuingBehindIt() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+        composeTestRule.onNodeWithText("Developer mode enabled").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("dev_mode_reset_whats_new_row").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("What's New seen state reset").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Developer mode enabled").assertDoesNotExist()
+    }
+
     @Test
     fun runReminderCheckRow_isDisplayed_afterUnlock() {
         composeTestRule.setContent {
