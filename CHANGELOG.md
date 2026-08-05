@@ -21,6 +21,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - Plant Detail: the watering-history chart's axis labels, axis lines, and guidelines were rendered in white on the light chart surface when the app's in-app theme was set to **Light** while the device's system theme was **Dark**. Vico's default chart theme derives those colours from `isSystemInDarkTheme()` rather than the app's Light/Dark/System toggle (#139), so a forced-Light app on a Dark device drew dark-theme (white) chart chrome. The chart now provides an M3-derived Vico theme (`ProvideVicoTheme(rememberM3VicoTheme())`) so its colours follow the app's actual Material theme in both light and dark modes
+- Settings: rapid taps on the version row (developer-mode unlock countdown), the Developer mode switch, backup export/import results, and the new debug actions could each post a Snackbar on the same host at once, so one message could dismiss or immediately supersede another before it was readable. All Settings snackbar messages now go through a single ordered queue with one collector, so a newer message still replaces an older one but never races it (#522)
 
 ---
 

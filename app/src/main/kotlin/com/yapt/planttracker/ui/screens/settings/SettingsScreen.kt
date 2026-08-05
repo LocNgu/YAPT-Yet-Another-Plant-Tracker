@@ -64,7 +64,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -87,7 +86,8 @@ import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -127,7 +127,6 @@ fun SettingsScreen(
     // Developer section into view. Not set when Settings simply opens with it already on.
     var justUnlockedDeveloperMode by remember { mutableStateOf(false) }
     val settingsScrollState = rememberScrollState()
-    val coroutineScope = rememberCoroutineScope()
     val versionRowClickLabel = stringResource(R.string.cd_version_row_show_version)
     val devModeEnabledMessage = stringResource(R.string.dev_mode_enabled_snackbar)
     val devModeDisabledMessage = stringResource(R.string.dev_mode_disabled_snackbar)
@@ -159,6 +158,14 @@ fun SettingsScreen(
     var pendingFutureSchemaOnDismiss by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    // Single ordered stream every snackbar-producing source emits into, collected by exactly one
+    // LaunchedEffect below. Prevents the uncoordinated dismiss()+showSnackbar() races that used
+    // to happen when multiple coroutines wrote to snackbarHostState directly (#522). A newer
+    // message REPLACES whatever is currently showing rather than queuing behind it — buffer of 1
+    // with DROP_OLDEST keeps only the latest not-yet-collected message.
+    val snackbarMessages = remember {
+        MutableSharedFlow<String>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    }
     val exportSuccessFormat = stringResource(R.string.backup_export_success)
     val errorFormat = stringResource(R.string.backup_error)
 
@@ -182,17 +189,14 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.debugActionEvent.collect { message ->
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(message)
-        }
+        viewModel.debugActionEvent.collect { message -> snackbarMessages.tryEmit(message) }
     }
 
     LaunchedEffect(Unit) {
         viewModel.backupResult.collect { result ->
             when (result) {
                 is BackupResult.ExportSuccess ->
-                    snackbarHostState.showSnackbar(
+                    snackbarMessages.tryEmit(
                         String.format(exportSuccessFormat, result.plantCount, result.logCount)
                     )
                 is BackupResult.ImportSuccess ->
@@ -204,8 +208,17 @@ fun SettingsScreen(
                     showFutureSchemaDialog = true
                 }
                 is BackupResult.Error ->
-                    snackbarHostState.showSnackbar(String.format(errorFormat, result.message))
+                    snackbarMessages.tryEmit(String.format(errorFormat, result.message))
             }
+        }
+    }
+
+    // The one and only collector allowed to touch snackbarHostState directly — every other
+    // snackbar-producing source above/below emits into snackbarMessages instead.
+    LaunchedEffect(Unit) {
+        snackbarMessages.collect { message ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -522,26 +535,20 @@ fun SettingsScreen(
                         val result = DeveloperModeUnlock.registerTap(versionTapCount, developerModeEnabled)
                         versionTapCount = result.newTapCount
                         when (val outcome = result.outcome) {
-                            is DeveloperModeTapOutcome.Countdown -> coroutineScope.launch {
-                                // Replace rather than queue: showSnackbar suspends until the
-                                // current one goes away, so without this a fast tapper reads a
-                                // stale "N taps away" well after unlocking.
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                snackbarHostState.showSnackbar(
-                                    context.resources.getQuantityString(
-                                        R.plurals.dev_mode_countdown_taps_away,
-                                        outcome.tapsRemaining,
-                                        outcome.tapsRemaining
-                                    )
+                            // Replace rather than queue: a newer message supersedes whatever the
+                            // single collector is currently showing, so a fast tapper never reads
+                            // a stale "N taps away" well after unlocking.
+                            is DeveloperModeTapOutcome.Countdown -> snackbarMessages.tryEmit(
+                                context.resources.getQuantityString(
+                                    R.plurals.dev_mode_countdown_taps_away,
+                                    outcome.tapsRemaining,
+                                    outcome.tapsRemaining
                                 )
-                            }
+                            )
                             DeveloperModeTapOutcome.Unlocked -> {
                                 justUnlockedDeveloperMode = true
                                 viewModel.setDeveloperModeEnabled(true)
-                                coroutineScope.launch {
-                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                    snackbarHostState.showSnackbar(devModeEnabledMessage)
-                                }
+                                snackbarMessages.tryEmit(devModeEnabledMessage)
                             }
                             DeveloperModeTapOutcome.Silent, DeveloperModeTapOutcome.Inert -> Unit
                         }
@@ -590,7 +597,7 @@ fun SettingsScreen(
                             onCheckedChange = { enabled ->
                                 viewModel.setDeveloperModeEnabled(enabled)
                                 if (!enabled) {
-                                    coroutineScope.launch { snackbarHostState.showSnackbar(devModeDisabledMessage) }
+                                    snackbarMessages.tryEmit(devModeDisabledMessage)
                                 }
                             }
                         )

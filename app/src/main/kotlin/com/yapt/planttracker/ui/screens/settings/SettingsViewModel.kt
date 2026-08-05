@@ -1,10 +1,7 @@
 package com.yapt.planttracker.ui.screens.settings
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -21,6 +18,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -165,9 +163,7 @@ class SettingsViewModel(
 
     fun runReminderCheckNow() {
         viewModelScope.launch {
-            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            if (granted) {
+            if (NotificationPermission.isGranted(context)) {
                 ReminderScheduler.runNow(context)
                 _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_snackbar))
             } else {

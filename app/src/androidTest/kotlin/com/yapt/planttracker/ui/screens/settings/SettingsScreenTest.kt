@@ -517,11 +517,20 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Run reminder check now").performScrollTo().assertIsDisplayed()
     }
 
-    // The click-through outcome of "Run reminder check now" is deliberately not asserted here.
-    // Its two branches depend on the POST_NOTIFICATIONS grant state, which this suite does not
-    // control, so the only assertion possible on-device was "one of the two messages appeared" -
-    // which cannot tell a correct branch from an incorrect one. Both branches are pinned exactly
-    // in SettingsViewModelTest (granted -> ReminderScheduler.runNow + confirmation; denied ->
-    // no enqueue + explanatory message), and the row-click -> debugActionEvent -> snackbar wiring
-    // is covered deterministically by resetWhatsNewRow_onClick_showsConfirmationSnackbar above.
+    // The click-through outcome of "Run reminder check now" is deliberately not asserted here,
+    // for two reasons. First, its two branches depend on the POST_NOTIFICATIONS grant state,
+    // which this suite does not control, so the only assertion possible on-device was "one of
+    // the two messages appeared" - which cannot tell a correct branch from an incorrect one.
+    // Second, an earlier attempt at this test (`runReminderCheckRow_onClick_showsSnackbar`)
+    // intermittently failed on CI with the snackbar node present but not displayed: multiple
+    // uncoordinated coroutines (this row's debugActionEvent, the version-row tap countdown, the
+    // backup-result collector) were each calling dismiss()+showSnackbar() on the same
+    // SnackbarHostState, so a message could be shown and immediately superseded before the test
+    // could observe it. That race is now fixed - every snackbar producer routes through a single
+    // ordered stream with one collector (see SettingsScreen.kt) - but the underlying grant-state
+    // non-determinism from the first reason still rules out a dual-outcome assertion here.
+    // Both branches are pinned exactly in SettingsViewModelTest (granted -> ReminderScheduler.runNow
+    // + confirmation; denied -> no enqueue + explanatory message), and the row-click ->
+    // debugActionEvent -> snackbar wiring is covered deterministically by
+    // resetWhatsNewRow_onClick_showsConfirmationSnackbar above.
 }
