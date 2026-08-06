@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
@@ -17,6 +18,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -102,6 +104,9 @@ class SettingsViewModel(
     private val _isBackupInProgress = MutableStateFlow(false)
     val isBackupInProgress: StateFlow<Boolean> = _isBackupInProgress.asStateFlow()
 
+    private val _debugActionEvent = MutableSharedFlow<String>()
+    val debugActionEvent: SharedFlow<String> = _debugActionEvent.asSharedFlow()
+
     fun setKeepScreenOn(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.KEEP_SCREEN_ON] = enabled }
@@ -146,6 +151,24 @@ class SettingsViewModel(
     fun setFlagEnabled(flag: FeatureFlag, enabled: Boolean) {
         viewModelScope.launch {
             featureFlags.setEnabled(flag, enabled)
+        }
+    }
+
+    fun resetWhatsNewSeenState() {
+        viewModelScope.launch {
+            dataStore.edit { it.remove(SettingsKeys.LAST_SEEN_VERSION_CODE) }
+            _debugActionEvent.emit(context.getString(R.string.dev_mode_reset_whats_new_snackbar))
+        }
+    }
+
+    fun runReminderCheckNow() {
+        viewModelScope.launch {
+            if (NotificationPermission.isGranted(context)) {
+                ReminderScheduler.runNow(context)
+                _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_snackbar))
+            } else {
+                _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_denied_snackbar))
+            }
         }
     }
 

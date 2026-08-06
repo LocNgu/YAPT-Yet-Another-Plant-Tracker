@@ -463,4 +463,104 @@ class SettingsScreenTest {
         val persisted = runBlocking { dataStore.data.first()[FeatureFlags.preferenceKeyFor(testFlag)] }
         assertEquals(true, persisted)
     }
+
+    @Test
+    fun resetWhatsNewRow_isDisplayed_afterUnlock() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Reset What's New seen state").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun resetWhatsNewRow_onClick_showsConfirmationSnackbar() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithTag("dev_mode_reset_whats_new_row").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("What's New seen state reset").assertIsDisplayed()
+    }
+
+    /**
+     * Pins the "newer message replaces the current one" contract of the single snackbar stream.
+     *
+     * The 5 version-row taps leave "Developer mode enabled" showing; clicking a debug row
+     * immediately after must swap that message out for the debug confirmation, not queue behind
+     * it. A plain `collect` in the stream's collector parks inside `showSnackbar` until the
+     * current snackbar times out, which regressed this into queueing and made the confirmation
+     * appear seconds late (caught on CI, fixed by collecting with `collectLatest`).
+     */
+    @Test
+    fun debugActionSnackbar_replacesTheUnlockSnackbar_ratherThanQueuingBehindIt() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+        composeTestRule.onNodeWithText("Developer mode enabled").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("dev_mode_reset_whats_new_row").performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText("What's New seen state reset").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Developer mode enabled").assertDoesNotExist()
+    }
+
+    @Test
+    fun runReminderCheckRow_isDisplayed_afterUnlock() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Run reminder check now").performScrollTo().assertIsDisplayed()
+    }
+
+    // The click-through outcome of "Run reminder check now" is deliberately not asserted here,
+    // for two reasons. First, its two branches depend on the POST_NOTIFICATIONS grant state,
+    // which this suite does not control, so the only assertion possible on-device was "one of
+    // the two messages appeared" - which cannot tell a correct branch from an incorrect one.
+    // Second, an earlier attempt at this test (`runReminderCheckRow_onClick_showsSnackbar`)
+    // intermittently failed on CI with the snackbar node present but not displayed: multiple
+    // uncoordinated coroutines (this row's debugActionEvent, the version-row tap countdown, the
+    // backup-result collector) were each calling dismiss()+showSnackbar() on the same
+    // SnackbarHostState, so a message could be shown and immediately superseded before the test
+    // could observe it. That race is now fixed - every snackbar producer routes through a single
+    // ordered stream with one collector (see SettingsScreen.kt) - but the underlying grant-state
+    // non-determinism from the first reason still rules out a dual-outcome assertion here.
+    // Both branches are pinned exactly in SettingsViewModelTest (granted -> ReminderScheduler.runNow
+    // + confirmation; denied -> no enqueue + explanatory message), and the row-click ->
+    // debugActionEvent -> snackbar wiring is covered deterministically by
+    // resetWhatsNewRow_onClick_showsConfirmationSnackbar above.
 }

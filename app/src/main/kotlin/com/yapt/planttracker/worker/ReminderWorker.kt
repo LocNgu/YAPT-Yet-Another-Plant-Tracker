@@ -1,13 +1,10 @@
 package com.yapt.planttracker.worker
 
-import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.yapt.planttracker.MainActivity
@@ -21,6 +18,7 @@ import com.yapt.planttracker.domain.notification.DuePlantReminder
 import com.yapt.planttracker.domain.notification.ReminderNotificationComposer
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.flow.first
@@ -31,9 +29,7 @@ class ReminderWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!NotificationPermission.isGranted(context)) {
             return Result.success()
         }
 
