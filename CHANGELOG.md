@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- The Plant Detail per-action tabs (#436) now ship **behind a feature flag**, off by default. Turn it on via Settings → (tap the version row 5 times) → Developer → **Plant Detail tabs** to switch between the new tabbed layout and the classic single-page Plant Detail at any time (#436)
 - Plant Detail now organises care into per-action tabs — **Water · Fertilize · Repot · Photo** — shown below the plant photo. The watering-history chart lives under the Water tab (with recent misting), the photo gallery under the Photo tab, and each of Fertilize/Repot shows its own care history; Prune and Note stay in the full care-history list below the tabs. The quick-log stat chips and the **+** log button are unchanged. First step of the larger Plant Detail restructure (#436)
 
 ### Added

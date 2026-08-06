@@ -69,11 +69,17 @@ class SettingsViewModelTest {
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
+    /**
+     * A ViewModel with an explicitly **empty** flag list. Pinned here rather than relying on the
+     * default [FeatureFlagRegistry], which ships real flags now (#436) — the "no flags" tests below
+     * assert empty-registry behaviour and must not change meaning as flags come and go.
+     */
     private fun buildVm() = SettingsViewModel(
         dataStore = mockDataStore,
         context = mockContext,
         database = mockDatabase,
         plantRepository = mockPlantRepository,
+        featureFlags = FeatureFlags(mockDataStore, flags = emptyList()),
         backupManager = mockBackupManager
     )
 

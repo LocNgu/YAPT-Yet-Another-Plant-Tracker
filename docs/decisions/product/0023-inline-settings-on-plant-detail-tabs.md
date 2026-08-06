@@ -1,4 +1,4 @@
-# Product ADR-0022: Scheduling settings are editable inline on Plant Detail tabs
+# Product ADR-0023: Scheduling settings are editable inline on Plant Detail tabs
 
 **Status**: accepted
 

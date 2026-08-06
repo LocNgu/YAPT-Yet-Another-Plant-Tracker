@@ -114,6 +114,7 @@ fun PlantDetailScreen(
     val showSkipDialog by viewModel.showSkipDialog.collectAsStateWithLifecycle()
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
+    val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
@@ -460,224 +461,269 @@ fun PlantDetailScreen(
                         }
                     }
 
-                    // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
-                    item {
-                        PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
-                            PlantDetailTab.entries.forEach { tab ->
-                                Tab(
-                                    selected = selectedTab == tab,
-                                    onClick = { selectedTab = tab },
-                                    text = { Text(stringResource(tab.labelRes)) },
-                                    icon = { Icon(tab.icon, contentDescription = null) }
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    when (selectedTab) {
-                        PlantDetailTab.WATER -> {
-                            item {
-                                InlineIntervalSetting(
-                                    setting = IntervalSetting(
-                                        enabled = plant?.wateringIntervalDays != null,
-                                        days = plant?.wateringIntervalDays
-                                            ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
-                                        range = 1..60,
-                                        enabledLabelRes = R.string.watering_interval_label,
-                                        disabledLabelRes = R.string.watering_reminder_label
-                                    ),
-                                    onIntervalChange = { viewModel.setWateringInterval(it) }
-                                )
-                                Spacer(Modifier.height(16.dp))
-                            }
-                            item {
-                                val insights = careTypeInsightItems(
-                                    summary = CareInsights.summarize(careLogs, CareType.WATER),
-                                    countLabel = stringResource(R.string.insight_waterings),
-                                    lastAtLabel = null
-                                )
-                                if (insights.isNotEmpty()) {
-                                    TabInsightsCard(insights)
+                    if (!tabsEnabled) {
+                        // Classic single-page layout (feature flag off): skip button, chart, gallery.
+                        careStatus?.let { status ->
+                            if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
+                                item {
+                                    OutlinedButton(
+                                        onClick = { viewModel.requestSkip() },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp)
+                                    ) {
+                                        Text(stringResource(R.string.skip_watering_title))
+                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
-                            careStatus?.let { status ->
-                                if (plant?.wateringIntervalDays != null &&
-                                    (status.isOverdue || status.isDueSoon)
-                                ) {
-                                    item {
-                                        OutlinedButton(
-                                            onClick = { viewModel.requestSkip() },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp)
-                                        ) {
-                                            Text(stringResource(R.string.skip_watering_title))
-                                        }
+                        }
+                        item {
+                            WateringHistoryChart(
+                                careLogs = careLogs,
+                                selectedRange = selectedTimeRange,
+                                onRangeSelected = { viewModel.setTimeRange(it) }
+                            )
+                        }
+                        if (galleryPhotos.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = stringResource(R.string.plant_detail_photos_section),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                                PhotoGallery(
+                                    photoUris = galleryUris,
+                                    onPhotoClick = { uri ->
+                                        fullScreenPhotoIndex =
+                                            galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                                    }
+                                )
+                                Spacer(Modifier.height(16.dp))
+                            }
+                        }
+                    }
+
+                    // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
+                    if (tabsEnabled) {
+                        item {
+                            PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+                                PlantDetailTab.entries.forEach { tab ->
+                                    Tab(
+                                        selected = selectedTab == tab,
+                                        onClick = { selectedTab = tab },
+                                        text = { Text(stringResource(tab.labelRes)) },
+                                        icon = { Icon(tab.icon, contentDescription = null) }
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        when (selectedTab) {
+                            PlantDetailTab.WATER -> {
+                                item {
+                                    InlineIntervalSetting(
+                                        setting = IntervalSetting(
+                                            enabled = plant?.wateringIntervalDays != null,
+                                            days = plant?.wateringIntervalDays
+                                                ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
+                                            range = 1..60,
+                                            enabledLabelRes = R.string.watering_interval_label,
+                                            disabledLabelRes = R.string.watering_reminder_label
+                                        ),
+                                        onIntervalChange = { viewModel.setWateringInterval(it) }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                item {
+                                    val insights = careTypeInsightItems(
+                                        summary = CareInsights.summarize(careLogs, CareType.WATER),
+                                        countLabel = stringResource(R.string.insight_waterings),
+                                        lastAtLabel = null
+                                    )
+                                    if (insights.isNotEmpty()) {
+                                        TabInsightsCard(insights)
                                         Spacer(Modifier.height(16.dp))
                                     }
                                 }
-                            }
-                            item {
-                                WateringHistoryChart(
-                                    careLogs = careLogs,
-                                    selectedRange = selectedTimeRange,
-                                    onRangeSelected = { viewModel.setTimeRange(it) }
-                                )
-                            }
-                            // Misting is folded into the Water tab (#436): a recent-mists list.
-                            val mistLogs = careLogs.filter { it.careType == CareType.MIST }
-                            if (mistLogs.isNotEmpty()) {
-                                item {
-                                    Text(
-                                        text = stringResource(R.string.plant_detail_misting_section),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                    )
-                                }
-                                items(mistLogs, key = { "mist-${it.id}" }) { log ->
-                                    CareLogItem(
-                                        log = log,
-                                        onEdit = { onNavigateToEditLog(log.id) },
-                                        onDelete = { viewModel.deleteLog(log) }
-                                    )
-                                }
-                            }
-                        }
-
-                        PlantDetailTab.FERTILIZE -> {
-                            item {
-                                InlineIntervalSetting(
-                                    setting = IntervalSetting(
-                                        enabled = plant?.fertilizingIntervalDays != null,
-                                        days = plant?.fertilizingIntervalDays
-                                            ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
-                                        range = 1..90,
-                                        enabledLabelRes = R.string.fertilizing_interval_label,
-                                        disabledLabelRes = R.string.fertilizing_reminder_label
-                                    ),
-                                    onIntervalChange = { viewModel.setFertilizingInterval(it) }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                careStatus?.let { status ->
+                                    if (plant?.wateringIntervalDays != null &&
+                                        (status.isOverdue || status.isDueSoon)
                                     ) {
-                                        Text(
-                                            text = stringResource(R.string.liquid_fertilizer_label),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Switch(
-                                            checked = plant?.useLiquidFertilizer == true,
-                                            onCheckedChange = { viewModel.setLiquidFertilizer(it) }
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.height(16.dp))
-                            }
-                            item {
-                                val insights = careTypeInsightItems(
-                                    summary = CareInsights.summarize(careLogs, CareType.FERTILIZE),
-                                    countLabel = stringResource(R.string.insight_fertilizings),
-                                    lastAtLabel = null
-                                )
-                                if (insights.isNotEmpty()) {
-                                    TabInsightsCard(insights)
-                                    Spacer(Modifier.height(16.dp))
-                                }
-                            }
-                            val fertLogs = careLogs.filter { it.careType == CareType.FERTILIZE }
-                            if (fertLogs.isEmpty()) {
-                                item {
-                                    Box(modifier = Modifier.height(160.dp)) {
-                                        EmptyStateView(
-                                            message = stringResource(R.string.plant_detail_tab_fertilize_empty),
-                                            icon = Icons.Filled.Spa
-                                        )
-                                    }
-                                }
-                            } else {
-                                items(fertLogs, key = { "fert-${it.id}" }) { log ->
-                                    CareLogItem(
-                                        log = log,
-                                        onEdit = { onNavigateToEditLog(log.id) },
-                                        onDelete = { viewModel.deleteLog(log) }
-                                    )
-                                }
-                            }
-                        }
-
-                        PlantDetailTab.REPOT -> {
-                            item {
-                                val insights = careTypeInsightItems(
-                                    summary = CareInsights.summarize(careLogs, CareType.REPOT),
-                                    countLabel = stringResource(R.string.insight_repottings),
-                                    lastAtLabel = stringResource(R.string.insight_last_repotted)
-                                )
-                                if (insights.isNotEmpty()) {
-                                    TabInsightsCard(insights)
-                                    Spacer(Modifier.height(16.dp))
-                                }
-                            }
-                            val repotLogs = careLogs.filter { it.careType == CareType.REPOT }
-                            if (repotLogs.isEmpty()) {
-                                item {
-                                    Box(modifier = Modifier.height(160.dp)) {
-                                        EmptyStateView(
-                                            message = stringResource(R.string.plant_detail_tab_repot_empty),
-                                            icon = Icons.Filled.LocalFlorist
-                                        )
-                                    }
-                                }
-                            } else {
-                                items(repotLogs, key = { "repot-${it.id}" }) { log ->
-                                    CareLogItem(
-                                        log = log,
-                                        onEdit = { onNavigateToEditLog(log.id) },
-                                        onDelete = { viewModel.deleteLog(log) }
-                                    )
-                                }
-                            }
-                        }
-
-                        PlantDetailTab.PHOTO -> {
-                            item {
-                                val summary = CareInsights.summarizePhotos(galleryPhotos)
-                                if (summary.count > 0) {
-                                    val items = mutableListOf(
-                                        stringResource(R.string.insight_photos) to summary.count.toString()
-                                    )
-                                    val first = summary.firstAt
-                                    val last = summary.lastAt
-                                    if (first != null && last != null && first != last) {
-                                        items += stringResource(R.string.insight_first_photo) to DateUtils.formatDate(first)
-                                        items += stringResource(R.string.insight_latest_photo) to DateUtils.formatDate(last)
-                                    }
-                                    TabInsightsCard(items)
-                                    Spacer(Modifier.height(16.dp))
-                                }
-                            }
-                            if (galleryPhotos.isEmpty()) {
-                                item {
-                                    Box(modifier = Modifier.height(160.dp)) {
-                                        EmptyStateView(
-                                            message = stringResource(R.string.plant_detail_tab_photo_empty),
-                                            icon = Icons.Filled.PhotoLibrary
-                                        )
-                                    }
-                                }
-                            } else {
-                                item {
-                                    PhotoGallery(
-                                        photoUris = galleryUris,
-                                        onPhotoClick = { uri ->
-                                            fullScreenPhotoIndex =
-                                                galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                                        item {
+                                            OutlinedButton(
+                                                onClick = { viewModel.requestSkip() },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp)
+                                            ) {
+                                                Text(stringResource(R.string.skip_watering_title))
+                                            }
+                                            Spacer(Modifier.height(16.dp))
                                         }
+                                    }
+                                }
+                                item {
+                                    WateringHistoryChart(
+                                        careLogs = careLogs,
+                                        selectedRange = selectedTimeRange,
+                                        onRangeSelected = { viewModel.setTimeRange(it) }
                                     )
+                                }
+                                // Misting is folded into the Water tab (#436): a recent-mists list.
+                                val mistLogs = careLogs.filter { it.careType == CareType.MIST }
+                                if (mistLogs.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = stringResource(R.string.plant_detail_misting_section),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                    items(mistLogs, key = { "mist-${it.id}" }) { log ->
+                                        CareLogItem(
+                                            log = log,
+                                            onEdit = { onNavigateToEditLog(log.id) },
+                                            onDelete = { viewModel.deleteLog(log) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            PlantDetailTab.FERTILIZE -> {
+                                item {
+                                    InlineIntervalSetting(
+                                        setting = IntervalSetting(
+                                            enabled = plant?.fertilizingIntervalDays != null,
+                                            days = plant?.fertilizingIntervalDays
+                                                ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
+                                            range = 1..90,
+                                            enabledLabelRes = R.string.fertilizing_interval_label,
+                                            disabledLabelRes = R.string.fertilizing_reminder_label
+                                        ),
+                                        onIntervalChange = { viewModel.setFertilizingInterval(it) }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.liquid_fertilizer_label),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Switch(
+                                                checked = plant?.useLiquidFertilizer == true,
+                                                onCheckedChange = { viewModel.setLiquidFertilizer(it) }
+                                            )
+                                        }
+                                    }
                                     Spacer(Modifier.height(16.dp))
+                                }
+                                item {
+                                    val insights = careTypeInsightItems(
+                                        summary = CareInsights.summarize(careLogs, CareType.FERTILIZE),
+                                        countLabel = stringResource(R.string.insight_fertilizings),
+                                        lastAtLabel = null
+                                    )
+                                    if (insights.isNotEmpty()) {
+                                        TabInsightsCard(insights)
+                                        Spacer(Modifier.height(16.dp))
+                                    }
+                                }
+                                val fertLogs = careLogs.filter { it.careType == CareType.FERTILIZE }
+                                if (fertLogs.isEmpty()) {
+                                    item {
+                                        Box(modifier = Modifier.height(160.dp)) {
+                                            EmptyStateView(
+                                                message = stringResource(R.string.plant_detail_tab_fertilize_empty),
+                                                icon = Icons.Filled.Spa
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(fertLogs, key = { "fert-${it.id}" }) { log ->
+                                        CareLogItem(
+                                            log = log,
+                                            onEdit = { onNavigateToEditLog(log.id) },
+                                            onDelete = { viewModel.deleteLog(log) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            PlantDetailTab.REPOT -> {
+                                item {
+                                    val insights = careTypeInsightItems(
+                                        summary = CareInsights.summarize(careLogs, CareType.REPOT),
+                                        countLabel = stringResource(R.string.insight_repottings),
+                                        lastAtLabel = stringResource(R.string.insight_last_repotted)
+                                    )
+                                    if (insights.isNotEmpty()) {
+                                        TabInsightsCard(insights)
+                                        Spacer(Modifier.height(16.dp))
+                                    }
+                                }
+                                val repotLogs = careLogs.filter { it.careType == CareType.REPOT }
+                                if (repotLogs.isEmpty()) {
+                                    item {
+                                        Box(modifier = Modifier.height(160.dp)) {
+                                            EmptyStateView(
+                                                message = stringResource(R.string.plant_detail_tab_repot_empty),
+                                                icon = Icons.Filled.LocalFlorist
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(repotLogs, key = { "repot-${it.id}" }) { log ->
+                                        CareLogItem(
+                                            log = log,
+                                            onEdit = { onNavigateToEditLog(log.id) },
+                                            onDelete = { viewModel.deleteLog(log) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            PlantDetailTab.PHOTO -> {
+                                item {
+                                    val summary = CareInsights.summarizePhotos(galleryPhotos)
+                                    if (summary.count > 0) {
+                                        val items = mutableListOf(
+                                            stringResource(R.string.insight_photos) to summary.count.toString()
+                                        )
+                                        val first = summary.firstAt
+                                        val last = summary.lastAt
+                                        if (first != null && last != null && first != last) {
+                                            items += stringResource(R.string.insight_first_photo) to DateUtils.formatDate(first)
+                                            items += stringResource(R.string.insight_latest_photo) to DateUtils.formatDate(last)
+                                        }
+                                        TabInsightsCard(items)
+                                        Spacer(Modifier.height(16.dp))
+                                    }
+                                }
+                                if (galleryPhotos.isEmpty()) {
+                                    item {
+                                        Box(modifier = Modifier.height(160.dp)) {
+                                            EmptyStateView(
+                                                message = stringResource(R.string.plant_detail_tab_photo_empty),
+                                                icon = Icons.Filled.PhotoLibrary
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    item {
+                                        PhotoGallery(
+                                            photoUris = galleryUris,
+                                            onPhotoClick = { uri ->
+                                                fullScreenPhotoIndex =
+                                                    galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                                            }
+                                        )
+                                        Spacer(Modifier.height(16.dp))
+                                    }
                                 }
                             }
                         }

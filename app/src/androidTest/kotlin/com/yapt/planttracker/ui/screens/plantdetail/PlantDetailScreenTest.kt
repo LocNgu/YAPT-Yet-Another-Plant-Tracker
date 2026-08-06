@@ -14,10 +14,13 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -37,11 +40,24 @@ class PlantDetailScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+
+    /**
+     * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
+     * shared DataStore stub reports it ON — these tests exercise the flag-on tabbed UI.
+     * `tabsFlagOff_showsClassicLayoutWithoutTabs` supplies its own flag-off store instead.
+     */
     private val mockDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(emptyPreferences())
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
+            )
+        )
     }
 
-    private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+    private val flagsOffDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(emptyPreferences())
+    }
 
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
@@ -598,5 +614,38 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText("Repottings"))
         composeTestRule.onNodeWithText("Repottings").assertIsDisplayed()
         composeTestRule.onNodeWithText("Avg. interval").assertIsDisplayed()
+    }
+
+    @Test
+    fun tabsFlagOff_showsClassicLayoutWithoutTabs() {
+        val plant = Plant(id = 41L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel =
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Classic layout: the watering chart renders inline, and no tab labels are present.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
+        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Repot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 }
