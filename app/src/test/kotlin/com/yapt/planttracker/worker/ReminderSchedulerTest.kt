@@ -7,7 +7,6 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
@@ -78,11 +77,14 @@ class ReminderSchedulerTest {
         ReminderScheduler.runNow(context)
 
         // Unlike `schedule`'s periodic work (which has a next-day initial delay and stays
-        // ENQUEUED), this one-time request has no delay, so under the test SynchronousExecutor
-        // it runs to completion immediately - only its presence/count is asserted here.
+        // ENQUEUED), this one-time request has no delay, so under the test SynchronousExecutor it
+        // runs to completion immediately. The outcome is still deterministic: POST_NOTIFICATIONS
+        // is denied by default under Robolectric (see NotificationPermissionTest), so
+        // ReminderWorker.doWork() short-circuits on its permission guard and returns success
+        // without touching the DB or DataStore.
         val infos = runNowWork()
         assertEquals(1, infos.size)
-        assertNotEquals(WorkInfo.State.CANCELLED, infos[0].state)
+        assertEquals(WorkInfo.State.SUCCEEDED, infos[0].state)
     }
 
     @Test
