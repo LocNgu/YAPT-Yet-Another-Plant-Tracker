@@ -53,4 +53,13 @@ interface PlantDao {
 
     @Query("DELETE FROM plants WHERE archivedAt IS NOT NULL")
     suspend fun deleteAllArchived()
+
+    /**
+     * Hard-deletes every plant whose name starts with [prefix], **regardless of `archivedAt`**
+     * (active and archived alike) — used to remove developer-mode demo plants (#523). Cascades to
+     * `care_logs` and `plant_photos` via their `ON DELETE CASCADE` foreign keys. Returns the
+     * number of plant rows deleted.
+     */
+    @Query("DELETE FROM plants WHERE name LIKE :prefix || '%'")
+    suspend fun deletePlantsByNamePrefix(prefix: String): Int
 }

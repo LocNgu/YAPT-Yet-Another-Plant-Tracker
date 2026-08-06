@@ -56,6 +56,20 @@ Turning developer mode off is done via a master **Developer mode** `Switch` at t
 
 *(This section was filled in by #521; the sections above are #520's and were not edited.)*
 
+## Extended by #523
+
+#523 built the demo-data seeder and remover on top of the shell #520 shipped — the only debug action that **writes to the plant database**, so it carries the most care of the four sub-tasks.
+
+**Demo plants are identified by a `[Demo] ` name prefix, not a schema column.** Every generated plant's name is prefixed `"[Demo] "`, and both the seeder and remover scope every query to that prefix (`WHERE name LIKE '[Demo] %'`). This avoids a Room migration entirely — the DB stays at whatever version it already is (v7 as of this PR) — at the cost of one accepted, documented limitation: a **real** plant a user names literally starting with `[Demo] ` would be treated as demo data by both actions. This was a deliberate trade-off (a schema `isDemo BOOLEAN` column would need a migration for a feature that is itself device-local debug tooling) rather than an oversight.
+
+**Removal hard-deletes; it does not archive.** The Plant Graveyard is a user-facing feature for real plants the user has lost — routing demo data through it would fill it with noise and force a second cleanup step through a different screen. Demo data is trivially regenerable by re-seeding, so nothing of value is ever lost by skipping the graveyard. "Remove demo plants" reuses the exact hard-delete path the graveyard's "Delete Forever" action uses (`PlantRepository`/`PlantDao` deletion, which cascades to `care_logs` and `plant_photos` via their `ON DELETE CASCADE` foreign keys), and matches demo plants **regardless of `archivedAt`** — a demo plant the user happened to archive is still removed.
+
+**Both demo actions sit behind a confirmation `AlertDialog`.** Seeding writes 8 plant rows (plus their care-log history) into a real user's database; removal permanently deletes rows. Developer mode is reachable in release builds (per this ADR's original decision), so a mis-tap on either action must not silently mutate a real user's data — unlike the other two debug actions (#522's reset-seen-state and run-reminder-check), which are non-destructive and therefore need no confirmation.
+
+**The dataset generator is pure; the seeder/remover are not.** `DemoData.generate(now)` (split across `DemoData`, `DemoDataTime`, and `DemoPlantBuilders` purely to stay under Detekt's `TooManyFunctions` object threshold — no design significance to the split) is a deterministic function of a single `now` anchor: fixed day offsets, no randomness, so the same input always produces the same 8-plant dataset and it is fully unit-testable without touching a database. `DemoDataSeeder` is the impure counterpart that writes the generated dataset through `PlantRepository`/`CareLogRepository` inside a single Room transaction (mirroring `domain/usecase/QuickLogUseCase`'s shape), so a killed process can't leave a half-inserted demo set behind. Seeding is idempotent by construction: it always removes the existing demo set first, then inserts fresh, so re-seeding never stacks duplicate plants.
+
+**`DemoDataSeeder` is not a `SettingsViewModel` constructor parameter.** `SettingsViewModel`'s constructor already sits at 6 parameters (`featureFlags` and `backupManager` both carry default values that count toward the total, per #521's "Deliberate deviation from #521 AC10" note above). Adding a 7th would trip Detekt's `LongParameterList.constructorThreshold`. `demoDataSeeder` is instead a private `by lazy` property built from constructor dependencies already present (`plantRepository`, `database`) — the same category of trade-off #521 made for the flag list, just one property lower in the class instead of a constructor default.
+
 ## Consequences
 
 - The unlock gesture and master switch together are the **only** way to toggle developer mode; there is no ViewModel API that flips it without going through one of those two paths, so it can never be silently enabled by app logic.

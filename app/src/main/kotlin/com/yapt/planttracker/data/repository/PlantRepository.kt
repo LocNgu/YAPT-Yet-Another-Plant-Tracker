@@ -43,6 +43,9 @@ class PlantRepository(private val plantDao: PlantDao) {
     suspend fun restorePlants(ids: List<Long>) = plantDao.restorePlants(ids)
 
     suspend fun deleteAllArchived() = plantDao.deleteAllArchived()
+
+    /** Hard-deletes every plant whose name starts with [prefix]; returns the count removed (#523). */
+    suspend fun deletePlantsWithNamePrefix(prefix: String): Int = plantDao.deletePlantsByNamePrefix(prefix)
 }
 
 private fun PlantEntity.toDomain() = Plant(
