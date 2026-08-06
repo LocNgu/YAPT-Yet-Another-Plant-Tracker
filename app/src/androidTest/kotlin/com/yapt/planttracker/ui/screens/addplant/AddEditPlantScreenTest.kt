@@ -202,4 +202,19 @@ class AddEditPlantScreenTest {
         composeTestRule.onNodeWithText("Camera access denied").assertIsDisplayed()
         composeTestRule.onNodeWithText("Open Settings").assertIsDisplayed()
     }
+
+    @Test
+    fun repottingToggle_enabled_showsIntervalLabel() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Repotting reminder").performScrollTo().assertIsDisplayed()
+
+        composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
+
+        composeTestRule.onNodeWithText("Repot every 12 months").performScrollTo().assertIsDisplayed()
+    }
 }

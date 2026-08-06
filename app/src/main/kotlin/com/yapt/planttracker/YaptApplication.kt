@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.notification.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +42,7 @@ class YaptApplication : Application() {
     val plantRepository by lazy { PlantRepository(database.plantDao()) }
     val careLogRepository by lazy { CareLogRepository(database.careLogDao()) }
     val plantPhotoRepository by lazy { PlantPhotoRepository(database.plantPhotoDao()) }
+    val featureFlags by lazy { FeatureFlags(settingsDataStore) }
     val quickLogUseCase by lazy {
         QuickLogUseCase(this, plantRepository, careLogRepository, plantPhotoRepository, settingsDataStore, database)
     }

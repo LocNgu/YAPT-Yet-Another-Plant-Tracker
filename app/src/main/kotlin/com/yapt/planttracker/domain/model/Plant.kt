@@ -13,5 +13,6 @@ data class Plant(
     val updatedAt: Long = System.currentTimeMillis(),
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
-    val archivedAt: Long? = null
+    val archivedAt: Long? = null,
+    val repottingIntervalDays: Int? = null
 )

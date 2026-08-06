@@ -1,13 +1,10 @@
 package com.yapt.planttracker.worker
 
-import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.yapt.planttracker.MainActivity
@@ -21,6 +18,7 @@ import com.yapt.planttracker.domain.notification.DuePlantReminder
 import com.yapt.planttracker.domain.notification.ReminderNotificationComposer
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.flow.first
@@ -31,9 +29,7 @@ class ReminderWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        if (!NotificationPermission.isGranted(context)) {
             return Result.success()
         }
 
@@ -58,6 +54,11 @@ class ReminderWorker(
             } else {
                 null
             }
+            val lastRepotting = if (plant.repottingIntervalDays != null) {
+                app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
+            } else {
+                null
+            }
 
             statuses.add(
                 CareSchedule.computeStatus(
@@ -65,7 +66,8 @@ class ReminderWorker(
                     lastWateredAt = lastWatering?.loggedAt,
                     lastFertilizedAt = lastFertilizing?.loggedAt,
                     totalLogs = 0,
-                    now = now
+                    now = now,
+                    lastRepottedAt = lastRepotting?.loggedAt
                 )
             )
         }
@@ -179,6 +181,14 @@ class ReminderWorker(
                     context.getString(R.string.notification_fertilizing_due_today)
                 CareReminderItem.FertilizeWithWatering ->
                     context.getString(R.string.notification_fertilize_with_watering)
+                is CareReminderItem.RepottingOverdue ->
+                    context.resources.getQuantityString(
+                        R.plurals.notification_repotting_overdue,
+                        item.days,
+                        item.days
+                    )
+                CareReminderItem.RepottingDueToday ->
+                    context.getString(R.string.notification_repotting_due_today)
             }
         }
 

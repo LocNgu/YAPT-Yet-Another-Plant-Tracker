@@ -37,6 +37,9 @@ class ReminderSchedulerTest {
     private fun reminderWork(): List<WorkInfo> =
         workManager.getWorkInfosForUniqueWork(ReminderWorker.WORK_NAME).get()
 
+    private fun runNowWork(): List<WorkInfo> =
+        workManager.getWorkInfosForUniqueWork(ReminderScheduler.RUN_NOW_WORK_NAME).get()
+
     @Test
     fun `schedule enqueues a single daily periodic reminder work`() {
         ReminderScheduler.schedule(context, hour = 8, minute = 30)
@@ -67,5 +70,31 @@ class ReminderSchedulerTest {
         ReminderScheduler.cancel(context)
 
         assertEquals(WorkInfo.State.CANCELLED, reminderWork()[0].state)
+    }
+
+    @Test
+    fun `runNow enqueues a single one-time reminder work`() {
+        ReminderScheduler.runNow(context)
+
+        // Unlike `schedule`'s periodic work (which has a next-day initial delay and stays
+        // ENQUEUED), this one-time request has no delay, so under the test SynchronousExecutor it
+        // runs to completion immediately. The outcome is still deterministic: POST_NOTIFICATIONS
+        // is denied by default under Robolectric (see NotificationPermissionTest), so
+        // ReminderWorker.doWork() short-circuits on its permission guard and returns success
+        // without touching the DB or DataStore.
+        val infos = runNowWork()
+        assertEquals(1, infos.size)
+        assertEquals(WorkInfo.State.SUCCEEDED, infos[0].state)
+    }
+
+    @Test
+    fun `runNow replaces the pending run rather than stacking duplicates on repeated taps`() {
+        ReminderScheduler.runNow(context)
+        ReminderScheduler.runNow(context)
+        ReminderScheduler.runNow(context)
+
+        // REPLACE policy on a unique work name keeps exactly one enqueued/running request even
+        // when tapped rapidly, mirroring `schedule`'s coalescing behaviour above.
+        assertEquals(1, runNowWork().size)
     }
 }

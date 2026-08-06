@@ -101,6 +101,7 @@
     <string name="notification_watering_due_today">Watering due today</string>
     <string name="notification_fertilizing_due_today">Fertilizing due today</string>
     <string name="notification_fertilize_with_watering">Fertilize with watering</string>
+    <string name="notification_repotting_due_today">Repotting due today</string>
     <plurals name="notification_watering_overdue">
         <item quantity="one">Watering overdue by 1 day</item>
         <item quantity="other">Watering overdue by %d days</item>
@@ -108,6 +109,10 @@
     <plurals name="notification_fertilizing_overdue">
         <item quantity="one">Fertilizing overdue by 1 day</item>
         <item quantity="other">Fertilizing overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_repotting_overdue">
+        <item quantity="one">Repotting overdue by 1 day</item>
+        <item quantity="other">Repotting overdue by %d days</item>
     </plurals>
     <plurals name="notification_combined_title">
         <item quantity="one">1 plant needs care</item>
@@ -162,6 +167,11 @@
     <string name="watering_reminder_label">Watering reminder</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
+    <plurals name="repotting_interval_label">
+        <item quantity="one">Repot every month</item>
+        <item quantity="other">Repot every %d months</item>
+    </plurals>
+    <string name="repotting_reminder_label">Repotting reminder</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
@@ -315,4 +325,29 @@
     </plurals>
     <string name="bulk_delete_confirm_button">Move</string>
     <string name="bulk_delete_cancel_button">Cancel</string>
+    <string name="cd_version_row_show_version">Show app version</string>
+    <plurals name="dev_mode_countdown_taps_away">
+        <item quantity="one">You are 1 tap away from developer mode</item>
+        <item quantity="other">You are %d taps away from developer mode</item>
+    </plurals>
+    <string name="dev_mode_enabled_snackbar">Developer mode enabled</string>
+    <string name="dev_mode_disabled_snackbar">Developer mode disabled</string>
+    <string name="dev_mode_section_title">Developer</string>
+    <string name="dev_mode_master_switch_title">Developer mode</string>
+    <string name="dev_mode_master_switch_subtitle">Turn off to hide this section; tap the version 5 times to return</string>
+    <string name="dev_mode_build_info_version_title">Version</string>
+    <string name="dev_mode_build_info_version_value">%1$s (%2$d)</string>
+    <string name="dev_mode_build_info_build_type_title">Build type</string>
+    <string name="dev_mode_build_info_db_version_title">Database version</string>
+    <string name="dev_mode_build_info_api_level_title">Device API level</string>
+    <string name="dev_mode_feature_flags_section_title">Feature flags</string>
+    <string name="dev_mode_feature_flags_empty">No feature flags in this build</string>
+    <string name="dev_mode_debug_actions_section_title">Debug actions</string>
+    <string name="dev_mode_action_reset_whats_new_title">Reset What\'s New seen state</string>
+    <string name="dev_mode_action_reset_whats_new_subtitle">Makes the What\'s New sheet auto-show on next launch</string>
+    <string name="dev_mode_reset_whats_new_snackbar">What\'s New seen state reset</string>
+    <string name="dev_mode_action_run_reminder_check_title">Run reminder check now</string>
+    <string name="dev_mode_action_run_reminder_check_subtitle">Posts real notifications for any plant that\'s due</string>
+    <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
+    <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
 </resources>

@@ -1,23 +1,37 @@
 package com.yapt.planttracker.ui.screens.settings
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import app.cash.turbine.test
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.mockkStatic
+import io.mockk.unmockkObject
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -51,6 +65,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
         every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
         every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
 
@@ -59,6 +74,17 @@ class SettingsViewModelTest {
         context = mockContext,
         database = mockDatabase,
         plantRepository = mockPlantRepository,
+        backupManager = mockBackupManager
+    )
+
+    private val testFlag = FeatureFlag(key = "test_flag", titleRes = 1, descriptionRes = 2, default = true)
+
+    private fun buildVmWithFlags() = SettingsViewModel(
+        dataStore = mockDataStore,
+        context = mockContext,
+        database = mockDatabase,
+        plantRepository = mockPlantRepository,
+        featureFlags = FeatureFlags(mockDataStore, flags = listOf(testFlag)),
         backupManager = mockBackupManager
     )
 
@@ -241,6 +267,146 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `developerModeEnabled defaults to false when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.developerModeEnabled.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `developerModeEnabled emits true when DataStore returns true`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns true
+        vm = buildVm()
+
+        vm.developerModeEnabled.test {
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setDeveloperModeEnabled(true)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `featureFlagStates is empty when the injected flag list is empty`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        vm = buildVm()
+
+        vm.featureFlagStates.test {
+            assertEquals(emptyMap<String, Boolean>(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `featureFlagStates emits the flag's registry default when DataStore key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns null
+        vm = buildVmWithFlags()
+
+        vm.featureFlagStates.test {
+            assertEquals(mapOf("test_flag" to true), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `featureFlagStates emits the persisted value when present`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns false
+        vm = buildVmWithFlags()
+
+        vm.featureFlagStates.test {
+            assertEquals(mapOf("test_flag" to false), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setFlagEnabled persists the value to DataStore`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockPrefs[FeatureFlags.preferenceKeyFor(testFlag)] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setFlagEnabled(testFlag, false)
+        advanceUntilIdle()
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(false) does not touch DataStore a second time when there are no flags`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setDeveloperModeEnabled(false)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(false) resets every flag to its registry default`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setDeveloperModeEnabled(false)
+        advanceUntilIdle()
+
+        // One write for DEVELOPER_MODE_ENABLED, one for FeatureFlags.resetAll(flags).
+        coVerify(exactly = 2) { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `setDeveloperModeEnabled(true) does not reset flags`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVmWithFlags()
+
+        vm.setDeveloperModeEnabled(true)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { mockDataStore.updateData(any()) }
+    }
+
+    @Test
     fun `isBackupInProgress starts false`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
@@ -363,5 +529,85 @@ class SettingsViewModelTest {
 
         val written = realDataStore.data.first()
         assertEquals(8, written[SettingsKeys.REMINDER_HOUR])
+    }
+
+    @Test
+    fun `resetWhatsNewSeenState clears LAST_SEEN_VERSION_CODE and emits a confirmation`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockContext.getString(R.string.dev_mode_reset_whats_new_snackbar) } returns "What's New seen state reset"
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.debugActionEvent.test {
+            vm.resetWhatsNewSeenState()
+            assertEquals("What's New seen state reset", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `runReminderCheckNow enqueues the worker and emits a confirmation when notifications are granted`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every { mockContext.getString(R.string.dev_mode_run_reminder_check_snackbar) } returns "Reminder check enqueued"
+        vm = buildVm()
+
+        mockkStatic(ContextCompat::class)
+        mockkObject(ReminderScheduler)
+        try {
+            every {
+                ContextCompat.checkSelfPermission(mockContext, Manifest.permission.POST_NOTIFICATIONS)
+            } returns PackageManager.PERMISSION_GRANTED
+            every { ReminderScheduler.runNow(mockContext) } just Runs
+
+            vm.debugActionEvent.test {
+                vm.runReminderCheckNow()
+                assertEquals("Reminder check enqueued", awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            verify { ReminderScheduler.runNow(mockContext) }
+        } finally {
+            unmockkObject(ReminderScheduler)
+            unmockkStatic(ContextCompat::class)
+        }
+    }
+
+    @Test
+    fun `runReminderCheckNow does not enqueue and emits an explanatory message when notifications are denied`() = runTest {
+        every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
+        every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
+        every {
+            mockContext.getString(R.string.dev_mode_run_reminder_check_denied_snackbar)
+        } returns "Notifications are disabled for this app, so no reminder was posted"
+        vm = buildVm()
+
+        mockkStatic(ContextCompat::class)
+        mockkObject(ReminderScheduler)
+        try {
+            every {
+                ContextCompat.checkSelfPermission(mockContext, Manifest.permission.POST_NOTIFICATIONS)
+            } returns PackageManager.PERMISSION_DENIED
+
+            vm.debugActionEvent.test {
+                vm.runReminderCheckNow()
+                assertEquals(
+                    "Notifications are disabled for this app, so no reminder was posted",
+                    awaitItem()
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            verify(exactly = 0) { ReminderScheduler.runNow(any()) }
+        } finally {
+            unmockkObject(ReminderScheduler)
+            unmockkStatic(ContextCompat::class)
+        }
     }
 }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test-only strings. They live in the debug source set so they are merged into the debug
+         APK (which instrumented tests run against) but never into the release APK.
+
+         They cannot live in app/src/androidTest/res: SettingsScreen renders a flag's title via
+         stringResource(flag.titleRes), which resolves against the app-under-test's resource
+         table. An ID minted in the test APK is not present there, so it silently resolves to
+         unrelated text instead of throwing - it compiles cleanly and only fails on-device.
+
+         Not referenced by FeatureFlagRegistry.all (which ships empty) - used by SettingsScreenTest
+         to prove the registry-driven flag row renders generically from an injected test entry,
+         per #521 AC33. -->
+    <string name="feature_flag_test_title">Test flag</string>
+    <string name="feature_flag_test_description">Used only by Compose tests to prove registry-driven rendering.</string>
+</resources>
