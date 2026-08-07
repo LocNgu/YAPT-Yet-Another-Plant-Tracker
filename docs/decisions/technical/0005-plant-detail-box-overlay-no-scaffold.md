@@ -1,6 +1,6 @@
 # ADR-0005: Box overlay pattern in PlantDetailScreen instead of Scaffold
 
-**Status**: accepted
+**Status**: superseded by [ADR-0018](0018-plant-detail-tabs-in-box-overlay.md)
 
 **Date**: 2024-01-01
 

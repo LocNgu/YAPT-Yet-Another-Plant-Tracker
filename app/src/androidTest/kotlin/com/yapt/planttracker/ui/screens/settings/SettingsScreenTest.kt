@@ -395,9 +395,13 @@ class SettingsScreenTest {
 
     @Test
     fun featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty() {
+        // Inject an explicitly empty flag list rather than relying on FeatureFlagRegistry, which
+        // ships real flags now (#436) — this case asserts empty-registry rendering and must keep
+        // that meaning as flags come and go.
+        val emptyFlagsViewModel = buildViewModelWithFlags(emptyList())
         composeTestRule.setContent {
             SettingsScreen(
-                viewModel = viewModel,
+                viewModel = emptyFlagsViewModel,
                 onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}

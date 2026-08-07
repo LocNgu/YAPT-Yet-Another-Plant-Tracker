@@ -185,6 +185,31 @@
     <string name="care_log_photo_label_required">Photo</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
+    <!-- Feature flag: Plant Detail per-action tabs (#436) -->
+    <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
+    <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
+    <!-- Plant Detail per-action tabs (#436) -->
+    <string name="plant_detail_tab_water">Water</string>
+    <string name="plant_detail_tab_fertilize">Fertilize</string>
+    <string name="plant_detail_tab_repot">Repot</string>
+    <string name="plant_detail_tab_photo">Photo</string>
+    <string name="plant_detail_misting_section">Recent misting</string>
+    <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
+    <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Plant Detail per-tab insights (#436, sub-task 3) -->
+    <string name="insight_waterings">Waterings</string>
+    <string name="insight_fertilizings">Fertilizings</string>
+    <string name="insight_repottings">Repottings</string>
+    <string name="insight_photos">Photos</string>
+    <string name="insight_avg_interval">Avg. interval</string>
+    <string name="insight_last_repotted">Last repotted</string>
+    <string name="insight_first_photo">First photo</string>
+    <string name="insight_latest_photo">Latest photo</string>
+    <plurals name="insight_interval_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
     <string name="plant_detail_location">📍 %1$s</string>
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>

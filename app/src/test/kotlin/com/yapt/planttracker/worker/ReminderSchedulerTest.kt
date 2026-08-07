@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.work.Configuration
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -26,10 +27,18 @@ class ReminderSchedulerTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         // SynchronousExecutor makes enqueue/cancel apply immediately, so assertions can read
-        // the resulting WorkInfo without waiting.
+        // the resulting WorkInfo without waiting. It must be set explicitly: the Configuration
+        // overload of initializeTestWorkManager uses exactly the config given (unlike the
+        // single-arg overload, which installs a SynchronousExecutor itself), so a bare
+        // Configuration.Builder().build() leaves WorkManager on its default background executor.
+        // The `runNow` one-time request has no initial delay and therefore actually executes, so
+        // without this the SUCCEEDED assertion races the worker and fails under CI load.
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
-            Configuration.Builder().build()
+            Configuration.Builder()
+                .setExecutor(SynchronousExecutor())
+                .setTaskExecutor(SynchronousExecutor())
+                .build()
         )
         workManager = WorkManager.getInstance(context)
     }
