@@ -107,9 +107,12 @@ Non-blocking: M (X small / Y large — see list)
 
 End your response with exactly one of these lines so the orchestrator can parse it:
 
-- Approved: `NEXT: qa | PR: <N>`
+- Approved, and the orchestrator told you this PR is running the full pipeline (the normal case): `NEXT: qa | PR: <N>`
+- Approved, and the orchestrator told you this PR is on the fast-path (QA skipped per CLAUDE.md step 4): `NEXT: human | PR: <N> | reason: fast-path — approved, QA skipped, ready for merge`
 - Blocking findings: `NEXT: implementer | PR: <N> | round: <N>`
 - Escalating after round 2: `NEXT: human | PR: <N> | reason: round 2 complete — awaiting decision`
+
+If the orchestrator's input to you doesn't say whether this is a fast-path PR, default to the full-pipeline line (`NEXT: qa`) — a wasted QA launch is cheap; skipping QA on a change that needed it is not.
 
 ## Autonomy
 
