@@ -1,9 +1,9 @@
 ---
 description: Developer mode, feature-flag registry, and debug actions (Settings)
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/devmode/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/featureflag/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/settings/**"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/devmode/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/featureflag/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/settings/**/*"
 ---
 
 # Developer mode / feature flags / debug actions (product ADR-0022, #514)

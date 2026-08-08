@@ -1,9 +1,10 @@
 ---
 description: .yapt backup/restore internals and backup schema version history
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/**/backup/**"
+  - "app/src/main/kotlin/com/yapt/planttracker/**/backup/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/**/BackupManager*.kt"
-  - "app/src/androidTest/**/backup/**"
+  - "app/src/androidTest/**/backup/**/*"
+  - "app/src/test/**/backup/**/*"
 ---
 
 # Backup / Restore rules

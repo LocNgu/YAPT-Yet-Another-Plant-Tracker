@@ -1,9 +1,7 @@
 ---
 description: Vico watering-history chart internals and care-event markers
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantdetail/**chart**"
-  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantdetail/**Chart**"
-  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/**Chart**"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/*Chart*.kt"
 ---
 
 # Watering-history chart rules (Vico) — technical ADR-0004

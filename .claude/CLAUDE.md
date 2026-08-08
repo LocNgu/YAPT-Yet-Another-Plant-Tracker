@@ -12,7 +12,7 @@ watering intervals from the user's own feedback.
 
 ## Commands
 ```bash
-./gradlew compileDebugKotlin compileDebugAndroidTestKotlin   # compile
+./gradlew compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin   # compile
 ./gradlew testDebugUnitTest        # unit tests (flag also builds the release suite — see rules/ci-build.md)
 ./gradlew lintDebug                # Android lint
 ./gradlew detekt                   # static analysis (add autoCorrect=true locally to auto-fix formatting)

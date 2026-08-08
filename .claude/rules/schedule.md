@@ -1,8 +1,8 @@
 ---
 description: CareSchedule status computation and adaptive watering-interval rules
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**"
-  - "app/src/test/**/schedule/**"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**/*"
+  - "app/src/test/**/schedule/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
 ---
 
@@ -30,7 +30,7 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 - Final result `.coerceAtLeast(1)` — two same-day waterings (`actual == 0`) can't yield a 0-day suggestion (#446).
 - Flow: after a WATER log, `AddCareLogViewModel` computes `actualIntervalDays` from the last two waterings and
   passes the result back via `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal
-  editable `AlertDialog` (technical ADR-0018 supersedes ADR-0005).
+  editable `AlertDialog` (product ADR-0006, supersedes product ADR-0005).
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

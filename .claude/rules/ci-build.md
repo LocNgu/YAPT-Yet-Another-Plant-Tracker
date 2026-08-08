@@ -3,11 +3,11 @@ description: Build toolchain, Detekt, CI job graph, and cloud/session build setu
 paths:
   - "**/*.gradle.kts"
   - "gradle.properties"
-  - "gradle/**"
+  - "gradle/**/*"
   - "version.properties"
-  - ".github/**"
-  - "config/detekt/**"
-  - "scripts/**"
+  - ".github/**/*"
+  - "config/detekt/**/*"
+  - "scripts/**/*"
 ---
 
 # CI / Build rules

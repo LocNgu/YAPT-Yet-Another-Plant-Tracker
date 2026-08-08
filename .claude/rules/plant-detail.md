@@ -1,8 +1,8 @@
 ---
 description: Plant Detail — hero layout, per-action tabs, inline settings, insights, photo gallery
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantdetail/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/insights/**"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantdetail/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/insights/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/ui/components/PhotoGallery*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/ui/components/FullScreenPhotoViewer*.kt"
 ---

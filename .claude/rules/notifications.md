@@ -1,11 +1,11 @@
 ---
 description: ReminderWorker, notification composer, and reminder/notification toggles
 paths:
-  - "app/src/main/kotlin/com/yapt/planttracker/worker/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/notification/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/notification/**"
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/reminder/**"
-  - "app/src/test/**/{worker,notification,reminder}/**"
+  - "app/src/main/kotlin/com/yapt/planttracker/worker/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/notification/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/notification/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/reminder/**/*"
+  - "app/src/test/**/{worker,notification,reminder}/**/*"
 ---
 
 # Notifications & Reminders rules
