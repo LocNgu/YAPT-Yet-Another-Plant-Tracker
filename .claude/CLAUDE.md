@@ -36,6 +36,8 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
 - **Dates** — `DateUtils.formatRelative()` for all display; never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013).
 - **No `libs.versions.toml`** — versions inlined in `app/build.gradle.kts`; the Compose BOM governs Compose artifacts.
+- **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).
+- **Room migrations are mandatory** — explicit `Migration`s only, hard-crash if one is missing (`fallbackToDestructiveMigration` is never used). Any schema change ships with a `Migration` and a committed schema JSON in `app/schemas/` (technical ADR-0002).
 - **All UI strings in `strings.xml`** — no hardcoded strings in Compose. `cd_back` is the canonical back-button description.
 - **Room schema** exported to `app/schemas/` via KSP — commit schema JSON when bumping DB version. `PlantDatabase.DB_VERSION` is the single source (also feeds `@Database(version=…)`), so the two can't drift.
 - **Compose UI tests assert user-visible semantics** (contentDescription/stateDescription/text/actionable), **never** tree structure (child counts, testTag topology). A testTag never merges past a clickable/merged ancestor. If a fix is about announcements, assert the announcement — not the topology (#420).

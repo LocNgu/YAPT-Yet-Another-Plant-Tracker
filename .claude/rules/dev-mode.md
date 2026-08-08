@@ -32,6 +32,18 @@ no schema bump).
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
 
+## Demo data (#523)
+Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,
+deterministic 8-plant dataset generator, `object` with a single `generate(now)` entry point — the anchor-time math
+and per-plant definitions are split into `DemoDataTime`/`DemoPlantBuilders` to stay under Detekt's `TooManyFunctions`
+threshold) and `DemoDataSeeder` (impure orchestration: writes/deletes via `PlantRepository`/`CareLogRepository`,
+wrapped in one `database.withTransaction {}` so a killed process can't leave a partial demo set behind). Every demo
+plant/log carries the `DemoData.NAME_PREFIX = "[Demo] "` name prefix; `seed()` is idempotent — it removes any
+existing `[Demo] `-prefixed plants first, so repeated taps never stack duplicates — and `remove()` hard-deletes only
+that prefix, cascading care logs, never touching a real plant. `SettingsViewModel.seedDemoPlants()` /
+`removeDemoPlants()` lazily construct `DemoDataSeeder` (not a constructor param — avoids growing the VM's param list)
+and route through the same `debugActionEvent` snackbar as the other Debug actions.
+
 ## Debug actions (#522)
 Two non-destructive rows below the flags list; neither touches the DB or confirms.
 - **Reset What's New seen state** — `resetWhatsNewSeenState()` removes `LAST_SEEN_VERSION_CODE` so the auto-show

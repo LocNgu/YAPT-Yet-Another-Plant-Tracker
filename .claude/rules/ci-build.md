@@ -38,6 +38,10 @@ paths:
 `testReleaseUnitTest` + `lintRelease`. Instrumented tests run on PRs via path filter; concurrency group cancels
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
+## Release build (#4)
+`isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
+workers and Room DAOs (both reached via reflection) from being stripped/renamed.
+
 ## Cloud / in-session builds (#419)
 Enablement is environment config, not repo: allowlist `dl.google.com`, set `ANDROID_HOME=/opt/android-sdk`, run
 `scripts/cloud-setup.sh` as setup. It installs the SDK and seeds the wrapper dist from the pre-installed Gradle.
