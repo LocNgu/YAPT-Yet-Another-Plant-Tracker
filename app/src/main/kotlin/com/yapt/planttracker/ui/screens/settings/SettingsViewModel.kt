@@ -15,7 +15,9 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.devmode.DemoDataSeeder
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.notification.NotificationPermission
@@ -44,6 +46,14 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     val flags: List<FeatureFlag> get() = featureFlags.flags
+
+    // Not a constructor parameter: DemoDataSeeder only needs dependencies already available on
+    // this class (plantRepository, database), and adding it as a 7th constructor parameter would
+    // trip Detekt's LongParameterList.constructorThreshold — the same tradeoff #521 made for the
+    // feature-flag list (see ADR-0022's "Deliberate deviation from #521 AC10" section).
+    private val demoDataSeeder: DemoDataSeeder by lazy {
+        DemoDataSeeder(plantRepository, CareLogRepository(database.careLogDao()), database)
+    }
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true }
@@ -169,6 +179,27 @@ class SettingsViewModel(
             } else {
                 _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_denied_snackbar))
             }
+        }
+    }
+
+    fun seedDemoPlants() {
+        viewModelScope.launch {
+            val count = demoDataSeeder.seed()
+            _debugActionEvent.emit(
+                context.resources.getQuantityString(R.plurals.dev_mode_seed_demo_result, count, count)
+            )
+        }
+    }
+
+    fun removeDemoPlants() {
+        viewModelScope.launch {
+            val count = demoDataSeeder.remove()
+            val message = if (count == 0) {
+                context.getString(R.string.dev_mode_remove_demo_none)
+            } else {
+                context.resources.getQuantityString(R.plurals.dev_mode_remove_demo_result, count, count)
+            }
+            _debugActionEvent.emit(message)
         }
     }
 

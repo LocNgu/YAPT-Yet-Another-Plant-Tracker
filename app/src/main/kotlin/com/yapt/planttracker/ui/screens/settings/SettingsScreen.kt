@@ -25,7 +25,9 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
@@ -157,6 +159,8 @@ fun SettingsScreen(
     var futureSchemaVersion by remember { mutableStateOf(0) }
     var pendingFutureSchemaImport by remember { mutableStateOf<(suspend () -> BackupResult)?>(null) }
     var pendingFutureSchemaOnDismiss by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
+    var showSeedDemoConfirmDialog by remember { mutableStateOf(false) }
+    var showRemoveDemoConfirmDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     // Single ordered stream every snackbar-producing source emits into, collected by exactly one
@@ -333,6 +337,40 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showSeedDemoConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showSeedDemoConfirmDialog = false },
+            title = { Text(stringResource(R.string.dev_mode_seed_demo_confirm_title)) },
+            text = { Text(stringResource(R.string.dev_mode_seed_demo_confirm_text)) },
+            confirmButton = {
+                Button(onClick = {
+                    showSeedDemoConfirmDialog = false
+                    viewModel.seedDemoPlants()
+                }) { Text(stringResource(R.string.dev_mode_seed_demo_confirm_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSeedDemoConfirmDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showRemoveDemoConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveDemoConfirmDialog = false },
+            title = { Text(stringResource(R.string.dev_mode_remove_demo_confirm_title)) },
+            text = { Text(stringResource(R.string.dev_mode_remove_demo_confirm_text)) },
+            confirmButton = {
+                Button(onClick = {
+                    showRemoveDemoConfirmDialog = false
+                    viewModel.removeDemoPlants()
+                }) { Text(stringResource(R.string.dev_mode_remove_demo_confirm_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveDemoConfirmDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -692,6 +730,22 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.dev_mode_action_run_reminder_check_subtitle),
                     modifier = Modifier.testTag("dev_mode_run_reminder_check_row"),
                     onClick = { viewModel.runReminderCheckNow() }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.Eco,
+                    title = stringResource(R.string.dev_mode_action_seed_demo_title),
+                    subtitle = stringResource(R.string.dev_mode_action_seed_demo_subtitle),
+                    modifier = Modifier.testTag("dev_mode_seed_demo_row"),
+                    onClick = { showSeedDemoConfirmDialog = true }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.DeleteForever,
+                    title = stringResource(R.string.dev_mode_action_remove_demo_title),
+                    subtitle = stringResource(R.string.dev_mode_action_remove_demo_subtitle),
+                    modifier = Modifier.testTag("dev_mode_remove_demo_row"),
+                    onClick = { showRemoveDemoConfirmDialog = true }
                 )
             }
         }
