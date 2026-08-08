@@ -92,7 +92,7 @@ class DemoDataTest {
     }
 
     @Test
-    fun `Fiddle Leaf Fig is due soon but not yet due`() {
+    fun `Fiddle Leaf Fig is due in 2 days, not yet due`() {
         val status = statusFor("Fiddle Leaf Fig")
         assertFalse(status.isOverdue)
         assertFalse(status.isDueSoon)
