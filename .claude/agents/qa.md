@@ -26,7 +26,7 @@ The orchestrator passes you:
 **CI already gates build, `androidTest` compile, unit tests, and lint on every PR** (the `test` + `build` jobs — #84/#87), and the orchestrator only launches you once that CI is green. **Do not re-run the CI gate for its own sake** — that duplicates minutes of compute and floods your context with build logs. Read the PR's CI check status via `mcp__github__pull_request_read` and take a green run as authoritative for build/tests/lint.
 
 Run a `./gradlew` command yourself only when it earns its cost:
-- **CI is red or a check is missing** — reproduce the specific failing task and quote the exact `error:` line (e.g. `./gradlew testDebugUnitTest --no-daemon 2>&1 | tail -50`). A genuine failure is **NEEDS WORK**.
+- **CI is red or a check is missing** — reproduce the specific failing task and quote the exact `error:` line (e.g. `./gradlew testDebugUnitTest --no-daemon 2>&1 | tail -50`). A genuine failure is **NEEDS WORK**. If the toolchain is genuinely unavailable to you (see `.claude/rules/ci-build.md` — in-session Gradle only works when the cloud image ships Gradle 9.x) and you cannot reproduce it, do not report a PASS: state explicitly that the failure is unconfirmed and treat it as **NEEDS WORK** until someone can verify.
 - **An acceptance criterion has no automated coverage** — run the narrowest check that exercises it, rather than the whole suite.
 
 Your pass exists to validate what CI *can't*: that the change actually meets the issue's acceptance criteria. Spend your effort there, not on re-green-lighting green CI.
@@ -44,10 +44,12 @@ For features that can't be run locally (no emulator), reason through the code pa
 
 Post a concise comment. For a passing run, the whole comment should be under 15 lines.
 
+The `CI:` line reports the PR's existing check status — it is not something you re-run.
+
 ```
 ## QA — [READY TO MERGE / NEEDS WORK]
 
-CI: ✓ green (build/tests/lint) / ✗ FAILING <job>   ← from the PR checks, not a re-run
+CI: ✓ green (build/tests/lint) / ✗ FAILING <job>
 
 **AC checklist:**
 - [x] AC 1
