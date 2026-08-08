@@ -50,10 +50,14 @@ Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant 
 ## Development Workflow
 **Issue-first (always):** on any feature request or bug report, first create a GitHub issue via `mcp__github__issue_write`, share the link, and wait for explicit go-ahead before writing any code, branch, or PR.
 
+**Model & cost:** run the orchestrator on **Sonnet for routine issues**; switch to Opus only for genuinely hard, cross-system reasoning. Subagents are model-pinned in their frontmatter (`spec`/`implementer`/`reviewer`/`qa` → Sonnet), so the pipeline stays off Opus by default.
+
+**Fast-path for trivial changes** — a one-file or mechanical fix (typo, string tweak, dependency bump, comment, doc edit) **skips `spec` and `qa`**: branch → implement → open the PR, and let CI plus a human review gate it. Use the full pipeline below only when a change spans logic/UI/tests or records a decision. Don't add explicit "double-check your work" or re-verification steps — the model self-corrects; verification lives in CI and the review round, not in duplicated passes.
+
 1. **Spec** (`spec` agent) — scans product ADRs, interviews the human, posts clarifications on the issue; appends a `## Suggested sub-tasks` split when scope spans 3+ shippable layers.
 2. **Implement** (`implementer` agent) — writes code, pushes a `claude/*` branch, returns the PR title/body as text; the **orchestrator** opens the PR targeting `develop` (pre-authorized — no need to ask). Merging still requires a human.
 3. **Review** (`reviewer` agent, read-only — can't post) — findings tagged **BLOCKING** / **NON-BLOCKING (SMALL|LARGE)**; the orchestrator posts them. Each round is a fresh standalone review; max 2 rounds, then wait for the human. Self-review must use `event: COMMENT` (APPROVE/REQUEST_CHANGES are blocked for the same account). For NON-BLOCKING, the orchestrator asks the human (recommend in-PR fix for SMALL, new issue for LARGE) before acting.
-4. **QA** (`qa` agent, read-only) — build + tests + lint + every acceptance criterion; the orchestrator posts the checklist.
+4. **QA** (`qa` agent, read-only) — validates the **acceptance criteria CI doesn't already cover**; build/tests/lint are the CI gate, not re-run here. Orchestrator posts the checklist. Skipped on the fast-path.
 5. **Update docs** — implementer updates this file, `CHANGELOG.md` `[Unreleased]`, and `WhatsNewContent.kt` **in the feature PR, before merge** (`chore:`/docs-only PRs may omit the CHANGELOG + What's New entries).
 6. **Merge** — **human only**; Claude never merges.
 
