@@ -153,7 +153,7 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.19.0")
 
-    implementation("io.coil-kt:coil-compose:2.10.1")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
