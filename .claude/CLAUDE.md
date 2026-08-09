@@ -8,7 +8,7 @@ watering intervals from the user's own feedback.
 - Kotlin · Jetpack Compose + Material 3 (nature palette) · MVVM + Repository
 - Room (SQLite, offline-first) · DataStore (prefs) · WorkManager + NotificationManager · Coil 2
 - Compose Navigation (type-safe `Screen` sealed class) · manual DI via `YaptApplication` lazy singletons (no Hilt)
-- Build: AGP 9.3.1, Kotlin 2.3.10, KSP 2.3.10, Gradle 9.6.1, Compose BOM 2026.06.01; compileSdk 37 / targetSdk 35 / minSdk 26
+- Build: AGP 9.3.1, Kotlin plugins 2.4.10, KSP 2.3.11, Gradle 9.7.0, Compose BOM 2026.06.01; compileSdk 37 / targetSdk 35 / minSdk 26
 
 ## Commands
 ```bash

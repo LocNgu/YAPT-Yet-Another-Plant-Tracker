@@ -11,6 +11,29 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 340,
+            versionName = "0.21.0",
+            added = listOf(
+                "Repotting reminder — give a plant its own repotting interval in months (3–36) on the " +
+                    "Add/Edit Plant screen. A due or overdue repotting joins the daily care notification, and " +
+                    "logging a Repot resets the schedule",
+                "Settings → Reminders: new \"Notify for fertilizing\" toggle. Turn it off and a plant that only " +
+                    "needs fertilizing won't notify you — plants that also need water still get their full " +
+                    "reminder. On by default",
+                "Developer mode — tap the version row in Settings → About five times to unlock a hidden " +
+                    "Developer section with build info, feature flags, and debug actions (reset the What's New " +
+                    "sheet, run the reminder check now, or seed and remove a set of demo plants)",
+                "New Plant Detail layout with per-action tabs (Water · Fertilize · Repot · Photo), inline " +
+                    "schedule editing, and per-tab insights — available as an opt-in \"Plant Detail tabs\" " +
+                    "feature flag under Developer mode"
+            ),
+            fixed = listOf(
+                "Watering history chart labels and gridlines now follow the app's own Light/Dark theme setting, " +
+                    "so they're no longer white-on-white when the app is set to Light on a dark device",
+                "Settings messages no longer cut each other off when several appear in quick succession"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 330,
             versionName = "0.20.1",
             fixed = listOf(
