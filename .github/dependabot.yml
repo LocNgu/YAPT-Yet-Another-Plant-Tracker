@@ -40,6 +40,18 @@ updates:
           - "org.jetbrains.kotlinx:kotlinx-coroutines*"
           - "org.jetbrains.kotlinx:kotlinx-serialization*"
           - "io.mockk*"
+    ignore:
+      # Vico 3.x is a Kotlin Multiplatform rewrite, not an upgrade: the
+      # com.patrykandpatrick.vico.core.* package is gone (replaced by
+      # .multiplatform.*), and compose-m3 3.x pulls JetBrains Compose
+      # Multiplatform instead of AndroidX Compose. A 2.x -> 3.x bump produces
+      # 116 compile errors in WateringHistoryChart.kt — essentially the whole
+      # component, including the custom CareEventDecoration canvas work
+      # (#231 #355 #362 #363 #366). The 2.x line is still maintained, so keep
+      # taking its minor/patch releases and treat the 3.x migration as its own
+      # spec'd issue rather than a recurring red-CI Dependabot PR (#518).
+      - dependency-name: "com.patrykandpatrick.vico:*"
+        update-types: ["version-update:semver-major"]
 
   # Keep the GitHub Actions used by the CI workflow current (low-risk, and the
   # pull_request CI validates any bump before it can merge).
