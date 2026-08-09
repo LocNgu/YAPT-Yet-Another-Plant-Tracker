@@ -12,7 +12,7 @@ paths:
 
 # CI / Build rules
 
-## Toolchain (AGP 9.3.1 / Gradle 9.6.1 / Kotlin 2.3.10 / KSP 2.3.10)
+## Toolchain (AGP 9.3.1 / Gradle 9.7.0 / Kotlin plugins 2.4.10 / KSP 2.3.11)
 - Compose BOM 2026.06.01 · compileSdk 37 · targetSdk 35 · minSdk 26.
 - **Kotlin + KSP move together** — KSP2 uses Kotlin-aligned versioning (KSP `2.3.10` = Kotlin `2.3.10`).
   Kotlin 2.4.x is not adoptable until KSP ships a 2.4 release (why a grouped Kotlin-2.4 + KSP-2.3 Dependabot PR
