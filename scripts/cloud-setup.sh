@@ -2,7 +2,8 @@
 # YAPT — Claude Code cloud-session setup script (issue #419)
 #
 # Makes Android Gradle builds work in a cloud session:
-#   1. Installs the Android SDK (cmdline-tools + platform-36 + build-tools + platform-tools)
+#   1. Installs the Android SDK (cmdline-tools + the compileSdk platform +
+#      build-tools + platform-tools)
 #      — needs dl.google.com, which must be allowlisted in the environment's
 #        Network access -> Custom -> Allowed domains.
 #   2. Points Gradle at that SDK.
@@ -18,31 +19,80 @@
 set -euo pipefail
 
 ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
-CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
-# Keep these in sync with app/build.gradle.kts (compileSdk) and the AGP-required
-# build-tools revision (AGP 9.3.1 -> build-tools;35.0.0).
-SDK_PACKAGES=("platform-tools" "platforms;android-37" "build-tools;35.0.0")
+# Bootstrap build of the command-line tools. sdkmanager only sees packages that
+# existed when it was built, so a stale pin silently hides new platforms (a 2023
+# build can't find `platforms;android-37`, released June 2026 — #544). This pin
+# therefore only bootstraps: it installs the SDK-managed `cmdline-tools;latest`,
+# and that copy installs everything else. Bumping it is optional, not load-bearing.
+CMDLINE_TOOLS_BUILD="15859902"
+CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip"
+# The platform package is derived from compileSdk below so it can't drift from the
+# build; only build-tools is pinned, to the AGP-required revision (AGP 9.3.1 -> 35.0.0).
+BUILD_TOOLS_VERSION="35.0.0"
 
 echo "==> Android SDK -> $ANDROID_HOME"
 export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
-SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 
-if [ ! -x "$SDKMANAGER" ]; then
-  echo "    installing command-line tools"
+COMPILE_SDK="$(sed -nE 's/^[[:space:]]*compileSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' \
+  app/build.gradle.kts 2>/dev/null | head -1)"
+if [ -z "$COMPILE_SDK" ]; then
+  echo "!!! could not read compileSdk from app/build.gradle.kts — run this from the repo root" >&2
+  exit 1
+fi
+SDK_PACKAGES=("platform-tools" "platforms;android-${COMPILE_SDK}" "build-tools;${BUILD_TOOLS_VERSION}")
+echo "    compileSdk $COMPILE_SDK -> platforms;android-${COMPILE_SDK}"
+
+# Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
+# which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
+# so cached environments re-provision instead of reusing 2023 tools forever.
+if [ -d "$ANDROID_HOME/cmdline-tools/latest" ] && [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
+  echo "    removing unmanaged cmdline-tools/latest from an earlier setup run"
+  rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+fi
+
+BOOTSTRAP_DIR="$ANDROID_HOME/cmdline-tools/bootstrap-$CMDLINE_TOOLS_BUILD"
+if [ ! -x "$BOOTSTRAP_DIR/bin/sdkmanager" ]; then
+  echo "    installing bootstrap command-line tools ($CMDLINE_TOOLS_BUILD)"
   tmp="$(mktemp -d)"
   curl -fsSL --retry 3 -o "$tmp/cmdline-tools.zip" "$CMDLINE_TOOLS_URL"
   mkdir -p "$ANDROID_HOME/cmdline-tools"
-  rm -rf "$ANDROID_HOME/cmdline-tools/latest"
-  unzip -q "$tmp/cmdline-tools.zip" -d "$ANDROID_HOME/cmdline-tools"
-  mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+  rm -rf "$BOOTSTRAP_DIR" "$tmp/unpacked"
+  unzip -q "$tmp/cmdline-tools.zip" -d "$tmp/unpacked"
+  mv "$tmp/unpacked/cmdline-tools" "$BOOTSTRAP_DIR"
   rm -rf "$tmp"
 else
-  echo "    command-line tools already present"
+  echo "    bootstrap command-line tools already present"
+fi
+
+SDKMANAGER="$BOOTSTRAP_DIR/bin/sdkmanager"
+accept_licenses() { yes 2>/dev/null | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; }
+
+echo "==> Updating to the SDK-managed cmdline-tools;latest"
+accept_licenses
+if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
+  echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
+fi
+if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+  SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 fi
 
 echo "==> Accepting licenses and installing SDK packages"
-yes 2>/dev/null | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-"$SDKMANAGER" "${SDK_PACKAGES[@]}" >/dev/null
+accept_licenses
+sdk_log="$(mktemp)"
+if ! "$SDKMANAGER" "${SDK_PACKAGES[@]}" >"$sdk_log" 2>&1; then
+  cat "$sdk_log" >&2
+  echo "!!! sdkmanager failed to install: ${SDK_PACKAGES[*]}" >&2
+  echo "    'Failed to find package' means the tools are older than the package — check" >&2
+  echo "    \"$SDKMANAGER --list\" and bump CMDLINE_TOOLS_BUILD in this script." >&2
+  rm -f "$sdk_log"
+  exit 1
+fi
+rm -f "$sdk_log"
+
+if [ ! -d "$ANDROID_HOME/platforms/android-${COMPILE_SDK}" ]; then
+  echo "!!! platforms/android-${COMPILE_SDK} missing after a successful sdkmanager run" >&2
+  exit 1
+fi
 
 # Let this repo's Gradle build find the SDK even if ANDROID_HOME isn't exported
 # into the session shell. (Belt-and-suspenders: prefer setting ANDROID_HOME as an
