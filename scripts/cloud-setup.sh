@@ -118,6 +118,18 @@ if [ -f "$WRAPPER_PROPS" ]; then
     DIST_PARENT="$HOME/.gradle/wrapper/dists/gradle-${WRAPPER_VER}-bin"
     HASHDIR="$(ls -d "$DIST_PARENT"/*/ 2>/dev/null | head -1 || true)"
     if [ -n "$HASHDIR" ] && [ ! -e "${HASHDIR}gradle-${WRAPPER_VER}-bin.zip.ok" ]; then
+      # Seeding only works when the pre-installed Gradle is close enough to the pin.
+      # AGP 9 needs Gradle 9, so seeding an older major just swaps "can't download the
+      # wrapper dist" for a confusing "minimum supported Gradle version" build failure.
+      PRE_GRADLE_VER="$("$PRE_GRADLE" --version 2>/dev/null | sed -nE 's/^Gradle[[:space:]]+([0-9.]+).*/\1/p' | head -1)"
+      if [ "${PRE_GRADLE_VER%%.*}" != "${WRAPPER_VER%%.*}" ]; then
+        echo "!!! pre-installed Gradle is ${PRE_GRADLE_VER:-unknown}, wrapper pins $WRAPPER_VER" >&2
+        echo "    Seeding across major versions would break the build instead of fixing it." >&2
+        echo "    Allowlist the wrapper's download hosts (services.gradle.org," >&2
+        echo "    downloads.gradle.org, release-assets.githubusercontent.com) in the" >&2
+        echo "    environment's network config, or use an image with Gradle ${WRAPPER_VER%%.*}.x." >&2
+        exit 1
+      fi
       rm -f "${HASHDIR}"*.lck "${HASHDIR}"*.part
       rm -rf "${HASHDIR}gradle-${WRAPPER_VER}"
       cp -a "$PRE_GRADLE_HOME" "${HASHDIR}gradle-${WRAPPER_VER}"
