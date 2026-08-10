@@ -10,6 +10,8 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.GalleryPhoto
@@ -43,6 +45,24 @@ class PlantDetailViewModel(
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase
 ) : ViewModel() {
+
+    /**
+     * Whether the per-action tabs, inline scheduling settings, and per-tab insights (#436) are
+     * shown. Behind [FeatureFlagRegistry.PLANT_DETAIL_TABS] (developer mode → feature flags, product
+     * ADR-0022); when off the screen renders the classic single-page layout.
+     *
+     * Read straight from [dataStore] via [FeatureFlags.preferenceKeyFor] — the same key derivation
+     * the [FeatureFlags] singleton writes through, so the two can't drift — rather than taking a
+     * `FeatureFlags` constructor parameter, which would push this constructor to 7 params and trip
+     * Detekt's `LongParameterList` (the same constraint #521 hit on `SettingsViewModel`). Mirrors how
+     * [photoReminderEnabled] already reads its own preference here.
+     */
+    val tabsEnabled: StateFlow<Boolean> = dataStore.data
+        .map { prefs ->
+            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS)]
+                ?: FeatureFlagRegistry.PLANT_DETAIL_TABS.default
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -227,6 +247,42 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Inline scheduling edits from the Plant Detail tabs (#436, product ADR-0022). Each persists a
+     * single field straight through [PlantRepository.updatePlant]; the change flows back via the
+     * [plant] StateFlow so the tab insights update immediately. A `null` interval clears the schedule
+     * (the "Not scheduled" state), matching the reminder toggle on Add/Edit Plant.
+     */
+    fun setWateringInterval(days: Int?) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(wateringIntervalDays = days, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun setFertilizingInterval(days: Int?) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(fertilizingIntervalDays = days, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    fun setLiquidFertilizer(enabled: Boolean) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(useLiquidFertilizer = enabled, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
     fun requestSkip() {
         showSkipDialog.value = true
     }
@@ -276,6 +332,12 @@ class PlantDetailViewModel(
 
     fun deleteLog(log: CareLog) {
         viewModelScope.launch { careLogRepository.deleteLog(log) }
+    }
+
+    companion object {
+        /** Interval a schedule starts at when the user enables it inline on a tab (mirrors Add/Edit). */
+        const val DEFAULT_WATERING_INTERVAL_DAYS = 7
+        const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
     }
 
     sealed class Event {

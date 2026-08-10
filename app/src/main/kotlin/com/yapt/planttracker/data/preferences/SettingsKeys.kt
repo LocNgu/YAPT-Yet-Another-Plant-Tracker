@@ -14,7 +14,9 @@ object SettingsKeys {
     val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
     val PHOTO_REMINDER_ENABLED = booleanPreferencesKey("photo_reminder_enabled")
     val COMBINE_NOTIFICATIONS = booleanPreferencesKey("combine_notifications")
+    val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
     val THEME_MODE = stringPreferencesKey("theme_mode")
+    val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
 }
 
 /**

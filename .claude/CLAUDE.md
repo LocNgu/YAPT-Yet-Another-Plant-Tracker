@@ -1,349 +1,95 @@
 # YAPT – Yet Another Plant Tracker
 
-## Purpose & Target Users
-
-An offline-first Android app for houseplant owners who want to track care history without cloud accounts, subscriptions, or data collection. Users log waterings, fertilizing, pruning, and other care events; the app surfaces overdue reminders and suggests adjusted watering intervals based on the user's own feedback.
-
----
+Offline-first Android app for houseplant care. No cloud, no accounts, no telemetry. Users log care
+events (water/fertilize/prune/repot/note/photo); the app surfaces overdue reminders and adapts
+watering intervals from the user's own feedback.
 
 ## Tech Stack
+- Kotlin · Jetpack Compose + Material 3 (nature palette) · MVVM + Repository
+- Room (SQLite, offline-first) · DataStore (prefs) · WorkManager + NotificationManager · Coil 2
+- Compose Navigation (type-safe `Screen` sealed class) · manual DI via `YaptApplication` lazy singletons (no Hilt)
+- Build: AGP 9.3.1, Kotlin plugins 2.4.10, KSP 2.3.11, Gradle 9.7.0, Compose BOM 2026.06.01; compileSdk 37 / targetSdk 35 / minSdk 26
 
-| Layer | Choice | Why |
-|---|---|---|
-| Language | Kotlin | Standard Android |
-| UI | Jetpack Compose + Material 3 | Declarative, nature-themed palette |
-| Architecture | MVVM + Repository | Clear separation, testable ViewModels |
-| Database | Room (SQLite) | Offline-first, type-safe queries |
-| DI | Manual (Application singletons) | No Hilt — keeps the build simple |
-| Navigation | Compose Navigation | Type-safe routes via `Screen` sealed class |
-| Images | Coil 2 | Async image loading in Compose |
-| Reminders | WorkManager + NotificationManager | Survives process death |
-| Preferences | DataStore | Async, coroutine-friendly settings |
-| Build | AGP 9.3.1, Kotlin 2.3.10, KSP 2.3.10, Gradle 9.6.1 | |
-| Compose BOM | 2026.06.01 | Aligns all Compose artifact versions |
-
----
-
-## Folder Structure
-
+## Commands
+```bash
+./gradlew compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin   # compile
+./gradlew testDebugUnitTest        # unit tests (flag also builds the release suite — see rules/ci-build.md)
+./gradlew lintDebug                # Android lint
+./gradlew detekt                   # static analysis (add autoCorrect=true locally to auto-fix formatting)
 ```
-app/src/main/kotlin/com/yapt/planttracker/
-├── data/
-│   ├── db/           PlantDao, CareLogDao, PlantDatabase (singleton)
-│   ├── entity/       PlantEntity, CareLogEntity  (Room @Entity classes)
-│   └── repository/   PlantRepository, CareLogRepository
-│                     (entity ↔ domain mapping via extension functions)
-├── domain/
-│   ├── model/        Plant, CareLog, CareType, WateringFeedback,
-│   │                 PlantCareStatus, QuickWaterSuggestion, PhotoReminderRequest
-│   ├── schedule/     CareSchedule  (pure business logic — overdue + adaptive interval)
-│   └── usecase/      QuickLogUseCase (shared water/fertilize quick-log + photo-reminder logic)
-├── notification/     NotificationHelper (channel creation)
-├── ui/
-│   ├── components/   PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto, QuickLogButtons
-│   ├── navigation/   Screen (sealed class), NavGraph (NavHost)
-│   ├── screens/      plantlist/, addplant/, plantdetail/, addcarelog/, settings/
-│   └── theme/        Color.kt, Theme.kt, Type.kt
-├── util/             DateUtils, ImageUtils
-└── worker/           ReminderWorker, ReminderScheduler, BootReceiver
+Prefer `-q` and grep for failures over dumping full build logs. Cloud/session build setup: `.claude/rules/ci-build.md`.
+
+## Architecture
 ```
+data/{db,entity,repository}   Room DAOs, @Entity, repos (entity↔domain mapping — UI never touches entities)
+domain/{model,schedule,usecase,…}  Plant/CareLog/CareType…; CareSchedule (pure logic); QuickLogUseCase (shared quick-log)
+notification/                 channel creation + POST_NOTIFICATIONS helper (NotificationPermission)
+ui/{components,navigation,screens,theme}   5 screens; Screen sealed class; NavGraph
+util/                         DateUtils, ImageUtils
+worker/                       ReminderWorker, ReminderScheduler, BootReceiver
+```
+- Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
+- Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
 
----
+## Conventions (beyond what the linter enforces)
+- **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).
+- **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
+- **Dates** — `DateUtils.formatRelative()` for all display; never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013).
+- **No `libs.versions.toml`** — versions inlined in `app/build.gradle.kts`; the Compose BOM governs Compose artifacts.
+- **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).
+- **Room migrations are mandatory** — explicit `Migration`s only, hard-crash if one is missing (`fallbackToDestructiveMigration` is never used). Any schema change ships with a `Migration` and a committed schema JSON in `app/schemas/` (technical ADR-0002).
+- **All UI strings in `strings.xml`** — no hardcoded strings in Compose. `cd_back` is the canonical back-button description.
+- **Room schema** exported to `app/schemas/` via KSP — commit schema JSON when bumping DB version. `PlantDatabase.DB_VERSION` is the single source (also feeds `@Database(version=…)`), so the two can't drift.
+- **Compose UI tests assert user-visible semantics** (contentDescription/stateDescription/text/actionable), **never** tree structure (child counts, testTag topology). A testTag never merges past a clickable/merged ancestor. If a fix is about announcements, assert the announcement — not the topology (#420).
+- **Two-strikes rule** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or a minimal repro), and reconsider whether the test asserts the wrong thing (structure vs. contract) (#420).
+- Palette: SageGreen `#6B8F71`, WarmCream `#F5F0E8`, EarthBrown `#795548`; status OkGreen/WarnOrange/OverdueRed in `Color.kt`.
 
-## Architecture Decisions
-
-### Manual DI via Application singletons
-`YaptApplication` creates `PlantDatabase`, `PlantRepository`, and `CareLogRepository` as lazy properties. `NavGraph` receives the Application instance and passes repositories into each ViewModel factory. No Hilt to avoid annotation processing complexity on a small app.
-
-### ViewModel Factory pattern
-Every ViewModel has an inner `Factory` class. Compose screens obtain them via `viewModel(factory = Vm.Factory(...))`. This keeps the injection explicit and doesn't require a DI framework.
-
-### Entity ↔ Domain mapping
-`PlantRepository` and `CareLogRepository` contain `toEntity()` / `toDomain()` extension functions. The UI never touches Room entities directly.
-
-### Suspend in Flow `combine` block
-`PlantListViewModel.buildStatus()` is a `suspend` function called inside a `combine {}` block. Kotlin's `List.map {}` takes a non-suspend lambda, so the code uses a `for` loop with `mutableListOf` to accumulate results. Do not refactor to `.map {}` without making it suspendable.
-
-### Adaptive watering interval
-After saving a WATER log, `AddCareLogViewModel` queries the last two waterings to compute `actualIntervalDays`, applies `CareSchedule.computeSuggestedInterval(feedback, actualDays, currentInterval)`, and passes the result back to `PlantDetailScreen` via `savedStateHandle["suggestedWateringInterval"]`. The detail screen shows a modal `AlertDialog` with a pre-filled editable `TextField`; the user can adjust the value before tapping Apply, or dismiss to discard. See product ADR-0006 (supersedes ADR-0005). `JUST_RIGHT` produces a suggestion when `actualIntervalDays != currentInterval`; `TOO_SOON` uses `currentInterval` as the base when the user watered early (`actual < stored`) so the suggestion extends beyond the stored interval.
-
-### DataStore delegate
-`val Context.settingsDataStore by preferencesDataStore(name = "settings")` is declared at **file top-level** in `YaptApplication.kt` (not inside the class). This is required by the AndroidX DataStore API.
-
-### WorkManager scheduling
-`ReminderScheduler.schedule(context, hour, minute)` computes an `initialDelay` to the next occurrence of the user's configured time, then enqueues a 24-hour `PeriodicWorkRequest` with policy `REPLACE` (so changing the time takes effect immediately). `BootReceiver` uses `goAsync()` to read stored preferences before rescheduling.
-
----
-
-## Patterns & Conventions
-
-- **StateFlow** for UI state; **SharedFlow** for one-shot events (interval suggestions)
-- **`collectAsStateWithLifecycle()`** in all Compose screens (not `collectAsState()`)
-- **Room schema location** exported to `app/schemas/` via KSP arg — commit schema JSON files when bumping DB version
-- **Nature-themed palette**: SageGreen `#6B8F71` primary, WarmCream `#F5F0E8` background, EarthBrown `#795548` tertiary; status colours OkGreen / WarnOrange / OverdueRed defined in `Color.kt`
-- **`DateUtils.formatRelative()`** for all date display — never compute `(now - ts) / 86_400_000` inline
-- **Enums stored as String** in Room — use `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` when reading, not plain `.valueOf()`
-- **No libs.versions.toml** — dependency versions are inlined in `app/build.gradle.kts`; the Compose BOM handles Compose artifact versions
-- **Compose UI tests assert user-visible semantics** — what is announced (`contentDescription`/`stateDescription`), displayed (text), or actionable — **never tree structure** (child counts, node merge mechanics, `testTag` reachability across merge boundaries). A `testTag` never merges upward past an ancestor `clickable`/merged node, and `clearAndSetSemantics`-replaced descendants are intentionally still exposed in the unmerged tree, so structural assertions are unreliable in *both* trees. If a fix is about accessibility announcements, assert the announcement (e.g. the merged node carries the expected `contentDescription` and its merged text contains only what should be read aloud), not the node topology that produces it (#420).
-- **Two-strikes rule on failing tests** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or reduce to a minimal repro) before the next push, and reconsider whether the test is asserting the wrong thing (structure vs. user-visible contract) (#420).
-
-### CHANGELOG.md
-Format: [Keep a Changelog](https://keepachangelog.com/). File lives at repo root alongside `README.md`.
-Implementer adds entries to `[Unreleased]` in every PR (dev workflow step 5).
-Human promotes `[Unreleased]` → a versioned heading when cutting a release.
-
----
-
-## Architecture Decision Records (ADRs)
-
-Decisions are documented in `docs/decisions/`:
-- **`product/`** — product and UX decisions (the primary set): when features appear, what defaults are, how the app behaves
-- **`technical/`** — implementation constraints and framework choices
-
-**When to consult ADRs:**
-- **Spec agent**: before interviewing the human, scan `docs/decisions/product/` for ADRs relevant to the feature area. If the request contradicts an existing ADR, name the ADR and its rationale explicitly, and ask the human to confirm the new direction before proceeding. If the feature will likely establish a *new* significant decision, flag in the spec that an ADR will probably be needed.
-- **Implementer agent**: before writing code in an area covered by a technical ADR, read the relevant file. Do not refactor patterns described in technical ADRs without a superseding decision.
-
-**When to write a new ADR:** ADRs are written proactively, not only when superseding an existing one. If a PR records a significant new product or technical decision (a new default, a chosen framework/pattern, a non-obvious behavioural rule that a future implementer would need to know), the implementer creates a new ADR from `docs/decisions/template.md` in the right subfolder, numbered sequentially, with Status `accepted` — see the implementer's "When finished" checklist. Routine bug fixes and mechanical changes do not need one.
-
-**When a feature contradicts an ADR:** do not implement silently against the existing decision. Surface the conflict in the spec, name the ADR, state its rationale, and wait for the human to confirm. If confirmed, implement the new behaviour and write a new ADR that supersedes the old one. The superseded ADR's **Status** line is updated to `superseded by [ADR-XXXX](filename.md)` — this single-line metadata update is the only permitted edit to a finalized ADR; all other content stays intact.
-
----
-
-## Known Issues / Technical Debt
-
-- **#419 (resolved)** — Cloud sessions **can** now build the project. Enablement lives in the environment config, not the repo: allowlist `dl.google.com` (Network access → Custom, keep the default package managers) and set `ANDROID_HOME=/opt/android-sdk`, then run `scripts/cloud-setup.sh` as the environment's setup script. It installs the Android SDK (`platforms;android-37`, `build-tools;35.0.0`, `platform-tools`), points Gradle at it, and seeds the Gradle wrapper's dist cache from the pre-installed Gradle (the pinned wrapper distribution is a GitHub release asset the session proxy blocks; dependency artifacts resolve online from `maven.google.com`/Maven Central). With that in place `./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug` runs in-session, so the dev-workflow "implementer runs build/lint/tests before pushing" step is satisfiable. Note: `./gradlew --version` reports the pre-installed Gradle (a patch off the pinned version); CI still uses the pinned build. Instrumented tests still require CI's emulator. **Update (AGP 9 bump):** since the toolchain moved to AGP 9.3.1 / Gradle 9.6.1, in-session `./gradlew` builds only work if the environment's pre-installed Gradle is 9.x — `cloud-setup.sh` seeds the wrapper dist from whatever `gradle` is on PATH, so an image still shipping Gradle 8.x will fail the AGP-9 build locally. CI is unaffected (`gradle/actions/setup-gradle` downloads the pinned `gradle-version: '9.6.1'` directly), so CI remains the authoritative gate until the cloud image ships Gradle 9
-- **#420 (resolved)** — the Compose-testing convention (assert user-visible semantics, never tree structure; two-strikes rule on failing-test fix attempts) now lives in **Patterns & Conventions** above
-
----
+## Architecture Decision Records
+Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant ADR before working in a covered area; never refactor a pattern a technical ADR describes without a superseding decision.** When a PR records a significant new product/technical decision, write a new ADR from `docs/decisions/template.md` (Status `accepted`, numbered sequentially). If a request contradicts an ADR, name it and its rationale and get human confirmation first; the only permitted edit to a finalized ADR is its Status line → `superseded by [ADR-XXXX](file.md)`.
 
 ## Development Workflow
+**Issue-first (always):** on any feature request or bug report, first create a GitHub issue via `mcp__github__issue_write`, share the link, and wait for explicit go-ahead before writing any code, branch, or PR.
 
-**Issue-first rule (always):** When the human files a feature request or reports a bug, do **not** start implementing. First create a GitHub issue (title + description; repro steps for bugs, acceptance criteria for features) via `mcp__github__issue_write`, share the issue link, and wait for explicit go-ahead before writing any code, branches, or PRs. This gate precedes step 1 below.
+**Model & cost:** run the orchestrator on **Sonnet for routine issues**; switch to Opus only for genuinely hard, cross-system reasoning. Subagents are model-pinned in their frontmatter (`spec`/`implementer`/`reviewer`/`qa` → Sonnet), so the pipeline stays off Opus by default.
 
-Every feature and bug fix follows these steps in order:
+**The full pipeline below is the default.** A narrow fast-path exception exists for a change that is **both** mechanical **and** confined to a single file (a typo, a string tweak, a *pinned-version* dependency bump, a comment, a doc edit — never a logic change, and never an unpinned/range dependency version): that case **skips step 1 (Spec) and step 4 (QA)** only. Step 3 (Review) still always runs — CI passing is not a substitute for a review pass, since e.g. an unpinned new dependency compiles green but is a BLOCKING reviewer finding. If a change doesn't clearly meet *both* conditions, run the full pipeline — the fast-path is the exception, not the default to justify skipping steps from. Don't add explicit "double-check your work" or re-verification steps beyond this — the model self-corrects; verification lives in CI and the review round, not in duplicated passes.
 
-1. **Spec** (`spec` agent) — scans `docs/decisions/product/` for ADRs relevant to the feature; surfaces any contradictions to the human before proceeding; interviews the human, resolves ambiguities, posts clarifications as a comment on the GitHub issue. It also assesses scope: if the issue is large (spans 3+ independently shippable layers, or a migration + new UI + new tests), it appends a `## Suggested sub-tasks` split (dependency-ordered) to the clarifications for the human to adjust before implementation begins. The implementer can also flag an oversized scope mid-implementation if it only becomes apparent then (#299)
-2. **Implement** (`implementer` agent) — reads the spec, writes code, pushes a `claude/*` branch, and returns the PR title/body as text; the **orchestrating Claude instance** opens the PR targeting `develop` via `mcp__github__create_pull_request`
-3. **Review** (`reviewer` agent) — iterative rounds of review:
-   - Each finding is labelled **BLOCKING** (must fix) or **NON-BLOCKING**; the reviewer also tags each NON-BLOCKING finding as **SMALL** (localised, ≤ a few lines, no design risk) or **LARGE** (cross-cutting, architectural, or requires its own spec)
-   - The reviewer agent returns findings as text; the **orchestrating Claude instance** posts them:
-     - BLOCKING inline comments: (1) `mcp__github__pull_request_review_write` `create` (no `event`) → (2) `mcp__github__add_comment_to_pending_review` per finding → (3) `mcp__github__pull_request_review_write` `submit_pending` with `event: COMMENT`
-     - NON-BLOCKING: the orchestrator **asks the human** for each finding (or grouped by recommendation) before acting — it states its recommendation ("fix in this PR" for SMALL, "new issue" for LARGE) and waits for the human's decision; then either hands the fix to the implementer in the current PR or files a new GitHub issue via `mcp__github__issue_write`
-   - **Each reviewer round is posted as a fresh, standalone PR review — never combined with a previous round's findings**
-   - The PR review body is compact: verdict + counts only
-   - **GitHub constraint:** `APPROVE` and `REQUEST_CHANGES` are both blocked when the PR author and reviewer share the same GitHub account — always use `COMMENT` event
-   - After round 2, the reviewer stops and waits for the human to decide (another implementer round, manual approval, or other action)
-   - **Note:** `reviewer` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
-4. **QA** (`qa` agent) — validates build, tests, lint, and every acceptance criterion from the spec
-   - The QA agent returns a compact checklist (under 15 lines for a passing run); the **orchestrating Claude instance** posts it to the PR using `mcp__github__add_issue_comment`
-   - **Note:** `qa` subagents have read-only GitHub MCP tools (`issue_read`, `pull_request_read`) so they fetch the issue + PR themselves, but they cannot post — the orchestrator must post on their behalf
-5. **Update docs** — implementer updates this file, `CHANGELOG.md` (`[Unreleased]` section), and `WhatsNewContent.kt` (user-facing release notes) to reflect completion (`chore:`/docs-only PRs with no user-visible change may omit the CHANGELOG and `WhatsNewContent.kt` entries)
-6. **Merge** — **human merges only**; Claude never merges a PR
+1. **Spec** (`spec` agent) — scans product ADRs, interviews the human, posts clarifications on the issue; appends a `## Suggested sub-tasks` split when scope spans 3+ shippable layers. Skipped on the fast-path.
+2. **Implement** (`implementer` agent) — writes code, pushes a `claude/*` branch, returns the PR title/body as text; the **orchestrator** opens the PR targeting `develop` (pre-authorized — no need to ask). Merging still requires a human.
+3. **Review** (`reviewer` agent, read-only — can't post) — findings tagged **BLOCKING** / **NON-BLOCKING (SMALL|LARGE)**; the orchestrator posts them. Each round is a fresh standalone review; max 2 rounds, then wait for the human. Self-review must use `event: COMMENT` (APPROVE/REQUEST_CHANGES are blocked for the same account). For NON-BLOCKING, the orchestrator asks the human (recommend in-PR fix for SMALL, new issue for LARGE) before acting. **Never skipped**, including on the fast-path.
+4. **QA** (`qa` agent, read-only) — validates the **acceptance criteria CI doesn't already cover**; build/tests/lint are the CI gate, not re-run here. Orchestrator posts the checklist. Skipped on the fast-path — when skipped, the orchestrator goes straight to human review once step 3 approves and CI is green (there is no QA `NEXT: human | action: merge PR <N>` signal to wait for in that case).
+5. **Update docs** — implementer updates this file, `CHANGELOG.md` `[Unreleased]`, and `WhatsNewContent.kt` **in the feature PR, before merge** (`chore:`/docs-only PRs may omit the CHANGELOG + What's New entries).
+6. **Merge** — **human only**; Claude never merges.
 
-**PR creation is pre-authorized:** at step 2, once the implementer has pushed the `claude/*` branch, the orchestrator opens the PR targeting `develop` **without asking first** — this is a standing instruction that overrides the default "don't open a PR unless the user explicitly asks" behaviour. It applies only to opening the step-2 feature/bug-fix PR against `develop` (and the two release PRs in the Release Workflow); merging still requires a human (step 6), and this authorization does not extend to force-pushes or any action the permission table marks as requiring a prompt.
+**Auto-review on green CI:** after opening the PR, `subscribe_pr_activity`; whenever new commits land **and** that PR's CI is green, auto-launch the next reviewer round (still capped at 2). If CI is red, diagnose and re-kick rather than reviewing.
 
-**Review auto-kicks on green CI:** immediately after opening the step-2 PR, the orchestrator subscribes to the PR's activity (`subscribe_pr_activity`). Whenever new commits land on the branch — the initial implementation or any subsequent implementer fix — **and** that PR's CI finishes green, the orchestrator automatically launches the next `reviewer` round (step 3) **without waiting for the human to ask**. If CI is red, the orchestrator diagnoses and re-kicks or reports the failure rather than reviewing. The step-3 two-round cap still applies: after round 2 the orchestrator stops and waits for the human. This automation only holds while a subscribed session is alive — it is delivered via the PR-activity subscription (webhooks don't cover CI success, so the orchestrator also re-checks on its scheduled self check-in), not a `settings.json` hook, since no local hook fires on remote CI status. Merging remains human-only.
+**Comment cadence** — one comment per phase, in order: spec→issue (`add_issue_comment`); each review round→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR; summary→PR.
 
-**Comment cadence** — the orchestrator posts each phase as its own separate comment, in order. Never bundle multiple phases or rounds into one comment:
-
-| Phase | Where | Tool |
-|---|---|---|
-| Spec clarifications | GitHub issue | `mcp__github__add_issue_comment` |
-| Each reviewer round | PR (inline review) | `pull_request_review_write` + `add_comment_to_pending_review` |
-| QA result | PR | `mcp__github__add_issue_comment` |
-| Workflow summary | PR | `mcp__github__add_issue_comment` |
-
-After review + QA complete, the orchestrating Claude instance posts a brief summary to the user **and** to the PR comment thread using `mcp__github__add_issue_comment`.
+Full release-cutting steps: `.claude/rules/release.md`.
 
 ## Git Workflow
+One branch and one PR per change — never mix unrelated work. Always branch from freshly-fetched `origin/develop`:
+```bash
+git fetch origin develop && git checkout -b claude/<kebab-desc> origin/develop
+```
+PR targets `develop`. Return to an up-to-date `develop` before starting anything new. `gh` is not installed — use `mcp__github__*` tools.
 
-**One branch and one PR per feature or bug fix.** Never mix unrelated changes on the same branch.
-
-- **Always fetch first, then branch off the freshly-fetched `origin/develop`** — never branch from a stale local ref: `git fetch origin develop && git checkout -b claude/<kebab-description> origin/develop`. This prevents branches starting from an outdated `develop` (which otherwise forces a later rebase).
-- All commits for the task go on that branch
-- PR targets `develop`
-- Before starting anything new, return to an up-to-date `develop`: `git fetch origin develop` first
-
-Branch naming convention: `claude/<kebab-case-description>`
-Examples: `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`, `claude/fix-5-enum-valueof`
-
----
-
-## Autonomy & Permission Model
-
-Agents and Claude operate under this permission model to minimise interruptions during normal feature-branch work. `settings.local.json` enforces the hard rules mechanically; instructions cover the rest.
-
+## Permissions (hard rules enforced by `settings.local.json`)
 | Action | Permission |
-|--------|-----------|
-| Read any file | Always allowed — no prompt |
-| Read-only git (`status`, `log`, `diff`, `show`, `fetch`, `branch`, `remote`) | Always allowed — no prompt |
-| `git add`, `git commit`, `git stash`, `git cherry-pick` | Always allowed — no prompt |
-| `git checkout claude/*` / `git checkout -b claude/*` | Always allowed — no prompt |
-| `git push origin claude/*` (any push to a `claude/` branch) | Always allowed — no prompt |
-| `gh issue *`, `gh pr create/view/list/diff/checks/comment/ready`, `gh api *` | **Removed** — `gh` is not installed; use `mcp__github__*` MCP tools instead |
-| `mcp__github__issue_read`, `mcp__github__pull_request_read` (read-only) | Always allowed — granted to subagents in their frontmatter |
-| `mcp__github__issue_write`, `mcp__github__pull_request_review_write`, `mcp__github__add_issue_comment`, `mcp__github__add_comment_to_pending_review`, `mcp__github__create_pull_request` (writes) | Orchestrator-only — subagents return text, the orchestrator posts |
-| `./gradlew *` (build, test, lint) | Always allowed — no prompt |
-| `git checkout develop` | Requires permission — a prompt will appear |
-| `git push origin develop` | Requires permission — a prompt will appear |
-| `git checkout main` | **Forbidden** — blocked by `settings.local.json` |
-| `git push --force origin claude/*` | Requires permission — a prompt will appear |
-| `git push --force origin main` / `git push --force origin develop` | **Forbidden** — blocked by `settings.local.json` |
-| `git push origin main` | **Forbidden** — blocked by `settings.local.json` |
-| `git reset --hard` | **Forbidden** — blocked by `settings.local.json` |
-| Merging PRs by any means (`mcp__github__merge_pull_request`, GitHub UI, etc.) | **Forbidden** — human merges only |
+|---|---|
+| Read files · read-only git · `add`/`commit`/`stash`/`cherry-pick` · checkout/push `claude/*` · `./gradlew *` | Allowed, no prompt |
+| `mcp__github__*` **writes** (issue/PR/review/comment/create_pr) | **Orchestrator only** — subagents return text, orchestrator posts |
+| `git checkout develop` · `git push origin develop` · `git push --force origin claude/*` | Prompts — approve when appropriate |
+| `git checkout main` · `git push origin main` · force-push main/develop · `git reset --hard` | **Forbidden** — blocked mechanically |
+| Merging PRs by any means | **Forbidden** — human only |
 
-When a prompt appears for `git checkout develop`, `git push origin develop`, or `git push --force origin claude/*`, it is intentional — approve when appropriate.
-
----
-
-## Release Workflow
-
-When the human asks to cut a release (e.g. "do a release", "bump to X.Y.Z", "prepare a release PR"):
-
-1. **Determine the new version** — ask the human if not specified; follow semver (new features → MINOR bump, fixes only → PATCH bump).
-
-2. **Update these five files** on a `claude/<kebab>` branch:
-   - `version.properties` — bump `MINOR` or `PATCH` (or `MAJOR`)
-   - `CHANGELOG.md` — promote `## [Unreleased]` → `## [X.Y.Z] - <today>` and add a fresh empty `## [Unreleased]` section above it
-   - `WhatsNewContent.kt` — prepend a new `ReleaseNotes` entry with the new `versionCode` and `versionName`; **`WhatsNewContentTest` will fail at CI if this is skipped** (the test asserts `all.first().versionName == BuildConfig.VERSION_NAME`)
-   - `README.md` — add any features in the new release that aren't already listed under Features
-   - `.claude/CLAUDE.md` — add any "What's Been Completed" entries that are still missing
-
-3. **Commit and push** to the feature branch with message `chore: bump version to X.Y.Z, promote changelog, update docs`.
-
-4. **Create PR #1** — `claude/<branch>` → `develop` (title: `chore: release prep for X.Y.Z`). This is a docs/version-only PR.
-
-5. **Create PR #2** — `develop` → `main` (title: `Release X.Y.Z`). Body should list all Added / Fixed / Changed from the new CHANGELOG section. Note in the body that PR #1 must be merged first.
-
-6. **Human merges both PRs** (in order). CI builds the release APK automatically on merge to `main`.
-
-No DB migration, no new tests needed for a docs-only release prep PR.
-
----
-
-## What's Been Completed
-
-**Architecture & Data**
-- Room DB v6 (PlantEntity, CareLogEntity, PlantPhotoEntity); explicit migrations — hard-crash if migration missing (`fallbackToDestructiveMigration` removed); schemas exported to `app/schemas/`; baseline `1.json` committed; MIGRATION_3_4 creates `plant_photos` table and seeds rows from `coverPhotoUri` (#290); MIGRATION_4_5 adds unique index on (plantId, uri) in plant_photos and deduplicates existing rows (#301); MIGRATION_5_6 adds `archivedAt INTEGER` column to plants table for soft-delete graveyard (#329)
-- PlantRepository + CareLogRepository + PlantPhotoRepository with entity↔domain mapping; UI never touches Room entities directly
-- `GalleryPhoto(uri, timestamp)` projection type in `domain/model/` — used by PlantDetailViewModel to merge plant photos and care-log photos via `Flow.combine`; `.distinctBy { it.uri }` prevents duplicate-key crash in LazyRow (#290)
-- Domain models: Plant, CareLog, CareType, WateringFeedback, PlantCareStatus; enums stored as String in Room with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` deserialization; `CareType` and `WateringFeedback` are plain Kotlin enums — display strings and icons live in `ui/util/EnumResources.kt` extension functions (#276)
-- DataStore preferences (notification toggle, reminder time, sort option, keep-screen-on, last-seen version code); delegate declared at file top-level in `YaptApplication.kt`
-- Manual DI via `YaptApplication` lazy singletons; ViewModel `Factory` inner classes; no Hilt
-- Nature-themed Material 3 dark/light theme; Android PhotoPicker with `takePersistableUriPermission`
-
-**Domain & Scheduling**
-- `CareSchedule.computeStatus()`: calendar-day comparisons via `Long.toLocalDate()` in `DateUtils.kt`; `isOverdue`/`isDueSoon` use `LocalDate.isBefore()` / `==` — no millisecond division (see technical ADR-0013); a never-watered plant with `wateringIntervalDays` set is due today (`nextWateringDueAt = now`, `isDueSoon = true`) instead of "Not scheduled" — it stays due-today (never drifts overdue) until the first WATER log, and an existing `wateringDueDateOverride` still wins via the same `maxOf()` logic; a never-fertilized plant with `fertilizingIntervalDays` set becomes due `plant.createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30 days, a named constant on `CareSchedule`) rather than never — this is a grace period for newly acquired plants, and it becomes overdue by normal date math once the 30 days pass; plants with no interval configured remain "Not scheduled" either way (#428)
-- `CareSchedule.computeSuggestedInterval()`: JUST_RIGHT suggests when actual ≠ current; TOO_SOON uses `currentInterval` as base when actual < stored; TOO_LATE clamps to `min(actual, stored)`; `daysBetween()` uses `ChronoUnit.DAYS` — no spurious "interval − 1" suggestion; the final result is `.coerceAtLeast(1)` — floors the suggested watering interval at 1 day so two same-calendar-day waterings (`actualIntervalDays == 0`) can never produce a 0-day suggestion via the `JUST_RIGHT` branch; fertilizing has no computed/suggested value and its AddEditPlant slider already floors at `valueRange = 1f..`, so no clamp was added there (#446)
-- `CareSchedule.computeWateringIntervals()`: calendar-month intervals for chart; predecessor-anchor so infrequent waterers get data points for in-window logs
-- `DateUtils.formatRelative()`: uses calendar-day comparison (`ChronoUnit.DAYS.between`) so "Last: X days ago" on plant chips always reflects calendar days, not a rolling 24-hour window — a late-evening care event shows "Yesterday" the next morning (#351); care history list and Plant Graveyard entries show an exact date (e.g. "Jun 10, 2026") for events older than 14 days; PlantCard chips and Plant Detail stats always show the relative form (#387)
-
-**Screens & Navigation**
-- All 5 screens: PlantList, AddEditPlant, PlantDetail, AddCareLog, Settings; all reusable components: PlantCard, CareLogItem, PhotoGallery, StatsRow, PlantPhoto, CareTypeSelector
-- Sealed `Screen` class; `savedStateHandle` for cross-screen data (e.g. `suggestedWateringInterval`); reads/writes wrapped in `LaunchedEffect` to avoid `StateFlowValueCalledInComposition`
-- `collectAsStateWithLifecycle()` everywhere; `imePadding()` on AddEditPlant and AddCareLog scrollable columns so keyboard never obscures Notes field
-- Location suggestion chips on AddEditPlant: `FlowRow` of `SuggestionChip`s below Location field; tapping fills field and hides keyboard; case-insensitive match highlights chip (#137)
-- In-app camera capture: `PhotoSourceBottomSheet` lets user choose "Take photo" or "Choose from gallery"; runtime CAMERA permission with rationale dialog on first denial and Settings deep-link on permanent denial; Snackbar error on devices without a camera (#134); shared `rememberCameraPhotoState` + `CameraPhotoDialogs` composable extracted to avoid duplicating ~80-line camera block across AddEditPlantScreen and AddCareLogScreen (#293); on AddCareLog, selecting the PHOTO care type reveals two inline source actions (full-width `FilledTonalButton`s: "Take photo" / "Choose from gallery") via an `AnimatedContent(selectedCareType == PHOTO)` swap — each launches the camera (`cameraState.launch()`) or the photo picker directly, with no intermediate `PhotoSourceBottomSheet`. Non-PHOTO care types (photo optional) keep the compact `AddAPhoto` icon that opens `PhotoSourceBottomSheet`. The photo section sits above the Notes field so the source buttons are the prominent action for a PHOTO log. Chosen over the initial auto-open-sheet approach as more UX-friendly — an inline reveal instead of an unrequested modal (#443)
-- Rapid double-tapping a back button no longer leaves a blank white screen: `popBackStack()` calls are guarded on the owning back stack entry's lifecycle so a second same-frame tap no-ops instead of popping a second entry off the stack (#408)
-- Bottom navigation: Material 3 `NavigationBar` with **Plants** and **Calendar** tabs, wrapping the `NavHost` in an outer `Scaffold` in `YaptNavGraph`; visible only when the current back-stack route is `Screen.PlantList` or `Screen.Calendar`, hidden on all nested routes (AddPlant, EditPlant, PlantDetail, AddCareLog, Settings, Graveyard); tab switching uses `launchSingleTop = true`, `restoreState = true`, `popUpTo(graph.findStartDestination().id) { saveState = true }`; outer `Scaffold` sets `contentWindowInsets = WindowInsets(0)` so it doesn't double-reserve the status-bar inset on screens with no top bar of their own (would otherwise break PlantDetailScreen's edge-to-edge hero photo, #29); Settings stays behind the gear icon (see product ADR-0019, #414)
-
-**Calendar**
-- `CalendarScreen` (`ui/screens/calendar/`) renders a `com.kizitonwose.calendar:compose` `HorizontalCalendar` month view with locale-aware first-day-of-week, custom prev/next month header, and a count-badge pill per day (SageGreen normally, OverdueRed on today's cell when the rollup includes any overdue plant); unlimited past/future month navigation; always opens on the current month; empty state ("No care scheduled this month.") when the visible month has zero marked days (see technical ADR-0017, product ADR-0019, #414)
-- `computePlantsByDay()` in `CalendarDayGrouping.kt` is a pure, unit-tested transform from `List<PlantCareStatus>` + today's date to a `Map<LocalDate, DayEntry>`: overdue watering and/or fertilizing rolls the plant onto today (contributing at most once regardless of how many actions are due, per the issue #414 AC amendment); a plant due exactly today (not overdue) also lands on today; future due dates land on their exact calendar day, so a plant with different future water/fertilize dates can appear on two distinct days; honours the skip-watering override transparently since it reads `PlantCareStatus.nextWateringDueAt`, which `CareSchedule.computeStatus()` already folds the override into; liquid-fertilizer plants (`plant.useLiquidFertilizer`) ignore `nextFertilizingDueAt`/`isFertilizingOverdue` entirely and contribute only via their watering due date, since fertilizing happens together with watering (ADR-0008/ADR-0017) and must not surface a standalone fertilize entry — `PlantDayInfo.fertilizeDue` is always `false` for them; the today-sheet's Overdue/Today partition in `CalendarScreen.kt` uses the same-file pure helper `isOverdueEntry()`, which likewise ignores `isFertilizingOverdue` for liquid-fertilizer plants (#423)
-- Tapping a marked day opens a `ModalBottomSheet` day sheet: today's sheet sub-groups into Overdue then Today (alphabetical within each, reusing the `date_group_overdue`/`date_group_today` string resources for label parity with `PlantListItem.kt`'s `groupPlantsByDueDate`); future-day sheets are a flat alphabetical list; each row shows plant photo/name/room, Water/Fertilize action chips, and quick-log icon buttons via the shared `QuickLogButtons` component (`ui/components/`, also used by `PlantCard`, so the two surfaces never drift): regular plants get a water button and a fertilize button; liquid-fertilizer plants get a water-only button **and** a combined water+fertilize button, both opening `WaterFeedbackBottomSheet` — the water-only button lets the user water without fertilizing on a day when only watering is due
-- `CalendarViewModel` (+ `Factory`) owns `visibleMonth`/`selectedDay` state and mirrors `PlantListViewModel`'s quick-log methods (`quickLog`, `quickWaterWithFeedback`, `quickLiquidFertilizeWithFeedback`) — both ViewModels delegate the shared persistence/suggestion/photo-reminder logic to `domain/usecase/QuickLogUseCase` (a `YaptApplication` lazy singleton) and only map its results onto their own StateFlow/SharedFlow; reuses `PhotoReminderPolicy.shownThisSession` for cross-surface once-per-session-per-plant photo-reminder suppression and the same `QuickWaterSuggestion`/`PhotoReminderRequest` shapes as `PlantListViewModel`; the interval-suggestion `AlertDialog` and `PhotoReminderDialog` reuse the exact same suppress-while-showing UI rule as `PlantListScreen` (#414)
-
-**Care Features**
-- Care logging: Water, Fertilize, Prune, Mist, Repot, Note, Photo; custom dates; edit existing log entries (#20)
-- Adaptive watering interval: modal `AlertDialog` with editable TextField shown after WATER logs (see product ADR-0006); JUST_RIGHT, TOO_SOON, TOO_LATE all produce correct suggestions; default feedback pre-selected to JUST_RIGHT; quick-water opens `WaterFeedbackBottomSheet` (JUST_RIGHT pre-selected, 2-tap happy path) and fires interval suggestion AlertDialog from PlantListScreen (see product ADR-0015, #126)
-- Liquid fertilizer mode: `useLiquidFertilizer` flag on plants (DB v3, MIGRATION_2_3); all FERTILIZE paths (AddCareLog, quick-log) auto-insert a paired WATER log at the same timestamp; combined quick-water-fertilize button on PlantCard opens `WaterFeedbackBottomSheet` before committing logs (title "Water & fertilize [plant]?"); `quickLiquidFertilizeWithFeedback()` in ViewModel fires interval suggestion; backup schema v2 (see product ADR-0008, ADR-0017, #56, #344)
-- Skip watering: `wateringDueDateOverride: Long?` on plants (DB v2, MIGRATION_1_2); stepper dialog (1–7 days) pushes `max(nextDueAt, now)` forward without touching interval; override clears on next WATER log (AddCareLog and quickLog paths); follow-up interval AlertDialog lets user make it permanent (see product ADR-0007, #168 #169 #210); skip button is an `OutlinedButton` in scrollable content below StatsRow (visible when overdue or due soon); stepper Row uses `fillMaxWidth` + `SpaceEvenly` for balanced layout (#170)
-- Watering feedback labels: "Still wet" (TOO_SOON), "Just right" (JUST_RIGHT), "Too dry" (TOO_LATE); enum values and DB unchanged; question text "What did you find?" (see product ADR-0009, #161)
-- Photo care log validation: save FAB disabled (0.38f alpha, click-blocked) when `CareType.PHOTO` is selected and no photo is attached (#305); the inline "a photo is required" error hint was later removed (#443) — the prominent Take photo / Choose from gallery buttons make the requirement self-evident, and the disabled FAB remains the enforcement
-
-**Plant List UI**
-- Room filter chips + "Unassigned" chip (shows plants with no room; auto-resets to "All" when all plants have rooms; single `allPlants` StateFlow subscription) (#183 #184)
-- "Water + Fertilize due" filter — both care types due/overdue, sorted by watering urgency (#78)
-- "Cared for today" sort — a filter-in-a-sort-dropdown entry (mirrors "Water + Fertilize due") that keeps only plants with ≥ 1 `CareLog` where `loggedAt.toLocalDate() == today` (any care type). Ordered by most-recent care-log timestamp; ASC/DESC toggle acts on that recency (DESC = most-recently-cared first, ASC = earliest-in-the-day first). `CareLogRepository.getLastCareAtBetween(start, end)` → `CareLogDao.getLastCareBetween` (`GROUP BY plantId, MAX(loggedAt)`) returns `Map<plantId, lastCareAt>`; the `PlantListViewModel` combine computes today's `[start, end)` window via `DateUtils.todayRangeMillis()` only when this sort is active, then `applySortOrder` filters+sorts by the map. Not in `DATE_GROUPED_SORTS`, so `groupPlantsByDueDate` renders a flat list (no date headers); empty state "No plants cared for yet today"; no DB migration (#415)
-- Sort controls: 4 options (Alphabetical, Watering due, Fertilizing due, Recently added); ASC/DESC toggle on applicable sorts; DataStore-persisted (#21)
-- Countdown chips on PlantCard: `DateUtils.formatCountdown()` → "In X days" / "Due today" / "Overdue by X days"; OkGreen / WarnOrange / OverdueRed (#32 #55); liquid-fert fertilizing chip shows "Due with next watering" when overdue/due-soon, else standard countdown (#267)
-- Quick water/fertilize icon buttons on each PlantCard; `PlantListViewModel.quickLog()` emits `SharedFlow<String>` Snackbar event (#19); liquid-fertilizer quick-log button has `contentDescription` for screen readers (#251)
-- Larger PlantCard photo: 90 dp wide edge-to-edge strip filling card height, left corners 12 dp rounded (#29)
-- Date-group dividers on the date-sorted plant list: plain non-sticky headers (`Overdue`/`Today`/`Tomorrow`/`EEE, MMM d`/`Later`/`Not scheduled`) shown only for Watering due, Fertilizing due, and Both due sorts; `groupPlantsByDueDate()` in `PlantListItem.kt` is a pure, unit-tested transform over the already-sorted list — it partitions statuses into buckets and reorders the buckets (not the items within them) so the whole group sequence reverses with the ASC/DESC toggle, including `Not scheduled` moving to the front on ASC (see product ADR-0018, #399)
-- Multi-select (tap and hold) bulk care actions: long-pressing a `PlantCard` enters selection mode via `PlantCard`'s `combinedClickable` (`onLongClick` → `PlantListViewModel.toggleSelection`, `role = Role.Button`); `PlantListViewModel` owns `selectedPlantIds: StateFlow<Set<Long>>` (selection mode = non-empty) with `toggleSelection`/`selectAll`/`clearSelection`. In selection mode every card shows a `Checkbox` overlay (top-start of the photo, on a translucent circle) and exposes `semantics { selected = … }` for TalkBack, the selected card uses the `secondaryContainer` colour, tapping a card toggles selection instead of navigating, and the quick-log buttons are still composed but hidden (`alpha(0f)`) + disabled (`QuickLogButtons(enabled = false)`) so the card keeps the same height and taps over that area fall through to the selection toggle; the top bar becomes contextual (Close clears, title = "N selected", DoneAll selects all) and the Add-plant FAB is hidden. A persistent `BulkActionBar` slides up from the bottom (Scaffold `bottomBar` + `AnimatedVisibility` slide) the moment the first plant is marked and stays up (non-modal, so the list above stays scrollable/tappable for adding more plants before acting); system back exits selection mode via `BackHandler`. To reclaim space, `PlantListScreen` reports selection state up via `onSelectionModeChanged`, and `YaptNavGraph` hides the Plants/Calendar bottom `NavigationBar` while selecting (`showBottomBar && !plantListSelectionActive`), so the bar sits at the screen bottom and the list gets more room. `BulkActionBar` (`ui/components/`) is a compact `Surface` (rounded-top, drag-handle pill): the care actions are a horizontally-scrollable `LazyRow` of `AssistChip`s (Water/Fertilize/Prune/Mist/Repot; NOTE and PHOTO excluded — they need per-plant input) mirroring the Add Care Log care-type selector, and the destructive "Move to Graveyard" is an inline `TextButton` beside the selected-count header. `PlantListViewModel.bulkLog(careType)` iterates the selected plants through the shared `QuickLogUseCase` (watering uses `WateringFeedback.JUST_RIGHT`; fertilize routes through `quickLog` so liquid-fertilizer plants still get a paired watering), clears the selection, and emits a plural snackbar; per-plant interval-suggestion and photo-reminder dialogs are intentionally skipped in bulk. `bulkArchive()` archives all selected plants (after an `AlertDialog` confirmation) and emits `BulkArchivedEvent(plantIds)`, which the screen surfaces as an undo snackbar → `undoBulkArchive()` restores them all. `bulkLog`, `bulkArchive()`, and `undoBulkArchive()` each apply their per-plant writes inside a single Room `@Transaction` (via repository/DAO bulk methods) so the batch is atomic — a process kill mid-action can no longer leave it partially applied (e.g. 3 of 5 plants archived) (#448)
-
-**Plant Detail UI**
-- Hero photo: 280 dp, bleeds behind status bar; Box overlay pattern (no Scaffold); overlaid back/edit buttons with dark pill containers; `Surface(colorScheme.background)` root for correct dark-mode text colour (#29); tapping the hero `AsyncImage` opens `FullScreenPhotoViewer` at the cover photo URI; placeholder (no cover photo) has no clickable modifier (#307)
-- StatChip: icon + label header with `next:` / `last:` lines for watering and fertilizing
-- Tappable stat chips for in-place quick-logging (#434): the Watering and Fertilizing `StatChip`s in `StatsRow` accept optional `onWaterClick`/`onFertilizeClick` lambdas (with `clickable(onClickLabel = …)` for accessibility — `cd_quick_log_watering`/`cd_quick_log_fertilizing`). On Plant Detail, tapping Watering opens `WaterFeedbackBottomSheet` → `PlantDetailViewModel.quickWater()`; tapping Fertilizing logs FERTILIZE directly via `quickFertilize()` for regular plants, or opens the combined "Water & fertilize" sheet → `quickLiquidFertilize()` for liquid-fertilizer plants (ADR-0008/ADR-0017). All three VM methods delegate persistence to the shared `QuickLogUseCase` (now injected into `PlantDetailViewModel` + `Factory` + `NavGraph`), feed any adaptive suggestion into the existing `suggestedWateringInterval` dialog, and emit a `QuickLogMessage` sealed event that the screen maps to a snackbar; `maybeTriggerPhotoReminder()` reuses the screen's existing photo-reminder dialog (suppressed while the suggestion dialog shows, matching `PlantListScreen`). The `+` FAB and full Add Care Log screen are unchanged for other care types. Option 2 (per-action tabs with inline settings) was deferred — it would conflict with technical ADR-0005 and product ADR-0012
-- Watering history chart: Vico `LineCartesianLayer`; calendar-month buckets; 5 time ranges (1M/3M/6M/12M/All); predecessor-anchor so infrequent waterers see data; single point (2 total waterings) renders as circle; autoscroll to right on range change / new log; empty state when < 2 logs; `now` keyed on `wateringLogs` so a freshly-logged watering appears immediately without navigating away (#18 #117 #114); care event markers (per-type Material icons via Vico `Decoration` API) drawn at the bottom of the chart at day-level precision within each month column; same-day events stack vertically; proximity-based clustering groups icons within 14 dp (#231 #355); `clusterMarkersByCx` uses `internal data class PositionedMarker(cx, marker)` instead of `Pair<Float, CareEventMarker>` (#359); tapping a care event marker opens an `EventMarkerDialog` (`AlertDialog`) showing the care type and event date(s) — `CareEventDecoration` records each drawn icon's canvas position in a plain `var drawnMarkers: List<DrawnMarkerInfo>` field (main-thread-only, no `MutableState`), and `detectTapGestures` on the chart host hit-tests within a 28 dp threshold (#363); the line now plots one point per individual `WateringInterval` (fractional `monthIndex`, same formula as `computeWaterEventMarkers`) instead of monthly averages, so each water-drop icon sits exactly on the line — Vico pill-dot `PointProvider` removed, `HorizontalAxis.ItemPlacer.aligned(1)` keeps axis ticks at integer months, `rangeProvider` maxX extended to `totalMonths - 0.001` for last-day waterings (#362 #366); the hand-drawn connecting line is a smooth cubic (Catmull-Rom) spline via `internal fun catmullRomSegments()` → `android.graphics.Path.cubicTo` in `CareEventDecoration` (Vico's own line stays transparent, so smoothing is applied to the per-event canvas polyline, not a Vico connector); a single watering still draws just the dot — this completes the last open item of #125, whose other requirements (care-event markers, per-event points on all ranges, empty-month handling, no-crash guards) were already delivered by #18 #114 #117 #231 #355 #359 #362 #363 #366, with 12M averaging superseded by per-event points and the unified-zoom option explored but rejected in favour of range chips per ADR-0004 (#125); `computeWateringIntervals()` floors each `daysSincePrevious` at 1 day via `.coerceAtLeast(1f)` — a genuine sub-day watering (<24h since the previous one) still plots/averages as 1 day rather than a near-zero fraction, which also keeps the `ChartLegend` "Average interval" text >= 1 with no separate clamp needed there; the start `VerticalAxis` uses an explicit `VerticalAxis.ItemPlacer.step(step = { yStep.toDouble() })` (mirrors the bottom axis's `HorizontalAxis.ItemPlacer.aligned`) where `yStep = computeYAxisStep(yMax)` is a whole number sized to keep the axis to roughly <=6 ticks — replaces Vico's default automatic step, which could place ticks at fractional y-values (0, 0.5, 1.0…) that collapsed into duplicate truncated "0d"/"1d" labels; `dayFormatter` uses `roundToInt()` instead of `toInt()` (#446)
-- Care history collapses to 5 most recent logs by default; `AssistChip` with animated 0°/180° chevron expands/collapses the full list; chip hidden when ≤ 5 logs; expanded state resets on screen open (#253)
-- Per-plant photo gallery: unified scrollable `PhotoGallery` combining `plant_photos` rows and care-log photos (sorted newest first); `FullScreenPhotoViewer` Dialog opens on tap; adding a photo in AddEditPlant appends to `plant_photos` and updates `coverPhotoUri` to the newest; existing cover photos migrated automatically on DB upgrade (#290); saving a Photo care log entry updates the plant's cover photo to the attached image (#304)
-- Full-screen photo viewer: `HorizontalPager` replaces single `AsyncImage`; swipe left/right navigates all gallery photos; opens at tapped index; "2 / 5" position indicator shown when > 1 photo (#308); trash icon in viewer + long-press on gallery thumbnail delete individual photos; care-log photo deletion preserves the log entry; cover falls back to next most-recent photo (#306); the viewer paints a solid-black background behind everything (including the status-bar area, with light status-bar icons) so it no longer reveals a thin strip of PlantDetail under the status bar — one deliberate full-dark overlay, close/delete buttons kept clear of the status bar (#444); each page shows the photo's exact capture/log date (`DateUtils.formatDate` → "MMM d, yyyy") as a labelled chip in a bottom-center `Column` below the page indicator — shown for every photo including a lone one (when the "N / M" indicator is hidden), reading from `GalleryPhoto.timestamp` so it updates per swipe; the viewer input changed from `uris: List<String>` to `photos: List<GalleryPhoto>` to carry timestamps, and the date `Text` carries a `cd_photo_viewer_date` ("Photo taken %1$s") content description; grid thumbnails in `PhotoGallery` are unchanged (viewer-only per issue #445 spec) (#445)
-
-**Notifications & Reminders**
-- `ReminderWorker` (WorkManager, REPLACE policy): daily at user-configured time; one notification per overdue/due-soon plant (ID = `plant.id.toInt()`); cancels all plant notifications before re-posting; body = care items joined with " · " (#7)
-- Liquid-fertilizer plants: "Fertilize with watering" appended to watering alert — no separate fertilizing notification (#56)
-- Deep-link: notification tap → `MainActivity` intent extra `plantId` → `YaptNavGraph` navigates to PlantDetailScreen (#7)
-- `SkipWateringReceiver` handles "Skip watering" notification action (+1 day override); guards on `intent.action` before processing (#178)
-- `BootReceiver` reschedules using stored time; uses `goAsync()`
-- Default reminder time (hour=9, minute=0) written to DataStore on first launch in `YaptApplication.onCreate()` so `SettingsViewModel.setNotificationsEnabled()` and `BootReceiver` `?: 9` fallbacks never silently re-anchor the schedule (#356)
-- `MainActivity` now passes the stored hour/minute to `ReminderScheduler.schedule()` on every launch; previously it called `schedule()` without arguments, resetting the periodic work to the 9:00 default and overriding the user's configured time (#394)
-- Photo reminder: global ON/OFF toggle in Settings → Reminders (`PHOTO_REMINDER_ENABLED` DataStore key; `SettingsViewModel.photoReminderEnabled` StateFlow). When enabled, opening `PlantDetailScreen` shows a one-time-per-session `AlertDialog` if the newest photo across `plant_photos` and care-log photos is ≥ 30 days old (or the plant is ≥ 30 days old with no photos); `PlantDetailViewModel` computes last-photo age from `galleryPhotos` and emits `showPhotoReminderDialog` once per session per plant via the shared `PhotoReminderPolicy.shownThisSession` set; "Take photo" launches the in-app camera via `rememberCameraPhotoState` and `saveReminderPhoto()` inserts to `plant_photos`, adds a `CareLog(careType = PHOTO)` so the photo appears in the plant's care history and as a care-event marker on the chart, and updates `coverPhotoUri` (#416); no DB migration (DataStore-only); `PhotoReminderTest` (7 cases, in `domain/reminder/`) covers the `shouldShowPhotoReminder` pure function (#233); the session/dedup state, `lastPhotoDaysSince`, `shouldShowPhotoReminder`, and `PHOTO_REMINDER_INTERVAL_DAYS` live in the standalone `domain/reminder/PhotoReminderPolicy` object so no screen's ViewModel depends on another's (#410); also triggered by the quick water/fertilize buttons on `PlantListScreen` — `PlantListViewModel.maybeTriggerPhotoReminder()` runs after each quick-log path, reuses `PhotoReminderPolicy.shownThisSession` / `lastPhotoDaysSince` / `PHOTO_REMINDER_INTERVAL_DAYS` for consistent once-per-session-per-plant behaviour across both screens, reads the toggle directly via `dataStore.data.first()`, and emits a `PhotoReminderRequest(plantId, plantName, daysSince)` StateFlow; the list-screen dialog is suppressed while an interval-suggestion dialog is showing so the two never stack; the reminder dialog itself is a shared `PhotoReminderDialog` composable in `ui/components/` used by both `PlantDetailScreen` and `PlantListScreen` (#407)
-- Combine-notifications toggle: Settings → Reminders "Combine reminders" `Switch` row (gated behind the notifications-enabled toggle, like the reminder-time row), `combine_notifications` DataStore key, default `false` (one notification per plant, unchanged). `ReminderWorker` always calls `notificationManager.cancelAll()` first (self-heals if the user switches modes between runs), then reads the toggle from `context.settingsDataStore`; when `true` it posts a single count-only notification ("N plants need care" / "1 plant needs care" plural string) under a fixed `COMBINED_NOTIFICATION_ID = -1` (distinct from any `plant.id`, which is always positive), deep-linking to `MainActivity` with no `plantId` extra (lands on PlantList) and with **no** per-plant "Skip watering" action; posts nothing when zero plants are due, matching per-plant mode. The due/not-due decision and per-plant care-item composition (watering overdue/due-today, fertilizing overdue/due-today, liquid-fertilizer's "fertilize with watering") is factored into a pure, JVM-testable `ReminderNotificationComposer` (`domain/notification/`, `computeCareReminderItems`/`computeDueReminders`) with no `Context` dependency — `ReminderWorker` turns the resulting `CareReminderItem`s into localized strings for both branches; `ReminderNotificationComposerTest` (8 cases) covers empty/overdue/due-today/liquid-fertilizer branches and the due-count used for the combined title. See product ADR-0020 (documents the "combined mode drops per-plant Skip watering" tradeoff) (#474)
-
-**Backup & Restore**
-- `.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compatibility warning dialog (#22); backup schema v3 includes `plantPhotos: List<BackupPlantPhoto>`; old v2 backups deserialize with `plantPhotos = emptyList()` for forward compat (#290)
-- Backup schema v4: `BackupSettings.combineNotifications: Boolean = false` round-trips the combine-notifications toggle; old v3 backups deserialize to `false` (one-per-plant, unchanged) via the field default (#474)
-- Backup schema v5: `BackupSettings.photoReminderEnabled: Boolean = false` round-trips the Photo reminder ON/OFF setting; old v4-and-earlier backups deserialize to the default (off) via the field default, so moving devices no longer silently resets it (#480)
-- Backup schema v6: `BackupSettings.themeMode: String = "SYSTEM"` round-trips the app theme (Light/System/Dark); `exportBackup` writes the `THEME_MODE` pref, `performImport` restores it via `dataStore.edit`; old v5-and-earlier backups deserialize to `"SYSTEM"` via the field default (#139)
-- Export: ZIP assembled in `cacheDir` temp file first, then streamed to SAF destination — prevents broken 0 KB exports to cloud providers (see technical ADR-0014, #144)
-- Restore: photos streamed to `cacheDir` temp files (never loaded into memory) — prevents OOM; temp files tracked in map before copy so `finally` always cleans up (#193 #195 #196)
-- Single bulk `getAllLogs()` query (not N+1 per plant); unreadable photo URIs silently skipped; ReminderScheduler called with restored time; navigate to PlantList + Snackbar on success (#36 #37 #40 #41)
-- All backup/restore UI strings in `strings.xml` (#39)
-- Navigation blocked during export/import via a non-dismissable `BackupProgressDialog`; prevents leaving Settings mid-operation and avoids corrupt exports or incomplete restores (#365)
-- `performImport` guards photo file cleanup with a `dbCommitted` flag; written files are only deleted if the DB transaction has not yet committed, preventing dangling URI references when `dataStore.edit` or `ReminderScheduler` throws after the transaction succeeds (#175)
-
-**Settings**
-- Reminder time picker: Material 3 TimePicker dialog; hour + minute DataStore-persisted (#10)
-- Keep screen on toggle: `FLAG_KEEP_SCREEN_ON` applied in `MainActivity` via `LaunchedEffect`; round-trips through backup (#140)
-- Theme toggle: Settings → **Appearance** section (rendered at the top of the Settings screen, above Reminders) holds a `SingleChoiceSegmentedButtonRow` with segments **Light | System | Dark** (explicit order, not `ThemeMode.entries` order). `ThemeMode` enum SYSTEM/LIGHT/DARK; `THEME_MODE` DataStore key stored as `.name`, read via `runCatching { ThemeMode.valueOf(...) }.getOrDefault(SYSTEM)`; default SYSTEM = the prior `isSystemInDarkTheme()` behaviour; tapping a segment auto-persists via `SettingsViewModel.setThemeMode(ThemeMode)` (fire-and-forget `dataStore.edit`, no Save button). `MainActivity` collects the mode in `setContent` (mapped flow wrapped in `remember {}` to satisfy the Compose `FlowOperatorInvokedInComposition` lint) and passes `darkTheme = when(mode){SYSTEM->isSystemInDarkTheme(); LIGHT->false; DARK->true}` into the already-parameterized `YaptTheme(darkTheme=…)`; segment labels via `ThemeMode.labelRes()` in `ui/util/EnumResources.kt`. Round-trips through backup as `BackupSettings.themeMode: String` (stored enum `.name`; backup schema v6; old backups without the field default to `"SYSTEM"`) — see the #139 spec (segmented control, Appearance placement, backup round-trip AC1/AC5–AC7). `SettingsViewModel.themeMode` is typed `StateFlow<ThemeMode>`/`setThemeMode(ThemeMode)` (a deliberate type-safe deviation from the spec's `String` signature; identical persisted `.name` values, all ACs pass) (#139)
-- "What's New" row: reopens the history sheet at any time without resetting the auto-show trigger (#212)
-- "Plant Graveyard" row in Settings → Plants section: navigates to GraveyardScreen; subtitle shows archived plant count via `graveyardCount` StateFlow (#329)
-
-**Plant Graveyard**
-- Soft-delete: "Move to Graveyard" replaces hard-delete on PlantDetail/EditPlant; plants get `archivedAt` timestamp set, excluded from all active queries via `WHERE archivedAt IS NULL` (#329)
-- Snackbar with UNDO action shown on archive; `PlantListViewModel.undoArchive()` calls `plantRepository.restorePlant()` (#329)
-- GraveyardScreen: `LazyColumn` of archived plants with thumbnail, relative timestamp, Restore button, Delete Forever button; overflow menu "Empty Graveyard" deletes all archived plants and their care history (#329)
-- Navigation flow: archive from EditPlant → savedStateHandle on PlantList backstack entry → PlantListViewModel emits `ArchivedEvent` via SharedFlow → Snackbar (#329)
-
-**What's New**
-- Auto-shown on first launch after version bump (`BuildConfig.VERSION_CODE > LAST_SEEN_VERSION_CODE` in DataStore); `buildConfig = true` in `build.gradle.kts` (#147)
-- Full release history in `WhatsNewContent.all: List<ReleaseNotes>`; sorted by `versionCode` descending at render time; scrollable `LazyColumn`; "Got it" button pinned; `versionCode: Int` field on `ReleaseNotes` guarantees sort order (see product ADR-0010, #212 #219)
-
-**Tests**
-- Unit tests: 18 CareSchedule + 11 DateUtils; ViewModel tests for all 5 VMs (MockK + coroutines-test + turbine, `MainDispatcherRule`); JVM timezone pinned to UTC in `@Before`; `AddCareLogViewModelTest` covers `wateringDueDateOverride` clear on WATER log save and uses `advanceUntilIdle()` in edit-mode tests for explicit sync; `PlantListViewModelTest` covers `quickLog` else-branch and `toggleSort` direction cycling and `applySortOrder` ordering for all sort options; `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null field of `BackupPlant`, `BackupCareLog`, `BackupSettings`, and `BackupRoot` to representative non-null values so future nullable additions are caught by the round-trip test (#288); `SettingsViewModelTest` defaults tests stub non-default values to prove DataStore mapping path; 5 new `SettingsViewModelTest` cases cover all `isBackupInProgress` state transitions using `BackupManagerInterface` mock — starts false, true during export/import, false after, true during `proceedWithFutureSchemaImport`, false after dismiss (#372); `PlantPhotoDaoTest` (Robolectric, 8 cases) covers insert+query, multi-photo desc order, cascade delete, duplicate IGNORE returns -1L; `MigrationTest3To4` (Robolectric, 2 cases) verifies MIGRATION_3_4 seeds plant_photos from coverPhotoUri and skips null URIs; `MigrationTest4To5` (Robolectric, 2 cases) verifies MIGRATION_4_5 preserves all rows when no duplicates and keeps min-id row when duplicates exist; `MigrationTest5To6` (Robolectric, 2 cases) verifies MIGRATION_5_6 adds archivedAt column defaulting to NULL and that it can be set; `PlantDaoTest` extended with 6 archive/restore/graveyard test cases; `GraveyardViewModelTest` (4 cases) covers all ViewModel operations; `AddEditPlantViewModelTest` updated — deletePlant now archives and emits ArchivedForUndo; `PlantListViewModelTest` extended with undoArchive test; `WhatsNewContentTest` (plain JVM) asserts `WhatsNewContent.all.first().versionName == BuildConfig.VERSION_NAME` — fails at CI if a release bumps the version without prepending a new entry (#46 #48 #59 #63 #64 #77 #187 #218 #265 #290 #301 #303 #329 #372); `NotificationHelperTest` (Robolectric, 2 cases) verifies channel id/name/description/importance and idempotent re-registration; `ReminderSchedulerTest` (Robolectric + `WorkManagerTestInitHelper`, 3 cases) verifies `schedule()` enqueues one daily periodic work, REPLACE keeps a single request, and `cancel()` transitions it to CANCELLED; `ReminderWorkerTest` (Robolectric + `TestListenableWorkerBuilder`, 3 cases) verifies `doWork()` no-ops when POST_NOTIFICATIONS is denied, posts one reminder for a due plant when granted, and posts nothing when no plant is due — using the real `YaptApplication` DB with suspend DAO deletes for cleanup (`clearAllTables()` would violate Room's main-thread rule under Robolectric); `BootReceiverTest` (Robolectric + `WorkManagerTestInitHelper`, 4 cases) verifies `onReceive` ignores non-boot actions and that the extracted `rescheduleFromStoredPrefs` enqueues the daily reminder when notifications are enabled, nothing when disabled, and passes the **stored** reminder hour/minute through to `ReminderScheduler.schedule` (via `mockkObject(ReminderScheduler)` + `verify`) — the reschedule logic was pulled out of the fire-and-forget `goAsync()` coroutine into an `internal suspend fun` so it is directly testable (#86)
-- Instrumented BackupManager tests: 9 cases (round-trips with/without photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings, photo SHA-256) (#50)
-- Compose screen tests for all 5 screens: `createComposeRule()`, MockK, no `Thread.sleep` (#51); `PlantDetailScreenTest` includes cover-photo tap tests: tapping hero photo opens viewer, tapping placeholder does nothing (#307); delete-photo confirmation dialog tests: long-press thumbnail shows dialog, confirm deletes, dismiss cancels (#306); `AddEditPlantScreenTest` and `AddCareLogScreenTest` each have 5 new camera path tests (bottom sheet on photo button tap, gallery option visible, no-camera Snackbar, permission rationale dialog, permanent-denial settings dialog) (#294); `GraveyardScreenTest` (5 cases): empty state, plant name display, restore button, delete-forever dialog, overflow "Empty Graveyard" dialog; `SettingsScreenTest` extended with graveyard row display and click tests (#329)
-
-**CI/CD**
-- `test` job (Detekt + unit tests + lintDebug) gates both `build` (debug APK) and `release` jobs; release also runs `testReleaseUnitTest` + `lintRelease` (#84)
-- Static analysis via **Detekt** + `detekt-formatting` (ktlint rules): `Run Detekt` step in the `test` job fails PRs on new violations; config in `config/detekt/detekt.yml` (`buildUponDefaultConfig`; formatting `maxLineLength` 120; `FunctionNaming` + `MagicNumber` are active but scoped away from the UI layer and tests via per-rule `excludes: ['**/ui/**', '**/test/**', '**/androidTest/**']` — they still catch real issues in `domain/`/`data/`/`worker/`/`notification/`/`util/` while ignoring `@Composable`/test naming and Compose `dp`/`sp` literals (#463); the default reminder time lives in `SettingsDefaults.REMINDER_HOUR`/`REMINDER_MINUTE` rather than repeated `?: 9`/`?: 0` magic numbers, and the Room migration version literals in `PlantDatabase` are baselined as self-documenting non-smells); existing smells frozen in `config/detekt/baseline.xml` (regenerate with `./gradlew detektBaseline` only when intentionally accepting new debt); `./gradlew detekt` runs it locally, and adding `autoCorrect = true` to the Detekt tasks (or the ktlint rules' `autoCorrect: true`) auto-fixes formatting — CI never auto-corrects, it only reports (#85)
-- Instrumented tests on PRs via path-filter (`app/src/main/**`, `app/src/androidTest/**`, `app/build.gradle.kts`); concurrency group auto-cancels stacked PR runs (#87)
-- GitHub Release auto-created on push to `main` with signed APK + auto-generated notes; `--target SHA` anchors tag to the exact triggering commit (#205)
-- Debug keystore committed to repo for in-place upgrades between local and CI APKs (#17)
-- Release build: `isMinifyEnabled = true`, `isShrinkResources = true`; ProGuard rules for WorkManager workers and Room DAOs (#4)
-- Redundant `ANDROID_HOME` env overrides removed from all Gradle steps; deprecated `Icons.Filled.Notes` replaced with `Icons.AutoMirrored.Filled.Notes`; `@Suppress("DEPRECATION")` on `statusBarColor`; `@OptIn(ExperimentalCoroutinesApi::class)` added to ViewModel test classes (#336)
-- Build toolchain upgraded to **AGP 9.3.1 / Gradle 9.6.1 / Kotlin 2.3.10 / KSP 2.3.10** (from AGP 8.13.2 / Gradle 8.14.5 / Kotlin 2.1.21). Required by newer AndroidX (`androidx.core:core-ktx` 1.19.0 mandates AGP ≥ 9.1.0, and lifecycle 2.11.0 follows). Coupled bumps that had to move together: the `gradle-wrapper.properties` distribution **and** the four `gradle-version` pins in `android.yml` (`setup-gradle` overrides the wrapper, so both must match); Kotlin + KSP (KSP2 now uses Kotlin-aligned bare versioning, so KSP `2.3.10` = Kotlin `2.3.10` — **Kotlin 2.4.x is not adoptable until KSP ships a 2.4 release**, which is why Dependabot's grouped Kotlin-2.4.10 + KSP-2.3.10 PR could never go green); Compose BOM → 2026.06.01; kotlinx-coroutines 1.11.0, kotlinx-serialization-json 1.11.0, MockK 1.14.11; **`compileSdk` 36 → 37** (core-ktx 1.19.0 and lifecycle 2.11.0 require compiling against API 37 — `targetSdk` stays 35, `minSdk` 26). The deprecated in-`android` `kotlinOptions { jvmTarget }` block was migrated to the top-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` DSL that AGP 9 requires. **AGP 9 built-in Kotlin:** the standalone `org.jetbrains.kotlin.android` plugin is no longer applied (AGP 9 provides Kotlin compilation itself and errors if the plugin is present) — do **not** re-add it; the Compose (`org.jetbrains.kotlin.plugin.compose`), serialization, and KSP plugins are still applied with the Kotlin version and pin the built-in compiler to 2.3.10 (see https://developer.android.com/build/migrate-to-built-in-kotlin)
-- Post-AGP-9 CI fix: the release job's `testReleaseUnitTest` step broke on `main` because AGP 9.0 flipped `android.onlyEnableUnitTestForTheTestedBuildType` to default `true`, so unit-test tasks are only created for the tested build type (`debug`) and `testReleaseUnitTest` no longer existed. Set `android.onlyEnableUnitTestForTheTestedBuildType=false` in `gradle.properties` to restore the pre-AGP-9 behaviour of generating unit-test tasks for the release build type too, keeping the release job's `Run release unit tests` step working. Note this flag is global — it applies to every Gradle invocation (local dev included), so `./gradlew test` again runs both the debug and release unit-test suites (#496)
-
-**Process & Docs**
-- CHANGELOG.md at repo root (Keep a Changelog format); `[Unreleased]` → versioned heading on release (#143)
-- ADRs in `docs/decisions/product/` (product/UX decisions) and `technical/` (implementation constraints); spec agent scans before interviewing; implementer reads before coding in covered areas
-- All UI strings in `strings.xml` — no hardcoded strings in Compose screens (#91 #154 #158 #215 #248 #220 #272 #275); shared `SettingsItemRow` private composable extracted in `SettingsScreen.kt`; `cd_back` is the canonical back-button content description
-- Agent definitions in `.claude/agents/`: spec, implementer, reviewer, qa; subagents return findings as text, orchestrator posts via `mcp__github__*`; comment cadence table in CLAUDE.md (#221 #242)
-- `run-yapt` skill in `.claude/skills/`: builds, installs, launches, and drives the YAPT app on an emulator via adb — used to screenshot screens, tap through flows, and verify UI changes on-device (#411)
-- NON-BLOCKING reviewer findings now tagged SMALL/LARGE; orchestrator asks human with a recommendation before fixing in-PR or filing a new issue; `reviewer.md` updated to emit SMALL/LARGE tags and recommended action per finding (PR #259)
-- README at repo root with Features list, build instructions, CI/CD badge, project structure
+## Pointers (load on demand — path-scoped rules load only when you touch matching files)
+- `.claude/rules/schedule.md` — CareSchedule status + adaptive-interval rules
+- `.claude/rules/notifications.md` — ReminderWorker, composer, notification toggles
+- `.claude/rules/backup.md` — `.yapt` export/import + backup schema versions
+- `.claude/rules/chart.md` — Vico watering-history chart internals
+- `.claude/rules/plant-detail.md` — per-action tabs, inline settings, insights, feature flags
+- `.claude/rules/dev-mode.md` — developer mode, feature-flag registry, debug actions
+- `.claude/rules/ci-build.md` — AGP 9 toolchain, Detekt, cloud/session build setup
+- `.claude/rules/release.md` — release-cutting workflow
+- **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. Not duplicated here.

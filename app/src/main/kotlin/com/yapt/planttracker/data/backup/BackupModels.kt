@@ -12,6 +12,7 @@ data class BackupPlant(
     val notes: String? = null,
     val wateringIntervalDays: Int? = null,
     val fertilizingIntervalDays: Int? = null,
+    val repottingIntervalDays: Int? = null,
     val createdAt: Long,
     val updatedAt: Long,
     val wateringDueDateOverride: Long? = null,
@@ -39,7 +40,8 @@ data class BackupSettings(
     val keepScreenOn: Boolean = false,
     val combineNotifications: Boolean = false,
     val photoReminderEnabled: Boolean = false,
-    val themeMode: String = "SYSTEM"
+    val themeMode: String = "SYSTEM",
+    val fertilizingNotificationsEnabled: Boolean = true
 )
 
 @Serializable

@@ -101,6 +101,7 @@
     <string name="notification_watering_due_today">Watering due today</string>
     <string name="notification_fertilizing_due_today">Fertilizing due today</string>
     <string name="notification_fertilize_with_watering">Fertilize with watering</string>
+    <string name="notification_repotting_due_today">Repotting due today</string>
     <plurals name="notification_watering_overdue">
         <item quantity="one">Watering overdue by 1 day</item>
         <item quantity="other">Watering overdue by %d days</item>
@@ -108,6 +109,10 @@
     <plurals name="notification_fertilizing_overdue">
         <item quantity="one">Fertilizing overdue by 1 day</item>
         <item quantity="other">Fertilizing overdue by %d days</item>
+    </plurals>
+    <plurals name="notification_repotting_overdue">
+        <item quantity="one">Repotting overdue by 1 day</item>
+        <item quantity="other">Repotting overdue by %d days</item>
     </plurals>
     <plurals name="notification_combined_title">
         <item quantity="one">1 plant needs care</item>
@@ -162,6 +167,11 @@
     <string name="watering_reminder_label">Watering reminder</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
+    <plurals name="repotting_interval_label">
+        <item quantity="one">Repot every month</item>
+        <item quantity="other">Repot every %d months</item>
+    </plurals>
+    <string name="repotting_reminder_label">Repotting reminder</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
@@ -175,6 +185,31 @@
     <string name="care_log_photo_label_required">Photo</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
+    <!-- Feature flag: Plant Detail per-action tabs (#436) -->
+    <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
+    <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
+    <!-- Plant Detail per-action tabs (#436) -->
+    <string name="plant_detail_tab_water">Water</string>
+    <string name="plant_detail_tab_fertilize">Fertilize</string>
+    <string name="plant_detail_tab_repot">Repot</string>
+    <string name="plant_detail_tab_photo">Photo</string>
+    <string name="plant_detail_misting_section">Recent misting</string>
+    <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
+    <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Plant Detail per-tab insights (#436, sub-task 3) -->
+    <string name="insight_waterings">Waterings</string>
+    <string name="insight_fertilizings">Fertilizings</string>
+    <string name="insight_repottings">Repottings</string>
+    <string name="insight_photos">Photos</string>
+    <string name="insight_avg_interval">Avg. interval</string>
+    <string name="insight_last_repotted">Last repotted</string>
+    <string name="insight_first_photo">First photo</string>
+    <string name="insight_latest_photo">Latest photo</string>
+    <plurals name="insight_interval_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
     <string name="plant_detail_location">📍 %1$s</string>
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>
@@ -243,6 +278,8 @@
     <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
     <string name="combine_notifications_title">Combine reminders</string>
     <string name="combine_notifications_subtitle">Show all due plants in one notification</string>
+    <string name="fertilizing_notifications_title">Notify for fertilizing</string>
+    <string name="fertilizing_notifications_subtitle">Remind me when only fertilizing is due</string>
     <string name="photo_reminder_dialog_title">Time for a photo!</string>
     <string name="photo_reminder_dialog_text">No photo in %1$d days — take one?</string>
 
@@ -292,4 +329,48 @@
     </plurals>
     <string name="bulk_delete_confirm_button">Move</string>
     <string name="bulk_delete_cancel_button">Cancel</string>
+    <string name="cd_version_row_show_version">Show app version</string>
+    <plurals name="dev_mode_countdown_taps_away">
+        <item quantity="one">You are 1 tap away from developer mode</item>
+        <item quantity="other">You are %d taps away from developer mode</item>
+    </plurals>
+    <string name="dev_mode_enabled_snackbar">Developer mode enabled</string>
+    <string name="dev_mode_disabled_snackbar">Developer mode disabled</string>
+    <string name="dev_mode_section_title">Developer</string>
+    <string name="dev_mode_master_switch_title">Developer mode</string>
+    <string name="dev_mode_master_switch_subtitle">Turn off to hide this section; tap the version 5 times to return</string>
+    <string name="dev_mode_build_info_version_title">Version</string>
+    <string name="dev_mode_build_info_version_value">%1$s (%2$d)</string>
+    <string name="dev_mode_build_info_build_type_title">Build type</string>
+    <string name="dev_mode_build_info_db_version_title">Database version</string>
+    <string name="dev_mode_build_info_api_level_title">Device API level</string>
+    <string name="dev_mode_feature_flags_section_title">Feature flags</string>
+    <string name="dev_mode_feature_flags_empty">No feature flags in this build</string>
+    <string name="dev_mode_debug_actions_section_title">Debug actions</string>
+    <string name="dev_mode_action_reset_whats_new_title">Reset What\'s New seen state</string>
+    <string name="dev_mode_action_reset_whats_new_subtitle">Makes the What\'s New sheet auto-show on next launch</string>
+    <string name="dev_mode_reset_whats_new_snackbar">What\'s New seen state reset</string>
+    <string name="dev_mode_action_run_reminder_check_title">Run reminder check now</string>
+    <string name="dev_mode_action_run_reminder_check_subtitle">Posts real notifications for any plant that\'s due</string>
+    <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
+    <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
+    <string name="dev_mode_action_seed_demo_title">Seed demo plants</string>
+    <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 8-plant dataset</string>
+    <string name="dev_mode_seed_demo_confirm_title">Seed demo plants?</string>
+    <string name="dev_mode_seed_demo_confirm_text">Inserts 8 demo plants with back-dated care history, prefixed \"[Demo] \". Any existing demo plants are removed first.</string>
+    <string name="dev_mode_seed_demo_confirm_button">Seed</string>
+    <plurals name="dev_mode_seed_demo_result">
+        <item quantity="one">1 demo plant seeded</item>
+        <item quantity="other">%d demo plants seeded</item>
+    </plurals>
+    <string name="dev_mode_action_remove_demo_title">Remove demo plants</string>
+    <string name="dev_mode_action_remove_demo_subtitle">Permanently deletes every \"[Demo] \"-prefixed plant</string>
+    <string name="dev_mode_remove_demo_confirm_title">Remove demo plants?</string>
+    <string name="dev_mode_remove_demo_confirm_text">Permanently deletes every \"[Demo] \"-prefixed plant and its care history. This cannot be undone.</string>
+    <string name="dev_mode_remove_demo_confirm_button">Remove</string>
+    <plurals name="dev_mode_remove_demo_result">
+        <item quantity="one">1 demo plant removed</item>
+        <item quantity="other">%d demo plants removed</item>
+    </plurals>
+    <string name="dev_mode_remove_demo_none">No demo plants to remove</string>
 </resources>

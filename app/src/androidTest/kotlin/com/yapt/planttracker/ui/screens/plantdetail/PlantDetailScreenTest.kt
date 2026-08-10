@@ -1,20 +1,26 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -34,11 +40,24 @@ class PlantDetailScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+
+    /**
+     * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
+     * shared DataStore stub reports it ON — these tests exercise the flag-on tabbed UI.
+     * `tabsFlagOff_showsClassicLayoutWithoutTabs` supplies its own flag-off store instead.
+     */
     private val mockDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(emptyPreferences())
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
+            )
+        )
     }
 
-    private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+    private val flagsOffDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(emptyPreferences())
+    }
 
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
@@ -134,6 +153,8 @@ class PlantDetailScreenTest {
             )
         }
 
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
         composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
     }
 
@@ -177,6 +198,8 @@ class PlantDetailScreenTest {
             )
         }
 
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
         composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
     }
 
@@ -213,7 +236,11 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.").assertIsDisplayed()
+        // The chart lives under the Water tab, below the tab strip; scroll the list to it before asserting.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Need at least 2 watering logs to display watering history."))
+        composeTestRule.onNodeWithText("Need at least 2 watering logs to display watering history.")
+            .assertIsDisplayed()
     }
 
     @Test
@@ -319,10 +346,11 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Skip watering")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
+        // The Water tab content pushes the skip button below the fold; scroll the list to it (this
+        // composes the off-screen item, which a waitUntil-on-existence check never would).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Skip watering"))
+        composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
     }
 
     @Test
@@ -432,6 +460,191 @@ class PlantDetailScreenTest {
         }
         assertTrue(
             composeTestRule.onAllNodesWithText("How was the soil?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun careTabs_areDisplayed() {
+        val plant = Plant(id = 30L, name = "Aloe", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Water").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_showsEmptyState_onlyAfterSelected() {
+        val plant = Plant(id = 31L, name = "Sage", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // The Fertilize empty state is unique to the Fertilize tab, so it proves the tab switched.
+        assertTrue(
+            composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("No fertilizing logged yet."))
+        composeTestRule.onNodeWithText("No fertilizing logged yet.").assertIsDisplayed()
+    }
+
+    @Test
+    fun photoTab_showsEmptyState_whenNoPhotos() {
+        val plant = Plant(id = 32L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Photo").performClick()
+        // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("No photos yet."))
+        composeTestRule.onNodeWithText("No photos yet.").assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTab_showsInlineWateringIntervalControl() {
+        val plant = Plant(id = 33L, name = "Calathea", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // The inline watering-interval header sits at the top of the default Water tab.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
+        composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_showsInlineScheduleControl() {
+        // No fertilizing interval → the inline control shows its disabled "Fertilizing reminder" header,
+        // which is unique to this control (the fertilizing stat chip is absent without an interval).
+        val plant = Plant(id = 34L, name = "Oregano", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilizing reminder"))
+        composeTestRule.onNodeWithText("Fertilizing reminder").assertIsDisplayed()
+    }
+
+    @Test
+    fun repotTab_showsInsightsForMultipleRepots() {
+        val day = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        val plant = Plant(id = 40L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(
+            listOf(
+                CareLog(id = 1L, plantId = 40L, careType = CareType.REPOT, loggedAt = now - 60 * day),
+                CareLog(id = 2L, plantId = 40L, careType = CareType.REPOT, loggedAt = now)
+            )
+        )
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel =
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Two repots → the Repot tab's insights card shows the count and an average interval.
+        composeTestRule.onNodeWithText("Repot").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repottings"))
+        composeTestRule.onNodeWithText("Repottings").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Avg. interval").assertIsDisplayed()
+    }
+
+    @Test
+    fun tabsFlagOff_showsClassicLayoutWithoutTabs() {
+        val plant = Plant(id = 41L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel =
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Classic layout: the watering chart renders inline, and no tab labels are present.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Watering History"))
+        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Repot")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }

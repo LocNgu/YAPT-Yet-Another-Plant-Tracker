@@ -8,13 +8,19 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.devmode.DemoDataSeeder
+import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -34,8 +41,19 @@ class SettingsViewModel(
     private val context: Context,
     private val database: PlantDatabase,
     private val plantRepository: PlantRepository,
+    private val featureFlags: FeatureFlags = FeatureFlags(dataStore),
     private val backupManager: BackupManagerInterface = BackupManager(context, database, dataStore)
 ) : ViewModel() {
+
+    val flags: List<FeatureFlag> get() = featureFlags.flags
+
+    // Not a constructor parameter: DemoDataSeeder only needs dependencies already available on
+    // this class (plantRepository, database), and adding it as a 7th constructor parameter would
+    // trip Detekt's LongParameterList.constructorThreshold — the same tradeoff #521 made for the
+    // feature-flag list (see ADR-0022's "Deliberate deviation from #521 AC10" section).
+    private val demoDataSeeder: DemoDataSeeder by lazy {
+        DemoDataSeeder(plantRepository, CareLogRepository(database.careLogDao()), database)
+    }
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true }
@@ -52,6 +70,10 @@ class SettingsViewModel(
     val combineNotifications: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val fertilizingNotificationsEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val reminderHour: StateFlow<Int> = dataStore.data
         .map { it[SettingsKeys.REMINDER_HOUR] ?: SettingsDefaults.REMINDER_HOUR }
@@ -71,11 +93,29 @@ class SettingsViewModel(
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val developerModeEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.DEVELOPER_MODE_ENABLED] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val featureFlagStates: StateFlow<Map<String, Boolean>> = if (flags.isEmpty()) {
+        MutableStateFlow(emptyMap())
+    } else {
+        combine(flags.map { flag -> featureFlags.isEnabled(flag).map { flag.key to it } }) { pairs -> pairs.toMap() }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                flags.associate { it.key to it.default }
+            )
+    }
+
     private val _backupResult = MutableSharedFlow<BackupResult>()
     val backupResult: SharedFlow<BackupResult> = _backupResult.asSharedFlow()
 
     private val _isBackupInProgress = MutableStateFlow(false)
     val isBackupInProgress: StateFlow<Boolean> = _isBackupInProgress.asStateFlow()
+
+    private val _debugActionEvent = MutableSharedFlow<String>()
+    val debugActionEvent: SharedFlow<String> = _debugActionEvent.asSharedFlow()
 
     fun setKeepScreenOn(enabled: Boolean) {
         viewModelScope.launch {
@@ -98,6 +138,68 @@ class SettingsViewModel(
     fun setCombineNotifications(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = enabled }
+        }
+    }
+
+    fun setFertilizingNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
+        }
+    }
+
+    fun setDeveloperModeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
+            // Turning developer mode off resets every flag to its registry default (product
+            // ADR-0022) so "developer mode off" always means a stock build with no hidden state.
+            if (!enabled && featureFlags.flags.isNotEmpty()) {
+                featureFlags.resetAll()
+            }
+        }
+    }
+
+    fun setFlagEnabled(flag: FeatureFlag, enabled: Boolean) {
+        viewModelScope.launch {
+            featureFlags.setEnabled(flag, enabled)
+        }
+    }
+
+    fun resetWhatsNewSeenState() {
+        viewModelScope.launch {
+            dataStore.edit { it.remove(SettingsKeys.LAST_SEEN_VERSION_CODE) }
+            _debugActionEvent.emit(context.getString(R.string.dev_mode_reset_whats_new_snackbar))
+        }
+    }
+
+    fun runReminderCheckNow() {
+        viewModelScope.launch {
+            if (NotificationPermission.isGranted(context)) {
+                ReminderScheduler.runNow(context)
+                _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_snackbar))
+            } else {
+                _debugActionEvent.emit(context.getString(R.string.dev_mode_run_reminder_check_denied_snackbar))
+            }
+        }
+    }
+
+    fun seedDemoPlants() {
+        viewModelScope.launch {
+            val count = demoDataSeeder.seed()
+            _debugActionEvent.emit(
+                context.resources.getQuantityString(R.plurals.dev_mode_seed_demo_result, count, count)
+            )
+        }
+    }
+
+    fun removeDemoPlants() {
+        viewModelScope.launch {
+            val count = demoDataSeeder.remove()
+            val message = if (count == 0) {
+                context.getString(R.string.dev_mode_remove_demo_none)
+            } else {
+                context.resources.getQuantityString(R.plurals.dev_mode_remove_demo_result, count, count)
+            }
+            _debugActionEvent.emit(message)
         }
     }
 
@@ -171,10 +273,11 @@ class SettingsViewModel(
         private val dataStore: DataStore<Preferences>,
         private val context: Context,
         private val database: PlantDatabase,
-        private val plantRepository: PlantRepository
+        private val plantRepository: PlantRepository,
+        private val featureFlags: FeatureFlags
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            SettingsViewModel(dataStore, context, database, plantRepository) as T
+            SettingsViewModel(dataStore, context, database, plantRepository, featureFlags) as T
     }
 }

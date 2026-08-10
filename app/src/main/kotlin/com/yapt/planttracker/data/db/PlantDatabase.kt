@@ -12,7 +12,7 @@ import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
     entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class],
-    version = 6,
+    version = PlantDatabase.DB_VERSION,
     exportSchema = true
 )
 abstract class PlantDatabase : RoomDatabase() {
@@ -22,6 +22,10 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun plantPhotoDao(): PlantPhotoDao
 
     companion object {
+        // Single source of truth for the schema version, shared with the @Database
+        // annotation above so the developer-mode build-info row can never drift from it (#520).
+        const val DB_VERSION = 7
+
         @Volatile
         private var INSTANCE: PlantDatabase? = null
 
@@ -89,6 +93,12 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN repottingIntervalDays INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -96,7 +106,14 @@ abstract class PlantDatabase : RoomDatabase() {
                     PlantDatabase::class.java,
                     "yapt_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
+                    )
                     .build()
                     .also { INSTANCE = it }
             }

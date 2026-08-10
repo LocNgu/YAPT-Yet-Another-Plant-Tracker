@@ -300,7 +300,13 @@ fun YaptNavGraph(
 
             composable(Screen.Settings.route) { backStackEntry ->
                 val vm: SettingsViewModel = viewModel(
-                    factory = SettingsViewModel.Factory(app.settingsDataStore, app, app.database, app.plantRepository)
+                    factory = SettingsViewModel.Factory(
+                        app.settingsDataStore,
+                        app,
+                        app.database,
+                        app.plantRepository,
+                        app.featureFlags
+                    )
                 )
                 SettingsScreen(
                     viewModel = vm,

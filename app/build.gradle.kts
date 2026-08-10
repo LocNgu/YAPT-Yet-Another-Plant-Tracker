@@ -121,7 +121,7 @@ kotlin {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
@@ -142,8 +142,8 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:2.9.8")
 
-    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
-    implementation("com.kizitonwose.calendar:compose:2.7.0")
+    implementation("com.patrykandpatrick.vico:compose-m3:2.5.2")
+    implementation("com.kizitonwose.calendar:compose:2.10.1")
 
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")

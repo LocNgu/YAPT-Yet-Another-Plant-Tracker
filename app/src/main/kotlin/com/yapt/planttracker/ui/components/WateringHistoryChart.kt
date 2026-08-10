@@ -41,7 +41,9 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.AutoScrollCondition
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.Scroll
@@ -449,73 +451,80 @@ private fun ChartContent(
             )
         }
 
-        CartesianChartHost(
-            chart = rememberCartesianChart(
-                rememberLineCartesianLayer(
-                    lineProvider = LineCartesianLayer.LineProvider.series(
-                        // Vico's monthly-bucket line is invisible; the decoration draws the
-                        // per-event smooth cubic-spline curve and water-drop icons directly on
-                        // the canvas.
-                        LineCartesianLayer.rememberLine(
-                            fill = LineCartesianLayer.LineFill.single(fill(Color.Transparent))
-                        )
+        // Vico's default theme derives its axis-label/line/guideline colours from
+        // isSystemInDarkTheme(), NOT the app's in-app Light/Dark/System toggle (#139). When
+        // the app is forced Light while the device is Dark, Vico paints white chrome onto the
+        // light chart surface. Provide an M3-derived theme so the chart follows the app's
+        // actual MaterialTheme colours in both modes.
+        ProvideVicoTheme(rememberM3VicoTheme()) {
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    rememberLineCartesianLayer(
+                        lineProvider = LineCartesianLayer.LineProvider.series(
+                            // Vico's monthly-bucket line is invisible; the decoration draws the
+                            // per-event smooth cubic-spline curve and water-drop icons directly on
+                            // the canvas.
+                            LineCartesianLayer.rememberLine(
+                                fill = LineCartesianLayer.LineFill.single(fill(Color.Transparent))
+                            )
+                        ),
+                        rangeProvider = rangeProvider,
                     ),
-                    rangeProvider = rangeProvider,
+                    startAxis = VerticalAxis.rememberStart(
+                        valueFormatter = dayFormatter,
+                        // Force a fixed whole-day step instead of Vico's default automatic
+                        // step (which can land on fractional values like 0.5, 1.5 and, after
+                        // truncation/rounding, produce duplicate "Nd" labels).
+                        itemPlacer = remember(yStep) {
+                            VerticalAxis.ItemPlacer.step(step = { yStep.toDouble() })
+                        },
+                    ),
+                    bottomAxis = HorizontalAxis.rememberBottom(
+                        valueFormatter = dateFormatter,
+                        // Place ticks at integer month boundaries only; without this Vico
+                        // would emit one tick per fractional event position, cluttering the axis.
+                        itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }) },
+                    ),
+                    decorations = listOf(careEventDecoration),
                 ),
-                startAxis = VerticalAxis.rememberStart(
-                    valueFormatter = dayFormatter,
-                    // Force a fixed whole-day step instead of Vico's default automatic
-                    // step (which can land on fractional values like 0.5, 1.5 and, after
-                    // truncation/rounding, produce duplicate "Nd" labels).
-                    itemPlacer = remember(yStep) {
-                        VerticalAxis.ItemPlacer.step(step = { yStep.toDouble() })
-                    },
-                ),
-                bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = dateFormatter,
-                    // Place ticks at integer month boundaries only; without this Vico
-                    // would emit one tick per fractional event position, cluttering the axis.
-                    itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }) },
-                ),
-                decorations = listOf(careEventDecoration),
-            ),
-            modelProducer = modelProducer,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                // Key on the stable decoration so the lambda is recreated only when icon
-                // bitmaps change; it always reads the latest drawnMarkers via field access.
-                .pointerInput(careEventDecoration) {
-                    detectTapGestures { tapOffset ->
-                        val thresholdPx = 28.dp.toPx()
-                        val hit = careEventDecoration.drawnMarkers.minByOrNull { dm ->
-                            val dx = dm.cx - tapOffset.x
-                            val dy = dm.cy - tapOffset.y
-                            dx * dx + dy * dy
-                        }
-                        if (hit != null) {
-                            val dx = hit.cx - tapOffset.x
-                            val dy = hit.cy - tapOffset.y
-                            if (dx * dx + dy * dy <= thresholdPx * thresholdPx) {
-                                selectedMarker = hit
+                modelProducer = modelProducer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    // Key on the stable decoration so the lambda is recreated only when icon
+                    // bitmaps change; it always reads the latest drawnMarkers via field access.
+                    .pointerInput(careEventDecoration) {
+                        detectTapGestures { tapOffset ->
+                            val thresholdPx = 28.dp.toPx()
+                            val hit = careEventDecoration.drawnMarkers.minByOrNull { dm ->
+                                val dx = dm.cx - tapOffset.x
+                                val dy = dm.cy - tapOffset.y
+                                dx * dx + dy * dy
+                            }
+                            if (hit != null) {
+                                val dx = hit.cx - tapOffset.x
+                                val dy = hit.cy - tapOffset.y
+                                if (dx * dx + dy * dy <= thresholdPx * thresholdPx) {
+                                    selectedMarker = hit
+                                }
                             }
                         }
-                    }
-                },
-            scrollState = rememberVicoScrollState(
-                scrollEnabled = true,
-                initialScroll = Scroll.Absolute.End,
-                autoScroll = Scroll.Absolute.End,
-                // Fire only when the data's x-extent changes — which happens on
-                // a time-range switch or a new watering at the right edge — so
-                // unrelated CareLog emissions (fertilize, prune, photo) don't
-                // yank the chart away while the user is scrolling history.
-                autoScrollCondition = AutoScrollCondition { old, new ->
-                    old?.models?.firstOrNull()?.maxX != new?.models?.firstOrNull()?.maxX
-                },
-            ),
-            zoomState = rememberVicoZoomState(zoomEnabled = false),
-        )
+                    },
+                scrollState = rememberVicoScrollState(
+                    scrollEnabled = true,
+                    initialScroll = Scroll.Absolute.End,
+                    autoScroll = Scroll.Absolute.End,
+                    // Fire only when the data's x-extent changes — which happens on
+                    // a time-range switch or a new watering at the right edge — so
+                    // unrelated CareLog emissions (fertilize, prune, photo) don't
+                    // yank the chart away while the user is scrolling history.
+                    autoScrollCondition = AutoScrollCondition { old, new ->
+                        old?.models?.firstOrNull()?.maxX != new?.models?.firstOrNull()?.maxX
+                    },
+                ),
+                zoomState = rememberVicoZoomState(zoomEnabled = false),
+            )
+        }
     }
 
     selectedMarker?.let { marker ->

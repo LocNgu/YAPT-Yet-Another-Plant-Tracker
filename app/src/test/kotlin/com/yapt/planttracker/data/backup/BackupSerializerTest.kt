@@ -20,6 +20,7 @@ class BackupSerializerTest {
                 notes = "Loves humidity",
                 wateringIntervalDays = 7,
                 fertilizingIntervalDays = 14,
+                repottingIntervalDays = 365,
                 createdAt = 1_000_000_000_000L,
                 updatedAt = 1_100_000_000_000L,
                 wateringDueDateOverride = 1_700_000_000_000L,
@@ -46,7 +47,8 @@ class BackupSerializerTest {
             keepScreenOn = true,
             combineNotifications = true,
             photoReminderEnabled = true,
-            themeMode = "DARK"
+            themeMode = "DARK",
+            fertilizingNotificationsEnabled = false
         ),
         plantPhotos = listOf(
             BackupPlantPhoto(
@@ -132,6 +134,29 @@ class BackupSerializerTest {
         """.trimIndent()
         val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
         assertEquals("DARK", decoded.settings.themeMode)
+    }
+
+    @Test
+    fun `settings without fertilizingNotificationsEnabled default to true`() {
+        val json = """
+            {"schemaVersion":6,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(true, decoded.settings.fertilizingNotificationsEnabled)
+    }
+
+    @Test
+    fun `settings fertilizingNotificationsEnabled round-trips its stored value`() {
+        val json = """
+            {"schemaVersion":7,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0,
+             "fertilizingNotificationsEnabled":false}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(false, decoded.settings.fertilizingNotificationsEnabled)
     }
 
     @Test

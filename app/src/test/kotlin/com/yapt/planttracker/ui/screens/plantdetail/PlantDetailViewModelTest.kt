@@ -109,6 +109,70 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun `setWateringInterval persists the new interval via repo`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setWateringInterval(10)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 10 }) }
+    }
+
+    @Test
+    fun `setWateringInterval null clears the schedule`() = runTest {
+        val scheduled = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(scheduled)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(scheduled, awaitItem())
+            vm.setWateringInterval(null)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == null }) }
+    }
+
+    @Test
+    fun `setFertilizingInterval persists the new interval via repo`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setFertilizingInterval(21)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.fertilizingIntervalDays == 21 }) }
+    }
+
+    @Test
+    fun `setLiquidFertilizer persists the toggle via repo`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setLiquidFertilizer(true)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+    }
+
+    @Test
     fun `clearSuggestedInterval sets suggestedWateringInterval to null`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
