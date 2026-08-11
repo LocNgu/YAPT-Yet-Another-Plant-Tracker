@@ -33,8 +33,10 @@ BUILD_TOOLS_VERSION="35.0.0"
 echo "==> Android SDK -> $ANDROID_HOME"
 export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
 
+# `|| true` so a missing app/build.gradle.kts reaches the check below instead of
+# aborting the script silently on pipefail — that's the case the check exists for.
 COMPILE_SDK="$(sed -nE 's/^[[:space:]]*compileSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' \
-  app/build.gradle.kts 2>/dev/null | head -1)"
+  app/build.gradle.kts 2>/dev/null | head -1 || true)"
 if [ -z "$COMPILE_SDK" ]; then
   echo "!!! could not read compileSdk from app/build.gradle.kts — run this from the repo root" >&2
   exit 1
@@ -121,7 +123,9 @@ if [ -f "$WRAPPER_PROPS" ]; then
       # Seeding only works when the pre-installed Gradle is close enough to the pin.
       # AGP 9 needs Gradle 9, so seeding an older major just swaps "can't download the
       # wrapper dist" for a confusing "minimum supported Gradle version" build failure.
-      PRE_GRADLE_VER="$("$PRE_GRADLE" --version 2>/dev/null | sed -nE 's/^Gradle[[:space:]]+([0-9.]+).*/\1/p' | head -1)"
+      # `|| true`: if `gradle --version` itself fails, fall through to the mismatch
+      # message with an empty version rather than dying silently on pipefail.
+      PRE_GRADLE_VER="$("$PRE_GRADLE" --version 2>/dev/null | sed -nE 's/^Gradle[[:space:]]+([0-9.]+).*/\1/p' | head -1 || true)"
       if [ "${PRE_GRADLE_VER%%.*}" != "${WRAPPER_VER%%.*}" ]; then
         echo "!!! pre-installed Gradle is ${PRE_GRADLE_VER:-unknown}, wrapper pins $WRAPPER_VER" >&2
         echo "    Seeding across major versions would break the build instead of fixing it." >&2
