@@ -42,9 +42,14 @@ stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
 workers and Room DAOs (both reached via reflection) from being stripped/renamed.
 
-## Cloud / in-session builds (#419)
+## Cloud / in-session builds (#419, #544)
 Enablement is environment config, not repo: allowlist `dl.google.com`, set `ANDROID_HOME=/opt/android-sdk`, run
 `scripts/cloud-setup.sh` as setup. It installs the SDK and seeds the wrapper dist from the pre-installed Gradle.
-**Only works if the pre-installed Gradle is 9.x** (AGP 9 needs it); an image still on Gradle 8.x fails locally. CI is
-unaffected (`setup-gradle` downloads pinned 9.6.1) and remains the authoritative gate. Instrumented tests still need
-CI's emulator.
+The script derives `platforms;android-<compileSdk>` from `app/build.gradle.kts` — don't hardcode a platform in it.
+`CMDLINE_TOOLS_BUILD` only bootstraps: those tools install SDK-managed `cmdline-tools;latest`, which installs
+everything else, so the pin can't hide a newly released platform (a 2023 pin couldn't see API 37 — #544).
+**Only works if the pre-installed Gradle matches the wrapper's major** (AGP 9 needs Gradle 9): the script refuses to
+seed an older major rather than trading a wrapper-download failure for a "minimum supported Gradle version" one. On a
+Gradle 8.x image, allowlist the wrapper's hosts (`services.gradle.org`, `downloads.gradle.org`,
+`release-assets.githubusercontent.com`) so the real dist downloads instead. CI is unaffected (`setup-gradle` downloads
+its own pinned Gradle) and remains the authoritative gate. Instrumented tests still need CI's emulator.
