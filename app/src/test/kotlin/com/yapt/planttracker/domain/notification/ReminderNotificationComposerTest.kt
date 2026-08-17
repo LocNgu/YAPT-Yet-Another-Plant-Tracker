@@ -1,5 +1,6 @@
 package com.yapt.planttracker.domain.notification
 
+import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import org.junit.Assert.assertEquals
@@ -280,5 +281,82 @@ class ReminderNotificationComposerTest {
         val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
         assertTrue(items.any { it is CareReminderItem.WateringOverdue })
         assertTrue(items.any { it is CareReminderItem.RepottingOverdue })
+    }
+
+    // ---- Custom reminders (#232) ----
+
+    @Test
+    fun `computeCareReminderItems returns CustomReminderOverdue for an overdue custom reminder`() {
+        val reminder = CustomReminder(
+            id = 1L,
+            plantId = 1L,
+            name = "Neem oil treatment",
+            intervalDays = 7,
+            lastDoneAt = now - TimeUnit.DAYS.toMillis(10)
+        )
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            customReminders = listOf(reminder)
+        )
+
+        val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
+        assertEquals(1, items.size)
+        val item = items[0] as CareReminderItem.CustomReminderOverdue
+        assertEquals("Neem oil treatment", item.name)
+        assertEquals(3, item.days)
+    }
+
+    @Test
+    fun `computeCareReminderItems returns CustomReminderDueToday for a due-today custom reminder`() {
+        val reminder = CustomReminder(
+            id = 1L,
+            plantId = 1L,
+            name = "Neem oil treatment",
+            intervalDays = 7,
+            lastDoneAt = now - TimeUnit.DAYS.toMillis(7)
+        )
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            customReminders = listOf(reminder)
+        )
+
+        val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
+        assertEquals(listOf(CareReminderItem.CustomReminderDueToday("Neem oil treatment")), items)
+    }
+
+    @Test
+    fun `a due-only-for-custom-reminder plant is not suppressed by fertilizingNotificationsEnabled=false`() {
+        val reminder = CustomReminder(
+            id = 1L,
+            plantId = 1L,
+            name = "Neem oil treatment",
+            intervalDays = 7,
+            lastDoneAt = now - TimeUnit.DAYS.toMillis(10)
+        )
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            customReminders = listOf(reminder)
+        )
+
+        val reminders = ReminderNotificationComposer.computeDueReminders(
+            listOf(status),
+            now,
+            fertilizingNotificationsEnabled = false
+        )
+
+        assertEquals(1, reminders.size)
+        assertTrue(reminders[0].items.any { it is CareReminderItem.CustomReminderOverdue })
     }
 }

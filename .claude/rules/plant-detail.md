@@ -58,3 +58,17 @@ next-most-recent) (#306/#308/#444/#445).
 ## Care history
 Collapses to 5 most recent by default; `AssistChip` with animated chevron expands; hidden when ≤ 5; expanded state
 resets on screen open (#253).
+
+## Custom reminders (technical ADR-0019, #232)
+Always-visible `CustomRemindersCard`, rendered right after the `StatsRow` quick-log chips — **not** gated behind
+`PLANT_DETAIL_TABS`, unlike everything below it. Backed by `PlantDetailViewModel.customReminders` (`Flow` from
+`CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
+now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
+Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a
+confirm `AlertDialog`; "mark done" (`markCustomReminderDone`) writes a `CareType.CUSTOM` `CareLog` linked via
+`customReminderId` and resets the reminder's `lastDoneAt` in one ViewModel call. Row/card composables bundle their
+callbacks into a private `CustomReminderActions` data class to stay under Detekt's `LongParameterList` threshold —
+follow that pattern rather than adding more individual lambda params. `CareLogItem` takes an optional
+`customReminderName: String?` so a `CUSTOM` journal entry shows the reminder's free-text name instead of the generic
+label; pass `null` (or omit it) when the linked reminder has since been deleted — never crash on a dangling
+`customReminderId`.

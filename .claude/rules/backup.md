@@ -32,6 +32,7 @@ paths:
 | v6 | `themeMode: String` | `"SYSTEM"` (#139) |
 | v7 | `fertilizingNotificationsEnabled: Boolean` | `true` (#223) |
 | v8 | `BackupPlant.repottingIntervalDays: Int?` | `null` (#232) |
+| v9 | `BackupRoot.customReminders: List<BackupCustomReminder>` + `BackupCareLog.customReminderId: Long?` | `emptyList()` / `null` (#232) |
 
 `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null
 field so future nullable additions are caught by the round-trip test (#288). Instrumented `BackupManager` tests: 9

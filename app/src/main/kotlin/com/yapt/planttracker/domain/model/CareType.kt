@@ -7,5 +7,6 @@ enum class CareType {
     MIST,
     REPOT,
     NOTE,
-    PHOTO
+    PHOTO,
+    CUSTOM
 }

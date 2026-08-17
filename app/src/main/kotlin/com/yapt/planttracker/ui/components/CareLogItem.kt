@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.icon
 import com.yapt.planttracker.ui.util.labelRes
@@ -35,7 +36,14 @@ fun CareLogItem(
     log: CareLog,
     onDelete: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * The linked [com.yapt.planttracker.domain.model.CustomReminder]'s free-text name, shown instead
+     * of the generic "Custom care" label when [CareLog.careType] is [CareType.CUSTOM] and the
+     * reminder still exists. `null` (unset customReminderId, or a since-deleted reminder) falls back
+     * to the generic label rather than crashing (#232).
+     */
+    customReminderName: String? = null
 ) {
     Row(
         modifier = modifier
@@ -62,8 +70,13 @@ fun CareLogItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val title = if (log.careType == CareType.CUSTOM && customReminderName != null) {
+                    customReminderName
+                } else {
+                    stringResource(log.careType.labelRes())
+                }
                 Text(
-                    text = stringResource(log.careType.labelRes()),
+                    text = title,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )

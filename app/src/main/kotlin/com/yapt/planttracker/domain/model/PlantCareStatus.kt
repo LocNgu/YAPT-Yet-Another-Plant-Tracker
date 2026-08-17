@@ -15,5 +15,6 @@ data class PlantCareStatus(
     val lastRepottedAt: Long? = null,
     val nextRepottingDueAt: Long? = null,
     val isRepottingOverdue: Boolean = false,
-    val isRepottingDueSoon: Boolean = false
+    val isRepottingDueSoon: Boolean = false,
+    val customReminderStatuses: List<CustomReminderStatus> = emptyList()
 )

@@ -6,6 +6,15 @@ import org.junit.Test
 
 class BackupSerializerTest {
 
+    private val defaultCustomReminder = BackupCustomReminder(
+        id = 1000L,
+        plantId = 1L,
+        name = "Neem oil treatment",
+        intervalDays = 7,
+        lastDoneAt = 1_690_000_000_000L,
+        createdAt = 1_600_000_000_000L
+    )
+
     private fun fullRoot() = BackupRoot(
         schemaVersion = 1,
         exportedAt = 1_700_000_000_000L,
@@ -57,7 +66,8 @@ class BackupSerializerTest {
                 uri = "content://uri/gallery.jpg",
                 capturedAt = 1_650_000_000_000L
             )
-        )
+        ),
+        customReminders = listOf(defaultCustomReminder)
     )
 
     @Test
@@ -247,5 +257,57 @@ class BackupSerializerTest {
         assertEquals(2, decoded.careLogs.size)
         assertEquals("A", decoded.plants[0].name)
         assertEquals("Sp", decoded.plants[1].species)
+    }
+
+    @Test
+    fun `customReminders round-trips its stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(1, decoded.customReminders.size)
+        val reminder = decoded.customReminders[0]
+        assertEquals("Neem oil treatment", reminder.name)
+        assertEquals(7, reminder.intervalDays)
+        assertEquals(1_690_000_000_000L, reminder.lastDoneAt)
+    }
+
+    @Test
+    fun `backup without customReminders defaults to an empty list`() {
+        val json = """
+            {"schemaVersion":8,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(emptyList<BackupCustomReminder>(), decoded.customReminders)
+    }
+
+    @Test
+    fun `careLog customReminderId round-trips its stored value`() {
+        val log = BackupCareLog(
+            id = 1L,
+            plantId = 1L,
+            careType = "CUSTOM",
+            loggedAt = 1_000L,
+            customReminderId = 42L
+        )
+        val decoded = backupJson.decodeFromString(
+            BackupCareLog.serializer(),
+            backupJson.encodeToString(BackupCareLog.serializer(), log)
+        )
+        assertEquals(42L, decoded.customReminderId)
+    }
+
+    @Test
+    fun `careLog without customReminderId defaults to null`() {
+        val json = """
+            {"schemaVersion":8,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],
+             "careLogs":[{"id":5,"plantId":1,"careType":"CUSTOM","loggedAt":1600000000000}],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val log = backupJson.decodeFromString(BackupRoot.serializer(), json).careLogs[0]
+        assertNull(log.customReminderId)
     }
 }

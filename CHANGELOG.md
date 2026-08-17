@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Custom reminders** — each plant can now have an unbounded number of free-text, recurring reminders (Plant Detail → new "Custom reminders" card), for anything not covered by a built-in care type — disease/pest treatments ("apply neem oil every 7 days") as well as anything else you want to track. Add/edit/delete a reminder and mark it done from the card; marking one done writes a visible journal entry (linked back to that reminder's name) and resets its schedule, same as watering/fertilizing/repotting. Interval is set in plain days (no months toggle). `ReminderWorker` includes overdue/due-today custom reminders in the daily notification, joined with the existing " · " separator; no per-reminder icon or notification category. Room DB migrated to v8 (new `custom_reminders` table plus a `CareLog.customReminderId` column); round-trips through backup/restore (backup schema v9; older backups restore reminders as empty and log links as unset) (#232)
+
 ### Fixed
 - The "How was the soil?" quick-water bottom sheet's feedback chips (Still wet / Just right / Too dry) now behave like every other deselectable chip group in the app: tapping the already-selected chip clears it instead of doing nothing. "Log" stays enabled either way — logging with no chip selected records the watering with no feedback, same as the full Add Care Log screen already allows (#549)
 

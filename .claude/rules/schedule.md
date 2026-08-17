@@ -21,6 +21,10 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
   `nextRepottingDueAt`/`isRepottingOverdue`/`isRepottingDueSoon`/`lastRepottedAt` (all defaulted, existing
   callers unaffected). See product ADR-0022 (#232).
+- **Custom reminders** — unbounded per plant, so unlike repotting they're a `List<CustomReminderStatus>`
+  (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:
+  List<CustomReminder> = emptyList()` param; each reminder reuses `extendedCareDueAt()` independently (same
+  `createdAt + interval` first-due anchor as repotting). See technical ADR-0019 (#232).
 - No interval configured → "Not scheduled".
 
 ## computeSuggestedInterval() — adaptive watering (product ADR-0006)

@@ -9,6 +9,7 @@ import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.runBlocking
@@ -53,6 +54,7 @@ class ReminderWorkerTest {
     // Room's synchronous clearAllTables() would run on Robolectric's main thread and throw;
     // the DAO deletes are suspend and dispatch off it. Children before parents for the FK.
     private fun clearDatabase() = runBlocking {
+        app.database.customReminderDao().deleteAll()
         app.database.careLogDao().deleteAll()
         app.database.plantPhotoDao().deleteAll()
         app.database.plantDao().deleteAll()
@@ -169,6 +171,22 @@ class ReminderWorkerTest {
             assertEquals(ListenableWorker.Result.success(), result)
             assertEquals(1, shadowOf(notificationManager).size())
         }
+
+    @Test
+    fun `doWork posts a reminder for a plant overdue for a custom reminder`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Sick Fiddle Leaf", createdAt = 0L, updatedAt = 0L)
+        )
+        app.customReminderRepository.addReminder(
+            CustomReminder(plantId = plantId, name = "Neem oil treatment", intervalDays = 7)
+        )
+
+        val result = runWorker()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(1, shadowOf(notificationManager).size())
+    }
 
     @Test
     fun `doWork posts nothing when no plant is due`() = runBlocking {
