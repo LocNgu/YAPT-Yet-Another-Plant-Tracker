@@ -21,7 +21,7 @@ set -euo pipefail
 ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
 # Bootstrap build of the command-line tools. sdkmanager only sees packages that
 # existed when it was built, so a stale pin silently hides new platforms (a 2023
-# build can't find `platforms;android-37`, released June 2026 — #544). This pin
+# build can't find `platforms;android-37.0`, released June 2026 — #544). This pin
 # therefore only bootstraps: it installs the SDK-managed `cmdline-tools;latest`,
 # and that copy installs everything else. Bumping it is optional, not load-bearing.
 CMDLINE_TOOLS_BUILD="15859902"
@@ -42,8 +42,6 @@ if [ -z "$COMPILE_SDK" ]; then
   exit 1
 fi
 BASE_PACKAGES=("platform-tools" "build-tools;${BUILD_TOOLS_VERSION}")
-PLATFORM_PKG="platforms;android-${COMPILE_SDK}"
-echo "    compileSdk $COMPILE_SDK -> $PLATFORM_PKG"
 
 # Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
 # which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
@@ -90,29 +88,59 @@ if ! "$SDKMANAGER" "${BASE_PACKAGES[@]}" >"$sdk_log" 2>&1; then
   exit 1
 fi
 
-# The compileSdk platform is installed separately because it may not be in the
-# stable channel: as of 2026-08 API 37 has no entry in the SDK Platform release
-# notes, so a stable-channel sdkmanager reports "Failed to find package" for it
-# however new the tools are (#548). Retry across the preview channels before
-# giving up — --channel=3 (canary) is inclusive of beta and dev.
-echo "==> Installing $PLATFORM_PKG"
-if ! "$SDKMANAGER" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
-  echo "    not in the stable channel — retrying with --channel=3 (canary)"
-  if ! "$SDKMANAGER" --channel=3 "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
+# Starting at API 37, Google stopped publishing a bare `platforms;android-<major>`
+# package: only major.minor ids exist (android-37.0, android-37.1, ...). Older majors
+# (35, 36) still ship the bare id alongside minors, so this has to be discovered, not
+# assumed — `platforms;android-37` fails identically on every channel because it never
+# existed anywhere, not because of channel gating (#548 diagnosed this as a channel
+# problem and retried with --channel=3; that retry is a no-op for the real failure,
+# proven by reproducing the identical "Failed to find package" on stable and canary
+# alike). Prefer the bare id when sdkmanager still offers one; otherwise take the lowest
+# minor — `<major>.0` is the configuration actually verified to satisfy AGP's integer
+# `compileSdk`, and "lowest" stays deterministic as later minors are published.
+resolve_platform_pkg() {
+  local major="$1"; shift
+  local matches bare
+  matches="$("$SDKMANAGER" "$@" --list 2>/dev/null | tr -d '\r' \
+    | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/,"",$1); print $1}' \
+    | grep -E "^platforms;android-${major}(\.[0-9]+)?\$" | sort -u || true)"
+  bare="platforms;android-${major}"
+  if printf '%s\n' "$matches" | grep -qxF "$bare"; then
+    echo "$bare"
+    return
+  fi
+  printf '%s\n' "$matches" \
+    | sed -E "s/^platforms;android-${major}\.([0-9]+)\$/\1 &/" \
+    | sort -n | head -1 | cut -d' ' -f2-
+}
+
+echo "==> Resolving the compileSdk $COMPILE_SDK platform package"
+PLATFORM_PKG="$(resolve_platform_pkg "$COMPILE_SDK")"
+if [ -z "$PLATFORM_PKG" ]; then
+  echo "    no match in the stable channel — retrying with --channel=3 (canary)"
+  PLATFORM_PKG="$(resolve_platform_pkg "$COMPILE_SDK" --channel=3)"
+fi
+
+if [ -z "$PLATFORM_PKG" ]; then
+  echo "!!! sdkmanager has no platforms;android-${COMPILE_SDK}(.N) package in any channel." >&2
+  echo "    Platforms it does offer:" >&2
+  "$SDKMANAGER" --channel=3 --list 2>/dev/null | tr -d '\r' \
+    | grep -o 'platforms;android-[A-Za-z0-9._-]*' | sort -u | tail -15 | sed 's/^/      /' >&2 || true
+else
+  echo "    compileSdk $COMPILE_SDK -> $PLATFORM_PKG"
+  if ! "$SDKMANAGER" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
     cat "$sdk_log" >&2
-    echo "!!! sdkmanager could not resolve $PLATFORM_PKG in any channel." >&2
-    echo "    Platforms it does offer:" >&2
-    "$SDKMANAGER" --list --channel=3 2>/dev/null \
-      | grep -o 'platforms;android-[A-Za-z0-9._-]*' | sort -u | tail -15 | sed 's/^/      /' >&2 || true
+    echo "!!! sdkmanager failed to install $PLATFORM_PKG" >&2
+    PLATFORM_PKG=""
   fi
 fi
 
 # Not fatal: with licenses accepted, AGP downloads missing SDK components itself
 # during the build. Let the verification build below be the real test rather than
 # pre-judging it here.
-if [ ! -d "$ANDROID_HOME/platforms/android-${COMPILE_SDK}" ]; then
-  echo "    WARNING: platforms/android-${COMPILE_SDK} is not installed; continuing so AGP can" >&2
-  echo "             try to fetch it during the build." >&2
+if [ -z "$PLATFORM_PKG" ] || [ ! -d "$ANDROID_HOME/platforms/${PLATFORM_PKG#platforms;}" ]; then
+  echo "    WARNING: the compileSdk $COMPILE_SDK platform is not installed; continuing so AGP" >&2
+  echo "             can try to fetch it during the build." >&2
 fi
 
 # Let this repo's Gradle build find the SDK even if ANDROID_HOME isn't exported
