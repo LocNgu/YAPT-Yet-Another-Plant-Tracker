@@ -1,6 +1,6 @@
 # Product ADR-0016: Quick-water opens a feedback bottom sheet
 
-**Status**: accepted, supersedes [ADR-0002](0002-default-feedback-just-right.md), partially superseded by [ADR-0017](0017-quick-fertilize-bottom-sheet.md) (quick-fertilize clause only)
+**Status**: accepted, supersedes [ADR-0002](0002-default-feedback-just-right.md), partially superseded by [ADR-0017](0017-quick-fertilize-bottom-sheet.md) (quick-fertilize clause only) and [ADR-0024](0024-water-feedback-chip-deselectable.md) (chip-selection clause only)
 
 **Date**: 2026-06-10
 

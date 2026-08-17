@@ -108,7 +108,7 @@ class CalendarViewModel(
         }
     }
 
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
@@ -121,7 +121,7 @@ class CalendarViewModel(
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch

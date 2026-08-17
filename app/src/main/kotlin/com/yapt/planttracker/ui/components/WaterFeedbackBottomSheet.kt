@@ -33,9 +33,9 @@ fun WaterFeedbackBottomSheet(
     plantName: String,
     title: String = stringResource(R.string.water_feedback_sheet_title, plantName),
     onDismiss: () -> Unit,
-    onLog: (WateringFeedback) -> Unit
+    onLog: (WateringFeedback?) -> Unit
 ) {
-    var selectedFeedback by remember { mutableStateOf(WateringFeedback.JUST_RIGHT) }
+    var selectedFeedback by remember { mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -64,7 +64,7 @@ fun WaterFeedbackBottomSheet(
                 WateringFeedback.entries.forEach { feedback ->
                     FilterChip(
                         selected = selectedFeedback == feedback,
-                        onClick = { selectedFeedback = feedback },
+                        onClick = { selectedFeedback = if (selectedFeedback == feedback) null else feedback },
                         label = {
                             Text(
                                 stringResource(

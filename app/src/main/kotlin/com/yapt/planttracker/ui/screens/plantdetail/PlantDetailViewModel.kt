@@ -171,7 +171,7 @@ class PlantDetailViewModel(
      * [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any adaptive
      * interval suggestion feeds the existing interval-suggestion dialog via [suggestedWateringInterval].
      */
-    fun quickWater(feedback: WateringFeedback) {
+    fun quickWater(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
             quickLogUseCase.quickWaterWithFeedback(p, feedback)?.let {
@@ -206,7 +206,7 @@ class PlantDetailViewModel(
      * Quick-logs a paired fertilize + watering for liquid-fertilizer plants from the fertilizing stat
      * chip, mirroring the combined water+fertilize path on PlantCard (ADR-0008/ADR-0017).
      */
-    fun quickLiquidFertilize(feedback: WateringFeedback) {
+    fun quickLiquidFertilize(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
             quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)?.let {
