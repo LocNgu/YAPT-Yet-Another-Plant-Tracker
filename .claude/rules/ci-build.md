@@ -48,6 +48,11 @@ Enablement is environment config, not repo: allowlist `dl.google.com`, set `ANDR
 The script derives `platforms;android-<compileSdk>` from `app/build.gradle.kts` — don't hardcode a platform in it.
 `CMDLINE_TOOLS_BUILD` only bootstraps: those tools install SDK-managed `cmdline-tools;latest`, which installs
 everything else, so the pin can't hide a newly released platform (a 2023 pin couldn't see API 37 — #544).
+**The compileSdk platform may not be in sdkmanager's stable channel** — API 37 has no SDK Platform release-notes
+entry as of 2026-08, so stable-channel installs report "Failed to find package" no matter how new the tools are
+(#548). The script retries with `--channel=3` (canary, inclusive of beta/dev) and, failing that, warns and
+continues rather than aborting: AGP downloads missing SDK components itself once licenses are accepted, so the
+verification build is the real test. Don't restore a hard failure there.
 **Only works if the pre-installed Gradle matches the wrapper's major** (AGP 9 needs Gradle 9): the script refuses to
 seed an older major rather than trading a wrapper-download failure for a "minimum supported Gradle version" one. On a
 Gradle 8.x image, allowlist the wrapper's hosts (`services.gradle.org`, `downloads.gradle.org`,

@@ -41,8 +41,9 @@ if [ -z "$COMPILE_SDK" ]; then
   echo "!!! could not read compileSdk from app/build.gradle.kts — run this from the repo root" >&2
   exit 1
 fi
-SDK_PACKAGES=("platform-tools" "platforms;android-${COMPILE_SDK}" "build-tools;${BUILD_TOOLS_VERSION}")
-echo "    compileSdk $COMPILE_SDK -> platforms;android-${COMPILE_SDK}"
+BASE_PACKAGES=("platform-tools" "build-tools;${BUILD_TOOLS_VERSION}")
+PLATFORM_PKG="platforms;android-${COMPILE_SDK}"
+echo "    compileSdk $COMPILE_SDK -> $PLATFORM_PKG"
 
 # Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
 # which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
@@ -81,19 +82,37 @@ fi
 echo "==> Accepting licenses and installing SDK packages"
 accept_licenses
 sdk_log="$(mktemp)"
-if ! "$SDKMANAGER" "${SDK_PACKAGES[@]}" >"$sdk_log" 2>&1; then
+trap 'rm -f "$sdk_log"' EXIT
+
+if ! "$SDKMANAGER" "${BASE_PACKAGES[@]}" >"$sdk_log" 2>&1; then
   cat "$sdk_log" >&2
-  echo "!!! sdkmanager failed to install: ${SDK_PACKAGES[*]}" >&2
-  echo "    'Failed to find package' means the tools are older than the package — check" >&2
-  echo "    \"$SDKMANAGER --list\" and bump CMDLINE_TOOLS_BUILD in this script." >&2
-  rm -f "$sdk_log"
+  echo "!!! sdkmanager failed to install: ${BASE_PACKAGES[*]}" >&2
   exit 1
 fi
-rm -f "$sdk_log"
 
+# The compileSdk platform is installed separately because it may not be in the
+# stable channel: as of 2026-08 API 37 has no entry in the SDK Platform release
+# notes, so a stable-channel sdkmanager reports "Failed to find package" for it
+# however new the tools are (#548). Retry across the preview channels before
+# giving up — --channel=3 (canary) is inclusive of beta and dev.
+echo "==> Installing $PLATFORM_PKG"
+if ! "$SDKMANAGER" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
+  echo "    not in the stable channel — retrying with --channel=3 (canary)"
+  if ! "$SDKMANAGER" --channel=3 "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
+    cat "$sdk_log" >&2
+    echo "!!! sdkmanager could not resolve $PLATFORM_PKG in any channel." >&2
+    echo "    Platforms it does offer:" >&2
+    "$SDKMANAGER" --list --channel=3 2>/dev/null \
+      | grep -o 'platforms;android-[A-Za-z0-9._-]*' | sort -u | tail -15 | sed 's/^/      /' >&2 || true
+  fi
+fi
+
+# Not fatal: with licenses accepted, AGP downloads missing SDK components itself
+# during the build. Let the verification build below be the real test rather than
+# pre-judging it here.
 if [ ! -d "$ANDROID_HOME/platforms/android-${COMPILE_SDK}" ]; then
-  echo "!!! platforms/android-${COMPILE_SDK} missing after a successful sdkmanager run" >&2
-  exit 1
+  echo "    WARNING: platforms/android-${COMPILE_SDK} is not installed; continuing so AGP can" >&2
+  echo "             try to fetch it during the build." >&2
 fi
 
 # Let this repo's Gradle build find the SDK even if ANDROID_HOME isn't exported
