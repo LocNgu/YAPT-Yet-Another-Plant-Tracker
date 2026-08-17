@@ -272,4 +272,58 @@ class CareLogDaoTest {
         assertEquals(3, ids.size)
         assertEquals(3, careLogDao.getCareLogCount(plantId))
     }
+
+    // countLogsOfTypeOnDay (#509)
+
+    @Test
+    fun `countLogsOfTypeOnDay counts a matching log within the window`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 500L))
+
+        val count = careLogDao.countLogsOfTypeOnDay(plantId, CareType.WATER.name, 0L, 1_000L, excludeId = null)
+
+        assertEquals(1, count)
+    }
+
+    @Test
+    fun `countLogsOfTypeOnDay ignores logs outside the window`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 999L))
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 1_000L))
+
+        val count = careLogDao.countLogsOfTypeOnDay(plantId, CareType.WATER.name, 0L, 1_000L, excludeId = null)
+
+        assertEquals(1, count) // only the 999L log is inside the half-open [0, 1000) window
+    }
+
+    @Test
+    fun `countLogsOfTypeOnDay ignores logs of a different careType`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.FERTILIZE.name, loggedAt = 500L))
+
+        val count = careLogDao.countLogsOfTypeOnDay(plantId, CareType.WATER.name, 0L, 1_000L, excludeId = null)
+
+        assertEquals(0, count)
+    }
+
+    @Test
+    fun `countLogsOfTypeOnDay excludes the given log id`() = runTest {
+        val plantId = insertParentPlant()
+        val id = careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 500L))
+
+        val count = careLogDao.countLogsOfTypeOnDay(plantId, CareType.WATER.name, 0L, 1_000L, excludeId = id)
+
+        assertEquals(0, count)
+    }
+
+    @Test
+    fun `countLogsOfTypeOnDay does not exclude other logs when excludeId is set`() = runTest {
+        val plantId = insertParentPlant()
+        val editedId = careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 400L))
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 500L))
+
+        val count = careLogDao.countLogsOfTypeOnDay(plantId, CareType.WATER.name, 0L, 1_000L, excludeId = editedId)
+
+        assertEquals(1, count)
+    }
 }

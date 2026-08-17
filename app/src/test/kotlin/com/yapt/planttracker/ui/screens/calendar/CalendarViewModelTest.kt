@@ -81,7 +81,8 @@ class CalendarViewModelTest {
     fun `quickLog water routes through quickWaterWithFeedback and emits its snackbar message`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
+        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.quickLogEvent.test {
@@ -102,7 +103,11 @@ class CalendarViewModelTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
-            QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered Monstera",
+                logged = true,
+                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+            )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.quickWaterSuggestion.test {
@@ -122,7 +127,8 @@ class CalendarViewModelTest {
     fun `quickLog emits a PhotoReminderRequest when the use case returns one`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Fertilized Monstera"
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
             PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
@@ -145,7 +151,8 @@ class CalendarViewModelTest {
         PhotoReminderPolicy.shownThisSession.add(1L)
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Fertilized Monstera"
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         // Default @Before stub already returns null for maybeBuildPhotoReminderRequest; this test
         // documents that the gating (session suppression) lives in QuickLogUseCase, not the VM.
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
@@ -164,7 +171,8 @@ class CalendarViewModelTest {
     fun `quickLog does not emit photo reminder when the use case returns null`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Fertilized Monstera"
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.plantsWithStatus.test {
@@ -188,7 +196,12 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered and fertilized Monstera",
+                logged = true,
+                waterPaired = true
+            )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.quickWaterSuggestion.test {
@@ -220,7 +233,12 @@ class CalendarViewModelTest {
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
-            QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered and fertilized Monstera",
+                logged = true,
+                waterPaired = true,
+                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+            )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.quickWaterSuggestion.test {

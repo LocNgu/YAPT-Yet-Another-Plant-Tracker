@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Fixed
+- Watering and fertilizing can no longer be logged twice for the same plant on the same calendar day. A stray double-tap on a quick-log button (PlantCard, Plant Detail stat chips, Calendar day sheet, or bulk multi-select) now silently no-ops with an "Already watered/fertilized today" snackbar instead of creating a duplicate `CareLog`; bulk actions skip only the already-logged plants and say so in the summary snackbar (e.g. "Watered · 3 of 5 plants (2 already logged today)"). Liquid-fertilizer plants that were already watered today can still be fertilized — the paired watering that ADR-0008 normally auto-inserts is suppressed instead of double-counting. The Add Care Log screen (including edit mode) enforces the same rule with an inline error on Save rather than a dialog or a disabled button; editing a log's own note/photo on the same day is unaffected, but moving its date or care type onto a day that already has that type is rejected. No schema change — enforced at the repository/use-case layer, not a DB constraint (#509)
 - The "How was the soil?" quick-water bottom sheet's feedback chips (Still wet / Just right / Too dry) now behave like every other deselectable chip group in the app: tapping the already-selected chip clears it instead of doing nothing. "Log" stays enabled either way — logging with no chip selected records the watering with no feedback, same as the full Add Care Log screen already allows (#549)
 
 ---
