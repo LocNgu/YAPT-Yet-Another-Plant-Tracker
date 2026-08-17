@@ -16,7 +16,8 @@ paths:
   broken 0 KB exports to cloud providers (technical ADR-0014, #144).
 - **Restore** streams photos to `cacheDir` temp files (never into memory) to avoid OOM; temp files are tracked in a
   map before copy so `finally` always cleans up (#193/#195/#196).
-- Single bulk `getAllLogs()` query (not N+1); unreadable photo URIs silently skipped.
+- Single bulk `getAllLogs()` / `getAllReminders()` query (not N+1) — fetch once, group by `plantId` in memory,
+  then `plants.flatMap { grouped[it.id].orEmpty() }`; unreadable photo URIs silently skipped.
 - `performImport` guards photo-file cleanup with a `dbCommitted` flag — written files are deleted only if the DB
   transaction has **not** committed, so a throw from `dataStore.edit`/`ReminderScheduler` after commit can't leave
   dangling URIs (#175).

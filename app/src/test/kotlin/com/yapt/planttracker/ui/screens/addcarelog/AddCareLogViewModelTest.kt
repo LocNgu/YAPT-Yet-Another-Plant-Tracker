@@ -319,4 +319,33 @@ class AddCareLogViewModelTest {
 
         coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == "content://photo.jpg" }) }
     }
+
+    @Test
+    fun `edit mode save preserves customReminderId when editing a CUSTOM log`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.CUSTOM,
+            loggedAt = now,
+            notes = "Original notes",
+            customReminderId = 42L
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+        vm.notes = "Edited notes"
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(
+                match { it.customReminderId == 42L && it.notes == "Edited notes" }
+            )
+        }
+    }
 }

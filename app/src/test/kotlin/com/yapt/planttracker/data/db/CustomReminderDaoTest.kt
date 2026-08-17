@@ -85,6 +85,20 @@ class CustomReminderDaoTest {
     }
 
     @Test
+    fun `getAllReminders returns reminders across all plants`() = runTest {
+        val plantAId = insertParentPlant(name = "PlantA")
+        val plantBId = insertParentPlant(name = "PlantB")
+        customReminderDao.insertReminder(reminder(plantAId, name = "A-reminder", createdAt = 1000L))
+        customReminderDao.insertReminder(reminder(plantBId, name = "B-reminder", createdAt = 2000L))
+
+        customReminderDao.getAllReminders().test {
+            val list = awaitItem()
+            assertEquals(listOf("A-reminder", "B-reminder"), list.map { it.name })
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `getRemindersForPlantOnce returns all reminders for the plant ordered by createdAt`() = runTest {
         val plantId = insertParentPlant()
         customReminderDao.insertReminder(reminder(plantId, name = "Second", createdAt = 2000L))

@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CustomReminderDao {
 
+    @Query("SELECT * FROM custom_reminders ORDER BY createdAt ASC")
+    fun getAllReminders(): Flow<List<CustomReminderEntity>>
+
     @Query("SELECT * FROM custom_reminders WHERE plantId = :plantId ORDER BY createdAt ASC")
     fun getRemindersForPlant(plantId: Long): Flow<List<CustomReminderEntity>>
 
