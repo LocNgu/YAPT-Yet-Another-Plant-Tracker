@@ -102,7 +102,7 @@ class QuickLogUseCase(
      * clears any active skip override, and returns a [QuickWaterSuggestion] if the adaptive
      * interval system produces one.
      */
-    suspend fun quickWaterWithFeedback(plant: Plant, feedback: WateringFeedback): QuickWaterSuggestion? {
+    suspend fun quickWaterWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
         val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
@@ -117,7 +117,7 @@ class QuickLogUseCase(
     }
 
     /** Logs a paired FERTILIZE + WATER entry for liquid-fertilizer plants, mirroring [quickWaterWithFeedback]. */
-    suspend fun quickLiquidFertilizeWithFeedback(plant: Plant, feedback: WateringFeedback): QuickWaterSuggestion? {
+    suspend fun quickLiquidFertilizeWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
         val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
@@ -167,7 +167,8 @@ class QuickLogUseCase(
         return null
     }
 
-    private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback): QuickWaterSuggestion? {
+    private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
+        if (feedback == null) return null
         val lastTwo = careLogRepository.getLastTwoWaterings(plant.id)
         if (lastTwo.size < 2) return null
         val current = plant.wateringIntervalDays ?: return null

@@ -244,6 +244,35 @@ class QuickLogUseCaseTest {
         assertNull(suggestion)
     }
 
+    @Test
+    fun `quickWaterWithFeedback with null feedback logs a WATER entry with null wateringFeedback`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+
+        useCase.quickWaterWithFeedback(monstera, null)
+
+        coVerify {
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
+    fun `quickWaterWithFeedback with null feedback returns no suggestion even when one would otherwise fire`() = runTest {
+        val now = System.currentTimeMillis()
+        val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
+        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
+        val monstera = plant(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+        )
+
+        val suggestion = useCase.quickWaterWithFeedback(monstera, null)
+
+        assertNull(suggestion)
+    }
+
     // quickLiquidFertilizeWithFeedback
 
     @Test
@@ -296,6 +325,20 @@ class QuickLogUseCaseTest {
         // actual=5 < current=7 -> TOO_SOON base=current=7, suggestion=7+1=8
         assertEquals(8, suggestion.suggestedInterval)
     }
+
+    @Test
+    fun `quickLiquidFertilizeWithFeedback with null feedback logs a WATER entry with null wateringFeedback and no suggestion`() =
+        runTest {
+            val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+
+            val suggestion = useCase.quickLiquidFertilizeWithFeedback(monstera, null)
+
+            assertNull(suggestion)
+            coVerify {
+                careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
+            }
+        }
 
     // maybeBuildPhotoReminderRequest
 

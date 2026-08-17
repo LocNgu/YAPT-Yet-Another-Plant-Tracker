@@ -1,6 +1,6 @@
 # Product ADR-0017: Combined quick-water-fertilize button opens a feedback bottom sheet
 
-**Status**: accepted, partially supersedes [ADR-0016](0016-quick-water-bottom-sheet.md) (the "quick-fertilize is unchanged" clause), partially supersedes [ADR-0008](0008-liquid-fertilizer-auto-pairs-water-log.md) (the hardcoded JUST_RIGHT feedback on the quick-fertilize path)
+**Status**: accepted, partially supersedes [ADR-0016](0016-quick-water-bottom-sheet.md) (the "quick-fertilize is unchanged" clause), partially supersedes [ADR-0008](0008-liquid-fertilizer-auto-pairs-water-log.md) (the hardcoded JUST_RIGHT feedback on the quick-fertilize path), partially superseded by [ADR-0024](0024-water-feedback-chip-deselectable.md) (the "written with the selected `WateringFeedback`" always-selected assumption only)
 
 **Date**: 2026-06-11
 

@@ -74,7 +74,7 @@
     <ID>NoWildcardImports:CareLogDao.kt$import androidx.room.*</ID>
     <ID>NoWildcardImports:PlantDao.kt$import androidx.room.*</ID>
     <ID>ReturnCount:AddCareLogViewModel.kt$AddCareLogViewModel$private suspend fun computeSuggestedInterval(): Int?</ID>
-    <ID>ReturnCount:QuickLogUseCase.kt$QuickLogUseCase$private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback): QuickWaterSuggestion?</ID>
+    <ID>ReturnCount:QuickLogUseCase.kt$QuickLogUseCase$private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion?</ID>
     <ID>ReturnCount:QuickLogUseCase.kt$QuickLogUseCase$suspend fun maybeBuildPhotoReminderRequest(plantId: Long): PhotoReminderRequest?</ID>
     <ID>TooGenericExceptionCaught:BackupManager.kt$BackupManager$e: Exception</ID>
     <ID>TooManyFunctions:CareLogDao.kt$CareLogDao</ID>

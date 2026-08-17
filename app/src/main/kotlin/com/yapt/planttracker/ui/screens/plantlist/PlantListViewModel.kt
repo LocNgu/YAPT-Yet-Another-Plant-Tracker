@@ -223,7 +223,7 @@ class PlantListViewModel(
      * clears any active skip override, emits a snackbar message, and emits a
      * [QuickWaterSuggestion] if the adaptive interval system produces a suggestion.
      */
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
@@ -236,7 +236,7 @@ class PlantListViewModel(
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
