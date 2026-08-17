@@ -134,7 +134,11 @@ else
   # defaults to stable, so a package that only resolved via the --channel=3 retry
   # above would otherwise fail to install with the very "Failed to find package"
   # error this script exists to avoid.
-  if ! "$SDKMANAGER" "${PLATFORM_CHANNEL[@]}" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
+  # `${PLATFORM_CHANNEL[@]+"${PLATFORM_CHANNEL[@]}"}` (not the plain `[@]}` form):
+  # expanding an empty array under `set -u` is an unbound-variable error on bash
+  # <4.4 (still the default /bin/bash on macOS), which would abort the script on
+  # the common stable-resolution path where the array is legitimately empty.
+  if ! "$SDKMANAGER" "${PLATFORM_CHANNEL[@]+"${PLATFORM_CHANNEL[@]}"}" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
     cat "$sdk_log" >&2
     echo "!!! sdkmanager failed to install $PLATFORM_PKG" >&2
     PLATFORM_PKG=""
