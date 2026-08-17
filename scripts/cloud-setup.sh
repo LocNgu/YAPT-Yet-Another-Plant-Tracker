@@ -116,9 +116,11 @@ resolve_platform_pkg() {
 
 echo "==> Resolving the compileSdk $COMPILE_SDK platform package"
 PLATFORM_PKG="$(resolve_platform_pkg "$COMPILE_SDK")"
+PLATFORM_CHANNEL=()
 if [ -z "$PLATFORM_PKG" ]; then
   echo "    no match in the stable channel — retrying with --channel=3 (canary)"
   PLATFORM_PKG="$(resolve_platform_pkg "$COMPILE_SDK" --channel=3)"
+  PLATFORM_CHANNEL=(--channel=3)
 fi
 
 if [ -z "$PLATFORM_PKG" ]; then
@@ -128,7 +130,11 @@ if [ -z "$PLATFORM_PKG" ]; then
     | grep -o 'platforms;android-[A-Za-z0-9._-]*' | sort -u | tail -15 | sed 's/^/      /' >&2 || true
 else
   echo "    compileSdk $COMPILE_SDK -> $PLATFORM_PKG"
-  if ! "$SDKMANAGER" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
+  # The install must use the same channel that resolved $PLATFORM_PKG: sdkmanager
+  # defaults to stable, so a package that only resolved via the --channel=3 retry
+  # above would otherwise fail to install with the very "Failed to find package"
+  # error this script exists to avoid.
+  if ! "$SDKMANAGER" "${PLATFORM_CHANNEL[@]}" "$PLATFORM_PKG" >"$sdk_log" 2>&1; then
     cat "$sdk_log" >&2
     echo "!!! sdkmanager failed to install $PLATFORM_PKG" >&2
     PLATFORM_PKG=""

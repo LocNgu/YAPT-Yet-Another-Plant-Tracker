@@ -57,9 +57,10 @@ disproved by reproducing the identical "Failed to find package" on stable and `-
 installing `platforms;android-37.0` cleanly from stable. The script queries `sdkmanager --list`, prefers the bare
 id when one exists, and otherwise picks the lowest minor (`<major>.0` is the configuration verified to satisfy
 AGP's integer `compileSdk`); it only falls back to `--channel=3` when nothing matches in stable, for a genuinely
-preview-only major. If no channel resolves it, the script warns and continues rather than aborting: AGP downloads
-missing SDK components itself once licenses are accepted, so the verification build is the real test. Don't
-restore a hard failure there.
+preview-only major — and the install itself also runs with that same `--channel=3` flag, since a package that only
+resolved via canary won't install under sdkmanager's stable default either. If no channel resolves it, the script
+warns and continues rather than aborting: AGP downloads missing SDK components itself once licenses are accepted,
+so the verification build is the real test. Don't restore a hard failure there.
 **Only works if the pre-installed Gradle matches the wrapper's major** (AGP 9 needs Gradle 9): the script refuses to
 seed an older major rather than trading a wrapper-download failure for a "minimum supported Gradle version" one. On a
 Gradle 8.x image, allowlist the wrapper's hosts (`services.gradle.org`, `downloads.gradle.org`,
