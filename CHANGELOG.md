@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Fixed
-- The "How was the soil?" quick-water bottom sheet's feedback chips (Too soon / Just right / Too late) now behave like every other deselectable chip group in the app: tapping the already-selected chip clears it instead of doing nothing. "Log" stays enabled either way — logging with no chip selected records the watering with no feedback, same as the full Add Care Log screen already allows (#549)
+- The "How was the soil?" quick-water bottom sheet's feedback chips (Still wet / Just right / Too dry) now behave like every other deselectable chip group in the app: tapping the already-selected chip clears it instead of doing nothing. "Log" stays enabled either way — logging with no chip selected records the watering with no feedback, same as the full Add Care Log screen already allows (#549)
 
 ---
 

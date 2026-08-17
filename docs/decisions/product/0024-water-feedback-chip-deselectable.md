@@ -1,6 +1,6 @@
 # Product ADR-0024: Water feedback chips are deselectable; Log always writes, even with no feedback
 
-**Status**: accepted, supersedes [ADR-0016](0016-quick-water-bottom-sheet.md) (chip-selection clause only) and [ADR-0017](0017-quick-fertilize-bottom-sheet.md) (the "written with the selected `WateringFeedback`" always-selected assumption only)
+**Status**: accepted, partially supersedes [ADR-0016](0016-quick-water-bottom-sheet.md) (chip-selection clause only) and partially supersedes [ADR-0017](0017-quick-fertilize-bottom-sheet.md) (the "written with the selected `WateringFeedback`" always-selected assumption only)
 
 **Date**: 2026-08-17
 
