@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -102,35 +101,35 @@ class CalendarViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val message = quickLogUseCase.quickLog(plant, careType)
-            _quickLogEvent.emit(message)
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickLog(plant, careType)
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    /**
+     * A same-day duplicate is a silent no-op with an "Already watered today" snackbar instead of
+     * inserting a second log (#509).
+     */
+    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val suggestion = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
-            if (suggestion != null) {
-                _quickWaterSuggestion.emit(suggestion)
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plant.name))
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback) {
+    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val suggestion = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
-            if (suggestion != null) {
-                _quickWaterSuggestion.emit(suggestion)
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plant.name))
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 

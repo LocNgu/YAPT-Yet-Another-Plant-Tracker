@@ -8,12 +8,15 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.CustomReminder
+import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
@@ -37,13 +40,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
+@Suppress("LongParameterList")
 class PlantDetailViewModel(
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val plantId: Long,
     private val dataStore: DataStore<Preferences>,
-    private val quickLogUseCase: QuickLogUseCase
+    private val quickLogUseCase: QuickLogUseCase,
+    private val customReminderRepository: CustomReminderRepository
 ) : ViewModel() {
 
     /**
@@ -70,6 +75,9 @@ class PlantDetailViewModel(
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val customReminders: StateFlow<List<CustomReminder>> = customReminderRepository.getRemindersForPlant(plantId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val plantPhotos: StateFlow<List<PlantPhoto>> =
         plantPhotoRepository.getPhotosForPlant(plantId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -89,7 +97,7 @@ class PlantDetailViewModel(
         (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val careStatus: StateFlow<PlantCareStatus?> = combine(plant, careLogs) { p, logs ->
+    val careStatus: StateFlow<PlantCareStatus?> = combine(plant, careLogs, customReminders) { p, logs, reminders ->
         p ?: return@combine null
         val lastWatering = logs.firstOrNull { it.careType == CareType.WATER }
         val lastFertilizing = logs.firstOrNull { it.careType == CareType.FERTILIZE }
@@ -97,9 +105,14 @@ class PlantDetailViewModel(
             plant = p,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
-            totalLogs = logs.size
+            totalLogs = logs.size,
+            customReminders = reminders
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val customReminderStatuses: StateFlow<List<CustomReminderStatus>> = careStatus
+        .map { it?.customReminderStatuses.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
@@ -171,12 +184,15 @@ class PlantDetailViewModel(
      * [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any adaptive
      * interval suggestion feeds the existing interval-suggestion dialog via [suggestedWateringInterval].
      */
-    fun quickWater(feedback: WateringFeedback) {
+    fun quickWater(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickWaterWithFeedback(p, feedback)?.let {
-                suggestedWateringInterval.value = it.suggestedInterval
+            val outcome = quickLogUseCase.quickWaterWithFeedback(p, feedback)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
+                return@launch
             }
+            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
@@ -191,8 +207,12 @@ class PlantDetailViewModel(
     fun quickFertilize() {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickLog(p, CareType.FERTILIZE)
-            val message = if (p.useLiquidFertilizer) {
+            val outcome = quickLogUseCase.quickLog(p, CareType.FERTILIZE)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
+                return@launch
+            }
+            val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
             } else {
                 QuickLogMessage.Fertilized(p.name)
@@ -206,13 +226,21 @@ class PlantDetailViewModel(
      * Quick-logs a paired fertilize + watering for liquid-fertilizer plants from the fertilizing stat
      * chip, mirroring the combined water+fertilize path on PlantCard (ADR-0008/ADR-0017).
      */
-    fun quickLiquidFertilize(feedback: WateringFeedback) {
+    fun quickLiquidFertilize(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)?.let {
-                suggestedWateringInterval.value = it.suggestedInterval
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
+                return@launch
             }
-            _quickLogMessage.emit(QuickLogMessage.WateredAndFertilized(p.name))
+            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
+            val message = if (outcome.waterPaired) {
+                QuickLogMessage.WateredAndFertilized(p.name)
+            } else {
+                QuickLogMessage.Fertilized(p.name)
+            }
+            _quickLogMessage.emit(message)
             maybeTriggerPhotoReminder(p.id)
         }
     }
@@ -283,6 +311,46 @@ class PlantDetailViewModel(
         }
     }
 
+    /** Adds a new custom reminder (#232) — free-text [name] plus a plain-days [intervalDays]. */
+    fun addCustomReminder(name: String, intervalDays: Int) {
+        viewModelScope.launch {
+            customReminderRepository.addReminder(
+                CustomReminder(plantId = plantId, name = name, intervalDays = intervalDays)
+            )
+        }
+    }
+
+    /** Renames/re-intervals an existing custom reminder without touching its [CustomReminder.lastDoneAt]. */
+    fun updateCustomReminder(reminder: CustomReminder, name: String, intervalDays: Int) {
+        viewModelScope.launch {
+            customReminderRepository.updateReminder(reminder.copy(name = name, intervalDays = intervalDays))
+        }
+    }
+
+    fun deleteCustomReminder(reminder: CustomReminder) {
+        viewModelScope.launch { customReminderRepository.deleteReminder(reminder) }
+    }
+
+    /**
+     * Marks a custom reminder done: writes a [CareType.CUSTOM] [CareLog] linked back to it (visible
+     * in the journal) and resets its [CustomReminder.lastDoneAt], mirroring how logging a built-in
+     * care type resets its schedule (#232).
+     */
+    fun markCustomReminderDone(reminder: CustomReminder) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = reminder.plantId,
+                    careType = CareType.CUSTOM,
+                    loggedAt = now,
+                    customReminderId = reminder.id
+                )
+            )
+            customReminderRepository.updateReminder(reminder.copy(lastDoneAt = now))
+        }
+    }
+
     fun requestSkip() {
         showSkipDialog.value = true
     }
@@ -350,15 +418,19 @@ class PlantDetailViewModel(
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
+        data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
+        data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()
     }
 
+    @Suppress("LongParameterList")
     class Factory(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long,
         private val dataStore: DataStore<Preferences>,
-        private val quickLogUseCase: QuickLogUseCase
+        private val quickLogUseCase: QuickLogUseCase,
+        private val customReminderRepository: CustomReminderRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -368,7 +440,8 @@ class PlantDetailViewModel(
                 plantPhotoRepository,
                 plantId,
                 dataStore,
-                quickLogUseCase
+                quickLogUseCase,
+                customReminderRepository
             ) as T
     }
 }

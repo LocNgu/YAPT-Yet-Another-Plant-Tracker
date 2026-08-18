@@ -29,7 +29,18 @@ data class BackupCareLog(
     val photoUri: String? = null,
     val amount: String? = null,
     val wateringFeedback: String? = null,
-    val fertilizerType: String = "UNSPECIFIED"
+    val fertilizerType: String = "UNSPECIFIED",
+    val customReminderId: Long? = null
+)
+
+@Serializable
+data class BackupCustomReminder(
+    val id: Long,
+    val plantId: Long,
+    val name: String,
+    val intervalDays: Int,
+    val lastDoneAt: Long? = null,
+    val createdAt: Long
 )
 
 @Serializable
@@ -60,5 +71,6 @@ data class BackupRoot(
     val plants: List<BackupPlant>,
     val careLogs: List<BackupCareLog>,
     val settings: BackupSettings,
-    val plantPhotos: List<BackupPlantPhoto> = emptyList()
+    val plantPhotos: List<BackupPlantPhoto> = emptyList(),
+    val customReminders: List<BackupCustomReminder> = emptyList()
 )

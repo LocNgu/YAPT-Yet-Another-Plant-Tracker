@@ -29,6 +29,11 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   fertilizing-only reminders via `List<CareReminderItem>.hasWateringItem()`; a watering-due plant keeps its
   fertilizing line; liquid-fertilizer plants never make a fertilizing-only reminder. Product ADR-0021 (#223).
 - **Liquid-fertilizer** plants: "Fertilize with watering" appended to the watering alert, no separate notification (#56).
+- **Custom reminders** — `CustomReminderOverdue(name, days)` / `CustomReminderDueToday(name)` `CareReminderItem`s,
+  one per overdue/due-today reminder in `PlantCareStatus.customReminderStatuses`; the reminder's free-text `name`
+  goes straight into the body (no icon/category), joined with the same `" · "` separator. `ReminderWorker` fetches
+  each plant's reminders via `CustomReminderRepository.getRemindersForPlantOnce()` before calling `computeStatus()`.
+  See technical ADR-0019 (#232).
 
 ## Skip watering
 `SkipWateringReceiver` handles the notification action (+1 day override); guards on `intent.action` (#178).

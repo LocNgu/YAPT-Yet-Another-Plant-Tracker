@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -11,23 +12,32 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -59,6 +69,10 @@ class PlantDetailScreenTest {
         every { it.data } returns flowOf(emptyPreferences())
     }
 
+    private val mockCustomReminderRepo: CustomReminderRepository = mockk<CustomReminderRepository>().also {
+        every { it.getRemindersForPlant(any()) } returns flowOf(emptyList())
+    }
+
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
@@ -67,7 +81,15 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        return PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase)
+        return PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo
+        )
     }
 
     @Test
@@ -141,7 +163,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -186,7 +208,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -224,7 +246,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -255,7 +277,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -283,7 +305,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -441,6 +463,12 @@ class PlantDetailScreenTest {
             updatedAt = 0L
         )
         val viewModel = makeViewModel(plant)
+        // The shared mockQuickLogUseCase is relaxed, and QuickLogOutcome.logged has no default —
+        // relaxed mocking fills unstubbed Booleans with false, which would read as "already logged
+        // today" here. Stub the outcome explicitly so this test exercises the logged-successfully path.
+        coEvery {
+            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE)
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -596,7 +624,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -627,7 +655,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -647,5 +675,225 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Repot")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    private fun customRemindersSectionLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.custom_reminders_section)
+
+    private fun customRemindersEmptyLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.custom_reminders_empty)
+
+    private fun addReminderCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_add_custom_reminder)
+
+    private fun editReminderCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_edit_custom_reminder)
+
+    private fun deleteReminderCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_delete_custom_reminder)
+
+    private fun markReminderDoneCd(name: String): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_mark_custom_reminder_done, name)
+
+    private fun reminderNameFieldLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.custom_reminder_name_label)
+
+    private fun deleteReminderTitle(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.custom_reminder_delete_title)
+
+    private fun saveLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.save)
+
+    private fun deleteLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.delete)
+
+    /**
+     * A [CustomReminderRepository] mock whose [CustomReminderRepository.getRemindersForPlant] flow is
+     * backed by a live [MutableStateFlow], and whose add/update/delete mutate that same state — so the
+     * Compose UI (which observes [PlantDetailViewModel.customReminders]) reflects CRUD operations the
+     * way the real Room-backed repository would, unlike the class-level [mockCustomReminderRepo] stub.
+     */
+    private fun reactiveCustomReminderRepo(initial: List<CustomReminder> = emptyList()): CustomReminderRepository {
+        val state = MutableStateFlow(initial)
+        var nextId = (initial.maxOfOrNull { it.id } ?: 0L) + 1
+        val repo = mockk<CustomReminderRepository>()
+        every { repo.getRemindersForPlant(any()) } returns state
+        coEvery { repo.addReminder(any()) } answers {
+            val reminder = (it.invocation.args[0] as CustomReminder).copy(id = nextId++)
+            state.value = state.value + reminder
+            reminder.id
+        }
+        coEvery { repo.updateReminder(any()) } answers {
+            val updated = it.invocation.args[0] as CustomReminder
+            state.value = state.value.map { existing -> if (existing.id == updated.id) updated else existing }
+        }
+        coEvery { repo.deleteReminder(any()) } answers {
+            val deleted = it.invocation.args[0] as CustomReminder
+            state.value = state.value.filterNot { existing -> existing.id == deleted.id }
+        }
+        return repo
+    }
+
+    private fun makeViewModelWithReminderRepo(
+        plant: Plant,
+        customReminderRepo: CustomReminderRepository,
+        careLogRepo: CareLogRepository = mockk<CareLogRepository>().also {
+            every { it.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+            every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+            coEvery { it.addLog(any()) } returns 1L
+        }
+    ): PlantDetailViewModel {
+        val plantRepo = mockk<PlantRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        return PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            customReminderRepo
+        )
+    }
+
+    @Test
+    fun customRemindersCard_isDisplayedWithEmptyState() {
+        val plant = Plant(id = 50L, name = "Bonsai", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo())
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(customRemindersEmptyLabel()).assertIsDisplayed()
+    }
+
+    @Test
+    fun addingCustomReminder_appearsInList() {
+        val plant = Plant(id = 51L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo())
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription(addReminderCd()).performClick()
+        composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextInput("Neem oil treatment")
+        composeTestRule.onNodeWithText(saveLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Neem oil treatment")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Neem oil treatment").assertIsDisplayed()
+    }
+
+    @Test
+    fun editingCustomReminder_updatesDisplayedText() {
+        val plant = Plant(id = 52L, name = "Aloe", createdAt = 0L, updatedAt = 0L)
+        val existing = CustomReminder(id = 1L, plantId = 52L, name = "Neem oil treatment", intervalDays = 7)
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo(listOf(existing)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Neem oil treatment").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(editReminderCd()).performClick()
+        composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextClearance()
+        composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextInput("Fungicide spray")
+        composeTestRule.onNodeWithText(saveLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Fungicide spray")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Fungicide spray").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Neem oil treatment")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun deletingCustomReminder_removesItFromList() {
+        val plant = Plant(id = 53L, name = "Cactus", createdAt = 0L, updatedAt = 0L)
+        val existing = CustomReminder(id = 2L, plantId = 53L, name = "Rotate pot", intervalDays = 30)
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo(listOf(existing)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Rotate pot").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(deleteReminderCd()).performClick()
+        composeTestRule.onNodeWithText(deleteReminderTitle()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(deleteLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Rotate pot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeTestRule.onNodeWithText(customRemindersEmptyLabel()).assertIsDisplayed()
+    }
+
+    @Test
+    fun markCustomReminderDoneButton_isActionableAndLogsCompletion() {
+        val plant = Plant(id = 54L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
+        val existing = CustomReminder(id = 3L, plantId = 54L, name = "Fungicide spray", intervalDays = 14)
+        val customReminderRepo = reactiveCustomReminderRepo(listOf(existing))
+        val careLogRepo = mockk<CareLogRepository>()
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        val viewModel = makeViewModelWithReminderRepo(plant, customReminderRepo, careLogRepo)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription(markReminderDoneCd("Fungicide spray"))
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+
+        coVerify {
+            careLogRepo.addLog(
+                match { it.plantId == 54L && it.careType == CareType.CUSTOM && it.customReminderId == 3L }
+            )
+        }
     }
 }

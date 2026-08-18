@@ -7,11 +7,12 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
+import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
-    entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class],
+    entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class, CustomReminderEntity::class],
     version = PlantDatabase.DB_VERSION,
     exportSchema = true
 )
@@ -20,11 +21,12 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun plantDao(): PlantDao
     abstract fun careLogDao(): CareLogDao
     abstract fun plantPhotoDao(): PlantPhotoDao
+    abstract fun customReminderDao(): CustomReminderDao
 
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 7
+        const val DB_VERSION = 8
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -99,6 +101,27 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `custom_reminders` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`intervalDays` INTEGER NOT NULL, " +
+                        "`lastDoneAt` INTEGER, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_custom_reminders_plantId` ON `custom_reminders` (`plantId`)"
+                )
+                // No FK constraint: a CUSTOM log's customReminderId may outlive its reminder (#232),
+                // so a plain ALTER TABLE ADD COLUMN is sufficient — no table rebuild needed.
+                db.execSQL("ALTER TABLE care_logs ADD COLUMN customReminderId INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -112,7 +135,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_7_8
                     )
                     .build()
                     .also { INSTANCE = it }

@@ -29,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
@@ -79,6 +81,8 @@ import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.insights.CareInsights
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.CustomReminder
+import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
@@ -90,6 +94,8 @@ import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.theme.OverdueRed
+import com.yapt.planttracker.ui.theme.WarnOrange
 import com.yapt.planttracker.util.DateUtils
 import kotlin.math.roundToInt
 
@@ -107,6 +113,8 @@ fun PlantDetailScreen(
 ) {
     val plant by viewModel.plant.collectAsStateWithLifecycle()
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
+    val customReminders by viewModel.customReminders.collectAsStateWithLifecycle()
+    val customReminderStatuses by viewModel.customReminderStatuses.collectAsStateWithLifecycle()
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
@@ -154,6 +162,11 @@ fun PlantDetailScreen(
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it >= 1 }
 
+    var showAddReminderDialog by remember { mutableStateOf(false) }
+    var editingReminder by remember { mutableStateOf<CustomReminder?>(null) }
+    var reminderToDelete by remember { mutableStateOf<CustomReminder?>(null) }
+    val customReminderNameById = remember(customReminders) { customReminders.associate { it.id to it.name } }
+
     var skipDays by remember { mutableIntStateOf(1) }
     LaunchedEffect(showSkipDialog) {
         if (showSkipDialog) skipDays = 1
@@ -183,6 +196,8 @@ fun PlantDetailScreen(
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
+    val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
+    val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
@@ -192,6 +207,10 @@ fun PlantDetailScreen(
                     String.format(fertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
+                    String.format(alreadyWateredTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyFertilizedToday ->
+                    String.format(alreadyFertilizedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }
@@ -263,6 +282,43 @@ fun PlantDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showAddReminderDialog || editingReminder != null) {
+        CustomReminderDialog(
+            initial = editingReminder,
+            onDismiss = {
+                showAddReminderDialog = false
+                editingReminder = null
+            },
+            onConfirm = { name, intervalDays ->
+                val target = editingReminder
+                if (target != null) {
+                    viewModel.updateCustomReminder(target, name, intervalDays)
+                } else {
+                    viewModel.addCustomReminder(name, intervalDays)
+                }
+                showAddReminderDialog = false
+                editingReminder = null
+            }
+        )
+    }
+
+    reminderToDelete?.let { reminder ->
+        AlertDialog(
+            onDismissRequest = { reminderToDelete = null },
+            title = { Text(stringResource(R.string.custom_reminder_delete_title)) },
+            text = { Text(stringResource(R.string.custom_reminder_delete_confirm, reminder.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteCustomReminder(reminder)
+                    reminderToDelete = null
+                }) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { reminderToDelete = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -504,6 +560,21 @@ fun PlantDetailScreen(
                         }
                     }
 
+                    // Always-visible core section (#232), not gated behind PLANT_DETAIL_TABS.
+                    item {
+                        CustomRemindersCard(
+                            reminders = customReminders,
+                            statuses = customReminderStatuses,
+                            actions = CustomReminderActions(
+                                onAdd = { showAddReminderDialog = true },
+                                onEdit = { editingReminder = it },
+                                onDelete = { reminderToDelete = it },
+                                onMarkDone = { viewModel.markCustomReminderDone(it) }
+                            )
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+
                     // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
                     if (tabsEnabled) {
                         item {
@@ -585,7 +656,8 @@ fun PlantDetailScreen(
                                         CareLogItem(
                                             log = log,
                                             onEdit = { onNavigateToEditLog(log.id) },
-                                            onDelete = { viewModel.deleteLog(log) }
+                                            onDelete = { viewModel.deleteLog(log) },
+                                            customReminderName = log.customReminderId?.let { customReminderNameById[it] }
                                         )
                                     }
                                 }
@@ -648,7 +720,8 @@ fun PlantDetailScreen(
                                         CareLogItem(
                                             log = log,
                                             onEdit = { onNavigateToEditLog(log.id) },
-                                            onDelete = { viewModel.deleteLog(log) }
+                                            onDelete = { viewModel.deleteLog(log) },
+                                            customReminderName = log.customReminderId?.let { customReminderNameById[it] }
                                         )
                                     }
                                 }
@@ -681,7 +754,8 @@ fun PlantDetailScreen(
                                         CareLogItem(
                                             log = log,
                                             onEdit = { onNavigateToEditLog(log.id) },
-                                            onDelete = { viewModel.deleteLog(log) }
+                                            onDelete = { viewModel.deleteLog(log) },
+                                            customReminderName = log.customReminderId?.let { customReminderNameById[it] }
                                         )
                                     }
                                 }
@@ -764,7 +838,8 @@ fun PlantDetailScreen(
                             CareLogItem(
                                 log = log,
                                 onEdit = { onNavigateToEditLog(log.id) },
-                                onDelete = { viewModel.deleteLog(log) }
+                                onDelete = { viewModel.deleteLog(log) },
+                                customReminderName = log.customReminderId?.let { customReminderNameById[it] }
                             )
                         }
 
@@ -984,4 +1059,183 @@ private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifie
             }
         }
     }
+}
+
+/**
+ * Bundles the [CustomRemindersCard]/[CustomReminderRow] callbacks into one parameter so neither
+ * composable's parameter list trips Detekt's `LongParameterList` (mirrors [IntervalSetting] bundling
+ * a config struct for the same reason).
+ */
+private data class CustomReminderActions(
+    val onAdd: () -> Unit,
+    val onEdit: (CustomReminder) -> Unit,
+    val onDelete: (CustomReminder) -> Unit,
+    val onMarkDone: (CustomReminder) -> Unit
+)
+
+/**
+ * Always-visible "Custom reminders" section (#232) — unbounded, free-text recurring reminders per
+ * plant, deliberately not gated behind [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.PLANT_DETAIL_TABS]
+ * unlike the per-action tabs below it.
+ */
+@Composable
+private fun CustomRemindersCard(
+    reminders: List<CustomReminder>,
+    statuses: List<CustomReminderStatus>,
+    actions: CustomReminderActions,
+    modifier: Modifier = Modifier
+) {
+    val statusById = remember(statuses) { statuses.associateBy { it.reminder.id } }
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_reminders_section),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                IconButton(onClick = actions.onAdd) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_custom_reminder))
+                }
+            }
+            if (reminders.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.custom_reminders_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            } else {
+                reminders.forEach { reminder ->
+                    CustomReminderRow(
+                        reminder = reminder,
+                        status = statusById[reminder.id],
+                        actions = actions
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomReminderRow(
+    reminder: CustomReminder,
+    status: CustomReminderStatus?,
+    actions: CustomReminderActions,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = reminder.name, style = MaterialTheme.typography.bodyLarge)
+            val intervalText = pluralStringResource(
+                R.plurals.custom_reminder_interval_summary,
+                reminder.intervalDays,
+                reminder.intervalDays
+            )
+            val countdown = status?.nextDueAt?.let { DateUtils.formatCountdown(it) }
+            val statusColor = when {
+                status?.isOverdue == true -> OverdueRed
+                status?.isDueSoon == true -> WarnOrange
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Text(
+                text = if (countdown != null) "$intervalText · $countdown" else intervalText,
+                style = MaterialTheme.typography.bodySmall,
+                color = statusColor
+            )
+        }
+        IconButton(onClick = { actions.onMarkDone(reminder) }) {
+            Icon(
+                Icons.Filled.CheckCircle,
+                contentDescription = stringResource(R.string.cd_mark_custom_reminder_done, reminder.name),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        IconButton(onClick = { actions.onEdit(reminder) }) {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.cd_edit_custom_reminder),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = { actions.onDelete(reminder) }) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.cd_delete_custom_reminder),
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+/**
+ * Add/edit dialog for a single [CustomReminder]. [initial] `null` means "add"; non-null pre-fills
+ * the fields for editing. Plain-days interval only — no months toggle (unlike repotting), since
+ * disease/treatment cadences are day-scale (issue #232 spec clarifications).
+ */
+@Composable
+private fun CustomReminderDialog(
+    initial: CustomReminder?,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, intervalDays: Int) -> Unit
+) {
+    var name by remember(initial) { mutableStateOf(initial?.name.orEmpty()) }
+    var intervalText by remember(initial) { mutableStateOf((initial?.intervalDays ?: 7).toString()) }
+    val parsedInterval = intervalText.toIntOrNull()?.takeIf { it >= 1 }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (initial != null) R.string.custom_reminder_edit_title else R.string.custom_reminder_add_title
+                )
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.custom_reminder_name_label)) },
+                    placeholder = { Text(stringResource(R.string.custom_reminder_name_placeholder)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = intervalText,
+                    onValueChange = { intervalText = it.filter(Char::isDigit) },
+                    label = { Text(stringResource(R.string.custom_reminder_interval_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { parsedInterval?.let { onConfirm(name.trim(), it) } },
+                enabled = name.isNotBlank() && parsedInterval != null
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
 }

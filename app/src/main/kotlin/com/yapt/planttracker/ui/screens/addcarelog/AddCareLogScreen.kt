@@ -134,6 +134,13 @@ fun AddCareLogScreen(
         }
     }
 
+    // A duplicate-log error is specific to the care type/date combination that triggered it;
+    // clear it as soon as the user changes either so a fixed re-attempt isn't blocked by stale
+    // error text (#509).
+    LaunchedEffect(viewModel.selectedCareType, viewModel.loggedAt) {
+        viewModel.clearDuplicateLogError()
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -259,7 +266,9 @@ fun AddCareLogScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                items(CareType.entries) { type ->
+                // CUSTOM is only loggable from a plant's Custom reminders card (mark-done ties the
+                // log back to a specific reminder via customReminderId), never from this generic picker.
+                items(CareType.entries.filter { it != CareType.CUSTOM }) { type ->
                     CareTypeChip(
                         careType = type,
                         selected = viewModel.selectedCareType == type,
@@ -269,6 +278,14 @@ fun AddCareLogScreen(
                         }
                     )
                 }
+            }
+
+            viewModel.duplicateLogError?.let { errorRes ->
+                Text(
+                    text = stringResource(errorRes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             if (viewModel.selectedCareType == CareType.WATER) {

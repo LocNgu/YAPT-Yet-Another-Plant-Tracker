@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.room.withTransaction
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
+import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
@@ -23,6 +24,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 9 (#232): customReminders: List<BackupCustomReminder> round-trips the custom_reminders
+// table, and customReminderId added to BackupCareLog to trace a CUSTOM log back to its reminder.
 // Schema 8 (#232): repottingIntervalDays added to BackupPlant.
 // Schema 7 (#223): fertilizingNotificationsEnabled added to BackupSettings.
 // Schema 6 (#139): themeMode added to BackupSettings.
@@ -31,7 +34,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 8
+const val CURRENT_SCHEMA_VERSION = 9
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -65,12 +68,15 @@ class BackupManager(
             val plantDao = database.plantDao()
             val careLogDao = database.careLogDao()
             val plantPhotoDao = database.plantPhotoDao()
+            val customReminderDao = database.customReminderDao()
 
             val plants = plantDao.getAllPlants().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
             val careLogs = plants.flatMap { allLogs[it.id].orEmpty() }
             val activePlantIds = plants.map { it.id }.toSet()
             val allPlantPhotos = plantPhotoDao.getAllPhotos().first().filter { it.plantId in activePlantIds }
+            val allReminders = customReminderDao.getAllReminders().first().groupBy { it.plantId }
+            val customReminders = plants.flatMap { allReminders[it.id].orEmpty() }
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -133,7 +139,19 @@ class BackupManager(
                     photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
                     amount = entity.amount,
                     wateringFeedback = entity.wateringFeedback,
-                    fertilizerType = entity.fertilizerType
+                    fertilizerType = entity.fertilizerType,
+                    customReminderId = entity.customReminderId
+                )
+            }
+
+            val backupCustomReminders = customReminders.map { entity ->
+                BackupCustomReminder(
+                    id = entity.id,
+                    plantId = entity.plantId,
+                    name = entity.name,
+                    intervalDays = entity.intervalDays,
+                    lastDoneAt = entity.lastDoneAt,
+                    createdAt = entity.createdAt
                 )
             }
 
@@ -155,6 +173,7 @@ class BackupManager(
                 plants = backupPlants,
                 careLogs = backupLogs,
                 plantPhotos = backupPlantPhotos,
+                customReminders = backupCustomReminders,
                 settings = BackupSettings(
                     notificationsEnabled = notificationsEnabled,
                     reminderHour = reminderHour,
@@ -322,7 +341,19 @@ class BackupManager(
                         FertilizerType.valueOf(
                             bl.fertilizerType
                         )
-                    }.getOrDefault(FertilizerType.UNSPECIFIED).name
+                    }.getOrDefault(FertilizerType.UNSPECIFIED).name,
+                    customReminderId = bl.customReminderId
+                )
+            }
+
+            val customReminderEntities = backup.customReminders.map { br ->
+                CustomReminderEntity(
+                    id = br.id,
+                    plantId = br.plantId,
+                    name = br.name,
+                    intervalDays = br.intervalDays,
+                    lastDoneAt = br.lastDoneAt,
+                    createdAt = br.createdAt
                 )
             }
 
@@ -338,9 +369,11 @@ class BackupManager(
 
             database.withTransaction {
                 database.plantPhotoDao().deleteAll()
+                database.customReminderDao().deleteAll()
                 database.careLogDao().deleteAll()
                 database.plantDao().deleteAll()
                 database.plantDao().insertAll(plantEntities)
+                database.customReminderDao().insertAll(customReminderEntities)
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
             }
