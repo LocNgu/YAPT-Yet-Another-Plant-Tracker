@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -179,7 +180,12 @@ class ReminderWorkerTest {
             Plant(name = "Sick Fiddle Leaf", createdAt = 0L, updatedAt = 0L)
         )
         app.customReminderRepository.addReminder(
-            CustomReminder(plantId = plantId, name = "Neem oil treatment", intervalDays = 7)
+            CustomReminder(
+                plantId = plantId,
+                name = "Neem oil treatment",
+                intervalDays = 7,
+                createdAt = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10)
+            )
         )
 
         val result = runWorker()

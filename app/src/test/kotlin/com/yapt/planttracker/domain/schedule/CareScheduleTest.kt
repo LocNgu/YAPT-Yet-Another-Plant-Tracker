@@ -556,11 +556,18 @@ class CareScheduleTest {
     }
 
     @Test
-    fun `never-done custom reminder anchors first due to plant createdAt plus interval`() {
-        val createdAt = now - TimeUnit.DAYS.toMillis(3)
-        val reminder = CustomReminder(id = 1L, plantId = 1L, name = "Neem oil", intervalDays = 7)
+    fun `never-done custom reminder anchors first due to its own createdAt plus interval`() {
+        val plantCreatedAt = now - TimeUnit.DAYS.toMillis(3)
+        val reminderCreatedAt = now - TimeUnit.DAYS.toMillis(1)
+        val reminder = CustomReminder(
+            id = 1L,
+            plantId = 1L,
+            name = "Neem oil",
+            intervalDays = 7,
+            createdAt = reminderCreatedAt
+        )
         val status = CareSchedule.computeStatus(
-            plant = plantWith(createdAt = createdAt),
+            plant = plantWith(createdAt = plantCreatedAt),
             lastWateredAt = null,
             lastFertilizedAt = null,
             totalLogs = 0,
@@ -569,9 +576,33 @@ class CareScheduleTest {
         )
         val reminderStatus = status.customReminderStatuses.single()
         assertEquals(reminder, reminderStatus.reminder)
-        assertEquals(createdAt + TimeUnit.DAYS.toMillis(7), reminderStatus.nextDueAt)
+        assertEquals(reminderCreatedAt + TimeUnit.DAYS.toMillis(7), reminderStatus.nextDueAt)
         assertFalse(reminderStatus.isOverdue)
         assertFalse(reminderStatus.isDueSoon)
+    }
+
+    @Test
+    fun `never-done custom reminder added long after the plant is not overdue on creation`() {
+        val plantCreatedAt = now - TimeUnit.DAYS.toMillis(200)
+        val reminderCreatedAt = now
+        val reminder = CustomReminder(
+            id = 1L,
+            plantId = 1L,
+            name = "Fungicide spray",
+            intervalDays = 7,
+            createdAt = reminderCreatedAt
+        )
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(createdAt = plantCreatedAt),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now,
+            customReminders = listOf(reminder)
+        )
+        val reminderStatus = status.customReminderStatuses.single()
+        assertEquals(reminderCreatedAt + TimeUnit.DAYS.toMillis(7), reminderStatus.nextDueAt)
+        assertFalse(reminderStatus.isOverdue)
     }
 
     @Test
