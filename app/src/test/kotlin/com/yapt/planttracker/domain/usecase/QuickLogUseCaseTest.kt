@@ -26,8 +26,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.TimeZone
@@ -37,6 +39,7 @@ class QuickLogUseCaseTest {
 
     private val application: Application = mockk {
         every { getString(R.string.quick_log_fertilized, any()) } answers { "Fertilized ${(args[1] as Array<*>)[0]}" }
+        every { getString(R.string.quick_log_watered, any()) } answers { "Watered ${(args[1] as Array<*>)[0]}" }
         every {
             getString(R.string.quick_log_watered_and_fertilized, any())
         } answers { "Watered and fertilized ${(args[1] as Array<*>)[0]}" }
@@ -44,6 +47,12 @@ class QuickLogUseCaseTest {
             getString(R.string.quick_log_other, any(), any())
         } answers { "${(args[1] as Array<*>)[0]} ${(args[1] as Array<*>)[1]}" }
         every { getString(R.string.care_type_pruned) } returns "Pruned"
+        every {
+            getString(R.string.quick_log_already_watered, any())
+        } answers { "Already watered ${(args[1] as Array<*>)[0]} today" }
+        every {
+            getString(R.string.quick_log_already_fertilized, any())
+        } answers { "Already fertilized ${(args[1] as Array<*>)[0]} today" }
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
@@ -81,6 +90,9 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        // Default: plant has no log of any type today; individual tests override to true to
+        // exercise the duplicate-rejection paths (#509).
+        coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database)
     }
 
@@ -96,9 +108,10 @@ class QuickLogUseCaseTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
-        val message = useCase.quickLog(monstera, CareType.FERTILIZE)
+        val outcome = useCase.quickLog(monstera, CareType.FERTILIZE)
 
-        assertEquals("Fertilized Monstera", message)
+        assertTrue(outcome.logged)
+        assertEquals("Fertilized Monstera", outcome.message)
         coVerify(exactly = 1) { careLogRepo.addLog(any()) }
         coVerify {
             careLogRepo.addLog(match {
@@ -112,9 +125,11 @@ class QuickLogUseCaseTest {
         val monstera = plant(useLiquidFertilizer = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
-        val message = useCase.quickLog(monstera, CareType.FERTILIZE)
+        val outcome = useCase.quickLog(monstera, CareType.FERTILIZE)
 
-        assertEquals("Watered and fertilized Monstera", message)
+        assertTrue(outcome.logged)
+        assertTrue(outcome.waterPaired)
+        assertEquals("Watered and fertilized Monstera", outcome.message)
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         coVerify {
             careLogRepo.addLog(
@@ -153,11 +168,43 @@ class QuickLogUseCaseTest {
     fun `quickLog other care type uses the labelRes-based message format`() = runTest {
         val monstera = plant()
 
-        val message = useCase.quickLog(monstera, CareType.PRUNE)
+        val outcome = useCase.quickLog(monstera, CareType.PRUNE)
 
-        assertEquals("Pruned Monstera", message)
+        assertTrue(outcome.logged)
+        assertEquals("Pruned Monstera", outcome.message)
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.PRUNE && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
+    fun `quickLog FERTILIZE already logged today is rejected without inserting`() = runTest {
+        val monstera = plant()
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns true
+
+        val outcome = useCase.quickLog(monstera, CareType.FERTILIZE)
+
+        assertFalse(outcome.logged)
+        assertEquals("Already fertilized Monstera today", outcome.message)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `quickLog liquid-fertilizer plant already watered today suppresses paired WATER but still fertilizes`() = runTest {
+        val monstera = plant(useLiquidFertilizer = true)
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns false
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+
+        val outcome = useCase.quickLog(monstera, CareType.FERTILIZE)
+
+        assertTrue(outcome.logged)
+        assertFalse(outcome.waterPaired)
+        assertEquals("Fertilized Monstera", outcome.message)
+        coVerify(exactly = 1) { careLogRepo.addLog(any()) }
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
+            )
         }
     }
 
@@ -210,11 +257,11 @@ class QuickLogUseCaseTest {
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
         )
 
-        val suggestion = useCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE)
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE)
 
-        assertNotNull(suggestion)
-        assertEquals(1L, suggestion!!.plantId)
-        assertEquals(4, suggestion.suggestedInterval)
+        assertNotNull(outcome.suggestion)
+        assertEquals(1L, outcome.suggestion!!.plantId)
+        assertEquals(4, outcome.suggestion!!.suggestedInterval)
     }
 
     @Test
@@ -229,9 +276,9 @@ class QuickLogUseCaseTest {
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fourteenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
         )
 
-        val suggestion = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
 
-        assertNull(suggestion)
+        assertNull(outcome.suggestion)
     }
 
     @Test
@@ -239,9 +286,9 @@ class QuickLogUseCaseTest {
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
-        val suggestion = useCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE)
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE)
 
-        assertNull(suggestion)
+        assertNull(outcome.suggestion)
     }
 
     @Test
@@ -268,9 +315,35 @@ class QuickLogUseCaseTest {
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
         )
 
-        val suggestion = useCase.quickWaterWithFeedback(monstera, null)
+        val outcome = useCase.quickWaterWithFeedback(monstera, null)
 
-        assertNull(suggestion)
+        assertNull(outcome.suggestion)
+    }
+
+    @Test
+    fun `quickWaterWithFeedback already watered today is rejected without inserting`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7)
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+        assertFalse(outcome.logged)
+        assertNull(outcome.suggestion)
+        assertEquals("Already watered Monstera today", outcome.message)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `quickWaterWithFeedback on a new day after an earlier same-day watering is accepted`() = runTest {
+        // hasLogOfTypeOnDay defaults to false in setup(), simulating "no log for the queried day"
+        // regardless of what happened on a previous day — exercises the day-boundary reset.
+        val monstera = plant(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+        assertTrue(outcome.logged)
+        coVerify(exactly = 1) { careLogRepo.addLog(any()) }
     }
 
     // quickLiquidFertilizeWithFeedback
@@ -280,8 +353,10 @@ class QuickLogUseCaseTest {
         val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
-        useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+        val outcome = useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
 
+        assertTrue(outcome.logged)
+        assertTrue(outcome.waterPaired)
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         coVerify {
             careLogRepo.addLog(
@@ -318,12 +393,12 @@ class QuickLogUseCaseTest {
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
         )
 
-        val suggestion = useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_SOON)
+        val outcome = useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_SOON)
 
-        assertNotNull(suggestion)
-        assertEquals(1L, suggestion!!.plantId)
+        assertNotNull(outcome.suggestion)
+        assertEquals(1L, outcome.suggestion!!.plantId)
         // actual=5 < current=7 -> TOO_SOON base=current=7, suggestion=7+1=8
-        assertEquals(8, suggestion.suggestedInterval)
+        assertEquals(8, outcome.suggestion!!.suggestedInterval)
     }
 
     @Test
@@ -332,13 +407,45 @@ class QuickLogUseCaseTest {
             val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
-            val suggestion = useCase.quickLiquidFertilizeWithFeedback(monstera, null)
+            val outcome = useCase.quickLiquidFertilizeWithFeedback(monstera, null)
 
-            assertNull(suggestion)
+            assertNull(outcome.suggestion)
             coVerify {
                 careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
             }
         }
+
+    @Test
+    fun `quickLiquidFertilizeWithFeedback already fertilized today is rejected without inserting`() = runTest {
+        val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns true
+
+        val outcome = useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+        assertFalse(outcome.logged)
+        assertEquals("Already fertilized Monstera today", outcome.message)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `quickLiquidFertilizeWithFeedback already watered today still fertilizes but suppresses paired WATER`() = runTest {
+        val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns false
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+
+        val outcome = useCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+        assertTrue(outcome.logged)
+        assertFalse(outcome.waterPaired)
+        assertNull(outcome.suggestion)
+        assertEquals("Fertilized Monstera", outcome.message)
+        coVerify(exactly = 1) { careLogRepo.addLog(any()) }
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
+            )
+        }
+    }
 
     // maybeBuildPhotoReminderRequest
 

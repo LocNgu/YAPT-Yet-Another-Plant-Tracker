@@ -13,8 +13,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -288,5 +290,52 @@ class CareLogRepositoryTest {
 
         val result = repo.getLogById(rawId)
         assertNull(result?.wateringFeedback)
+    }
+
+    // hasLogOfTypeOnDay (#509)
+
+    @Test
+    fun `hasLogOfTypeOnDay returns true for a same-day log of the same type`() = runTest {
+        init()
+        val now = System.currentTimeMillis()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = now))
+
+        assertTrue(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now))
+    }
+
+    @Test
+    fun `hasLogOfTypeOnDay returns false when no log exists for that type today`() = runTest {
+        init()
+        val now = System.currentTimeMillis()
+
+        assertFalse(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now))
+    }
+
+    @Test
+    fun `hasLogOfTypeOnDay returns false for a log of a different careType`() = runTest {
+        init()
+        val now = System.currentTimeMillis()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.FERTILIZE, loggedAt = now))
+
+        assertFalse(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now))
+    }
+
+    @Test
+    fun `hasLogOfTypeOnDay returns false for a log on a different calendar day`() = runTest {
+        init()
+        val now = System.currentTimeMillis()
+        val yesterday = now - 24L * 60 * 60 * 1000
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = yesterday))
+
+        assertFalse(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now))
+    }
+
+    @Test
+    fun `hasLogOfTypeOnDay excludes the given log id`() = runTest {
+        init()
+        val now = System.currentTimeMillis()
+        val id = repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = now))
+
+        assertFalse(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now, excludeLogId = id))
     }
 }

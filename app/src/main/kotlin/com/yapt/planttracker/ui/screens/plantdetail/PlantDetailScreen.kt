@@ -183,6 +183,8 @@ fun PlantDetailScreen(
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
+    val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
+    val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
@@ -192,6 +194,10 @@ fun PlantDetailScreen(
                     String.format(fertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
+                    String.format(alreadyWateredTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyFertilizedToday ->
+                    String.format(alreadyFertilizedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }

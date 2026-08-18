@@ -174,9 +174,12 @@ class PlantDetailViewModel(
     fun quickWater(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickWaterWithFeedback(p, feedback)?.let {
-                suggestedWateringInterval.value = it.suggestedInterval
+            val outcome = quickLogUseCase.quickWaterWithFeedback(p, feedback)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
+                return@launch
             }
+            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
@@ -191,8 +194,12 @@ class PlantDetailViewModel(
     fun quickFertilize() {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickLog(p, CareType.FERTILIZE)
-            val message = if (p.useLiquidFertilizer) {
+            val outcome = quickLogUseCase.quickLog(p, CareType.FERTILIZE)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
+                return@launch
+            }
+            val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
             } else {
                 QuickLogMessage.Fertilized(p.name)
@@ -209,10 +216,18 @@ class PlantDetailViewModel(
     fun quickLiquidFertilize(feedback: WateringFeedback?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)?.let {
-                suggestedWateringInterval.value = it.suggestedInterval
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)
+            if (!outcome.logged) {
+                _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
+                return@launch
             }
-            _quickLogMessage.emit(QuickLogMessage.WateredAndFertilized(p.name))
+            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
+            val message = if (outcome.waterPaired) {
+                QuickLogMessage.WateredAndFertilized(p.name)
+            } else {
+                QuickLogMessage.Fertilized(p.name)
+            }
+            _quickLogMessage.emit(message)
             maybeTriggerPhotoReminder(p.id)
         }
     }
@@ -350,6 +365,8 @@ class PlantDetailViewModel(
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
+        data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
+        data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()
     }
 
     class Factory(

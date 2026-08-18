@@ -1,11 +1,13 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
@@ -38,6 +40,11 @@ class AddCareLogViewModel(
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
 
+    // Set on a rejected same-day WATER/FERTILIZE duplicate (#509); the screen shows this inline
+    // instead of a dialog or disabling Save, so the user can adjust the date/type and retry.
+    var duplicateLogError by mutableStateOf<Int?>(null)
+        private set
+
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
@@ -66,61 +73,92 @@ class AddCareLogViewModel(
         }
     }
 
+    /** Clears a previously-shown duplicate error, e.g. once the user edits the date or care type. */
+    fun clearDuplicateLogError() {
+        duplicateLogError = null
+    }
+
     fun saveLog() {
         if (selectedCareType == CareType.PHOTO && photoUri == null) return
         viewModelScope.launch {
-            val log = CareLog(
-                id = careLogId,
-                plantId = plantId,
-                careType = selectedCareType,
-                loggedAt = loggedAt,
-                notes = notes.trim().ifBlank { null },
-                photoUri = photoUri,
-                amount = amount.trim().ifBlank { null },
-                wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null,
-                fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED
-            )
-            careLogRepository.addLog(log)
+            if (isDuplicateLog()) return@launch
+            duplicateLogError = null
 
-            if (!isEditMode && selectedCareType == CareType.FERTILIZE && selectedFertilizerType == FertilizerType.LIQUID) {
-                careLogRepository.addLog(
-                    CareLog(
-                        plantId = plantId,
-                        careType = CareType.WATER,
-                        loggedAt = loggedAt,
-                        wateringFeedback = WateringFeedback.JUST_RIGHT
-                    )
-                )
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null) {
-                        plantRepository.updatePlant(
-                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                        )
-                    }
-                }
-            }
+            // Checked before the FERTILIZE insert below so it can't race against a paired WATER
+            // row inserted by this same save (#509).
+            val willPairWater = shouldPairWaterLog()
 
-            if (!isEditMode && selectedCareType == CareType.WATER) {
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    if (p.wateringDueDateOverride != null) {
-                        plantRepository.updatePlant(
-                            p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                        )
-                    }
-                }
-            }
+            careLogRepository.addLog(buildLogFromState())
 
-            if (selectedCareType == CareType.PHOTO && photoUri != null) {
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    plantRepository.updatePlant(
-                        p.copy(coverPhotoUri = photoUri, updatedAt = System.currentTimeMillis())
-                    )
-                }
-            }
+            if (willPairWater) insertPairedWaterLog()
+            if (!isEditMode && selectedCareType == CareType.WATER) clearWateringOverrideIfActive()
+            if (selectedCareType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
 
             val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
             _events.emit(Event.Saved(suggestedInterval))
         }
+    }
+
+    /** Sets [duplicateLogError] and returns true if [selectedCareType]/[loggedAt] is a same-day WATER/FERTILIZE duplicate. */
+    private suspend fun isDuplicateLog(): Boolean {
+        if (selectedCareType != CareType.WATER && selectedCareType != CareType.FERTILIZE) return false
+        val excludeId = if (isEditMode) careLogId else null
+        val isDuplicate = careLogRepository.hasLogOfTypeOnDay(plantId, selectedCareType, loggedAt, excludeId)
+        if (isDuplicate) duplicateLogError = duplicateErrorRes(selectedCareType)
+        return isDuplicate
+    }
+
+    private suspend fun shouldPairWaterLog(): Boolean =
+        !isEditMode &&
+            selectedCareType == CareType.FERTILIZE &&
+            selectedFertilizerType == FertilizerType.LIQUID &&
+            !careLogRepository.hasLogOfTypeOnDay(plantId, CareType.WATER, loggedAt)
+
+    private fun buildLogFromState() = CareLog(
+        id = careLogId,
+        plantId = plantId,
+        careType = selectedCareType,
+        loggedAt = loggedAt,
+        notes = notes.trim().ifBlank { null },
+        photoUri = photoUri,
+        amount = amount.trim().ifBlank { null },
+        wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null,
+        fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED
+    )
+
+    private suspend fun insertPairedWaterLog() {
+        careLogRepository.addLog(
+            CareLog(
+                plantId = plantId,
+                careType = CareType.WATER,
+                loggedAt = loggedAt,
+                wateringFeedback = WateringFeedback.JUST_RIGHT
+            )
+        )
+        clearWateringOverrideIfActive()
+    }
+
+    private suspend fun clearWateringOverrideIfActive() {
+        plantRepository.getPlantById(plantId).first()?.let { p ->
+            if (p.wateringDueDateOverride != null) {
+                plantRepository.updatePlant(
+                    p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    private suspend fun updateCoverPhoto() {
+        plantRepository.getPlantById(plantId).first()?.let { p ->
+            plantRepository.updatePlant(p.copy(coverPhotoUri = photoUri, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
+    @StringRes
+    private fun duplicateErrorRes(careType: CareType): Int = when (careType) {
+        CareType.WATER -> R.string.care_log_error_already_watered
+        CareType.FERTILIZE -> R.string.care_log_error_already_fertilized
+        else -> error("No duplicate guard defined for $careType")
     }
 
     private suspend fun computeSuggestedInterval(): Int? {
