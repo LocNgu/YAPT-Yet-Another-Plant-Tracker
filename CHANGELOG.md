@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Plant issues** — track an ongoing pest/disease/health problem on a plant as a status with a start date, distinct from the recurring custom-reminders feature (#232). Plant Detail's new always-visible "Active issues" card lets you report an issue (free-text name, e.g. "Spider mites") and shows how many days it's been ongoing for each active one; a plant can have multiple simultaneous active issues. Reporting an issue can optionally also create a linked treatment `CustomReminder` in the same step (a "set a treatment reminder" toggle with a name + plain-days interval) — the two stay independent afterwards, so resolving or deleting the issue never touches the linked reminder. Mark an issue resolved from its row (confirm dialog, optional free-text resolution note). The plant list card shows a new purple bug badge (icon + count when more than one) for plants with active issues — deliberately a different color from the green/orange/red due-status badges, since this is a health-problem axis, not a care-due axis. No notifications — this is a passive visual status only. Room DB migrated to v9 (new `plant_issues` table); round-trips through backup/restore (backup schema v10; older backups restore issues as empty) (#564)
+
 ---
 
 ## [0.22.0] - 2026-08-18

@@ -13,6 +13,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import kotlinx.coroutines.CoroutineScope
@@ -511,6 +512,93 @@ class BackupManagerTest {
         assertEquals(1, plant2Reminders.size)
         assertEquals("Fungicide spray", plant2Reminders[0].name)
         assertEquals(2L, plant2Reminders[0].plantId)
+    }
+
+    @Test
+    fun plantIssues_multiPlantRoundTrip_attributesIssueToCorrectPlantAndPreservesResolution() = runBlocking {
+        val plant1 = PlantEntity(
+            id = 1L,
+            name = "Monstera",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        val plant2 = PlantEntity(
+            id = 2L,
+            name = "Ficus",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant1)
+        db.plantDao().insertPlant(plant2)
+
+        val reminderId = db.customReminderDao().insertReminder(
+            CustomReminderEntity(
+                plantId = 1L,
+                name = "Neem oil treatment",
+                intervalDays = 7,
+                lastDoneAt = null,
+                createdAt = 1000L
+            )
+        )
+        db.plantIssueDao().insertIssue(
+            PlantIssueEntity(
+                id = 1L,
+                plantId = 1L,
+                name = "Spider mites",
+                startedAt = 1000L,
+                resolvedAt = null,
+                resolutionNote = null,
+                linkedReminderId = reminderId
+            )
+        )
+        db.plantIssueDao().insertIssue(
+            PlantIssueEntity(
+                id = 2L,
+                plantId = 2L,
+                name = "Root rot",
+                startedAt = 1500L,
+                resolvedAt = 5000L,
+                resolutionNote = "Repotted with fresh soil",
+                linkedReminderId = null
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("plant_issues_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = false)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+
+        db.plantIssueDao().deleteAll()
+        db.customReminderDao().deleteAll()
+        db.plantDao().deleteAll()
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val plant1Issues = db.plantIssueDao().getIssuesForPlant(1L).first()
+        assertEquals(1, plant1Issues.size)
+        assertEquals("Spider mites", plant1Issues[0].name)
+        assertNull(plant1Issues[0].resolvedAt)
+        assertEquals(reminderId, plant1Issues[0].linkedReminderId)
+
+        val plant2Issues = db.plantIssueDao().getIssuesForPlant(2L).first()
+        assertEquals(1, plant2Issues.size)
+        assertEquals("Root rot", plant2Issues[0].name)
+        assertEquals(5000L, plant2Issues[0].resolvedAt)
+        assertEquals("Repotted with fresh soil", plant2Issues[0].resolutionNote)
+        assertNull(plant2Issues[0].linkedReminderId)
     }
 
     @Test

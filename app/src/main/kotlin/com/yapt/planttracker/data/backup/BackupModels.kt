@@ -44,6 +44,17 @@ data class BackupCustomReminder(
 )
 
 @Serializable
+data class BackupPlantIssue(
+    val id: Long,
+    val plantId: Long,
+    val name: String,
+    val startedAt: Long,
+    val resolvedAt: Long? = null,
+    val resolutionNote: String? = null,
+    val linkedReminderId: Long? = null
+)
+
+@Serializable
 data class BackupSettings(
     val notificationsEnabled: Boolean,
     val reminderHour: Int,
@@ -72,5 +83,6 @@ data class BackupRoot(
     val careLogs: List<BackupCareLog>,
     val settings: BackupSettings,
     val plantPhotos: List<BackupPlantPhoto> = emptyList(),
-    val customReminders: List<BackupCustomReminder> = emptyList()
+    val customReminders: List<BackupCustomReminder> = emptyList(),
+    val plantIssues: List<BackupPlantIssue> = emptyList()
 )

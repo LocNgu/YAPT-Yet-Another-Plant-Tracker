@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
@@ -33,16 +34,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.ui.theme.IssuePurple
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
@@ -133,6 +138,39 @@ fun PlantCard(
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
                     ) {
                         Checkbox(checked = selected, onCheckedChange = null)
+                    }
+                }
+
+                if (status.activeIssueCount > 0) {
+                    val badgeDescription = pluralStringResource(
+                        R.plurals.cd_plant_card_active_issues,
+                        status.activeIssueCount,
+                        status.activeIssueCount
+                    )
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(IssuePurple)
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                            .semantics { contentDescription = badgeDescription },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.BugReport,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color.White
+                        )
+                        if (status.activeIssueCount > 1) {
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = status.activeIssueCount.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

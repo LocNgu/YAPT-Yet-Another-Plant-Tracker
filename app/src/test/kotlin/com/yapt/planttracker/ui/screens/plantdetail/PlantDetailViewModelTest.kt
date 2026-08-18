@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
+import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
@@ -15,6 +16,7 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
@@ -49,6 +51,7 @@ class PlantDetailViewModelTest {
     }
     private val quickLogUseCase: QuickLogUseCase = mockk()
     private val customReminderRepo: CustomReminderRepository = mockk()
+    private val plantIssueRepo: PlantIssueRepository = mockk()
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
@@ -57,11 +60,16 @@ class PlantDetailViewModelTest {
         updatedAt = 0L
     )
 
-    private fun makeVm(plantId: Long = 1L, customReminders: List<CustomReminder> = emptyList()): PlantDetailViewModel {
+    private fun makeVm(
+        plantId: Long = 1L,
+        customReminders: List<CustomReminder> = emptyList(),
+        activeIssues: List<PlantIssue> = emptyList()
+    ): PlantDetailViewModel {
         every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plantId) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plantId) } returns flowOf(emptyList())
         every { customReminderRepo.getRemindersForPlant(plantId) } returns flowOf(customReminders)
+        every { plantIssueRepo.getActiveIssuesForPlant(plantId) } returns flowOf(activeIssues)
         return PlantDetailViewModel(
             plantRepo,
             careLogRepo,
@@ -69,7 +77,8 @@ class PlantDetailViewModelTest {
             plantId,
             dataStore,
             quickLogUseCase,
-            customReminderRepo
+            customReminderRepo,
+            plantIssueRepo
         )
     }
 
@@ -214,6 +223,7 @@ class PlantDetailViewModelTest {
         every { careLogRepo.getPhotoLogsForPlant(2L) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(2L) } returns flowOf(emptyList())
         every { customReminderRepo.getRemindersForPlant(2L) } returns flowOf(emptyList())
+        every { plantIssueRepo.getActiveIssuesForPlant(2L) } returns flowOf(emptyList())
         val vm = PlantDetailViewModel(
             plantRepo,
             careLogRepo,
@@ -221,7 +231,8 @@ class PlantDetailViewModelTest {
             2L,
             dataStore,
             quickLogUseCase,
-            customReminderRepo
+            customReminderRepo,
+            plantIssueRepo
         )
 
         vm.careStatus.test {
@@ -437,6 +448,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(listOf(careLog))
         every { customReminderRepo.getRemindersForPlant(1L) } returns flowOf(emptyList())
+        every { plantIssueRepo.getActiveIssuesForPlant(1L) } returns flowOf(emptyList())
 
         val vm = PlantDetailViewModel(
             plantRepo,
@@ -445,7 +457,8 @@ class PlantDetailViewModelTest {
             1L,
             dataStore,
             quickLogUseCase,
-            customReminderRepo
+            customReminderRepo,
+            plantIssueRepo
         )
 
         vm.galleryPhotos.test {

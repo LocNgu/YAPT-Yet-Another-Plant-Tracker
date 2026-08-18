@@ -165,7 +165,8 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantPhotoRepository,
                         app.settingsDataStore,
-                        app.quickLogUseCase
+                        app.quickLogUseCase,
+                        app.plantIssueRepository
                     )
                 )
                 LaunchedEffect(vm) {
@@ -238,7 +239,8 @@ fun YaptNavGraph(
                         plantId,
                         app.settingsDataStore,
                         app.quickLogUseCase,
-                        app.customReminderRepository
+                        app.customReminderRepository,
+                        app.plantIssueRepository
                     )
                 )
 

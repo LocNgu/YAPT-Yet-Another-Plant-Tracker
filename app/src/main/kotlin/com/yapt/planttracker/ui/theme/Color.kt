@@ -30,3 +30,8 @@ val WaterBlue = Color(0xFF4FC3F7)
 val OverdueRed = Color(0xFFE57373)
 val WarnOrange = Color(0xFFFFB74D)
 val OkGreen = Color(0xFF81C784)
+
+// Plant issue badge (#564) — deliberately outside the OkGreen/WarnOrange/OverdueRed due-status
+// palette above: an active pest/disease issue is "plant health problem", a different axis from
+// "care is due", and must not read as another shade of overdue/due-soon.
+val IssuePurple = Color(0xFFAB47BC)
