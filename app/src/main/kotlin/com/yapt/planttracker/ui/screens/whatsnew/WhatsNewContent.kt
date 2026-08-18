@@ -11,6 +11,23 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 350,
+            versionName = "0.22.0",
+            added = listOf(
+                "Custom reminders — every plant now has a \"Custom reminders\" card on its detail screen where you " +
+                    "can add any number of free-text recurring reminders (\"apply neem oil every 7 days\") for " +
+                    "things no built-in care type covers. Mark one done and it writes a journal entry and starts " +
+                    "its next interval; anything overdue or due today joins the daily care notification"
+            ),
+            fixed = listOf(
+                "Watering or fertilizing the same plant twice on one day is no longer possible — a stray " +
+                    "double-tap on a quick-log button now shows an \"Already watered today\" message instead of " +
+                    "adding a duplicate entry. Bulk actions skip the plants already logged and tell you how many",
+                "The \"How was the soil?\" chips in the quick-water sheet can be deselected again by tapping the " +
+                    "selected one, like every other chip group in the app"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 340,
             versionName = "0.21.0",
             added = listOf(
