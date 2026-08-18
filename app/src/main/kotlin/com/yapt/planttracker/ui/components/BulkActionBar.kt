@@ -59,7 +59,7 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
     CareType.MIST -> R.string.bulk_action_mist
     CareType.REPOT -> R.string.bulk_action_repot
     // Not offered in bulk (see BULK_CARE_TYPES); fall back to the water label defensively.
-    CareType.NOTE, CareType.PHOTO -> R.string.bulk_action_water
+    CareType.NOTE, CareType.PHOTO, CareType.CUSTOM -> R.string.bulk_action_water
 }
 
 /**

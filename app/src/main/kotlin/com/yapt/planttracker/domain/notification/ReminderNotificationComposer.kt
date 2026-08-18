@@ -12,6 +12,8 @@ sealed class CareReminderItem {
     data object FertilizeWithWatering : CareReminderItem()
     data class RepottingOverdue(val days: Int) : CareReminderItem()
     data object RepottingDueToday : CareReminderItem()
+    data class CustomReminderOverdue(val name: String, val days: Int) : CareReminderItem()
+    data class CustomReminderDueToday(val name: String) : CareReminderItem()
 }
 
 data class DuePlantReminder(val status: PlantCareStatus, val items: List<CareReminderItem>)
@@ -50,6 +52,15 @@ object ReminderNotificationComposer {
             items.add(CareReminderItem.RepottingOverdue(days))
         } else if (status.isRepottingDueSoon) {
             items.add(CareReminderItem.RepottingDueToday)
+        }
+
+        for (reminderStatus in status.customReminderStatuses) {
+            if (reminderStatus.isOverdue) {
+                val days = ChronoUnit.DAYS.between(reminderStatus.nextDueAt!!.toLocalDate(), nowDate).toInt()
+                items.add(CareReminderItem.CustomReminderOverdue(reminderStatus.reminder.name, days))
+            } else if (reminderStatus.isDueSoon) {
+                items.add(CareReminderItem.CustomReminderDueToday(reminderStatus.reminder.name))
+            }
         }
 
         return items

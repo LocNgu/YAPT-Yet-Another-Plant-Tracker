@@ -80,7 +80,8 @@ private fun CareLogEntity.toDomain() = CareLog(
     wateringFeedback = wateringFeedback?.let {
         runCatching { WateringFeedback.valueOf(it) }.getOrNull()
     },
-    fertilizerType = runCatching { FertilizerType.valueOf(fertilizerType) }.getOrDefault(FertilizerType.UNSPECIFIED)
+    fertilizerType = runCatching { FertilizerType.valueOf(fertilizerType) }.getOrDefault(FertilizerType.UNSPECIFIED),
+    customReminderId = customReminderId
 )
 
 private fun CareLog.toEntity() = CareLogEntity(
@@ -92,5 +93,6 @@ private fun CareLog.toEntity() = CareLogEntity(
     photoUri = photoUri,
     amount = amount,
     wateringFeedback = wateringFeedback?.name,
-    fertilizerType = fertilizerType.name
+    fertilizerType = fertilizerType.name,
+    customReminderId = customReminderId
 )

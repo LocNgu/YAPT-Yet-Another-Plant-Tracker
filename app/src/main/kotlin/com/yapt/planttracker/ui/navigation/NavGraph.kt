@@ -237,7 +237,8 @@ fun YaptNavGraph(
                         app.plantPhotoRepository,
                         plantId,
                         app.settingsDataStore,
-                        app.quickLogUseCase
+                        app.quickLogUseCase,
+                        app.customReminderRepository
                     )
                 )
 

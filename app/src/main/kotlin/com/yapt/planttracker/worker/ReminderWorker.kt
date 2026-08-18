@@ -59,6 +59,7 @@ class ReminderWorker(
             } else {
                 null
             }
+            val customReminders = app.customReminderRepository.getRemindersForPlantOnce(plant.id)
 
             statuses.add(
                 CareSchedule.computeStatus(
@@ -67,7 +68,8 @@ class ReminderWorker(
                     lastFertilizedAt = lastFertilizing?.loggedAt,
                     totalLogs = 0,
                     now = now,
-                    lastRepottedAt = lastRepotting?.loggedAt
+                    lastRepottedAt = lastRepotting?.loggedAt,
+                    customReminders = customReminders
                 )
             )
         }
@@ -189,6 +191,15 @@ class ReminderWorker(
                     )
                 CareReminderItem.RepottingDueToday ->
                     context.getString(R.string.notification_repotting_due_today)
+                is CareReminderItem.CustomReminderOverdue ->
+                    context.resources.getQuantityString(
+                        R.plurals.notification_custom_reminder_overdue,
+                        item.days,
+                        item.name,
+                        item.days
+                    )
+                is CareReminderItem.CustomReminderDueToday ->
+                    context.getString(R.string.notification_custom_reminder_due_today, item.name)
             }
         }
 

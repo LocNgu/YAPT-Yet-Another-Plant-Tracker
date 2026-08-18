@@ -1,5 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
+import com.yapt.planttracker.domain.model.CustomReminder
+import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
@@ -28,7 +30,8 @@ object CareSchedule {
         lastFertilizedAt: Long?,
         totalLogs: Int,
         now: Long = System.currentTimeMillis(),
-        lastRepottedAt: Long? = null
+        lastRepottedAt: Long? = null,
+        customReminders: List<CustomReminder> = emptyList()
     ): PlantCareStatus {
         val daysSinceWatering = lastWateredAt?.let {
             (now - it) / ONE_DAY_MS
@@ -40,6 +43,7 @@ object CareSchedule {
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
+        val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
 
         return PlantCareStatus(
             plant = plant,
@@ -56,7 +60,8 @@ object CareSchedule {
             lastRepottedAt = lastRepottedAt,
             nextRepottingDueAt = nextRepottingDueAt,
             isRepottingOverdue = isRepottingOverdue,
-            isRepottingDueSoon = isRepottingDueSoon
+            isRepottingDueSoon = isRepottingDueSoon,
+            customReminderStatuses = customReminderStatuses
         )
     }
 
@@ -96,6 +101,23 @@ object CareSchedule {
         createdAt: Long,
         nowDate: LocalDate
     ): DueStatus = dueStatusFor(extendedCareDueAt(intervalDays, lastDoneAt, createdAt), nowDate)
+
+    /**
+     * Per-reminder due status for every [CustomReminder] on a plant (#232). Each reminder always has
+     * its own [CustomReminder.intervalDays] (no on/off toggle like watering/fertilizing), so this
+     * reuses the same first-due anchor logic as [extendedCareDueAt] — `createdAt + interval` for a
+     * reminder that has never been marked done — but anchored to each reminder's own [CustomReminder
+     * .createdAt], since reminders can be added long after the plant itself (unlike repotting, which
+     * shares the plant's lifecycle — see product ADR-0022).
+     */
+    private fun computeCustomReminderStatuses(
+        reminders: List<CustomReminder>,
+        nowDate: LocalDate
+    ): List<CustomReminderStatus> = reminders.map { reminder ->
+        val dueAt = extendedCareDueAt(reminder.intervalDays, reminder.lastDoneAt, reminder.createdAt)
+        val (nextDueAt, isOverdue, isDueSoon) = dueStatusFor(dueAt, nowDate)
+        CustomReminderStatus(reminder, nextDueAt, isOverdue, isDueSoon)
+    }
 
     private fun dueStatusFor(nextDueAt: Long?, nowDate: LocalDate): DueStatus {
         val overdue = nextDueAt != null && nextDueAt.toLocalDate().isBefore(nowDate)

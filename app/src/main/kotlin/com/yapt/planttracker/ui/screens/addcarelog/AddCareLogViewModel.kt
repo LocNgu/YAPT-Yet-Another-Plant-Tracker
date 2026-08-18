@@ -36,6 +36,7 @@ class AddCareLogViewModel(
     var loggedAt by mutableStateOf(System.currentTimeMillis())
     var selectedFeedback by mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
+    private var customReminderId: Long? = null
 
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
@@ -62,6 +63,7 @@ class AddCareLogViewModel(
                 selectedFeedback = log.wateringFeedback
                 selectedFertilizerType = log.fertilizerType
                 loggedAt = log.loggedAt
+                customReminderId = log.customReminderId
                 isLoaded = true
             }
         } else {
@@ -123,7 +125,8 @@ class AddCareLogViewModel(
         photoUri = photoUri,
         amount = amount.trim().ifBlank { null },
         wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null,
-        fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED
+        fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED,
+        customReminderId = customReminderId
     )
 
     private suspend fun insertPairedWaterLog() {
