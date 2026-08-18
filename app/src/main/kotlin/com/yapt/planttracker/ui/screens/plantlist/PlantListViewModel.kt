@@ -176,16 +176,27 @@ class PlantListViewModel(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             val plants = plantsWithStatus.value.filter { it.plant.id in ids }.map { it.plant }
-            quickLogUseCase.bulkLog(plants, careType)
+            val result = quickLogUseCase.bulkLog(plants, careType)
             clearSelection()
-            _quickLogEvent.emit(
+            val label = application.getString(careType.labelRes())
+            val message = if (result.skippedCount == 0) {
                 application.resources.getQuantityString(
                     R.plurals.bulk_snackbar_logged,
-                    plants.size,
-                    application.getString(careType.labelRes()),
-                    plants.size
+                    result.loggedCount,
+                    label,
+                    result.loggedCount
                 )
-            )
+            } else {
+                application.resources.getQuantityString(
+                    R.plurals.bulk_snackbar_logged_with_skipped,
+                    result.loggedCount,
+                    label,
+                    result.loggedCount,
+                    result.totalCount,
+                    result.skippedCount
+                )
+            }
+            _quickLogEvent.emit(message)
         }
     }
 
@@ -212,27 +223,26 @@ class PlantListViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val message = quickLogUseCase.quickLog(plant, careType)
-            _quickLogEvent.emit(message)
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickLog(plant, careType)
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
     /**
      * Logs a watering with the given [feedback] (called from the quick-water bottom sheet),
      * clears any active skip override, emits a snackbar message, and emits a
-     * [QuickWaterSuggestion] if the adaptive interval system produces a suggestion.
+     * [QuickWaterSuggestion] if the adaptive interval system produces a suggestion. A same-day
+     * duplicate is a silent no-op with an "Already watered today" snackbar instead (#509).
      */
     fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val suggestion = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
-            if (suggestion != null) {
-                _quickWaterSuggestion.emit(suggestion)
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered, plant.name))
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
@@ -240,12 +250,10 @@ class PlantListViewModel(
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val suggestion = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
-            if (suggestion != null) {
-                _quickWaterSuggestion.emit(suggestion)
-            }
-            _quickLogEvent.emit(application.getString(R.string.quick_log_watered_and_fertilized, plant.name))
-            maybeTriggerPhotoReminder(plant.id)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
+            _quickLogEvent.emit(outcome.message)
+            if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 

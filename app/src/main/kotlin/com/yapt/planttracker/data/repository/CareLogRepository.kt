@@ -6,9 +6,15 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+// This is a thin 1:1 wrapper around CareLogDao; splitting it purely to dodge Detekt's
+// TooManyFunctions threshold would scatter the DAO-facing API across files for no readability
+// gain (cf. the DemoData/DemoDataTime split, which exists because those really are distinct
+// concerns — anchor-time math vs. per-plant definitions).
+@Suppress("TooManyFunctions")
 class CareLogRepository(private val careLogDao: CareLogDao) {
 
     val logCount: Flow<Int> = careLogDao.observeLogCount()
@@ -37,6 +43,21 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
 
     suspend fun getLogById(id: Long): CareLog? =
         careLogDao.getLogById(id)?.toDomain()
+
+    /**
+     * Whether [plantId] already has a [careType] log on the calendar day containing
+     * [dayTimestampMs] (system default zone, per technical ADR-0013), optionally ignoring
+     * [excludeLogId] so edit-mode re-saves of the log itself never false-positive (#509).
+     */
+    suspend fun hasLogOfTypeOnDay(
+        plantId: Long,
+        careType: CareType,
+        dayTimestampMs: Long,
+        excludeLogId: Long? = null
+    ): Boolean {
+        val (start, end) = DateUtils.todayRangeMillis(dayTimestampMs)
+        return careLogDao.countLogsOfTypeOnDay(plantId, careType.name, start, end, excludeLogId) > 0
+    }
 
     suspend fun addLog(log: CareLog): Long =
         careLogDao.insertLog(log.toEntity())

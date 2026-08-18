@@ -134,6 +134,13 @@ fun AddCareLogScreen(
         }
     }
 
+    // A duplicate-log error is specific to the care type/date combination that triggered it;
+    // clear it as soon as the user changes either so a fixed re-attempt isn't blocked by stale
+    // error text (#509).
+    LaunchedEffect(viewModel.selectedCareType, viewModel.loggedAt) {
+        viewModel.clearDuplicateLogError()
+    }
+
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -271,6 +278,14 @@ fun AddCareLogScreen(
                         }
                     )
                 }
+            }
+
+            viewModel.duplicateLogError?.let { errorRes ->
+                Text(
+                    text = stringResource(errorRes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             if (viewModel.selectedCareType == CareType.WATER) {

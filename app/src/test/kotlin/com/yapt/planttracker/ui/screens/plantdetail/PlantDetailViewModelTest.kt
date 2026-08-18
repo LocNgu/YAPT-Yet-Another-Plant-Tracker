@@ -320,7 +320,11 @@ class PlantDetailViewModelTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
-            QuickWaterSuggestion(1L, "Monstera", 9)
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered Monstera",
+                logged = true,
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9)
+            )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
 
@@ -342,7 +346,8 @@ class PlantDetailViewModelTest {
     fun `quickFertilize logs fertilize via use case and emits message`() = runTest {
         val monstera = plant().copy(fertilizingIntervalDays = 30)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Fertilized Monstera"
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true, waterPaired = false)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
 
@@ -363,7 +368,8 @@ class PlantDetailViewModelTest {
     fun `quickFertilize on a liquid-fertilizer plant emits the combined message`() = runTest {
         val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns "Watered and fertilized Monstera"
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
 
@@ -391,7 +397,8 @@ class PlantDetailViewModelTest {
             wateringIntervalDays = 7
         )
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns null
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
 

@@ -44,6 +44,25 @@ interface CareLogDao {
     @Query("SELECT * FROM care_logs WHERE photoUri IS NOT NULL AND plantId = :plantId ORDER BY loggedAt DESC")
     fun getPhotoLogsForPlant(plantId: Long): Flow<List<CareLogEntity>>
 
+    /**
+     * Count of [careType] logs for [plantId] with `loggedAt` in the half-open window
+     * `[startMillis, endMillis)`, optionally excluding a specific log id (edit-mode duplicate
+     * checks must not count the log being edited against itself). Used to guard against
+     * same-day duplicate WATER/FERTILIZE logs (#509).
+     */
+    @Query(
+        "SELECT COUNT(*) FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
+            "AND loggedAt >= :startMillis AND loggedAt < :endMillis " +
+            "AND (:excludeId IS NULL OR id != :excludeId)"
+    )
+    suspend fun countLogsOfTypeOnDay(
+        plantId: Long,
+        careType: String,
+        startMillis: Long,
+        endMillis: Long,
+        excludeId: Long?
+    ): Int
+
     @Query("SELECT * FROM care_logs WHERE id = :id LIMIT 1")
     suspend fun getLogById(id: Long): CareLogEntity?
 

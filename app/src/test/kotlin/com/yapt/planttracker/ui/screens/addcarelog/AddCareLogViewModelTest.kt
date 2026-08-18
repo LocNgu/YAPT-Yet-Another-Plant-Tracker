@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
 import app.cash.turbine.test
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
@@ -22,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -52,6 +54,13 @@ class AddCareLogViewModelTest {
         loggedAt = loggedAt,
         wateringFeedback = WateringFeedback.JUST_RIGHT
     )
+
+    @Before
+    fun setup() {
+        // Default: no same-day log of any type exists yet; individual tests override to true to
+        // exercise the duplicate-rejection paths (#509).
+        coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
+    }
 
     @Test
     fun `save WATER log with JUST_RIGHT feedback emits Saved with null interval when gap matches stored`() = runTest {
@@ -347,5 +356,149 @@ class AddCareLogViewModelTest {
                 match { it.customReminderId == 42L && it.notes == "Edited notes" }
             )
         }
+    }
+
+    // Same-day duplicate rejection (#509)
+
+    @Test
+    fun `save WATER log already logged today shows inline error and does not save`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+
+        vm.events.test {
+            vm.saveLog()
+            expectNoEvents()
+        }
+
+        assertEquals(R.string.care_log_error_already_watered, vm.duplicateLogError)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `save FERTILIZE log already logged today shows inline error and does not save`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns true
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.FERTILIZE
+
+        vm.events.test {
+            vm.saveLog()
+            expectNoEvents()
+        }
+
+        assertEquals(R.string.care_log_error_already_fertilized, vm.duplicateLogError)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `save WATER log on a different day than an existing same-day log is accepted`() = runTest {
+        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = now),
+            waterLog(loggedAt = sevenDaysAgo)
+        )
+        // hasLogOfTypeOnDay defaults to false for the queried day in setup() — simulates a day
+        // with no existing WATER log even though other days have one.
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem()
+            assertTrue(event is AddCareLogViewModel.Event.Saved)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.duplicateLogError)
+    }
+
+    @Test
+    fun `edit mode re-saving the same WATER log on the same day excludes its own id and succeeds`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = now,
+            wateringFeedback = WateringFeedback.JUST_RIGHT
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), 99L) } returns false
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem()
+            assertTrue(event is AddCareLogViewModel.Event.Saved)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.duplicateLogError)
+        coVerify { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), 99L) }
+    }
+
+    @Test
+    fun `edit mode moving a WATER log onto a day with another WATER log is rejected`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = now,
+            wateringFeedback = WateringFeedback.JUST_RIGHT
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), 99L) } returns true
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+
+        vm.events.test {
+            vm.saveLog()
+            expectNoEvents()
+        }
+
+        assertEquals(R.string.care_log_error_already_watered, vm.duplicateLogError)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    @Test
+    fun `FERTILIZE with LIQUID type already watered today still saves FERTILIZE but suppresses paired WATER`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.FERTILIZE, any(), null) } returns false
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.FERTILIZE
+        vm.selectedFertilizerType = FertilizerType.LIQUID
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { careLogRepo.addLog(any()) }
+        coVerify(exactly = 0) { careLogRepo.addLog(match { it.careType == CareType.WATER }) }
+    }
+
+    @Test
+    fun `clearDuplicateLogError resets the error to null`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.events.test {
+            vm.saveLog()
+            expectNoEvents()
+        }
+        assertEquals(R.string.care_log_error_already_watered, vm.duplicateLogError)
+
+        vm.clearDuplicateLogError()
+
+        assertNull(vm.duplicateLogError)
     }
 }

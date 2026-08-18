@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import io.mockk.every
@@ -38,6 +39,7 @@ class QuickLogUseCaseBulkLogTest {
 
     private lateinit var db: PlantDatabase
     private lateinit var plantRepo: PlantRepository
+    private lateinit var careLogRepo: CareLogRepository
     private lateinit var useCase: QuickLogUseCase
 
     @Before
@@ -47,12 +49,13 @@ class QuickLogUseCaseBulkLogTest {
             PlantDatabase::class.java
         ).allowMainThreadQueries().build()
         plantRepo = PlantRepository(db.plantDao())
+        careLogRepo = CareLogRepository(db.careLogDao())
         val application: Application = mockk(relaxed = true)
         val dataStore: DataStore<Preferences> = mockk { every { data } returns flowOf(emptyPreferences()) }
         useCase = QuickLogUseCase(
             application,
             plantRepo,
-            CareLogRepository(db.careLogDao()),
+            careLogRepo,
             PlantPhotoRepository(db.plantPhotoDao()),
             dataStore,
             db
@@ -99,5 +102,28 @@ class QuickLogUseCaseBulkLogTest {
         assertEquals(4, logs.size)
         assertEquals(2, logs.count { it.careType == CareType.FERTILIZE.name })
         assertEquals(2, logs.count { it.careType == CareType.WATER.name })
+    }
+
+    @Test
+    fun `bulkLog water skips a plant already watered today and logs the rest`() = runTest {
+        val id1 = plantRepo.addPlant(Plant(name = "A", createdAt = 0L, updatedAt = 0L))
+        val id2 = plantRepo.addPlant(Plant(name = "B", createdAt = 0L, updatedAt = 0L))
+        careLogRepo.addLog(CareLog(plantId = id1, careType = CareType.WATER, loggedAt = System.currentTimeMillis()))
+
+        val result = useCase.bulkLog(
+            listOf(
+                Plant(id = id1, name = "A", createdAt = 0L, updatedAt = 0L),
+                Plant(id = id2, name = "B", createdAt = 0L, updatedAt = 0L)
+            ),
+            CareType.WATER
+        )
+
+        assertEquals(1, result.loggedCount)
+        assertEquals(1, result.skippedCount)
+        assertEquals(2, result.totalCount)
+        val logsForId1 = db.careLogDao().getLogsForPlant(id1).first()
+        assertEquals(1, logsForId1.size) // no second WATER log was inserted
+        val logsForId2 = db.careLogDao().getLogsForPlant(id2).first()
+        assertEquals(1, logsForId2.size)
     }
 }

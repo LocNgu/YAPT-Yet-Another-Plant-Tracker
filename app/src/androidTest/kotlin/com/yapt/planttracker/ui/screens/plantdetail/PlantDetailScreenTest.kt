@@ -463,6 +463,12 @@ class PlantDetailScreenTest {
             updatedAt = 0L
         )
         val viewModel = makeViewModel(plant)
+        // The shared mockQuickLogUseCase is relaxed, and QuickLogOutcome.logged has no default —
+        // relaxed mocking fills unstubbed Booleans with false, which would read as "already logged
+        // today" here. Stub the outcome explicitly so this test exercises the logged-successfully path.
+        coEvery {
+            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE)
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
 
         composeTestRule.setContent {
             PlantDetailScreen(

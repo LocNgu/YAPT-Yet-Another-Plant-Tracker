@@ -42,27 +42,64 @@ class QuickLogUseCase(
 ) {
 
     /**
+     * Result of a quick-log attempt. [logged] is false when the log was skipped because [plant]
+     * already has a WATER/FERTILIZE log for the current calendar day (#509) — callers should skip
+     * side effects (adaptive-interval suggestion, photo-reminder check) in that case. [waterPaired]
+     * is true only when a liquid-fertilizer quick action actually inserted the paired WATER log
+     * (it's suppressed, but FERTILIZE still proceeds, when the plant was already watered today).
+     */
+    data class QuickLogOutcome(
+        val message: String,
+        val logged: Boolean,
+        val waterPaired: Boolean = false,
+        val suggestion: QuickWaterSuggestion? = null
+    )
+
+    /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */
+    data class BulkLogResult(val loggedCount: Int, val skippedCount: Int, val totalCount: Int)
+
+    /**
      * Logs [careType] for every plant in [plants] inside a single Room transaction, so a bulk
      * care action is applied atomically — a killed process can't leave some of the selected
      * plants logged and others not (#448). Watering uses [WateringFeedback.JUST_RIGHT]; other
      * care types route through [quickLog] so liquid-fertilizer plants still get a paired watering.
-     * Per-plant interval-suggestion and photo-reminder side effects are intentionally not surfaced
-     * here — bulk callers skip those dialogs.
+     * Plants that already have today's log for [careType] are skipped (#509) rather than aborting
+     * the whole batch. Per-plant interval-suggestion and photo-reminder side effects are
+     * intentionally not surfaced here — bulk callers skip those dialogs.
      */
-    suspend fun bulkLog(plants: List<Plant>, careType: CareType) {
+    suspend fun bulkLog(plants: List<Plant>, careType: CareType): BulkLogResult {
+        var loggedCount = 0
         database.withTransaction {
             for (plant in plants) {
-                if (careType == CareType.WATER) {
+                val outcome = if (careType == CareType.WATER) {
                     quickWaterWithFeedback(plant, WateringFeedback.JUST_RIGHT)
                 } else {
                     quickLog(plant, careType)
                 }
+                if (outcome.logged) loggedCount++
             }
         }
+        return BulkLogResult(
+            loggedCount = loggedCount,
+            skippedCount = plants.size - loggedCount,
+            totalCount = plants.size
+        )
     }
 
-    /** Logs [careType] for [plant] and returns the snackbar message to show. */
-    suspend fun quickLog(plant: Plant, careType: CareType): String {
+    /**
+     * Logs [careType] for [plant]. Returns [QuickLogOutcome.logged] = false without inserting
+     * anything if [plant] already has a [careType] log today (WATER/FERTILIZE only, #509). For a
+     * liquid-fertilizer plant, the "already watered today" check runs before the FERTILIZE insert
+     * so the paired WATER insert can be suppressed without racing against itself.
+     */
+    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome {
+        if (isDuplicateGuarded(careType) && hasLoggedToday(plant.id, careType)) {
+            return QuickLogOutcome(message = alreadyLoggedMessage(plant, careType), logged = false)
+        }
+        val alreadyWateredToday = careType == CareType.FERTILIZE &&
+            plant.useLiquidFertilizer &&
+            hasLoggedToday(plant.id, CareType.WATER)
+
         val now = System.currentTimeMillis()
         val log = CareLog(
             plantId = plant.id,
@@ -72,7 +109,8 @@ class QuickLogUseCase(
             fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
         )
         careLogRepository.addLog(log)
-        if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) {
+        val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
+        if (waterPaired) {
             careLogRepository.addLog(
                 CareLog(
                     plantId = plant.id,
@@ -83,8 +121,8 @@ class QuickLogUseCase(
             )
             clearWateringOverrideIfActive(plant.id)
         }
-        return when (careType) {
-            CareType.FERTILIZE -> if (plant.useLiquidFertilizer) {
+        val message = when (careType) {
+            CareType.FERTILIZE -> if (waterPaired) {
                 application.getString(R.string.quick_log_watered_and_fertilized, plant.name)
             } else {
                 application.getString(R.string.quick_log_fertilized, plant.name)
@@ -95,14 +133,20 @@ class QuickLogUseCase(
                 plant.name
             )
         }
+        return QuickLogOutcome(message = message, logged = true, waterPaired = waterPaired)
     }
 
     /**
      * Logs a watering with the given [feedback] (called from the quick-water bottom sheet),
-     * clears any active skip override, and returns a [QuickWaterSuggestion] if the adaptive
-     * interval system produces one.
+     * clears any active skip override, and returns a [QuickLogOutcome] with a
+     * [QuickWaterSuggestion] if the adaptive interval system produces one. Returns
+     * [QuickLogOutcome.logged] = false without inserting anything if [plant] already has a WATER
+     * log today (#509).
      */
-    suspend fun quickWaterWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
+    suspend fun quickWaterWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickLogOutcome {
+        if (hasLoggedToday(plant.id, CareType.WATER)) {
+            return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
+        }
         val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
@@ -113,11 +157,28 @@ class QuickLogUseCase(
             )
         )
         clearWateringOverrideIfActive(plant.id)
-        return computeSuggestion(plant, feedback)
+        val suggestion = computeSuggestion(plant, feedback)
+        return QuickLogOutcome(
+            message = application.getString(R.string.quick_log_watered, plant.name),
+            logged = true,
+            suggestion = suggestion
+        )
     }
 
-    /** Logs a paired FERTILIZE + WATER entry for liquid-fertilizer plants, mirroring [quickWaterWithFeedback]. */
-    suspend fun quickLiquidFertilizeWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
+    /**
+     * Logs a paired FERTILIZE + WATER entry for liquid-fertilizer plants, mirroring
+     * [quickWaterWithFeedback]. Returns [QuickLogOutcome.logged] = false without inserting
+     * anything if [plant] already has a FERTILIZE log today. If [plant] was already watered today,
+     * the paired WATER insert is suppressed (checked before the FERTILIZE insert so it can't race
+     * against a WATER row inserted earlier in this same call) but the FERTILIZE log still proceeds
+     * (#509).
+     */
+    suspend fun quickLiquidFertilizeWithFeedback(plant: Plant, feedback: WateringFeedback?): QuickLogOutcome {
+        if (hasLoggedToday(plant.id, CareType.FERTILIZE)) {
+            return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
+        }
+        val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER)
+
         val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
@@ -128,16 +189,30 @@ class QuickLogUseCase(
                 fertilizerType = FertilizerType.LIQUID
             )
         )
-        careLogRepository.addLog(
-            CareLog(
-                plantId = plant.id,
-                careType = CareType.WATER,
-                loggedAt = now,
-                wateringFeedback = feedback
+
+        return if (alreadyWateredToday) {
+            QuickLogOutcome(
+                message = application.getString(R.string.quick_log_fertilized, plant.name),
+                logged = true,
+                waterPaired = false
             )
-        )
-        clearWateringOverrideIfActive(plant.id)
-        return computeSuggestion(plant, feedback)
+        } else {
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = plant.id,
+                    careType = CareType.WATER,
+                    loggedAt = now,
+                    wateringFeedback = feedback
+                )
+            )
+            clearWateringOverrideIfActive(plant.id)
+            QuickLogOutcome(
+                message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
+                logged = true,
+                waterPaired = true,
+                suggestion = computeSuggestion(plant, feedback)
+            )
+        }
     }
 
     /**
@@ -165,6 +240,17 @@ class QuickLogUseCase(
             return PhotoReminderRequest(plantId, plant.name, daysSince)
         }
         return null
+    }
+
+    private fun isDuplicateGuarded(careType: CareType) = careType == CareType.WATER || careType == CareType.FERTILIZE
+
+    private suspend fun hasLoggedToday(plantId: Long, careType: CareType): Boolean =
+        careLogRepository.hasLogOfTypeOnDay(plantId, careType, System.currentTimeMillis())
+
+    private fun alreadyLoggedMessage(plant: Plant, careType: CareType): String = when (careType) {
+        CareType.WATER -> application.getString(R.string.quick_log_already_watered, plant.name)
+        CareType.FERTILIZE -> application.getString(R.string.quick_log_already_fertilized, plant.name)
+        else -> error("No duplicate guard defined for $careType")
     }
 
     private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
