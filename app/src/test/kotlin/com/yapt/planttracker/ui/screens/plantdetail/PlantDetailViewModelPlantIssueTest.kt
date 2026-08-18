@@ -33,6 +33,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.concurrent.Executor
 
 /**
  * `reportIssue`/`resolveIssue`/`activeIssues` coverage for [PlantDetailViewModel] (#564), split out
@@ -41,9 +42,18 @@ import org.robolectric.annotation.Config
  * Runs on Robolectric with a real in-memory [PlantDatabase] rather than mocking `withTransaction` —
  * `reportIssue()` wraps its paired `CustomReminder` + `PlantIssue` writes in `database.withTransaction`
  * (#567 review follow-up, orphan-reminder fix), and the `withTransaction` extension needs a real
- * `RoomDatabase` to run against. Mirrors `QuickLogUseCaseBulkLogTest`/`DemoDataSeederTest`'s approach
- * for the same reason (#448); the repos themselves stay mockk stubs since only the transaction
+ * `RoomDatabase` to run against. The repos themselves stay mockk stubs since only the transaction
  * wrapper — not the repo calls — needs the real database.
+ *
+ * Unlike `QuickLogUseCaseBulkLogTest` (which calls a `suspend` use-case function directly from
+ * `runTest`'s own coroutine and so awaits the real-thread transaction hop for free),
+ * `PlantDetailViewModel.reportIssue()` is a plain `fun` that fire-and-forgets via
+ * `viewModelScope.launch { database.withTransaction { ... } }`. Room's `withTransaction` internally
+ * `withContext`s onto the database's transaction executor — a real thread pool outside
+ * kotlinx-coroutines-test's virtual scheduler — so without a same-thread executor the `launch`
+ * returns before the transaction body has run and `coVerify` races it. Registering a synchronous
+ * `Executor` for both the query and transaction executors keeps that hop on the calling thread so it
+ * completes before `reportIssue()` returns (confirmed empirically, not just by removing the failure).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -67,10 +77,15 @@ class PlantDetailViewModelPlantIssueTest {
 
     @Before
     fun setUp() {
+        val synchronousExecutor = Executor { it.run() }
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             PlantDatabase::class.java
-        ).allowMainThreadQueries().build()
+        )
+            .allowMainThreadQueries()
+            .setQueryExecutor(synchronousExecutor)
+            .setTransactionExecutor(synchronousExecutor)
+            .build()
     }
 
     @After
