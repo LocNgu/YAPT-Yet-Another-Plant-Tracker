@@ -60,8 +60,10 @@ Collapses to 5 most recent by default; `AssistChip` with animated chevron expand
 resets on screen open (#253).
 
 ## Custom reminders (technical ADR-0019, #232)
-Always-visible `CustomRemindersCard`, rendered right after the `StatsRow` quick-log chips — **not** gated behind
-`PLANT_DETAIL_TABS`, unlike everything below it. Backed by `PlantDetailViewModel.customReminders` (`Flow` from
+Always-visible `CustomRemindersCard` — **not** gated behind `PLANT_DETAIL_TABS`, unlike everything below it. In the
+classic layout (flag off) it renders after the skip-watering button / `WateringHistoryChart` / photo gallery block,
+so it doesn't sit between the watering stat chip and its skip button (#232 follow-up); in the tabs layout it renders
+right before the tab strip, since the flag-off block is empty there. Backed by `PlantDetailViewModel.customReminders` (`Flow` from
 `CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
 now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
 Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a

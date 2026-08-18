@@ -511,21 +511,6 @@ fun PlantDetailScreen(
                         }
                     }
 
-                    // Always-visible core section (#232), not gated behind PLANT_DETAIL_TABS.
-                    item {
-                        CustomRemindersCard(
-                            reminders = customReminders,
-                            statuses = customReminderStatuses,
-                            actions = CustomReminderActions(
-                                onAdd = { showAddReminderDialog = true },
-                                onEdit = { editingReminder = it },
-                                onDelete = { reminderToDelete = it },
-                                onMarkDone = { viewModel.markCustomReminderDone(it) }
-                            )
-                        )
-                        Spacer(Modifier.height(16.dp))
-                    }
-
                     if (!tabsEnabled) {
                         // Classic single-page layout (feature flag off): skip button, chart, gallery.
                         careStatus?.let { status ->
@@ -567,6 +552,21 @@ fun PlantDetailScreen(
                                 Spacer(Modifier.height(16.dp))
                             }
                         }
+                    }
+
+                    // Always-visible core section (#232), not gated behind PLANT_DETAIL_TABS.
+                    item {
+                        CustomRemindersCard(
+                            reminders = customReminders,
+                            statuses = customReminderStatuses,
+                            actions = CustomReminderActions(
+                                onAdd = { showAddReminderDialog = true },
+                                onEdit = { editingReminder = it },
+                                onDelete = { reminderToDelete = it },
+                                onMarkDone = { viewModel.markCustomReminderDone(it) }
+                            )
+                        )
+                        Spacer(Modifier.height(16.dp))
                     }
 
                     // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
