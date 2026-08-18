@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
+import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
@@ -425,6 +426,91 @@ class BackupManagerTest {
 
         val photos = db.plantPhotoDao().getAllPhotos().first()
         assertEquals(0, photos.size)
+    }
+
+    @Test
+    fun customReminders_multiPlantRoundTrip_attributesReminderToCorrectPlant() = runBlocking {
+        val plant1 = PlantEntity(
+            id = 1L,
+            name = "Monstera",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        val plant2 = PlantEntity(
+            id = 2L,
+            name = "Ficus",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant1)
+        db.plantDao().insertPlant(plant2)
+
+        db.customReminderDao().insertReminder(
+            CustomReminderEntity(
+                id = 1L,
+                plantId = 1L,
+                name = "Neem oil treatment",
+                intervalDays = 7,
+                lastDoneAt = null,
+                createdAt = 1000L
+            )
+        )
+        db.customReminderDao().insertReminder(
+            CustomReminderEntity(
+                id = 2L,
+                plantId = 1L,
+                name = "Rotate pot",
+                intervalDays = 30,
+                lastDoneAt = 2000L,
+                createdAt = 1500L
+            )
+        )
+        db.customReminderDao().insertReminder(
+            CustomReminderEntity(
+                id = 3L,
+                plantId = 2L,
+                name = "Fungicide spray",
+                intervalDays = 14,
+                lastDoneAt = null,
+                createdAt = 1200L
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("custom_reminders_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = false)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+
+        db.customReminderDao().deleteAll()
+        db.plantDao().deleteAll()
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val plant1Reminders = db.customReminderDao().getRemindersForPlant(1L).first()
+        assertEquals(2, plant1Reminders.size)
+        assertEquals(
+            setOf("Neem oil treatment", "Rotate pot"),
+            plant1Reminders.map { it.name }.toSet()
+        )
+        assertTrue(plant1Reminders.all { it.plantId == 1L })
+
+        val plant2Reminders = db.customReminderDao().getRemindersForPlant(2L).first()
+        assertEquals(1, plant2Reminders.size)
+        assertEquals("Fungicide spray", plant2Reminders[0].name)
+        assertEquals(2L, plant2Reminders[0].plantId)
     }
 
     @Test
