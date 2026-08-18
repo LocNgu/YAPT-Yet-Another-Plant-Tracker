@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -222,7 +223,11 @@ private fun ReminderToggleFields(state: ReminderToggleState, issueName: String) 
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
         )
-        Switch(checked = state.setReminder, onCheckedChange = state.onSetReminderChange)
+        Switch(
+            checked = state.setReminder,
+            onCheckedChange = state.onSetReminderChange,
+            modifier = Modifier.testTag("plant_issue_set_reminder_switch")
+        )
     }
     if (state.setReminder) {
         OutlinedTextField(

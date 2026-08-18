@@ -514,6 +514,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water"))
         composeTestRule.onNodeWithText("Water").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
         composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
@@ -540,6 +544,10 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -562,6 +570,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Photo"))
         composeTestRule.onNodeWithText("Photo").performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -607,6 +619,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilizing reminder"))
@@ -644,6 +660,10 @@ class PlantDetailScreenTest {
         }
 
         // Two repots → the Repot tab's insights card shows the count and an average interval.
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
         composeTestRule.onNodeWithText("Repot").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Repottings"))
@@ -1042,7 +1062,8 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText(plantIssuesSectionLabel()))
         composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
         composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Root rot")
-        composeTestRule.onNodeWithText(setReminderToggleLabel()).performClick()
+        composeTestRule.onNodeWithText(setReminderToggleLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithTag("plant_issue_set_reminder_switch").performClick()
         composeTestRule.onNodeWithText(saveLabel()).performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5000) {
