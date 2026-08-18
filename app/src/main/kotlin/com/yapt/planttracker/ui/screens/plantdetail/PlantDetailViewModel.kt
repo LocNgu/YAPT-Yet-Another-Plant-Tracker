@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
@@ -51,7 +53,8 @@ class PlantDetailViewModel(
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
     private val customReminderRepository: CustomReminderRepository,
-    private val plantIssueRepository: PlantIssueRepository
+    private val plantIssueRepository: PlantIssueRepository,
+    private val database: PlantDatabase
 ) : ViewModel() {
 
     /**
@@ -368,20 +371,25 @@ class PlantDetailViewModel(
      * non-null (the optional "set a treatment reminder" sub-section was filled in), a [CustomReminder]
      * is created first and its id stored on [PlantIssue.linkedReminderId] — a one-way, unenforced
      * link (see technical ADR-0019's `CareLog.customReminderId` precedent): resolving or deleting
-     * this issue never touches the linked reminder, which keeps running independently.
+     * this issue never touches the linked reminder, which keeps running independently. Both writes
+     * run inside a single [PlantDatabase] transaction (mirroring [QuickLogUseCase]'s paired-write
+     * precedent) so a killed process or DB error between the two inserts can never leave an orphan
+     * [CustomReminder] with no [PlantIssue] pointing at it.
      */
     fun reportIssue(name: String, reminderName: String?, reminderIntervalDays: Int?) {
         viewModelScope.launch {
-            val linkedReminderId = if (reminderName != null && reminderIntervalDays != null) {
-                customReminderRepository.addReminder(
-                    CustomReminder(plantId = plantId, name = reminderName, intervalDays = reminderIntervalDays)
+            database.withTransaction {
+                val linkedReminderId = if (reminderName != null && reminderIntervalDays != null) {
+                    customReminderRepository.addReminder(
+                        CustomReminder(plantId = plantId, name = reminderName, intervalDays = reminderIntervalDays)
+                    )
+                } else {
+                    null
+                }
+                plantIssueRepository.addIssue(
+                    PlantIssue(plantId = plantId, name = name, linkedReminderId = linkedReminderId)
                 )
-            } else {
-                null
             }
-            plantIssueRepository.addIssue(
-                PlantIssue(plantId = plantId, name = name, linkedReminderId = linkedReminderId)
-            )
         }
     }
 
@@ -477,7 +485,8 @@ class PlantDetailViewModel(
         private val dataStore: DataStore<Preferences>,
         private val quickLogUseCase: QuickLogUseCase,
         private val customReminderRepository: CustomReminderRepository,
-        private val plantIssueRepository: PlantIssueRepository
+        private val plantIssueRepository: PlantIssueRepository,
+        private val database: PlantDatabase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -489,7 +498,8 @@ class PlantDetailViewModel(
                 dataStore,
                 quickLogUseCase,
                 customReminderRepository,
-                plantIssueRepository
+                plantIssueRepository,
+                database
             ) as T
     }
 }

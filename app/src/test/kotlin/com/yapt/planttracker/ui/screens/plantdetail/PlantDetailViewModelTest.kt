@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -53,6 +54,10 @@ class PlantDetailViewModelTest {
     private val customReminderRepo: CustomReminderRepository = mockk()
     private val plantIssueRepo: PlantIssueRepository = mockk()
 
+    // Only reportIssue() touches withTransaction, and no test in this file exercises it
+    // (see PlantDetailViewModelPlantIssueTest), so a bare mock is never invoked here.
+    private val database: PlantDatabase = mockk()
+
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
         name = name,
@@ -78,7 +83,8 @@ class PlantDetailViewModelTest {
             dataStore,
             quickLogUseCase,
             customReminderRepo,
-            plantIssueRepo
+            plantIssueRepo,
+            database
         )
     }
 
@@ -232,7 +238,8 @@ class PlantDetailViewModelTest {
             dataStore,
             quickLogUseCase,
             customReminderRepo,
-            plantIssueRepo
+            plantIssueRepo,
+            database
         )
 
         vm.careStatus.test {
@@ -458,7 +465,8 @@ class PlantDetailViewModelTest {
             dataStore,
             quickLogUseCase,
             customReminderRepo,
-            plantIssueRepo
+            plantIssueRepo,
+            database
         )
 
         vm.galleryPhotos.test {

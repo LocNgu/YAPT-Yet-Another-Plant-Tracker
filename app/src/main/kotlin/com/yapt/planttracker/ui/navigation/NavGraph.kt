@@ -240,7 +240,8 @@ fun YaptNavGraph(
                         app.settingsDataStore,
                         app.quickLogUseCase,
                         app.customReminderRepository,
-                        app.plantIssueRepository
+                        app.plantIssueRepository,
+                        app.database
                     )
                 )
 

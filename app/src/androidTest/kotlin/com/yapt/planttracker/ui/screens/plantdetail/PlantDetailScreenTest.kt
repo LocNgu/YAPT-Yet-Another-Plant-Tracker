@@ -18,9 +18,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -41,7 +44,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,6 +58,27 @@ class PlantDetailScreenTest {
     val composeTestRule = createComposeRule()
 
     private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+
+    /**
+     * Real in-memory Room database so `reportIssue()`'s `database.withTransaction { ... }` (fix for
+     * #567's orphan-`CustomReminder` review finding) has a real `PlantDatabase` to run its
+     * transaction against — the repos passed to each ViewModel stay mockk stubs, mirroring how
+     * `QuickLogUseCaseBulkLogTest`/`DemoDataSeederTest` never mock `withTransaction` itself.
+     */
+    private lateinit var database: PlantDatabase
+
+    @Before
+    fun setUp() {
+        database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            PlantDatabase::class.java
+        ).allowMainThreadQueries().build()
+    }
+
+    @After
+    fun tearDown() {
+        database.close()
+    }
 
     /**
      * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
@@ -95,7 +121,8 @@ class PlantDetailScreenTest {
             mockDataStore,
             mockQuickLogUseCase,
             mockCustomReminderRepo,
-            mockPlantIssueRepo
+            mockPlantIssueRepo,
+            database
         )
     }
 
@@ -170,7 +197,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -215,7 +242,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -253,7 +280,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -284,7 +311,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -312,7 +339,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -647,7 +674,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -682,7 +709,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -807,7 +834,8 @@ class PlantDetailScreenTest {
             mockDataStore,
             mockQuickLogUseCase,
             customReminderRepo,
-            plantIssueRepo
+            plantIssueRepo,
+            database
         )
     }
 

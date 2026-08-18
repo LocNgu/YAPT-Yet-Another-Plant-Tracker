@@ -3,7 +3,10 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -19,16 +22,32 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * `reportIssue`/`resolveIssue`/`activeIssues` coverage for [PlantDetailViewModel] (#564), split out
  * of `PlantDetailViewModelTest` to keep that file under Detekt's `LargeClass` threshold.
+ *
+ * Runs on Robolectric with a real in-memory [PlantDatabase] rather than mocking `withTransaction` —
+ * `reportIssue()` wraps its paired `CustomReminder` + `PlantIssue` writes in `database.withTransaction`
+ * (#567 review follow-up, orphan-reminder fix), and the `withTransaction` extension needs a real
+ * `RoomDatabase` to run against. Mirrors `QuickLogUseCaseBulkLogTest`/`DemoDataSeederTest`'s approach
+ * for the same reason (#448); the repos themselves stay mockk stubs since only the transaction
+ * wrapper — not the repo calls — needs the real database.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class PlantDetailViewModelPlantIssueTest {
 
     @get:Rule
@@ -43,6 +62,19 @@ class PlantDetailViewModelPlantIssueTest {
     private val quickLogUseCase: QuickLogUseCase = mockk()
     private val customReminderRepo: CustomReminderRepository = mockk()
     private val plantIssueRepo: PlantIssueRepository = mockk()
+
+    private lateinit var database: PlantDatabase
+
+    @Before
+    fun setUp() {
+        database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            PlantDatabase::class.java
+        ).allowMainThreadQueries().build()
+    }
+
+    @After
+    fun tearDown() = database.close()
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
@@ -65,7 +97,8 @@ class PlantDetailViewModelPlantIssueTest {
             dataStore,
             quickLogUseCase,
             customReminderRepo,
-            plantIssueRepo
+            plantIssueRepo,
+            database
         )
     }
 
