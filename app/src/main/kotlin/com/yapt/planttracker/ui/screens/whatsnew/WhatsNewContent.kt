@@ -11,6 +11,17 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 360,
+            versionName = "0.23.0",
+            added = listOf(
+                "Plant issues — report an ongoing pest or disease problem from a new \"Active issues\" card on " +
+                    "the plant detail screen; it tracks how many days the issue has been going on, and a plant " +
+                    "with an active issue gets a purple badge on its list card. Reporting an issue can " +
+                    "optionally also set up a linked treatment reminder in the same step. Mark an issue resolved " +
+                    "when it clears up, with an optional note on how you fixed it"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 350,
             versionName = "0.22.0",
             added = listOf(
