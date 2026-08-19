@@ -15,6 +15,16 @@ class BackupSerializerTest {
         createdAt = 1_600_000_000_000L
     )
 
+    private val defaultPlantIssue = BackupPlantIssue(
+        id = 2000L,
+        plantId = 1L,
+        name = "Spider mites",
+        startedAt = 1_600_000_000_000L,
+        resolvedAt = 1_650_000_000_000L,
+        resolutionNote = "Treated with neem oil",
+        linkedReminderId = 1000L
+    )
+
     private fun fullRoot() = BackupRoot(
         schemaVersion = 1,
         exportedAt = 1_700_000_000_000L,
@@ -67,7 +77,8 @@ class BackupSerializerTest {
                 capturedAt = 1_650_000_000_000L
             )
         ),
-        customReminders = listOf(defaultCustomReminder)
+        customReminders = listOf(defaultCustomReminder),
+        plantIssues = listOf(defaultPlantIssue)
     )
 
     @Test
@@ -309,5 +320,44 @@ class BackupSerializerTest {
         """.trimIndent()
         val log = backupJson.decodeFromString(BackupRoot.serializer(), json).careLogs[0]
         assertNull(log.customReminderId)
+    }
+
+    @Test
+    fun `plantIssues round-trips its stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(1, decoded.plantIssues.size)
+        val issue = decoded.plantIssues[0]
+        assertEquals("Spider mites", issue.name)
+        assertEquals(1_650_000_000_000L, issue.resolvedAt)
+        assertEquals("Treated with neem oil", issue.resolutionNote)
+        assertEquals(1000L, issue.linkedReminderId)
+    }
+
+    @Test
+    fun `backup without plantIssues defaults to an empty list`() {
+        val json = """
+            {"schemaVersion":9,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(emptyList<BackupPlantIssue>(), decoded.plantIssues)
+    }
+
+    @Test
+    fun `active plantIssue omits resolvedAt and resolutionNote`() {
+        val json = """
+            {"schemaVersion":10,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0},
+             "plantIssues":[{"id":1,"plantId":1,"name":"Root rot","startedAt":1600000000000}]}
+        """.trimIndent()
+        val issue = backupJson.decodeFromString(BackupRoot.serializer(), json).plantIssues[0]
+        assertNull(issue.resolvedAt)
+        assertNull(issue.resolutionNote)
+        assertNull(issue.linkedReminderId)
     }
 }

@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
@@ -40,13 +41,15 @@ import kotlinx.coroutines.launch
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
+@Suppress("LongParameterList")
 class PlantListViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val quickLogUseCase: QuickLogUseCase
+    private val quickLogUseCase: QuickLogUseCase,
+    private val plantIssueRepository: PlantIssueRepository
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -411,25 +414,28 @@ class PlantListViewModel(
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
+        val activeIssueCount = plantIssueRepository.getActiveIssueCountForPlant(plant.id)
         return CareSchedule.computeStatus(
             plant = plant,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs
-        )
+        ).copy(activeIssueCount = activeIssueCount)
     }
 
     companion object {
         const val UNASSIGNED_ROOM = " unassigned"
     }
 
+    @Suppress("LongParameterList")
     class Factory(
         private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>,
-        private val quickLogUseCase: QuickLogUseCase
+        private val quickLogUseCase: QuickLogUseCase,
+        private val plantIssueRepository: PlantIssueRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -439,7 +445,8 @@ class PlantListViewModel(
                 careLogRepository,
                 plantPhotoRepository,
                 dataStore,
-                quickLogUseCase
+                quickLogUseCase,
+                plantIssueRepository
             ) as T
     }
 }

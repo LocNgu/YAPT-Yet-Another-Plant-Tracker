@@ -74,3 +74,19 @@ follow that pattern rather than adding more individual lambda params. `CareLogIt
 `customReminderName: String?` so a `CUSTOM` journal entry shows the reminder's free-text name instead of the generic
 label; pass `null` (or omit it) when the linked reminder has since been deleted — never crash on a dangling
 `customReminderId`.
+
+## Plant issues (technical ADR-0020, #564)
+Always-visible "Active issues" `PlantIssuesCard` — same always-visible slot/pattern as `CustomRemindersCard`, and
+lives right after it in both the classic and tabs layouts. Composables live in a separate file,
+`PlantIssuesSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's per-file `TooManyFunctions` threshold;
+`PlantIssuesCard` is `internal` so `PlantDetailScreen.kt` can call it. Backed by `PlantDetailViewModel.activeIssues`
+(`Flow<List<PlantIssue>>` from `PlantIssueRepository.getActiveIssuesForPlant`, already filtered to `resolvedAt ==
+null` — the card never shows resolved issues). Each row shows the issue name, "Ongoing for N days" (via
+`CareSchedule.daysBetween(issue.startedAt, now)`, never inline date math), and — when `linkedReminderId` resolves
+against the already-loaded `customReminders` list — a "Reminder: {name}" line; a dangling `linkedReminderId` (its
+`CustomReminder` was deleted) just omits that line, same posture as `CareLogItem`'s `customReminderName`.
+"Report an issue" (`ReportIssueDialog`) has an optional "set a treatment reminder" toggle that, when on, creates a
+`CustomReminder` **and** links it via `PlantIssue.linkedReminderId` in one `reportIssue()` ViewModel call — this is
+a one-way, unenforced link (ADR-0019/ADR-0020): resolving or deleting the issue never touches the linked reminder.
+"Mark resolved" (`ResolveIssueDialog`) sets `resolvedAt` + an optional free-text `resolutionNote`; no notification
+or `ReminderWorker` involvement — this is a passive visual status only.

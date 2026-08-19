@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
@@ -24,6 +25,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing
+// pest/disease/health status, distinct from the recurring custom_reminders table).
 // Schema 9 (#232): customReminders: List<BackupCustomReminder> round-trips the custom_reminders
 // table, and customReminderId added to BackupCareLog to trace a CUSTOM log back to its reminder.
 // Schema 8 (#232): repottingIntervalDays added to BackupPlant.
@@ -34,7 +37,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 9
+const val CURRENT_SCHEMA_VERSION = 10
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -69,6 +72,7 @@ class BackupManager(
             val careLogDao = database.careLogDao()
             val plantPhotoDao = database.plantPhotoDao()
             val customReminderDao = database.customReminderDao()
+            val plantIssueDao = database.plantIssueDao()
 
             val plants = plantDao.getAllPlants().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
@@ -77,6 +81,8 @@ class BackupManager(
             val allPlantPhotos = plantPhotoDao.getAllPhotos().first().filter { it.plantId in activePlantIds }
             val allReminders = customReminderDao.getAllReminders().first().groupBy { it.plantId }
             val customReminders = plants.flatMap { allReminders[it.id].orEmpty() }
+            val allIssues = plantIssueDao.getAllIssues().first().groupBy { it.plantId }
+            val plantIssues = plants.flatMap { allIssues[it.id].orEmpty() }
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -155,6 +161,18 @@ class BackupManager(
                 )
             }
 
+            val backupPlantIssues = plantIssues.map { entity ->
+                BackupPlantIssue(
+                    id = entity.id,
+                    plantId = entity.plantId,
+                    name = entity.name,
+                    startedAt = entity.startedAt,
+                    resolvedAt = entity.resolvedAt,
+                    resolutionNote = entity.resolutionNote,
+                    linkedReminderId = entity.linkedReminderId
+                )
+            }
+
             val backupPlantPhotos = allPlantPhotos.map { entity ->
                 BackupPlantPhoto(
                     id = entity.id,
@@ -174,6 +192,7 @@ class BackupManager(
                 careLogs = backupLogs,
                 plantPhotos = backupPlantPhotos,
                 customReminders = backupCustomReminders,
+                plantIssues = backupPlantIssues,
                 settings = BackupSettings(
                     notificationsEnabled = notificationsEnabled,
                     reminderHour = reminderHour,
@@ -357,6 +376,18 @@ class BackupManager(
                 )
             }
 
+            val plantIssueEntities = backup.plantIssues.map { bi ->
+                PlantIssueEntity(
+                    id = bi.id,
+                    plantId = bi.plantId,
+                    name = bi.name,
+                    startedAt = bi.startedAt,
+                    resolvedAt = bi.resolvedAt,
+                    resolutionNote = bi.resolutionNote,
+                    linkedReminderId = bi.linkedReminderId
+                )
+            }
+
             val plantPhotoEntities = backup.plantPhotos.mapNotNull { bp ->
                 val resolvedUri = bp.uri?.let { zipPathToLocalPath[it] ?: it } ?: return@mapNotNull null
                 PlantPhotoEntity(
@@ -370,10 +401,12 @@ class BackupManager(
             database.withTransaction {
                 database.plantPhotoDao().deleteAll()
                 database.customReminderDao().deleteAll()
+                database.plantIssueDao().deleteAll()
                 database.careLogDao().deleteAll()
                 database.plantDao().deleteAll()
                 database.plantDao().insertAll(plantEntities)
                 database.customReminderDao().insertAll(customReminderEntities)
+                database.plantIssueDao().insertAll(plantIssueEntities)
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
             }

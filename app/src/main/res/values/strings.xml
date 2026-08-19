@@ -212,6 +212,30 @@
     </plurals>
     <string name="custom_reminder_delete_title">Delete custom reminder?</string>
     <string name="custom_reminder_delete_confirm">"%1$s" and its history entries will remain in the journal, but future reminders will stop. This cannot be undone.</string>
+    <!-- Plant issues card (#564) -->
+    <string name="plant_issues_section">Active issues</string>
+    <string name="plant_issues_empty">No active issues. Report one if you notice pests, disease, or stress.</string>
+    <string name="cd_report_plant_issue">Report an issue</string>
+    <string name="cd_resolve_plant_issue">Mark %1$s resolved</string>
+    <string name="plant_issue_report_title">Report an issue</string>
+    <string name="plant_issue_name_label">What\'s going on?</string>
+    <string name="plant_issue_name_placeholder">e.g. Spider mites</string>
+    <plurals name="plant_issue_ongoing_days">
+        <item quantity="one">Ongoing for 1 day</item>
+        <item quantity="other">Ongoing for %d days</item>
+    </plurals>
+    <string name="plant_issue_linked_reminder">Reminder: %1$s</string>
+    <string name="plant_issue_set_reminder_toggle">Set a treatment reminder</string>
+    <string name="plant_issue_reminder_name_label">Reminder name</string>
+    <string name="plant_issue_reminder_interval_label">Every how many days?</string>
+    <string name="plant_issue_resolve_title">Mark resolved?</string>
+    <string name="plant_issue_resolve_confirm">Mark "%1$s" as resolved. The linked reminder (if any) keeps running independently.</string>
+    <string name="plant_issue_resolution_note_label">Resolution note (optional)</string>
+    <string name="plant_issue_resolve_action">Mark resolved</string>
+    <plurals name="cd_plant_card_active_issues">
+        <item quantity="one">1 active issue</item>
+        <item quantity="other">%d active issues</item>
+    </plurals>
     <!-- Feature flag: Plant Detail per-action tabs (#436) -->
     <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
     <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>

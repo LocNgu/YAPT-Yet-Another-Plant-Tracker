@@ -84,6 +84,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
@@ -115,6 +116,7 @@ fun PlantDetailScreen(
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
     val customReminders by viewModel.customReminders.collectAsStateWithLifecycle()
     val customReminderStatuses by viewModel.customReminderStatuses.collectAsStateWithLifecycle()
+    val activeIssues by viewModel.activeIssues.collectAsStateWithLifecycle()
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
@@ -166,6 +168,9 @@ fun PlantDetailScreen(
     var editingReminder by remember { mutableStateOf<CustomReminder?>(null) }
     var reminderToDelete by remember { mutableStateOf<CustomReminder?>(null) }
     val customReminderNameById = remember(customReminders) { customReminders.associate { it.id to it.name } }
+
+    var showReportIssueDialog by remember { mutableStateOf(false) }
+    var issueToResolve by remember { mutableStateOf<PlantIssue?>(null) }
 
     var skipDays by remember { mutableIntStateOf(1) }
     LaunchedEffect(showSkipDialog) {
@@ -319,6 +324,27 @@ fun PlantDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { reminderToDelete = null }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showReportIssueDialog) {
+        ReportIssueDialog(
+            onDismiss = { showReportIssueDialog = false },
+            onConfirm = { name, reminderName, reminderIntervalDays ->
+                viewModel.reportIssue(name, reminderName, reminderIntervalDays)
+                showReportIssueDialog = false
+            }
+        )
+    }
+
+    issueToResolve?.let { issue ->
+        ResolveIssueDialog(
+            issue = issue,
+            onDismiss = { issueToResolve = null },
+            onConfirm = { note ->
+                viewModel.resolveIssue(issue, note)
+                issueToResolve = null
             }
         )
     }
@@ -571,6 +597,17 @@ fun PlantDetailScreen(
                                 onDelete = { reminderToDelete = it },
                                 onMarkDone = { viewModel.markCustomReminderDone(it) }
                             )
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    // Always-visible core section (#564), not gated behind PLANT_DETAIL_TABS.
+                    item {
+                        PlantIssuesCard(
+                            issues = activeIssues,
+                            customReminderNameById = customReminderNameById,
+                            onReport = { showReportIssueDialog = true },
+                            onResolve = { issueToResolve = it }
                         )
                         Spacer(Modifier.height(16.dp))
                     }
