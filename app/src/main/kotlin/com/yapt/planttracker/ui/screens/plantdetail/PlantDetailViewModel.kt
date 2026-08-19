@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
+import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
@@ -21,6 +24,7 @@ import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
@@ -48,7 +52,9 @@ class PlantDetailViewModel(
     private val plantId: Long,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val customReminderRepository: CustomReminderRepository
+    private val customReminderRepository: CustomReminderRepository,
+    private val plantIssueRepository: PlantIssueRepository,
+    private val database: PlantDatabase
 ) : ViewModel() {
 
     /**
@@ -78,6 +84,10 @@ class PlantDetailViewModel(
     val customReminders: StateFlow<List<CustomReminder>> = customReminderRepository.getRemindersForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Currently-unresolved [PlantIssue]s for the "Active Issues" card (issue #564). */
+    val activeIssues: StateFlow<List<PlantIssue>> = plantIssueRepository.getActiveIssuesForPlant(plantId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val plantPhotos: StateFlow<List<PlantPhoto>> =
         plantPhotoRepository.getPhotosForPlant(plantId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -97,7 +107,12 @@ class PlantDetailViewModel(
         (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val careStatus: StateFlow<PlantCareStatus?> = combine(plant, careLogs, customReminders) { p, logs, reminders ->
+    val careStatus: StateFlow<PlantCareStatus?> = combine(
+        plant,
+        careLogs,
+        customReminders,
+        activeIssues
+    ) { p, logs, reminders, issues ->
         p ?: return@combine null
         val lastWatering = logs.firstOrNull { it.careType == CareType.WATER }
         val lastFertilizing = logs.firstOrNull { it.careType == CareType.FERTILIZE }
@@ -107,7 +122,7 @@ class PlantDetailViewModel(
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = logs.size,
             customReminders = reminders
-        )
+        ).copy(activeIssueCount = issues.size)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val customReminderStatuses: StateFlow<List<CustomReminderStatus>> = careStatus
@@ -351,6 +366,45 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Reports a new plant issue (#564). When [reminderName] and [reminderIntervalDays] are both
+     * non-null (the optional "set a treatment reminder" sub-section was filled in), a [CustomReminder]
+     * is created first and its id stored on [PlantIssue.linkedReminderId] — a one-way, unenforced
+     * link (see technical ADR-0019's `CareLog.customReminderId` precedent): resolving or deleting
+     * this issue never touches the linked reminder, which keeps running independently. Both writes
+     * run inside a single [PlantDatabase] transaction (mirroring [QuickLogUseCase]'s paired-write
+     * precedent) so a killed process or DB error between the two inserts can never leave an orphan
+     * [CustomReminder] with no [PlantIssue] pointing at it.
+     */
+    fun reportIssue(name: String, reminderName: String?, reminderIntervalDays: Int?) {
+        viewModelScope.launch {
+            database.withTransaction {
+                val linkedReminderId = if (reminderName != null && reminderIntervalDays != null) {
+                    customReminderRepository.addReminder(
+                        CustomReminder(plantId = plantId, name = reminderName, intervalDays = reminderIntervalDays)
+                    )
+                } else {
+                    null
+                }
+                plantIssueRepository.addIssue(
+                    PlantIssue(plantId = plantId, name = name, linkedReminderId = linkedReminderId)
+                )
+            }
+        }
+    }
+
+    /** Marks [issue] resolved with an optional free-text [resolutionNote] (#564). */
+    fun resolveIssue(issue: PlantIssue, resolutionNote: String?) {
+        viewModelScope.launch {
+            plantIssueRepository.updateIssue(
+                issue.copy(
+                    resolvedAt = System.currentTimeMillis(),
+                    resolutionNote = resolutionNote?.takeIf { it.isNotBlank() }
+                )
+            )
+        }
+    }
+
     fun requestSkip() {
         showSkipDialog.value = true
     }
@@ -430,7 +484,9 @@ class PlantDetailViewModel(
         private val plantId: Long,
         private val dataStore: DataStore<Preferences>,
         private val quickLogUseCase: QuickLogUseCase,
-        private val customReminderRepository: CustomReminderRepository
+        private val customReminderRepository: CustomReminderRepository,
+        private val plantIssueRepository: PlantIssueRepository,
+        private val database: PlantDatabase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -441,7 +497,9 @@ class PlantDetailViewModel(
                 plantId,
                 dataStore,
                 quickLogUseCase,
-                customReminderRepository
+                customReminderRepository,
+                plantIssueRepository,
+                database
             ) as T
     }
 }

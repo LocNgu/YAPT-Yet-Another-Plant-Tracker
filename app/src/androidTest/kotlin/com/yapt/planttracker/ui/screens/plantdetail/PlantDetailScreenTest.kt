@@ -18,11 +18,15 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
+import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
@@ -31,6 +35,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import io.mockk.coEvery
@@ -39,7 +44,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,6 +58,27 @@ class PlantDetailScreenTest {
     val composeTestRule = createComposeRule()
 
     private val mockQuickLogUseCase: QuickLogUseCase = mockk(relaxed = true)
+
+    /**
+     * Real in-memory Room database so `reportIssue()`'s `database.withTransaction { ... }` (fix for
+     * #567's orphan-`CustomReminder` review finding) has a real `PlantDatabase` to run its
+     * transaction against — the repos passed to each ViewModel stay mockk stubs, mirroring how
+     * `QuickLogUseCaseBulkLogTest`/`DemoDataSeederTest` never mock `withTransaction` itself.
+     */
+    private lateinit var database: PlantDatabase
+
+    @Before
+    fun setUp() {
+        database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            PlantDatabase::class.java
+        ).allowMainThreadQueries().build()
+    }
+
+    @After
+    fun tearDown() {
+        database.close()
+    }
 
     /**
      * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
@@ -73,6 +101,10 @@ class PlantDetailScreenTest {
         every { it.getRemindersForPlant(any()) } returns flowOf(emptyList())
     }
 
+    private val mockPlantIssueRepo: PlantIssueRepository = mockk<PlantIssueRepository>().also {
+        every { it.getActiveIssuesForPlant(any()) } returns flowOf(emptyList())
+    }
+
     private fun makeViewModel(plant: Plant): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
@@ -88,7 +120,9 @@ class PlantDetailScreenTest {
             plant.id,
             mockDataStore,
             mockQuickLogUseCase,
-            mockCustomReminderRepo
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database
         )
     }
 
@@ -163,7 +197,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -208,7 +242,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -246,7 +280,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -277,7 +311,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -305,7 +339,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -507,6 +541,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water"))
         composeTestRule.onNodeWithText("Water").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
         composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
@@ -533,6 +571,10 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -555,6 +597,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Photo"))
         composeTestRule.onNodeWithText("Photo").performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -600,6 +646,10 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilizing reminder"))
@@ -624,7 +674,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -637,6 +687,10 @@ class PlantDetailScreenTest {
         }
 
         // Two repots → the Repot tab's insights card shows the count and an average interval.
+        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
+        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
         composeTestRule.onNodeWithText("Repot").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Repottings"))
@@ -655,7 +709,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -707,6 +761,30 @@ class PlantDetailScreenTest {
     private fun deleteLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.delete)
 
+    private fun plantIssuesSectionLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issues_section)
+
+    private fun plantIssuesEmptyLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issues_empty)
+
+    private fun reportIssueCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_report_plant_issue)
+
+    private fun resolveIssueCd(name: String): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.cd_resolve_plant_issue, name)
+
+    private fun issueNameFieldLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issue_name_label)
+
+    private fun setReminderToggleLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issue_set_reminder_toggle)
+
+    private fun resolveIssueTitle(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issue_resolve_title)
+
+    private fun resolveIssueActionLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issue_resolve_action)
+
     /**
      * A [CustomReminderRepository] mock whose [CustomReminderRepository.getRemindersForPlant] flow is
      * backed by a live [MutableStateFlow], and whose add/update/delete mutate that same state — so the
@@ -741,7 +819,8 @@ class PlantDetailScreenTest {
             every { it.getLogsForPlant(plant.id) } returns flowOf(emptyList())
             every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
             coEvery { it.addLog(any()) } returns 1L
-        }
+        },
+        plantIssueRepo: PlantIssueRepository = mockPlantIssueRepo
     ): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
@@ -754,8 +833,37 @@ class PlantDetailScreenTest {
             plant.id,
             mockDataStore,
             mockQuickLogUseCase,
-            customReminderRepo
+            customReminderRepo,
+            plantIssueRepo,
+            database
         )
+    }
+
+    /**
+     * A [PlantIssueRepository] mock whose [PlantIssueRepository.getActiveIssuesForPlant] flow is
+     * backed by a live [MutableStateFlow], and whose add/update mutate that same state — mirrors
+     * [reactiveCustomReminderRepo] so plant-issue CRUD tests observe the Compose UI reacting to
+     * ViewModel calls the way the real Room-backed repository would.
+     */
+    private fun reactivePlantIssueRepo(initial: List<PlantIssue> = emptyList()): PlantIssueRepository {
+        val state = MutableStateFlow(initial)
+        var nextId = (initial.maxOfOrNull { it.id } ?: 0L) + 1
+        val repo = mockk<PlantIssueRepository>()
+        every { repo.getActiveIssuesForPlant(any()) } returns state
+        coEvery { repo.addIssue(any()) } answers {
+            val issue = (it.invocation.args[0] as PlantIssue).copy(id = nextId++)
+            state.value = state.value + issue
+            issue.id
+        }
+        coEvery { repo.updateIssue(any()) } answers {
+            val updated = it.invocation.args[0] as PlantIssue
+            state.value = if (updated.resolvedAt != null) {
+                state.value.filterNot { existing -> existing.id == updated.id }
+            } else {
+                state.value.map { existing -> if (existing.id == updated.id) updated else existing }
+            }
+        }
+        return repo
     }
 
     @Test
@@ -895,5 +1003,137 @@ class PlantDetailScreenTest {
                 match { it.plantId == 54L && it.careType == CareType.CUSTOM && it.customReminderId == 3L }
             )
         }
+    }
+
+    // ---- Plant issues (#564) ----
+
+    @Test
+    fun plantIssuesCard_isDisplayedWithEmptyState() {
+        val plant = Plant(id = 60L, name = "Jade", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            plantIssueRepo = reactivePlantIssueRepo()
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        composeTestRule.onNodeWithText(plantIssuesSectionLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
+    }
+
+    @Test
+    fun reportingIssue_withoutReminder_appearsInListAndDoesNotCreateReminder() {
+        val plant = Plant(id = 61L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        val customReminderRepo = reactiveCustomReminderRepo()
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            customReminderRepo,
+            plantIssueRepo = reactivePlantIssueRepo()
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
+        composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Spider mites")
+        composeTestRule.onNodeWithText(saveLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Spider mites")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Spider mites").assertIsDisplayed()
+        coVerify(exactly = 0) { customReminderRepo.addReminder(any()) }
+    }
+
+    @Test
+    fun reportingIssue_withReminderToggleOn_createsLinkedReminder() {
+        val plant = Plant(id = 62L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val customReminderRepo = reactiveCustomReminderRepo()
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            customReminderRepo,
+            plantIssueRepo = reactivePlantIssueRepo()
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
+        composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Root rot")
+        composeTestRule.onNodeWithText(setReminderToggleLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithTag("plant_issue_set_reminder_switch").performClick()
+        composeTestRule.onNodeWithText(saveLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Root rot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        coVerify {
+            customReminderRepo.addReminder(match { it.plantId == 62L && it.name == "Root rot" && it.intervalDays == 7 })
+        }
+    }
+
+    @Test
+    fun resolvingIssue_removesItFromActiveList() {
+        val plant = Plant(id = 63L, name = "Cactus", createdAt = 0L, updatedAt = 0L)
+        val existing = PlantIssue(id = 4L, plantId = 63L, name = "Mealybugs")
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            plantIssueRepo = reactivePlantIssueRepo(listOf(existing))
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Mealybugs"))
+        composeTestRule.onNodeWithText("Mealybugs").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resolveIssueCd("Mealybugs")).performClick()
+        composeTestRule.onNodeWithText(resolveIssueTitle()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resolveIssueActionLabel()).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Mealybugs")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
     }
 }

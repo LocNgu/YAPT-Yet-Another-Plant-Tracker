@@ -16,5 +16,11 @@ data class PlantCareStatus(
     val nextRepottingDueAt: Long? = null,
     val isRepottingOverdue: Boolean = false,
     val isRepottingDueSoon: Boolean = false,
-    val customReminderStatuses: List<CustomReminderStatus> = emptyList()
+    val customReminderStatuses: List<CustomReminderStatus> = emptyList(),
+    /**
+     * Count of currently-unresolved [PlantIssue]s on this plant (issue #564) — a passive count, not
+     * a due-date status like the other fields, so it's populated directly by each ViewModel rather
+     * than routed through [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus].
+     */
+    val activeIssueCount: Int = 0
 )

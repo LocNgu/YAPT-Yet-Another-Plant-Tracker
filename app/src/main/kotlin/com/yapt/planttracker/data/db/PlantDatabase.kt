@@ -9,10 +9,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 
 @Database(
-    entities = [PlantEntity::class, CareLogEntity::class, PlantPhotoEntity::class, CustomReminderEntity::class],
+    entities = [
+        PlantEntity::class,
+        CareLogEntity::class,
+        PlantPhotoEntity::class,
+        CustomReminderEntity::class,
+        PlantIssueEntity::class
+    ],
     version = PlantDatabase.DB_VERSION,
     exportSchema = true
 )
@@ -22,11 +29,12 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun careLogDao(): CareLogDao
     abstract fun plantPhotoDao(): PlantPhotoDao
     abstract fun customReminderDao(): CustomReminderDao
+    abstract fun plantIssueDao(): PlantIssueDao
 
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 8
+        const val DB_VERSION = 9
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -122,6 +130,26 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        @Suppress("MagicNumber")
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `plant_issues` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`startedAt` INTEGER NOT NULL, " +
+                        "`resolvedAt` INTEGER, " +
+                        "`resolutionNote` TEXT, " +
+                        "`linkedReminderId` INTEGER, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_plant_issues_plantId` ON `plant_issues` (`plantId`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -136,7 +164,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_4_5,
                         MIGRATION_5_6,
                         MIGRATION_6_7,
-                        MIGRATION_7_8
+                        MIGRATION_7_8,
+                        MIGRATION_8_9
                     )
                     .build()
                     .also { INSTANCE = it }

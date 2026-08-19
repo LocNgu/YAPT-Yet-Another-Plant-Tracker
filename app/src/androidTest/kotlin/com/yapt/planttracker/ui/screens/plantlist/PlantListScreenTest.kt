@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -14,8 +15,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
@@ -25,6 +29,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,11 +42,13 @@ class PlantListScreenTest {
 
     private fun makeViewModel(
         plants: List<Plant> = emptyList(),
-        rooms: List<String> = emptyList()
+        rooms: List<String> = emptyList(),
+        activeIssueCounts: Map<Long, Int> = emptyMap()
     ): PlantListViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        val plantIssueRepo = mockk<PlantIssueRepository>()
         val dataStore = mockk<DataStore<Preferences>> {
             every { data } returns flowOf(emptyPreferences())
         }
@@ -52,6 +59,9 @@ class PlantListScreenTest {
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(any()) } answers {
+            activeIssueCounts[firstArg<Long>()] ?: 0
+        }
         val application = ApplicationProvider.getApplicationContext<Application>()
         val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, mockk<PlantDatabase>())
         return PlantListViewModel(
@@ -60,7 +70,8 @@ class PlantListScreenTest {
             careLogRepo,
             plantPhotoRepo,
             dataStore,
-            quickLogUseCase
+            quickLogUseCase,
+            plantIssueRepo
         )
     }
 
@@ -299,5 +310,46 @@ class PlantListScreenTest {
         }
 
         composeTestRule.onNodeWithText("Never fertilized").assertIsDisplayed()
+    }
+
+    @Test
+    fun plantWithOneActiveIssue_showsIssueBadge() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant), activeIssueCounts = mapOf(1L to 1))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        val expectedDescription = InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .getQuantityString(R.plurals.cd_plant_card_active_issues, 1, 1)
+        composeTestRule.onNodeWithContentDescription(expectedDescription).assertIsDisplayed()
+    }
+
+    @Test
+    fun plantWithNoActiveIssues_hasNoIssueBadge() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        val unexpectedDescription = InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .getQuantityString(R.plurals.cd_plant_card_active_issues, 1, 1)
+        assertTrue(
+            composeTestRule.onAllNodesWithContentDescription(unexpectedDescription)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 }
