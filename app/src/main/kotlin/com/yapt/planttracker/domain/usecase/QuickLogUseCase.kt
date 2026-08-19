@@ -10,6 +10,8 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -32,6 +34,9 @@ import kotlinx.coroutines.flow.first
  * or [PhotoReminderRequest]) onto its own StateFlow/SharedFlow. This use case owns no UI-facing
  * state itself — every method is a plain suspend function.
  */
+// #568 added two small adaptive-watering helpers to this already-cohesive choke point; splitting
+// them out would scatter closely related logic across files for no readability gain.
+@Suppress("TooManyFunctions")
 class QuickLogUseCase(
     private val application: Application,
     private val plantRepository: PlantRepository,
@@ -260,9 +265,45 @@ class QuickLogUseCase(
         val current = plant.wateringIntervalDays ?: return null
         val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
         if (actual <= 0) return null
-        val suggestion = CareSchedule.computeSuggestedInterval(feedback, actual, current)
+        val suggestion = if (isAdaptiveWateringEnabled()) {
+            adaptWateringInterval(plant, feedback, actual, current)
+        } else {
+            CareSchedule.computeSuggestedInterval(feedback, actual, current)
+        }
         return if (suggestion != current) QuickWaterSuggestion(plant.id, plant.name, suggestion) else null
     }
+
+    /**
+     * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and
+     * persists the resulting [Plant.wateringConfidence] immediately, independent of whether the
+     * caller ends up surfacing/applying the returned suggestion.
+     */
+    private suspend fun adaptWateringInterval(
+        plant: Plant,
+        feedback: WateringFeedback,
+        actualIntervalDays: Int,
+        currentInterval: Int
+    ): Int {
+        val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
+            .map { it.wateringFeedback }
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = feedback,
+            observedIntervalDays = actualIntervalDays,
+            currentBaseIntervalDays = currentInterval,
+            currentConfidence = plant.wateringConfidence,
+            recentFeedback = recentFeedback
+        )
+        if (result.confidence != plant.wateringConfidence) {
+            plantRepository.updatePlant(
+                plant.copy(wateringConfidence = result.confidence, updatedAt = System.currentTimeMillis())
+            )
+        }
+        return result.intervalDays
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean =
+        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {
         plantRepository.getPlantById(plantId).first()?.let { p ->
@@ -272,5 +313,9 @@ class QuickLogUseCase(
                 )
             }
         }
+    }
+
+    private companion object {
+        const val RECENT_WATERINGS_WINDOW = 3
     }
 }

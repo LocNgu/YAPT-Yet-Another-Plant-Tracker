@@ -28,6 +28,18 @@ interface CareLogDao {
     )
     suspend fun getLastTwoLogsOfType(plantId: Long, careType: String): List<CareLogEntity>
 
+    /**
+     * The most recent [limit] logs of [careType] for [plantId], newest first — used to derive
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak] over a bounded window
+     * (#568) rather than caching a "last correction direction" that could go stale across an edit or
+     * delete of a past log.
+     */
+    @Query(
+        "SELECT * FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
+            "ORDER BY loggedAt DESC LIMIT :limit"
+    )
+    suspend fun getRecentLogsOfType(plantId: Long, careType: String, limit: Int): List<CareLogEntity>
+
     @Query("SELECT COUNT(*) FROM care_logs WHERE plantId = :plantId")
     suspend fun getCareLogCount(plantId: Long): Int
 

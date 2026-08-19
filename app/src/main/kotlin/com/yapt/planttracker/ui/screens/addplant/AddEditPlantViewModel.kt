@@ -48,6 +48,15 @@ class AddEditPlantViewModel(
     var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
     var repottingIntervalEnabled by mutableStateOf(false)
 
+    /**
+     * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
+     * unprompted edit on this screen — as opposed to applying an ADR-0006 suggestion, which never
+     * routes through this screen. An edit here is a full [Plant.wateringConfidence] reset (#568):
+     * the user is asserting a new baseline (moved the plant, repotted, changed pot size), unlike
+     * fine-tuning the number inside the suggestion dialog itself.
+     */
+    private var loadedWateringIntervalDays: Int? = null
+
     val pendingPhotos = mutableStateListOf<String>()
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
@@ -69,6 +78,7 @@ class AddEditPlantViewModel(
                         wateringIntervalDays = it
                         wateringIntervalEnabled = true
                     }
+                    loadedWateringIntervalDays = plant.wateringIntervalDays
                     plant.fertilizingIntervalDays?.let {
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
@@ -97,6 +107,7 @@ class AddEditPlantViewModel(
         }
         viewModelScope.launch {
             val now = System.currentTimeMillis()
+            val newWateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null
             val plant = Plant(
                 id = plantId ?: 0,
                 name = name.trim(),
@@ -104,7 +115,7 @@ class AddEditPlantViewModel(
                 room = room.trim().ifBlank { null },
                 notes = notes.trim().ifBlank { null },
                 coverPhotoUri = coverPhotoUri,
-                wateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null,
+                wateringIntervalDays = newWateringIntervalDays,
                 fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
                 repottingIntervalDays = if (repottingIntervalEnabled) {
                     repottingIntervalMonths * DAYS_PER_MONTH
@@ -117,10 +128,19 @@ class AddEditPlantViewModel(
             )
             if (isEditMode) {
                 val existing = plantRepository.getPlantById(plantId!!).first()
+                // An unprompted edit to the watering interval on this screen is a full confidence
+                // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
+                // dialog, which never routes through here.
+                val wateringConfidence = if (newWateringIntervalDays != loadedWateringIntervalDays) {
+                    0
+                } else {
+                    existing?.wateringConfidence
+                }
                 plantRepository.updatePlant(
                     plant.copy(
                         createdAt = existing?.createdAt ?: now,
-                        wateringDueDateOverride = existing?.wateringDueDateOverride
+                        wateringDueDateOverride = existing?.wateringDueDateOverride,
+                        wateringConfidence = wateringConfidence
                     )
                 )
                 savePendingPhotos(plantId, now)

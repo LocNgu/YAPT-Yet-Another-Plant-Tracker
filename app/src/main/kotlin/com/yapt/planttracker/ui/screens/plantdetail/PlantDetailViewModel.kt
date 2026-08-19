@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -271,16 +272,55 @@ class PlantDetailViewModel(
         suggestedWateringInterval.value = null
     }
 
+    /**
+     * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
+     * outside it) — as opposed to [clearSuggestedInterval], which is also used to silently clear a
+     * now-stale suggestion that never needed showing. A genuine dismissal raises
+     * [Plant.wateringConfidence] up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when
+     * [FeatureFlagRegistry.ADAPTIVE_WATERING] is on (#568) — the user is saying the current schedule
+     * is fine.
+     */
+    fun dismissSuggestedInterval() {
+        viewModelScope.launch {
+            if (isAdaptiveWateringEnabled()) {
+                plant.value?.let { p ->
+                    plantRepository.updatePlant(
+                        p.copy(
+                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+            suggestedWateringInterval.value = null
+        }
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean =
+        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
+
     internal fun setTimeRange(range: TimeRange) {
         selectedTimeRange.value = range
     }
 
     fun applySuggestedInterval(newInterval: Int) {
         viewModelScope.launch {
+            val originalSuggestion = suggestedWateringInterval.value
             plant.value?.let { p ->
+                // Retyping the suggested number before tapping Apply is fine-tuning within the
+                // model, not a rejection of it — never a full reset like an AddEditPlant edit
+                // (#568). Outside GAP_AGREEMENT_TOLERANCE of the original suggestion, the
+                // suggestion was materially wrong and confidence falls, but the model still stands.
+                val wateringConfidence = if (isAdaptiveWateringEnabled() && originalSuggestion != null) {
+                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, originalSuggestion, newInterval)
+                } else {
+                    p.wateringConfidence
+                }
                 plantRepository.updatePlant(
                     p.copy(
                         wateringIntervalDays = newInterval,
+                        wateringConfidence = wateringConfidence,
                         updatedAt = System.currentTimeMillis()
                     )
                 )

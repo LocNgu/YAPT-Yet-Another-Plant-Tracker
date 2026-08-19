@@ -19,5 +19,6 @@ data class PlantEntity(
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
     val archivedAt: Long? = null,
-    val repottingIntervalDays: Int? = null
+    val repottingIntervalDays: Int? = null,
+    val wateringConfidence: Int? = null
 )

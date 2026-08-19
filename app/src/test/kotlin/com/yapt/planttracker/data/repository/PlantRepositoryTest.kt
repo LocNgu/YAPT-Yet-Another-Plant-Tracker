@@ -185,4 +185,20 @@ class PlantRepositoryTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `wateringConfidence defaults to null and round-trips a stored value`() = runTest {
+        val id = repo.addPlant(samplePlant())
+        repo.getPlantById(id).test {
+            assertNull(awaitItem()?.wateringConfidence)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        val updated = samplePlant().copy(id = id, wateringConfidence = 3)
+        repo.updatePlant(updated)
+        repo.getPlantById(id).test {
+            assertEquals(3, awaitItem()?.wateringConfidence)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }
