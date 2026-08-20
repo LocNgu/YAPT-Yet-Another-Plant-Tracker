@@ -237,7 +237,10 @@ fun CalendarScreen(
             .firstOrNull { it.plant.id == suggestion.plantId }
             ?.plant?.wateringIntervalDays ?: 0
         AlertDialog(
-            onDismissRequest = { pendingIntervalSuggestion = null },
+            onDismissRequest = {
+                viewModel.dismissSuggestedInterval(suggestion.plantId)
+                pendingIntervalSuggestion = null
+            },
             title = { Text(stringResource(R.string.interval_suggestion_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -261,7 +264,7 @@ fun CalendarScreen(
                 TextButton(
                     onClick = {
                         parsedInterval?.let {
-                            viewModel.applySuggestedInterval(suggestion.plantId, it)
+                            viewModel.applySuggestedInterval(suggestion.plantId, suggestion.suggestedInterval, it)
                         }
                         pendingIntervalSuggestion = null
                     },
@@ -271,7 +274,12 @@ fun CalendarScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingIntervalSuggestion = null }) {
+                TextButton(
+                    onClick = {
+                        viewModel.dismissSuggestedInterval(suggestion.plantId)
+                        pendingIntervalSuggestion = null
+                    }
+                ) {
                     Text(stringResource(R.string.dismiss))
                 }
             }

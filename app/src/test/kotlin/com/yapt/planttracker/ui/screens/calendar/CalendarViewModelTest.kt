@@ -4,11 +4,14 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -20,7 +23,9 @@ import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -277,5 +282,61 @@ class CalendarViewModelTest {
         advanceUntilIdle()
 
         assertEquals(month, vm.visibleMonth.value)
+    }
+
+    // applySuggestedInterval / dismissSuggestedInterval mirror PlantDetailViewModel's equivalents
+    // (#568 comment 5) so the ADR-0006 dialog has the same confidence effect regardless of which
+    // of the three screens it was shown from. The confidence math itself is covered by
+    // CareScheduleAdaptiveTest; these verify the VM wires the flag check and repo update.
+
+    @Test
+    fun `applySuggestedInterval persists the new interval and adaptive confidence when flag enabled`() = runTest {
+        val enabledDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 2)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, quickLogUseCase)
+
+        vm.applySuggestedInterval(1L, suggestedIntervalDays = 10, newInterval = 10)
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 10 }) }
+    }
+
+    @Test
+    fun `dismissSuggestedInterval raises confidence when flag enabled`() = runTest {
+        val enabledDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, quickLogUseCase)
+
+        vm.dismissSuggestedInterval(1L)
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
+    }
+
+    @Test
+    fun `dismissSuggestedInterval does nothing when flag disabled`() = runTest {
+        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
+
+        vm.dismissSuggestedInterval(1L)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 }

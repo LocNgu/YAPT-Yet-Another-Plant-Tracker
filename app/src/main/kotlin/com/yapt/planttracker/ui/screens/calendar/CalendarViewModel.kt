@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.isFeatureEnabled
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -51,7 +53,7 @@ class CalendarViewModel(
     ) { plants, _ ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(plant))
+            statusList.add(buildStatus(careLogRepository, plant))
         }
         statusList
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -159,26 +161,51 @@ class CalendarViewModel(
         }
     }
 
-    fun applySuggestedInterval(plantId: Long, newInterval: Int) {
+    /**
+     * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
+     * originally suggested (before any retyping); the same confidence rules as
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval]
+     * apply here so the effect is identical regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun applySuggestedInterval(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
+                val wateringConfidence = if (dataStore.isFeatureEnabled(FeatureFlagRegistry.ADAPTIVE_WATERING)) {
+                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, suggestedIntervalDays, newInterval)
+                } else {
+                    p.wateringConfidence
+                }
                 plantRepository.updatePlant(
-                    p.copy(wateringIntervalDays = newInterval, updatedAt = System.currentTimeMillis())
+                    p.copy(
+                        wateringIntervalDays = newInterval,
+                        wateringConfidence = wateringConfidence,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
             }
         }
     }
 
-    private suspend fun buildStatus(plant: Plant): PlantCareStatus {
-        val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
-        val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
-        val totalLogs = careLogRepository.getCareLogCount(plant.id)
-        return CareSchedule.computeStatus(
-            plant = plant,
-            lastWateredAt = lastWatering?.loggedAt,
-            lastFertilizedAt = lastFertilizing?.loggedAt,
-            totalLogs = totalLogs
-        )
+    /**
+     * Dismissing the ADR-0006 suggestion dialog without applying — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
+     * so the confidence effect is the same regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun dismissSuggestedInterval(plantId: Long) {
+        viewModelScope.launch {
+            if (dataStore.isFeatureEnabled(FeatureFlagRegistry.ADAPTIVE_WATERING)) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    plantRepository.updatePlant(
+                        p.copy(
+                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        }
     }
 
     class Factory(
@@ -200,4 +227,16 @@ class CalendarViewModel(
                 quickLogUseCase
             ) as T
     }
+}
+
+private suspend fun buildStatus(careLogRepository: CareLogRepository, plant: Plant): PlantCareStatus {
+    val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
+    val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
+    val totalLogs = careLogRepository.getCareLogCount(plant.id)
+    return CareSchedule.computeStatus(
+        plant = plant,
+        lastWateredAt = lastWatering?.loggedAt,
+        lastFertilizedAt = lastFertilizing?.loggedAt,
+        totalLogs = totalLogs
+    )
 }
