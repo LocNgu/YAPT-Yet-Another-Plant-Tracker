@@ -291,7 +291,7 @@ class QuickLogUseCase(
             .map { it.wateringFeedback }
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays),
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
             currentBaseIntervalDays = currentInterval,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
@@ -311,9 +311,13 @@ class QuickLogUseCase(
     /**
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * seasonal correction isn't baked into [Plant.wateringConfidence] as a permanent thirst change.
-     * A no-op when SEASONAL_WATERING is off.
+     * A no-op when SEASONAL_WATERING is off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
+     * math never applies the seasonal curve for a pinned plant, so its observed gaps are already
+     * flat and must not be seasonally corrected.
      */
-    private suspend fun deseasonalizedObservedIntervalDays(actualIntervalDays: Int): Int {
+    @Suppress("ReturnCount")
+    private suspend fun deseasonalizedObservedIntervalDays(actualIntervalDays: Int, pinIntervalToBase: Boolean): Int {
+        if (pinIntervalToBase) return actualIntervalDays
         val amplitude = dataStore.seasonalAmplitudeOnce()
         if (amplitude == 0.0) return actualIntervalDays
         return SeasonalWatering.deseasonalizeToDays(

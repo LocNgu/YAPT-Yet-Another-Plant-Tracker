@@ -11,6 +11,8 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -18,6 +20,10 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
+import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,6 +38,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
@@ -344,6 +351,83 @@ class QuickLogUseCaseTest {
 
         assertTrue(outcome.logged)
         coVerify(exactly = 1) { careLogRepo.addLog(any()) }
+    }
+
+    // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #578 follow-up)
+
+    @Test
+    fun `quickWaterWithFeedback de-seasonalizes the observed gap for a non-pinned plant when SEASONAL_WATERING is on`() =
+        runTest {
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(
+                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+                    )
+                )
+            }
+            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database)
+            val now = System.currentTimeMillis()
+            val twentyDaysAgo = now - TimeUnit.DAYS.toMillis(20)
+            val monstera = plant(wateringIntervalDays = 10)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = twentyDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+            )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+            val deseasonalizedObserved = SeasonalWatering.deseasonalizeToDays(
+                20,
+                LocalDate.now(),
+                SeasonalAmplitude.STANDARD.value,
+                Hemisphere.NORTHERN
+            )
+            val expected = CareSchedule.computeAdaptiveInterval(
+                feedback = WateringFeedback.JUST_RIGHT,
+                observedIntervalDays = deseasonalizedObserved,
+                currentBaseIntervalDays = 10,
+                currentConfidence = null,
+                recentFeedback = emptyList()
+            )
+            val expectedSuggestion = expected.intervalDays.takeIf { it != 10 }
+            assertEquals(expectedSuggestion, outcome.suggestion?.suggestedInterval)
+        }
+
+    @Test
+    fun `quickWaterWithFeedback skips de-seasonalization for a pinned plant even when SEASONAL_WATERING is on`() = runTest {
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+                )
+            )
+        }
+        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database)
+        val now = System.currentTimeMillis()
+        val twentyDaysAgo = now - TimeUnit.DAYS.toMillis(20)
+        val monstera = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = twentyDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+        )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+        val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
+
+        val expected = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.JUST_RIGHT,
+            observedIntervalDays = 20,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        val expectedSuggestion = expected.intervalDays.takeIf { it != 10 }
+        assertEquals(expectedSuggestion, outcome.suggestion?.suggestedInterval)
     }
 
     // quickLiquidFertilizeWithFeedback

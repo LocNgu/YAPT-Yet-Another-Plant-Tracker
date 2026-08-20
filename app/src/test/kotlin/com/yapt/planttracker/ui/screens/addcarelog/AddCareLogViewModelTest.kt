@@ -1,14 +1,23 @@
 package com.yapt.planttracker.ui.screens.addcarelog
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,6 +35,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDate
+import java.util.Calendar
+import java.util.TimeZone
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddCareLogViewModelTest {
@@ -501,4 +513,111 @@ class AddCareLogViewModelTest {
 
         assertNull(vm.duplicateLogError)
     }
+
+    // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #578 follow-up)
+
+    @Test
+    fun `save WATER log de-seasonalizes the observed gap for a non-pinned plant when SEASONAL_WATERING is on`() = runTest {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+                )
+            )
+        }
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 10))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = peakDay),
+            waterLog(loggedAt = twentyDaysBeforePeak)
+        )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = peakDay
+
+        var suggestedInterval: Int? = null
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            suggestedInterval = event.suggestedWateringInterval
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Peak day (Jan 5, northern): season(peakDay) = 1 + 0.35 = 1.35, so the observed 20-day gap
+        // de-seasonalizes to round(20 / 1.35) = 15 before feeding the adaptive model.
+        val deseasonalizedObserved = SeasonalWatering.deseasonalizeToDays(
+            20,
+            LocalDate.of(2023, 1, 5),
+            SeasonalAmplitude.STANDARD.value,
+            Hemisphere.NORTHERN
+        )
+        val expected = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.JUST_RIGHT,
+            observedIntervalDays = deseasonalizedObserved,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(expected.intervalDays.takeIf { it != 10 }, suggestedInterval)
+    }
+
+    @Test
+    fun `save WATER log skips de-seasonalization for a pinned plant even when SEASONAL_WATERING is on`() = runTest {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+                )
+            )
+        }
+        val pinnedPlant = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
+        every { plantRepo.getPlantById(1L) } returns flowOf(pinnedPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = peakDay),
+            waterLog(loggedAt = twentyDaysBeforePeak)
+        )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = peakDay
+
+        var suggestedInterval: Int? = null
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            suggestedInterval = event.suggestedWateringInterval
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Pinned: the raw 20-day gap is used unchanged, not the season(peakDay)-corrected 15.
+        val expected = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.JUST_RIGHT,
+            observedIntervalDays = 20,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(expected.intervalDays.takeIf { it != 10 }, suggestedInterval)
+    }
+}
+
+private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.clear()
+    cal.set(year, month - 1, day, 12, 0, 0)
+    return cal.timeInMillis
 }
