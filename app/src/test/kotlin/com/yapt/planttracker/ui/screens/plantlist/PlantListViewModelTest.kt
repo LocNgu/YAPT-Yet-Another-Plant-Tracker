@@ -1311,10 +1311,12 @@ class PlantListViewModelTest {
                 plantIssueRepo
             )
 
+            // Applied value == suggested value: within GAP_AGREEMENT_TOLERANCE, so confidenceAfterDialogEdit
+            // leaves confidence unchanged at 2 (normal rules), not a reset.
             vm.applySuggestedIntervalFromList(1L, suggestedIntervalDays = 10, newInterval = 10)
             advanceUntilIdle()
 
-            coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 10 }) }
+            coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 10 && it.wateringConfidence == 2 }) }
         }
 
     @Test
