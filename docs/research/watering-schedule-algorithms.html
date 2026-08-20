@@ -568,7 +568,7 @@ base         = base + <b>g</b> · (target − base)
 
   <div class="col">
     <p>The asymmetry (1.25 up vs 0.82 down) encodes the gardener's risk model: lengthen readily, shorten cautiously, because rot is fatal and thirst is not. It is deliberately mild so that a genuinely thirsty plant still converges quickly — the speed comes from the confidence mechanism, not from the multipliers.</p>
-    <p>Here is what that buys, in the worst realistic case: a plant set to 7 days that actually wants 14 (a full summer-to-winter shift), with the user reporting "still wet" every time.</p>
+    <p>Here is what that buys, in the worst realistic case: a plant set to 7 days that actually wants 14 (a full summer-to-winter shift), with the user reporting "still wet" every time. The answer depends entirely on <em>when the user waters</em> — a distinction easy to miss, and the one that turns out to matter most.</p>
   </div>
 
   <div class="tablewrap">
@@ -579,7 +579,8 @@ base         = base + <b>g</b> · (target − base)
       <tbody>
         <tr><td>±1 day <em>(today)</em></td><td class="num">7</td><td class="num">~70 days</td><td>Ten weeks of the user overriding the app.</td></tr>
         <tr><td>×1.15 fixed <em>(#285 approach 0)</em></td><td class="num">5</td><td class="num">~47 days</td><td>Better, still lags the season it is chasing.</td></tr>
-        <tr class="highlight"><td>Adaptive gain</td><td class="num">3</td><td class="num">~25 days</td><td>Run-length detection compounds the correction.</td></tr>
+        <tr><td>Adaptive gain — user waters <em>on the app's due date</em></td><td class="num">5</td><td class="num">~46 days</td><td>The learner is chasing a number it produces itself.</td></tr>
+        <tr class="highlight"><td>Adaptive gain — user waters <em>when the plant is ready</em></td><td class="num">2</td><td class="num">~28 days</td><td>Real observations, not our own echo.</td></tr>
         <tr class="highlight"><td>Adaptive gain <em>+ season curve</em></td><td class="num">0</td><td class="num">—</td><td>The seasonal component was never an error to correct.</td></tr>
       </tbody>
     </table>
@@ -587,6 +588,17 @@ base         = base + <b>g</b> · (target − base)
 
   <div class="col">
     <p>The last row is the point. Most of what looks like "the algorithm adapting too slowly" is the algorithm being asked to rediscover the calendar. Remove that job and the learner only has to handle genuinely plant-specific error, which is small, rare, and converges in two or three observations.</p>
+  </div>
+
+  <div class="callout">
+    <p><strong>Two corrections to an earlier draft of this note, kept because they change the argument.</strong></p>
+    <p>The first draft claimed 3 corrections / ~25 days for the adaptive gain, and credited run-length detection for it. Both were wrong. They came from a <em>compounding-multiplier</em> formulation — where a same-direction run raises the multiplier itself (×1.15 → ×1.30 → ×1.45) — not the <code>target</code>-and-<code>gain</code> rule the design actually settled on. Simulating the real rule gives the figures in the table above.</p>
+    <p>The second is sharper: <strong>the streak mechanism contributes nothing to acceleration.</strong> Confidence is already floored at 0 from the first observation, so "two in a row → confidence − 2" has nothing left to subtract and the gain is already maximal. Its real function is to stop confidence <em>rising</em> while the model is persistently wrong — worth keeping, but it is not where speed comes from.</p>
+    <p>Speed comes from the user not being obedient. When someone waters on the app's due date, <code>observed == base</code>, so <code>base</code> can grow at most 25% per observation regardless of gain — the learner is chasing its own output. <strong>This makes the "check, still moist" action the load-bearing piece of the whole design</strong>, not merely a signal-quality improvement: tapping <em>still moist</em> and waiting is what stops the app being fed its own suggestion back.</p>
+    <p>Do not close the gap by raising the 1.25 multiplier. That buys convergence in one scenario at the cost of stability in every other.</p>
+  </div>
+
+  <div class="col">
   </div>
 </section>
 
