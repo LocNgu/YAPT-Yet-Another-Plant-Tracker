@@ -38,6 +38,34 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   passes the result back via `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal
   editable `AlertDialog` (product ADR-0006, supersedes product ADR-0005).
 
+## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
+Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off) — the legacy
+`computeSuggestedInterval()` above is untouched and stays the flag-off path; call sites (`AddCareLogViewModel`,
+`QuickLogUseCase`) branch on the flag before choosing which pure function to call.
+- `target = observed × multiplier(feedback)` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base = base +
+  g(confidence) × (target − base)`. Gain table indexed 0-5: `[0.60, 0.45, 0.35, 0.28, 0.22, 0.15]`.
+- Clamped to ±40% per step (of the pre-step base, before rounding — rounding to a whole day can add up to another
+  half-day on top of the 40%, an accepted quantization artifact, not a bug) then `.coerceIn(1, 180)` overall.
+- `Plant.wateringConfidence: Int?` (0-5, `null` = never adapted) is the only new column (DB v10, `MIGRATION_9_10`;
+  backup schema v11). `CareSchedule.correctionStreak(recentFeedback)` derives the same-direction run from
+  `CareLogRepository.getRecentWaterings(plantId, limit = 3)` (most-recent-first) — **never** cached on a column
+  (editing/deleting a past WATER log must be reflected on the next adaptation with no stale cache).
+- Confidence never rises from the feedback chip's value alone — only from gap agreement (observed within
+  `GAP_AGREEMENT_TOLERANCE` = 15% of the current base) or a dialog dismissal (capped at
+  `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowers an already-higher value); it falls (`-2`, floored 0) when
+  `correctionStreak()` shows `abs(streak) >= 2`. First observation (`wateringConfidence == null`) bootstraps to 0
+  without evaluating a transition, but still corrects `base` at the confidence-0 gain.
+- Manual-edit semantics differ by surface: an AddEditPlant interval edit is a full reset (`confidence = 0`,
+  `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
+  `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
+  .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
+  `onDismissRequest`, not `clearSuggestedInterval()` — that one stays a silent no-side-effect state clear for the
+  stale-suggestion cleanup `LaunchedEffect`).
+- `CareScheduleAdaptiveReplayTest` is the pure-JVM replay harness (scenarios 1a/1b/2/3a/3b/4); do not alter the
+  multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
+  convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
+  scenario 3b is a known-unreachable bound from the originating issue thread, not a bug in this implementation.
+
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window
 (#351). History list + Graveyard show exact dates (e.g. "Jun 10, 2026") for events > 14 days old; PlantCard chips

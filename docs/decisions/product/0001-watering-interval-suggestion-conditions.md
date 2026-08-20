@@ -1,6 +1,6 @@
 # Product ADR-0001: When the watering interval suggestion is shown
 
-**Status**: accepted
+**Status**: superseded by [ADR-0025](0025-adaptive-watering-just-right-carries-information.md)
 
 **Date**: 2024-01-01
 

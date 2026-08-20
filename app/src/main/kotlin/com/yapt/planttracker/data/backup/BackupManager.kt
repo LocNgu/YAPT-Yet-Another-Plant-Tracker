@@ -25,6 +25,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 11 (#568): wateringConfidence added to BackupPlant — round-trips the adaptive-watering
+// confidence counter unconditionally, since backup is not gated by the `adaptive_watering` flag.
 // Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing
 // pest/disease/health status, distinct from the recurring custom_reminders table).
 // Schema 9 (#232): customReminders: List<BackupCustomReminder> round-trips the custom_reminders
@@ -37,7 +39,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 10
+const val CURRENT_SCHEMA_VERSION = 11
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -131,7 +133,8 @@ class BackupManager(
                     createdAt = entity.createdAt,
                     updatedAt = entity.updatedAt,
                     wateringDueDateOverride = entity.wateringDueDateOverride,
-                    useLiquidFertilizer = entity.useLiquidFertilizer
+                    useLiquidFertilizer = entity.useLiquidFertilizer,
+                    wateringConfidence = entity.wateringConfidence
                 )
             }
 
@@ -342,7 +345,8 @@ class BackupManager(
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,
                     wateringDueDateOverride = bp.wateringDueDateOverride,
-                    useLiquidFertilizer = bp.useLiquidFertilizer
+                    useLiquidFertilizer = bp.useLiquidFertilizer,
+                    wateringConfidence = bp.wateringConfidence
                 )
             }
 

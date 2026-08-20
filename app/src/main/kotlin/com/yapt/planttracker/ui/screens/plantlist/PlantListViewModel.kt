@@ -14,6 +14,8 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
@@ -293,15 +295,56 @@ class PlantListViewModel(
         }
     }
 
-    fun applySuggestedIntervalFromList(plantId: Long, newInterval: Int) {
+    /**
+     * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
+     * originally suggested (before any retyping); the same confidence rules as
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval]
+     * apply here so the effect is identical regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun applySuggestedIntervalFromList(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
+                val wateringConfidence = if (isAdaptiveWateringEnabled()) {
+                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, suggestedIntervalDays, newInterval)
+                } else {
+                    p.wateringConfidence
+                }
                 plantRepository.updatePlant(
-                    p.copy(wateringIntervalDays = newInterval, updatedAt = System.currentTimeMillis())
+                    p.copy(
+                        wateringIntervalDays = newInterval,
+                        wateringConfidence = wateringConfidence,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
             }
         }
     }
+
+    /**
+     * Dismissing the ADR-0006 suggestion dialog without applying — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
+     * so the confidence effect is the same regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun dismissSuggestedIntervalFromList(plantId: Long) {
+        viewModelScope.launch {
+            if (isAdaptiveWateringEnabled()) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    plantRepository.updatePlant(
+                        p.copy(
+                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean =
+        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
     fun selectRoom(room: String?) {
         selectedRoom.value = room

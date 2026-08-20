@@ -34,7 +34,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 9
+        const val DB_VERSION = 10
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -150,6 +150,16 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #568: wateringConfidence backs the multiplicative + confidence-weighted adaptive watering
+        // model (technical ADR-0021). Ships unconditionally regardless of `adaptive_watering` flag
+        // state, so flipping the flag off/on never loses learned state.
+        @Suppress("MagicNumber")
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringConfidence INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -165,7 +175,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
                     .build()
                     .also { INSTANCE = it }

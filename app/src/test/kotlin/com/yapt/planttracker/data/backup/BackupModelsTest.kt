@@ -26,7 +26,8 @@ class BackupModelsTest {
         fertilizingIntervalDays = fertilizingIntervalDays,
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        wateringConfidence = wateringConfidence
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -40,7 +41,8 @@ class BackupModelsTest {
         fertilizingIntervalDays = fertilizingIntervalDays,
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        wateringConfidence = wateringConfidence
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -78,7 +80,8 @@ class BackupModelsTest {
         fertilizingIntervalDays = 14,
         repottingIntervalDays = 365,
         createdAt = 1_000_000_000_000L,
-        updatedAt = 1_100_000_000_000L
+        updatedAt = 1_100_000_000_000L,
+        wateringConfidence = 2
     )
 
     private val fullLog = CareLogEntity(
@@ -108,6 +111,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.repottingIntervalDays, bp.repottingIntervalDays)
         assertEquals(fullPlant.createdAt, bp.createdAt)
         assertEquals(fullPlant.updatedAt, bp.updatedAt)
+        assertEquals(fullPlant.wateringConfidence, bp.wateringConfidence)
     }
 
     @Test

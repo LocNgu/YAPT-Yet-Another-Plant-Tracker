@@ -43,7 +43,8 @@ class BackupSerializerTest {
                 createdAt = 1_000_000_000_000L,
                 updatedAt = 1_100_000_000_000L,
                 wateringDueDateOverride = 1_700_000_000_000L,
-                useLiquidFertilizer = true
+                useLiquidFertilizer = true,
+                wateringConfidence = 3
             )
         ),
         careLogs = listOf(
@@ -359,5 +360,26 @@ class BackupSerializerTest {
         assertNull(issue.resolvedAt)
         assertNull(issue.resolutionNote)
         assertNull(issue.linkedReminderId)
+    }
+
+    @Test
+    fun `wateringConfidence round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(3, decoded.plants[0].wateringConfidence)
+    }
+
+    @Test
+    fun `plant without wateringConfidence defaults to null`() {
+        val json = """
+            {"schemaVersion":10,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.wateringConfidence)
     }
 }

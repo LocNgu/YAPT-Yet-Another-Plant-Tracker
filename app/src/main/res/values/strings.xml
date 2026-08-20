@@ -239,6 +239,9 @@
     <!-- Feature flag: Plant Detail per-action tabs (#436) -->
     <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
     <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
+    <!-- Feature flag: adaptive watering interval (#568) -->
+    <string name="feature_flag_adaptive_watering_title">Adaptive watering interval</string>
+    <string name="feature_flag_adaptive_watering_description">Suggest watering intervals using a multiplicative correction whose step size shrinks as the schedule proves itself, instead of a fixed ±1 day nudge. Off keeps today\'s behavior.</string>
     <!-- Plant Detail per-action tabs (#436) -->
     <string name="plant_detail_tab_water">Water</string>
     <string name="plant_detail_tab_fertilize">Fertilize</string>

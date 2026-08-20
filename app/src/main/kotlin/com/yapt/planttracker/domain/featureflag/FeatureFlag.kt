@@ -39,5 +39,19 @@ object FeatureFlagRegistry {
         default = false
     )
 
-    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS)
+    /**
+     * Multiplicative + confidence-weighted watering interval adaptation (#568, technical ADR-0021).
+     * Off: `CareSchedule.computeSuggestedInterval()` behaves exactly as today (±1 day nudge). On:
+     * the ADR-0006 suggestion dialog is driven by `CareSchedule.computeAdaptiveInterval()` instead,
+     * and `Plant.wateringConfidence` is tracked. The column and `.yapt` backup field ship
+     * unconditionally regardless of this flag's state.
+     */
+    val ADAPTIVE_WATERING = FeatureFlag(
+        key = "adaptive_watering",
+        titleRes = R.string.feature_flag_adaptive_watering_title,
+        descriptionRes = R.string.feature_flag_adaptive_watering_description,
+        default = false
+    )
+
+    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS, ADAPTIVE_WATERING)
 }

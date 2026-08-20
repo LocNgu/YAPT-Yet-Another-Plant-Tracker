@@ -355,7 +355,7 @@ fun PlantDetailScreen(
 
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.clearSuggestedInterval() },
+            onDismissRequest = { viewModel.dismissSuggestedInterval() },
             title = { Text(stringResource(R.string.interval_suggestion_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -384,7 +384,7 @@ fun PlantDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
+                TextButton(onClick = { viewModel.dismissSuggestedInterval() }) {
                     Text(stringResource(R.string.dismiss))
                 }
             }

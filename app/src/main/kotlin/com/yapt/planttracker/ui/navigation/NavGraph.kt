@@ -286,7 +286,8 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantRepository,
                         plantId,
-                        careLogId
+                        careLogId,
+                        app.settingsDataStore
                     )
                 )
                 AddCareLogScreen(

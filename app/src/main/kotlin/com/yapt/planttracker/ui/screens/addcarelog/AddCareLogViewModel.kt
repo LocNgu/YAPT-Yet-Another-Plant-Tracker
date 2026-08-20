@@ -4,15 +4,20 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,11 +25,17 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+// #568 added two small adaptive-watering helpers to this VM's one cohesive save flow; splitting
+// them out would scatter that flow across files for no readability gain.
+@Suppress("TooManyFunctions")
 class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
     private val plantId: Long,
-    private val careLogId: Long = 0L
+    private val careLogId: Long = 0L,
+    // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
+    // updating; null is treated the same as the `adaptive_watering` flag being off (#568).
+    private val dataStore: DataStore<Preferences>? = null
 ) : ViewModel() {
 
     val isEditMode = careLogId != 0L
@@ -179,8 +190,48 @@ class AddCareLogViewModel(
         }
 
         if (actualIntervalDays <= 0) return null
-        val suggested = CareSchedule.computeSuggestedInterval(feedback, actualIntervalDays, currentInterval)
+
+        val suggested = if (currentInterval != null && isAdaptiveWateringEnabled()) {
+            adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
+        } else {
+            CareSchedule.computeSuggestedInterval(feedback, actualIntervalDays, currentInterval)
+        }
         return if (suggested != currentInterval) suggested else null
+    }
+
+    /**
+     * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and
+     * persists the resulting [Plant.wateringConfidence] immediately — confidence updates on every
+     * qualifying observation, independent of whether the caller later shows/applies the resulting
+     * suggestion dialog.
+     */
+    private suspend fun adaptWateringInterval(
+        plant: Plant,
+        feedback: WateringFeedback,
+        actualIntervalDays: Int,
+        currentInterval: Int
+    ): Int {
+        val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
+            .map { it.wateringFeedback }
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = feedback,
+            observedIntervalDays = actualIntervalDays,
+            currentBaseIntervalDays = currentInterval,
+            currentConfidence = plant.wateringConfidence,
+            recentFeedback = recentFeedback
+        )
+        if (result.confidence != plant.wateringConfidence) {
+            plantRepository.updatePlant(
+                plant.copy(wateringConfidence = result.confidence, updatedAt = System.currentTimeMillis())
+            )
+        }
+        return result.intervalDays
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean {
+        val store = dataStore ?: return false
+        return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
     }
 
     sealed class Event {
@@ -192,10 +243,15 @@ class AddCareLogViewModel(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
         private val plantId: Long,
-        private val careLogId: Long = 0L
+        private val careLogId: Long = 0L,
+        private val dataStore: DataStore<Preferences>? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId) as T
+            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId, dataStore) as T
+    }
+
+    private companion object {
+        const val RECENT_WATERINGS_WINDOW = 3
     }
 }

@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Adaptive watering interval (developer mode, off by default)** — a new `adaptive_watering` feature flag replaces the watering interval suggestion's fixed ±1-day nudge with a multiplicative correction (target = observed gap × 1.25 still-wet / 1.00 just-right / 0.82 too-dry) whose step size shrinks as a per-plant confidence counter (0-5) rises — fast to adapt early, calmer once the schedule proves itself. Confidence rises only from the observed watering gap matching the predicted interval or from dismissing the suggestion dialog (capped at 3), never from the feedback chip's value alone; it falls when two-or-more corrections in a row point the same direction. Editing the interval on Add/Edit Plant is a full reset; retyping the number inside the suggestion dialog before applying is a smaller correction, not a reset. Every result is clamped to 1-180 days and to ±40% per step. Off by default and gated entirely behind the flag — flag off is byte-for-byte identical to today's behavior. Room DB migrated to v10 (new `Plant.wateringConfidence` column, ships unconditionally regardless of flag state); round-trips through backup/restore (backup schema v11) (#568)
+
 ---
 
 ## [0.23.0] - 2026-08-19
