@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Research note supporting the #285 re-scope into issues #568-#572.
+  Standalone page: open directly in a browser. No build step, no external assets
+  beyond Google Fonts (falls back to system faces offline).
+-->
+<title>Learning to Water</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --ground:      #F1F4EE;
+  --surface:     #FBFCFA;
+  --surface-alt: #E7EBE3;
+  --ink:         #171C17;
+  --ink-soft:    #3D4A3F;
+  --muted:       #66735F;
+  --rule:        #D2D9CD;
+  --rule-soft:   #E2E7DC;
+  --accent:      #3B5E42;
+  --accent-soft: #6B8F71;
+  --earth:       #6B4B40;
+  --keep:        #3F7048;
+  --keep-bg:     #DFEBE0;
+  --salvage:     #96601A;
+  --salvage-bg:  #F3E7D3;
+  --reject:      #9C4038;
+  --reject-bg:   #F3DEDB;
+  --code-bg:     #E9EDE5;
+  --shadow:      0 1px 2px rgba(23,28,23,.05), 0 8px 24px -16px rgba(23,28,23,.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #121513;
+    --surface:     #1B1F1B;
+    --surface-alt: #232823;
+    --ink:         #E3E8E0;
+    --ink-soft:    #BCC5B9;
+    --muted:       #8C9989;
+    --rule:        #2F362F;
+    --rule-soft:   #262C26;
+    --accent:      #94C49A;
+    --accent-soft: #6B8F71;
+    --earth:       #BCAAA4;
+    --keep:        #81C784;
+    --keep-bg:     #22301F;
+    --salvage:     #FFB74D;
+    --salvage-bg:  #332614;
+    --reject:      #E57373;
+    --reject-bg:   #331E1D;
+    --code-bg:     #171B17;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #121513;
+  --surface:     #1B1F1B;
+  --surface-alt: #232823;
+  --ink:         #E3E8E0;
+  --ink-soft:    #BCC5B9;
+  --muted:       #8C9989;
+  --rule:        #2F362F;
+  --rule-soft:   #262C26;
+  --accent:      #94C49A;
+  --accent-soft: #6B8F71;
+  --earth:       #BCAAA4;
+  --keep:        #81C784;
+  --keep-bg:     #22301F;
+  --salvage:     #FFB74D;
+  --salvage-bg:  #332614;
+  --reject:      #E57373;
+  --reject-bg:   #331E1D;
+  --code-bg:     #171B17;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.62;
+  margin: 0;
+  padding: 0 20px 6rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1000px; margin: 0 auto; }
+.col  { max-width: 640px; }
+
+/* ---------- masthead ---------- */
+
+header.masthead {
+  padding: 4.5rem 0 2.25rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 3rem;
+}
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .705rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.1rem;
+}
+h1 {
+  font-family: Newsreader, Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(2.6rem, 6.5vw, 4.1rem);
+  line-height: 1.03;
+  letter-spacing: -.018em;
+  text-wrap: balance;
+  margin: 0 0 1.25rem;
+  max-width: 15ch;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.standfirst {
+  font-family: Newsreader, Georgia, serif;
+  font-size: 1.24rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 0;
+}
+
+/* ---------- structure ---------- */
+
+section { margin-bottom: 3.75rem; }
+
+h2 {
+  font-family: Newsreader, Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.65rem, 3.4vw, 2.15rem);
+  line-height: 1.15;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+  margin: 0 0 1.1rem;
+  padding-top: 1.4rem;
+  border-top: 2px solid var(--accent);
+  display: inline-block;
+}
+h3 {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: -.003em;
+  margin: 2.4rem 0 .7rem;
+}
+h4 {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  font-size: .72rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2rem 0 .6rem;
+}
+p { margin: 0 0 1.05rem; max-width: 66ch; }
+strong { font-weight: 600; color: var(--ink); }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+ul, ol { margin: 0 0 1.05rem; padding-left: 1.15rem; max-width: 66ch; }
+li { margin-bottom: .42rem; }
+li::marker { color: var(--accent-soft); }
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .875em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+
+/* ---------- exhibits ---------- */
+
+.exhibit {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  margin: 1.9rem 0;
+  overflow: hidden;
+}
+.exhibit-head {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .7rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: .7rem 1.15rem;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--surface-alt);
+}
+.exhibit-body { padding: 1.15rem; overflow-x: auto; }
+
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .8rem;
+  line-height: 1.72;
+  margin: 0;
+  color: var(--ink-soft);
+  white-space: pre;
+}
+pre b { color: var(--accent); font-weight: 500; }
+pre i { color: var(--muted); font-style: normal; }
+
+/* ---------- tables ---------- */
+
+.tablewrap { overflow-x: auto; margin: 1.9rem 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 500px;
+  font-size: .875rem;
+}
+th, td {
+  text-align: left;
+  padding: .62rem .8rem;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+thead th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--rule);
+}
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "IBM Plex Mono", monospace; }
+tbody tr:last-child td { border-bottom: none; }
+tr.highlight td { background: var(--keep-bg); }
+
+/* ---------- verdict chips ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .66rem;
+  font-weight: 500;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: .22rem .5rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.keep    { color: var(--keep);    background: var(--keep-bg); }
+.chip.salvage { color: var(--salvage); background: var(--salvage-bg); }
+.chip.reject  { color: var(--reject);  background: var(--reject-bg); }
+
+/* ---------- approach cards ---------- */
+
+.approach {
+  border-top: 1px solid var(--rule);
+  padding-top: 1.4rem;
+  margin-top: 2.2rem;
+}
+.approach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .55rem .85rem;
+  margin-bottom: .55rem;
+}
+.approach-head h3 { margin: 0; font-size: 1.08rem; }
+.approach-head .tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+/* ---------- gardener rule mapping ---------- */
+
+.rules { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; margin: 1.9rem 0; overflow: hidden; }
+.rule-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); }
+.rule-row > div { background: var(--surface); padding: .9rem 1.05rem; }
+.rule-row .obs { font-family: Newsreader, Georgia, serif; font-size: 1.03rem; line-height: 1.45; color: var(--ink); font-style: italic; }
+.rule-row .imp { font-size: .87rem; color: var(--ink-soft); }
+.rule-row .imp b { color: var(--accent); font-weight: 600; }
+@media (max-width: 620px) {
+  .rule-row { grid-template-columns: 1fr; }
+}
+
+/* ---------- callout ---------- */
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  padding: 1.05rem 1.25rem;
+  margin: 1.9rem 0;
+  border-radius: 0 4px 4px 0;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout p { max-width: none; }
+
+/* ---------- chart ---------- */
+
+figure { margin: 1.9rem 0; }
+figcaption {
+  font-size: .8rem;
+  color: var(--muted);
+  margin-top: .7rem;
+  max-width: 66ch;
+}
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: "IBM Plex Mono", monospace; }
+
+/* ---------- questions ---------- */
+
+ol.filed { padding-left: 1.2rem; max-width: 68ch; }
+ol.filed > li { margin-bottom: .7rem; }
+ol.filed b { color: var(--accent); font-weight: 600; }
+
+ol.questions { list-style: none; padding: 0; counter-reset: q; max-width: 68ch; }
+ol.questions > li {
+  counter-increment: q;
+  border-top: 1px solid var(--rule);
+  padding: 1.15rem 0 1.15rem 2.6rem;
+  position: relative;
+  margin: 0;
+}
+ol.questions > li::before {
+  content: "Q" counter(q);
+  position: absolute;
+  left: 0;
+  top: 1.15rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .72rem;
+  color: var(--accent);
+  letter-spacing: .06em;
+}
+ol.questions b { display: block; margin-bottom: .25rem; }
+
+footer {
+  border-top: 1px solid var(--rule);
+  margin-top: 4rem;
+  padding-top: 1.6rem;
+  font-size: .82rem;
+  color: var(--muted);
+}
+footer a { color: var(--muted); }
+footer ul { padding-left: 1.1rem; max-width: none; }
+footer li { margin-bottom: .25rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow"><span>YAPT</span><span>Watering schedule research</span><span>#285 → #568–#572</span><span>Aug 2026</span></p>
+  <h1>Learning <em>to</em> Water</h1>
+  <p class="standfirst">What a gardener actually does when they decide a plant needs water, which algorithm families reproduce that behaviour, and how the five options in issue #285 hold up against it.</p>
+</header>
+
+<section class="col">
+  <h2>The short version</h2>
+  <p>The strongest design is a <strong>three-part decomposition</strong> that separates things that change on different timescales, because that is exactly what a gardener's mental model does:</p>
+</section>
+
+<div class="exhibit">
+  <div class="exhibit-head">Recommended model</div>
+  <div class="exhibit-body"><pre>effectiveInterval(date) = round( <b>base</b> × <b>season(date)</b> )   clamped to [min, max]
+
+  <b>base</b>         one learned number per plant — "this plant's thirst"
+  <b>season(date)</b> a shared, deterministic, explainable curve — not learned
+  <i>learning</i>      updates <b>base</b> only, with an <b>adaptive step size</b></pre></div>
+</div>
+
+<section class="col">
+  <p>Three claims follow from that, and they are the substance of this document:</p>
+  <ul>
+    <li><strong>Seasonality should be computed, not learned.</strong> The seasonal swing is the most predictable part of the problem and the most expensive part to learn from data. #285 spends its entire design budget trying to learn it.</li>
+    <li><strong>The step size should vary, not the formula.</strong> "Fast to adapt" and "stable under noise" are only in tension if the step size is fixed. Make it respond to whether corrections agree, and you get both.</li>
+    <li><strong>The learning signal is the real bottleneck, not the storage shape.</strong> Today's feedback chip defaults to <em>Just right</em>, and <em>Just right</em> means "never suggest anything" (ADR-0001). The learner is mostly being fed a value that means "the user didn't think about it". No storage layout fixes that.</li>
+  </ul>
+</section>
+
+<section>
+  <h2 class="col">How a gardener actually decides</h2>
+  <div class="col">
+    <p>This is worth being literal about, because most scheduling designs quietly assume the gardener is running a calendar. They are not.</p>
+    <p>A competent houseplant owner does not water on a schedule. They <em>check</em> on a schedule — finger two to five centimetres into the soil, or lift the pot and judge by weight — and then water or don't. The interval is an <strong>output</strong> of that process, not an input to it. Everything below follows from that inversion.</p>
+  </div>
+
+  <div class="rules">
+    <div class="rule-row">
+      <div class="obs">"I'll check it Saturday."</div>
+      <div class="imp">The reminder is a <b>prompt to inspect</b>, not a command to water. A skipped watering is not a failure — it is a successful check with a negative result, and it is <b>information</b>.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"Still damp — I'll leave it another few days."</div>
+      <div class="imp">Corrections are <b>proportional</b>. Nobody thinks "minus one day". They think "a bit longer", which on a 4-day plant means a day and on a 30-day cactus means a week. Multiplicative, not additive.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"Third time it's been soaking. Right — every two weeks now."</div>
+      <div class="imp">Step size grows when errors <b>agree</b>. One damp check is noise; three in a row is a trend, and the gardener jumps rather than creeps.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"Rot kills, thirst wilts."</div>
+      <div class="imp">The risk is <b>asymmetric</b>. Chronic overwatering is usually fatal; underwatering is usually recoverable. Err toward longer intervals when uncertain.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"Days are getting short — everything gets less water now."</div>
+      <div class="imp">The seasonal shift is applied <b>across the whole collection at once</b>, from the calendar and the light, not rediscovered plant by plant.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"I repotted it and moved it to the north window. Start over."</div>
+      <div class="imp">Lifecycle events <b>invalidate the history</b>. A gardener knowingly resets their expectations rather than averaging the old plant with the new situation.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">"Ferns weekly, succulents monthly, roughly."</div>
+      <div class="imp">Cold start comes from a <b>coarse type prior</b>, then gets personalised. Nobody starts from nothing, and nobody starts from a precise number.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>The horticultural literature backs the seasonal magnitude specifically: watering should be cut <strong>roughly in half over winter</strong> for most tropical foliage plants, because shorter days and lower light slow photosynthesis and growth, and the plant simply uses less water. That is a factor of about two between the summer and winter interval — a useful, concrete target for any seasonal curve.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Algorithm families</h2>
+  <div class="col">
+    <p>Six families are plausible here. Two are ruled out by YAPT's own constraints before any analysis: it is offline-first with no cloud, no accounts and no telemetry, so anything requiring live weather or a server-side species database is out, and there is no sensor hardware.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Family</th><th>Mechanism</th><th>Fit for YAPT</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Fixed interval</strong></td>
+          <td>User sets a number; app counts days.</td>
+          <td><span class="chip reject">baseline</span> Zero adaptation. This is what YAPT falls back to when feedback is absent — which is most of the time.</td>
+        </tr>
+        <tr>
+          <td><strong>Additive nudge</strong> <em>(today)</em></td>
+          <td><code>interval ± 1</code> on feedback.</td>
+          <td><span class="chip reject">replace</span> Not scale-invariant: 1 day is 25% of a 4-day interval and 5% of a 21-day one. Converges far too slowly at the long end.</td>
+        </tr>
+        <tr>
+          <td><strong>Multiplicative / AIMD</strong></td>
+          <td><code>interval × 1.15</code> or <code>× 0.85</code>.</td>
+          <td><span class="chip keep">keep the primitive</span> Correct shape, scale-invariant, one-line change. Still memoryless and still fixed-rate.</td>
+        </tr>
+        <tr>
+          <td><strong>Spaced repetition (SM-2)</strong></td>
+          <td>Per-item <em>ease factor</em> (≈2.5) multiplies the interval; three-button grading adjusts the ease.</td>
+          <td><span class="chip keep">direct precedent</span> Structurally the same problem: three-way user feedback drives a multiplicative interval. Validates separating a persistent per-item multiplier from the interval itself.</td>
+        </tr>
+        <tr>
+          <td><strong>EWMA over observed gaps</strong></td>
+          <td><code>base ← base + α(observed − base)</code> using the actual days between waterings.</td>
+          <td><span class="chip keep">underused signal</span> Works from timestamps alone — always present, never defaulted, never skipped. Currently YAPT throws this signal away entirely.</td>
+        </tr>
+        <tr>
+          <td><strong>Adaptive gain</strong></td>
+          <td>α is not constant: large when evidence is thin or corrections agree, small once the schedule is proven.</td>
+          <td><span class="chip keep">the key idea</span> This is what resolves "fast to adapt" vs "stable under noise". See below.</td>
+        </tr>
+        <tr>
+          <td><strong>Evapotranspiration model</strong></td>
+          <td>Penman-Monteith / Hargreaves + soil water balance, driven by live weather.</td>
+          <td><span class="chip reject">out of scope</span> What Planta and irrigation controllers like Rachio do — 30+ parameters, live weather, geolocation. Directly incompatible with offline-first, and demands far more user input.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Part one — the season curve</h2>
+  <div class="col">
+    <p>Seasonality is smooth, roughly sinusoidal, near-identical for every plant in a home, and completely predictable from the calendar. Learning it from watering events is spending the scarcest resource (user observations) on the one component you can compute for free.</p>
+  </div>
+
+  <div class="exhibit">
+    <div class="exhibit-head">Season factor</div>
+    <div class="exhibit-body"><pre>season(date) = 1 + A · cos( 2π · (dayOfYear − peakDay) / 365 )
+
+  A        amplitude, default <b>0.35</b>  → range 0.65× … 1.35×, a <b>2.1:1</b> winter:summer ratio
+  peakDay  <b>≈ day 5</b> (northern hemisphere); + 182 for the southern hemisphere
+  <i>hemisphere from the device locale / timezone — no location permission, no network</i></pre></div>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 760 210" role="img" aria-label="Season factor curve peaking at 1.34 in January, dipping to 0.65 in July, for the northern hemisphere.">
+      <line x1="56" y1="96" x2="726" y2="96" stroke="var(--rule)" stroke-width="1"/>
+      <line x1="56" y1="40" x2="726" y2="40" stroke="var(--rule-soft)" stroke-width="1" stroke-dasharray="2 4"/>
+      <line x1="56" y1="152" x2="726" y2="152" stroke="var(--rule-soft)" stroke-width="1" stroke-dasharray="2 4"/>
+      <text x="48" y="44" text-anchor="end" font-size="10" fill="var(--muted)">1.35×</text>
+      <text x="48" y="100" text-anchor="end" font-size="10" fill="var(--muted)">1.00×</text>
+      <text x="48" y="156" text-anchor="end" font-size="10" fill="var(--muted)">0.65×</text>
+      <polyline fill="none" stroke="var(--accent)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"
+        points="56.0,40.1 65.3,40.0 74.6,40.3 83.9,41.0 93.2,42.2 102.5,43.7 111.8,45.7 121.1,48.0 130.4,50.7 139.7,53.8 149.0,57.1 158.3,60.8 167.6,64.7 176.9,68.9 186.2,73.3 195.5,77.8 204.9,82.5 214.2,87.3 223.5,92.1 232.8,97.0 242.1,101.9 251.4,106.7 260.7,111.5 270.0,116.1 279.3,120.6 288.6,124.9 297.9,129.0 307.2,132.8 316.5,136.3 325.8,139.6 335.1,142.5 344.4,145.0 353.7,147.2 363.0,149.0 372.3,150.3 381.6,151.3 390.9,151.9 400.2,152.0 409.5,151.7 418.8,151.0 428.1,149.8 437.4,148.3 446.7,146.3 456.0,144.0 465.3,141.3 474.6,138.2 484.0,134.9 493.3,131.2 502.6,127.3 511.9,123.1 521.2,118.7 530.5,114.2 539.8,109.5 549.1,104.7 558.4,99.9 567.7,95.0 577.0,90.1 586.3,85.3 595.6,80.5 604.9,75.9 614.2,71.4 623.5,67.1 632.8,63.0 642.1,59.2 651.4,55.7 660.7,52.4 670.0,49.5 679.3,47.0 688.6,44.8 697.9,43.0 707.2,41.7 716.5,40.7 725.8,40.1"/>
+      <circle cx="415.7" cy="151.3" r="3.5" fill="var(--accent)"/>
+      <text x="415.7" y="168" text-anchor="middle" font-size="10" fill="var(--muted)">0.65× · mid-July</text>
+      <g font-size="10" fill="var(--muted)">
+        <text x="83.5"  y="196" text-anchor="middle">J</text>
+        <text x="140.4" y="196" text-anchor="middle">F</text>
+        <text x="191.8" y="196" text-anchor="middle">M</text>
+        <text x="248.7" y="196" text-anchor="middle">A</text>
+        <text x="303.7" y="196" text-anchor="middle">M</text>
+        <text x="360.6" y="196" text-anchor="middle">J</text>
+        <text x="415.7" y="196" text-anchor="middle">J</text>
+        <text x="472.6" y="196" text-anchor="middle">A</text>
+        <text x="529.5" y="196" text-anchor="middle">S</text>
+        <text x="584.5" y="196" text-anchor="middle">O</text>
+        <text x="641.4" y="196" text-anchor="middle">N</text>
+        <text x="696.5" y="196" text-anchor="middle">D</text>
+      </g>
+    </svg>
+    <figcaption>Northern hemisphere, A&nbsp;=&nbsp;0.35. A plant with base&nbsp;=&nbsp;9 days is watered every 12 days in January and every 6 in July, with no learning and no discontinuities. The amplitude is one global setting — Off / Mild&nbsp;0.2 / Standard&nbsp;0.35 / Strong&nbsp;0.5 — so a user with grow lights or stable indoor conditions can flatten it.</figcaption>
+  </figure>
+
+  <div class="col">
+    <p>Compared with per-month or per-season storage slots, the curve wins on five counts: it needs <strong>no training data</strong>, it has <strong>no month-boundary discontinuity</strong>, it cannot <strong>overfit one unusual year</strong>, it is <strong>one line to explain in the UI</strong>, and — most importantly — a correction made in July also improves January, because both read the same <code>base</code>.</p>
+    <p>If latitude ever becomes available, the amplitude could be derived from actual daylight hours (Forsythe's CBM model is the standard, accurate to ~7 minutes). That is a refinement, not a requirement; a fixed cosine with a user-facing amplitude control is more transparent and needs no permissions.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Part two — adaptive step size</h2>
+  <div class="col">
+    <p>"Adapt within days, but don't get thrown by one odd reading" reads like a contradiction. It is only a contradiction at a fixed step size. Make the step respond to <em>agreement between successive corrections</em> and both properties fall out — the same trick used by Rprop, TCP slow-start, and every gardener who has ever said "right, that's the third time".</p>
+  </div>
+
+  <div class="exhibit">
+    <div class="exhibit-head">Confidence-weighted update</div>
+    <div class="exhibit-body"><pre>observedBase = observedGap / season(dateOfGap)     <i>// strip the season out first</i>
+target       = observedBase × { <b>1.25</b> still wet | <b>1.00</b> just right | <b>0.82</b> too dry }
+base         = base + <b>g</b> · (target − base)
+
+<b>g</b> comes from a confidence counter, 0…5:
+  confidence   0     1     2     3     4     5
+  g          0.60  0.45  0.35  0.28  0.22  0.15
+             └── new plant ──┘         └─ dialed in ─┘
+
+  consistent observation      confidence + 1
+  <b>two corrections in a row, same direction</b>   confidence − 2   <i>// we are wrong; move faster</i>
+  corrections alternating direction               confidence + 1   <i>// noise; settle down</i>
+  repot / room change / user edit                 confidence = 0   <i>// history invalidated</i></pre></div>
+  </div>
+
+  <div class="col">
+    <p>The asymmetry (1.25 up vs 0.82 down) encodes the gardener's risk model: lengthen readily, shorten cautiously, because rot is fatal and thirst is not. It is deliberately mild so that a genuinely thirsty plant still converges quickly — the speed comes from the confidence mechanism, not from the multipliers.</p>
+    <p>Here is what that buys, in the worst realistic case: a plant set to 7 days that actually wants 14 (a full summer-to-winter shift), with the user reporting "still wet" every time.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Mechanism</th><th class="num">Steps to 14d</th><th class="num">Elapsed</th><th>Comment</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>±1 day <em>(today)</em></td><td class="num">7</td><td class="num">~70 days</td><td>Ten weeks of the user overriding the app.</td></tr>
+        <tr><td>×1.15 fixed <em>(#285 approach 0)</em></td><td class="num">5</td><td class="num">~47 days</td><td>Better, still lags the season it is chasing.</td></tr>
+        <tr class="highlight"><td>Adaptive gain</td><td class="num">3</td><td class="num">~25 days</td><td>Run-length detection compounds the correction.</td></tr>
+        <tr class="highlight"><td>Adaptive gain <em>+ season curve</em></td><td class="num">0</td><td class="num">—</td><td>The seasonal component was never an error to correct.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>The last row is the point. Most of what looks like "the algorithm adapting too slowly" is the algorithm being asked to rediscover the calendar. Remove that job and the learner only has to handle genuinely plant-specific error, which is small, rare, and converges in two or three observations.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Part three — the signal problem</h2>
+  <div class="col">
+    <p>This is the finding I would act on first, and it is orthogonal to everything #285 discusses.</p>
+  </div>
+
+  <div class="callout">
+    <p><strong>Today's learner is fed a value that mostly means "the user didn't think about it."</strong> <em>Just right</em> is pre-selected on the Add Care Log screen and on the quick-water sheet (ADR-0016 / ADR-0024), and ADR-0001 says <em>Just right</em> produces no suggestion at all. So the default answer to "how was the soil?" is also the instruction "change nothing". Whatever you store the interval in — one column, four, or twelve — it will barely move.</p>
+  </div>
+
+  <div class="col">
+    <p>Three fixes, in order of leverage:</p>
+
+    <h3>1. Capture the check that didn't end in a watering</h3>
+    <p>A gardener's single most common action is walking over, feeling the soil, and <strong>walking away</strong>. That event carries a clean, unambiguous signal — "not ready yet, lengthen" — and YAPT currently has no way to record it at all. Every one of #285's five approaches learns exclusively from watering events, so all of them are blind to the most frequent observation the user makes.</p>
+    <p>The natural place for it is the reminder itself: reframe the notification from <em>"Water Monstera"</em> to <em>"Check Monstera"</em> with two actions — <strong>Watered</strong> and <strong>Still moist</strong>. This is honest (it matches what the user is being asked to do), it is one tap, and it roughly doubles the number of learning events. It also composes cleanly with the existing skip mechanism (ADR-0007), which is arguably already a weak "still wet" signal being discarded.</p>
+
+    <h3>2. Learn from observed gaps, not only from chips</h3>
+    <p>The timestamps of watering events are always present, never defaulted, and never skipped. If a user consistently waters a plant every 11 days when the app says 8, that is a strong, freely available statement about the plant — and it is currently ignored. Feed it in with a low weight (α ≈ 0.15) so that <em>explicit</em> feedback still dominates when it exists, but the app keeps learning from users who never touch the chips.</p>
+
+    <h3>3. Stop treating a defaulted "just right" as a confirmation</h3>
+    <p>Distinguish "the user selected Just right" from "Just right was pre-selected and never touched". The former is real evidence and should raise confidence; the latter is silence. ADR-0024 already made the field nullable — the remaining step is to not pre-select, or to track whether the chip was interacted with.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Transparency</h2>
+  <div class="col">
+    <p>Every quantity above is either stored, or one line of arithmetic from stored values, so the whole schedule can be shown rather than asserted. That is not incidental — it is the reason to prefer this shape over anything with learned per-month tables, which are legible as data but not as <em>reasoning</em>.</p>
+  </div>
+
+  <div class="exhibit">
+    <div class="exhibit-head">"Why this date?" — plant detail sheet</div>
+    <div class="exhibit-body"><pre>Next watering   <b>Sat 22 Nov</b>
+
+  Base interval        <b>9 days</b>     learned from 14 waterings
+  November             <b>× 1.22</b>     shorter days, slower growth
+  ────────────────────────────────
+  Watering every      <b>11 days</b>
+  Last watered        11 Nov
+  Confidence          ●●●●○      dialed in
+
+  Recent adjustments
+    3 Oct   still wet  →  8 → 9 days
+    12 Sep  still wet  →  7 → 8 days
+    28 Aug  just right →  unchanged</pre></div>
+  </div>
+
+  <div class="col">
+    <p>Following the user's will stays absolute: a manually edited interval writes <code>base</code> directly and zeroes confidence, and a per-plant <strong>Pin</strong> switch turns learning off entirely while keeping the season curve (or turns off both). Nothing silently overrides a number the user typed.</p>
+    <p>On auto-apply versus confirmation — ADR-0006 chose a modal dialog, and #285 correctly flags that its approaches 2 and 4 would supersede it. A middle path preserves both intents: <strong>apply changes under ~15% silently</strong>, with an entry in the adjustments list and an undo; <strong>prompt with the existing dialog for larger changes</strong>. Small corrections stop being interruptions; consequential ones still get consent. This still supersedes ADR-0006 and needs an explicit decision.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Comparison with issue #285</h2>
+  <div class="col">
+    <p>First, the framing. #285 presents itself as a choice between <em>storage layouts</em> — one column, four seasonal, twelve monthly, or per-log chapters — and treats the algorithm as a consequence of that choice. I would invert it: pick the update rule and the seasonal model first, and the storage falls out (in the recommendation above, it is <strong>one extra nullable integer</strong>, plus a small confidence counter). Four of the five approaches are attempts to give the app a seasonal memory it can compute instead.</p>
+    <p>Second, the shared blind spot. All five learn only from watering events, and only when the user engages the dialog. None captures the check-that-found-wet-soil. That ceiling on data volume binds harder than any difference between them.</p>
+  </div>
+
+  <div class="approach">
+    <div class="approach-head">
+      <h3>Approach 0 — multiplicative feedback</h3>
+      <span class="tag">no schema change</span>
+      <span class="chip keep">adopt, then extend</span>
+    </div>
+    <p>The right primitive, and the cheapest win on the board: swapping <code>±1</code> for <code>×1.15 / ×0.85</code> is a change to one pure function with no migration. Ship this regardless of what else happens.</p>
+    <p>The issue's own critique is correct — with no seasonal model, summer and winter corrections fight each other. Worth quantifying: a plant on a 14-day summer interval produces about two feedback events a month, and needs roughly five same-direction corrections to double. That is a seven-week lag against a season that moves continuously, so the interval is <em>never</em> right; it is always chasing. Add the season curve and this stops being a problem, because the seasonal component is no longer something the learner has to track.</p>
+    <p>Its clamp of [2, 21] days is too narrow. A sansevieria or cactus in a cool winter room legitimately goes 30–60 days. Use [1, 180], or derive the bounds per plant.</p>
+  </div>
+
+  <div class="approach">
+    <div class="approach-head">
+      <h3>Approach 1 — four seasonal buckets</h3>
+      <span class="tag">4 nullable columns</span>
+      <span class="chip reject">don't</span>
+    </div>
+    <ul>
+      <li><strong>Violates "minimal user input" outright</strong> — four numbers per plant, upfront, for a plant the user just bought and knows nothing about.</li>
+      <li><strong>Discontinuous.</strong> The interval jumps from 7 to 12 days overnight on the boundary, for no physical reason. Plants experience a ramp, not a step.</li>
+      <li><strong>No pooling.</strong> Learning that this plant is thirstier than assumed in spring teaches summer nothing.</li>
+      <li>The four-way calendar split is itself a crude proxy for the smooth thing (light) that actually drives the change.</li>
+    </ul>
+  </div>
+
+  <div class="approach">
+    <div class="approach-head">
+      <h3>Approach 3 — twelve monthly slots</h3>
+      <span class="tag">12 nullable columns · current leaning</span>
+      <span class="chip reject">recommend against</span>
+    </div>
+    <p>This is the option the issue is leaning toward, so it deserves the most scrutiny. It gets the UX right — no new input, the existing dialog preserved, minimal delta — but the statistics do not work.</p>
+    <ul>
+      <li><strong>Data starvation.</strong> A plant on a 10-day interval produces ~36 waterings a year spread across 12 slots: roughly <strong>three samples per slot per year</strong>, and only those where the user engaged the dialog. Reaching five samples in a given month takes on the order of <strong>twenty months</strong>. The issue acknowledges this ("months learn slowly"), but it is not a minor cost — it means the feature does not visibly work for the first year or two.</li>
+      <li><strong>Twelve times the data for one-dimensional information.</strong> The seasonal shape is essentially the same for every plant in a home; only the amplitude and the plant's base thirst vary. Twelve independent slots force each month to rediscover the same fact separately, and share nothing.</li>
+      <li><strong>Month-boundary discontinuity</strong>, same as approach 1 but twelve times a year.</li>
+      <li><strong>Overfits one year's weather.</strong> A single heatwave permanently distorts that month's slot, with no mechanism to decay it.</li>
+      <li><strong>No answer to non-stationarity.</strong> The plant grows, gets repotted, moves rooms — every slot is now stale, and there is no way to express "everything shifted".</li>
+      <li><strong>Schema smell.</strong> Twelve nullable columns is an array flattened into the plant table; extending it to another care type multiplies by N. If monthly slots were genuinely wanted, they belong in a child table.</li>
+    </ul>
+    <p>Net: it achieves the literal goal ("remember July vs January") by the most expensive route available, and pays for it with a feature that is invisible for its first year.</p>
+  </div>
+
+  <div class="approach">
+    <div class="approach-head">
+      <h3>Approach 2 — fixed / adaptive mode + history bootstrap</h3>
+      <span class="tag">mode column + 12 slots</span>
+      <span class="chip salvage">salvage the bootstrap</span>
+    </div>
+    <p>Inherits every statistical problem of approach 3, and adds a mode toggle whose edge cases (2→1, 1→2, data retention across switches) are most of the acceptance criteria in the issue. A per-plant <strong>Pin</strong> switch delivers ~90% of the user-facing value at a fraction of the state space.</p>
+    <p><strong>But <code>bootstrapMonthlySlots()</code> is a genuinely good idea and should survive.</strong> Deriving a starting value from the median gap in the user's own history is the best cold-start available and needs no new input at all. In the recommended model it becomes simpler and more robust, because it estimates <em>one</em> number instead of twelve:</p>
+    <div class="exhibit">
+      <div class="exhibit-head">Cold start from history</div>
+      <div class="exhibit-body"><pre>base = median over past waterings of ( gap<sub>i</sub> / season(date<sub>i</sub>) )
+       confidence = min(5, count / 3)</pre></div>
+    </div>
+    <p>Dividing each historical gap by its own season factor de-seasonalises it, so waterings from any month contribute to the same estimate — the whole history is usable, not one twelfth of it. Median rather than mean keeps a holiday-induced 30-day gap from distorting the result.</p>
+  </div>
+
+  <div class="approach">
+    <div class="approach-head">
+      <h3>Approach 4 — multiplicative + chapters</h3>
+      <span class="tag">columns on plant and log</span>
+      <span class="chip salvage">closest — take the chapter idea</span>
+    </div>
+    <p>The most sophisticated option and the nearest to the recommendation: multiplicative feedback, blending history with feedback (which is EWMA in another notation), and explicit handling of lifecycle events. Two things in it are genuinely valuable:</p>
+    <ul>
+      <li><strong>The chapter concept is the right answer to non-stationarity</strong>, and no other approach has one. Repotting, a room change or turning the heating on really do invalidate the history, and a gardener really does start over. YAPT already has a <code>room</code> field on <code>Plant</code> and a <code>REPOT</code> care type, so both triggers exist today — a room edit or a REPOT log can reset confidence automatically, with no new UI at all. In the recommended model a "chapter" reduces to <code>confidence = 0</code>, which is a counter reset rather than a subsystem.</li>
+      <li>The <strong>four-week freeze window</strong> after a chapter starts is sound and worth keeping in spirit — a freshly repotted plant's water use is genuinely atypical while it re-establishes.</li>
+    </ul>
+    <p>Three things I would change:</p>
+    <ul>
+      <li><strong>The weight cap is backwards.</strong> Capping history at <em>w</em>&nbsp;≤&nbsp;0.50 "so feedback always has a majority" guarantees the schedule can <em>never</em> settle: a single observation retains ≥50% influence forever, so a plant with three years of consistent history still lurches on one odd reading. Confidence should <em>grow</em> with evidence, not be capped below it. This is precisely the "stable so deviation doesn't throw it off" requirement, and approach 4 structurally cannot satisfy it.</li>
+      <li><strong><code>history_avg</code> is still per-month</strong>, so it inherits the data-starvation problem — and worse, since a chapter that began six weeks ago has zero samples in most months. De-seasonalise and pool instead.</li>
+      <li><strong>Storing <code>interval_days</code> on every care log duplicates derivable state.</strong> The gap is a function of consecutive <code>loggedAt</code> values; persisting it creates a drift risk the moment a log is edited or deleted — and YAPT does support editing past logs.</li>
+    </ul>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>A0</th><th>A1</th><th>A3</th><th>A2</th><th>A4</th><th>Recommended</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Minimal user input</td><td>✓</td><td>✗</td><td>✓</td><td>~</td><td>✓</td><td>✓</td></tr>
+        <tr><td>User's will wins</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>✓</td></tr>
+        <tr><td>Self-adjusting seasonally</td><td>✗</td><td>~</td><td>~</td><td>~</td><td>~</td><td>✓</td></tr>
+        <tr><td>Fast to adapt</td><td>~</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Stable under noise</td><td>✗</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>✓</td></tr>
+        <tr><td>Transparent</td><td>✓</td><td>✓</td><td>~</td><td>~</td><td>✗</td><td>✓</td></tr>
+        <tr><td>Handles repot / move</td><td>✗</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Works within a month</td><td>✓</td><td>✗</td><td>✗</td><td>✗</td><td>~</td><td>✓</td></tr>
+        <tr><td>New columns</td><td class="num">0</td><td class="num">4</td><td class="num">12</td><td class="num">13</td><td class="num">4</td><td class="num">2</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="col">
+  <h2>The work, as filed</h2>
+  <p>Issue #285 is closed and re-scoped into five issues, each independently shippable and each leaving the app in a coherent state. Ordering is by leverage per unit of risk, not by dependency — #570 is independent of the rest.</p>
+  <ol class="filed">
+    <li><b>#568 — Multiplicative + confidence-weighted adaptation.</b> Replaces <code>computeSuggestedInterval()</code>. Pure logic, one column, no UX change. Delivers most of the "fast but stable" benefit alone.</li>
+    <li><b>#569 — Computed seasonal factor curve.</b> One global amplitude setting, hemisphere from locale, plus the <code>base</code> column and its migration.</li>
+    <li><b>#570 — "Check" reminders with a Still-moist action.</b> The largest signal-quality gain, and the one that touches notifications, so it carries the most product risk. Independent of the others.</li>
+    <li><b>#571 — Confidence reset on repot / room change, plus history cold start.</b> Both small once the model exists.</li>
+    <li><b>#572 — "Why this date?" sheet and the auto-apply toggle.</b> Makes the model legible; also the best debugging tool for it.</li>
+  </ol>
+  <p>All of the arithmetic is pure and lives in <code>CareSchedule</code>, so it is testable in JVM unit tests. A replay harness runs real or demo watering histories through the model and asserts convergence time, oscillation amplitude, and behaviour when every log is a defaulted <em>Just right</em> — that last case is the one today's system fails silently.</p>
+  <p>ADRs needing superseding decisions: <strong>ADR-0001</strong> (Just right never suggests), <strong>ADR-0006</strong> (always a dialog), <strong>ADR-0016 / ADR-0024</strong> (the chip pre-selection), and <strong>ADR-0007</strong> gains a second writer of the due-date override. Each is named in the issue that touches it.</p>
+</section>
+
+<section>
+  <h2 class="col">Decisions taken</h2>
+  <div class="col">
+    <p>The five forks from the first draft of this document, and how they were resolved.</p>
+  </div>
+  <div class="rules">
+    <div class="rule-row">
+      <div class="obs">Season curve computed, not learned?</div>
+      <div class="imp"><b>Yes.</b> On by default for every plant, one global amplitude setting (Off / Mild / Standard / Strong), per-plant opt-out via Pin. This is the load-bearing decision — it is what makes everything else cheap.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">Does <code>wateringIntervalDays</code> become <code>base</code>?</div>
+      <div class="imp"><b>No — <code>base</code> is a new column</b>, and the migration <b>de-seasonalises to migration day</b>. See below.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">Capture the "checked, still moist" event?</div>
+      <div class="imp"><b>Yes</b>, as its own issue (#570) with its own feature flag. It roughly doubles the number of learning events.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">Auto-apply, or always confirm?</div>
+      <div class="imp"><b>A user-facing toggle</b> — "Ask before changing intervals", default on. This drops the 15% threshold entirely: no magic number to defend, and the user decides rather than the algorithm.</div>
+    </div>
+    <div class="rule-row">
+      <div class="obs">Amend #285 or re-scope it?</div>
+      <div class="imp"><b>Closed and re-scoped</b> into five issues, with the bootstrap and chapter ideas credited as explicit inheritances.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3>The migration, worked through</h3>
+    <p>The stored <code>7</code> is a snapshot of one moment in the year, but nothing records <em>which</em> moment. Under <code>effective = base × season(date)</code> that matters, because the number has to mean something season-neutral. Three ways to read it, for a Monstera set to "every 7 days":</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Reading</th><th><code>base</code> becomes</th><th class="num">Effective in July</th><th class="num">Effective in January</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Face value</td><td class="num">7</td><td class="num">4.6 d</td><td class="num">9.4 d</td></tr>
+        <tr><td>De-seasonalise to when they typed it</td><td>unknowable</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr class="highlight"><td>De-seasonalise to <strong>migration day</strong></td><td class="num">7 ÷ season(today)</td><td class="num">7 d</td><td class="num">scales from there</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Face value is the trap: the day the update ships, every existing plant's schedule silently shifts, and the direction depends on what month it happens to be. Ship in July and every plant starts demanding water 35% more often. Anchoring to migration day makes the effective interval on update day exactly what it was the day before, for every plant; the curve diverges from there as the year moves.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="col">Feature flagging</h2>
+  <div class="col">
+    <p>Both behaviour changes sit behind developer-mode flags. The registry is built for this — one <code>FeatureFlagRegistry</code> entry plus two string resources, no schema change — and <code>CareSchedule</code> is pure logic with a single call site, so gating it is a branch in one function.</p>
+    <p>Two flags rather than one, because they are different risk surfaces:</p>
+    <ul>
+      <li><code>adaptive_watering</code> — season curve, adaptive gain, confidence, the why-sheet. Off ⇒ <code>computeWateringDue()</code> reads <code>wateringIntervalDays</code> exactly as today.</li>
+      <li><code>check_reminders</code> — the "Check X" notification and its Still-moist action. Touches <code>ReminderWorker</code>, the notification composer, permissions and a receiver; none of which the other flag goes near.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <p><strong>What ships regardless of the flags.</strong> Schema is not flag-gated: the two nullable columns land for everyone and nothing reads them when the flags are off. Neither is backup — <code>base</code> and confidence must go into the <code>.yapt</code> format or a round-trip loses learned state, which means a backup schema version bump. Only the <em>behaviour</em> is flagged.</p>
+  </div>
+
+  <div class="col">
+    <p>This is also what settles the column question. With <code>base</code> as a <strong>new</strong> column the flag is genuinely reversible — turn it on and the app learns into <code>base</code>; turn it off and it reads <code>wateringIntervalDays</code> again, with the learned state sitting unused and ready. Reinterpreting the existing column would have made the flag one-way, because the old meaning would already be gone.</p>
+    <p>One consequence worth knowing: disabling developer mode resets every flag to its registry default, so a user running the adaptive model who turns dev mode off will see their reminder dates jump back. Invisible for most flags; visible for this one. It argues for graduating this out of dev-mode reasonably quickly rather than letting it live there.</p>
+  </div>
+</section>
+
+<footer class="col">
+  <p>Sources consulted beyond the repository (ADRs 0001–0011, 0016, 0022, 0024, <code>CareSchedule.kt</code>, and issue #285):</p>
+  <ul>
+    <li><a href="https://www.livingetc.com/advice/winter-watering-schedule">Horticulturalists on the ideal winter watering schedule</a> — the "reduce by roughly half" rule</li>
+    <li><a href="https://soltech.com/blogs/blog/understanding-houseplant-dormancy-and-how-to-care-for-dormant-plants">Understanding houseplant dormancy</a> — light as the driver of reduced winter water use</li>
+    <li><a href="https://faqs.ankiweb.net/what-spaced-repetition-algorithm">Anki: what spaced repetition algorithm does it use</a> and <a href="https://www.antiagent.io/blog/fsrs-vs-sm-2">FSRS vs SM-2</a> — ease factors and multiplicative interval growth</li>
+    <li><a href="https://getplanta.com/article/articles/wateringalgorithm">Planta's watering algorithm</a> — the 30-parameter, live-weather approach and why it needs a cloud</li>
+    <li><a href="https://www.rainbird.com/weatherbasedirrigation">Rain Bird on weather-based irrigation</a> and <a href="https://rachio.com/blog/schedules-hot-weather">Rachio's Flex Monthly / Flex Daily schedules</a> — seasonal-adjust percentages in commercial controllers</li>
+    <li><a href="https://www.sciencedirect.com/science/article/abs/pii/030438009400034F">Forsythe et al., "A model comparison for daylength as a function of latitude and day of year"</a> — the CBM model, if daylight ever replaces the fixed cosine</li>
+  </ul>
+</footer>
+
+</div>
+</body>
+</html>
