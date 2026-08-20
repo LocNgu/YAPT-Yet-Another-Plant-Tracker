@@ -20,5 +20,7 @@ data class PlantEntity(
     val useLiquidFertilizer: Boolean = false,
     val archivedAt: Long? = null,
     val repottingIntervalDays: Int? = null,
-    val wateringConfidence: Int? = null
+    val wateringConfidence: Int? = null,
+    val wateringBaseIntervalDays: Double? = null,
+    val pinIntervalToBase: Boolean = false
 )

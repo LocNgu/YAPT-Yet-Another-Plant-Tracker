@@ -74,6 +74,7 @@ fun AddEditPlantScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
+    val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
@@ -282,6 +283,28 @@ fun AddEditPlantScreen(
                         valueRange = 1f..60f,
                         steps = 58
                     )
+                    if (seasonalWateringEnabled) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.pin_interval_label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = viewModel.pinIntervalToBase,
+                                onCheckedChange = { viewModel.pinIntervalToBase = it }
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.pin_interval_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 

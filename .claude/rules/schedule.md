@@ -6,6 +6,9 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
 ---
 
+> Computed seasonal watering factor (`seasonalAmplitude`/`hemisphere` params on `computeStatus()`,
+> #569, product ADR-0026) has its own file: `.claude/rules/seasonal-watering.md`.
+
 # CareSchedule rules
 
 Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never millisecond division
@@ -65,6 +68,10 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
   convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
   scenario 3b is a known-unreachable bound from the originating issue thread, not a bug in this implementation.
+- `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the observed gap before calling
+  `computeAdaptiveInterval()` when `SEASONAL_WATERING` is on (`observedBase = observedGap / season(dateOfGap)`,
+  #569, product ADR-0026) — `computeAdaptiveInterval()` itself is unaware of seasonality; only its
+  `observedIntervalDays` input is patched at the call site. See `.claude/rules/seasonal-watering.md`.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

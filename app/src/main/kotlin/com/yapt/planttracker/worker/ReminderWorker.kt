@@ -12,11 +12,15 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.notification.CareReminderItem
 import com.yapt.planttracker.domain.notification.DuePlantReminder
 import com.yapt.planttracker.domain.notification.ReminderNotificationComposer
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
@@ -42,36 +46,12 @@ class ReminderWorker(
         // and self-heals if the user switched combine-notifications mode since the last run)
         notificationManager.cancelAll()
 
+        val seasonalAmplitude = context.settingsDataStore.seasonalAmplitudeOnce()
+        val hemisphere = SeasonalWatering.currentHemisphere()
+
         val statuses = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            val lastWatering = if (plant.wateringIntervalDays != null) {
-                app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
-            } else {
-                null
-            }
-            val lastFertilizing = if (plant.fertilizingIntervalDays != null) {
-                app.careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
-            } else {
-                null
-            }
-            val lastRepotting = if (plant.repottingIntervalDays != null) {
-                app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
-            } else {
-                null
-            }
-            val customReminders = app.customReminderRepository.getRemindersForPlantOnce(plant.id)
-
-            statuses.add(
-                CareSchedule.computeStatus(
-                    plant = plant,
-                    lastWateredAt = lastWatering?.loggedAt,
-                    lastFertilizedAt = lastFertilizing?.loggedAt,
-                    totalLogs = 0,
-                    now = now,
-                    lastRepottedAt = lastRepotting?.loggedAt,
-                    customReminders = customReminders
-                )
-            )
+            statuses.add(buildStatus(app, plant, now, seasonalAmplitude, hemisphere))
         }
 
         val prefs = context.settingsDataStore.data.first()
@@ -95,6 +75,44 @@ class ReminderWorker(
         }
 
         return Result.success()
+    }
+
+    @Suppress("LongParameterList")
+    private suspend fun buildStatus(
+        app: YaptApplication,
+        plant: Plant,
+        now: Long,
+        seasonalAmplitude: Double,
+        hemisphere: Hemisphere
+    ): PlantCareStatus {
+        val lastWatering = if (plant.wateringIntervalDays != null) {
+            app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
+        } else {
+            null
+        }
+        val lastFertilizing = if (plant.fertilizingIntervalDays != null) {
+            app.careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
+        } else {
+            null
+        }
+        val lastRepotting = if (plant.repottingIntervalDays != null) {
+            app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
+        } else {
+            null
+        }
+        val customReminders = app.customReminderRepository.getRemindersForPlantOnce(plant.id)
+
+        return CareSchedule.computeStatus(
+            plant = plant,
+            lastWateredAt = lastWatering?.loggedAt,
+            lastFertilizedAt = lastFertilizing?.loggedAt,
+            totalLogs = 0,
+            now = now,
+            lastRepottedAt = lastRepotting?.loggedAt,
+            customReminders = customReminders,
+            seasonalAmplitude = seasonalAmplitude,
+            hemisphere = hemisphere
+        )
     }
 
     private fun postCombinedNotification(notificationManager: NotificationManager, dueCount: Int) {

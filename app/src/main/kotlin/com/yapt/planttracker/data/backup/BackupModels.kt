@@ -17,7 +17,9 @@ data class BackupPlant(
     val updatedAt: Long,
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
-    val wateringConfidence: Int? = null
+    val wateringConfidence: Int? = null,
+    val wateringBaseIntervalDays: Double? = null,
+    val pinIntervalToBase: Boolean = false
 )
 
 @Serializable

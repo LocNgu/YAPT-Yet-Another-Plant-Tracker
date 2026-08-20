@@ -65,6 +65,13 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
+    <!-- Seasonal watering amplitude setting (#569); shown only while the seasonal_watering flag is on -->
+    <string name="settings_section_seasonal_watering">Seasonal watering</string>
+    <string name="seasonal_amplitude_subtitle">How much watering intervals stretch in winter and compress in summer</string>
+    <string name="seasonal_amplitude_off">Off</string>
+    <string name="seasonal_amplitude_mild">Mild</string>
+    <string name="seasonal_amplitude_standard">Standard</string>
+    <string name="seasonal_amplitude_strong">Strong</string>
     <string name="settings_section_display">Display</string>
     <string name="graveyard_settings_title">Plant Graveyard</string>
     <string name="settings_section_about">About</string>
@@ -242,6 +249,12 @@
     <!-- Feature flag: adaptive watering interval (#568) -->
     <string name="feature_flag_adaptive_watering_title">Adaptive watering interval</string>
     <string name="feature_flag_adaptive_watering_description">Suggest watering intervals using a multiplicative correction whose step size shrinks as the schedule proves itself, instead of a fixed ±1 day nudge. Off keeps today\'s behavior.</string>
+    <!-- Feature flag: computed seasonal watering factor (#569) -->
+    <string name="feature_flag_seasonal_watering_title">Seasonal watering</string>
+    <string name="feature_flag_seasonal_watering_description">Stretch watering intervals in winter and compress them in summer using a computed curve, instead of a fixed interval year-round. Off keeps today\'s behavior.</string>
+    <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
+    <string name="pin_interval_label">Pin interval</string>
+    <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
     <!-- Plant Detail per-action tabs (#436) -->
     <string name="plant_detail_tab_water">Water</string>
     <string name="plant_detail_tab_fertilize">Fertilize</string>

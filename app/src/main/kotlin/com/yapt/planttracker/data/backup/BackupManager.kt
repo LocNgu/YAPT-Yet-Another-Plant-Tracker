@@ -25,6 +25,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 12 (#569): wateringBaseIntervalDays and pinIntervalToBase added to BackupPlant — round-trips
+// the computed-seasonal-watering reference interval and per-plant opt-out unconditionally, since
+// backup is not gated by the `seasonal_watering` flag.
 // Schema 11 (#568): wateringConfidence added to BackupPlant — round-trips the adaptive-watering
 // confidence counter unconditionally, since backup is not gated by the `adaptive_watering` flag.
 // Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing
@@ -39,7 +42,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 11
+const val CURRENT_SCHEMA_VERSION = 12
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -134,7 +137,9 @@ class BackupManager(
                     updatedAt = entity.updatedAt,
                     wateringDueDateOverride = entity.wateringDueDateOverride,
                     useLiquidFertilizer = entity.useLiquidFertilizer,
-                    wateringConfidence = entity.wateringConfidence
+                    wateringConfidence = entity.wateringConfidence,
+                    wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
+                    pinIntervalToBase = entity.pinIntervalToBase
                 )
             }
 
@@ -346,7 +351,9 @@ class BackupManager(
                     updatedAt = bp.updatedAt,
                     wateringDueDateOverride = bp.wateringDueDateOverride,
                     useLiquidFertilizer = bp.useLiquidFertilizer,
-                    wateringConfidence = bp.wateringConfidence
+                    wateringConfidence = bp.wateringConfidence,
+                    wateringBaseIntervalDays = bp.wateringBaseIntervalDays,
+                    pinIntervalToBase = bp.pinIntervalToBase
                 )
             }
 

@@ -29,8 +29,12 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -76,6 +80,14 @@ class PlantDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /** Gates the "Pin interval" switch on the inline Water tab settings card — mirrors [tabsEnabled]'s pattern. */
+    val seasonalWateringEnabled: StateFlow<Boolean> = dataStore.data
+        .map { prefs ->
+            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
+                ?: FeatureFlagRegistry.SEASONAL_WATERING.default
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -112,8 +124,9 @@ class PlantDetailViewModel(
         plant,
         careLogs,
         customReminders,
-        activeIssues
-    ) { p, logs, reminders, issues ->
+        activeIssues,
+        dataStore.seasonalAmplitudeFlow()
+    ) { p, logs, reminders, issues, seasonalAmplitude ->
         p ?: return@combine null
         val lastWatering = logs.firstOrNull { it.careType == CareType.WATER }
         val lastFertilizing = logs.firstOrNull { it.careType == CareType.FERTILIZE }
@@ -122,7 +135,8 @@ class PlantDetailViewModel(
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = logs.size,
-            customReminders = reminders
+            customReminders = reminders,
+            seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = issues.size)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -339,11 +353,44 @@ class PlantDetailViewModel(
     fun setWateringInterval(days: Int?) {
         viewModelScope.launch {
             plant.value?.let { p ->
+                // De-seasonalize the newly set value to today (#569), mirroring AddEditPlant's
+                // manual-edit handling — unchanged when SEASONAL_WATERING is off, the plant is
+                // pinned, or the schedule was just switched off (`days == null`); the prior base
+                // (if any) is preserved rather than cleared.
+                val wateringBaseIntervalDays = if (days != null && !p.pinIntervalToBase) {
+                    deseasonalizedBaseOrNull(days) ?: p.wateringBaseIntervalDays
+                } else {
+                    p.wateringBaseIntervalDays
+                }
                 plantRepository.updatePlant(
-                    p.copy(wateringIntervalDays = days, updatedAt = System.currentTimeMillis())
+                    p.copy(
+                        wateringIntervalDays = days,
+                        wateringBaseIntervalDays = wateringBaseIntervalDays,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
             }
         }
+    }
+
+    /** "Pin interval" switch on the inline Water tab settings card (#569) — see [seasonalWateringEnabled]. */
+    fun setPinIntervalToBase(pinned: Boolean) {
+        viewModelScope.launch {
+            plant.value?.let { p ->
+                plantRepository.updatePlant(p.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
+            }
+        }
+    }
+
+    private suspend fun deseasonalizedBaseOrNull(intervalDays: Int): Double? {
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return null
+        return SeasonalWatering.deseasonalize(
+            intervalDays.toDouble(),
+            System.currentTimeMillis().toLocalDate(),
+            amplitude,
+            SeasonalWatering.currentHemisphere()
+        )
     }
 
     fun setFertilizingInterval(days: Int?) {

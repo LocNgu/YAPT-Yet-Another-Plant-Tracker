@@ -17,6 +17,7 @@ object SettingsKeys {
     val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
+    val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")
 }
 
 /**

@@ -36,6 +36,7 @@ paths:
 | v9 | `BackupRoot.customReminders: List<BackupCustomReminder>` + `BackupCareLog.customReminderId: Long?` | `emptyList()` / `null` (#232) |
 | v10 | `BackupRoot.plantIssues: List<BackupPlantIssue>` | `emptyList()` (#564) |
 | v11 | `BackupPlant.wateringConfidence: Int?` | `null` (#568) |
+| v12 | `BackupPlant.wateringBaseIntervalDays: Double?` + `BackupPlant.pinIntervalToBase: Boolean` | `null` / `false` (#569) |
 
 `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null
 field so future nullable additions are caught by the round-trip test (#288). Instrumented `BackupManager` tests: 9

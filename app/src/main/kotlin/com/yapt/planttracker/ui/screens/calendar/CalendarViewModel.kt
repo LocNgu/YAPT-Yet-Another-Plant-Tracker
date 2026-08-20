@@ -20,6 +20,7 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,11 +50,12 @@ class CalendarViewModel(
 
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
-        careLogRepository.logCount
-    ) { plants, _ ->
+        careLogRepository.logCount,
+        dataStore.seasonalAmplitudeFlow()
+    ) { plants, _, seasonalAmplitude ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(careLogRepository, plant))
+            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude))
         }
         statusList
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -229,7 +231,11 @@ class CalendarViewModel(
     }
 }
 
-private suspend fun buildStatus(careLogRepository: CareLogRepository, plant: Plant): PlantCareStatus {
+private suspend fun buildStatus(
+    careLogRepository: CareLogRepository,
+    plant: Plant,
+    seasonalAmplitude: Double
+): PlantCareStatus {
     val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
     val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
     val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -237,6 +243,7 @@ private suspend fun buildStatus(careLogRepository: CareLogRepository, plant: Pla
         plant = plant,
         lastWateredAt = lastWatering?.loggedAt,
         lastFertilizedAt = lastFertilizing?.loggedAt,
-        totalLogs = totalLogs
+        totalLogs = totalLogs,
+        seasonalAmplitude = seasonalAmplitude
     )
 }

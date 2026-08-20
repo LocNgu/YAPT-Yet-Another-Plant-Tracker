@@ -36,6 +36,11 @@ no schema bump).
   flag gates *behavior only* in `CareSchedule`/call sites; the backing `Plant.wateringConfidence` column and
   `.yapt` backup field ship unconditionally, so toggling the flag off/on never loses learned state (this is a
   deliberate exception to "flags need no schema" — the schema change here isn't gated by the flag, only its use is).
+- `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`, default off, #569) gates the computed seasonal
+  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture as `ADAPTIVE_WATERING`: the backing
+  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship unconditionally.
+  The amplitude picker itself lives on the main Settings screen (not the Developer section), visible only while
+  this flag is on — only the flag's on/off `Switch` appears in the generic Developer-section flags list.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,

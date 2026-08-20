@@ -21,7 +21,10 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
 
 /**
@@ -288,7 +291,7 @@ class QuickLogUseCase(
             .map { it.wateringFeedback }
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = actualIntervalDays,
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays),
             currentBaseIntervalDays = currentInterval,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
@@ -304,6 +307,22 @@ class QuickLogUseCase(
     private suspend fun isAdaptiveWateringEnabled(): Boolean =
         dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
             ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
+
+    /**
+     * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
+     * seasonal correction isn't baked into [Plant.wateringConfidence] as a permanent thirst change.
+     * A no-op when SEASONAL_WATERING is off.
+     */
+    private suspend fun deseasonalizedObservedIntervalDays(actualIntervalDays: Int): Int {
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return actualIntervalDays
+        return SeasonalWatering.deseasonalizeToDays(
+            actualIntervalDays,
+            System.currentTimeMillis().toLocalDate(),
+            amplitude,
+            SeasonalWatering.currentHemisphere()
+        )
+    }
 
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {
         plantRepository.getPlantById(plantId).first()?.let { p ->

@@ -27,7 +27,9 @@ class BackupModelsTest {
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        wateringConfidence = wateringConfidence
+        wateringConfidence = wateringConfidence,
+        wateringBaseIntervalDays = wateringBaseIntervalDays,
+        pinIntervalToBase = pinIntervalToBase
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -42,7 +44,9 @@ class BackupModelsTest {
         repottingIntervalDays = repottingIntervalDays,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        wateringConfidence = wateringConfidence
+        wateringConfidence = wateringConfidence,
+        wateringBaseIntervalDays = wateringBaseIntervalDays,
+        pinIntervalToBase = pinIntervalToBase
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -81,7 +85,9 @@ class BackupModelsTest {
         repottingIntervalDays = 365,
         createdAt = 1_000_000_000_000L,
         updatedAt = 1_100_000_000_000L,
-        wateringConfidence = 2
+        wateringConfidence = 2,
+        wateringBaseIntervalDays = 6.42,
+        pinIntervalToBase = true
     )
 
     private val fullLog = CareLogEntity(
@@ -112,6 +118,8 @@ class BackupModelsTest {
         assertEquals(fullPlant.createdAt, bp.createdAt)
         assertEquals(fullPlant.updatedAt, bp.updatedAt)
         assertEquals(fullPlant.wateringConfidence, bp.wateringConfidence)
+        assertEquals(fullPlant.wateringBaseIntervalDays, bp.wateringBaseIntervalDays)
+        assertEquals(fullPlant.pinIntervalToBase, bp.pinIntervalToBase)
     }
 
     @Test
