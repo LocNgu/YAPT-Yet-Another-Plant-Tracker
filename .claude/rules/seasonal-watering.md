@@ -91,6 +91,5 @@ directly under the Settings amplitude picker and in the Plant Detail Water tab's
 effect of Off/Mild/Standard/Strong is visible before committing to a setting. `domain/schedule
 /SeasonalWateringCurveSampler.kt` is the pure sampling function it's built on (`sample(amplitude, hemisphere,
 referenceYear)` → one `SeasonalCurvePoint` per calendar day) — a thin wrapper around `SeasonalWatering.season()`,
-JVM-tested sibling to `SeasonalWateringTest`/`CareScheduleSeasonalTest`. `SeasonalWatering.peakDayOfYear(hemisphere)`
-is a small read-only addition (not read by `season()` itself) that names the peak month for the Settings-only
-hemisphere caption. Visualization-only — never changes `CareSchedule.computeStatus()` or `season()`'s own math.
+JVM-tested sibling to `SeasonalWateringTest`/`CareScheduleSeasonalTest`. `season()` itself now calls `SeasonalWatering.peakDayOfYear(hemisphere)` for its peak-day conditional (single
+source of truth); the preview chart's Settings-only hemisphere caption also calls it to name the peak month. Visualization-only — never changes `CareSchedule.computeStatus()` or `season()`'s own math.

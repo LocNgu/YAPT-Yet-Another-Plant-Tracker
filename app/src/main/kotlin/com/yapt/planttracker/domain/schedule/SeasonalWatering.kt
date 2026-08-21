@@ -77,11 +77,7 @@ object SeasonalWatering {
      * [SOUTHERN_PEAK_OFFSET_DAYS] days (~half a year) so summer/winter fall on the correct months.
      */
     fun season(date: LocalDate, amplitude: Double, hemisphere: Hemisphere): Double {
-        val peakDay = if (hemisphere == Hemisphere.SOUTHERN) {
-            NORTHERN_PEAK_DAY + SOUTHERN_PEAK_OFFSET_DAYS
-        } else {
-            NORTHERN_PEAK_DAY
-        }
+        val peakDay = peakDayOfYear(hemisphere)
         return 1 + amplitude * cos(2 * PI * (date.dayOfYear - peakDay) / DAYS_IN_YEAR)
     }
 
@@ -110,10 +106,9 @@ object SeasonalWatering {
 
     /**
      * Day-of-year of [season]'s peak for [hemisphere], independent of amplitude (the peak's
-     * calendar position never moves, only its height does). Used by the seasonal-curve preview
-     * chart's hemisphere caption (#579) to name the peak month — not read by [season] itself, which
-     * keeps its own copy of this small conditional to avoid touching due-date computation for a
-     * visualization-only addition.
+     * calendar position never moves, only its height does). [season] itself calls this rather than
+     * keeping a separate copy of the conditional. Also used by the seasonal-curve preview chart's
+     * hemisphere caption (#579) to name the peak month.
      */
     fun peakDayOfYear(hemisphere: Hemisphere): Int =
         if (hemisphere == Hemisphere.SOUTHERN) {

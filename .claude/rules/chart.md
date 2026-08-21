@@ -45,7 +45,10 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
 `SeasonalWatering.season()` across a year (`domain/schedule/SeasonalWateringCurveSampler.kt`), not care-log history:
 - **x-axis**: 365/366 daily-sampled points, x-coordinate is the same fractional month-index scheme as
   `WateringHistoryChart.kt` (`monthIndexFor()`, `HorizontalAxis.ItemPlacer.aligned(spacing = { 1 })`) so ticks land
-  on month boundaries Jan…Dec — this is a *generic* calendar year, not tied to real `CareLog` timestamps.
+  on month boundaries Jan…Dec — this is a *generic* calendar year, not tied to real `CareLog` timestamps. The
+  day-within-month fraction itself (`ChartMath.kt`'s `fractionalDayOfMonth()`, 4-decimal-rounded per Vico's GCD
+  precision limit) is shared with `computeWaterEventMarkers()`'s per-event x-coordinate — `monthIndexFor()` adds
+  the calendar month (Jan=0) on top, `computeWaterEventMarkers()` adds months-since-range-start instead.
 - **y-axis**: raw multiplier, **fixed** `0.5×`–`1.5×` (spans `SeasonalAmplitude.STRONG`'s bounds) regardless of the
   currently selected amplitude, so switching Off/Mild/Standard/Strong visibly changes the curve's *height* within a
   constant frame rather than rescaling the axis each redraw — the point is to make "how much" legible at a glance.

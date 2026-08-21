@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,11 +64,8 @@ internal data class TodayCurvePoint(val x: Float, val y: Float)
  * — Vico 2.0.0 throws `IllegalArgumentException` on higher-precision x values (its GCD-based
  * internal precision handling).
  */
-internal fun monthIndexFor(date: LocalDate): Float {
-    val fraction = (date.dayOfMonth - 1).toFloat() / date.lengthOfMonth()
-    val roundedFraction = (fraction * 10000).roundToInt() / 10000f
-    return (date.monthValue - 1) + roundedFraction
-}
+internal fun monthIndexFor(date: LocalDate): Float =
+    (date.monthValue - 1) + fractionalDayOfMonth(date.dayOfMonth, date.lengthOfMonth())
 
 /** Draws a dashed vertical guideline + a highlighted dot at "today"'s position on the curve. */
 private class TodayMarkerDecoration(
@@ -178,12 +176,12 @@ private fun SeasonalCurveChartBody(
     val maxMultiplier = remember(points) { points.maxOf { it.multiplier } }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (isPinned) 0.45f else 1f),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        SeasonalCurveVicoChart(points, today, todayMultiplier)
+        Box(modifier = Modifier.alpha(if (isPinned) 0.45f else 1f)) {
+            SeasonalCurveVicoChart(points, today, todayMultiplier)
+        }
 
         Text(
             text = stringResource(R.string.seasonal_curve_range, minMultiplier, maxMultiplier),
