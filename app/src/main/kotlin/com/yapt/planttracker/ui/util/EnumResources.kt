@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.ui.theme.ThemeMode
 
 @StringRes
@@ -21,6 +22,14 @@ fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.SYSTEM -> R.string.theme_mode_system
     ThemeMode.LIGHT -> R.string.theme_mode_light
     ThemeMode.DARK -> R.string.theme_mode_dark
+}
+
+@StringRes
+fun SeasonalAmplitude.labelRes(): Int = when (this) {
+    SeasonalAmplitude.OFF -> R.string.seasonal_amplitude_off
+    SeasonalAmplitude.MILD -> R.string.seasonal_amplitude_mild
+    SeasonalAmplitude.STANDARD -> R.string.seasonal_amplitude_standard
+    SeasonalAmplitude.STRONG -> R.string.seasonal_amplitude_strong
 }
 
 @StringRes

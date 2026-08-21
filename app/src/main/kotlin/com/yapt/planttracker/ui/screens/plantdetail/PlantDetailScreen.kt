@@ -125,6 +125,7 @@ fun PlantDetailScreen(
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
+    val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
@@ -641,7 +642,25 @@ fun PlantDetailScreen(
                                             disabledLabelRes = R.string.watering_reminder_label
                                         ),
                                         onIntervalChange = { viewModel.setWateringInterval(it) }
-                                    )
+                                    ) {
+                                        if (seasonalWateringEnabled && plant?.wateringIntervalDays != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.pin_interval_label),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Switch(
+                                                    checked = plant?.pinIntervalToBase == true,
+                                                    onCheckedChange = { viewModel.setPinIntervalToBase(it) }
+                                                )
+                                            }
+                                        }
+                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                                 item {

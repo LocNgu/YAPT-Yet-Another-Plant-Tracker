@@ -21,7 +21,10 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
 
 /**
@@ -36,14 +39,15 @@ import kotlinx.coroutines.flow.first
  */
 // #568 added two small adaptive-watering helpers to this already-cohesive choke point; splitting
 // them out would scatter closely related logic across files for no readability gain.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class QuickLogUseCase(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val database: PlantDatabase
+    private val database: PlantDatabase,
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) {
 
     /**
@@ -288,7 +292,7 @@ class QuickLogUseCase(
             .map { it.wateringFeedback }
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = actualIntervalDays,
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
             currentBaseIntervalDays = currentInterval,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
@@ -304,6 +308,26 @@ class QuickLogUseCase(
     private suspend fun isAdaptiveWateringEnabled(): Boolean =
         dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
             ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
+
+    /**
+     * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
+     * seasonal correction isn't baked into [Plant.wateringConfidence] as a permanent thirst change.
+     * A no-op when SEASONAL_WATERING is off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
+     * math never applies the seasonal curve for a pinned plant, so its observed gaps are already
+     * flat and must not be seasonally corrected.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun deseasonalizedObservedIntervalDays(actualIntervalDays: Int, pinIntervalToBase: Boolean): Int {
+        if (pinIntervalToBase) return actualIntervalDays
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return actualIntervalDays
+        return SeasonalWatering.deseasonalizeToDays(
+            actualIntervalDays,
+            nowProvider().toLocalDate(),
+            amplitude,
+            SeasonalWatering.currentHemisphere()
+        )
+    }
 
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {
         plantRepository.getPlantById(plantId).first()?.let { p ->

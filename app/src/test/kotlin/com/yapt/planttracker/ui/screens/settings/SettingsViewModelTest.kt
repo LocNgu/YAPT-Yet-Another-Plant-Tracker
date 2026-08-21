@@ -17,6 +17,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -186,6 +187,50 @@ class SettingsViewModelTest {
         vm = buildVm()
 
         vm.setThemeMode(ThemeMode.DARK)
+
+        coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `seasonalAmplitude defaults to STANDARD when key is absent`() = runTest {
+        every { mockPrefs[SettingsKeys.SEASONAL_AMPLITUDE] } returns null
+        vm = buildVm()
+
+        vm.seasonalAmplitude.test {
+            assertEquals(SeasonalAmplitude.STANDARD, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `seasonalAmplitude emits MILD when DataStore returns MILD`() = runTest {
+        every { mockPrefs[SettingsKeys.SEASONAL_AMPLITUDE] } returns "MILD"
+        vm = buildVm()
+
+        vm.seasonalAmplitude.test {
+            assertEquals(SeasonalAmplitude.MILD, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `seasonalAmplitude falls back to STANDARD on an unrecognised stored value`() = runTest {
+        every { mockPrefs[SettingsKeys.SEASONAL_AMPLITUDE] } returns "EXTREME"
+        vm = buildVm()
+
+        vm.seasonalAmplitude.test {
+            assertEquals(SeasonalAmplitude.STANDARD, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setSeasonalAmplitude persists the value to DataStore`() = runTest {
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        vm = buildVm()
+
+        vm.setSeasonalAmplitude(SeasonalAmplitude.STRONG)
+        advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }
     }

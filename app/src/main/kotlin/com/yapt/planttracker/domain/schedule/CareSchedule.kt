@@ -39,14 +39,19 @@ object CareSchedule {
         totalLogs: Int,
         now: Long = System.currentTimeMillis(),
         lastRepottedAt: Long? = null,
-        customReminders: List<CustomReminder> = emptyList()
+        customReminders: List<CustomReminder> = emptyList(),
+        // #569 (product ADR-0026): 0.0 (same as flag off/SeasonalAmplitude.OFF) never applies the
+        // seasonal curve — every existing call site is unaffected unless it opts in.
+        seasonalAmplitude: Double = 0.0,
+        hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
     ): PlantCareStatus {
         val daysSinceWatering = lastWateredAt?.let {
             (now - it) / ONE_DAY_MS
         }
         val nowDate = now.toLocalDate()
 
-        val (nextDueAt, isOverdue, isDueSoon) = computeWateringDue(plant, lastWateredAt, now, nowDate)
+        val (nextDueAt, isOverdue, isDueSoon) =
+            computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
         val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
@@ -73,11 +78,20 @@ object CareSchedule {
         )
     }
 
-    private fun computeWateringDue(plant: Plant, lastWateredAt: Long?, now: Long, nowDate: LocalDate): DueStatus {
-        val computedNextDueAt = if (plant.wateringIntervalDays == null) {
+    @Suppress("LongParameterList")
+    private fun computeWateringDue(
+        plant: Plant,
+        lastWateredAt: Long?,
+        now: Long,
+        nowDate: LocalDate,
+        seasonalAmplitude: Double,
+        hemisphere: Hemisphere
+    ): DueStatus {
+        val effectiveIntervalDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
+        val computedNextDueAt = if (effectiveIntervalDays == null) {
             null
         } else if (lastWateredAt != null) {
-            lastWateredAt + TimeUnit.DAYS.toMillis(plant.wateringIntervalDays.toLong())
+            lastWateredAt + TimeUnit.DAYS.toMillis(effectiveIntervalDays.toLong())
         } else {
             now
         }
@@ -89,6 +103,27 @@ object CareSchedule {
         }
 
         return dueStatusFor(nextDueAt, nowDate)
+    }
+
+    /**
+     * The watering interval actually used for due-date math (#569, product ADR-0026):
+     * [Plant.wateringIntervalDays] unchanged when [seasonalAmplitude] is 0.0 (flag off or
+     * [SeasonalAmplitude.OFF]) or the plant opted out ([Plant.pinIntervalToBase]) — this is what
+     * makes the flag genuinely reversible. Otherwise the seasonal curve applied to
+     * [Plant.wateringBaseIntervalDays], falling back to the literal [Plant.wateringIntervalDays] as
+     * the base when one was never recorded (e.g. a plant created while the flag was off).
+     */
+    @Suppress("ReturnCount")
+    private fun effectiveWateringIntervalDays(
+        plant: Plant,
+        nowDate: LocalDate,
+        seasonalAmplitude: Double,
+        hemisphere: Hemisphere
+    ): Int? {
+        val configuredIntervalDays = plant.wateringIntervalDays ?: return null
+        if (seasonalAmplitude == 0.0 || plant.pinIntervalToBase) return configuredIntervalDays
+        val base = plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
+        return SeasonalWatering.effectiveInterval(base, nowDate, seasonalAmplitude, hemisphere)
     }
 
     private fun computeFertilizingDue(plant: Plant, lastFertilizedAt: Long?, nowDate: LocalDate): DueStatus {

@@ -5,25 +5,37 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val plantId: Long?
+    private val plantId: Long?,
+    // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
+    // updating; null is treated the same as SEASONAL_WATERING being off (#569).
+    private val dataStore: DataStore<Preferences>? = null
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
@@ -47,6 +59,22 @@ class AddEditPlantViewModel(
      */
     var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
     var repottingIntervalEnabled by mutableStateOf(false)
+
+    /** Per-plant opt-out from the seasonal curve (#569) — surfaced only while [seasonalWateringEnabled]. */
+    var pinIntervalToBase by mutableStateOf(false)
+
+    /**
+     * Whether the amplitude picker / "Pin interval" switch should render at all — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.tabsEnabled]'s pattern of
+     * reading the flag straight off [dataStore] rather than taking a `FeatureFlags` constructor
+     * param, to stay under Detekt's `LongParameterList` threshold.
+     */
+    val seasonalWateringEnabled: StateFlow<Boolean> = (dataStore?.data ?: emptyFlow())
+        .map { prefs ->
+            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
+                ?: FeatureFlagRegistry.SEASONAL_WATERING.default
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
@@ -88,6 +116,7 @@ class AddEditPlantViewModel(
                         repottingIntervalEnabled = true
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
+                    pinIntervalToBase = plant.pinIntervalToBase
                 }
             }
         }
@@ -108,6 +137,7 @@ class AddEditPlantViewModel(
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             val newWateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null
+            val intervalChanged = newWateringIntervalDays != loadedWateringIntervalDays
             val plant = Plant(
                 id = plantId ?: 0,
                 name = name.trim(),
@@ -124,32 +154,72 @@ class AddEditPlantViewModel(
                 },
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
-                useLiquidFertilizer = useLiquidFertilizer
+                useLiquidFertilizer = useLiquidFertilizer,
+                pinIntervalToBase = pinIntervalToBase
             )
             if (isEditMode) {
-                val existing = plantRepository.getPlantById(plantId!!).first()
-                // An unprompted edit to the watering interval on this screen is a full confidence
-                // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
-                // dialog, which never routes through here.
-                val wateringConfidence = if (newWateringIntervalDays != loadedWateringIntervalDays) {
-                    0
-                } else {
-                    existing?.wateringConfidence
-                }
-                plantRepository.updatePlant(
-                    plant.copy(
-                        createdAt = existing?.createdAt ?: now,
-                        wateringDueDateOverride = existing?.wateringDueDateOverride,
-                        wateringConfidence = wateringConfidence
-                    )
-                )
-                savePendingPhotos(plantId, now)
-                _events.emit(Event.Saved(plantId))
+                saveEdit(plant, newWateringIntervalDays, intervalChanged, now)
             } else {
-                val newId = plantRepository.addPlant(plant)
-                savePendingPhotos(newId, now)
-                _events.emit(Event.Saved(newId))
+                saveNew(plant, newWateringIntervalDays, now)
             }
+        }
+    }
+
+    private suspend fun saveEdit(plant: Plant, newWateringIntervalDays: Int?, intervalChanged: Boolean, now: Long) {
+        val existing = plantRepository.getPlantById(plantId!!).first()
+        // An unprompted edit to the watering interval on this screen is a full confidence
+        // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
+        // dialog, which never routes through here.
+        val wateringConfidence = if (intervalChanged) 0 else existing?.wateringConfidence
+        // Mirrors the confidence reset above: de-seasonalize the newly typed value to today
+        // (#569) so the effective interval doesn't jump on the next due-date computation.
+        // Unchanged when SEASONAL_WATERING is off, the plant is pinned, or the interval
+        // wasn't touched — the prior base (if any) is preserved rather than cleared.
+        val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
+        val wateringBaseIntervalDays = if (baseShouldBeRecomputed) {
+            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now) ?: existing?.wateringBaseIntervalDays
+        } else {
+            existing?.wateringBaseIntervalDays
+        }
+        plantRepository.updatePlant(
+            plant.copy(
+                createdAt = existing?.createdAt ?: now,
+                wateringDueDateOverride = existing?.wateringDueDateOverride,
+                wateringConfidence = wateringConfidence,
+                wateringBaseIntervalDays = wateringBaseIntervalDays
+            )
+        )
+        savePendingPhotos(plantId!!, now)
+        _events.emit(Event.Saved(plantId))
+    }
+
+    private suspend fun saveNew(plant: Plant, newWateringIntervalDays: Int?, now: Long) {
+        val wateringBaseIntervalDays = if (newWateringIntervalDays != null && !pinIntervalToBase) {
+            deseasonalizedBaseOrNull(newWateringIntervalDays, now)
+        } else {
+            null
+        }
+        val newId = plantRepository.addPlant(plant.copy(wateringBaseIntervalDays = wateringBaseIntervalDays))
+        savePendingPhotos(newId, now)
+        _events.emit(Event.Saved(newId))
+    }
+
+    /**
+     * `null` when SEASONAL_WATERING is off ([dataStore] is null or the flag reads off) — see
+     * [seasonalWateringEnabled].
+     */
+    private suspend fun deseasonalizedBaseOrNull(intervalDays: Int, now: Long): Double? {
+        val store = dataStore ?: return null
+        val amplitude = store.seasonalAmplitudeOnce()
+        return if (amplitude == 0.0) {
+            null
+        } else {
+            SeasonalWatering.deseasonalize(
+                intervalDays.toDouble(),
+                now.toLocalDate(),
+                amplitude,
+                SeasonalWatering.currentHemisphere()
+            )
         }
     }
 
@@ -199,10 +269,11 @@ class AddEditPlantViewModel(
     class Factory(
         private val plantRepository: PlantRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
-        private val plantId: Long?
+        private val plantId: Long?,
+        private val dataStore: DataStore<Preferences>? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddEditPlantViewModel(plantRepository, plantPhotoRepository, plantId) as T
+            AddEditPlantViewModel(plantRepository, plantPhotoRepository, plantId, dataStore) as T
     }
 }

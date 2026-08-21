@@ -1,9 +1,16 @@
 package com.yapt.planttracker.ui.screens.addplant
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -307,6 +314,107 @@ class AddEditPlantViewModelTest {
             plantPhotoRepo.addPhotos(
                 match { photos -> photos.any { it.plantId == 1L && it.uri == "content://new_photo.jpg" } }
             )
+        }
+    }
+
+    // --- #569: seasonal watering base interval ---
+
+    private fun seasonalWateringDataStore(
+        amplitude: SeasonalAmplitude = SeasonalAmplitude.STANDARD
+    ): DataStore<Preferences> =
+        mockk {
+            every { data } returns flowOf(
+                preferencesOf(
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
+                    SettingsKeys.SEASONAL_AMPLITUDE to amplitude.name
+                )
+            )
+        }
+
+    @Test
+    fun `wateringBaseIntervalDays stays null when dataStore is absent (SEASONAL_WATERING unreachable)`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Monstera"
+        vm.wateringIntervalEnabled = true
+        vm.wateringIntervalDays = 7
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.addPlant(match { it.wateringBaseIntervalDays == null }) }
+    }
+
+    @Test
+    fun `new plant with SEASONAL_WATERING on de-seasonalizes the typed interval to today`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
+        vm.name = "Monstera"
+        vm.wateringIntervalEnabled = true
+        vm.wateringIntervalDays = 7
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.addPlant(
+                match { it.wateringBaseIntervalDays != null && it.wateringBaseIntervalDays != 7.0 }
+            )
+        }
+    }
+
+    @Test
+    fun `pinIntervalToBase true keeps wateringBaseIntervalDays null even with SEASONAL_WATERING on`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
+        vm.name = "Monstera"
+        vm.wateringIntervalEnabled = true
+        vm.wateringIntervalDays = 7
+        vm.pinIntervalToBase = true
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.addPlant(match { it.wateringBaseIntervalDays == null && it.pinIntervalToBase })
+        }
+    }
+
+    @Test
+    fun `edit mode preserves the prior base when the watering interval is untouched`() = runTest {
+        val existingPlant = plant(id = 1L).copy(
+            wateringIntervalDays = 7,
+            wateringBaseIntervalDays = 5.18
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, seasonalWateringDataStore())
+        advanceUntilIdle()
+
+        vm.name = "Monstera Renamed"
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.18 }) }
+    }
+
+    @Test
+    fun `edit mode re-deseasonalizes the base when the watering interval is edited`() = runTest {
+        val existingPlant = plant(id = 1L).copy(
+            wateringIntervalDays = 7,
+            wateringBaseIntervalDays = 5.18
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, seasonalWateringDataStore())
+        advanceUntilIdle()
+
+        vm.wateringIntervalDays = 10
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringBaseIntervalDays != 5.18 && it.wateringBaseIntervalDays != null })
         }
     }
 }

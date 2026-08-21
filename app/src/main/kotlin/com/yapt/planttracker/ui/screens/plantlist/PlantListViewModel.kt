@@ -25,6 +25,7 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -95,8 +96,9 @@ class PlantListViewModel(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
-        _sortOrder
-    ) { plants, _, room, sort ->
+        _sortOrder,
+        dataStore.seasonalAmplitudeFlow()
+    ) { plants, _, room, sort, seasonalAmplitude ->
         val filtered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
@@ -104,7 +106,7 @@ class PlantListViewModel(
         }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            statusList.add(buildStatus(plant))
+            statusList.add(buildStatus(plant, seasonalAmplitude))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
             val (start, end) = DateUtils.todayRangeMillis()
@@ -453,7 +455,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -462,7 +464,8 @@ class PlantListViewModel(
             plant = plant,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
-            totalLogs = totalLogs
+            totalLogs = totalLogs,
+            seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = activeIssueCount)
     }
 
