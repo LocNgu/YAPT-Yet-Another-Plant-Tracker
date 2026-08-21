@@ -85,12 +85,14 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
+import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
@@ -126,6 +128,7 @@ fun PlantDetailScreen(
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
     val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
+    val seasonalAmplitudeValue by viewModel.seasonalAmplitudeValue.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
@@ -655,10 +658,18 @@ fun PlantDetailScreen(
                                                     modifier = Modifier.weight(1f)
                                                 )
                                                 Switch(
+                                                    modifier = Modifier.testTag("pin_interval_switch"),
                                                     checked = plant?.pinIntervalToBase == true,
                                                     onCheckedChange = { viewModel.setPinIntervalToBase(it) }
                                                 )
                                             }
+                                            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+                                            SeasonalWateringCurveChart(
+                                                amplitude = seasonalAmplitudeValue,
+                                                hemisphere = hemisphere,
+                                                isPinned = plant?.pinIntervalToBase == true,
+                                                modifier = Modifier.padding(top = 12.dp)
+                                            )
                                         }
                                     }
                                     Spacer(Modifier.height(16.dp))

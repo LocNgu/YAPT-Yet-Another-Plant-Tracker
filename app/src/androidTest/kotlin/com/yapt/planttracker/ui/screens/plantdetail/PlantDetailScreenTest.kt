@@ -2,6 +2,9 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -37,6 +40,8 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -50,6 +55,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
 
 @RunWith(AndroidJUnit4::class)
 class PlantDetailScreenTest {
@@ -95,6 +101,20 @@ class PlantDetailScreenTest {
 
     private val flagsOffDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(emptyPreferences())
+    }
+
+    /**
+     * Both [FeatureFlagRegistry.PLANT_DETAIL_TABS] and [FeatureFlagRegistry.SEASONAL_WATERING] on,
+     * for the seasonal-curve preview chart tests (#579) — the chart only renders in the tabbed Water
+     * layout, alongside the "Pin interval" switch from #578.
+     */
+    private val mockDataStoreWithSeasonal: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+            )
+        )
     }
 
     private val mockCustomReminderRepo: CustomReminderRepository = mockk<CustomReminderRepository>().also {
@@ -812,6 +832,47 @@ class PlantDetailScreenTest {
         return repo
     }
 
+    /**
+     * A [PlantRepository] mock whose [PlantRepository.getPlantById] flow is backed by a live
+     * [MutableStateFlow], and whose [PlantRepository.updatePlant] mutates that same state — so the
+     * seasonal-curve chart's "Pin interval" toggle (#579) is reflected in the Compose UI the way the
+     * real Room-backed repository would, mirroring [reactiveCustomReminderRepo]/[reactivePlantIssueRepo].
+     */
+    private fun reactivePlantRepo(initial: Plant): PlantRepository {
+        val state = MutableStateFlow(initial)
+        val repo = mockk<PlantRepository>()
+        every { repo.getPlantById(initial.id) } returns state
+        coEvery { repo.updatePlant(any()) } answers {
+            state.value = it.invocation.args[0] as Plant
+        }
+        return repo
+    }
+
+    private fun makeViewModelWithPlantRepo(
+        plant: Plant,
+        plantRepo: PlantRepository,
+        dataStore: DataStore<Preferences> = mockDataStoreWithSeasonal
+    ): PlantDetailViewModel {
+        val careLogRepo = mockk<CareLogRepository>().also {
+            every { it.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+            every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        }
+        val plantPhotoRepo = mockk<PlantPhotoRepository>().also {
+            every { it.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        }
+        return PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            dataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database
+        )
+    }
+
     private fun makeViewModelWithReminderRepo(
         plant: Plant,
         customReminderRepo: CustomReminderRepository,
@@ -1135,5 +1196,77 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         }
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
+    }
+
+    private fun seasonalCurveTodayText(multiplier: Double): String =
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.seasonal_curve_today, multiplier)
+
+    private fun seasonalCurvePinnedNoteText(): String =
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.seasonal_curve_pinned_note)
+
+    /**
+     * The seasonal-curve preview chart (#579) renders in the Water tab's inline settings card
+     * alongside the "Pin interval" switch, only while [FeatureFlagRegistry.SEASONAL_WATERING] is on.
+     * Asserts the visible "Today" caption text, computed the same way the chart itself does — never
+     * chart canvas/tree structure, per #420.
+     */
+    @Test
+    fun seasonalCurveChart_todayCaption_isDisplayed_whenSeasonalWateringEnabled() {
+        val plant = Plant(id = 70L, name = "Aloe", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 7)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        val expectedMultiplier = SeasonalWatering.season(
+            LocalDate.now(),
+            SeasonalAmplitude.STANDARD.value,
+            SeasonalWatering.currentHemisphere()
+        )
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(seasonalCurveTodayText(expectedMultiplier)))
+        composeTestRule.onNodeWithText(seasonalCurveTodayText(expectedMultiplier)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(seasonalCurvePinnedNoteText())
+            .assertDoesNotExist()
+    }
+
+    /** Toggling "Pin interval" (#578) surfaces the chart's pinned-state note (#579). */
+    @Test
+    fun seasonalCurveChart_pinnedNote_appearsWhenPinToggled() {
+        val plant = Plant(id = 71L, name = "Fern", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 10)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("pin_interval_switch"))
+        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOff()
+        composeTestRule.onNodeWithText(seasonalCurvePinnedNoteText()).assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("pin_interval_switch").performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText(seasonalCurvePinnedNoteText())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOn()
     }
 }

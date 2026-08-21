@@ -84,3 +84,13 @@ Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, visib
 `setSeasonalAmplitude()`), takes effect immediately (StateFlow-driven, no relaunch). The flag itself
 appears automatically in the Developer section's generic flag list (registry entry only, no extra UI
 code needed per the `FeatureFlagRegistry` pattern).
+
+## Preview chart (#579)
+`SeasonalWateringCurveChart` (`ui/components/`, see `.claude/rules/chart.md` for the Vico internals) renders
+directly under the Settings amplitude picker and in the Plant Detail Water tab's inline settings card, so the
+effect of Off/Mild/Standard/Strong is visible before committing to a setting. `domain/schedule
+/SeasonalWateringCurveSampler.kt` is the pure sampling function it's built on (`sample(amplitude, hemisphere,
+referenceYear)` → one `SeasonalCurvePoint` per calendar day) — a thin wrapper around `SeasonalWatering.season()`,
+JVM-tested sibling to `SeasonalWateringTest`/`CareScheduleSeasonalTest`. `SeasonalWatering.peakDayOfYear(hemisphere)`
+is a small read-only addition (not read by `season()` itself) that names the peak month for the Settings-only
+hemisphere caption. Visualization-only — never changes `CareSchedule.computeStatus()` or `season()`'s own math.

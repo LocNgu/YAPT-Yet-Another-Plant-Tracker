@@ -107,6 +107,20 @@ object SeasonalWatering {
     ): Int = deseasonalize(value.toDouble(), date, amplitude, hemisphere)
         .roundToInt()
         .coerceAtLeast(MIN_EFFECTIVE_INTERVAL_DAYS)
+
+    /**
+     * Day-of-year of [season]'s peak for [hemisphere], independent of amplitude (the peak's
+     * calendar position never moves, only its height does). Used by the seasonal-curve preview
+     * chart's hemisphere caption (#579) to name the peak month — not read by [season] itself, which
+     * keeps its own copy of this small conditional to avoid touching due-date computation for a
+     * visualization-only addition.
+     */
+    fun peakDayOfYear(hemisphere: Hemisphere): Int =
+        if (hemisphere == Hemisphere.SOUTHERN) {
+            NORTHERN_PEAK_DAY + SOUTHERN_PEAK_OFFSET_DAYS
+        } else {
+            NORTHERN_PEAK_DAY
+        }
 }
 
 /**

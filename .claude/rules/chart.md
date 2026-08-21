@@ -37,3 +37,23 @@ ticks) — replaces Vico's default, which placed fractional ticks that collapsed
 Label/data sync: use `ExtraStore` inside the transaction so labels + data stay atomically consistent. Auto-scroll:
 `initialScroll` is one-shot — pair with `autoScroll` + a custom `AutoScrollCondition` to re-snap on every model change.
 Completes #125 (12M averaging superseded by per-event points; unified zoom rejected per ADR-0004).
+
+## Seasonal watering curve preview chart (`SeasonalWateringCurveChart.kt`, #579)
+A second, much smaller Vico chart — own file, not a scaled-down `WateringHistoryChart`, since that one is too
+coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`CartesianChartHost`,
+`rememberLineCartesianLayer`, `rememberM3VicoTheme`), but the data is a pure daily sample of
+`SeasonalWatering.season()` across a year (`domain/schedule/SeasonalWateringCurveSampler.kt`), not care-log history:
+- **x-axis**: 365/366 daily-sampled points, x-coordinate is the same fractional month-index scheme as
+  `WateringHistoryChart.kt` (`monthIndexFor()`, `HorizontalAxis.ItemPlacer.aligned(spacing = { 1 })`) so ticks land
+  on month boundaries Jan…Dec — this is a *generic* calendar year, not tied to real `CareLog` timestamps.
+- **y-axis**: raw multiplier, **fixed** `0.5×`–`1.5×` (spans `SeasonalAmplitude.STRONG`'s bounds) regardless of the
+  currently selected amplitude, so switching Off/Mild/Standard/Strong visibly changes the curve's *height* within a
+  constant frame rather than rescaling the axis each redraw — the point is to make "how much" legible at a glance.
+- **"today" marker**: a small `Decoration` (`TodayMarkerDecoration`, mirrors `CareEventDecoration`'s coordinate math)
+  draws a dashed vertical guideline + a dot at the current day-of-year's position — not a Vico persistent marker API.
+- Rendered in two places, both gated behind `FeatureFlagRegistry.SEASONAL_WATERING`: directly under the Settings
+  amplitude picker (`showHemisphereCaption = true`, since hemisphere is otherwise inferred with no UI surfacing it
+  anywhere else), and in the Plant Detail Water tab's inline settings card next to the "Pin interval" switch
+  (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
+  pinned plant's due dates ignore this curve entirely — #578).
+- Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.
