@@ -39,14 +39,15 @@ import kotlinx.coroutines.flow.first
  */
 // #568 added two small adaptive-watering helpers to this already-cohesive choke point; splitting
 // them out would scatter closely related logic across files for no readability gain.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class QuickLogUseCase(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val database: PlantDatabase
+    private val database: PlantDatabase,
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) {
 
     /**
@@ -322,7 +323,7 @@ class QuickLogUseCase(
         if (amplitude == 0.0) return actualIntervalDays
         return SeasonalWatering.deseasonalizeToDays(
             actualIntervalDays,
-            System.currentTimeMillis().toLocalDate(),
+            nowProvider().toLocalDate(),
             amplitude,
             SeasonalWatering.currentHemisphere()
         )

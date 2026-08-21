@@ -39,6 +39,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.util.Calendar
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
@@ -366,22 +367,31 @@ class QuickLogUseCaseTest {
                     )
                 )
             }
-            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database)
-            val now = System.currentTimeMillis()
-            val twentyDaysAgo = now - TimeUnit.DAYS.toMillis(20)
+            val peakDay = localDateUtcMillis(2023, 1, 5)
+            useCase = QuickLogUseCase(
+                application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database, nowProvider = { peakDay }
+            )
+            val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
             val monstera = plant(wateringIntervalDays = 10)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = twentyDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = WateringFeedback.JUST_RIGHT),
+                CareLog(
+                    plantId = 1L,
+                    careType = CareType.WATER,
+                    loggedAt = twentyDaysBeforePeak,
+                    wateringFeedback = WateringFeedback.JUST_RIGHT
+                )
             )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
             val outcome = useCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT)
 
+            // Peak day (Jan 5, northern): season(peakDay) = 1 + 0.35 = 1.35, so the observed 20-day
+            // gap de-seasonalizes to round(20 / 1.35) = 15 before feeding the adaptive model.
             val deseasonalizedObserved = SeasonalWatering.deseasonalizeToDays(
                 20,
-                LocalDate.now(),
+                LocalDate.of(2023, 1, 5),
                 SeasonalAmplitude.STANDARD.value,
                 Hemisphere.NORTHERN
             )
@@ -406,14 +416,21 @@ class QuickLogUseCaseTest {
                 )
             )
         }
-        useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database)
-        val now = System.currentTimeMillis()
-        val twentyDaysAgo = now - TimeUnit.DAYS.toMillis(20)
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        useCase = QuickLogUseCase(
+            application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database, nowProvider = { peakDay }
+        )
+        val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
         val monstera = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = twentyDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = WateringFeedback.JUST_RIGHT),
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = twentyDaysBeforePeak,
+                wateringFeedback = WateringFeedback.JUST_RIGHT
+            )
         )
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
@@ -610,4 +627,11 @@ class QuickLogUseCaseTest {
 
         assertNull(request)
     }
+}
+
+private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.clear()
+    cal.set(year, month - 1, day, 12, 0, 0)
+    return cal.timeInMillis
 }
