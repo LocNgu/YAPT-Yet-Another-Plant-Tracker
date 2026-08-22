@@ -548,6 +548,112 @@ class QuickLogUseCaseTest {
         }
     }
 
+    // recordStillMoistCheck (#570)
+
+    @Test
+    fun `recordStillMoistCheck logs a CHECK entry with TOO_SOON feedback`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7)
+
+        val logged = useCase.recordStillMoistCheck(monstera)
+
+        assertTrue(logged)
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.CHECK && it.wateringFeedback == WateringFeedback.TOO_SOON }
+            )
+        }
+    }
+
+    @Test
+    fun `recordStillMoistCheck already checked today is rejected without inserting`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7)
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.CHECK, any(), null) } returns true
+
+        val logged = useCase.recordStillMoistCheck(monstera)
+
+        assertFalse(logged)
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
+
+    @Test
+    fun `recordStillMoistCheck advances a fresh due date override by one day`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7)
+
+        useCase.recordStillMoistCheck(monstera)
+
+        coVerify {
+            plantRepo.updatePlant(match { plant ->
+                plant.wateringDueDateOverride != null &&
+                    plant.wateringDueDateOverride!! - System.currentTimeMillis() in
+                    (TimeUnit.DAYS.toMillis(1) - 5_000)..(TimeUnit.DAYS.toMillis(1) + 5_000)
+            })
+        }
+    }
+
+    @Test
+    fun `recordStillMoistCheck advances an existing override by one more day`() = runTest {
+        val existingOverride = 1_000_000L
+        val monstera = plant(wateringIntervalDays = 7, wateringDueDateOverride = existingOverride)
+
+        useCase.recordStillMoistCheck(monstera)
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride == existingOverride + TimeUnit.DAYS.toMillis(1) })
+        }
+    }
+
+    @Test
+    fun `recordStillMoistCheck does not touch wateringConfidence when adaptive_watering is off`() = runTest {
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
+
+        useCase.recordStillMoistCheck(monstera)
+
+        coVerify(exactly = 0) {
+            plantRepo.updatePlant(match { it.wateringConfidence != 2 })
+        }
+    }
+
+    @Test
+    fun `recordStillMoistCheck feeds computeAdaptiveInterval and updates confidence when adaptive_watering is on`() =
+        runTest {
+            val adaptiveDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                )
+            }
+            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database)
+            val fifteenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(15)
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
+            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fifteenDaysAgo)
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            useCase.recordStillMoistCheck(monstera)
+
+            // Bootstrap (currentConfidence == null) -> confidence becomes 0, which differs from null,
+            // so the confidence-only update fires.
+            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 0 }) }
+        }
+
+    @Test
+    fun `recordStillMoistCheck does not call computeAdaptiveInterval when the plant has never been watered`() =
+        runTest {
+            val adaptiveDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                )
+            }
+            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database)
+            val monstera = plant(wateringIntervalDays = 7)
+            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns null
+
+            useCase.recordStillMoistCheck(monstera)
+
+            // Only the due-date-override update should have happened; no confidence write.
+            coVerify(exactly = 1) { plantRepo.updatePlant(any()) }
+        }
+
     // maybeBuildPhotoReminderRequest
 
     @Test

@@ -1,8 +1,6 @@
 package com.yapt.planttracker.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,8 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.WateringFeedback
-import com.yapt.planttracker.ui.util.emojiRes
-import com.yapt.planttracker.ui.util.labelRes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +31,8 @@ fun WaterFeedbackBottomSheet(
     onDismiss: () -> Unit,
     onLog: (WateringFeedback?) -> Unit
 ) {
-    var selectedFeedback by remember { mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT) }
+    // Single optional flag, not a 3-way chip group (#570, product ADR-0027); nothing pre-selected.
+    var wasDry by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -51,35 +48,14 @@ fun WaterFeedbackBottomSheet(
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.care_log_prompt_how_was_soil),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            FilterChip(
+                selected = wasDry,
+                onClick = { wasDry = !wasDry },
+                label = { Text(stringResource(R.string.care_log_feedback_was_dry_label)) }
             )
-            Spacer(Modifier.height(8.dp))
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                WateringFeedback.entries.forEach { feedback ->
-                    FilterChip(
-                        selected = selectedFeedback == feedback,
-                        onClick = { selectedFeedback = if (selectedFeedback == feedback) null else feedback },
-                        label = {
-                            Text(
-                                stringResource(
-                                    R.string.feedback_label_format,
-                                    stringResource(feedback.emojiRes()),
-                                    stringResource(feedback.labelRes())
-                                )
-                            )
-                        }
-                    )
-                }
-            }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { onLog(selectedFeedback) },
+                onClick = { onLog(if (wasDry) WateringFeedback.TOO_LATE else null) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.quick_water_log))

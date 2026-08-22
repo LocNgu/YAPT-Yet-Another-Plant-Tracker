@@ -630,8 +630,13 @@ internal fun computeCareEventMarkers(
     now: Long,
     effectiveStartMs: Long = rangeStartMs,
 ): List<CareEventMarker> {
+    // CHECK ("Still moist") entries stay in the plain care-history list but are explicitly excluded
+    // here (#570) — they're not a distinct chart marker type (careTypeColors has no entry for them
+    // either), and their timestamps would otherwise silently occupy cluster/stack slots without
+    // being drawn (CareEventDecoration skips bitmap-less marker types).
     val inRange = careLogs.filter {
-        it.careType != CareType.WATER && it.loggedAt >= rangeStartMs && it.loggedAt <= now
+        it.careType != CareType.WATER && it.careType != CareType.CHECK &&
+            it.loggedAt >= rangeStartMs && it.loggedAt <= now
     }
     if (inRange.isEmpty()) return emptyList()
 

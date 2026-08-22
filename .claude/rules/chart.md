@@ -22,6 +22,11 @@ appears immediately without navigating away.
 ## Care-event markers (`CareEventDecoration`, Vico `Decoration` API)
 - Per-type Material icons drawn at the bottom, day-level precision within each month column; same-day events stack;
   proximity clustering groups icons within 14 dp (`clusterMarkersByCx`, `internal data class PositionedMarker`) (#231/#355/#359).
+- `computeCareEventMarkers()` explicitly excludes both `CareType.WATER` (its own dedicated line/icon series) and
+  `CareType.CHECK` (#570, "Still moist" observations) — `careTypeColors` has no entry for `CHECK` either. CHECK
+  entries still appear in the plain care-history list; only the chart filters them, and does so explicitly (not by
+  relying on `iconBitmaps[marker.careType]` silently returning null, which would otherwise still consume a
+  cluster/stack slot without drawing anything).
 - The connecting line is a smooth **Catmull-Rom cubic spline** (`internal fun catmullRomSegments()` →
   `Path.cubicTo`); Vico's own line is transparent so smoothing applies to the per-event canvas polyline.
 - Tap → `EventMarkerDialog`: `CareEventDecoration` records each drawn icon's canvas position in a plain

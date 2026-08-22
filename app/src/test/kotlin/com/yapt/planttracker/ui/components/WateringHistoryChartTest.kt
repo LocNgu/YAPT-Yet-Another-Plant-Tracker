@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.components
 
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.WateringFeedback
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -287,6 +288,22 @@ class WateringHistoryChartTest {
     fun computeCareEventMarkers_waterLogsExcluded() {
         val waterLog = CareLog(id = 1, plantId = 1, careType = CareType.WATER, loggedAt = baseMs + dayMs(1))
         val result = computeCareEventMarkers(listOf(waterLog), baseMs, baseMs + dayMs(30))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun computeCareEventMarkers_checkLogsExcluded() {
+        // #570: a "Still moist" CHECK observation is a real care-history entry but is deliberately
+        // not a chart marker type (no careTypeColors entry either) — explicitly filtered, not a
+        // silent fallthrough.
+        val checkLog = CareLog(
+            id = 1,
+            plantId = 1,
+            careType = CareType.CHECK,
+            loggedAt = baseMs + dayMs(1),
+            wateringFeedback = WateringFeedback.TOO_SOON
+        )
+        val result = computeCareEventMarkers(listOf(checkLog), baseMs, baseMs + dayMs(30))
         assertTrue(result.isEmpty())
     }
 

@@ -26,6 +26,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
+import java.util.concurrent.TimeUnit
 
 /**
  * Shared quick-log business logic used by both `PlantListViewModel` (PlantCard quick-log buttons)
@@ -225,6 +226,69 @@ class QuickLogUseCase(
     }
 
     /**
+     * Records a "Still moist" observation from the check-reminders notification's Still-moist
+     * action (#570, `check_reminders` feature flag, `StillMoistReceiver`): a [CareType.CHECK] log
+     * (`wateringFeedback = TOO_SOON` — the plant was checked and not watered) and a
+     * [Plant.wateringDueDateOverride] advance by [STILL_MOIST_DEFERRAL_DAYS], mirroring
+     * `SkipWateringReceiver`'s fixed default (product ADR-0007). Returns `false` without inserting
+     * anything if [plant] already has a CHECK log today — a notification firing the action twice in
+     * one day (e.g. the "Run reminder check now" debug action) shouldn't double-log (#509-style guard
+     * via [isDuplicateGuarded]).
+     *
+     * Feeds the observation into [CareSchedule.computeAdaptiveInterval] only when `adaptive_watering`
+     * is on, and only updates [Plant.wateringConfidence] — it never silently rewrites the stored
+     * interval itself, mirroring every other quick-log surface's "confidence updates regardless of
+     * whether a suggestion is ever shown/applied" rule (no dialog is ever shown here, so there is no
+     * "apply" step to silently substitute for). Skip watering/Reschedule deliberately does **not**
+     * feed this model (#570, product ADR-0027) — this is the only action that does.
+     */
+    suspend fun recordStillMoistCheck(plant: Plant): Boolean {
+        if (isDuplicateGuarded(CareType.CHECK) && hasLoggedToday(plant.id, CareType.CHECK)) {
+            return false
+        }
+        val now = System.currentTimeMillis()
+        careLogRepository.addLog(
+            CareLog(
+                plantId = plant.id,
+                careType = CareType.CHECK,
+                loggedAt = now,
+                wateringFeedback = WateringFeedback.TOO_SOON
+            )
+        )
+
+        val newOverride = (plant.wateringDueDateOverride ?: now) + STILL_MOIST_DEFERRAL_MS
+        plantRepository.updatePlant(plant.copy(wateringDueDateOverride = newOverride, updatedAt = now))
+
+        if (isAdaptiveWateringEnabled()) {
+            recordStillMoistAdaptiveObservation(plant, now)
+        }
+        return true
+    }
+
+    @Suppress("ReturnCount")
+    private suspend fun recordStillMoistAdaptiveObservation(plant: Plant, now: Long) {
+        val currentInterval = plant.wateringIntervalDays ?: return
+        val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER) ?: return
+        val actualIntervalDays = CareSchedule.daysBetween(lastWatering.loggedAt, now)
+        if (actualIntervalDays <= 0) return
+
+        val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
+            .map { it.wateringFeedback }
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.TOO_SOON,
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
+            currentBaseIntervalDays = currentInterval,
+            currentConfidence = plant.wateringConfidence,
+            recentFeedback = recentFeedback
+        )
+        if (result.confidence != plant.wateringConfidence) {
+            plantRepository.updatePlant(
+                plant.copy(wateringConfidence = result.confidence, updatedAt = now)
+            )
+        }
+    }
+
+    /**
      * Builds a [PhotoReminderRequest] for [plantId] if the feature is enabled, the plant hasn't
      * already been reminded this session (shared across surfaces via
      * [PhotoReminderPolicy.shownThisSession]), and the newest photo across plant photos and
@@ -251,7 +315,8 @@ class QuickLogUseCase(
         return null
     }
 
-    private fun isDuplicateGuarded(careType: CareType) = careType == CareType.WATER || careType == CareType.FERTILIZE
+    private fun isDuplicateGuarded(careType: CareType) =
+        careType == CareType.WATER || careType == CareType.FERTILIZE || careType == CareType.CHECK
 
     private suspend fun hasLoggedToday(plantId: Long, careType: CareType): Boolean =
         careLogRepository.hasLogOfTypeOnDay(plantId, careType, System.currentTimeMillis())
@@ -262,8 +327,12 @@ class QuickLogUseCase(
         else -> error("No duplicate guard defined for $careType")
     }
 
+    /**
+     * [feedback] may be `null` (#570, product ADR-0027) — the quick-water sheet's chip collapsed to
+     * one optional flag, so `null` is now the dominant case. The legacy (flag-off) branch still
+     * needs an explicit value to produce a suggestion; the adaptive branch accepts `null` directly.
+     */
     private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
-        if (feedback == null) return null
         val lastTwo = careLogRepository.getLastTwoWaterings(plant.id)
         if (lastTwo.size < 2) return null
         val current = plant.wateringIntervalDays ?: return null
@@ -272,7 +341,7 @@ class QuickLogUseCase(
         val suggestion = if (isAdaptiveWateringEnabled()) {
             adaptWateringInterval(plant, feedback, actual, current)
         } else {
-            CareSchedule.computeSuggestedInterval(feedback, actual, current)
+            feedback?.let { CareSchedule.computeSuggestedInterval(it, actual, current) } ?: return null
         }
         return if (suggestion != current) QuickWaterSuggestion(plant.id, plant.name, suggestion) else null
     }
@@ -280,11 +349,12 @@ class QuickLogUseCase(
     /**
      * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and
      * persists the resulting [Plant.wateringConfidence] immediately, independent of whether the
-     * caller ends up surfacing/applying the returned suggestion.
+     * caller ends up surfacing/applying the returned suggestion. [feedback] may be `null` (#570) — a
+     * silent gap-only observation, capped at [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
-        feedback: WateringFeedback,
+        feedback: WateringFeedback?,
         actualIntervalDays: Int,
         currentInterval: Int
     ): Int {
@@ -341,5 +411,9 @@ class QuickLogUseCase(
 
     private companion object {
         const val RECENT_WATERINGS_WINDOW = 3
+
+        /** Fixed deferral applied by a Still-moist check, mirroring `SkipWateringReceiver`'s default. */
+        const val STILL_MOIST_DEFERRAL_DAYS = 1L
+        val STILL_MOIST_DEFERRAL_MS = TimeUnit.DAYS.toMillis(STILL_MOIST_DEFERRAL_DAYS)
     }
 }

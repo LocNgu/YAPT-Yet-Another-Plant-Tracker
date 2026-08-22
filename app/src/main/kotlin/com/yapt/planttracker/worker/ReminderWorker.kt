@@ -11,6 +11,8 @@ import com.yapt.planttracker.MainActivity
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.isFeatureEnabled
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
@@ -24,6 +26,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
+import com.yapt.planttracker.notification.StillMoistReceiver
 import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.flow.first
 
@@ -64,12 +67,13 @@ class ReminderWorker(
 
         if (dueReminders.isNotEmpty()) {
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
+            val checkRemindersEnabled = context.settingsDataStore.isFeatureEnabled(FeatureFlagRegistry.CHECK_REMINDERS)
 
             if (combineNotifications) {
                 postCombinedNotification(notificationManager, dueReminders.size)
             } else {
                 for (reminder in dueReminders) {
-                    postPlantNotification(notificationManager, reminder)
+                    postPlantNotification(notificationManager, reminder, checkRemindersEnabled)
                 }
             }
         }
@@ -139,10 +143,18 @@ class ReminderWorker(
         notificationManager.notify(COMBINED_NOTIFICATION_ID, notification)
     }
 
-    private fun postPlantNotification(notificationManager: NotificationManager, reminder: DuePlantReminder) {
+    private fun postPlantNotification(
+        notificationManager: NotificationManager,
+        reminder: DuePlantReminder,
+        checkRemindersEnabled: Boolean
+    ) {
         val status = reminder.status
         val plant = status.plant
         val body = buildCareBody(reminder.items)
+        val isWateringDue = status.isOverdue || status.isDueSoon
+        // Reframing only ever applies to a watering-due plant — a fertilizing/repotting-only
+        // reminder has no "check the soil" action to offer, so it keeps the plain plant-name title.
+        val showCheckReframing = isWateringDue && checkRemindersEnabled
 
         val deepLinkIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -155,30 +167,66 @@ class ReminderWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val skipIntent = Intent(context, SkipWateringReceiver::class.java).apply {
-            action = SkipWateringReceiver.ACTION_SKIP_WATERING
-            putExtra(SkipWateringReceiver.EXTRA_PLANT_ID, plant.id)
-        }
-        val skipPendingIntent = PendingIntent.getBroadcast(
-            context,
-            plant.id.toInt(),
-            skipIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val notificationBuilder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_plant_placeholder)
-            .setContentTitle(plant.name)
+            .setContentTitle(
+                if (showCheckReframing) context.getString(R.string.notification_check_title, plant.name) else plant.name
+            )
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
-        if (status.isOverdue || status.isDueSoon) {
-            notificationBuilder.addAction(0, context.getString(R.string.skip_watering_title), skipPendingIntent)
+        if (isWateringDue) {
+            if (showCheckReframing) {
+                // "Watered" reuses the same deep-link as tapping the notification body (opens
+                // the app to this plant, where the existing quick-water flow lives) — this action
+                // is a discoverability affordance, not a new code path (#570).
+                notificationBuilder.addAction(0, context.getString(R.string.notification_action_watered), pendingIntent)
+                notificationBuilder.addAction(
+                    0,
+                    context.getString(R.string.notification_action_still_moist),
+                    stillMoistPendingIntent(plant.id)
+                )
+            } else {
+                notificationBuilder.addAction(
+                    0,
+                    context.getString(R.string.skip_watering_title),
+                    skipPendingIntent(plant.id)
+                )
+            }
         }
 
         notificationManager.notify(plant.id.toInt(), notificationBuilder.build())
+    }
+
+    private fun skipPendingIntent(plantId: Long): PendingIntent {
+        val skipIntent = Intent(context, SkipWateringReceiver::class.java).apply {
+            action = SkipWateringReceiver.ACTION_SKIP_WATERING
+            putExtra(SkipWateringReceiver.EXTRA_PLANT_ID, plantId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            plantId.toInt(),
+            skipIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    // Distinct request codes aren't required here (technical ADR-0007): a different target
+    // component (StillMoistReceiver vs. SkipWateringReceiver) already makes these PendingIntents
+    // distinct from skipPendingIntent()'s even when they share plantId.toInt() as the request code.
+    private fun stillMoistPendingIntent(plantId: Long): PendingIntent {
+        val stillMoistIntent = Intent(context, StillMoistReceiver::class.java).apply {
+            action = StillMoistReceiver.ACTION_STILL_MOIST
+            putExtra(StillMoistReceiver.EXTRA_PLANT_ID, plantId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            plantId.toInt(),
+            stillMoistIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun buildCareBody(items: List<CareReminderItem>): String =

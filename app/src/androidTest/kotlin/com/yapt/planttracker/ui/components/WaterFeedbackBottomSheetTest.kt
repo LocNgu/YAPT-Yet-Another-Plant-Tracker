@@ -2,7 +2,6 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,14 +22,16 @@ class WaterFeedbackBottomSheetTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun justRightLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
-        .getString(R.string.feedback_just_right)
+    private fun wasDryLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.care_log_feedback_was_dry_label)
 
     private fun logLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.quick_water_log)
 
+    // Single optional flag, not a 3-way chip group (#570, product ADR-0027); nothing pre-selected.
+
     @Test
-    fun justRightChip_isSelectedByDefault() {
+    fun wasDryFlag_isUnselectedByDefault() {
         composeTestRule.setContent {
             WaterFeedbackBottomSheet(
                 plantName = "Fern",
@@ -40,30 +41,30 @@ class WaterFeedbackBottomSheetTest {
         }
 
         composeTestRule
-            .onNode(hasText(justRightLabel(), substring = true))
-            .assertIsSelected()
-    }
-
-    @Test
-    fun tappingSelectedChip_deselectsIt() {
-        composeTestRule.setContent {
-            WaterFeedbackBottomSheet(
-                plantName = "Fern",
-                onDismiss = {},
-                onLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithText(justRightLabel(), substring = true).performClick()
-
-        composeTestRule
-            .onNode(hasText(justRightLabel(), substring = true))
+            .onNodeWithText(wasDryLabel())
             .assertIsNotSelected()
     }
 
     @Test
-    fun logButton_withNoSelection_invokesOnLogWithNull() {
-        var loggedFeedback: WateringFeedback? = WateringFeedback.JUST_RIGHT
+    fun tappingWasDryFlag_selectsIt() {
+        composeTestRule.setContent {
+            WaterFeedbackBottomSheet(
+                plantName = "Fern",
+                onDismiss = {},
+                onLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText(wasDryLabel()).performClick()
+
+        composeTestRule
+            .onNodeWithText(wasDryLabel())
+            .assertIsSelected()
+    }
+
+    @Test
+    fun logButton_withDefaultSelection_invokesOnLogWithNull() {
+        var loggedFeedback: WateringFeedback? = WateringFeedback.TOO_LATE
         var invoked = false
 
         composeTestRule.setContent {
@@ -77,7 +78,6 @@ class WaterFeedbackBottomSheetTest {
             )
         }
 
-        composeTestRule.onNodeWithText(justRightLabel(), substring = true).performClick()
         composeTestRule.onNodeWithText(logLabel()).performClick()
 
         assertTrue(invoked)
@@ -85,7 +85,7 @@ class WaterFeedbackBottomSheetTest {
     }
 
     @Test
-    fun logButton_withDefaultSelection_invokesOnLogWithJustRight() {
+    fun logButton_withWasDryFlagSelected_invokesOnLogWithTooLate() {
         var loggedFeedback: WateringFeedback? = null
         var invoked = false
 
@@ -100,9 +100,10 @@ class WaterFeedbackBottomSheetTest {
             )
         }
 
+        composeTestRule.onNodeWithText(wasDryLabel()).performClick()
         composeTestRule.onNodeWithText(logLabel()).performClick()
 
         assertTrue(invoked)
-        assertEquals(WateringFeedback.JUST_RIGHT, loggedFeedback)
+        assertEquals(WateringFeedback.TOO_LATE, loggedFeedback)
     }
 }

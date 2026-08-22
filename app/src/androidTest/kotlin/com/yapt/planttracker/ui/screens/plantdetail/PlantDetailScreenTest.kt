@@ -469,7 +469,7 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithText("Watering").performClick()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("How was the soil?")
+            composeTestRule.onAllNodesWithText("Water Fern?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
@@ -541,7 +541,7 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         assertTrue(
-            composeTestRule.onAllNodesWithText("How was the soil?")
+            composeTestRule.onAllNodesWithText("Plant was dry / stressed")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }

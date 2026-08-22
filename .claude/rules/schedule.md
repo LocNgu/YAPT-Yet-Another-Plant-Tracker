@@ -72,6 +72,20 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   `computeAdaptiveInterval()` when `SEASONAL_WATERING` is on (`observedBase = observedGap / season(dateOfGap)`,
   #569, product ADR-0026) — `computeAdaptiveInterval()` itself is unaware of seasonality; only its
   `observedIntervalDays` input is patched at the call site. See `.claude/rules/seasonal-watering.md`.
+- **`feedback: WateringFeedback?`** — widened to nullable (#570, product ADR-0027): the WATER-log feedback chip
+  collapsed to one optional flag, making `null` the dominant case. `null` maps to `NEUTRAL_TARGET_MULTIPLIER`
+  (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
+  `NEUTRAL_OBSERVATION_GAIN` (0.15): `gain = if (feedback == null) min(confidenceGain, NEUTRAL_OBSERVATION_GAIN)
+  else confidenceGain` — a ceiling on the existing gain, not a second learning rate. Confidence still updates
+  normally on gap agreement for a null-feedback observation; only the `base` correction is throttled. This is what
+  keeps a single outlier gap (e.g. a 30-day holiday) with no feedback from dragging `base` as hard as an explicit
+  TOO_SOON/TOO_LATE would — the existing ±40% per-step clamp covers the rest.
+- **`CareType.CHECK`** ("Still moist", #570, product ADR-0027) is a `TOO_SOON` observation fed through this same
+  function by `QuickLogUseCase.recordStillMoistCheck()` — full confidence gain (it's explicit, not silent), and
+  only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
+  silently applied (no dialog exists for a notification action to show). Gated on `ADAPTIVE_WATERING` only —
+  `check_reminders` being on is orthogonal (see `.claude/rules/notifications.md`). Skip watering/Reschedule
+  deliberately does **not** feed this model at all (verified by `SkipWateringReceiverTest`) — see product ADR-0027.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

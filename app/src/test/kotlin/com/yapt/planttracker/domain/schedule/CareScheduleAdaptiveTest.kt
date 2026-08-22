@@ -308,4 +308,76 @@ class CareScheduleAdaptiveTest {
     fun `applying the suggestion unchanged leaves confidence unchanged`() {
         assertEquals(2, CareSchedule.confidenceAfterDialogEdit(2, suggestedIntervalDays = 10, appliedIntervalDays = 10))
     }
+
+    // --- computeAdaptiveInterval(): null feedback / gap-only observations (#570, product ADR-0027) ---
+
+    @Test
+    fun `a WATER log with null feedback moves base toward the observed gap`() {
+        // target = 14 * 1.00 = 14; gain = min(0.60, 0.15) = 0.15; base = 7 + 0.15*(14-7) = 8.05 -> 8.
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 14,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 0,
+            recentFeedback = listOf(null)
+        )
+        assertEquals(8, result.intervalDays)
+        assertTrue(result.intervalDays > 7)
+    }
+
+    @Test
+    fun `null feedback still lets confidence rise on gap agreement`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 10,
+            currentConfidence = 1,
+            recentFeedback = listOf(null)
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    @Test
+    fun `null feedback bootstraps confidence to zero and applies the capped gain`() {
+        // target = 10; gain = min(0.60, 0.15) = 0.15; base = 7 + 0.15*3 = 7.45 -> rounds to 7.
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(0, result.confidence)
+    }
+
+    @Test
+    fun `a null-feedback outlier gap cannot move base by more than the existing per-step clamp`() {
+        // Regression guard (#570): before this issue, a null-feedback log fed nothing into the model
+        // at all. Widening the signal must not let a single outlier gap defeat the ±40% per-step clamp,
+        // even though the capped gain (0.15) alone would already pull far less than the full gain would.
+        val oldBase = 10
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 100, // wildly larger than base, mirroring a holiday-length gap
+            currentBaseIntervalDays = oldBase,
+            currentConfidence = 0,
+            recentFeedback = listOf(null)
+        )
+        val change = kotlin.math.abs(result.intervalDays - oldBase).toDouble() / oldBase
+        assertTrue("step change $change exceeded 40%", change <= 0.40 + 1e-9)
+    }
+
+    @Test
+    fun `explicit feedback still uses the full confidence gain, unaffected by the null-feedback cap`() {
+        // Same shape as the first observation test in this file: target = 7*1.25 = 8.75;
+        // base = 7 + 0.60*(8.75-7) = 8.05 -> 8 (unchanged by NEUTRAL_OBSERVATION_GAIN's existence).
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = listOf(TOO_SOON)
+        )
+        assertEquals(8, result.intervalDays)
+    }
 }
