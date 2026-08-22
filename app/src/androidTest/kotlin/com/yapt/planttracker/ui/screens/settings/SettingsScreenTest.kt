@@ -10,6 +10,7 @@ import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,12 +23,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -146,6 +151,78 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
         assert(called)
+    }
+
+    /**
+     * The seasonal-curve preview chart (#579) sits directly under the amplitude picker, gated by
+     * the same [FeatureFlagRegistry.SEASONAL_WATERING] flag. Asserts the visible "range" caption
+     * text changes when tapping between amplitude options — never chart canvas/tree structure,
+     * per #420.
+     */
+    @Test
+    fun seasonalCurveChart_rangeCaption_changesWhenAmplitudeChanges() {
+        runBlocking {
+            dataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)] = true }
+        }
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val standardRange = targetContext.getString(R.string.seasonal_curve_range, 0.65, 1.35)
+        val strongRange = targetContext.getString(R.string.seasonal_curve_range, 0.5, 1.5)
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithTag("seasonal_amplitude_option_STANDARD").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(standardRange).performScrollTo().assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("seasonal_amplitude_option_STRONG").performScrollTo().performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText(strongRange).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(strongRange).assertIsDisplayed()
+    }
+
+    /** The hemisphere caption (#579) is only shown here, not on the Plant Detail variant. */
+    @Test
+    fun seasonalCurveChart_hemisphereCaption_isDisplayed() {
+        runBlocking {
+            dataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)] = true }
+        }
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        // Read the actual device-inferred hemisphere rather than assuming Northern, so this test
+        // isn't flaky on a CI runner configured with a southern-hemisphere timezone.
+        val expectedHemisphereLabel = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            if (SeasonalWatering.currentHemisphere() == Hemisphere.SOUTHERN) {
+                R.string.seasonal_curve_hemisphere_southern
+            } else {
+                R.string.seasonal_curve_hemisphere_northern
+            }
+        )
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithTag("seasonal_amplitude_option_STANDARD").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(expectedHemisphereLabel, substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

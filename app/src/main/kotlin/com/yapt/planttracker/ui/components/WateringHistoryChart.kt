@@ -671,9 +671,7 @@ internal fun computeWaterEventMarkers(
         val monthStartZdt = monthBase.plusMonths(completedMonths.toLong())
         val daysInMonth = monthStartZdt.toLocalDate().lengthOfMonth()
         WaterDataPoint(
-            // Round to 4 decimal places: Vico 2.0.0 throws IllegalArgumentException if x
-            // values have more than 4 decimal places (it uses GCD precision internally).
-            monthIndex = completedMonths + ((zdt.dayOfMonth - 1).toFloat() / daysInMonth * 10000).roundToInt() / 10000f,
+            monthIndex = completedMonths + fractionalDayOfMonth(zdt.dayOfMonth, daysInMonth),
             daysSincePrevious = interval.daysSincePrevious,
             timestamp = interval.timestamp,
         )

@@ -72,6 +72,14 @@
     <string name="seasonal_amplitude_mild">Mild</string>
     <string name="seasonal_amplitude_standard">Standard</string>
     <string name="seasonal_amplitude_strong">Strong</string>
+    <!-- Seasonal watering curve preview chart (#579) -->
+    <string name="seasonal_curve_title">Seasonal watering curve</string>
+    <string name="seasonal_curve_range">Range across the year: %1$.2f× – %2$.2f×</string>
+    <string name="seasonal_curve_today">Today: %1$.2f×</string>
+    <string name="seasonal_curve_hemisphere_caption">Based on your device\'s timezone — %1$s hemisphere, peak in %2$s</string>
+    <string name="seasonal_curve_hemisphere_northern">Northern</string>
+    <string name="seasonal_curve_hemisphere_southern">Southern</string>
+    <string name="seasonal_curve_pinned_note">Pinned — this plant\'s interval doesn\'t follow the seasonal curve</string>
     <string name="settings_section_display">Display</string>
     <string name="graveyard_settings_title">Plant Graveyard</string>
     <string name="settings_section_about">About</string>
