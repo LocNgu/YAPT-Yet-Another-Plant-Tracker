@@ -88,6 +88,14 @@ class PlantDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /**
+     * Raw global amplitude value (0.0 when the flag is off) for the seasonal-curve preview chart
+     * (#579) shown alongside the "Pin interval" switch — reuses the same choke point [careStatus]
+     * reads, rather than re-deriving amplitude at this call site.
+     */
+    val seasonalAmplitudeValue: StateFlow<Double> = dataStore.seasonalAmplitudeFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

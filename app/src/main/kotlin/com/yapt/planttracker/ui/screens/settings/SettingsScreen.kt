@@ -87,6 +87,8 @@ import com.yapt.planttracker.domain.devmode.DeveloperModeTapOutcome
 import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -548,6 +550,14 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+                SeasonalWateringCurveChart(
+                    amplitude = seasonalAmplitude.value,
+                    hemisphere = hemisphere,
+                    showHemisphereCaption = true,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
