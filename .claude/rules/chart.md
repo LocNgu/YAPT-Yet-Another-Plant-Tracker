@@ -38,6 +38,17 @@ Label/data sync: use `ExtraStore` inside the transaction so labels + data stay a
 `initialScroll` is one-shot — pair with `autoScroll` + a custom `AutoScrollCondition` to re-snap on every model change.
 Completes #125 (12M averaging superseded by per-event points; unified zoom rejected per ADR-0004).
 
+**x-step inference breaks on dense, irregular data (#579 follow-up fix).** Without an explicit `getXStep` on
+`rememberCartesianChart(...)`, Vico infers it as the GCD of every consecutive x-delta in the series
+(`CartesianChartModel.getDefaultXStep`). `WateringHistoryChart.kt`'s sparse per-event points get away with this,
+but `SeasonalWateringCurveChart.kt`'s ~365 daily-sampled points don't: unequal month lengths (28-31 days) mean the
+day-within-month fractions share no common divisor above the 4-decimal rounding quantum, so the inferred step
+collapses to ~0.0001 instead of the intended 1-month unit — `HorizontalAxis.ItemPlacer.aligned(spacing = { 1 })`
+then places ticks far too densely, and every one rounds to the same month label. Fix: pass
+`getXStep = { _, _, _ -> 1.0 }` explicitly whenever the x-coordinate scheme's "1 unit" has a known fixed meaning
+(here, 1 calendar month) rather than trusting the auto-inferred GCD — cheap insurance for any future dense,
+evenly-defined-but-numerically-irregular series in a Vico chart.
+
 ## Seasonal watering curve preview chart (`SeasonalWateringCurveChart.kt`, #579)
 A second, much smaller Vico chart — own file, not a scaled-down `WateringHistoryChart`, since that one is too
 coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`CartesianChartHost`,

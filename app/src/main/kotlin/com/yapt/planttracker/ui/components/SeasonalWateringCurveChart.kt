@@ -307,4 +307,11 @@ private fun rememberSeasonalCurveChart(
         itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }) },
     ),
     decorations = listOf(todayMarkerDecoration),
+    // Vico's default x-step is the GCD of every consecutive x-delta in the series
+    // (CartesianChartModel.getDefaultXStep). With ~365 daily-sampled points, day-within-month
+    // fractions from unequal month lengths (28-31 days) share no common divisor above the
+    // 4-decimal rounding quantum, so the inferred step collapses to ~0.0001 instead of 1 month —
+    // aligned(spacing = { 1 }) then places ticks far too densely and they all round to month
+    // index 0 ("Jan" repeated). Pin the step explicitly: 1 x-unit is always 1 calendar month here.
+    getXStep = { _, _, _ -> 1.0 },
 )
