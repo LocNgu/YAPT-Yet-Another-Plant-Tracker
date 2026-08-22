@@ -84,6 +84,10 @@
     <string name="settings_whats_new_title">What\'s New</string>
     <string name="settings_whats_new_subtitle">View the release history</string>
     <string name="skip_watering_title">Skip watering</string>
+    <!-- Check reminders (#570): reframed notification title/actions, flag-gated -->
+    <string name="notification_check_title">Check %s</string>
+    <string name="notification_action_watered">Watered</string>
+    <string name="notification_action_still_moist">Still moist</string>
     <string name="skip_watering_confirm">Confirm</string>
     <string name="skip_watering_decrease_cd">Decrease</string>
     <string name="skip_watering_increase_cd">Increase</string>
@@ -190,7 +194,8 @@
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
     <string name="care_log_prompt_what_did_you_do">What did you do?</string>
-    <string name="care_log_prompt_how_was_soil">How was the soil?</string>
+    <!-- Single optional WATER-log flag, replacing the old 3-way soil-state chip (#570, product ADR-0027) -->
+    <string name="care_log_feedback_was_dry_label">Plant was dry / stressed</string>
     <string name="care_log_fertilizer_type_label">Fertilizer type</string>
     <string name="fertilizer_type_liquid">Liquid</string>
     <string name="fertilizer_type_solid">Solid</string>
@@ -252,6 +257,9 @@
     <!-- Feature flag: computed seasonal watering factor (#569) -->
     <string name="feature_flag_seasonal_watering_title">Seasonal watering</string>
     <string name="feature_flag_seasonal_watering_description">Stretch watering intervals in winter and compress them in summer using a computed curve, instead of a fixed interval year-round. Off keeps today\'s behavior.</string>
+    <!-- Feature flag: check reminders (#570) -->
+    <string name="feature_flag_check_reminders_title">Check reminders</string>
+    <string name="feature_flag_check_reminders_description">Reframe the watering reminder as a check-in with Watered and Still moist actions, instead of an instruction to water. Off keeps today\'s behavior.</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
@@ -304,6 +312,7 @@
     <string name="care_type_note">Note</string>
     <string name="care_type_photo">Photo</string>
     <string name="care_type_custom">Custom care</string>
+    <string name="care_type_check">Checked</string>
     <string name="feedback_still_wet">Still wet</string>
     <string name="feedback_just_right">Just right</string>
     <string name="feedback_too_dry">Too dry</string>

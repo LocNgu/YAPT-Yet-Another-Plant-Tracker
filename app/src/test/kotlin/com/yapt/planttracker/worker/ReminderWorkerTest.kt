@@ -2,6 +2,7 @@ package com.yapt.planttracker.worker
 
 import android.Manifest
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationManager
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
@@ -9,6 +10,8 @@ import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
@@ -42,14 +45,21 @@ class ReminderWorkerTest {
     fun tearDown() {
         clearDatabase()
         notificationManager.cancelAll()
-        // Drop the per-test preference override so tests stay order-independent.
+        // Drop the per-test preference overrides so tests stay order-independent.
         runBlocking {
-            app.settingsDataStore.edit { it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED) }
+            app.settingsDataStore.edit {
+                it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED)
+                it.remove(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.CHECK_REMINDERS))
+            }
         }
     }
 
     private fun setFertilizingNotificationsEnabled(enabled: Boolean) = runBlocking {
         app.settingsDataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    private fun setCheckRemindersEnabled(enabled: Boolean) = runBlocking {
+        app.settingsDataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.CHECK_REMINDERS)] = enabled }
     }
 
     // Room's synchronous clearAllTables() would run on Robolectric's main thread and throw;
@@ -192,6 +202,61 @@ class ReminderWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(1, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `doWork keeps the plain title and Skip watering action when check_reminders is off`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
+        )
+
+        runWorker()
+
+        val notification = notificationManager.activeNotifications.first().notification
+        assertEquals("Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
+        assertEquals(listOf("Skip watering"), actionTitles)
+    }
+
+    @Test
+    fun `doWork reframes to a Check title with Watered and Still moist actions when check_reminders is on`() =
+        runBlocking {
+            shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+            setCheckRemindersEnabled(true)
+            app.plantRepository.addPlant(
+                Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
+            )
+
+            runWorker()
+
+            val notification = notificationManager.activeNotifications.first().notification
+            assertEquals("Check Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+            val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
+            assertEquals(listOf("Watered", "Still moist"), actionTitles)
+        }
+
+    @Test
+    fun `doWork does not reframe a repotting-only reminder even when check_reminders is on`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setCheckRemindersEnabled(true)
+        // No watering interval -> not watering-due, so the check reframing must not apply even
+        // though the flag is on; this reminder is repotting-only.
+        app.plantRepository.addPlant(
+            Plant(
+                name = "Bonsai",
+                wateringIntervalDays = null,
+                repottingIntervalDays = 365,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+
+        runWorker()
+
+        val notification = notificationManager.activeNotifications.first().notification
+        assertEquals("Bonsai", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals(0, notification.actions.orEmpty().size)
     }
 
     @Test

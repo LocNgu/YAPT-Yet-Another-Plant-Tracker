@@ -1,6 +1,6 @@
 # Product ADR-0011: Feedback question text revised to "How was the soil?"
 
-**Status**: accepted  
+**Status**: superseded by [ADR-0027](0027-check-reminders-still-moist-action.md)
 **Date**: 2026-06-03  
 **Supersedes**: ADR-0009
 

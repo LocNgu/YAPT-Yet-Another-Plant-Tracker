@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Shower
 import androidx.compose.material.icons.filled.Spa
@@ -42,6 +43,7 @@ fun CareType.labelRes(): Int = when (this) {
     CareType.NOTE -> R.string.care_type_note
     CareType.PHOTO -> R.string.care_type_photo
     CareType.CUSTOM -> R.string.care_type_custom
+    CareType.CHECK -> R.string.care_type_check
 }
 
 fun CareType.icon(): ImageVector = when (this) {
@@ -53,6 +55,7 @@ fun CareType.icon(): ImageVector = when (this) {
     CareType.NOTE -> Icons.AutoMirrored.Filled.Notes
     CareType.PHOTO -> Icons.Filled.AutoAwesome
     CareType.CUSTOM -> Icons.Filled.Event
+    CareType.CHECK -> Icons.Filled.FactCheck
 }
 
 @StringRes

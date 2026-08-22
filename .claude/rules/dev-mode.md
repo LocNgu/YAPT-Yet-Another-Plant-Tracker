@@ -41,6 +41,12 @@ no schema bump).
   `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship unconditionally.
   The amplitude picker itself lives on the main Settings screen (not the Developer section), visible only while
   this flag is on — only the flag's on/off `Switch` appears in the generic Developer-section flags list.
+- `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off, #570) reframes the watering reminder
+  notification from "Water {plant}" to "Check {plant}" with Watered/Still-moist actions — see
+  `.claude/rules/notifications.md`. Independent of `ADAPTIVE_WATERING` (different risk surface: this one touches
+  `ReminderWorker`, the notification composer, and a new `StillMoistReceiver`); the Still-moist action's adaptive
+  feed is gated on `ADAPTIVE_WATERING` separately, so the two flags compose rather than one implying the other.
+  No new columns/backup fields — `CareType.CHECK` reuses the existing care-log pipeline entirely.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,

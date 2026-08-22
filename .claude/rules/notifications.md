@@ -36,7 +36,37 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   See technical ADR-0019 (#232).
 
 ## Skip watering
-`SkipWateringReceiver` handles the notification action (+1 day override); guards on `intent.action` (#178).
+`SkipWateringReceiver` handles the notification action (+1 day override); guards on `intent.action` (#178). Its
+actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside `goAsync()` for direct
+testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a learning signal (#570,
+product ADR-0027) — it only ever touches `wateringDueDateOverride`, never `wateringConfidence`/
+`wateringIntervalDays`/`wateringBaseIntervalDays`; `SkipWateringReceiverTest` pins this so it can't be wired up
+later by accident.
+
+## Check reminders (#570, product ADR-0027)
+`FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off) reframes the watering-due reminder from an
+instruction to a check-in prompt. Gated in `ReminderWorker.postPlantNotification()` on `isWateringDue
+(= status.isOverdue || status.isDueSoon)` **and** the flag — a fertilizing/repotting-only reminder never reframes,
+even with the flag on, since there's no "check the soil" action to offer it.
+- **Flag off** (or not watering-due): byte-for-byte identical to today — title = plant name, single "Skip watering"
+  action.
+- **Flag on, watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the single
+  "Skip watering" action is replaced by two: **Watered** (reuses the same deep-link `PendingIntent` as tapping the
+  notification body — a discoverability affordance, not a new code path) and **Still moist**
+  (`StillMoistReceiver`).
+- `StillMoistReceiver` mirrors `SkipWateringReceiver`'s no-dialog, single-tap shape exactly (same `goAsync()` +
+  internal-suspend-fun-for-testability pattern), but delegates the actual work to
+  `QuickLogUseCase.recordStillMoistCheck(plant)` rather than touching repositories directly — that's the one choke
+  point that also owns the CHECK same-day dedupe guard (`isDuplicateGuarded()`). It writes a `CareType.CHECK` log
+  (`wateringFeedback = TOO_SOON`), advances `wateringDueDateOverride` by the same fixed +1 day default as
+  `SkipWateringReceiver`, and — only when `ADAPTIVE_WATERING` is also on — feeds the observation into
+  `CareSchedule.computeAdaptiveInterval()` (see `.claude/rules/schedule.md`), persisting only the resulting
+  `wateringConfidence`, never a silent interval change.
+- Notification IDs/`PendingIntent` request codes stay `plant.id.toInt()` for the Still-moist action too (technical
+  ADR-0007) — a different target `BroadcastReceiver` component already makes it distinct from the Skip-watering
+  `PendingIntent` even sharing that request code, so no new ID scheme was needed.
+- `CareType.CHECK` entries are explicitly excluded from `WateringHistoryChart`'s data series/marker-color map
+  (`computeCareEventMarkers()`, see `.claude/rules/chart.md`) but stay visible in the plain care-history list.
 
 ## Photo reminder (DataStore-only, no DB migration)
 `PHOTO_REMINDER_ENABLED` toggle. Pure logic in `domain/reminder/PhotoReminderPolicy`

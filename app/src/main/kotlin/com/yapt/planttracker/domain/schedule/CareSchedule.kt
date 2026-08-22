@@ -246,6 +246,23 @@ object CareSchedule {
     private const val JUST_RIGHT_TARGET_MULTIPLIER = 1.00
     private const val TOO_LATE_TARGET_MULTIPLIER = 0.82
 
+    /**
+     * `null` feedback (#570, product ADR-0027 — the 3-way soil-state chip collapsed to one optional
+     * flag, making `null` the dominant case on WATER logs): with no chip, the observed gap itself is
+     * the whole signal, so the target is the gap verbatim, same as [JUST_RIGHT_TARGET_MULTIPLIER].
+     */
+    const val NEUTRAL_TARGET_MULTIPLIER = 1.00
+
+    /**
+     * Ceiling on the gain applied to a `null`-feedback observation — a cap on the existing
+     * confidence-driven gain, not a second parallel learning rate. Explicit feedback still moves
+     * [Plant.wateringConfidence] at the full [ADAPTIVE_GAIN_BY_CONFIDENCE] gain; a silent observation
+     * moves it more slowly, so a single outlier gap (e.g. a 30-day holiday) with no feedback can't
+     * drag `base` as hard as an explicit TOO_SOON/TOO_LATE would (the ±40% per-step clamp below
+     * covers the rest of that case).
+     */
+    const val NEUTRAL_OBSERVATION_GAIN = 0.15
+
     /** Result of one adaptive-watering observation: the new suggested base interval and confidence. */
     data class AdaptiveInterval(val intervalDays: Int, val confidence: Int)
 
@@ -287,9 +304,16 @@ object CareSchedule {
      * [GAP_AGREEMENT_TOLERANCE] (confidence rises). [currentConfidence] == `null` means this plant has
      * never been adapted: confidence bootstraps to 0 at the confidence-0 gain, and no transition is
      * evaluated on this first observation (nothing to agree or disagree with yet).
+     *
+     * [feedback] may be `null` (#570, product ADR-0027) — the WATER-log feedback chip collapsed to
+     * one optional flag, so a silent (no-chip) observation is now the dominant case. `null` maps to
+     * [NEUTRAL_TARGET_MULTIPLIER] (`target = observed`, same value as JUST_RIGHT's) at a gain capped by
+     * [NEUTRAL_OBSERVATION_GAIN] — a ceiling on the same gain used elsewhere, not a second learning
+     * rate. Confidence still updates normally (gap agreement is evidence about the schedule regardless
+     * of what was tapped); only the `base` correction is throttled for a silent observation.
      */
     fun computeAdaptiveInterval(
-        feedback: WateringFeedback,
+        feedback: WateringFeedback?,
         observedIntervalDays: Int,
         currentBaseIntervalDays: Int,
         currentConfidence: Int?,
@@ -299,16 +323,17 @@ object CareSchedule {
             WateringFeedback.TOO_SOON -> TOO_SOON_TARGET_MULTIPLIER
             WateringFeedback.JUST_RIGHT -> JUST_RIGHT_TARGET_MULTIPLIER
             WateringFeedback.TOO_LATE -> TOO_LATE_TARGET_MULTIPLIER
+            null -> NEUTRAL_TARGET_MULTIPLIER
         }
         val target = observedIntervalDays * multiplier
 
         if (currentConfidence == null) {
-            val gain = ADAPTIVE_GAIN_BY_CONFIDENCE[0]
+            val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback)
             val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
             return AdaptiveInterval(clampStep(currentBaseIntervalDays, rawNewBase), 0)
         }
 
-        val gain = ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence]
+        val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback)
         val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
         val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
 
@@ -322,6 +347,14 @@ object CareSchedule {
         }
         return AdaptiveInterval(newBase, newConfidence)
     }
+
+    /**
+     * `null` feedback (silent gap-only observation) never moves `base` faster than
+     * [NEUTRAL_OBSERVATION_GAIN], regardless of confidence — explicit feedback (non-null) always
+     * uses the full confidence-driven [confidenceGain] unchanged (#570).
+     */
+    private fun gainFor(confidenceGain: Double, feedback: WateringFeedback?): Double =
+        if (feedback == null) min(confidenceGain, NEUTRAL_OBSERVATION_GAIN) else confidenceGain
 
     /**
      * Confidence effect of dismissing the ADR-0006 suggestion dialog without applying: a dismissal

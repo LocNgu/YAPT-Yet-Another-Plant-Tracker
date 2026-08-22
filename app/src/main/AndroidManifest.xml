@@ -60,5 +60,13 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".notification.StillMoistReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.yapt.planttracker.ACTION_STILL_MOIST" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

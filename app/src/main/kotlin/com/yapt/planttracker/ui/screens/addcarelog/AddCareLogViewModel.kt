@@ -48,7 +48,10 @@ class AddCareLogViewModel(
     var photoUri by mutableStateOf<String?>(null)
     var amount by mutableStateOf("")
     var loggedAt by mutableStateOf(System.currentTimeMillis())
-    var selectedFeedback by mutableStateOf<WateringFeedback?>(WateringFeedback.JUST_RIGHT)
+
+    // Nothing pre-selected (#570, product ADR-0027) — the 3-way soil-state chip collapsed to one
+    // optional "was dry" flag; a defaulted JUST_RIGHT is no longer written for an untouched log.
+    var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
     private var customReminderId: Long? = null
 
@@ -178,9 +181,15 @@ class AddCareLogViewModel(
         else -> error("No duplicate guard defined for $careType")
     }
 
+    /**
+     * [selectedFeedback] is no longer required to be non-null (#570, product ADR-0027) — with the
+     * chip collapse, `null` is the dominant case, and the legacy (flag-off) branch below is the only
+     * one that still needs an explicit feedback value to produce a suggestion; the adaptive branch
+     * accepts `null` directly (feeds `CareSchedule.NEUTRAL_TARGET_MULTIPLIER` at a capped gain).
+     */
     private suspend fun computeSuggestedInterval(): Int? {
-        val feedback = selectedFeedback ?: return null
         if (selectedCareType != CareType.WATER) return null
+        val feedback = selectedFeedback
 
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
         val currentInterval = plant.wateringIntervalDays
@@ -197,7 +206,7 @@ class AddCareLogViewModel(
         val suggested = if (currentInterval != null && isAdaptiveWateringEnabled()) {
             adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
         } else {
-            CareSchedule.computeSuggestedInterval(feedback, actualIntervalDays, currentInterval)
+            feedback?.let { CareSchedule.computeSuggestedInterval(it, actualIntervalDays, currentInterval) } ?: return null
         }
         return if (suggested != currentInterval) suggested else null
     }
@@ -206,11 +215,12 @@ class AddCareLogViewModel(
      * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and
      * persists the resulting [Plant.wateringConfidence] immediately — confidence updates on every
      * qualifying observation, independent of whether the caller later shows/applies the resulting
-     * suggestion dialog.
+     * suggestion dialog. [feedback] may be `null` (#570) — a silent gap-only observation, capped at
+     * [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
-        feedback: WateringFeedback,
+        feedback: WateringFeedback?,
         actualIntervalDays: Int,
         currentInterval: Int
     ): Int {
