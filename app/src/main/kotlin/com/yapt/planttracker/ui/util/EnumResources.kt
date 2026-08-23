@@ -85,6 +85,7 @@ fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.DIALOG_DISMISSAL -> R.string.adjustment_trigger_dialog_dismissal
     WateringAdjustmentTrigger.DIALOG_EDIT -> R.string.adjustment_trigger_dialog_edit
     WateringAdjustmentTrigger.MANUAL_EDIT -> R.string.adjustment_trigger_manual_edit
+    WateringAdjustmentTrigger.SILENT_APPLY_UNDONE -> R.string.adjustment_trigger_silent_apply_undone
 }
 
 @StringRes

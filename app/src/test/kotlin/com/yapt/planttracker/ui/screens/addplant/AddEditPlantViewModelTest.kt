@@ -7,9 +7,11 @@ import app.cash.turbine.test
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -415,6 +417,38 @@ class AddEditPlantViewModelTest {
 
         coVerify {
             plantRepo.updatePlant(match { it.wateringBaseIntervalDays != 5.18 && it.wateringBaseIntervalDays != null })
+        }
+    }
+
+    @Test
+    fun `edit mode logs the MANUAL_EDIT row's beforeIntervalDays in base-space, not the stale literal`() = runTest {
+        // #584 review: existing.wateringBaseIntervalDays (6.0, the true base) must be logged as the
+        // row's "before", not the stale literal wateringIntervalDays (10) — mirrors
+        // PlantDetailViewModel.setWateringInterval()'s equivalent MANUAL_EDIT fix.
+        val existingPlant = plant(id = 1L).copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk()
+        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        val dataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
+                )
+            )
+        }
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
+        advanceUntilIdle()
+
+        vm.wateringIntervalDays = 9
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match { it.trigger == WateringAdjustmentTrigger.MANUAL_EDIT && it.beforeIntervalDays == 6 }
+            )
         }
     }
 }

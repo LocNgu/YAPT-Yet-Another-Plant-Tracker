@@ -14,12 +14,14 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
@@ -180,6 +182,18 @@ class QuickLogUseCaseSeasonalTest {
             )
             assertEquals(expectedFromBase.intervalDays.takeIf { it != 10 }, outcome.suggestion?.suggestedInterval)
             assertTrue(expectedFromBase.intervalDays != expectedFromStaleInterval.intervalDays)
+            // #584 review: the WATER_JUST_RIGHT row itself must log the true base (6), not the stale
+            // literal wateringIntervalDays (10) — the same value PlantDetailViewModelSeasonalTest's
+            // "applySuggestedInterval logs the same base-space beforeIntervalDays..." case asserts a
+            // DIALOG_EDIT row would log for this identical plant shape, so "Recent adjustments" never
+            // mixes units for the same underlying change.
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match {
+                        it.trigger == WateringAdjustmentTrigger.WATER_JUST_RIGHT && it.beforeIntervalDays == 6
+                    }
+                )
+            }
         }
 
     @Test

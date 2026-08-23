@@ -423,6 +423,9 @@ class PlantDetailViewModelTest {
         coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 7 }) }
     }
 
+    // undoSilentIntervalApply's SILENT_APPLY_UNDONE adjustment-row coverage lives in
+    // PlantDetailViewModelSeasonalTest, to keep this file under Detekt's LargeClass threshold.
+
     @Test
     fun `quickFertilize logs fertilize via use case and emits message`() = runTest {
         val monstera = plant().copy(fertilizingIntervalDays = 30)

@@ -30,5 +30,13 @@ enum class WateringAdjustmentTrigger {
     CHECK_STILL_MOIST,
     DIALOG_DISMISSAL,
     DIALOG_EDIT,
-    MANUAL_EDIT
+    MANUAL_EDIT,
+
+    /**
+     * The Snackbar "Undo" action on a silently-applied suggestion (#584 review) —
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.undoSilentIntervalApply],
+     * deliberately distinct from [DIALOG_EDIT] so "Recent adjustments" never shows a reverted apply
+     * as if it still stood.
+     */
+    SILENT_APPLY_UNDONE
 }

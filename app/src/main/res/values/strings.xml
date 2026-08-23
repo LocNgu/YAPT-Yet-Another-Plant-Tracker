@@ -488,7 +488,6 @@
     <string name="watering_explanation_no_adjustments">No adjustments yet</string>
     <string name="watering_explanation_adjustment_unchanged">unchanged</string>
     <string name="watering_explanation_adjustment_change">%1$d → %2$d days</string>
-    <string name="watering_explanation_plain_only">No watering schedule set for this plant.</string>
     <string name="adjustment_trigger_water_too_soon">still wet</string>
     <string name="adjustment_trigger_water_too_late">too dry</string>
     <string name="adjustment_trigger_water_just_right">just right</string>
@@ -497,6 +496,7 @@
     <string name="adjustment_trigger_dialog_dismissal">kept schedule</string>
     <string name="adjustment_trigger_dialog_edit">applied suggestion</string>
     <string name="adjustment_trigger_manual_edit">manual edit</string>
+    <string name="adjustment_trigger_silent_apply_undone">undone</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

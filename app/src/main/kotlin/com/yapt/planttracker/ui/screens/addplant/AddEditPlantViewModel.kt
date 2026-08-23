@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
@@ -182,8 +183,13 @@ class AddEditPlantViewModel(
         // Unchanged when SEASONAL_WATERING is off, the plant is pinned, or the interval
         // wasn't touched — the prior base (if any) is preserved rather than cleared.
         val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
+        val deseasonalizedNewBase = if (baseShouldBeRecomputed) {
+            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now)
+        } else {
+            null
+        }
         val wateringBaseIntervalDays = if (baseShouldBeRecomputed) {
-            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now) ?: existing?.wateringBaseIntervalDays
+            deseasonalizedNewBase ?: existing?.wateringBaseIntervalDays
         } else {
             existing?.wateringBaseIntervalDays
         }
@@ -196,13 +202,25 @@ class AddEditPlantViewModel(
             )
         )
         if (intervalChanged && newWateringIntervalDays != null && isAdaptiveWateringEnabled()) {
+            // #584 review: log base-space before/after, not the literal typed value — matches
+            // PlantDetailViewModel.setWateringInterval()'s equivalent MANUAL_EDIT fix.
+            val loggedBefore = currentBaseIntervalDaysOrLiteral(
+                pinned = existing?.pinIntervalToBase == true,
+                storedBase = existing?.wateringBaseIntervalDays,
+                literal = existing?.wateringIntervalDays ?: newWateringIntervalDays
+            )
+            val loggedAfter = if (!pinIntervalToBase) {
+                (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
+            } else {
+                newWateringIntervalDays
+            }
             wateringAdjustmentRepository?.addAdjustment(
                 WateringAdjustment(
                     plantId = plantId!!,
                     triggeredAt = now,
                     trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
-                    beforeIntervalDays = existing?.wateringIntervalDays ?: newWateringIntervalDays,
-                    afterIntervalDays = newWateringIntervalDays
+                    beforeIntervalDays = loggedBefore,
+                    afterIntervalDays = loggedAfter
                 )
             )
         }
@@ -244,6 +262,21 @@ class AddEditPlantViewModel(
                 SeasonalWatering.currentHemisphere()
             )
         }
+    }
+
+    /**
+     * The pre-edit base-space reference for [WateringAdjustment] row units (#584 review) — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel]'s
+     * `currentBaseIntervalDaysOrLiteral()`. Collapses to [literal] itself when [pinned] or
+     * SEASONAL_WATERING is off, matching every other read of [Plant.wateringBaseIntervalDays].
+     */
+    @Suppress("ReturnCount")
+    private suspend fun currentBaseIntervalDaysOrLiteral(pinned: Boolean, storedBase: Double?, literal: Int): Int {
+        if (pinned) return literal
+        val store = dataStore ?: return literal
+        val amplitude = store.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return literal
+        return (storedBase ?: literal.toDouble()).roundToInt()
     }
 
     fun deletePlant() {
