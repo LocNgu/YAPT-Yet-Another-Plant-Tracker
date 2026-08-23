@@ -435,8 +435,12 @@ class PlantDetailViewModel(
         } else {
             plant.wateringConfidence
         }
+        // newInterval is already season-neutral (base-space) — it's QuickLogUseCase's adaptive
+        // suggestion, computed entirely from already-deseasonalized inputs (unlike setWateringInterval's
+        // `days` param below, which is a literal effective value the user just typed and genuinely needs
+        // deseasonalizing). Re-deseasonalizing it here would double-divide by season() (#584 review).
         val wateringBaseIntervalDays = if (!plant.pinIntervalToBase) {
-            deseasonalizedBaseOrNull(newInterval) ?: plant.wateringBaseIntervalDays
+            newInterval.toDouble()
         } else {
             plant.wateringBaseIntervalDays
         }
@@ -480,8 +484,11 @@ class PlantDetailViewModel(
     fun undoSilentIntervalApply(beforeIntervalDays: Int) {
         viewModelScope.launch {
             plant.value?.let { p ->
+                // beforeIntervalDays is the prior wateringIntervalDays captured by applyIntervalInternal,
+                // itself already base-space (see the comment there) — same double-deseasonalization
+                // pitfall applies here, so assign it directly rather than through deseasonalizedBaseOrNull.
                 val wateringBaseIntervalDays = if (!p.pinIntervalToBase) {
-                    deseasonalizedBaseOrNull(beforeIntervalDays) ?: p.wateringBaseIntervalDays
+                    beforeIntervalDays.toDouble()
                 } else {
                     p.wateringBaseIntervalDays
                 }

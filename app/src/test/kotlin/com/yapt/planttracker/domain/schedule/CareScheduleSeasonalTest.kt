@@ -177,6 +177,77 @@ class CareScheduleSeasonalTest {
 
         assertEquals(lastWatered + TimeUnit.DAYS.toMillis(displayedInterval!!.toLong()), status.nextWateringDueAt)
     }
+
+    /**
+     * #584 review: a same-day round-trip can't catch a double-deseasonalization bug, since
+     * `effectiveInterval(deseasonalize(x, today), today) == x` regardless of amplitude — the
+     * corruption only surfaces once the due date is computed on a materially different point in the
+     * season curve. This applies a suggestion (already base-space, per
+     * `PlantDetailViewModel.applyIntervalInternal`'s contract) on the Jan-5 peak day, then re-derives
+     * the due date six months later near the trough, and asserts it matches what the *correct*
+     * (un-re-deseasonalized) base implies — not the shorter interval the pre-#584-fix
+     * double-deseasonalization would have produced.
+     */
+    @Test
+    fun `a suggestion applied at the season peak still computes the correct due date six months later`() {
+        val applyDate = now // Jan 5 2023, the peak day: season(applyDate) = 1.35
+        val sixMonthsLater = LocalDateUtcMillis(2023, 7, 5)
+        val suggestedInterval = 12
+
+        // The fixed behavior (PlantDetailViewModel.applyIntervalInternal): newInterval is already
+        // season-neutral/base-space, written to wateringBaseIntervalDays unchanged.
+        val correctlyAppliedPlant = plantWith(
+            wateringIntervalDays = suggestedInterval,
+            wateringBaseIntervalDays = suggestedInterval.toDouble()
+        )
+
+        // The pre-#584 bug: re-deseasonalizing an already-base-space value at apply time.
+        val buggyBase = SeasonalWatering.deseasonalize(
+            suggestedInterval.toDouble(),
+            applyDate.toLocalDate(),
+            0.35,
+            Hemisphere.NORTHERN
+        )
+        val buggyAppliedPlant = plantWith(
+            wateringIntervalDays = suggestedInterval,
+            wateringBaseIntervalDays = buggyBase
+        )
+
+        val lastWatered = sixMonthsLater - TimeUnit.DAYS.toMillis(3)
+
+        val correctStatus = CareSchedule.computeStatus(
+            plant = correctlyAppliedPlant,
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = sixMonthsLater,
+            seasonalAmplitude = 0.35,
+            hemisphere = Hemisphere.NORTHERN
+        )
+        val buggyStatus = CareSchedule.computeStatus(
+            plant = buggyAppliedPlant,
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = sixMonthsLater,
+            seasonalAmplitude = 0.35,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        val expectedEffectiveInterval = SeasonalWatering.effectiveInterval(
+            suggestedInterval.toDouble(),
+            sixMonthsLater.toLocalDate(),
+            0.35,
+            Hemisphere.NORTHERN
+        )
+        assertEquals(
+            lastWatered + TimeUnit.DAYS.toMillis(expectedEffectiveInterval.toLong()),
+            correctStatus.nextWateringDueAt
+        )
+        assert(correctStatus.nextWateringDueAt != buggyStatus.nextWateringDueAt) {
+            "Expected the double-deseasonalized base to diverge from the correctly-applied base six months later"
+        }
+    }
 }
 
 @Suppress("FunctionNaming")
