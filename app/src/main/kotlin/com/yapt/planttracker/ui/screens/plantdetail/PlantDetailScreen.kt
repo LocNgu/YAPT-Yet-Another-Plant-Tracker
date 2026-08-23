@@ -50,8 +50,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -129,6 +131,8 @@ fun PlantDetailScreen(
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
     val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
     val seasonalAmplitudeValue by viewModel.seasonalAmplitudeValue.collectAsStateWithLifecycle()
+    val wateringExplanation by viewModel.wateringExplanation.collectAsStateWithLifecycle()
+    var showWateringExplanationSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
@@ -189,11 +193,23 @@ fun PlantDetailScreen(
         }
     }
 
+    val intervalAutoAppliedTemplate = stringResource(R.string.interval_auto_applied_snackbar)
+    val undoLabel = stringResource(R.string.snackbar_undo)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is PlantDetailViewModel.Event.SkipConfirmed -> {
                     viewModel.suggestedWateringInterval.value = event.proposedInterval
+                }
+                is PlantDetailViewModel.Event.SilentIntervalApplied -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = String.format(intervalAutoAppliedTemplate, event.afterIntervalDays),
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoSilentIntervalApply(event.beforeIntervalDays)
+                    }
                 }
                 else -> {}
             }
@@ -293,6 +309,15 @@ fun PlantDetailScreen(
                 TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
+    }
+
+    if (showWateringExplanationSheet) {
+        wateringExplanation?.let { explanation ->
+            WateringExplanationSheet(
+                explanation = explanation,
+                onDismiss = { showWateringExplanationSheet = false }
+            )
+        }
     }
 
     if (showAddReminderDialog || editingReminder != null) {
@@ -670,6 +695,16 @@ fun PlantDetailScreen(
                                                 isPinned = plant?.pinIntervalToBase == true,
                                                 modifier = Modifier.padding(top = 12.dp)
                                             )
+                                        }
+                                        if (plant?.wateringIntervalDays != null) {
+                                            TextButton(
+                                                onClick = { showWateringExplanationSheet = true },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .testTag("why_this_date_button")
+                                            ) {
+                                                Text(stringResource(R.string.why_this_date_button))
+                                            }
                                         }
                                     }
                                     Spacer(Modifier.height(16.dp))

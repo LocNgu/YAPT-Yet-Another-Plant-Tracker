@@ -12,10 +12,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
@@ -35,7 +38,10 @@ class AddEditPlantViewModel(
     private val plantId: Long?,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
     // updating; null is treated the same as SEASONAL_WATERING being off (#569).
-    private val dataStore: DataStore<Preferences>? = null
+    private val dataStore: DataStore<Preferences>? = null,
+    // Nullable + defaulted for the same reason as [dataStore] — never read when [dataStore] is null,
+    // since a MANUAL_EDIT row is only ever written when `adaptive_watering` is on (#572).
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
@@ -189,8 +195,25 @@ class AddEditPlantViewModel(
                 wateringBaseIntervalDays = wateringBaseIntervalDays
             )
         )
+        if (intervalChanged && newWateringIntervalDays != null && isAdaptiveWateringEnabled()) {
+            wateringAdjustmentRepository?.addAdjustment(
+                WateringAdjustment(
+                    plantId = plantId!!,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
+                    beforeIntervalDays = existing?.wateringIntervalDays ?: newWateringIntervalDays,
+                    afterIntervalDays = newWateringIntervalDays
+                )
+            )
+        }
         savePendingPhotos(plantId!!, now)
         _events.emit(Event.Saved(plantId))
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean {
+        val store = dataStore ?: return false
+        return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
     }
 
     private suspend fun saveNew(plant: Plant, newWateringIntervalDays: Int?, now: Long) {
@@ -270,10 +293,17 @@ class AddEditPlantViewModel(
         private val plantRepository: PlantRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long?,
-        private val dataStore: DataStore<Preferences>? = null
+        private val dataStore: DataStore<Preferences>? = null,
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddEditPlantViewModel(plantRepository, plantPhotoRepository, plantId, dataStore) as T
+            AddEditPlantViewModel(
+                plantRepository,
+                plantPhotoRepository,
+                plantId,
+                dataStore,
+                wateringAdjustmentRepository
+            ) as T
     }
 }

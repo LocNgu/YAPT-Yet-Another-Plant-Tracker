@@ -32,6 +32,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
@@ -86,6 +87,10 @@ class PlantDetailScreenTest {
         database.close()
     }
 
+    private val wateringAdjustmentRepo: WateringAdjustmentRepository by lazy {
+        WateringAdjustmentRepository(database.wateringAdjustmentDao())
+    }
+
     /**
      * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
      * shared DataStore stub reports it ON — these tests exercise the flag-on tabbed UI.
@@ -117,6 +122,28 @@ class PlantDetailScreenTest {
         )
     }
 
+    /**
+     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] and [FeatureFlagRegistry.ADAPTIVE_WATERING] on, for the
+     * "Why this date?" sheet tests (#572).
+     */
+    private val mockDataStoreWithAdaptive: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
+            )
+        )
+    }
+
+    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — `adaptive_watering` stays off (#572 degrade). */
+    private val mockDataStoreTabsOnly: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
+            )
+        )
+    }
+
     private val mockCustomReminderRepo: CustomReminderRepository = mockk<CustomReminderRepository>().also {
         every { it.getRemindersForPlant(any()) } returns flowOf(emptyList())
     }
@@ -142,7 +169,8 @@ class PlantDetailScreenTest {
             mockQuickLogUseCase,
             mockCustomReminderRepo,
             mockPlantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 
@@ -217,7 +245,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -262,7 +290,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -300,7 +328,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -331,7 +359,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo6, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -359,7 +387,7 @@ class PlantDetailScreenTest {
         every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
         ))
-        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+        val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo8, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -694,7 +722,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -729,7 +757,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database)
+            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -869,7 +897,8 @@ class PlantDetailScreenTest {
             mockQuickLogUseCase,
             mockCustomReminderRepo,
             mockPlantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 
@@ -896,7 +925,8 @@ class PlantDetailScreenTest {
             mockQuickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 
@@ -1268,5 +1298,71 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOn()
+    }
+
+    /**
+     * "Why this date?" sheet (#572): confidence renders as a labelled indicator — the dots are
+     * decorative, the bucket label ("Dialed in") is the accessible content. Asserts the label text
+     * appears, never the dot topology, per #420.
+     */
+    @Test
+    fun wateringExplanationSheet_confidenceLabel_isDisplayed() {
+        val plant = Plant(
+            id = 80L,
+            name = "Pilea",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringConfidence = 4
+        )
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithAdaptive)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
+        ).assertIsDisplayed()
+    }
+
+    /** ADAPTIVE_WATERING off (#572): the sheet shows only the plain interval — no invented rows. */
+    @Test
+    fun wateringExplanationSheet_degradesToPlainInterval_whenAdaptiveWateringOff() {
+        val plant = Plant(id = 81L, name = "Snake Plant", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 9)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_base_interval)
+        ).assertDoesNotExist()
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_confidence)
+        ).assertDoesNotExist()
     }
 }

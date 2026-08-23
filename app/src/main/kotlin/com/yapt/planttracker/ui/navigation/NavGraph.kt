@@ -201,7 +201,8 @@ fun YaptNavGraph(
                         app.plantRepository,
                         app.plantPhotoRepository,
                         null,
-                        app.settingsDataStore
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
                     )
                 )
                 AddEditPlantScreen(
@@ -220,7 +221,8 @@ fun YaptNavGraph(
                         app.plantRepository,
                         app.plantPhotoRepository,
                         plantId,
-                        app.settingsDataStore
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
                     )
                 )
                 AddEditPlantScreen(
@@ -251,7 +253,8 @@ fun YaptNavGraph(
                         app.quickLogUseCase,
                         app.customReminderRepository,
                         app.plantIssueRepository,
-                        app.database
+                        app.database,
+                        app.wateringAdjustmentRepository
                     )
                 )
 
@@ -259,7 +262,7 @@ fun YaptNavGraph(
                 LaunchedEffect(savedStateHandle) {
                     val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
                     if (suggestedInterval != null) {
-                        vm.suggestedWateringInterval.value = suggestedInterval
+                        vm.handleSuggestedWateringInterval(suggestedInterval)
                         savedStateHandle.remove<Int>("suggestedWateringInterval")
                     }
                 }
@@ -284,7 +287,7 @@ fun YaptNavGraph(
                 arguments = listOf(
                     navArgument("plantId") { type = NavType.LongType },
                     navArgument("careLogId") {
-                        type = NavType.LongType;
+                        type = NavType.LongType
                         defaultValue = 0L
                     }
                 )
@@ -297,7 +300,8 @@ fun YaptNavGraph(
                         app.plantRepository,
                         plantId,
                         careLogId,
-                        app.settingsDataStore
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
                     )
                 )
                 AddCareLogScreen(

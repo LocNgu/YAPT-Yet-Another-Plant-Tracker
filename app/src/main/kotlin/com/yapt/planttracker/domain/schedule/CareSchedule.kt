@@ -126,6 +126,18 @@ object CareSchedule {
         return SeasonalWatering.effectiveInterval(base, nowDate, seasonalAmplitude, hemisphere)
     }
 
+    /**
+     * Public wrapper around [effectiveWateringIntervalDays] for the "Why this date?" sheet (#572) —
+     * the single source both [computeWateringDue] and the sheet call, so the sheet's "Watering every
+     * N days" row can never drift from the number that actually drove the due date.
+     */
+    fun effectiveWateringIntervalDaysForDisplay(
+        plant: Plant,
+        nowDate: LocalDate = LocalDate.now(),
+        seasonalAmplitude: Double = 0.0,
+        hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
+    ): Int? = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
+
     private fun computeFertilizingDue(plant: Plant, lastFertilizedAt: Long?, nowDate: LocalDate): DueStatus {
         val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
             null

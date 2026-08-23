@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.util.toLocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -104,6 +105,77 @@ class CareScheduleSeasonalTest {
             seasonalAmplitude = 0.35
         )
         assertNull(status.nextWateringDueAt)
+    }
+
+    /**
+     * #572 regression, in `CareSchedule` terms: before the fix, `applySuggestedInterval()` wrote only
+     * `wateringIntervalDays`, leaving `wateringBaseIntervalDays` stale — this reproduces exactly that
+     * bug shape (both plants share the same `wateringIntervalDays` the dialog would have applied, but
+     * only one has a base dual-written alongside it) and asserts the due date only moves once the
+     * base is dual-written too.
+     */
+    @Test
+    fun `applying a suggestion without dual-writing wateringBaseIntervalDays never moves the due date`() {
+        val lastWatered = now - TimeUnit.DAYS.toMillis(3)
+        val staleBase = plantWith(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        val dualWrittenBase = plantWith(wateringIntervalDays = 14, wateringBaseIntervalDays = 14.0)
+
+        val staleStatus = CareSchedule.computeStatus(
+            plant = staleBase,
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now,
+            seasonalAmplitude = 0.35,
+            hemisphere = Hemisphere.NORTHERN
+        )
+        val dualWrittenStatus = CareSchedule.computeStatus(
+            plant = dualWrittenBase,
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now,
+            seasonalAmplitude = 0.35,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        val staleEffectiveInterval = SeasonalWatering.effectiveInterval(
+            7.0,
+            now.toLocalDate(),
+            0.35,
+            Hemisphere.NORTHERN
+        )
+        assertEquals(
+            lastWatered + TimeUnit.DAYS.toMillis(staleEffectiveInterval.toLong()),
+            staleStatus.nextWateringDueAt
+        )
+        assert(staleStatus.nextWateringDueAt != dualWrittenStatus.nextWateringDueAt) {
+            "Expected the dual-written base to move the due date relative to the stale-base plant"
+        }
+    }
+
+    @Test
+    fun `effectiveWateringIntervalDaysForDisplay matches what computeStatus used for the due date`() {
+        val lastWatered = now - TimeUnit.DAYS.toMillis(3)
+        val plant = plantWith(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
+        val status = CareSchedule.computeStatus(
+            plant = plant,
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now,
+            seasonalAmplitude = 0.35,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        val displayedInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant,
+            now.toLocalDate(),
+            0.35,
+            Hemisphere.NORTHERN
+        )
+
+        assertEquals(lastWatered + TimeUnit.DAYS.toMillis(displayedInterval!!.toLong()), status.nextWateringDueAt)
     }
 }
 

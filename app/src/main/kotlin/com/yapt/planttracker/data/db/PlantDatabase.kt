@@ -11,6 +11,7 @@ import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import java.time.LocalDate
@@ -21,7 +22,8 @@ import java.time.LocalDate
         CareLogEntity::class,
         PlantPhotoEntity::class,
         CustomReminderEntity::class,
-        PlantIssueEntity::class
+        PlantIssueEntity::class,
+        WateringAdjustmentEntity::class
     ],
     version = PlantDatabase.DB_VERSION,
     exportSchema = true
@@ -33,11 +35,12 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun plantPhotoDao(): PlantPhotoDao
     abstract fun customReminderDao(): CustomReminderDao
     abstract fun plantIssueDao(): PlantIssueDao
+    abstract fun wateringAdjustmentDao(): WateringAdjustmentDao
 
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 11
+        const val DB_VERSION = 12
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -198,6 +201,30 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #572: watering_adjustments backs the "Why this date?" sheet's "Recent adjustments" list — a
+        // dedicated table (not a CareLog replay, product ADR-0028) since a dialog dismissal or manual
+        // interval edit changes wateringConfidence/base without ever writing a CareLog row. Ships
+        // unconditionally regardless of `adaptive_watering` flag state, mirroring wateringConfidence's
+        // precedent — rows are only ever written while the flag is on, but the table itself always exists.
+        @Suppress("MagicNumber")
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `watering_adjustments` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`triggeredAt` INTEGER NOT NULL, " +
+                        "`trigger` TEXT NOT NULL, " +
+                        "`beforeIntervalDays` INTEGER NOT NULL, " +
+                        "`afterIntervalDays` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_watering_adjustments_plantId` ON `watering_adjustments` (`plantId`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -215,7 +242,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_7_8,
                         MIGRATION_8_9,
                         MIGRATION_9_10,
-                        MIGRATION_10_11
+                        MIGRATION_10_11,
+                        MIGRATION_11_12
                     )
                     .build()
                     .also { INSTANCE = it }

@@ -1,6 +1,6 @@
 # Product ADR-0006: Watering interval suggestion uses an AlertDialog, not a Snackbar
 
-**Status**: accepted  
+**Status**: superseded by [ADR-0028](0028-why-this-date-watering-transparency-sheet.md) (for the "Ask before changing intervals" toggle's off state only — the dialog remains the default, on-by-default behavior)  
 **Date**: 2026-05-25  
 **Supersedes**: ADR-0005
 

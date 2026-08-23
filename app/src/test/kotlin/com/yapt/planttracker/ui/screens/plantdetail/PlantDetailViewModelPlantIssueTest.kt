@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -74,6 +75,7 @@ class PlantDetailViewModelPlantIssueTest {
     private val plantIssueRepo: PlantIssueRepository = mockk()
 
     private lateinit var database: PlantDatabase
+    private lateinit var wateringAdjustmentRepo: WateringAdjustmentRepository
 
     @Before
     fun setUp() {
@@ -86,6 +88,7 @@ class PlantDetailViewModelPlantIssueTest {
             .setQueryExecutor(synchronousExecutor)
             .setTransactionExecutor(synchronousExecutor)
             .build()
+        wateringAdjustmentRepo = WateringAdjustmentRepository(database.wateringAdjustmentDao())
     }
 
     @After
@@ -113,7 +116,8 @@ class PlantDetailViewModelPlantIssueTest {
             quickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 

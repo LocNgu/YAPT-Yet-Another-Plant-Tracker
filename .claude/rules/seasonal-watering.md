@@ -69,14 +69,22 @@ later doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab, gate
 `PLANT_DETAIL_TABS`) both surface a "Pin interval" `Switch` bound to `pinIntervalToBase`, gated behind
 `SEASONAL_WATERING` being on.
 
-## Interaction with Part 1's adaptive model (#568)
+## Interaction with Part 1's adaptive model (#568, amended #572)
 `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into
 `CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per ADR-0026's
 "Interaction with Part 1" consequence — so a seasonal swing isn't misread as a permanent change in the
-plant's thirst. This only patches the observed-input argument; `currentBaseIntervalDays` stays
-`Plant.wateringIntervalDays` exactly as Part 1 already reads/writes it, and the legacy pre-#568
-`computeSuggestedInterval()` ±1-day path is untouched (matching Part 1's own precedent of leaving that
-path alone).
+plant's thirst. The legacy pre-#568 `computeSuggestedInterval()` ±1-day path is untouched (matching
+Part 1's own precedent of leaving that path alone).
+
+`currentBaseIntervalDays` no longer stays `Plant.wateringIntervalDays` unconditionally (that was a bug,
+fixed in #572/product ADR-0028): each of `QuickLogUseCase`/`AddCareLogViewModel`'s private
+`currentAdaptiveBaseIntervalDays(plant, configuredIntervalDays)` helper reads season-neutral
+`Plant.wateringBaseIntervalDays` instead, whenever `SEASONAL_WATERING` is on and the plant isn't
+pinned — otherwise (flag off, amplitude `Off`, or pinned) it's unchanged, `configuredIntervalDays`
+verbatim. Prior to this fix every call site fed the model a value that only ever updated on a manual
+edit, silently diverging from what `CareSchedule.computeStatus()` was actually using for the due date
+once season was on. See `.claude/rules/watering-transparency.md` for the write-side half of the same
+fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug fix feeds.
 
 ## Settings UI
 Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, visible only while

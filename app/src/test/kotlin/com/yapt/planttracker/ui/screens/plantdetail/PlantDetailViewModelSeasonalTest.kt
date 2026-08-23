@@ -11,6 +11,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
@@ -48,6 +49,9 @@ class PlantDetailViewModelSeasonalTest {
     private val customReminderRepo: CustomReminderRepository = mockk()
     private val plantIssueRepo: PlantIssueRepository = mockk()
     private val database: PlantDatabase = mockk()
+    private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
+        every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
+    }
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
         id = id,
@@ -71,7 +75,8 @@ class PlantDetailViewModelSeasonalTest {
             quickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 
@@ -127,6 +132,58 @@ class PlantDetailViewModelSeasonalTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == null }) }
+    }
+
+    @Test
+    fun `applySuggestedInterval with SEASONAL_WATERING on and unpinned updates wateringBaseIntervalDays`() = runTest {
+        // #572 regression: applySuggestedInterval() previously wrote only wateringIntervalDays, so
+        // once SEASONAL_WATERING is on, CareSchedule.effectiveWateringIntervalDays() kept reading the
+        // stale wateringBaseIntervalDays and the due date never moved — the whole point of the "Why
+        // this date?" sheet's "every number matches CareSchedule" acceptance criterion.
+        every { dataStore.data } returns flowOf(
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.applySuggestedInterval(14)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringIntervalDays == 14 &&
+                        it.wateringBaseIntervalDays != null &&
+                        it.wateringBaseIntervalDays != 7.0
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `applySuggestedInterval on a pinned plant leaves wateringBaseIntervalDays untouched`() = runTest {
+        every { dataStore.data } returns flowOf(
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.applySuggestedInterval(14)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
+        }
     }
 
     @Test

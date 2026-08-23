@@ -14,6 +14,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
@@ -26,10 +27,14 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.WateringExplanation
+import com.yapt.planttracker.domain.schedule.WateringExplanationBuilder
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -59,7 +64,8 @@ class PlantDetailViewModel(
     private val quickLogUseCase: QuickLogUseCase,
     private val customReminderRepository: CustomReminderRepository,
     private val plantIssueRepository: PlantIssueRepository,
-    private val database: PlantDatabase
+    private val database: PlantDatabase,
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository
 ) : ViewModel() {
 
     /**
@@ -85,6 +91,14 @@ class PlantDetailViewModel(
         .map { prefs ->
             prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
                 ?: FeatureFlagRegistry.SEASONAL_WATERING.default
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** Gates the "Why this date?" sheet's base/season/confidence/adjustments rows (#572). */
+    val adaptiveWateringEnabled: StateFlow<Boolean> = dataStore.data
+        .map { prefs ->
+            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+                ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -151,6 +165,41 @@ class PlantDetailViewModel(
     val customReminderStatuses: StateFlow<List<CustomReminderStatus>> = careStatus
         .map { it?.customReminderStatuses.orEmpty() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val waterLogCount: StateFlow<Int> = careLogs
+        .map { logs -> logs.count { it.careType == CareType.WATER } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val recentWateringAdjustments: StateFlow<List<WateringAdjustment>> =
+        wateringAdjustmentRepository.getRecentForPlant(plantId, RECENT_ADJUSTMENTS_LIMIT)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Everything the "Why this date?" sheet (#572) renders — built by [WateringExplanationBuilder]
+     * from [careStatus] (already computed by [CareSchedule.computeStatus]) so the sheet's numbers can
+     * never drift from what actually drove the due date.
+     */
+    val wateringExplanation: StateFlow<WateringExplanation?> = combine(
+        combine(plant, careStatus, waterLogCount) { p, status, count -> Triple(p, status, count) },
+        combine(
+            adaptiveWateringEnabled,
+            seasonalAmplitudeValue,
+            recentWateringAdjustments
+        ) { adaptiveOn, amplitude, adjustments ->
+            Triple(adaptiveOn, amplitude, adjustments)
+        }
+    ) { (p, status, waterCount), (adaptiveOn, amplitude, adjustments) ->
+        p ?: return@combine null
+        WateringExplanationBuilder.build(
+            plant = p,
+            nextWateringDueAt = status?.nextWateringDueAt,
+            lastWateredAt = status?.lastWateredAt,
+            waterLogCount = waterCount,
+            adaptiveWateringEnabled = adaptiveOn,
+            seasonalAmplitude = amplitude,
+            recentAdjustments = adjustments
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
@@ -230,7 +279,7 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
+            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
@@ -272,7 +321,7 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { suggestedWateringInterval.value = it.suggestedInterval }
+            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
             val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
             } else {
@@ -312,6 +361,16 @@ class PlantDetailViewModel(
                             updatedAt = System.currentTimeMillis()
                         )
                     )
+                    p.wateringIntervalDays?.let { current ->
+                        wateringAdjustmentRepository.addAdjustment(
+                            WateringAdjustment(
+                                plantId = p.id,
+                                trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
+                                beforeIntervalDays = current,
+                                afterIntervalDays = current
+                            )
+                        )
+                    }
                 }
             }
             suggestedWateringInterval.value = null
@@ -322,33 +381,118 @@ class PlantDetailViewModel(
         dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
             ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
+    /**
+     * "Ask before changing intervals" (#572) — the ADR-0006 dialog is skipped only when
+     * `adaptive_watering` is on **and** the setting is off; the toggle is inert while the flag is off
+     * (today's dialog-always behavior).
+     */
+    private suspend fun shouldShowIntervalDialog(): Boolean {
+        if (!isAdaptiveWateringEnabled()) return true
+        return dataStore.data.first()[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
+    }
+
+    /**
+     * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
+     * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
+     */
+    private suspend fun applySuggestionOrPrompt(suggestedInterval: Int) {
+        if (shouldShowIntervalDialog()) {
+            suggestedWateringInterval.value = suggestedInterval
+            return
+        }
+        val p = plant.value ?: return
+        val before = applyIntervalInternal(p, originalSuggestion = suggestedInterval, newInterval = suggestedInterval)
+        _events.emit(Event.SilentIntervalApplied(before, suggestedInterval))
+    }
+
+    /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
+    fun handleSuggestedWateringInterval(suggestedInterval: Int) {
+        viewModelScope.launch { applySuggestionOrPrompt(suggestedInterval) }
+    }
+
     internal fun setTimeRange(range: TimeRange) {
         selectedTimeRange.value = range
+    }
+
+    /**
+     * The single write path for committing a new [Plant.wateringIntervalDays] from an adaptive
+     * suggestion (#572) — used by both the ADR-0006 dialog's Apply button and the silent-apply path.
+     * Adopts the same dual-write [setWateringInterval] already uses for manual edits (§1 of the #572
+     * spec: applying a suggestion with `SEASONAL_WATERING` on previously left
+     * [Plant.wateringBaseIntervalDays] stale, so the due date silently never moved). Returns the
+     * pre-apply interval, for the silent-apply Snackbar's undo.
+     */
+    private suspend fun applyIntervalInternal(plant: Plant, originalSuggestion: Int?, newInterval: Int): Int {
+        val now = System.currentTimeMillis()
+        val adaptiveOn = isAdaptiveWateringEnabled()
+        // Retyping the suggested number before tapping Apply is fine-tuning within the model, not a
+        // rejection of it — never a full reset like an AddEditPlant edit (#568). Outside
+        // GAP_AGREEMENT_TOLERANCE of the original suggestion, the suggestion was materially wrong and
+        // confidence falls, but the model still stands. A silent apply always passes
+        // originalSuggestion == newInterval, so confidence never falls from an apply the user never edited.
+        val wateringConfidence = if (adaptiveOn && originalSuggestion != null) {
+            CareSchedule.confidenceAfterDialogEdit(plant.wateringConfidence, originalSuggestion, newInterval)
+        } else {
+            plant.wateringConfidence
+        }
+        val wateringBaseIntervalDays = if (!plant.pinIntervalToBase) {
+            deseasonalizedBaseOrNull(newInterval) ?: plant.wateringBaseIntervalDays
+        } else {
+            plant.wateringBaseIntervalDays
+        }
+        val before = plant.wateringIntervalDays ?: newInterval
+        plantRepository.updatePlant(
+            plant.copy(
+                wateringIntervalDays = newInterval,
+                wateringBaseIntervalDays = wateringBaseIntervalDays,
+                wateringConfidence = wateringConfidence,
+                updatedAt = now
+            )
+        )
+        if (adaptiveOn) {
+            wateringAdjustmentRepository.addAdjustment(
+                WateringAdjustment(
+                    plantId = plant.id,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.DIALOG_EDIT,
+                    beforeIntervalDays = before,
+                    afterIntervalDays = newInterval
+                )
+            )
+        }
+        return before
     }
 
     fun applySuggestedInterval(newInterval: Int) {
         viewModelScope.launch {
             val originalSuggestion = suggestedWateringInterval.value
+            plant.value?.let { p -> applyIntervalInternal(p, originalSuggestion, newInterval) }
+            suggestedWateringInterval.value = null
+            _events.emit(Event.IntervalUpdated)
+        }
+    }
+
+    /**
+     * Reverts a silently-applied suggestion (#572) back to [beforeIntervalDays] — the Snackbar's
+     * "Undo" action. A plain correction, not a new observation: it does not write another
+     * [WateringAdjustment] row.
+     */
+    fun undoSilentIntervalApply(beforeIntervalDays: Int) {
+        viewModelScope.launch {
             plant.value?.let { p ->
-                // Retyping the suggested number before tapping Apply is fine-tuning within the
-                // model, not a rejection of it — never a full reset like an AddEditPlant edit
-                // (#568). Outside GAP_AGREEMENT_TOLERANCE of the original suggestion, the
-                // suggestion was materially wrong and confidence falls, but the model still stands.
-                val wateringConfidence = if (isAdaptiveWateringEnabled() && originalSuggestion != null) {
-                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, originalSuggestion, newInterval)
+                val wateringBaseIntervalDays = if (!p.pinIntervalToBase) {
+                    deseasonalizedBaseOrNull(beforeIntervalDays) ?: p.wateringBaseIntervalDays
                 } else {
-                    p.wateringConfidence
+                    p.wateringBaseIntervalDays
                 }
                 plantRepository.updatePlant(
                     p.copy(
-                        wateringIntervalDays = newInterval,
-                        wateringConfidence = wateringConfidence,
+                        wateringIntervalDays = beforeIntervalDays,
+                        wateringBaseIntervalDays = wateringBaseIntervalDays,
                         updatedAt = System.currentTimeMillis()
                     )
                 )
             }
-            suggestedWateringInterval.value = null
-            _events.emit(Event.IntervalUpdated)
         }
     }
 
@@ -370,13 +514,25 @@ class PlantDetailViewModel(
                 } else {
                     p.wateringBaseIntervalDays
                 }
+                val now = System.currentTimeMillis()
                 plantRepository.updatePlant(
                     p.copy(
                         wateringIntervalDays = days,
                         wateringBaseIntervalDays = wateringBaseIntervalDays,
-                        updatedAt = System.currentTimeMillis()
+                        updatedAt = now
                     )
                 )
+                if (days != null && days != p.wateringIntervalDays && isAdaptiveWateringEnabled()) {
+                    wateringAdjustmentRepository.addAdjustment(
+                        WateringAdjustment(
+                            plantId = p.id,
+                            triggeredAt = now,
+                            trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
+                            beforeIntervalDays = p.wateringIntervalDays ?: days,
+                            afterIntervalDays = days
+                        )
+                    )
+                }
             }
         }
     }
@@ -555,11 +711,17 @@ class PlantDetailViewModel(
         /** Interval a schedule starts at when the user enables it inline on a tab (mirrors Add/Edit). */
         const val DEFAULT_WATERING_INTERVAL_DAYS = 7
         const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
+
+        /** "Recent adjustments" row cap on the "Why this date?" sheet (#572) — mirrors care history's cap. */
+        const val RECENT_ADJUSTMENTS_LIMIT = 5
     }
 
     sealed class Event {
         object IntervalUpdated : Event()
         data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()
+
+        /** A suggestion applied silently because "Ask before changing intervals" is off (#572). */
+        data class SilentIntervalApplied(val beforeIntervalDays: Int, val afterIntervalDays: Int) : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips. */
@@ -581,7 +743,8 @@ class PlantDetailViewModel(
         private val quickLogUseCase: QuickLogUseCase,
         private val customReminderRepository: CustomReminderRepository,
         private val plantIssueRepository: PlantIssueRepository,
-        private val database: PlantDatabase
+        private val database: PlantDatabase,
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -594,7 +757,8 @@ class PlantDetailViewModel(
                 quickLogUseCase,
                 customReminderRepository,
                 plantIssueRepository,
-                database
+                database,
+                wateringAdjustmentRepository
             ) as T
     }
 }
