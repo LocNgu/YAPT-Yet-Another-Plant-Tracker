@@ -124,20 +124,22 @@ wired up later as an "obvious-looking" improvement.
   curve (#569). This is a genuine limitation of any model that cannot observe the soil directly, not a bug; two
   partial safety nets exist (observed-gap disagreement, and the seasonal curve's automatic autumn lengthening),
   but neither substitutes for an explicit signal from a perfectly punctual user.
-- **Accepted limitation — Still moist is reachable only from the notification.** This issue specifies the check
-  reframing on the reminder alone; `PlantDetailScreen` and `PlantListScreen` are untouched, so a user who opens
-  the app instead of acting on the notification sees only "Log watering" and "Skip watering" and has no way to
-  record "I checked, it was still moist". This was an omission in the issue spec, not in its implementation —
-  every acceptance criterion was notification-shaped.
+- **Accepted limitation — Still moist is reachable only from the notification. Resolved by #508 (product
+  ADR-0029).** This issue specifies the check reframing on the reminder alone; `PlantDetailScreen` and
+  `PlantListScreen` were untouched, so a user who opened the app instead of acting on the notification saw
+  only "Log watering" and "Skip watering" and had no way to record "I checked, it was still moist". This was
+  an omission in the issue spec, not in its implementation — every acceptance criterion was
+  notification-shaped.
 
-  It interacts badly with the rejection recorded above: in-app, the only non-watering action is the deferral,
-  which is deliberately inert to the model, so the intuitive control is the one that teaches the app nothing.
-  The rejection's justification — that "still wet" now has a dedicated action — holds only once that action is
-  reachable in the app.
+  It interacted badly with the rejection recorded above: in-app, the only non-watering action was the
+  deferral, which is deliberately inert to the model, so the intuitive control was the one that taught the
+  app nothing. The rejection's justification — that "still wet" now has a dedicated action — held only once
+  that action was reachable in the app.
 
-  Fixed in #508, which reworks the watering-due surface into three actions that each mean one thing
-  (Water / Still moist / Reschedule). **`check_reminders` must not graduate out of developer mode before #508
-  lands**, or the notification will offer a choice the app cannot.
+  #508 (product ADR-0029) reworked the watering-due surface into three actions that each mean one thing
+  (Water / Still moist / Reschedule watering); Plant Detail's in-app Still moist button routes through the
+  same `QuickLogUseCase.recordStillMoistCheck()` this notification action calls. `check_reminders` may now
+  graduate out of developer mode without the notification offering a choice the app itself cannot.
 - `CareType.CHECK` is a permanent addition to the enum and to every exhaustive `when (careType)` in the codebase;
   future care-type-driven features must remember it exists and decide whether to include or exclude it (as this
   issue did explicitly for the chart/calendar-marker code).

@@ -206,7 +206,7 @@ class PlantDetailViewModel(
 
     internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
-    val showSkipDialog = MutableStateFlow(false)
+    val showRescheduleDialog = MutableStateFlow(false)
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
@@ -721,17 +721,43 @@ class PlantDetailViewModel(
         }
     }
 
-    fun requestSkip() {
-        showSkipDialog.value = true
+    fun requestReschedule() {
+        showRescheduleDialog.value = true
     }
 
-    fun dismissSkipDialog() {
-        showSkipDialog.value = false
+    fun dismissRescheduleDialog() {
+        showRescheduleDialog.value = false
     }
 
-    fun confirmSkip(days: Int) {
+    /**
+     * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
+     * since the screen disables it while [PlantCareStatus.isDueSoon] (already due today, a true
+     * no-op there). Writes [Plant.wateringDueDateOverride] only, exactly like
+     * [confirmRescheduleRelativeDays]/[confirmRescheduleCustomDate] — never [Plant.wateringIntervalDays]
+     * / [Plant.wateringBaseIntervalDays] / [Plant.wateringConfidence], and never a [WateringAdjustment]
+     * row: a calendar deferral is deliberately not a learning signal (ADR-0007, reaffirmed by
+     * ADR-0027/ADR-0029). Unlike the superseded skip flow, this never emits an event that could feed
+     * the ADR-0006 interval-suggestion dialog.
+     */
+    fun confirmRescheduleToday() {
         viewModelScope.launch {
-            showSkipDialog.value = false
+            showRescheduleDialog.value = false
+            plant.value?.let { p ->
+                val now = System.currentTimeMillis()
+                plantRepository.updatePlant(p.copy(wateringDueDateOverride = now, updatedAt = now))
+            }
+        }
+    }
+
+    /**
+     * Reschedule "+[days]" option (#508, product ADR-0029) — anchored to the current *effective* due
+     * date (`maxOf(nextWateringDueAt, now)`, already override-aware via [CareSchedule]), unchanged
+     * from the stepper dialog this replaces. See [confirmRescheduleToday] for what this deliberately
+     * never touches.
+     */
+    fun confirmRescheduleRelativeDays(days: Int) {
+        viewModelScope.launch {
+            showRescheduleDialog.value = false
             plant.value?.let { p ->
                 val currentDue = maxOf(
                     careStatus.value?.nextWateringDueAt ?: 0L,
@@ -741,9 +767,45 @@ class PlantDetailViewModel(
                 plantRepository.updatePlant(
                     p.copy(wateringDueDateOverride = newOverride, updatedAt = System.currentTimeMillis())
                 )
-                val proposed = (p.wateringIntervalDays ?: 0) + days
-                _events.emit(Event.SkipConfirmed(days, proposed))
             }
+        }
+    }
+
+    /**
+     * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked
+     * date at local start-of-day; the `DatePicker` itself excludes past dates via `SelectableDates`,
+     * so no further validation happens here. See [confirmRescheduleToday] for what this deliberately
+     * never touches.
+     */
+    fun confirmRescheduleCustomDate(newDueAtMillis: Long) {
+        viewModelScope.launch {
+            showRescheduleDialog.value = false
+            plant.value?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = System.currentTimeMillis())
+                )
+            }
+        }
+    }
+
+    /**
+     * "Still moist" in-app action (#508, product ADR-0029) — routes through the same
+     * [QuickLogUseCase.recordStillMoistCheck] the #570 notification action
+     * ([com.yapt.planttracker.notification.StillMoistReceiver]) calls, so the in-app and notification
+     * paths produce identical logs/model effects by construction rather than by two implementations
+     * happening to agree.
+     */
+    fun recordStillMoist() {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            val logged = quickLogUseCase.recordStillMoistCheck(p)
+            _quickLogMessage.emit(
+                if (logged) {
+                    QuickLogMessage.StillMoistChecked(p.name)
+                } else {
+                    QuickLogMessage.AlreadyCheckedToday(p.name)
+                }
+            )
         }
     }
 
@@ -783,19 +845,24 @@ class PlantDetailViewModel(
 
     sealed class Event {
         object IntervalUpdated : Event()
-        data class SkipConfirmed(val skippedDays: Int, val proposedInterval: Int) : Event()
 
         /** A suggestion applied silently because "Ask before changing intervals" is off (#572). */
         data class SilentIntervalApplied(val beforeIntervalDays: Int, val afterIntervalDays: Int) : Event()
     }
 
-    /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips. */
+    /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */
     sealed class QuickLogMessage {
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()
+
+        /** "Still moist" logged successfully (#508). */
+        data class StillMoistChecked(val plantName: String) : QuickLogMessage()
+
+        /** [plant] already has a CHECK log today (#508, mirrors [AlreadyWateredToday]'s dedupe guard). */
+        data class AlreadyCheckedToday(val plantName: String) : QuickLogMessage()
     }
 
     @Suppress("LongParameterList")

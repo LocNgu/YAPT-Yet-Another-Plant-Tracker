@@ -191,7 +191,7 @@ class ReminderWorker(
             } else {
                 notificationBuilder.addAction(
                     0,
-                    context.getString(R.string.skip_watering_title),
+                    context.getString(R.string.reschedule_watering_title),
                     skipPendingIntent(plant.id)
                 )
             }

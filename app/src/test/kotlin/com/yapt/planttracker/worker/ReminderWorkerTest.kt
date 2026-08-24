@@ -205,7 +205,7 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork keeps the plain title and Skip watering action when check_reminders is off`() = runBlocking {
+    fun `doWork keeps the plain title and Reschedule watering action when check_reminders is off`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         app.plantRepository.addPlant(
             Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
@@ -216,7 +216,7 @@ class ReminderWorkerTest {
         val notification = notificationManager.activeNotifications.first().notification
         assertEquals("Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
         val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-        assertEquals(listOf("Skip watering"), actionTitles)
+        assertEquals(listOf("Reschedule watering"), actionTitles)
     }
 
     @Test

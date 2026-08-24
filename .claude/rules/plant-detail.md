@@ -46,7 +46,29 @@ editor for name/species/room/notes/cover.
 Watering/Fertilizing `StatChip`s take optional `onWaterClick`/`onFertilizeClick` (with `clickable(onClickLabel=…)`
 for a11y). Water opens `WaterFeedbackBottomSheet` → `quickWater()`; Fertilize → `quickFertilize()` (regular) or the
 combined sheet → `quickLiquidFertilize()` (liquid-fert). All delegate to the shared `QuickLogUseCase`, feed the
-adaptive suggestion into the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
+adaptive suggestion into the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`. Left in place
+alongside the watering-due actions row below (#508) — its removal is a deferred follow-up, out of scope there.
+
+## Watering-due actions row: Water / Still moist / Reschedule watering (#508, product ADR-0029)
+When a watering is due (`status.isOverdue || status.isDueSoon`), `WateringDueActionsRow` (`WateringDueActions.kt`)
+renders three `OutlinedButton`s in one row — replacing the old single full-width "Skip watering" button — in both
+the classic layout and the Water tab. Each means exactly one thing:
+- **Water** — `showWaterSheet = true`, same `WaterFeedbackBottomSheet` → `quickWater()` flow the stat chip above uses.
+- **Still moist** — `PlantDetailViewModel.recordStillMoist()` calls `QuickLogUseCase.recordStillMoistCheck(plant)`
+  directly, the same function `notification/StillMoistReceiver` calls for the #570 notification action — the
+  in-app and notification paths can't drift since they share one call site. Emits `QuickLogMessage
+  .StillMoistChecked`/`.AlreadyCheckedToday` (same-day CHECK dedupe, mirroring `AlreadyWateredToday`).
+- **Reschedule watering** (renamed from "Skip watering", shared string with the `ReminderWorker` notification
+  action label) — `requestReschedule()` shows `RescheduleWateringDialog` (`WateringDueActions.kt`): Today
+  (`confirmRescheduleToday()`, disabled while `isDueSoon`, enabled while `isOverdue` — a due-today plant pulling to
+  today would be a no-op) / +1 / +2 / +3 days (`confirmRescheduleRelativeDays(days)`, anchored to
+  `maxOf(nextWateringDueAt, now)`) / Custom date… (`confirmRescheduleCustomDate(dateMillis)`, a Material 3
+  `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching what the picker itself
+  displays, not the device's local "today"). Every option writes `wateringDueDateOverride` only — never
+  `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence`, and never a `watering_adjustments` row.
+  **Never fires the ADR-0006 interval-suggestion dialog afterward** (the superseded skip flow did, bypassing the
+  #572 "Ask before changing intervals" toggle entirely — a bug, not a preserved behavior); there is no `Event` for
+  a reschedule at all.
 
 ## Photos
 Unified `PhotoGallery` merges `plant_photos` + care-log photos (`GalleryPhoto(uri, timestamp)`,
@@ -61,9 +83,10 @@ resets on screen open (#253).
 
 ## Custom reminders (technical ADR-0019, #232)
 Always-visible `CustomRemindersCard` — **not** gated behind `PLANT_DETAIL_TABS`, unlike everything below it. In the
-classic layout (flag off) it renders after the skip-watering button / `WateringHistoryChart` / photo gallery block,
-so it doesn't sit between the watering stat chip and its skip button (#232 follow-up); in the tabs layout it renders
-right before the tab strip, since the flag-off block is empty there. Backed by `PlantDetailViewModel.customReminders` (`Flow` from
+classic layout (flag off) it renders after the watering-due actions row (#508) / `WateringHistoryChart` / photo
+gallery block, so it doesn't sit between the watering stat chip and the actions row (#232 follow-up); in the tabs
+layout it renders right before the tab strip, since the flag-off block is empty there. Backed by
+`PlantDetailViewModel.customReminders` (`Flow` from
 `CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
 now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
 Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a

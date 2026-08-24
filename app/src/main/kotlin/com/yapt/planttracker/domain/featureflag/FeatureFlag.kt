@@ -72,9 +72,9 @@ object FeatureFlagRegistry {
     /**
      * Reframes the watering reminder notification from an instruction ("Water {plant}") to a
      * prompt ("Check {plant}") with **Watered** and **Still moist** actions (#570, product ADR-0027).
-     * Off: the notification is byte-for-byte identical to today (title = plant name, "Skip watering"
-     * action). On, for a watering-due plant only: title becomes "Check {plant}", and the single
-     * "Skip watering" action is replaced by "Watered" (same deep-link as tapping the notification) and
+     * Off: the notification is byte-for-byte identical to today (title = plant name, "Reschedule
+     * watering" action). On, for a watering-due plant only: title becomes "Check {plant}", and the single
+     * "Reschedule watering" action is replaced by "Watered" (same deep-link as tapping the notification) and
      * "Still moist" (`StillMoistReceiver` — writes a `CareType.CHECK` log and defers the due date, no
      * screen shown; also feeds `ADAPTIVE_WATERING`'s update rule when that flag is also on).
      */
