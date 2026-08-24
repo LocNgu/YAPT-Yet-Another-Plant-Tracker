@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -11,54 +12,61 @@ import java.time.ZoneOffset
  * [isOnOrAfterLocalToday] boundary coverage (#508 review fix) — the [DatePicker] operates on UTC
  * midnight, but the picked date is always reinterpreted as a local calendar day downstream
  * ([utcMidnightMsToLocalStartOfDayMillis]), so "today" must be evaluated in the caller's local zone,
- * not UTC. Exercises a UTC-midnight instant that is one local-zone's "yesterday" relative to a
- * positive-offset zone (Asia/Tokyo, UTC+9) and one negative-offset zone (America/Los_Angeles).
+ * not UTC.
+ *
+ * Every test below pins a fixed reference [Instant] and passes an explicit `today` (the injectable
+ * parameter added for this fix) instead of relying on [LocalDate.now], so results never depend on
+ * when CI happens to run. Each test's candidate/`today` pair is chosen so the assertion would flip
+ * if [isOnOrAfterLocalToday] reverted to comparing against `LocalDate.now(ZoneOffset.UTC)` instead of
+ * the caller's local zone — that reversion is proven directly by pairing each "correct" assertion with
+ * a sibling test that supplies the naive UTC-only `today` for the same candidate instant and shows the
+ * opposite result.
  */
 class WateringDueActionsTest {
 
     private val tokyo = ZoneId.of("Asia/Tokyo")
     private val losAngeles = ZoneId.of("America/Los_Angeles")
 
-    @Test
-    fun `today's UTC-midnight instant is selectable in Tokyo`() {
-        val todayUtcMidnight = LocalDate.now(tokyo).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    // 2026-01-15T20:00:00Z is 2026-01-16 05:00 in Tokyo (Tokyo, UTC+9, has already rolled over to
+    // the next calendar day) but is still 2026-01-15 in UTC itself.
+    private val tokyoReferenceInstant = Instant.parse("2026-01-15T20:00:00Z")
+    private val tokyoToday = tokyoReferenceInstant.atZone(tokyo).toLocalDate()
+    private val utcCalendarDayAtTokyoReference = tokyoReferenceInstant.atZone(ZoneOffset.UTC).toLocalDate()
 
-        assertTrue(isOnOrAfterLocalToday(todayUtcMidnight, tokyo))
+    // 2026-01-16T02:00:00Z is 2026-01-15 18:00 in Los Angeles (Los Angeles, UTC-8 in January, is
+    // still on the previous calendar day) but UTC itself has already rolled over to the 16th.
+    private val losAngelesReferenceInstant = Instant.parse("2026-01-16T02:00:00Z")
+    private val losAngelesToday = losAngelesReferenceInstant.atZone(losAngeles).toLocalDate()
+    private val utcCalendarDayAtLosAngelesReference =
+        losAngelesReferenceInstant.atZone(ZoneOffset.UTC).toLocalDate()
+
+    @Test
+    fun `UTC-midnight instant for UTC's calendar day is not selectable once Tokyo has rolled over to the next day`() {
+        val candidateMillis = utcCalendarDayAtTokyoReference.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+        assertFalse(isOnOrAfterLocalToday(candidateMillis, tokyo, today = tokyoToday))
     }
 
     @Test
-    fun `UTC-midnight instant still on yesterday's UTC calendar day is not selectable in Tokyo`() {
-        // Asia/Tokyo is UTC+9: at any local Tokyo hour, the UTC calendar day can lag Tokyo's by one
-        // day for up to 9 hours. Yesterday's UTC-midnight is unambiguously before Tokyo's local today.
-        val yesterdayUtcMidnight =
-            LocalDate.now(tokyo).minusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun `same candidate would incorrectly be selectable in Tokyo if today fell back to UTC's calendar day`() {
+        val candidateMillis = utcCalendarDayAtTokyoReference.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
-        assertFalse(isOnOrAfterLocalToday(yesterdayUtcMidnight, tokyo))
+        assertTrue(isOnOrAfterLocalToday(candidateMillis, tokyo, today = utcCalendarDayAtTokyoReference))
     }
 
     @Test
-    fun `today's UTC-midnight instant is selectable in Los Angeles`() {
-        val todayUtcMidnight =
-            LocalDate.now(losAngeles).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun `UTC-midnight instant for Los Angeles's calendar day is selectable even though UTC has already rolled over`() {
+        val candidateMillis = losAngelesToday.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
-        assertTrue(isOnOrAfterLocalToday(todayUtcMidnight, losAngeles))
+        assertTrue(isOnOrAfterLocalToday(candidateMillis, losAngeles, today = losAngelesToday))
     }
 
     @Test
-    fun `tomorrow's UTC-midnight instant is selectable in Los Angeles`() {
-        // America/Los_Angeles is UTC-8/-7: local "today" can still be behind the UTC calendar day by
-        // up to 8 hours, so tomorrow's UTC-midnight instant must remain selectable, not excluded.
-        val tomorrowUtcMidnight =
-            LocalDate.now(losAngeles).plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun `same candidate would incorrectly be unselectable in Los Angeles if today fell back to UTC's calendar day`() {
+        val candidateMillis = losAngelesToday.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
-        assertTrue(isOnOrAfterLocalToday(tomorrowUtcMidnight, losAngeles))
-    }
-
-    @Test
-    fun `two days ago UTC-midnight instant is not selectable in Los Angeles`() {
-        val twoDaysAgoUtcMidnight =
-            LocalDate.now(losAngeles).minusDays(2).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-
-        assertFalse(isOnOrAfterLocalToday(twoDaysAgoUtcMidnight, losAngeles))
+        assertFalse(
+            isOnOrAfterLocalToday(candidateMillis, losAngeles, today = utcCalendarDayAtLosAngelesReference),
+        )
     }
 }

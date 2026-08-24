@@ -160,9 +160,13 @@ internal fun RescheduleWateringDialog(
  * day rolls over and end up with a `wateringDueDateOverride` whose local calendar day is still in the
  * past relative to their actual today.
  */
-internal fun isOnOrAfterLocalToday(utcTimeMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()): Boolean {
+internal fun isOnOrAfterLocalToday(
+    utcTimeMillis: Long,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    today: LocalDate = LocalDate.now(zoneId),
+): Boolean {
     val candidate = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
-    return !candidate.isBefore(LocalDate.now(zoneId))
+    return !candidate.isBefore(today)
 }
 
 private object TodayOrLaterSelectableDates : SelectableDates {

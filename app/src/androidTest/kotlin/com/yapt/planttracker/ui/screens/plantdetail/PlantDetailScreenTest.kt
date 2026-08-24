@@ -430,11 +430,16 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun wateringDueActionsRow_isDisplayedWhenOverdue() {
-        // wateringDueDateOverride = 0L (epoch, Jan 1 1970) is long before today → isOverdue = true
+    fun wateringDueActionsRow_isDisplayedWhenDueSoon() {
+        // A never-watered plant's `nextWateringDueAt` is `maxOf(now, wateringDueDateOverride)`
+        // (CareSchedule stays due-today, never overdue, until the first WATER log) — a past override
+        // of 0L (epoch) alone makes this plant `isDueSoon` (due today), not `isOverdue`. The row's
+        // visibility condition is `isOverdue || isDueSoon`, so this covers the due-soon half; the
+        // overdue half is covered by `rescheduleDialog_todayOption_enabledWhenOverdue`, which requires
+        // a real past `WATER` log to genuinely make a plant overdue.
         val plant = Plant(
             id = 10L,
-            name = "Overdue Plant",
+            name = "Due Soon Plant",
             wateringIntervalDays = 7,
             wateringDueDateOverride = 0L,
             createdAt = 0L,
