@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,13 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+
+/**
+ * Disambiguates the watering-due row's "Water" button from the `plant_detail_tab_water` tab strip
+ * label (same string, both clickable) in Compose UI tests (#508 review fix) — text alone can't tell
+ * them apart via `onNodeWithText`.
+ */
+internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_button"
 
 /**
  * The three watering-due actions row (#508, product ADR-0029), replacing the old single full-width
@@ -49,7 +57,10 @@ internal fun WateringDueActionsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedButton(onClick = onWaterClick, modifier = Modifier.weight(1f)) {
+        OutlinedButton(
+            onClick = onWaterClick,
+            modifier = Modifier.weight(1f).testTag(WATERING_DUE_WATER_BUTTON_TEST_TAG)
+        ) {
             Text(stringResource(R.string.watering_due_action_water))
         }
         OutlinedButton(onClick = onStillMoistClick, modifier = Modifier.weight(1f)) {
@@ -138,15 +149,24 @@ internal fun RescheduleWateringDialog(
 
 /**
  * [DatePicker]'s `selectedDateMillis`/`SelectableDates` always operate on UTC midnight, regardless of
- * device timezone (a documented Material3 API quirk) — comparisons here stay in [ZoneOffset.UTC] on
- * both sides so the calendar day the user taps is the calendar day excluded/accepted, matching what
- * the picker itself visually displays.
+ * device timezone (a documented Material3 API quirk, and also how Material3's own `CalendarModel`
+ * highlights "today"). The calendar day number is read out of [utcTimeMillis] in [ZoneOffset.UTC] since
+ * that's the zone the picker encodes it in — but it's compared against **local** "today"
+ * ([zoneId], defaulting to [ZoneId.systemDefault]), not UTC "today": [utcMidnightMsToLocalStartOfDayMillis]
+ * always reinterprets the picked day as a local calendar day downstream, matching how
+ * `CareSchedule.dueStatusFor`'s `isOverdue`/`isDueSoon` compare via `Long.toLocalDate()` (also
+ * [ZoneId.systemDefault]). Comparing against UTC "today" instead would let a user in a timezone ahead
+ * of UTC (e.g. UTC+9) tap the picker's own highlighted "today" cell during local hours before the UTC
+ * day rolls over and end up with a `wateringDueDateOverride` whose local calendar day is still in the
+ * past relative to their actual today.
  */
+internal fun isOnOrAfterLocalToday(utcTimeMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()): Boolean {
+    val candidate = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+    return !candidate.isBefore(LocalDate.now(zoneId))
+}
+
 private object TodayOrLaterSelectableDates : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-        val candidate = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
-        return !candidate.isBefore(LocalDate.now(ZoneOffset.UTC))
-    }
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean = isOnOrAfterLocalToday(utcTimeMillis)
 }
 
 /** Converts a picked UTC-midnight date to local start-of-day, mirroring `AddCareLogScreen`'s date-picker handling. */

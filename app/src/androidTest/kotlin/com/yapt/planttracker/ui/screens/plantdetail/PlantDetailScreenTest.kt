@@ -458,7 +458,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText("Reschedule watering"))
         composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
         composeTestRule.onNodeWithText("Still moist").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Water")[0].assertIsDisplayed()
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -558,15 +558,41 @@ class PlantDetailScreenTest {
 
     @Test
     fun rescheduleDialog_todayOption_enabledWhenOverdue() {
+        // A never-watered plant's `nextWateringDueAt` is `maxOf(now, wateringDueDateOverride)`
+        // (CareSchedule stays due-today, never overdue, until the first WATER log) — a past override
+        // alone can't make it overdue. A real WATER log 10 days ago against a 7-day interval does.
         val plant = Plant(
             id = 14L,
             name = "Overdue Today Option",
             wateringIntervalDays = 7,
-            wateringDueDateOverride = 0L,
             createdAt = 0L,
             updatedAt = 0L
         )
-        val viewModel = makeViewModel(plant)
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        val careLogs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.WATER, loggedAt = now - (10 * dayInMs))
+        )
+
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database,
+            wateringAdjustmentRepo
+        )
 
         composeTestRule.setContent {
             PlantDetailScreen(
