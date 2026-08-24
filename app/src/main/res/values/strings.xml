@@ -91,18 +91,21 @@
     <string name="whats_new_section_changed">Changed</string>
     <string name="settings_whats_new_title">What\'s New</string>
     <string name="settings_whats_new_subtitle">View the release history</string>
-    <string name="skip_watering_title">Skip watering</string>
+    <!-- Reschedule watering (#508, product ADR-0029, renamed from "Skip watering") — shared by the
+         Plant Detail button/dialog title and the ReminderWorker notification action label. -->
+    <string name="reschedule_watering_title">Reschedule watering</string>
+    <string name="reschedule_watering_today">Today</string>
+    <plurals name="reschedule_watering_plus_days">
+        <item quantity="one">+1 day</item>
+        <item quantity="other">+%d days</item>
+    </plurals>
+    <string name="reschedule_watering_custom_date">Custom date…</string>
+    <string name="watering_due_action_water">Water</string>
+    <string name="watering_due_action_still_moist">Still moist</string>
     <!-- Check reminders (#570): reframed notification title/actions, flag-gated -->
     <string name="notification_check_title">Check %s</string>
     <string name="notification_action_watered">Watered</string>
     <string name="notification_action_still_moist">Still moist</string>
-    <string name="skip_watering_confirm">Confirm</string>
-    <string name="skip_watering_decrease_cd">Decrease</string>
-    <string name="skip_watering_increase_cd">Increase</string>
-    <plurals name="skip_watering_days">
-        <item quantity="one">1 day</item>
-        <item quantity="other">%d days</item>
-    </plurals>
     <string name="water_feedback_sheet_title">Water %s?</string>
     <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>
@@ -114,6 +117,8 @@
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s today</string>
     <string name="quick_log_already_fertilized">Already fertilized %s today</string>
+    <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
+    <string name="quick_log_already_checked">Already checked %s today</string>
     <string name="care_history_show_less">Show less</string>
     <plurals name="care_history_show_more">
         <item quantity="one">Show 1 more</item>

@@ -35,25 +35,30 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   each plant's reminders via `CustomReminderRepository.getRemindersForPlantOnce()` before calling `computeStatus()`.
   See technical ADR-0019 (#232).
 
-## Skip watering
-`SkipWateringReceiver` handles the notification action (+1 day override); guards on `intent.action` (#178). Its
-actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside `goAsync()` for direct
-testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a learning signal (#570,
-product ADR-0027) — it only ever touches `wateringDueDateOverride`, never `wateringConfidence`/
-`wateringIntervalDays`/`wateringBaseIntervalDays`; `SkipWateringReceiverTest` pins this so it can't be wired up
-later by accident.
+## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
+`SkipWateringReceiver` handles the notification action (+1 day override, unchanged); guards on `intent.action`
+(#178). Its actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside
+`goAsync()` for direct testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a
+learning signal (#570, product ADR-0027, reaffirmed by ADR-0029) — it only ever touches `wateringDueDateOverride`,
+never `wateringConfidence`/`wateringIntervalDays`/`wateringBaseIntervalDays`; `SkipWateringReceiverTest` pins this
+so it can't be wired up later by accident. The action's label string (`reschedule_watering_title`, was
+`skip_watering_title`) is shared with the Plant Detail Reschedule button/dialog (`.claude/rules/plant-detail.md`) —
+one rename covers both surfaces. The now-unregistered duplicate under `worker/SkipWateringReceiver.kt` (which
+mutated `wateringIntervalDays` directly, contradicting ADR-0007/ADR-0029) was deleted in #508.
 
 ## Check reminders (#570, product ADR-0027)
 `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off) reframes the watering-due reminder from an
 instruction to a check-in prompt. Gated in `ReminderWorker.postPlantNotification()` on `isWateringDue
 (= status.isOverdue || status.isDueSoon)` **and** the flag — a fertilizing/repotting-only reminder never reframes,
 even with the flag on, since there's no "check the soil" action to offer it.
-- **Flag off** (or not watering-due): byte-for-byte identical to today — title = plant name, single "Skip watering"
-  action.
+- **Flag off** (or not watering-due): byte-for-byte identical to today — title = plant name, single "Reschedule
+  watering" action.
 - **Flag on, watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the single
-  "Skip watering" action is replaced by two: **Watered** (reuses the same deep-link `PendingIntent` as tapping the
-  notification body — a discoverability affordance, not a new code path) and **Still moist**
-  (`StillMoistReceiver`).
+  "Reschedule watering" action is replaced by two: **Watered** (reuses the same deep-link `PendingIntent` as
+  tapping the notification body — a discoverability affordance, not a new code path) and **Still moist**
+  (`StillMoistReceiver`). Since #508 (product ADR-0029), Still moist is also reachable from Plant Detail directly
+  (`PlantDetailViewModel.recordStillMoist()`, same `QuickLogUseCase.recordStillMoistCheck()` call site) — this
+  notification action is no longer the only way to record it.
 - `StillMoistReceiver` mirrors `SkipWateringReceiver`'s no-dialog, single-tap shape exactly (same `goAsync()` +
   internal-suspend-fun-for-testability pattern), but delegates the actual work to
   `QuickLogUseCase.recordStillMoistCheck(plant)` rather than touching repositories directly — that's the one choke

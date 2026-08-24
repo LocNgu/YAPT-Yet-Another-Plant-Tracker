@@ -2,6 +2,8 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasTestTag
@@ -428,11 +430,16 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun skipWateringButton_isDisplayedWhenOverdue() {
-        // wateringDueDateOverride = 0L (epoch, Jan 1 1970) is long before today → isOverdue = true
+    fun wateringDueActionsRow_isDisplayedWhenDueSoon() {
+        // A never-watered plant's `nextWateringDueAt` is `maxOf(now, wateringDueDateOverride)`
+        // (CareSchedule stays due-today, never overdue, until the first WATER log) — a past override
+        // of 0L (epoch) alone makes this plant `isDueSoon` (due today), not `isOverdue`. The row's
+        // visibility condition is `isOverdue || isDueSoon`, so this covers the due-soon half; the
+        // overdue half is covered by `rescheduleDialog_todayOption_enabledWhenOverdue`, which requires
+        // a real past `WATER` log to genuinely make a plant overdue.
         val plant = Plant(
             id = 10L,
-            name = "Overdue Plant",
+            name = "Due Soon Plant",
             wateringIntervalDays = 7,
             wateringDueDateOverride = 0L,
             createdAt = 0L,
@@ -450,16 +457,18 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The Water tab content pushes the skip button below the fold; scroll the list to it (this
+        // The Water tab content pushes the actions row below the fold; scroll the list to it (this
         // composes the off-screen item, which a waitUntil-on-existence check never would).
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Skip watering"))
-        composeTestRule.onNodeWithText("Skip watering").assertIsDisplayed()
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Still moist").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
     }
 
     @Test
-    fun skipWateringButton_isHiddenWhenNotDue() {
-        // No wateringIntervalDays → button condition fails, button not composed
+    fun wateringDueActionsRow_isHiddenWhenNotDue() {
+        // No wateringIntervalDays → row condition fails, row not composed
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -475,9 +484,159 @@ class PlantDetailScreenTest {
 
         composeTestRule.waitForIdle()
         assertTrue(
-            composeTestRule.onAllNodesWithText("Skip watering")
+            composeTestRule.onAllNodesWithText("Reschedule watering")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Still moist")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun stillMoistButton_tapRoutesThroughQuickLogUseCaseAndShowsSnackbar() {
+        val plant = Plant(
+            id = 12L,
+            name = "Pilea",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = 0L,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        coEvery { mockQuickLogUseCase.recordStillMoistCheck(plant) } returns true
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Still moist"))
+        composeTestRule.onNodeWithText("Still moist").performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Checked Pilea — still moist")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Checked Pilea — still moist").assertIsDisplayed()
+        coVerify { mockQuickLogUseCase.recordStillMoistCheck(plant) }
+    }
+
+    @Test
+    fun rescheduleDialog_showsAllFiveOptions() {
+        val plant = Plant(
+            id = 13L,
+            name = "Overdue Reschedule",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = 0L,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+
+        composeTestRule.onNodeWithText("Today").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+2 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+3 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDialog_todayOption_enabledWhenOverdue() {
+        // A never-watered plant's `nextWateringDueAt` is `maxOf(now, wateringDueDateOverride)`
+        // (CareSchedule stays due-today, never overdue, until the first WATER log) — a past override
+        // alone can't make it overdue. A real WATER log 10 days ago against a 7-day interval does.
+        val plant = Plant(
+            id = 14L,
+            name = "Overdue Today Option",
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        val careLogs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.WATER, loggedAt = now - (10 * dayInMs))
+        )
+
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database,
+            wateringAdjustmentRepo
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+
+        composeTestRule.onNodeWithText("Today").assertIsEnabled()
+    }
+
+    @Test
+    fun rescheduleDialog_todayOption_disabledWhenDueSoon() {
+        // Never watered, wateringIntervalDays set, no override → due today (isDueSoon), not overdue.
+        val plant = Plant(id = 15L, name = "Due Today", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+
+        composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
     }
 
     @Test

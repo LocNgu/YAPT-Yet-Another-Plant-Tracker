@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -46,7 +45,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Slider
@@ -125,7 +123,7 @@ fun PlantDetailScreen(
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
-    val showSkipDialog by viewModel.showSkipDialog.collectAsStateWithLifecycle()
+    val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
@@ -180,11 +178,6 @@ fun PlantDetailScreen(
     var showReportIssueDialog by remember { mutableStateOf(false) }
     var issueToResolve by remember { mutableStateOf<PlantIssue?>(null) }
 
-    var skipDays by remember { mutableIntStateOf(1) }
-    LaunchedEffect(showSkipDialog) {
-        if (showSkipDialog) skipDays = 1
-    }
-
     LaunchedEffect(suggestedInterval, plant?.wateringIntervalDays) {
         val s = suggestedInterval
         val current = plant?.wateringIntervalDays
@@ -198,9 +191,6 @@ fun PlantDetailScreen(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is PlantDetailViewModel.Event.SkipConfirmed -> {
-                    viewModel.suggestedWateringInterval.value = event.proposedInterval
-                }
                 is PlantDetailViewModel.Event.SilentIntervalApplied -> {
                     val result = snackbarHostState.showSnackbar(
                         message = String.format(intervalAutoAppliedTemplate, event.afterIntervalDays),
@@ -223,6 +213,8 @@ fun PlantDetailScreen(
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
+    val stillMoistCheckedTemplate = stringResource(R.string.quick_log_still_moist_checked)
+    val alreadyCheckedTemplate = stringResource(R.string.quick_log_already_checked)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
@@ -236,6 +228,10 @@ fun PlantDetailScreen(
                     String.format(alreadyWateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyFertilizedToday ->
                     String.format(alreadyFertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.StillMoistChecked ->
+                    String.format(stillMoistCheckedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyCheckedToday ->
+                    String.format(alreadyCheckedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }
@@ -269,45 +265,13 @@ fun PlantDetailScreen(
         )
     }
 
-    if (showSkipDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissSkipDialog() },
-            title = { Text(stringResource(R.string.skip_watering_title)) },
-            text = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    IconButton(
-                        onClick = { if (skipDays > 1) skipDays-- },
-                        enabled = skipDays > 1
-                    ) {
-                        Icon(
-                            Icons.Filled.Remove,
-                            contentDescription = stringResource(R.string.skip_watering_decrease_cd)
-                        )
-                    }
-                    Text(pluralStringResource(R.plurals.skip_watering_days, skipDays, skipDays))
-                    IconButton(
-                        onClick = { if (skipDays < 7) skipDays++ },
-                        enabled = skipDays < 7
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.skip_watering_increase_cd)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.confirmSkip(skipDays) }
-                ) { Text(stringResource(R.string.skip_watering_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
-            }
+    if (showRescheduleDialog) {
+        RescheduleWateringDialog(
+            todayEnabled = careStatus?.isOverdue == true,
+            onDismiss = { viewModel.dismissRescheduleDialog() },
+            onToday = { viewModel.confirmRescheduleToday() },
+            onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
+            onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
         )
     }
 
@@ -573,18 +537,15 @@ fun PlantDetailScreen(
                     }
 
                     if (!tabsEnabled) {
-                        // Classic single-page layout (feature flag off): skip button, chart, gallery.
+                        // Classic single-page layout (feature flag off): watering-due actions, chart, gallery.
                         careStatus?.let { status ->
                             if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
                                 item {
-                                    OutlinedButton(
-                                        onClick = { viewModel.requestSkip() },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp)
-                                    ) {
-                                        Text(stringResource(R.string.skip_watering_title))
-                                    }
+                                    WateringDueActionsRow(
+                                        onWaterClick = { showWaterSheet = true },
+                                        onStillMoistClick = { viewModel.recordStillMoist() },
+                                        onRescheduleClick = { viewModel.requestReschedule() }
+                                    )
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
@@ -725,14 +686,11 @@ fun PlantDetailScreen(
                                         (status.isOverdue || status.isDueSoon)
                                     ) {
                                         item {
-                                            OutlinedButton(
-                                                onClick = { viewModel.requestSkip() },
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp)
-                                            ) {
-                                                Text(stringResource(R.string.skip_watering_title))
-                                            }
+                                            WateringDueActionsRow(
+                                                onWaterClick = { showWaterSheet = true },
+                                                onStillMoistClick = { viewModel.recordStillMoist() },
+                                                onRescheduleClick = { viewModel.requestReschedule() }
+                                            )
                                             Spacer(Modifier.height(16.dp))
                                         }
                                     }
