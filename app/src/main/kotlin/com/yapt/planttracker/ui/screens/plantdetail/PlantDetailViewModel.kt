@@ -440,11 +440,16 @@ class PlantDetailViewModel(
         } else {
             plant.wateringConfidence
         }
-        // newInterval is already season-neutral (base-space) — it's QuickLogUseCase's adaptive
-        // suggestion, computed entirely from already-deseasonalized inputs (unlike setWateringInterval's
-        // `days` param below, which is a literal effective value the user just typed and genuinely needs
-        // deseasonalizing). Re-deseasonalizing it here would double-divide by season() (#584 review).
-        val wateringBaseIntervalDays = if (!plant.pinIntervalToBase) {
+        // newInterval is already season-neutral (base-space) when SEASONAL_WATERING is also on — it's
+        // QuickLogUseCase's adaptive suggestion, computed entirely from already-deseasonalized inputs
+        // (unlike setWateringInterval's `days` param below, which is a literal effective value the user
+        // just typed and genuinely needs deseasonalizing). Re-deseasonalizing it here would
+        // double-divide by season() (#584 review round 1). But ADAPTIVE_WATERING/SEASONAL_WATERING are
+        // independent flags — when amplitude is 0, newInterval is a *literal* value, not base-space, so
+        // writing it straight into wateringBaseIntervalDays would clobber a real prior base. Gate on
+        // amplitude too, matching setWateringInterval/currentBaseIntervalDaysOrLiteral (#584 review
+        // round 2).
+        val wateringBaseIntervalDays = if (!plant.pinIntervalToBase && dataStore.seasonalAmplitudeOnce() != 0.0) {
             newInterval.toDouble()
         } else {
             plant.wateringBaseIntervalDays
@@ -495,9 +500,11 @@ class PlantDetailViewModel(
         viewModelScope.launch {
             plant.value?.let { p ->
                 // beforeIntervalDays is the prior wateringIntervalDays captured by applyIntervalInternal,
-                // itself already base-space (see the comment there) — same double-deseasonalization
-                // pitfall applies here, so assign it directly rather than through deseasonalizedBaseOrNull.
-                val wateringBaseIntervalDays = if (!p.pinIntervalToBase) {
+                // only genuinely base-space when SEASONAL_WATERING was on at that time too — same
+                // double-deseasonalization pitfall applies here (assign directly, never through
+                // deseasonalizedBaseOrNull), and the same amplitude gate applies too, otherwise this
+                // would clobber a real prior base with a literal value (#584 review round 2).
+                val wateringBaseIntervalDays = if (!p.pinIntervalToBase && dataStore.seasonalAmplitudeOnce() != 0.0) {
                     beforeIntervalDays.toDouble()
                 } else {
                     p.wateringBaseIntervalDays

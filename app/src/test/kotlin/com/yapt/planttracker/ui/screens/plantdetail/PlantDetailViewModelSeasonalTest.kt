@@ -164,6 +164,58 @@ class PlantDetailViewModelSeasonalTest {
     }
 
     @Test
+    fun `applySuggestedInterval with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() = runTest {
+        // #584 review round 2: ADAPTIVE_WATERING/SEASONAL_WATERING are independent flags. With season
+        // off, newInterval is QuickLogUseCase's literal suggestion (not base-space) — writing it
+        // straight into wateringBaseIntervalDays would clobber a real prior base (6.0, established
+        // while season was previously on) with the literal 8. Mirrors setWateringInterval's season-off
+        // test above.
+        every { dataStore.data } returns flowOf(
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.applySuggestedInterval(8)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
+        }
+    }
+
+    @Test
+    fun `undoSilentIntervalApply with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() = runTest {
+        // #584 review round 2: same amplitude gate as applySuggestedInterval's season-off case —
+        // beforeIntervalDays is only genuinely base-space when SEASONAL_WATERING was on; with it off,
+        // writing it directly would clobber the real prior base (6.0) with a literal value (7).
+        every { dataStore.data } returns flowOf(
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 6.0)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.undoSilentIntervalApply(7)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 6.0 })
+        }
+    }
+
+    @Test
     fun `setWateringInterval logs the MANUAL_EDIT row's before-after in base-space, not the stale literal`() = runTest {
         // #584 review: mirrors AddEditPlantViewModel.saveEdit()'s equivalent MANUAL_EDIT fix — the row
         // must use the true base (6, from wateringBaseIntervalDays), not the stale literal
