@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
@@ -18,6 +19,8 @@ import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -27,6 +30,7 @@ import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 /**
  * Shared quick-log business logic used by both `PlantListViewModel` (PlantCard quick-log buttons)
@@ -48,6 +52,7 @@ class QuickLogUseCase(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val database: PlantDatabase,
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository,
     private val nowProvider: () -> Long = System::currentTimeMillis
 ) {
 
@@ -274,10 +279,11 @@ class QuickLogUseCase(
 
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
+        val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = WateringFeedback.TOO_SOON,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
-            currentBaseIntervalDays = currentInterval,
+            currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
         )
@@ -286,6 +292,15 @@ class QuickLogUseCase(
                 plant.copy(wateringConfidence = result.confidence, updatedAt = now)
             )
         }
+        wateringAdjustmentRepository.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.CHECK_STILL_MOIST,
+                beforeIntervalDays = currentBase,
+                afterIntervalDays = result.intervalDays
+            )
+        )
     }
 
     /**
@@ -360,19 +375,35 @@ class QuickLogUseCase(
     ): Int {
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
+        val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
-            currentBaseIntervalDays = currentInterval,
+            currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
         )
+        val now = System.currentTimeMillis()
         if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(
-                plant.copy(wateringConfidence = result.confidence, updatedAt = System.currentTimeMillis())
-            )
+            plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
         }
+        wateringAdjustmentRepository.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = adjustmentTriggerFor(feedback),
+                beforeIntervalDays = currentBase,
+                afterIntervalDays = result.intervalDays
+            )
+        )
         return result.intervalDays
+    }
+
+    private fun adjustmentTriggerFor(feedback: WateringFeedback?): WateringAdjustmentTrigger = when (feedback) {
+        WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
+        WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
+        WateringFeedback.JUST_RIGHT -> WateringAdjustmentTrigger.WATER_JUST_RIGHT
+        null -> WateringAdjustmentTrigger.WATER_NEUTRAL
     }
 
     private suspend fun isAdaptiveWateringEnabled(): Boolean =
@@ -397,6 +428,21 @@ class QuickLogUseCase(
             amplitude,
             SeasonalWatering.currentHemisphere()
         )
+    }
+
+    /**
+     * The watering-model input for `currentBaseIntervalDays` (#572, amending technical ADR-0021):
+     * season-neutral, reading [Plant.wateringBaseIntervalDays] instead of the raw (possibly seasonally
+     * stale) [configuredIntervalDays] whenever `SEASONAL_WATERING` is on and the plant isn't pinned.
+     * Prior to this fix every call site fed the model a value that only ever changed on a manual
+     * edit, silently diverging from what [CareSchedule.computeStatus] actually used for the due date.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Int {
+        if (plant.pinIntervalToBase) return configuredIntervalDays
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return configuredIntervalDays
+        return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
     }
 
     private suspend fun clearWateringOverrideIfActive(plantId: Long) {

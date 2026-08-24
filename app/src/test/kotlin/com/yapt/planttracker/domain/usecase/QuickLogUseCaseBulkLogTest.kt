@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -58,7 +59,8 @@ class QuickLogUseCaseBulkLogTest {
             careLogRepo,
             PlantPhotoRepository(db.plantPhotoDao()),
             dataStore,
-            db
+            db,
+            WateringAdjustmentRepository(db.wateringAdjustmentDao())
         )
     }
 

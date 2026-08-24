@@ -98,6 +98,11 @@ class SettingsViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeasonalAmplitude.STANDARD)
 
+    /** "Ask before changing intervals" (#572) — visible only while `adaptive_watering` is on. */
+    val askBeforeChangingIntervals: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -140,6 +145,12 @@ class SettingsViewModel(
     fun setSeasonalAmplitude(amplitude: SeasonalAmplitude) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.SEASONAL_AMPLITUDE] = amplitude.name }
+        }
+    }
+
+    fun setAskBeforeChangingIntervals(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = enabled }
         }
     }
 

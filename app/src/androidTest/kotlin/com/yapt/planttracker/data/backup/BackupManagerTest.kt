@@ -270,6 +270,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_MINUTE] = 30
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = true
             prefs[SettingsKeys.THEME_MODE] = "DARK"
+            prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = false
         }
 
         val exportFile = tmpFolder.newFile("settings_backup.yapt")
@@ -282,6 +283,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.REMINDER_MINUTE] = 0
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = false
             prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
+            prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = true
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -299,6 +301,52 @@ class BackupManagerTest {
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
         )
         assertEquals("DARK", prefs[SettingsKeys.THEME_MODE])
+        assertFalse(
+            "askBeforeChangingIntervals should be restored to false",
+            prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
+        )
+    }
+
+    @Test
+    fun wateringAdjustments_roundTrip() = runBlocking {
+        val plant = PlantEntity(
+            id = 1L,
+            name = "Monstera",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = 9,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant)
+        db.wateringAdjustmentDao().insertAdjustment(
+            com.yapt.planttracker.data.entity.WateringAdjustmentEntity(
+                id = 1L,
+                plantId = 1L,
+                triggeredAt = 5000L,
+                trigger = "WATER_TOO_SOON",
+                beforeIntervalDays = 8,
+                afterIntervalDays = 9
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("adjustments_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        backupManager.exportBackup(exportUri, includePhotos = false)
+
+        db.plantDao().deleteAll()
+
+        val result = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
+
+        val restored = db.wateringAdjustmentDao().getAllAdjustments().first()
+        assertEquals(1, restored.size)
+        assertEquals("WATER_TOO_SOON", restored[0].trigger)
+        assertEquals(8, restored[0].beforeIntervalDays)
+        assertEquals(9, restored[0].afterIntervalDays)
     }
 
     @Test

@@ -462,4 +462,43 @@
         <item quantity="other">%d demo plants removed</item>
     </plurals>
     <string name="dev_mode_remove_demo_none">No demo plants to remove</string>
+    <!-- "Why this date?" watering transparency sheet (#572) -->
+    <string name="why_this_date_button">Why this date?</string>
+    <string name="watering_explanation_title">Why this date?</string>
+    <string name="watering_explanation_next_watering">Next watering</string>
+    <string name="watering_explanation_base_interval">Base interval</string>
+    <plurals name="watering_explanation_learned_from">
+        <item quantity="one">learned from %1$d watering</item>
+        <item quantity="other">learned from %1$d waterings</item>
+    </plurals>
+    <string name="watering_explanation_season_slower">shorter days, slower growth</string>
+    <string name="watering_explanation_season_faster">longer days, faster growth</string>
+    <string name="watering_explanation_season_transitional">transitional growth</string>
+    <string name="watering_explanation_multiplier">× %1$.2f</string>
+    <plurals name="watering_explanation_effective_interval">
+        <item quantity="one">Watering every %1$d day</item>
+        <item quantity="other">Watering every %1$d days</item>
+    </plurals>
+    <string name="watering_explanation_last_watered">Last watered</string>
+    <string name="watering_explanation_confidence">Confidence</string>
+    <string name="confidence_still_learning">Still learning</string>
+    <string name="confidence_getting_there">Getting there</string>
+    <string name="confidence_dialed_in">Dialed in</string>
+    <string name="watering_explanation_recent_adjustments">Recent adjustments</string>
+    <string name="watering_explanation_no_adjustments">No adjustments yet</string>
+    <string name="watering_explanation_adjustment_unchanged">unchanged</string>
+    <string name="watering_explanation_adjustment_change">%1$d → %2$d days</string>
+    <string name="adjustment_trigger_water_too_soon">still wet</string>
+    <string name="adjustment_trigger_water_too_late">too dry</string>
+    <string name="adjustment_trigger_water_just_right">just right</string>
+    <string name="adjustment_trigger_water_neutral">watered</string>
+    <string name="adjustment_trigger_check_still_moist">still-moist check</string>
+    <string name="adjustment_trigger_dialog_dismissal">kept schedule</string>
+    <string name="adjustment_trigger_dialog_edit">applied suggestion</string>
+    <string name="adjustment_trigger_manual_edit">manual edit</string>
+    <string name="adjustment_trigger_silent_apply_undone">undone</string>
+    <!-- "Ask before changing intervals" toggle (#572) -->
+    <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
+    <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>
+    <string name="interval_auto_applied_snackbar">Watering interval updated to %1$d days</string>
 </resources>

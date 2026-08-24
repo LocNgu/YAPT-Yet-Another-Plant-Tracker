@@ -14,6 +14,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.notification.NotificationHelper
@@ -46,9 +47,18 @@ class YaptApplication : Application() {
     val plantPhotoRepository by lazy { PlantPhotoRepository(database.plantPhotoDao()) }
     val customReminderRepository by lazy { CustomReminderRepository(database.customReminderDao()) }
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
+    val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
     val featureFlags by lazy { FeatureFlags(settingsDataStore) }
     val quickLogUseCase by lazy {
-        QuickLogUseCase(this, plantRepository, careLogRepository, plantPhotoRepository, settingsDataStore, database)
+        QuickLogUseCase(
+            this,
+            plantRepository,
+            careLogRepository,
+            plantPhotoRepository,
+            settingsDataStore,
+            database,
+            wateringAdjustmentRepository
+        )
     }
 
     override fun onCreate() {

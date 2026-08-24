@@ -87,6 +87,7 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 ## Pointers (load on demand — path-scoped rules load only when you touch matching files)
 - `.claude/rules/schedule.md` — CareSchedule status + adaptive-interval rules
 - `.claude/rules/seasonal-watering.md` — computed seasonal watering curve, hemisphere, base interval, pin
+- `.claude/rules/watering-transparency.md` — "Why this date?" sheet, `watering_adjustments` table, ask-before-changing-intervals toggle
 - `.claude/rules/notifications.md` — ReminderWorker, composer, notification toggles
 - `.claude/rules/backup.md` — `.yapt` export/import + backup schema versions
 - `.claude/rules/chart.md` — Vico watering-history chart internals

@@ -12,10 +12,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
@@ -35,7 +39,10 @@ class AddEditPlantViewModel(
     private val plantId: Long?,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
     // updating; null is treated the same as SEASONAL_WATERING being off (#569).
-    private val dataStore: DataStore<Preferences>? = null
+    private val dataStore: DataStore<Preferences>? = null,
+    // Nullable + defaulted for the same reason as [dataStore] — never read when [dataStore] is null,
+    // since a MANUAL_EDIT row is only ever written when `adaptive_watering` is on (#572).
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
@@ -176,8 +183,13 @@ class AddEditPlantViewModel(
         // Unchanged when SEASONAL_WATERING is off, the plant is pinned, or the interval
         // wasn't touched — the prior base (if any) is preserved rather than cleared.
         val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
+        val deseasonalizedNewBase = if (baseShouldBeRecomputed) {
+            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now)
+        } else {
+            null
+        }
         val wateringBaseIntervalDays = if (baseShouldBeRecomputed) {
-            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now) ?: existing?.wateringBaseIntervalDays
+            deseasonalizedNewBase ?: existing?.wateringBaseIntervalDays
         } else {
             existing?.wateringBaseIntervalDays
         }
@@ -189,8 +201,37 @@ class AddEditPlantViewModel(
                 wateringBaseIntervalDays = wateringBaseIntervalDays
             )
         )
+        if (intervalChanged && newWateringIntervalDays != null && isAdaptiveWateringEnabled()) {
+            // #584 review: log base-space before/after, not the literal typed value — matches
+            // PlantDetailViewModel.setWateringInterval()'s equivalent MANUAL_EDIT fix.
+            val loggedBefore = currentBaseIntervalDaysOrLiteral(
+                pinned = existing?.pinIntervalToBase == true,
+                storedBase = existing?.wateringBaseIntervalDays,
+                literal = existing?.wateringIntervalDays ?: newWateringIntervalDays
+            )
+            val loggedAfter = if (!pinIntervalToBase) {
+                (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
+            } else {
+                newWateringIntervalDays
+            }
+            wateringAdjustmentRepository?.addAdjustment(
+                WateringAdjustment(
+                    plantId = plantId!!,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
+                    beforeIntervalDays = loggedBefore,
+                    afterIntervalDays = loggedAfter
+                )
+            )
+        }
         savePendingPhotos(plantId!!, now)
         _events.emit(Event.Saved(plantId))
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean {
+        val store = dataStore ?: return false
+        return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
     }
 
     private suspend fun saveNew(plant: Plant, newWateringIntervalDays: Int?, now: Long) {
@@ -221,6 +262,21 @@ class AddEditPlantViewModel(
                 SeasonalWatering.currentHemisphere()
             )
         }
+    }
+
+    /**
+     * The pre-edit base-space reference for [WateringAdjustment] row units (#584 review) — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel]'s
+     * `currentBaseIntervalDaysOrLiteral()`. Collapses to [literal] itself when [pinned] or
+     * SEASONAL_WATERING is off, matching every other read of [Plant.wateringBaseIntervalDays].
+     */
+    @Suppress("ReturnCount")
+    private suspend fun currentBaseIntervalDaysOrLiteral(pinned: Boolean, storedBase: Double?, literal: Int): Int {
+        if (pinned) return literal
+        val store = dataStore ?: return literal
+        val amplitude = store.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return literal
+        return (storedBase ?: literal.toDouble()).roundToInt()
     }
 
     fun deletePlant() {
@@ -270,10 +326,17 @@ class AddEditPlantViewModel(
         private val plantRepository: PlantRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long?,
-        private val dataStore: DataStore<Preferences>? = null
+        private val dataStore: DataStore<Preferences>? = null,
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddEditPlantViewModel(plantRepository, plantPhotoRepository, plantId, dataStore) as T
+            AddEditPlantViewModel(
+                plantRepository,
+                plantPhotoRepository,
+                plantId,
+                dataStore,
+                wateringAdjustmentRepository
+            ) as T
     }
 }

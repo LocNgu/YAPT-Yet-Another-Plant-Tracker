@@ -2,6 +2,7 @@ package com.yapt.planttracker.data.backup
 
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -195,5 +196,49 @@ class BackupModelsTest {
     fun `BackupCareLog careType stored as raw String`() {
         val bl = fullLog.copy(careType = "PRUNE").toBackupCareLog()
         assertEquals("PRUNE", bl.careType)
+    }
+
+    // --- WateringAdjustmentEntity tests (#572) ---
+
+    private fun WateringAdjustmentEntity.toBackupWateringAdjustment() = BackupWateringAdjustment(
+        id = id,
+        plantId = plantId,
+        triggeredAt = triggeredAt,
+        trigger = trigger,
+        beforeIntervalDays = beforeIntervalDays,
+        afterIntervalDays = afterIntervalDays
+    )
+
+    private fun BackupWateringAdjustment.toWateringAdjustmentEntity() = WateringAdjustmentEntity(
+        id = id,
+        plantId = plantId,
+        triggeredAt = triggeredAt,
+        trigger = trigger,
+        beforeIntervalDays = beforeIntervalDays,
+        afterIntervalDays = afterIntervalDays
+    )
+
+    private val fullWateringAdjustment = WateringAdjustmentEntity(
+        id = 100L,
+        plantId = 1L,
+        triggeredAt = 1_600_000_000_000L,
+        trigger = "WATER_TOO_SOON",
+        beforeIntervalDays = 8,
+        afterIntervalDays = 9
+    )
+
+    @Test
+    fun `WateringAdjustmentEntity round-trip preserves all fields`() {
+        assertEquals(
+            fullWateringAdjustment,
+            fullWateringAdjustment.toBackupWateringAdjustment().toWateringAdjustmentEntity()
+        )
+    }
+
+    @Test
+    fun `WateringAdjustmentEntity trigger stored as raw String for unknown enum values`() {
+        val unknownTrigger = "FUTURE_TRIGGER_VALUE"
+        val adjustment = fullWateringAdjustment.copy(trigger = unknownTrigger)
+        assertEquals(unknownTrigger, adjustment.toBackupWateringAdjustment().trigger)
     }
 }

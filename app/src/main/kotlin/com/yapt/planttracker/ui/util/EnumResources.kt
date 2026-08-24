@@ -14,8 +14,11 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
 import com.yapt.planttracker.ui.theme.ThemeMode
 
 @StringRes
@@ -70,4 +73,31 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
     WateringFeedback.TOO_SOON -> R.string.feedback_emoji_still_wet
     WateringFeedback.JUST_RIGHT -> R.string.feedback_emoji_just_right
     WateringFeedback.TOO_LATE -> R.string.feedback_emoji_too_dry
+}
+
+@StringRes
+fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
+    WateringAdjustmentTrigger.WATER_TOO_SOON -> R.string.adjustment_trigger_water_too_soon
+    WateringAdjustmentTrigger.WATER_TOO_LATE -> R.string.adjustment_trigger_water_too_late
+    WateringAdjustmentTrigger.WATER_JUST_RIGHT -> R.string.adjustment_trigger_water_just_right
+    WateringAdjustmentTrigger.WATER_NEUTRAL -> R.string.adjustment_trigger_water_neutral
+    WateringAdjustmentTrigger.CHECK_STILL_MOIST -> R.string.adjustment_trigger_check_still_moist
+    WateringAdjustmentTrigger.DIALOG_DISMISSAL -> R.string.adjustment_trigger_dialog_dismissal
+    WateringAdjustmentTrigger.DIALOG_EDIT -> R.string.adjustment_trigger_dialog_edit
+    WateringAdjustmentTrigger.MANUAL_EDIT -> R.string.adjustment_trigger_manual_edit
+    WateringAdjustmentTrigger.SILENT_APPLY_UNDONE -> R.string.adjustment_trigger_silent_apply_undone
+}
+
+@StringRes
+fun WateringConfidenceLevel.labelRes(): Int = when (this) {
+    WateringConfidenceLevel.STILL_LEARNING -> R.string.confidence_still_learning
+    WateringConfidenceLevel.GETTING_THERE -> R.string.confidence_getting_there
+    WateringConfidenceLevel.DIALED_IN -> R.string.confidence_dialed_in
+}
+
+@StringRes
+fun SeasonBand.labelRes(): Int = when (this) {
+    SeasonBand.SLOWER_GROWTH -> R.string.watering_explanation_season_slower
+    SeasonBand.FASTER_GROWTH -> R.string.watering_explanation_season_faster
+    SeasonBand.TRANSITIONAL -> R.string.watering_explanation_season_transitional
 }

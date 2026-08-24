@@ -12,12 +12,15 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 // #568 added two small adaptive-watering helpers to this VM's one cohesive save flow; splitting
 // them out would scatter that flow across files for no readability gain.
@@ -38,7 +42,10 @@ class AddCareLogViewModel(
     private val careLogId: Long = 0L,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
     // updating; null is treated the same as the `adaptive_watering` flag being off (#568).
-    private val dataStore: DataStore<Preferences>? = null
+    private val dataStore: DataStore<Preferences>? = null,
+    // Nullable + defaulted for the same reason as [dataStore] — never read when [dataStore] is null
+    // since adjustment rows are only ever written on the adaptive branch (#572).
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
 ) : ViewModel() {
 
     val isEditMode = careLogId != 0L
@@ -226,25 +233,54 @@ class AddCareLogViewModel(
     ): Int {
         val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
+        val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
-            currentBaseIntervalDays = currentInterval,
+            currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback
         )
+        val now = System.currentTimeMillis()
         if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(
-                plant.copy(wateringConfidence = result.confidence, updatedAt = System.currentTimeMillis())
-            )
+            plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
         }
+        wateringAdjustmentRepository?.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = adjustmentTriggerFor(feedback),
+                beforeIntervalDays = currentBase,
+                afterIntervalDays = result.intervalDays
+            )
+        )
         return result.intervalDays
+    }
+
+    private fun adjustmentTriggerFor(feedback: WateringFeedback?): WateringAdjustmentTrigger = when (feedback) {
+        WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
+        WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
+        WateringFeedback.JUST_RIGHT -> WateringAdjustmentTrigger.WATER_JUST_RIGHT
+        null -> WateringAdjustmentTrigger.WATER_NEUTRAL
     }
 
     private suspend fun isAdaptiveWateringEnabled(): Boolean {
         val store = dataStore ?: return false
         return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
             ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
+    }
+
+    /**
+     * Season-neutral `currentBaseIntervalDays` input (#572, amending technical ADR-0021) — mirrors
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s private copy of the same helper.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Int {
+        if (plant.pinIntervalToBase) return configuredIntervalDays
+        val store = dataStore ?: return configuredIntervalDays
+        val amplitude = store.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return configuredIntervalDays
+        return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
     }
 
     /**
@@ -282,11 +318,19 @@ class AddCareLogViewModel(
         private val plantRepository: PlantRepository,
         private val plantId: Long,
         private val careLogId: Long = 0L,
-        private val dataStore: DataStore<Preferences>? = null
+        private val dataStore: DataStore<Preferences>? = null,
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId, dataStore) as T
+            AddCareLogViewModel(
+                careLogRepository,
+                plantRepository,
+                plantId,
+                careLogId,
+                dataStore,
+                wateringAdjustmentRepository
+            ) as T
     }
 
     private companion object {
