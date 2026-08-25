@@ -16,7 +16,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -76,17 +76,17 @@ class CalendarViewModelTest {
         PhotoReminderPolicy.shownThisSession.clear()
     }
 
-    // quickLog/quickWaterWithFeedback/quickLiquidFertilizeWithFeedback delegate the actual
+    // quickLog/quickWater/quickLiquidFertilize delegate the actual
     // care-log persistence, override clearing, and adaptive-interval computation to
     // QuickLogUseCase (see QuickLogUseCaseTest). These tests verify VM-level orchestration only:
     // the right use-case method is invoked with the resolved plant, and its result is mapped onto
     // the correct StateFlow/SharedFlow.
 
     @Test
-    fun `quickLog water routes through quickWaterWithFeedback and emits its snackbar message`() = runTest {
+    fun `quickLog water routes through quickWater and emits its snackbar message`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
@@ -100,14 +100,14 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
     }
 
     @Test
-    fun `quickWaterWithFeedback emits the QuickWaterSuggestion returned by the use case`() = runTest {
+    fun `quickWater emits the QuickWaterSuggestion returned by the use case`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -118,7 +118,7 @@ class CalendarViewModelTest {
         vm.quickWaterSuggestion.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickWaterWithFeedback(1L, WateringFeedback.TOO_LATE)
+                vm.quickWater(1L, WateringReason.PLANT_NEEDED_IT)
                 cancelAndIgnoreRemainingEvents()
             }
             val suggestion = awaitItem()
@@ -191,7 +191,7 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun `quickLiquidFertilizeWithFeedback emits watered-and-fertilized message, no interval suggestion`() = runTest {
+    fun `quickLiquidFertilize emits watered-and-fertilized message, no interval suggestion`() = runTest {
         val monstera = Plant(
             id = 1L,
             name = "Monstera",
@@ -201,7 +201,7 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -213,7 +213,7 @@ class CalendarViewModelTest {
             vm.quickLogEvent.test {
                 vm.plantsWithStatus.test {
                     awaitItem()
-                    vm.quickLiquidFertilizeWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                    vm.quickLiquidFertilize(1L, null)
                     cancelAndIgnoreRemainingEvents()
                 }
                 assertEquals("Watered and fertilized Monstera", awaitItem())
@@ -223,11 +223,11 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
     }
 
     @Test
-    fun `quickLiquidFertilizeWithFeedback emits the suggestion returned by the use case`() = runTest {
+    fun `quickLiquidFertilize emits the suggestion returned by the use case`() = runTest {
         val monstera = Plant(
             id = 1L,
             name = "Monstera",
@@ -237,7 +237,7 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -249,7 +249,7 @@ class CalendarViewModelTest {
         vm.quickWaterSuggestion.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickLiquidFertilizeWithFeedback(1L, WateringFeedback.TOO_LATE)
+                vm.quickLiquidFertilize(1L, WateringReason.PLANT_NEEDED_IT)
                 cancelAndIgnoreRemainingEvents()
             }
             val suggestion = awaitItem()

@@ -27,9 +27,10 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -208,6 +209,22 @@ class PlantDetailViewModel(
 
     val showRescheduleDialog = MutableStateFlow(false)
 
+    /**
+     * The Reschedule reason prompt (#586, product ADR-0030), shown *before*
+     * [showRescheduleDialog] — the reason decides what the model learns, and (for "Soil still moist")
+     * what date the picker opens on, so it has to be answered first.
+     */
+    val showRescheduleReasonSheet = MutableStateFlow(false)
+
+    /** The answer to [showRescheduleReasonSheet], held while the date dialog is up. */
+    val rescheduleReason = MutableStateFlow<RescheduleReason?>(null)
+
+    /**
+     * The recommended deferral shown at the top of [RescheduleWateringDialog], non-null only for a
+     * "Soil still moist" reschedule — see [QuickLogUseCase.suggestedStillMoistDeferralDays].
+     */
+    val rescheduleSuggestedDays = MutableStateFlow<Int?>(null)
+
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
@@ -268,14 +285,15 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Quick-logs a watering with [feedback] from the tappable watering stat chip. Reuses the shared
+     * Quick-logs a watering with [reason] from the tappable watering stat chip (`null` when the
+     * watering was on schedule and no reason prompt appeared, #586). Reuses the shared
      * [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any adaptive
      * interval suggestion feeds the existing interval-suggestion dialog via [suggestedWateringInterval].
      */
-    fun quickWater(feedback: WateringFeedback?) {
+    fun quickWater(reason: WateringReason?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            val outcome = quickLogUseCase.quickWaterWithFeedback(p, feedback)
+            val outcome = quickLogUseCase.quickWaterWithReason(p, reason)
             if (!outcome.logged) {
                 _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
                 return@launch
@@ -314,10 +332,10 @@ class PlantDetailViewModel(
      * Quick-logs a paired fertilize + watering for liquid-fertilizer plants from the fertilizing stat
      * chip, mirroring the combined water+fertilize path on PlantCard (ADR-0008/ADR-0017).
      */
-    fun quickLiquidFertilize(feedback: WateringFeedback?) {
+    fun quickLiquidFertilize(reason: WateringReason?) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(p, feedback)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(p, reason)
             if (!outcome.logged) {
                 _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
                 return@launch
@@ -721,91 +739,108 @@ class PlantDetailViewModel(
         }
     }
 
+    /** Opens the #586 reason prompt; the date dialog only follows once a reason is chosen. */
     fun requestReschedule() {
-        showRescheduleDialog.value = true
+        showRescheduleReasonSheet.value = true
+    }
+
+    /**
+     * Dismissing the reason prompt abandons the whole reschedule — no override write, no log, no
+     * model effect. "Records no signal" is satisfied here by recording nothing at all (#586).
+     */
+    fun dismissRescheduleReasonSheet() {
+        showRescheduleReasonSheet.value = false
+        rescheduleReason.value = null
+        rescheduleSuggestedDays.value = null
+    }
+
+    /**
+     * Answer to the #586 reason prompt. For [RescheduleReason.SOIL_STILL_MOIST] the date picker opens
+     * on a deferral derived from the interval the model lands on after that observation, rather than
+     * on today or #570's flat +1 day; for [RescheduleReason.CANT_RIGHT_NOW] there is nothing to
+     * suggest, because nothing about the plant was observed.
+     */
+    fun chooseRescheduleReason(reason: RescheduleReason) {
+        viewModelScope.launch {
+            rescheduleReason.value = reason
+            rescheduleSuggestedDays.value = plant.value
+                ?.takeIf { reason == RescheduleReason.SOIL_STILL_MOIST }
+                ?.let { quickLogUseCase.suggestedStillMoistDeferralDays(it) }
+            showRescheduleReasonSheet.value = false
+            showRescheduleDialog.value = true
+        }
     }
 
     fun dismissRescheduleDialog() {
         showRescheduleDialog.value = false
+        rescheduleReason.value = null
+        rescheduleSuggestedDays.value = null
     }
 
     /**
      * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
      * since the screen disables it while [PlantCareStatus.isDueSoon] (already due today, a true
-     * no-op there). Writes [Plant.wateringDueDateOverride] only, exactly like
-     * [confirmRescheduleRelativeDays]/[confirmRescheduleCustomDate] — never [Plant.wateringIntervalDays]
-     * / [Plant.wateringBaseIntervalDays] / [Plant.wateringConfidence], and never a [WateringAdjustment]
-     * row: a calendar deferral is deliberately not a learning signal (ADR-0007, reaffirmed by
-     * ADR-0027/ADR-0029). Unlike the superseded skip flow, this never emits an event that could feed
-     * the ADR-0006 interval-suggestion dialog.
+     * no-op there), and also while the reason is "Soil still moist", where pulling the date forward
+     * would contradict what the user just said. See [applyReschedule].
      */
     fun confirmRescheduleToday() {
-        viewModelScope.launch {
-            showRescheduleDialog.value = false
-            plant.value?.let { p ->
-                val now = System.currentTimeMillis()
-                plantRepository.updatePlant(p.copy(wateringDueDateOverride = now, updatedAt = now))
-            }
-        }
+        applyReschedule(System.currentTimeMillis())
     }
 
     /**
      * Reschedule "+[days]" option (#508, product ADR-0029) — anchored to the current *effective* due
      * date (`maxOf(nextWateringDueAt, now)`, already override-aware via [CareSchedule]), unchanged
-     * from the stepper dialog this replaces. See [confirmRescheduleToday] for what this deliberately
-     * never touches.
+     * from the stepper dialog this replaces. [days] never affects what the model learns (#586).
      */
     fun confirmRescheduleRelativeDays(days: Int) {
-        viewModelScope.launch {
-            showRescheduleDialog.value = false
-            plant.value?.let { p ->
-                val currentDue = maxOf(
-                    careStatus.value?.nextWateringDueAt ?: 0L,
-                    System.currentTimeMillis()
-                )
-                val newOverride = currentDue + TimeUnit.DAYS.toMillis(days.toLong())
-                plantRepository.updatePlant(
-                    p.copy(wateringDueDateOverride = newOverride, updatedAt = System.currentTimeMillis())
-                )
-            }
-        }
+        val currentDue = maxOf(careStatus.value?.nextWateringDueAt ?: 0L, System.currentTimeMillis())
+        applyReschedule(currentDue + TimeUnit.DAYS.toMillis(days.toLong()))
     }
 
     /**
      * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked
      * date at local start-of-day; the `DatePicker` itself excludes past dates via `SelectableDates`,
-     * so no further validation happens here. See [confirmRescheduleToday] for what this deliberately
-     * never touches.
+     * so no further validation happens here.
      */
     fun confirmRescheduleCustomDate(newDueAtMillis: Long) {
+        applyReschedule(newDueAtMillis)
+    }
+
+    /**
+     * The one place a reschedule is committed, whichever date option was tapped. What the answer to
+     * the #586 reason prompt decides — never the length of the deferral:
+     *
+     * - **"Soil still moist"** routes through the same [QuickLogUseCase.recordStillMoistCheck] the
+     *   notification's Still-moist action calls, so the two paths produce identical `CareType.CHECK`
+     *   logs and model effects by construction rather than by two implementations happening to agree.
+     * - **"I can't right now"** writes [Plant.wateringDueDateOverride] only — never
+     *   [Plant.wateringIntervalDays] / [Plant.wateringBaseIntervalDays] / [Plant.wateringConfidence],
+     *   and never a [WateringAdjustment] row. That is ADR-0029's posture for *every* reschedule,
+     *   preserved here for the half of them that really is about the user's availability.
+     *
+     * Neither path ever fires the ADR-0006 interval-suggestion dialog.
+     */
+    private fun applyReschedule(newDueAtMillis: Long) {
         viewModelScope.launch {
+            val reason = rescheduleReason.value
             showRescheduleDialog.value = false
-            plant.value?.let { p ->
+            rescheduleReason.value = null
+            rescheduleSuggestedDays.value = null
+            val p = plant.value ?: return@launch
+            if (reason == RescheduleReason.SOIL_STILL_MOIST) {
+                val logged = quickLogUseCase.recordStillMoistCheck(p, newDueAtMillis)
+                _quickLogMessage.emit(
+                    if (logged) {
+                        QuickLogMessage.StillMoistChecked(p.name)
+                    } else {
+                        QuickLogMessage.AlreadyCheckedToday(p.name)
+                    }
+                )
+            } else {
                 plantRepository.updatePlant(
                     p.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = System.currentTimeMillis())
                 )
             }
-        }
-    }
-
-    /**
-     * "Still moist" in-app action (#508, product ADR-0029) — routes through the same
-     * [QuickLogUseCase.recordStillMoistCheck] the #570 notification action
-     * ([com.yapt.planttracker.notification.StillMoistReceiver]) calls, so the in-app and notification
-     * paths produce identical logs/model effects by construction rather than by two implementations
-     * happening to agree.
-     */
-    fun recordStillMoist() {
-        viewModelScope.launch {
-            val p = plant.value ?: return@launch
-            val logged = quickLogUseCase.recordStillMoistCheck(p)
-            _quickLogMessage.emit(
-                if (logged) {
-                    QuickLogMessage.StillMoistChecked(p.name)
-                } else {
-                    QuickLogMessage.AlreadyCheckedToday(p.name)
-                }
-            )
         }
     }
 

@@ -179,6 +179,16 @@ class ReminderWorker(
 
         if (isWateringDue) {
             if (showCheckReframing) {
+                // Watered · Still moist · Not now — a **fixed** action set (#586, product ADR-0030),
+                // never varied by how overdue the plant is: unpredictable buttons between firings
+                // cost more than the one attribution this loses. A reminder fires at or after the due
+                // date, so a notification-initiated watering is never *early*; splitting "Watered"
+                // into its two reason variants would push out Still moist or Not now, and Android
+                // affords roughly three slots. "Watered" therefore writes no reason at all — correct
+                // when on schedule, and the safe exclusion when late (see
+                // `CareSchedule.computeAdaptiveInterval`). The "I watered late *because* it was dry"
+                // attribution stays available in-app for anyone who wants to give it.
+                //
                 // "Watered" reuses the same deep-link as tapping the notification body (opens
                 // the app to this plant, where the existing quick-water flow lives) — this action
                 // is a discoverability affordance, not a new code path (#570).
@@ -187,6 +197,11 @@ class ReminderWorker(
                     0,
                     context.getString(R.string.notification_action_still_moist),
                     stillMoistPendingIntent(plant.id)
+                )
+                notificationBuilder.addAction(
+                    0,
+                    context.getString(R.string.notification_action_not_now),
+                    skipPendingIntent(plant.id)
                 )
             } else {
                 notificationBuilder.addAction(

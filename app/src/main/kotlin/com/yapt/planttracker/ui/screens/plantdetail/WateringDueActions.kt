@@ -37,17 +37,19 @@ import java.time.ZoneOffset
 internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_button"
 
 /**
- * The three watering-due actions row (#508, product ADR-0029), replacing the old single full-width
- * "Skip watering" button in both the classic layout and the Water tab — see
- * `.claude/rules/plant-detail.md`. [onWaterClick] opens the same [com.yapt.planttracker.ui.components
- * .WaterFeedbackBottomSheet] flow the tappable watering `StatChip` already uses; [onStillMoistClick]
- * and [onRescheduleClick] wire straight to [PlantDetailViewModel.recordStillMoist] /
- * [PlantDetailViewModel.requestReschedule].
+ * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
+ * **Water** and **Reschedule watering**, in both the classic layout and the Water tab — see
+ * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
+ * never has to work out *why* they are deferring in order to pick a button; the reason is asked
+ * afterwards, and only when the action is off-schedule.
+ *
+ * "Still moist" is gone as a top-level action, not as a behaviour: it is now the "Soil still moist"
+ * answer to the Reschedule prompt, writing the same `CareType.CHECK` log through the same
+ * `QuickLogUseCase.recordStillMoistCheck()` call site.
  */
 @Composable
 internal fun WateringDueActionsRow(
     onWaterClick: () -> Unit,
-    onStillMoistClick: () -> Unit,
     onRescheduleClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -63,9 +65,6 @@ internal fun WateringDueActionsRow(
         ) {
             Text(stringResource(R.string.watering_due_action_water))
         }
-        OutlinedButton(onClick = onStillMoistClick, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.watering_due_action_still_moist))
-        }
         OutlinedButton(onClick = onRescheduleClick, modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.reschedule_watering_title))
         }
@@ -78,6 +77,13 @@ internal fun WateringDueActionsRow(
  * the plant's effective due date is already today (a true no-op there) and `true` while overdue.
  * Every option writes `wateringDueDateOverride` only via [onToday]/[onRelativeDays]/[onCustomDate] —
  * this dialog never fires the ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
+ *
+ * Reached only after the reason prompt since #586 (product ADR-0030). [suggestedDays], non-null only
+ * for a "Soil still moist" reschedule, adds one recommended option at the top derived from the
+ * interval the model lands on *after* that observation — the replacement for #570's flat
+ * `STILL_MOIST_DEFERRAL_DAYS = 1`, which could not clear "due" for a plant overdue by two or more
+ * days. **How many days the user then picks is never an input to the model** (#586): the reason
+ * already decided what is learned.
  */
 @Composable
 internal fun RescheduleWateringDialog(
@@ -85,7 +91,8 @@ internal fun RescheduleWateringDialog(
     onDismiss: () -> Unit,
     onToday: () -> Unit,
     onRelativeDays: (Int) -> Unit,
-    onCustomDate: (Long) -> Unit
+    onCustomDate: (Long) -> Unit,
+    suggestedDays: Int? = null
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -117,6 +124,20 @@ internal fun RescheduleWateringDialog(
         title = { Text(stringResource(R.string.reschedule_watering_title)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                if (suggestedDays != null) {
+                    TextButton(
+                        onClick = { onRelativeDays(suggestedDays) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.reschedule_watering_suggested_days,
+                                suggestedDays,
+                                suggestedDays
+                            )
+                        )
+                    }
+                }
                 TextButton(
                     onClick = onToday,
                     enabled = todayEnabled,

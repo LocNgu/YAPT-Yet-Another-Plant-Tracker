@@ -301,7 +301,7 @@ fun AddCareLogScreen(
                         viewModel.selectedFeedback =
                             if (viewModel.selectedFeedback == WateringFeedback.TOO_LATE) null else WateringFeedback.TOO_LATE
                     },
-                    label = { Text(stringResource(R.string.care_log_feedback_was_dry_label)) }
+                    label = { Text(stringResource(R.string.care_log_feedback_plant_needed_it)) }
                 )
             }
 

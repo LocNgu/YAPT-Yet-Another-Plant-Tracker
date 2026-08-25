@@ -100,12 +100,24 @@
         <item quantity="other">+%d days</item>
     </plurals>
     <string name="reschedule_watering_custom_date">Custom date…</string>
+    <plurals name="reschedule_watering_suggested_days">
+        <item quantity="one">In 1 day (suggested)</item>
+        <item quantity="other">In %d days (suggested)</item>
+    </plurals>
     <string name="watering_due_action_water">Water</string>
-    <string name="watering_due_action_still_moist">Still moist</string>
+    <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
+         way a user would say them; the answer alone decides whether the model learns. -->
+    <string name="water_reason_question">Why now?</string>
+    <string name="water_reason_plant_needed_it">The plant needed it</string>
+    <string name="water_reason_just_my_timing">Just my timing</string>
+    <string name="reschedule_reason_question">Why put it off?</string>
+    <string name="reschedule_reason_soil_still_moist">Soil still moist</string>
+    <string name="reschedule_reason_cant_right_now">I can\'t right now</string>
     <!-- Check reminders (#570): reframed notification title/actions, flag-gated -->
     <string name="notification_check_title">Check %s</string>
     <string name="notification_action_watered">Watered</string>
     <string name="notification_action_still_moist">Still moist</string>
+    <string name="notification_action_not_now">Not now</string>
     <string name="water_feedback_sheet_title">Water %s?</string>
     <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>
@@ -207,8 +219,9 @@
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
     <string name="care_log_prompt_what_did_you_do">What did you do?</string>
-    <!-- Single optional WATER-log flag, replacing the old 3-way soil-state chip (#570, product ADR-0027) -->
-    <string name="care_log_feedback_was_dry_label">Plant was dry / stressed</string>
+    <!-- Single optional WATER-log flag (#570, product ADR-0027), reworded to the shared reason
+         vocabulary in #586 (product ADR-0030) so the form and the quick-log prompt read alike. -->
+    <string name="care_log_feedback_plant_needed_it">The plant needed it</string>
     <string name="care_log_fertilizer_type_label">Fertilizer type</string>
     <string name="fertilizer_type_liquid">Liquid</string>
     <string name="fertilizer_type_solid">Solid</string>
@@ -497,6 +510,7 @@
     <string name="adjustment_trigger_water_too_late">too dry</string>
     <string name="adjustment_trigger_water_just_right">just right</string>
     <string name="adjustment_trigger_water_neutral">watered</string>
+    <string name="adjustment_trigger_water_not_attributed">not about the plant</string>
     <string name="adjustment_trigger_check_still_moist">still-moist check</string>
     <string name="adjustment_trigger_dialog_dismissal">kept schedule</string>
     <string name="adjustment_trigger_dialog_edit">applied suggestion</string>

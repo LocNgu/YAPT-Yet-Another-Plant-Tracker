@@ -23,7 +23,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -173,7 +173,7 @@ class PlantListViewModel(
 
     /**
      * Logs [careType] for every currently selected plant, then clears the selection and emits a
-     * snackbar summarising how many plants were affected. Watering uses `JUST_RIGHT` feedback and
+     * snackbar summarising how many plants were affected. Watering carries no reason (#586) and
      * fertilizing routes through [QuickLogUseCase.quickLog] so liquid-fertilizer plants still get a
      * paired watering; per-plant interval-suggestion and photo-reminder dialogs are intentionally
      * skipped in bulk to avoid a dialog storm.
@@ -224,7 +224,7 @@ class PlantListViewModel(
 
     fun quickLog(plantId: Long, careType: CareType) {
         if (careType == CareType.WATER) {
-            quickWaterWithFeedback(plantId, WateringFeedback.JUST_RIGHT)
+            quickWater(plantId, reason = null)
             return
         }
         viewModelScope.launch {
@@ -237,27 +237,28 @@ class PlantListViewModel(
     }
 
     /**
-     * Logs a watering with the given [feedback] (called from the quick-water bottom sheet),
+     * Logs a watering with the given [reason] — `null` when the watering was on schedule and no
+     * reason prompt appeared (#586, product ADR-0030) —
      * clears any active skip override, emits a snackbar message, and emits a
      * [QuickWaterSuggestion] if the adaptive interval system produces a suggestion. A same-day
      * duplicate is a silent no-op with an "Already watered today" snackbar instead (#509).
      */
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickWater(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickWaterWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickLiquidFertilize(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)

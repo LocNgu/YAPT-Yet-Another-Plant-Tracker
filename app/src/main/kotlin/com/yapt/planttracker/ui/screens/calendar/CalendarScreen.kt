@@ -82,7 +82,7 @@ import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.QuickLogButtons
-import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
+import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.SageGreen
@@ -198,35 +198,44 @@ fun CalendarScreen(
                 viewModel.selectDay(null)
                 onNavigateToPlant(plantId)
             },
-            onQuickWater = { status -> waterFeedbackPlant = status },
-            onQuickFertilize = { status ->
-                if (status.plant.useLiquidFertilizer) {
-                    liquidFertilizeFeedbackPlant = status
+            // #586 fast path: only an off-schedule watering asks why.
+            onQuickWater = { status ->
+                if (status.isWateringOnSchedule) {
+                    viewModel.quickWater(status.plant.id, reason = null)
                 } else {
-                    viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+                    waterFeedbackPlant = status
+                }
+            },
+            onQuickFertilize = { status ->
+                when {
+                    !status.plant.useLiquidFertilizer ->
+                        viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+                    status.isWateringOnSchedule ->
+                        viewModel.quickLiquidFertilize(status.plant.id, reason = null)
+                    else -> liquidFertilizeFeedbackPlant = status
                 }
             }
         )
     }
 
     waterFeedbackPlant?.let { s ->
-        WaterFeedbackBottomSheet(
+        WateringReasonBottomSheet(
             plantName = s.plant.name,
             onDismiss = { waterFeedbackPlant = null },
-            onLog = { feedback ->
-                viewModel.quickWaterWithFeedback(s.plant.id, feedback)
+            onLog = { reason ->
+                viewModel.quickWater(s.plant.id, reason)
                 waterFeedbackPlant = null
             }
         )
     }
 
     liquidFertilizeFeedbackPlant?.let { s ->
-        WaterFeedbackBottomSheet(
+        WateringReasonBottomSheet(
             plantName = s.plant.name,
             title = stringResource(R.string.water_fertilize_feedback_sheet_title, s.plant.name),
             onDismiss = { liquidFertilizeFeedbackPlant = null },
-            onLog = { feedback ->
-                viewModel.quickLiquidFertilizeWithFeedback(s.plant.id, feedback)
+            onLog = { reason ->
+                viewModel.quickLiquidFertilize(s.plant.id, reason)
                 liquidFertilizeFeedbackPlant = null
             }
         )

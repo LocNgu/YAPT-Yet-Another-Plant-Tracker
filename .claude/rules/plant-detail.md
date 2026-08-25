@@ -44,31 +44,45 @@ editor for name/species/room/notes/cover.
 
 ## Tappable stat chips (#434)
 Watering/Fertilizing `StatChip`s take optional `onWaterClick`/`onFertilizeClick` (with `clickable(onClickLabel=…)`
-for a11y). Water opens `WaterFeedbackBottomSheet` → `quickWater()`; Fertilize → `quickFertilize()` (regular) or the
-combined sheet → `quickLiquidFertilize()` (liquid-fert). All delegate to the shared `QuickLogUseCase`, feed the
+for a11y). Water logs directly when on schedule, else opens `WateringReasonBottomSheet` → `quickWater(reason)`;
+Fertilize → `quickFertilize()` (regular) or the same reason-gated path → `quickLiquidFertilize(reason)`
+(liquid-fert, whose paired WATER log follows the same rule). All delegate to the shared `QuickLogUseCase`, feed the
 adaptive suggestion into the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`. Left in place
-alongside the watering-due actions row below (#508) — its removal is a deferred follow-up, out of scope there.
+alongside the watering-due actions row below (#508/#586) — its removal is a deferred follow-up, out of scope there.
 
-## Watering-due actions row: Water / Still moist / Reschedule watering (#508, product ADR-0029)
-When a watering is due (`status.isOverdue || status.isDueSoon`), `WateringDueActionsRow` (`WateringDueActions.kt`)
-renders three `OutlinedButton`s in one row — replacing the old single full-width "Skip watering" button — in both
-the classic layout and the Water tab. Each means exactly one thing:
-- **Water** — `showWaterSheet = true`, same `WaterFeedbackBottomSheet` → `quickWater()` flow the stat chip above uses.
-- **Still moist** — `PlantDetailViewModel.recordStillMoist()` calls `QuickLogUseCase.recordStillMoistCheck(plant)`
-  directly, the same function `notification/StillMoistReceiver` calls for the #570 notification action — the
-  in-app and notification paths can't drift since they share one call site. Emits `QuickLogMessage
-  .StillMoistChecked`/`.AlreadyCheckedToday` (same-day CHECK dedupe, mirroring `AlreadyWateredToday`).
-- **Reschedule watering** (renamed from "Skip watering", shared string with the `ReminderWorker` notification
-  action label) — `requestReschedule()` shows `RescheduleWateringDialog` (`WateringDueActions.kt`): Today
-  (`confirmRescheduleToday()`, disabled while `isDueSoon`, enabled while `isOverdue` — a due-today plant pulling to
-  today would be a no-op) / +1 / +2 / +3 days (`confirmRescheduleRelativeDays(days)`, anchored to
-  `maxOf(nextWateringDueAt, now)`) / Custom date… (`confirmRescheduleCustomDate(dateMillis)`, a Material 3
-  `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching what the picker itself
-  displays, not the device's local "today"). Every option writes `wateringDueDateOverride` only — never
-  `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence`, and never a `watering_adjustments` row.
-  **Never fires the ADR-0006 interval-suggestion dialog afterward** (the superseded skip flow did, bypassing the
-  #572 "Ask before changing intervals" toggle entirely — a bug, not a preserved behavior); there is no `Event` for
-  a reschedule at all.
+## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030)
+When a watering is due (`status.isOverdue || status.isDueSoon`), `WateringDueActionsRow`
+(`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed from #508's three
+(ADR-0029) — in both the classic layout and the Water tab. "Did water go in, or not?" is a fact, not a
+judgement; *why* is asked afterwards, and only when the action is off schedule.
+
+- **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
+  opens `WateringReasonBottomSheet` ("Why now?" → "The plant needed it" / "Just my timing"). The
+  `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
+  branch, shared with the tappable watering/fertilizing `StatChip`s so the surfaces can't disagree.
+- **Reschedule watering** — `requestReschedule()` opens `RescheduleReasonBottomSheet` ("Why put it
+  off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
+  `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.
+
+**"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
+`QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
+
+`applyReschedule(newDueAtMillis)` is the single commit point for all three date options:
+`SOIL_STILL_MOIST` → `recordStillMoistCheck(plant, newDueAtMillis)` + `QuickLogMessage
+.StillMoistChecked`/`.AlreadyCheckedToday`; anything else → a plain `wateringDueDateOverride` write,
+never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and never a
+`watering_adjustments` row (ADR-0029's posture, kept for the half of reschedules that really is about
+the user). **The deferral's length is never a model input** — the reason already decided that.
+
+`RescheduleWateringDialog` options: an optional **"In N days (suggested)"** row at the top
+(`suggestedDays`, non-null only for `SOIL_STILL_MOIST`, from `QuickLogUseCase
+.suggestedStillMoistDeferralDays()`) / **Today** (`confirmRescheduleToday()`, disabled while
+`isDueSoon` *and* while the reason is `SOIL_STILL_MOIST` — pulling the date forward would contradict
+what the user just said) / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to
+`maxOf(nextWateringDueAt, now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a
+Material 3 `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching
+what the picker itself displays, not the device's local "today"). **Never fires the ADR-0006
+interval-suggestion dialog** afterward, on either branch; there is no `Event` for a reschedule at all.
 
 ## Photos
 Unified `PhotoGallery` merges `plant_photos` + care-log photos (`GalleryPhoto(uri, timestamp)`,

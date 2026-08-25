@@ -154,12 +154,24 @@ class PlantDetailScreenTest {
         every { it.getActiveIssuesForPlant(any()) } returns flowOf(emptyList())
     }
 
-    private fun makeViewModel(plant: Plant): PlantDetailViewModel {
+    /**
+     * A WATER log far enough in the past to put a 7-day plant clearly outside
+     * `CareSchedule.GAP_AGREEMENT_TOLERANCE`, so `PlantCareStatus.isWateringOnSchedule` is false and
+     * the #586 reason prompt appears instead of the watering being logged straight away.
+     */
+    private fun offScheduleWaterLog(plantId: Long) = CareLog(
+        id = 99L,
+        plantId = plantId,
+        careType = CareType.WATER,
+        loggedAt = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L)
+    )
+
+    private fun makeViewModel(plant: Plant, careLogs: List<CareLog> = emptyList()): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
-        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         return PlantDetailViewModel(
@@ -462,8 +474,13 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Reschedule watering"))
         composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Still moist").assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
+        // #586: exactly two actions — "Still moist" is now an answer to the Reschedule prompt, not
+        // a third button.
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Still moist")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     @Test
@@ -494,7 +511,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun stillMoistButton_tapRoutesThroughQuickLogUseCaseAndShowsSnackbar() {
+    fun rescheduleButton_promptsForAReasonBeforeShowingTheDatePicker() {
         val plant = Plant(
             id = 12L,
             name = "Pilea",
@@ -503,7 +520,6 @@ class PlantDetailScreenTest {
             createdAt = 0L,
             updatedAt = 0L
         )
-        coEvery { mockQuickLogUseCase.recordStillMoistCheck(plant) } returns true
         val viewModel = makeViewModel(plant)
 
         composeTestRule.setContent {
@@ -517,19 +533,62 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Still moist"))
-        composeTestRule.onNodeWithText("Still moist").performClick()
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+
+        // #586: the reason prompt comes first — both answers offered, the date options not yet.
+        composeTestRule.onNodeWithText("Why put it off?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Soil still moist").assertIsDisplayed()
+        composeTestRule.onNodeWithText("I can't right now").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Custom date…")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun rescheduleReasonPrompt_soilStillMoistRoutesThroughQuickLogUseCase() {
+        val plant = Plant(
+            id = 16L,
+            name = "Pilea",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = 0L,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        coEvery { mockQuickLogUseCase.suggestedStillMoistDeferralDays(plant) } returns 2
+        coEvery { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) } returns true
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+        composeTestRule.onNodeWithText("Soil still moist").performClick()
+
+        // The picker opens on the derived suggestion rather than #570's flat +1 day.
+        composeTestRule.onNodeWithText("In 2 days (suggested)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("In 2 days (suggested)").performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Checked Pilea — still moist")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithText("Checked Pilea — still moist").assertIsDisplayed()
-        coVerify { mockQuickLogUseCase.recordStillMoistCheck(plant) }
+        coVerify { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) }
     }
 
     @Test
-    fun rescheduleDialog_showsAllFiveOptions() {
+    fun rescheduleDialog_showsAllFiveOptions_afterAnsweringTheReasonPrompt() {
         val plant = Plant(
             id = 13L,
             name = "Overdue Reschedule",
@@ -553,6 +612,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Reschedule watering"))
         composeTestRule.onNodeWithText("Reschedule watering").performClick()
+        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
@@ -612,6 +672,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Reschedule watering"))
         composeTestRule.onNodeWithText("Reschedule watering").performClick()
+        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsEnabled()
     }
@@ -635,14 +696,15 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Reschedule watering"))
         composeTestRule.onNodeWithText("Reschedule watering").performClick()
+        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
     }
 
     @Test
-    fun wateringChip_tapOpensWaterFeedbackSheet() {
+    fun wateringChip_offSchedule_tapOpensTheReasonPrompt() {
         val plant = Plant(id = 20L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(plant)
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -660,10 +722,48 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Why now?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("The plant needed it").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Just my timing").assertIsDisplayed()
+    }
+
+    /** #586: an on-schedule watering prompts for nothing — the quick-log fast path. */
+    @Test
+    fun wateringChip_onSchedule_tapLogsDirectlyWithoutTheReasonPrompt() {
+        val plant = Plant(id = 23L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val onScheduleLog = CareLog(
+            id = 98L,
+            plantId = plant.id,
+            careType = CareType.WATER,
+            loggedAt = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
+        )
+        coEvery {
+            mockQuickLogUseCase.quickWaterWithReason(plant, null)
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
+        val viewModel = makeViewModel(plant, listOf(onScheduleLog))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Watering").performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Why now?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, null) }
     }
 
     @Test
-    fun fertilizingChip_liquidPlant_tapOpensCombinedSheet() {
+    fun fertilizingChip_liquidPlant_offSchedule_tapOpensCombinedReasonPrompt() {
         val plant = Plant(
             id = 21L,
             name = "Ivy",
@@ -673,7 +773,7 @@ class PlantDetailScreenTest {
             createdAt = 0L,
             updatedAt = 0L
         )
-        val viewModel = makeViewModel(plant)
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
 
         composeTestRule.setContent {
             PlantDetailScreen(

@@ -27,9 +27,13 @@ and the plant unpinned silently never moved the due date.
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a
 silently-applied suggestion all change `wateringConfidence`/base without ever writing a `CareLog` row,
 so a pure replay would misrepresent history. `WateringAdjustmentTrigger` (`domain/model/WateringAdjustment.kt`):
-`WATER_TOO_SOON`/`WATER_TOO_LATE`/`WATER_JUST_RIGHT`/`WATER_NEUTRAL` (from `QuickLogUseCase.adaptWateringInterval()`/
-`AddCareLogViewModel.adaptWateringInterval()`, keyed off the feedback param), `CHECK_STILL_MOIST`
-(`QuickLogUseCase.recordStillMoistAdaptiveObservation()`), `DIALOG_DISMISSAL`
+`WATER_TOO_SOON`/`WATER_TOO_LATE`/`WATER_JUST_RIGHT`/`WATER_NEUTRAL`/`WATER_NOT_ATTRIBUTED` (from
+`QuickLogUseCase.adaptWateringInterval()`/`AddCareLogViewModel.adaptWateringInterval()`, keyed off the feedback
+param — plus `AdaptiveInterval.excludedFromBaseLearning`, which wins and selects `WATER_NOT_ATTRIBUTED`: an
+off-schedule watering the user declined to attribute, #586 product ADR-0030, distinct from `WATER_NEUTRAL`'s
+on-schedule "nothing to change" so the sheet can explain a row where nothing moved), `CHECK_STILL_MOIST`
+(`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, now reached from the Reschedule reason prompt as well as
+the notification action), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
 (`PlantDetailViewModel.applyIntervalInternal()` — shared by both the dialog's Apply button and the
 silent-apply path), `MANUAL_EDIT` (`AddEditPlantViewModel.saveEdit()`, `PlantDetailViewModel

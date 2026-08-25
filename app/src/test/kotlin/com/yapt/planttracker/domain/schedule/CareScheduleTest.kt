@@ -682,4 +682,86 @@ class CareScheduleTest {
         assertFalse(fresh.isOverdue)
         assertFalse(fresh.isDueSoon)
     }
+    // --- isWateringOnSchedule (#586, product ADR-0030) ---
+    // The single question every watering surface asks to decide whether to prompt for a reason.
+
+    private fun onScheduleFor(daysSinceWatering: Long, intervalDays: Int = 7): Boolean =
+        CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = intervalDays),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(daysSinceWatering),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        ).isWateringOnSchedule
+
+    @Test
+    fun `watering exactly on the interval is on schedule`() {
+        assertTrue(onScheduleFor(daysSinceWatering = 7))
+    }
+
+    @Test
+    fun `watering within the gap-agreement tolerance is on schedule`() {
+        // 0.15 * 7 = 1.05, so 6 and 8 days both land inside the band on a 7-day plant.
+        assertTrue(onScheduleFor(daysSinceWatering = 6))
+        assertTrue(onScheduleFor(daysSinceWatering = 8))
+    }
+
+    @Test
+    fun `watering well outside the tolerance is off schedule in both directions`() {
+        assertFalse(onScheduleFor(daysSinceWatering = 3))
+        assertFalse(onScheduleFor(daysSinceWatering = 12))
+    }
+
+    /** Scale-invariance is the reason GAP_AGREEMENT_TOLERANCE was reused instead of a day count. */
+    @Test
+    fun `the tolerance scales with the interval`() {
+        // 4 days early is off schedule on a 7-day plant but well inside the band on a 30-day one.
+        assertFalse(onScheduleFor(daysSinceWatering = 3, intervalDays = 7))
+        assertTrue(onScheduleFor(daysSinceWatering = 26, intervalDays = 30))
+    }
+
+    @Test
+    fun `a never-watered plant is on schedule, since there is no gap to be off by`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertTrue(status.isWateringOnSchedule)
+    }
+
+    @Test
+    fun `a plant with no watering interval is on schedule, since there is no schedule to be off`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(90),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        assertTrue(status.isWateringOnSchedule)
+    }
+
+    /**
+     * A deferral moves the due *date*, not the interval — so watering on the pushed-out date is still
+     * an off-schedule gap, and the user is still asked why. That is deliberate: "I put it off and then
+     * watered three days later" is exactly the case where the answer decides whether the plant can go
+     * longer or the user was simply busy.
+     */
+    @Test
+    fun `a rescheduled plant watered on its new due date is still off schedule`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                wateringDueDateOverride = now + TimeUnit.DAYS.toMillis(3)
+            ),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(10),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        assertFalse(status.isWateringOnSchedule)
+    }
 }

@@ -27,6 +27,14 @@ enum class WateringAdjustmentTrigger {
     WATER_TOO_LATE,
     WATER_JUST_RIGHT,
     WATER_NEUTRAL,
+
+    /**
+     * An off-schedule watering the user was asked about and declined to attribute to the plant
+     * ("Just my timing", or logging without choosing a reason) — #586, product ADR-0030. Distinct
+     * from [WATER_NEUTRAL] (an on-schedule watering, never prompted) so "Recent adjustments" can say
+     * the model deliberately ignored an observation rather than merely finding nothing to change.
+     */
+    WATER_NOT_ATTRIBUTED,
     CHECK_STILL_MOIST,
     DIALOG_DISMISSAL,
     DIALOG_EDIT,
