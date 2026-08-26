@@ -373,12 +373,17 @@ class CareScheduleAdaptiveTest {
      * to attribute writes `null`, and under #570's rule alone that `null` would still drag `base`
      * toward the gap through the passive channel — the conflation ADR-0007 exists to prevent, coming
      * back in through the side door.
+     *
+     * This covers the **late** half of ADR-0030's mapping table (watered at day 30 of a 20-day
+     * plant, "just my timing"); the early half is the holiday regression below. Both directions
+     * matter because the exclusion is keyed off gap *disagreement*, not off which side of `base`
+     * the gap fell on.
      */
     @Test
-    fun `an off-schedule WATER log with no reason leaves base untouched`() {
+    fun `a long unexplained gap is excluded just as an early one is`() {
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = null,
-            observedIntervalDays = 5,
+            observedIntervalDays = 30,
             currentBaseIntervalDays = 20,
             currentConfidence = 0,
             recentFeedback = listOf(null)

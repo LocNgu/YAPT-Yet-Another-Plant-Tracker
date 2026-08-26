@@ -749,13 +749,19 @@ class CareScheduleTest {
      * an off-schedule gap, and the user is still asked why. That is deliberate: "I put it off and then
      * watered three days later" is exactly the case where the answer decides whether the plant can go
      * longer or the user was simply busy.
+     *
+     * A 7-day plant last watered 10 days ago, deferred by 3 days so the new due date is exactly
+     * [now] — the moment the watering happens. The 10-day gap is what the test turns on;
+     * [com.yapt.planttracker.domain.model.Plant.wateringDueDateOverride] deliberately does not enter
+     * [CareSchedule.wateringOnScheduleNow] at all, which is precisely why a deferral cannot launder
+     * an off-schedule gap into an on-schedule one.
      */
     @Test
     fun `a rescheduled plant watered on its new due date is still off schedule`() {
         val status = CareSchedule.computeStatus(
             plant = plantWith(
                 wateringIntervalDays = 7,
-                wateringDueDateOverride = now + TimeUnit.DAYS.toMillis(3)
+                wateringDueDateOverride = now
             ),
             lastWateredAt = now - TimeUnit.DAYS.toMillis(10),
             lastFertilizedAt = null,
