@@ -149,9 +149,11 @@ class QuickLogUseCaseTest {
                 match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
             )
         }
+        // ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
+        // never asked why they watered, so nothing is attributed.
         coVerify {
             careLogRepo.addLog(
-                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+                match { it.careType == CareType.WATER && it.wateringFeedback == null }
             )
         }
     }
@@ -412,9 +414,11 @@ class QuickLogUseCaseTest {
                 match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
             )
         }
+        // ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
+        // never asked why they watered, so nothing is attributed.
         coVerify {
             careLogRepo.addLog(
-                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
+                match { it.careType == CareType.WATER && it.wateringFeedback == null }
             )
         }
     }
@@ -560,7 +564,7 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
         val captured = mutableListOf<WateringAdjustment>()
-        coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns Unit
+        coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns 1L
 
         for (deferralMs in listOf(TimeUnit.DAYS.toMillis(1), TimeUnit.DAYS.toMillis(30))) {
             useCase = QuickLogUseCase(

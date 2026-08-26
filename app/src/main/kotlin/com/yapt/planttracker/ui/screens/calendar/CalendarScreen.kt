@@ -198,22 +198,9 @@ fun CalendarScreen(
                 viewModel.selectDay(null)
                 onNavigateToPlant(plantId)
             },
-            // #586 fast path: only an off-schedule watering asks why.
-            onQuickWater = { status ->
-                if (status.isWateringOnSchedule) {
-                    viewModel.quickWater(status.plant.id, reason = null)
-                } else {
-                    waterFeedbackPlant = status
-                }
-            },
+            onQuickWater = { status -> requestWater(status, viewModel) { waterFeedbackPlant = status } },
             onQuickFertilize = { status ->
-                when {
-                    !status.plant.useLiquidFertilizer ->
-                        viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                    status.isWateringOnSchedule ->
-                        viewModel.quickLiquidFertilize(status.plant.id, reason = null)
-                    else -> liquidFertilizeFeedbackPlant = status
-                }
+                requestFertilize(status, viewModel) { liquidFertilizeFeedbackPlant = status }
             }
         )
     }
@@ -569,5 +556,34 @@ private fun CalendarDayPlantRow(
             onQuickWater = { onQuickWater(info.status) },
             onQuickFertilize = { onQuickFertilize(info.status) }
         )
+    }
+}
+
+/**
+ * #586 fast path, mirroring `PlantDetailScreen`'s helper of the same name: only an *off-schedule*
+ * watering asks why, so an on-schedule tap logs straight through with no reason
+ * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030).
+ */
+private fun requestWater(
+    status: PlantCareStatus,
+    viewModel: CalendarViewModel,
+    showReasonSheet: () -> Unit
+) {
+    if (status.isWateringOnSchedule) viewModel.quickWater(status.plant.id, reason = null) else showReasonSheet()
+}
+
+/**
+ * [requestWater]'s counterpart for the fertilize button. Only a liquid-fertilizer plant writes a
+ * paired WATER log (ADR-0008), so only that case is ever subject to the reason prompt.
+ */
+private fun requestFertilize(
+    status: PlantCareStatus,
+    viewModel: CalendarViewModel,
+    showReasonSheet: () -> Unit
+) {
+    when {
+        !status.plant.useLiquidFertilizer -> viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+        status.isWateringOnSchedule -> viewModel.quickLiquidFertilize(status.plant.id, reason = null)
+        else -> showReasonSheet()
     }
 }

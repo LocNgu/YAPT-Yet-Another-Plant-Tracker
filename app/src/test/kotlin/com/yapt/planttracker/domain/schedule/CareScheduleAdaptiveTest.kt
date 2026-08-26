@@ -389,8 +389,11 @@ class CareScheduleAdaptiveTest {
 
     /**
      * The holiday-watering regression named in the spec: watering a 20-day plant pre-emptively on day
-     * 5 because you are going away, and saying "just my timing", must not shorten its interval. Without
-     * the exclusion the capped gain alone would still pull 20 down to 18.
+     * 5 because you are going away, and saying "just my timing", must not shorten its interval. Not a
+     * vacuous assertion — had the gap been treated as evidence, the capped neutral gain alone would
+     * have pulled base down to 18 (20 + 0.15 * (5 - 20) = 17.75). The exclusion is what holds it at
+     * 20; that passive learning is alive at all under `null` feedback is covered by
+     * `an on-schedule WATER log with null feedback moves base toward the observed gap`.
      */
     @Test
     fun `a pre-emptive early watering marked just my timing does not shorten the interval`() {
@@ -401,16 +404,8 @@ class CareScheduleAdaptiveTest {
             currentConfidence = 0,
             recentFeedback = listOf(null)
         )
-        // What the passive channel would have done on its own, had the gap been treated as evidence.
-        val ifPassiveLearningHadApplied = CareSchedule.computeAdaptiveInterval(
-            feedback = null,
-            observedIntervalDays = 19,
-            currentBaseIntervalDays = 20,
-            currentConfidence = 0,
-            recentFeedback = listOf(null)
-        )
         assertEquals(20, excluded.intervalDays)
-        assertTrue(ifPassiveLearningHadApplied.intervalDays < 20)
+        assertTrue(excluded.excludedFromBaseLearning)
     }
 
     @Test

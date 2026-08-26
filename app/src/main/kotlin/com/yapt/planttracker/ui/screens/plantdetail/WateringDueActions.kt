@@ -97,25 +97,13 @@ internal fun RescheduleWateringDialog(
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(selectableDates = TodayOrLaterSelectableDates)
-        DatePickerDialog(
-            onDismissRequest = onDismiss,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { utcMidnightMs ->
-                            onCustomDate(utcMidnightMsToLocalStartOfDayMillis(utcMidnightMs))
-                        }
-                        showDatePicker = false
-                    }
-                ) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        RescheduleDatePickerDialog(
+            onDismiss = onDismiss,
+            onConfirm = { utcMidnightMs ->
+                showDatePicker = false
+                utcMidnightMs?.let { onCustomDate(utcMidnightMsToLocalStartOfDayMillis(it)) }
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        )
         return
     }
 
@@ -125,40 +113,30 @@ internal fun RescheduleWateringDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (suggestedDays != null) {
-                    TextButton(
-                        onClick = { onRelativeDays(suggestedDays) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.reschedule_watering_suggested_days,
-                                suggestedDays,
-                                suggestedDays
-                            )
-                        )
-                    }
+                    RescheduleOption(
+                        label = pluralStringResource(
+                            R.plurals.reschedule_watering_suggested_days,
+                            suggestedDays,
+                            suggestedDays
+                        ),
+                        onClick = { onRelativeDays(suggestedDays) }
+                    )
                 }
-                TextButton(
+                RescheduleOption(
+                    label = stringResource(R.string.reschedule_watering_today),
                     onClick = onToday,
-                    enabled = todayEnabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.reschedule_watering_today)) }
-                TextButton(
-                    onClick = { onRelativeDays(1) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(pluralStringResource(R.plurals.reschedule_watering_plus_days, 1, 1)) }
-                TextButton(
-                    onClick = { onRelativeDays(2) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(pluralStringResource(R.plurals.reschedule_watering_plus_days, 2, 2)) }
-                TextButton(
-                    onClick = { onRelativeDays(3) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(pluralStringResource(R.plurals.reschedule_watering_plus_days, 3, 3)) }
-                TextButton(
-                    onClick = { showDatePicker = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.reschedule_watering_custom_date)) }
+                    enabled = todayEnabled
+                )
+                for (days in RELATIVE_DAY_OPTIONS) {
+                    RescheduleOption(
+                        label = pluralStringResource(R.plurals.reschedule_watering_plus_days, days, days),
+                        onClick = { onRelativeDays(days) }
+                    )
+                }
+                RescheduleOption(
+                    label = stringResource(R.string.reschedule_watering_custom_date),
+                    onClick = { showDatePicker = true }
+                )
             }
         },
         confirmButton = {},
@@ -166,6 +144,47 @@ internal fun RescheduleWateringDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
+}
+
+/** The fixed relative-deferral options offered between "Today" and "Custom date…". */
+private val RELATIVE_DAY_OPTIONS = listOf(1, 2, 3)
+
+/** One full-width row of [RescheduleWateringDialog]'s option list. */
+@Composable
+private fun RescheduleOption(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) { Text(label) }
+}
+
+/**
+ * The "Custom date…" branch of [RescheduleWateringDialog], extracted so the option list stays
+ * readable. [TodayOrLaterSelectableDates] already excludes past dates, so the picked value needs no
+ * further validation here. [onConfirm] receives the raw `selectedDateMillis`, which is `null` until
+ * the user actually taps a day — OK closes the picker either way, and the caller does the
+ * UTC-midnight reinterpretation documented on [utcMidnightMsToLocalStartOfDayMillis].
+ */
+@Composable
+private fun RescheduleDatePickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (utcMidnightMs: Long?) -> Unit
+) {
+    val datePickerState = rememberDatePickerState(selectableDates = TodayOrLaterSelectableDates)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(datePickerState.selectedDateMillis) }
+            ) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    ) {
+        DatePicker(state = datePickerState)
+    }
 }
 
 /**
