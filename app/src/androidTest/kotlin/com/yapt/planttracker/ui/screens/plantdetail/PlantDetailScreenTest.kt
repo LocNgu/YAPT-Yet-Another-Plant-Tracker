@@ -1050,13 +1050,21 @@ class PlantDetailScreenTest {
             )
         }
 
+        // The Badge itself has no semantics of its own (#591) and now sits under the toggle's own
+        // clickable — a merging ancestor, so its testTag doesn't survive into the merged tree (#420).
+        // Assert the announcement instead: the toggle's content description is what actually signals
+        // attention to a screen-reader user, and is what's left once collapsed/expanded flip it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("plant_detail_tabs_attention_badge"))
-        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertIsDisplayed()
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandAttentionCd()).assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
 
-        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithContentDescription(tabsExpandAttentionCd())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     // The Badge dot itself has no contentDescription, so a screen-reader user's only signal that
@@ -1117,9 +1125,11 @@ class PlantDetailScreenTest {
             )
         }
 
+        // See the comment in tabRow_attentionBadge_visibleWhenCollapsedWithActiveIssue_hiddenOnceExpanded
+        // for why this asserts the toggle's content description rather than the Badge's testTag.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("plant_detail_tabs_attention_badge"))
-        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertIsDisplayed()
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandAttentionCd()).assertIsDisplayed()
     }
 
     @Test
