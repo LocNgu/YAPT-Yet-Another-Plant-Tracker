@@ -289,6 +289,7 @@
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
     <string name="plant_detail_tab_issues">Issues</string>
     <string name="plant_detail_tabs_expand_cd">Show all tabs</string>
+    <string name="plant_detail_tabs_expand_attention_cd">Show all tabs. Attention needed.</string>
     <string name="plant_detail_tabs_collapse_cd">Show fewer tabs</string>
     <!-- Plant Detail per-tab insights (#436, sub-task 3) -->
     <string name="insight_waterings">Waterings</string>

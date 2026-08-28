@@ -34,17 +34,27 @@ in **both** paths.
 Six tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
 horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `Tab` composables
 (`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
-`PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, pixel-identical to before; expanded shows
+`PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, same width/layout as before; expanded shows
 all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
 - `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
   and the care-history `isExpanded` chip, **not** a `DataStore` setting; resets to collapsed on every fresh visit.
 - Toggle reuses the care-history `AssistChip`'s exact chevron-rotate pattern (`animateFloatAsState` rotating
   `Icons.Filled.ExpandMore` 180°), with a `contentDescription` that flips between
-  `plant_detail_tabs_expand_cd`/`plant_detail_tabs_collapse_cd`.
+  `plant_detail_tabs_expand_cd`/`plant_detail_tabs_collapse_cd`/`plant_detail_tabs_expand_attention_cd` (collapsed
+  **and** `hasAttention` — folds the "something needs attention" signal into the announced text since the badge
+  itself, a bare `Badge` dot, carries no `contentDescription` of its own, #591).
 - Attention `Badge` on the toggle when **collapsed** and (`activeIssues.isNotEmpty()` or any
   `CustomReminderStatus.isOverdue`) — both already-collected in `PlantDetailScreen.kt`, no new queries. Hidden once
   expanded.
 - Collapsing while `selectedTab` is `CUSTOM_REMINDERS`/`ISSUES` (now hidden) resets `selectedTab` to `WATER`.
+- **Selection indicator (#591):** a standalone `Tab()` outside `TabRow`/`PrimaryTabRow` draws no indicator of its
+  own — `PrimaryIndicator` is drawn by `TabRow` itself as a separate overlay positioned from real `TabPosition`s,
+  unavailable here — and `Tab()`'s `unselectedContentColor` defaults to `selectedContentColor` when neither is
+  passed, so the selected/unselected tabs would otherwise render identically. Each `Tab` is given explicit
+  `selectedContentColor`/`unselectedContentColor` (`colorScheme.onPrimaryContainer`/`onSurfaceVariant`) plus a
+  `colorScheme.primaryContainer` rounded-background (`RoundedCornerShape(12.dp)`, else transparent) scoped to that
+  one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
+  a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
 
 ## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession)
 Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + `Slider`; Fertilize adds the

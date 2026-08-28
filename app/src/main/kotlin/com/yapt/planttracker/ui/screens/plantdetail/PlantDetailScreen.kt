@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -1051,6 +1052,9 @@ private data class TabStripState(
     val hasAttention: Boolean
 )
 
+/** Corner radius of [PlantDetailTabStrip]'s selected-tab highlight, matching the app's other rounded cards/chips. */
+private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
+
 /**
  * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
  * (product ADR-0030, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
@@ -1060,6 +1064,14 @@ private data class TabStripState(
  * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
  * (identical to today), and expanding to 6 wraps the extra 2 onto a second row at that same width,
  * rather than shrinking every tab or scrolling horizontally.
+ *
+ * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned
+ * via real `TabPosition`s it measures from its own tab slots — unavailable here since these `Tab`s are
+ * standalone children of a [FlowRow], not of a `TabRow`. Each `Tab` is therefore given its own explicit
+ * `selectedContentColor`/`unselectedContentColor` (the two default to the same value when neither is
+ * passed, which left selected and unselected tabs pixel-identical, #591) plus a rounded background
+ * behind the selected tab's icon/text standing in for `PrimaryIndicator` — scoped to that one `Tab`'s
+ * own `Modifier` so it works per-tab regardless of which row it wraps onto.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1077,12 +1089,25 @@ private fun PlantDetailTabStrip(
     Column(modifier = modifier.fillMaxWidth()) {
         FlowRow(modifier = Modifier.fillMaxWidth()) {
             visibleTabs.forEach { tab ->
+                val isSelected = state.selectedTab == tab
                 Tab(
-                    selected = state.selectedTab == tab,
+                    selected = isSelected,
                     onClick = { onTabSelected(tab) },
                     text = { Text(stringResource(tab.labelRes)) },
                     icon = { Icon(tab.icon, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(0.25f)
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth(0.25f)
+                        .padding(4.dp)
+                        .background(
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = TAB_SELECTION_INDICATOR_SHAPE
+                        )
                 )
             }
         }
@@ -1103,7 +1128,10 @@ private fun PlantDetailTabStrip(
  * Small chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
  * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
  * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
- * expanded everything is already visible, so there is nothing left to flag.
+ * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
+ * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own
+ * announced description — folding an "attention needed" clause into that description (rather than the
+ * Badge) while collapsed-and-attention is the only case where the badge is showing (#591).
  */
 @Composable
 private fun TabRowExpandToggle(
@@ -1116,10 +1144,10 @@ private fun TabRowExpandToggle(
         targetValue = if (isExpanded) 180f else 0f,
         label = "tabRowChevronRotation"
     )
-    val toggleCd = if (isExpanded) {
-        stringResource(R.string.plant_detail_tabs_collapse_cd)
-    } else {
-        stringResource(R.string.plant_detail_tabs_expand_cd)
+    val toggleCd = when {
+        isExpanded -> stringResource(R.string.plant_detail_tabs_collapse_cd)
+        hasAttention -> stringResource(R.string.plant_detail_tabs_expand_attention_cd)
+        else -> stringResource(R.string.plant_detail_tabs_expand_cd)
     }
     BadgedBox(
         badge = {

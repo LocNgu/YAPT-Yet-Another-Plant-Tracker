@@ -4,8 +4,10 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -760,6 +762,35 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
     }
 
+    // Standalone Tab()s inside PlantDetailTabStrip's FlowRow draw no indicator of their own
+    // (unlike a TabRow/PrimaryTabRow) — this asserts the underlying selected/not-selected semantic
+    // state each Tab exposes stays wired correctly (#591).
+    @Test
+    fun careTabs_selectingTabMarksItSelectedAndDeselectsOthers() {
+        val plant = Plant(id = 95L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water"))
+        composeTestRule.onNodeWithText("Water").assertIsSelected()
+        composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+
+        composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
+        composeTestRule.onNodeWithText("Water").assertIsNotSelected()
+    }
+
     @Test
     fun fertilizeTab_showsEmptyState_onlyAfterSelected() {
         val plant = Plant(id = 31L, name = "Sage", createdAt = 0L, updatedAt = 0L)
@@ -1028,6 +1059,40 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertDoesNotExist()
     }
 
+    // The Badge dot itself has no contentDescription, so a screen-reader user's only signal that
+    // something needs attention is the toggle's own announced description (#591).
+    @Test
+    fun tabRow_expandToggleDescription_mentionsAttentionWhenCollapsedWithActiveIssue() {
+        val plant = Plant(id = 97L, name = "Snake Plant Three", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            plantIssueRepo = reactivePlantIssueRepo(listOf(PlantIssue(id = 13L, plantId = 97L, name = "Scale")))
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandAttentionCd()).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithContentDescription(tabsExpandCd())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
+    }
+
     @Test
     fun tabRow_attentionBadge_visibleWithOverdueCustomReminder() {
         val dayInMs = 24 * 60 * 60 * 1000L
@@ -1154,6 +1219,9 @@ class PlantDetailScreenTest {
 
     private fun tabsExpandCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_expand_cd)
+
+    private fun tabsExpandAttentionCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tabs_expand_attention_cd)
 
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
