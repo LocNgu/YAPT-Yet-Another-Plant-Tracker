@@ -1157,11 +1157,19 @@ class PlantDetailScreenTest {
      * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,
      * product ADR-0030) — hidden behind the collapsed tab row by default. Scrolls to and taps the
      * collapse/expand toggle, then scrolls to and taps [tabLabel] to select that tab.
+     *
+     * The `assertIsDisplayed()` on the flipped toggle description between the click and the second
+     * scroll is required, not decorative: it's the same sync point [tabRow_expandToggle_
+     * revealsHiddenTabsAndFlipsDescription] uses inline, and without it `performScrollToNode` can run
+     * against a semantics tree captured mid-expand-animation, before the FlowRow's new second row has
+     * settled into its final layout position, and fail to find [tabLabel] even though the tab is about
+     * to render.
      */
     private fun selectPlantDetailTab(tabLabel: String) {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(tabLabel))
         composeTestRule.onNodeWithText(tabLabel).performClick()
