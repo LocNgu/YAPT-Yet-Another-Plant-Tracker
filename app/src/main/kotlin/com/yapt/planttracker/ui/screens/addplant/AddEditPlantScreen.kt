@@ -331,8 +331,8 @@ fun AddEditPlantScreen(
                     Slider(
                         value = viewModel.fertilizingIntervalDays.toFloat(),
                         onValueChange = { viewModel.fertilizingIntervalDays = it.roundToInt() },
-                        valueRange = 1f..90f,
-                        steps = 88
+                        valueRange = 1f..180f,
+                        steps = 178
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

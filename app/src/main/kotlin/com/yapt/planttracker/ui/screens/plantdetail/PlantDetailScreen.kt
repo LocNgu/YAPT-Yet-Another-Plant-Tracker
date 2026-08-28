@@ -730,7 +730,7 @@ fun PlantDetailScreen(
                                             enabled = plant?.fertilizingIntervalDays != null,
                                             days = plant?.fertilizingIntervalDays
                                                 ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
-                                            range = 1..90,
+                                            range = 1..180,
                                             enabledLabelRes = R.string.fertilizing_interval_label,
                                             disabledLabelRes = R.string.fertilizing_reminder_label
                                         ),
