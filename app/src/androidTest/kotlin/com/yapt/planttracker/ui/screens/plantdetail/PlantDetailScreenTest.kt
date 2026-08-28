@@ -1158,18 +1158,24 @@ class PlantDetailScreenTest {
      * product ADR-0030) — hidden behind the collapsed tab row by default. Scrolls to and taps the
      * collapse/expand toggle, then scrolls to and taps [tabLabel] to select that tab.
      *
-     * The `assertIsDisplayed()` on the flipped toggle description between the click and the second
-     * scroll is required, not decorative: it's the same sync point [tabRow_expandToggle_
-     * revealsHiddenTabsAndFlipsDescription] uses inline, and without it `performScrollToNode` can run
-     * against a semantics tree captured mid-expand-animation, before the FlowRow's new second row has
-     * settled into its final layout position, and fail to find [tabLabel] even though the tab is about
-     * to render.
+     * Expanding grows the tab strip's single lazy `item` (the `FlowRow` gains a second row), which can
+     * push the toggle itself below the viewport on a taller screen's worth of content above it — an
+     * `assertIsDisplayed()` on the toggle here is not a safe sync point (CI failure on #591 confirmed
+     * the toggle's content description does flip on click, but its bounds can legitimately fall outside
+     * the viewport once expanded). What's actually needed is confirmation that [tabLabel]'s node has
+     * been *composed* — independent of whether it's currently in the visible viewport — before asking
+     * `performScrollToNode` to scroll it into view; `waitUntil` + `fetchSemanticsNodes` is the existing
+     * idiom this file already uses for "wait for new content to appear" (e.g. [addingCustomReminder_
+     * appearsInList]).
      */
     private fun selectPlantDetailTab(tabLabel: String) {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
-        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(tabLabel)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(tabLabel))
         composeTestRule.onNodeWithText(tabLabel).performClick()
