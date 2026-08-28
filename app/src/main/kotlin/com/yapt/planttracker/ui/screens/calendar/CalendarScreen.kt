@@ -82,7 +82,7 @@ import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.QuickLogButtons
-import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
+import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.SageGreen
@@ -198,35 +198,31 @@ fun CalendarScreen(
                 viewModel.selectDay(null)
                 onNavigateToPlant(plantId)
             },
-            onQuickWater = { status -> waterFeedbackPlant = status },
+            onQuickWater = { status -> requestWater(status, viewModel) { waterFeedbackPlant = status } },
             onQuickFertilize = { status ->
-                if (status.plant.useLiquidFertilizer) {
-                    liquidFertilizeFeedbackPlant = status
-                } else {
-                    viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                }
+                requestFertilize(status, viewModel) { liquidFertilizeFeedbackPlant = status }
             }
         )
     }
 
     waterFeedbackPlant?.let { s ->
-        WaterFeedbackBottomSheet(
+        WateringReasonBottomSheet(
             plantName = s.plant.name,
             onDismiss = { waterFeedbackPlant = null },
-            onLog = { feedback ->
-                viewModel.quickWaterWithFeedback(s.plant.id, feedback)
+            onLog = { reason ->
+                viewModel.quickWater(s.plant.id, reason)
                 waterFeedbackPlant = null
             }
         )
     }
 
     liquidFertilizeFeedbackPlant?.let { s ->
-        WaterFeedbackBottomSheet(
+        WateringReasonBottomSheet(
             plantName = s.plant.name,
             title = stringResource(R.string.water_fertilize_feedback_sheet_title, s.plant.name),
             onDismiss = { liquidFertilizeFeedbackPlant = null },
-            onLog = { feedback ->
-                viewModel.quickLiquidFertilizeWithFeedback(s.plant.id, feedback)
+            onLog = { reason ->
+                viewModel.quickLiquidFertilize(s.plant.id, reason)
                 liquidFertilizeFeedbackPlant = null
             }
         )
@@ -560,5 +556,34 @@ private fun CalendarDayPlantRow(
             onQuickWater = { onQuickWater(info.status) },
             onQuickFertilize = { onQuickFertilize(info.status) }
         )
+    }
+}
+
+/**
+ * #586 fast path, mirroring `PlantDetailScreen`'s helper of the same name: only an *off-schedule*
+ * watering asks why, so an on-schedule tap logs straight through with no reason
+ * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030).
+ */
+private fun requestWater(
+    status: PlantCareStatus,
+    viewModel: CalendarViewModel,
+    showReasonSheet: () -> Unit
+) {
+    if (status.isWateringOnSchedule) viewModel.quickWater(status.plant.id, reason = null) else showReasonSheet()
+}
+
+/**
+ * [requestWater]'s counterpart for the fertilize button. Only a liquid-fertilizer plant writes a
+ * paired WATER log (ADR-0008), so only that case is ever subject to the reason prompt.
+ */
+private fun requestFertilize(
+    status: PlantCareStatus,
+    viewModel: CalendarViewModel,
+    showReasonSheet: () -> Unit
+) {
+    when {
+        !status.plant.useLiquidFertilizer -> viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
+        status.isWateringOnSchedule -> viewModel.quickLiquidFertilize(status.plant.id, reason = null)
+        else -> showReasonSheet()
     }
 }

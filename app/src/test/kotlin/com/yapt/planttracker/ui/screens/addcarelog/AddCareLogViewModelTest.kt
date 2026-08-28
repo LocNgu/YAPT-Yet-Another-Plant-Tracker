@@ -211,10 +211,10 @@ class AddCareLogViewModelTest {
         }
 
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
+        // #586: the paired watering carries no reason — the user fertilized and the watering came
+        // along with it (ADR-0008), so they were never asked why they watered.
         coVerify {
-            careLogRepo.addLog(
-                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.JUST_RIGHT }
-            )
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
         }
     }
 

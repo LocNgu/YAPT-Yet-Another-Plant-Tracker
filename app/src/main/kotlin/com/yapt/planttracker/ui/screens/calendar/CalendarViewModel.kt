@@ -18,7 +18,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -99,7 +99,7 @@ class CalendarViewModel(
 
     fun quickLog(plantId: Long, careType: CareType) {
         if (careType == CareType.WATER) {
-            quickWaterWithFeedback(plantId, WateringFeedback.JUST_RIGHT)
+            quickWater(plantId, reason = null)
             return
         }
         viewModelScope.launch {
@@ -115,22 +115,22 @@ class CalendarViewModel(
      * A same-day duplicate is a silent no-op with an "Already watered today" snackbar instead of
      * inserting a second log (#509).
      */
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickWater(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickWaterWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickLiquidFertilize(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)

@@ -14,8 +14,10 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
@@ -75,12 +77,27 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
     WateringFeedback.TOO_LATE -> R.string.feedback_emoji_too_dry
 }
 
+/** Reason-prompt chip label for an off-schedule watering (#586, product ADR-0030). */
+@StringRes
+fun WateringReason.labelRes(): Int = when (this) {
+    WateringReason.PLANT_NEEDED_IT -> R.string.water_reason_plant_needed_it
+    WateringReason.JUST_MY_TIMING -> R.string.water_reason_just_my_timing
+}
+
+/** Reason-prompt option label for a reschedule (#586, product ADR-0030). */
+@StringRes
+fun RescheduleReason.labelRes(): Int = when (this) {
+    RescheduleReason.SOIL_STILL_MOIST -> R.string.reschedule_reason_soil_still_moist
+    RescheduleReason.CANT_RIGHT_NOW -> R.string.reschedule_reason_cant_right_now
+}
+
 @StringRes
 fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.WATER_TOO_SOON -> R.string.adjustment_trigger_water_too_soon
     WateringAdjustmentTrigger.WATER_TOO_LATE -> R.string.adjustment_trigger_water_too_late
     WateringAdjustmentTrigger.WATER_JUST_RIGHT -> R.string.adjustment_trigger_water_just_right
     WateringAdjustmentTrigger.WATER_NEUTRAL -> R.string.adjustment_trigger_water_neutral
+    WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED -> R.string.adjustment_trigger_water_not_attributed
     WateringAdjustmentTrigger.CHECK_STILL_MOIST -> R.string.adjustment_trigger_check_still_moist
     WateringAdjustmentTrigger.DIALOG_DISMISSAL -> R.string.adjustment_trigger_dialog_dismissal
     WateringAdjustmentTrigger.DIALOG_EDIT -> R.string.adjustment_trigger_dialog_edit

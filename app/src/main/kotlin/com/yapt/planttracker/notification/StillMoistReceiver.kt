@@ -9,11 +9,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 /**
  * Handles the "Still moist" notification action (#570, `check_reminders` feature flag) — a
  * no-dialog, single-tap action mirroring [SkipWateringReceiver]'s shape. All of the actual
- * observation/scheduling logic (the `CareType.CHECK` log, the `wateringDueDateOverride` advance,
+ * observation/scheduling logic (the `CareType.CHECK` log, the `wateringDueDateOverride` write,
  * and the conditional adaptive-model feed) lives in [com.yapt.planttracker.domain.usecase
  * .QuickLogUseCase.recordStillMoistCheck] — the one choke point that also owns the same-day
  * dedupe guard, so this receiver stays a thin dispatcher.
@@ -33,11 +34,21 @@ class StillMoistReceiver : BroadcastReceiver() {
         }
     }
 
-    /** Pulled out of [goAsync] so it's directly testable, mirroring [SkipWateringReceiver.skipWatering]. */
+    /**
+     * Pulled out of [goAsync] so it's directly testable, mirroring [SkipWateringReceiver.skipWatering].
+     *
+     * The notification has no date picker, so it applies
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.suggestedStillMoistDeferralDays] — the
+     * same value the in-app picker opens on — instead of #570's flat +1 day, which could not clear
+     * "due" for a plant overdue by two or more days while the same-day guard blocked a second tap
+     * (#586, product ADR-0030).
+     */
     internal suspend fun handleStillMoist(context: Context, plantId: Long) {
         val app = context.applicationContext as YaptApplication
         val plant = app.plantRepository.getPlantById(plantId).first() ?: return
-        app.quickLogUseCase.recordStillMoistCheck(plant)
+        val deferralDays = app.quickLogUseCase.suggestedStillMoistDeferralDays(plant)
+        val newDueAt = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(deferralDays.toLong())
+        app.quickLogUseCase.recordStillMoistCheck(plant, newDueAt)
         val notificationManager = context.getSystemService(NotificationManager::class.java)
         notificationManager.cancel(plantId.toInt())
     }

@@ -1,6 +1,6 @@
 # Product ADR-0029: Water / Still moist / Reschedule watering — three actions, three meanings
 
-**Status**: accepted
+**Status**: superseded by [ADR-0030](0030-off-schedule-actions-ask-why.md)
 
 **Date**: 2026-08-24
 

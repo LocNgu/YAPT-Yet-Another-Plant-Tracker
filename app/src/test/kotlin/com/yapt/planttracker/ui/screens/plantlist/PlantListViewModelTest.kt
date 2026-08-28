@@ -18,7 +18,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -233,18 +233,18 @@ class PlantListViewModelTest {
         }
     }
 
-    // quickLog/quickWaterWithFeedback/quickLiquidFertilizeWithFeedback now delegate the actual
+    // quickLog/quickWater/quickLiquidFertilize now delegate the actual
     // care-log persistence, override clearing, and adaptive-interval computation to
     // QuickLogUseCase (see QuickLogUseCaseTest for that coverage). These tests only verify VM-level
     // orchestration: that the right use-case method is invoked with the resolved plant, and that
     // the returned domain object is mapped onto the correct StateFlow/SharedFlow.
 
     @Test
-    fun `quickLog water routes through quickWaterWithFeedback and emits its snackbar message`() = runTest {
+    fun `quickLog water routes through quickWater and emits its snackbar message`() = runTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -258,7 +258,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
     }
 
     @Test
@@ -777,38 +777,38 @@ class PlantListViewModelTest {
         }
     }
 
-    // quickWaterWithFeedback tests — care-log persistence, override clearing, and the adaptive
+    // quickWater tests — care-log persistence, override clearing, and the adaptive
     // interval computation itself are QuickLogUseCase's responsibility (see QuickLogUseCaseTest).
     // These tests verify the VM calls the use case and maps its result onto the right flow.
 
     @Test
-    fun `quickWaterWithFeedback emits the watered snackbar message regardless of use case result`() = runTest {
+    fun `quickWater emits the watered snackbar message regardless of use case result`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
         vm.quickLogEvent.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                vm.quickWater(1L, null)
                 cancelAndIgnoreRemainingEvents()
             }
             assertEquals("Watered Monstera", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
     }
 
     @Test
-    fun `quickWaterWithFeedback emits the suggestion returned by the use case`() = runTest {
+    fun `quickWater emits the suggestion returned by the use case`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.TOO_LATE) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -819,7 +819,7 @@ class PlantListViewModelTest {
         vm.quickWaterSuggestion.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickWaterWithFeedback(1L, WateringFeedback.TOO_LATE)
+                vm.quickWater(1L, WateringReason.PLANT_NEEDED_IT)
                 cancelAndIgnoreRemainingEvents()
             }
             val suggestion = awaitItem()
@@ -830,18 +830,18 @@ class PlantListViewModelTest {
     }
 
     @Test
-    fun `quickWaterWithFeedback does not emit a suggestion when the use case returns null`() = runTest {
+    fun `quickWater does not emit a suggestion when the use case returns null`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
         vm.quickWaterSuggestion.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickWaterWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                vm.quickWater(1L, null)
                 cancelAndIgnoreRemainingEvents()
             }
             expectNoEvents()
@@ -849,10 +849,10 @@ class PlantListViewModelTest {
         }
     }
 
-    // quickLiquidFertilizeWithFeedback tests — same split of responsibility as quickWaterWithFeedback above.
+    // quickLiquidFertilize tests — same split of responsibility as quickWater above.
 
     @Test
-    fun `quickLiquidFertilizeWithFeedback emits the watered-and-fertilized message, no interval suggestion`() = runTest {
+    fun `quickLiquidFertilize emits the watered-and-fertilized message, no interval suggestion`() = runTest {
         val monstera =
             Plant(
                 id = 1L,
@@ -864,7 +864,7 @@ class PlantListViewModelTest {
             )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -872,7 +872,7 @@ class PlantListViewModelTest {
             vm.quickLogEvent.test {
                 vm.plantsWithStatus.test {
                     awaitItem()
-                    vm.quickLiquidFertilizeWithFeedback(1L, WateringFeedback.JUST_RIGHT)
+                    vm.quickLiquidFertilize(1L, null)
                     cancelAndIgnoreRemainingEvents()
                 }
                 assertEquals("Watered and fertilized Monstera", awaitItem())
@@ -882,11 +882,11 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
     }
 
     @Test
-    fun `quickLiquidFertilizeWithFeedback emits the suggestion returned by the use case`() = runTest {
+    fun `quickLiquidFertilize emits the suggestion returned by the use case`() = runTest {
         val monstera =
             Plant(
                 id = 1L,
@@ -898,7 +898,7 @@ class PlantListViewModelTest {
             )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.TOO_SOON) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -910,7 +910,7 @@ class PlantListViewModelTest {
         vm.quickWaterSuggestion.test {
             vm.plantsWithStatus.test {
                 awaitItem()
-                vm.quickLiquidFertilizeWithFeedback(1L, WateringFeedback.TOO_SOON)
+                vm.quickLiquidFertilize(1L, WateringReason.PLANT_NEEDED_IT)
                 cancelAndIgnoreRemainingEvents()
             }
             val suggestion = awaitItem()

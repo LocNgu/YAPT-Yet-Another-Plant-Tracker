@@ -36,7 +36,8 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   See technical ADR-0019 (#232).
 
 ## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
-`SkipWateringReceiver` handles the notification action (+1 day override, unchanged); guards on `intent.action`
+`SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" in the
+`check_reminders` branch since #586); guards on `intent.action`
 (#178). Its actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside
 `goAsync()` for direct testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a
 learning signal (#570, product ADR-0027, reaffirmed by ADR-0029) — it only ever touches `wateringDueDateOverride`,
@@ -54,17 +55,24 @@ even with the flag on, since there's no "check the soil" action to offer it.
 - **Flag off** (or not watering-due): byte-for-byte identical to today — title = plant name, single "Reschedule
   watering" action.
 - **Flag on, watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the single
-  "Reschedule watering" action is replaced by two: **Watered** (reuses the same deep-link `PendingIntent` as
-  tapping the notification body — a discoverability affordance, not a new code path) and **Still moist**
-  (`StillMoistReceiver`). Since #508 (product ADR-0029), Still moist is also reachable from Plant Detail directly
-  (`PlantDetailViewModel.recordStillMoist()`, same `QuickLogUseCase.recordStillMoistCheck()` call site) — this
-  notification action is no longer the only way to record it.
+  "Reschedule watering" action is replaced by **three, fixed regardless of how overdue the plant is** (#586,
+  product ADR-0030): **Watered** (reuses the same deep-link `PendingIntent` as tapping the notification body — a
+  discoverability affordance, not a new code path), **Still moist** (`StillMoistReceiver`), and **Not now**
+  (`SkipWateringReceiver`, the same +1-day override write as the flag-off action, relabelled). Varying the action
+  set by overdue-ness was rejected: unpredictable buttons between firings cost more than the one attribution the
+  fixed set gives up. A reminder fires at or after the due date, so a notification watering is never *early* —
+  **Watered** therefore writes no reason at all, which is correct on schedule and the safe exclusion when late
+  (see `.claude/rules/schedule.md`). The "I watered late *because* it was dry" attribution stays available in-app.
+  Since #508/#586, Still moist is also reachable from Plant Detail as the Reschedule prompt's "Soil still moist"
+  answer, through the same `QuickLogUseCase.recordStillMoistCheck()` call site.
 - `StillMoistReceiver` mirrors `SkipWateringReceiver`'s no-dialog, single-tap shape exactly (same `goAsync()` +
   internal-suspend-fun-for-testability pattern), but delegates the actual work to
-  `QuickLogUseCase.recordStillMoistCheck(plant)` rather than touching repositories directly — that's the one choke
+  `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` rather than touching repositories directly — that's the one choke
   point that also owns the CHECK same-day dedupe guard (`isDuplicateGuarded()`). It writes a `CareType.CHECK` log
-  (`wateringFeedback = TOO_SOON`), advances `wateringDueDateOverride` by the same fixed +1 day default as
-  `SkipWateringReceiver`, and — only when `ADAPTIVE_WATERING` is also on — feeds the observation into
+  (`wateringFeedback = TOO_SOON`), **sets** `wateringDueDateOverride` to a caller-supplied date — the receiver
+  passes `now + suggestedStillMoistDeferralDays(plant)`, since it has no picker, replacing #570's flat +1 day that
+  could never clear "due" for a plant overdue by two or more days (#586) — and, only when `ADAPTIVE_WATERING` is
+  also on — feeds the observation into
   `CareSchedule.computeAdaptiveInterval()` (see `.claude/rules/schedule.md`), persisting only the resulting
   `wateringConfidence`, never a silent interval change.
 - Notification IDs/`PendingIntent` request codes stay `plant.id.toInt()` for the Still-moist action too (technical
