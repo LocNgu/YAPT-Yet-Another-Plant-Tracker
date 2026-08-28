@@ -78,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -1111,27 +1112,28 @@ private fun PlantDetailTabStrip(
                 )
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            TabRowExpandToggle(
-                isExpanded = state.isExpanded,
-                hasAttention = state.hasAttention,
-                onToggle = onToggleExpanded
-            )
-        }
+        TabRowExpandToggle(
+            isExpanded = state.isExpanded,
+            hasAttention = state.hasAttention,
+            onToggle = onToggleExpanded,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
 /**
- * Small chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
+ * Chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
  * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
  * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
  * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
  * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own
  * announced description — folding an "attention needed" clause into that description (rather than the
  * Badge) while collapsed-and-attention is the only case where the badge is showing (#591).
+ *
+ * The tappable/clickable target is the full-width [Row], not just the icon — a plain `Modifier
+ * .clickable` (not [IconButton], which caps its own touch target) so the whole strip beneath the tabs
+ * expands/collapses on tap, not only the small chevron glyph (#591). `clickable`'s semantics node
+ * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row.
  */
 @Composable
 private fun TabRowExpandToggle(
@@ -1149,15 +1151,21 @@ private fun TabRowExpandToggle(
         hasAttention -> stringResource(R.string.plant_detail_tabs_expand_attention_cd)
         else -> stringResource(R.string.plant_detail_tabs_expand_cd)
     }
-    BadgedBox(
-        badge = {
-            if (!isExpanded && hasAttention) {
-                Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
-            }
-        },
+    Row(
         modifier = modifier
+            .clickable(onClickLabel = toggleCd, role = Role.Button, onClick = onToggle)
+            .testTag("plant_detail_tabs_toggle")
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onToggle, modifier = Modifier.testTag("plant_detail_tabs_toggle")) {
+        BadgedBox(
+            badge = {
+                if (!isExpanded && hasAttention) {
+                    Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
+                }
+            }
+        ) {
             Icon(
                 imageVector = Icons.Filled.ExpandMore,
                 contentDescription = toggleCd,
