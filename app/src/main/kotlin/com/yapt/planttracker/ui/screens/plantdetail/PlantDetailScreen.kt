@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +41,8 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -46,7 +51,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -74,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -150,6 +155,10 @@ fun PlantDetailScreen(
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
+    // Signals something is hidden behind the collapsed tab row (#590) — reuses the same
+    // already-collected activeIssues/customReminderStatuses the always-visible cards use.
+    val tabRowHasAttention = activeIssues.isNotEmpty() || customReminderStatuses.any { it.isOverdue }
+
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
     var photoToDelete by remember { mutableStateOf<GalleryPhoto?>(null) }
@@ -170,6 +179,7 @@ fun PlantDetailScreen(
     )
 
     var selectedTab by rememberSaveable { mutableStateOf(PlantDetailTab.WATER) }
+    var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }
 
     var intervalFieldText by remember(suggestedInterval) {
         mutableStateOf(suggestedInterval?.toString().orEmpty())
@@ -591,47 +601,54 @@ fun PlantDetailScreen(
                                 Spacer(Modifier.height(16.dp))
                             }
                         }
-                    }
 
-                    // Always-visible core section (#232), not gated behind PLANT_DETAIL_TABS.
-                    item {
-                        CustomRemindersCard(
-                            reminders = customReminders,
-                            statuses = customReminderStatuses,
-                            actions = CustomReminderActions(
-                                onAdd = { showAddReminderDialog = true },
-                                onEdit = { editingReminder = it },
-                                onDelete = { reminderToDelete = it },
-                                onMarkDone = { viewModel.markCustomReminderDone(it) }
+                        // Always-visible in the classic layout only (#232/#564, product ADR-0030);
+                        // in the tabs layout these move into the CUSTOM_REMINDERS/ISSUES tabs below.
+                        item {
+                            CustomRemindersCard(
+                                reminders = customReminders,
+                                statuses = customReminderStatuses,
+                                actions = CustomReminderActions(
+                                    onAdd = { showAddReminderDialog = true },
+                                    onEdit = { editingReminder = it },
+                                    onDelete = { reminderToDelete = it },
+                                    onMarkDone = { viewModel.markCustomReminderDone(it) }
+                                )
                             )
-                        )
-                        Spacer(Modifier.height(16.dp))
-                    }
-
-                    // Always-visible core section (#564), not gated behind PLANT_DETAIL_TABS.
-                    item {
-                        PlantIssuesCard(
-                            issues = activeIssues,
-                            customReminderNameById = customReminderNameById,
-                            onReport = { showReportIssueDialog = true },
-                            onResolve = { issueToResolve = it }
-                        )
-                        Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(16.dp))
+                        }
+                        item {
+                            PlantIssuesCard(
+                                issues = activeIssues,
+                                customReminderNameById = customReminderNameById,
+                                onReport = { showReportIssueDialog = true },
+                                onResolve = { issueToResolve = it }
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
                     }
 
                     // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
+                    // Collapse/expand + attention badge: product ADR-0030 (#590).
                     if (tabsEnabled) {
                         item {
-                            PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
-                                PlantDetailTab.entries.forEach { tab ->
-                                    Tab(
-                                        selected = selectedTab == tab,
-                                        onClick = { selectedTab = tab },
-                                        text = { Text(stringResource(tab.labelRes)) },
-                                        icon = { Icon(tab.icon, contentDescription = null) }
-                                    )
+                            PlantDetailTabStrip(
+                                state = TabStripState(
+                                    selectedTab = selectedTab,
+                                    isExpanded = isTabRowExpanded,
+                                    hasAttention = tabRowHasAttention
+                                ),
+                                onTabSelected = { selectedTab = it },
+                                onToggleExpanded = {
+                                    val expanding = !isTabRowExpanded
+                                    isTabRowExpanded = expanding
+                                    val onHiddenTab = selectedTab == PlantDetailTab.CUSTOM_REMINDERS ||
+                                        selectedTab == PlantDetailTab.ISSUES
+                                    if (!expanding && onHiddenTab) {
+                                        selectedTab = PlantDetailTab.WATER
+                                    }
                                 }
-                            }
+                            )
                             Spacer(Modifier.height(8.dp))
                         }
 
@@ -878,6 +895,34 @@ fun PlantDetailScreen(
                                     }
                                 }
                             }
+
+                            PlantDetailTab.CUSTOM_REMINDERS -> {
+                                item {
+                                    CustomRemindersCard(
+                                        reminders = customReminders,
+                                        statuses = customReminderStatuses,
+                                        actions = CustomReminderActions(
+                                            onAdd = { showAddReminderDialog = true },
+                                            onEdit = { editingReminder = it },
+                                            onDelete = { reminderToDelete = it },
+                                            onMarkDone = { viewModel.markCustomReminderDone(it) }
+                                        )
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
+
+                            PlantDetailTab.ISSUES -> {
+                                item {
+                                    PlantIssuesCard(
+                                        issues = activeIssues,
+                                        customReminderNameById = customReminderNameById,
+                                        onReport = { showReportIssueDialog = true },
+                                        onResolve = { issueToResolve = it }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                         }
                     }
 
@@ -1008,6 +1053,141 @@ fun PlantDetailScreen(
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(bottom = 88.dp)
+            )
+        }
+    }
+}
+
+/** How many tabs stay visible in [PlantDetailTabStrip]'s collapsed (default) state — today's four. */
+private const val COLLAPSED_TAB_COUNT = 4
+
+/**
+ * Bundles [PlantDetailTabStrip]'s value parameters into one so the composable stays under Detekt's
+ * `LongParameterList` threshold, mirroring [IntervalSetting]/[CustomReminderActions]'s bundling.
+ */
+private data class TabStripState(
+    val selectedTab: PlantDetailTab,
+    val isExpanded: Boolean,
+    val hasAttention: Boolean
+)
+
+/** Corner radius of [PlantDetailTabStrip]'s selected-tab highlight, matching the app's other rounded cards/chips. */
+private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
+
+/**
+ * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
+ * (product ADR-0030, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
+ * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
+ * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
+ * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
+ * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
+ * (identical to today), and expanding to 6 wraps the extra 2 onto a second row at that same width,
+ * rather than shrinking every tab or scrolling horizontally.
+ *
+ * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned
+ * via real `TabPosition`s it measures from its own tab slots — unavailable here since these `Tab`s are
+ * standalone children of a [FlowRow], not of a `TabRow`. Each `Tab` is therefore given its own explicit
+ * `selectedContentColor`/`unselectedContentColor` (the two default to the same value when neither is
+ * passed, which left selected and unselected tabs pixel-identical, #591) plus a rounded background
+ * behind the selected tab's icon/text standing in for `PrimaryIndicator` — scoped to that one `Tab`'s
+ * own `Modifier` so it works per-tab regardless of which row it wraps onto.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlantDetailTabStrip(
+    state: TabStripState,
+    onTabSelected: (PlantDetailTab) -> Unit,
+    onToggleExpanded: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleTabs = if (state.isExpanded) {
+        PlantDetailTab.entries
+    } else {
+        PlantDetailTab.entries.take(COLLAPSED_TAB_COUNT)
+    }
+    Column(modifier = modifier.fillMaxWidth()) {
+        FlowRow(modifier = Modifier.fillMaxWidth()) {
+            visibleTabs.forEach { tab ->
+                val isSelected = state.selectedTab == tab
+                Tab(
+                    selected = isSelected,
+                    onClick = { onTabSelected(tab) },
+                    text = { Text(stringResource(tab.labelRes)) },
+                    icon = { Icon(tab.icon, contentDescription = null) },
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth(0.25f)
+                        .padding(4.dp)
+                        .background(
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = TAB_SELECTION_INDICATOR_SHAPE
+                        )
+                )
+            }
+        }
+        TabRowExpandToggle(
+            isExpanded = state.isExpanded,
+            hasAttention = state.hasAttention,
+            onToggle = onToggleExpanded,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * Chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
+ * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
+ * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
+ * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
+ * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own
+ * announced description — folding an "attention needed" clause into that description (rather than the
+ * Badge) while collapsed-and-attention is the only case where the badge is showing (#591).
+ *
+ * The tappable/clickable target is the full-width [Row], not just the icon — a plain `Modifier
+ * .clickable` (not [IconButton], which caps its own touch target) so the whole strip beneath the tabs
+ * expands/collapses on tap, not only the small chevron glyph (#591). `clickable`'s semantics node
+ * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row.
+ */
+@Composable
+private fun TabRowExpandToggle(
+    isExpanded: Boolean,
+    hasAttention: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "tabRowChevronRotation"
+    )
+    val toggleCd = when {
+        isExpanded -> stringResource(R.string.plant_detail_tabs_collapse_cd)
+        hasAttention -> stringResource(R.string.plant_detail_tabs_expand_attention_cd)
+        else -> stringResource(R.string.plant_detail_tabs_expand_cd)
+    }
+    Row(
+        modifier = modifier
+            .clickable(onClickLabel = toggleCd, role = Role.Button, onClick = onToggle)
+            .testTag("plant_detail_tabs_toggle")
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BadgedBox(
+            badge = {
+                if (!isExpanded && hasAttention) {
+                    Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
+                }
+            }
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ExpandMore,
+                contentDescription = toggleCd,
+                modifier = Modifier.rotate(chevronRotation)
             )
         }
     }
