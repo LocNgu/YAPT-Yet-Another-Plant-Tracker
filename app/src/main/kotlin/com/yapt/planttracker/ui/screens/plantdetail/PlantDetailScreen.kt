@@ -89,7 +89,9 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
+import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
@@ -97,10 +99,11 @@ import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
+import com.yapt.planttracker.ui.components.RescheduleReasonBottomSheet
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.StatsRow
-import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
+import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
@@ -129,6 +132,9 @@ fun PlantDetailScreen(
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
+    val showRescheduleReasonSheet by viewModel.showRescheduleReasonSheet.collectAsStateWithLifecycle()
+    val rescheduleReason by viewModel.rescheduleReason.collectAsStateWithLifecycle()
+    val rescheduleSuggestedDays by viewModel.rescheduleSuggestedDays.collectAsStateWithLifecycle()
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
@@ -275,13 +281,23 @@ fun PlantDetailScreen(
         )
     }
 
+    if (showRescheduleReasonSheet) {
+        RescheduleReasonBottomSheet(
+            onDismiss = { viewModel.dismissRescheduleReasonSheet() },
+            onReasonChosen = { reason -> viewModel.chooseRescheduleReason(reason) }
+        )
+    }
+
     if (showRescheduleDialog) {
         RescheduleWateringDialog(
-            todayEnabled = careStatus?.isOverdue == true,
+            // Pulling the date to today would contradict "soil still moist", so that option is
+            // only ever offered for a deferral the user attributed to themselves (#586).
+            todayEnabled = careStatus?.isOverdue == true && rescheduleReason != RescheduleReason.SOIL_STILL_MOIST,
             onDismiss = { viewModel.dismissRescheduleDialog() },
             onToday = { viewModel.confirmRescheduleToday() },
             onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
-            onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
+            onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) },
+            suggestedDays = rescheduleSuggestedDays
         )
     }
 
@@ -411,11 +427,11 @@ fun PlantDetailScreen(
 
     if (showWaterSheet) {
         plant?.let { p ->
-            WaterFeedbackBottomSheet(
+            WateringReasonBottomSheet(
                 plantName = p.name,
                 onDismiss = { showWaterSheet = false },
-                onLog = { feedback ->
-                    viewModel.quickWater(feedback)
+                onLog = { reason ->
+                    viewModel.quickWater(reason)
                     showWaterSheet = false
                 }
             )
@@ -424,12 +440,12 @@ fun PlantDetailScreen(
 
     if (showLiquidFertilizeSheet) {
         plant?.let { p ->
-            WaterFeedbackBottomSheet(
+            WateringReasonBottomSheet(
                 plantName = p.name,
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
                 onDismiss = { showLiquidFertilizeSheet = false },
-                onLog = { feedback ->
-                    viewModel.quickLiquidFertilize(feedback)
+                onLog = { reason ->
+                    viewModel.quickLiquidFertilize(reason)
                     showLiquidFertilizeSheet = false
                 }
             )
@@ -533,10 +549,12 @@ fun PlantDetailScreen(
                         item {
                             StatsRow(
                                 status = status,
-                                onWaterClick = { showWaterSheet = true },
+                                onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
                                 onFertilizeClick = {
                                     if (plant?.useLiquidFertilizer == true) {
-                                        showLiquidFertilizeSheet = true
+                                        requestLiquidFertilize(status, viewModel) {
+                                            showLiquidFertilizeSheet = true
+                                        }
                                     } else {
                                         viewModel.quickFertilize()
                                     }
@@ -552,8 +570,7 @@ fun PlantDetailScreen(
                             if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
                                 item {
                                     WateringDueActionsRow(
-                                        onWaterClick = { showWaterSheet = true },
-                                        onStillMoistClick = { viewModel.recordStillMoist() },
+                                        onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
                                         onRescheduleClick = { viewModel.requestReschedule() }
                                     )
                                     Spacer(Modifier.height(16.dp))
@@ -704,8 +721,9 @@ fun PlantDetailScreen(
                                     ) {
                                         item {
                                             WateringDueActionsRow(
-                                                onWaterClick = { showWaterSheet = true },
-                                                onStillMoistClick = { viewModel.recordStillMoist() },
+                                                onWaterClick = {
+                                                    requestWater(status, viewModel) { showWaterSheet = true }
+                                                },
                                                 onRescheduleClick = { viewModel.requestReschedule() }
                                             )
                                             Spacer(Modifier.height(16.dp))
@@ -1478,4 +1496,27 @@ private fun CustomReminderDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
+}
+
+/**
+ * The #586 fast path (product ADR-0030): an on-schedule watering is logged straight away — no sheet,
+ * no question — and only an off-schedule one opens [WateringReasonBottomSheet] via [showReasonSheet].
+ * Shared by the watering `StatChip` and the watering-due actions row so the two surfaces can never
+ * disagree about when the question is worth asking.
+ */
+private fun requestWater(
+    status: PlantCareStatus,
+    viewModel: PlantDetailViewModel,
+    showReasonSheet: () -> Unit
+) {
+    if (status.isWateringOnSchedule) viewModel.quickWater(reason = null) else showReasonSheet()
+}
+
+/** [requestWater]'s counterpart for a liquid-fertilizer plant, whose paired WATER log follows the same rule. */
+private fun requestLiquidFertilize(
+    status: PlantCareStatus,
+    viewModel: PlantDetailViewModel,
+    showReasonSheet: () -> Unit
+) {
+    if (status.isWateringOnSchedule) viewModel.quickLiquidFertilize(reason = null) else showReasonSheet()
 }

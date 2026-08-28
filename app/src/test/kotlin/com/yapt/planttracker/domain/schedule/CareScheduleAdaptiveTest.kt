@@ -5,6 +5,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback.JUST_RIGHT
 import com.yapt.planttracker.domain.model.WateringFeedback.TOO_LATE
 import com.yapt.planttracker.domain.model.WateringFeedback.TOO_SOON
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -309,20 +310,22 @@ class CareScheduleAdaptiveTest {
         assertEquals(2, CareSchedule.confidenceAfterDialogEdit(2, suggestedIntervalDays = 10, appliedIntervalDays = 10))
     }
 
-    // --- computeAdaptiveInterval(): null feedback / gap-only observations (#570, product ADR-0027) ---
+    // --- computeAdaptiveInterval(): null feedback / gap-only observations (#570, product ADR-0027,
+    // narrowed to on-schedule gaps only by #586, product ADR-0030) ---
 
     @Test
-    fun `a WATER log with null feedback moves base toward the observed gap`() {
-        // target = 14 * 1.00 = 14; gain = min(0.60, 0.15) = 0.15; base = 7 + 0.15*(14-7) = 8.05 -> 8.
+    fun `an on-schedule WATER log with null feedback moves base toward the observed gap`() {
+        // |46-40| = 6 == 0.15*40, so the gap agrees and passive learning applies:
+        // target = 46; gain = min(0.60, 0.15) = 0.15; base = 40 + 0.15*6 = 40.9 -> 41.
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = null,
-            observedIntervalDays = 14,
-            currentBaseIntervalDays = 7,
+            observedIntervalDays = 46,
+            currentBaseIntervalDays = 40,
             currentConfidence = 0,
             recentFeedback = listOf(null)
         )
-        assertEquals(8, result.intervalDays)
-        assertTrue(result.intervalDays > 7)
+        assertEquals(41, result.intervalDays)
+        assertFalse(result.excludedFromBaseLearning)
     }
 
     @Test
@@ -338,8 +341,7 @@ class CareScheduleAdaptiveTest {
     }
 
     @Test
-    fun `null feedback bootstraps confidence to zero and applies the capped gain`() {
-        // target = 10; gain = min(0.60, 0.15) = 0.15; base = 7 + 0.15*3 = 7.45 -> rounds to 7.
+    fun `null feedback bootstraps confidence to zero`() {
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = null,
             observedIntervalDays = 10,
@@ -348,23 +350,6 @@ class CareScheduleAdaptiveTest {
             recentFeedback = emptyList()
         )
         assertEquals(0, result.confidence)
-    }
-
-    @Test
-    fun `a null-feedback outlier gap cannot move base by more than the existing per-step clamp`() {
-        // Regression guard (#570): before this issue, a null-feedback log fed nothing into the model
-        // at all. Widening the signal must not let a single outlier gap defeat the ±40% per-step clamp,
-        // even though the capped gain (0.15) alone would already pull far less than the full gain would.
-        val oldBase = 10
-        val result = CareSchedule.computeAdaptiveInterval(
-            feedback = null,
-            observedIntervalDays = 100, // wildly larger than base, mirroring a holiday-length gap
-            currentBaseIntervalDays = oldBase,
-            currentConfidence = 0,
-            recentFeedback = listOf(null)
-        )
-        val change = kotlin.math.abs(result.intervalDays - oldBase).toDouble() / oldBase
-        assertTrue("step change $change exceeded 40%", change <= 0.40 + 1e-9)
     }
 
     @Test
@@ -379,5 +364,100 @@ class CareScheduleAdaptiveTest {
             recentFeedback = listOf(TOO_SOON)
         )
         assertEquals(8, result.intervalDays)
+    }
+
+    // --- computeAdaptiveInterval(): off-schedule + no reason is excluded (#586, product ADR-0030) ---
+
+    /**
+     * The specific hole reusing `wateringFeedback` opens: an off-schedule watering the user declined
+     * to attribute writes `null`, and under #570's rule alone that `null` would still drag `base`
+     * toward the gap through the passive channel — the conflation ADR-0007 exists to prevent, coming
+     * back in through the side door.
+     *
+     * This covers the **late** half of ADR-0030's mapping table (watered at day 30 of a 20-day
+     * plant, "just my timing"); the early half is the holiday regression below. Both directions
+     * matter because the exclusion is keyed off gap *disagreement*, not off which side of `base`
+     * the gap fell on.
+     */
+    @Test
+    fun `a long unexplained gap is excluded just as an early one is`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 30,
+            currentBaseIntervalDays = 20,
+            currentConfidence = 0,
+            recentFeedback = listOf(null)
+        )
+        assertEquals(20, result.intervalDays)
+        assertTrue(result.excludedFromBaseLearning)
+    }
+
+    /**
+     * The holiday-watering regression named in the spec: watering a 20-day plant pre-emptively on day
+     * 5 because you are going away, and saying "just my timing", must not shorten its interval. Not a
+     * vacuous assertion — had the gap been treated as evidence, the capped neutral gain alone would
+     * have pulled base down to 18 (20 + 0.15 * (5 - 20) = 17.75). The exclusion is what holds it at
+     * 20; that passive learning is alive at all under `null` feedback is covered by
+     * `an on-schedule WATER log with null feedback moves base toward the observed gap`.
+     */
+    @Test
+    fun `a pre-emptive early watering marked just my timing does not shorten the interval`() {
+        val excluded = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 5,
+            currentBaseIntervalDays = 20,
+            currentConfidence = 0,
+            recentFeedback = listOf(null)
+        )
+        assertEquals(20, excluded.intervalDays)
+        assertTrue(excluded.excludedFromBaseLearning)
+    }
+
+    @Test
+    fun `an off-schedule WATER log attributed to the plant is not excluded and does move base`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_LATE,
+            observedIntervalDays = 5,
+            currentBaseIntervalDays = 20,
+            currentConfidence = 0,
+            recentFeedback = listOf(TOO_LATE)
+        )
+        assertFalse(result.excludedFromBaseLearning)
+        assertTrue(result.intervalDays < 20)
+    }
+
+    /**
+     * The exclusion is about `base` only. Confidence is evidence about *the schedule*, and an
+     * off-schedule gap disagrees with the prediction no matter why it happened — so it simply doesn't
+     * rise, rather than being separately suppressed.
+     */
+    @Test
+    fun `an excluded observation leaves confidence where it was`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 5,
+            currentBaseIntervalDays = 20,
+            currentConfidence = 3,
+            recentFeedback = listOf(null)
+        )
+        assertEquals(3, result.confidence)
+    }
+
+    /**
+     * A legacy `JUST_RIGHT` log (product ADR-0025; never written for new logs since #586) is explicit
+     * feedback, so it keeps the full gain and is never excluded — old logs and old `.yapt` backups go
+     * on behaving exactly as they did.
+     */
+    @Test
+    fun `a legacy JUST_RIGHT observation is never excluded`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = JUST_RIGHT,
+            observedIntervalDays = 14,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 0,
+            recentFeedback = listOf(JUST_RIGHT)
+        )
+        assertFalse(result.excludedFromBaseLearning)
+        assertTrue(result.intervalDays > 7)
     }
 }

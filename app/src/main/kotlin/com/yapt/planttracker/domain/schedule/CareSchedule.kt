@@ -57,6 +57,11 @@ object CareSchedule {
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
+        val onSchedule = wateringOnScheduleNow(
+            lastWateredAt = lastWateredAt,
+            effectiveIntervalDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere),
+            now = now
+        )
 
         return PlantCareStatus(
             plant = plant,
@@ -74,8 +79,29 @@ object CareSchedule {
             nextRepottingDueAt = nextRepottingDueAt,
             isRepottingOverdue = isRepottingOverdue,
             isRepottingDueSoon = isRepottingDueSoon,
-            customReminderStatuses = customReminderStatuses
+            customReminderStatuses = customReminderStatuses,
+            isWateringOnSchedule = onSchedule
         )
+    }
+
+    /**
+     * Backs [PlantCareStatus.isWateringOnSchedule] (#586, product ADR-0030): would a watering logged
+     * **now** agree with the schedule, within the same [GAP_AGREEMENT_TOLERANCE] the adaptive model
+     * already uses to decide "the prediction matched reality"? A second notion of "close enough"
+     * would inevitably drift from the first, so there is deliberately no new constant.
+     *
+     * `true` — no reason prompt — whenever there is nothing to be off-schedule against: no watering
+     * interval configured, or no previous watering to measure a gap from.
+     *
+     * This compares the raw observed gap against the *effective* (seasonally adjusted) interval,
+     * while [computeAdaptiveInterval] compares the de-seasonalized gap against the base interval.
+     * Those are the same test — `observed / season` vs `base` is `observed` vs `base × season` — so
+     * the prompt appears exactly when the model is about to see a disagreeing gap, which is what lets
+     * the "prompt was shown" state be derived rather than persisted.
+     */
+    private fun wateringOnScheduleNow(lastWateredAt: Long?, effectiveIntervalDays: Int?, now: Long): Boolean {
+        if (lastWateredAt == null || effectiveIntervalDays == null) return true
+        return gapAgrees(daysBetween(lastWateredAt, now), effectiveIntervalDays)
     }
 
     @Suppress("LongParameterList")
@@ -275,8 +301,17 @@ object CareSchedule {
      */
     const val NEUTRAL_OBSERVATION_GAIN = 0.15
 
-    /** Result of one adaptive-watering observation: the new suggested base interval and confidence. */
-    data class AdaptiveInterval(val intervalDays: Int, val confidence: Int)
+    /**
+     * Result of one adaptive-watering observation: the new suggested base interval and confidence.
+     * [excludedFromBaseLearning] is true when #586's rule left [intervalDays] deliberately untouched
+     * (an off-schedule watering the user declined to attribute to the plant) — callers use it to
+     * label the `watering_adjustments` row so the "Why this date?" sheet can say *why* nothing moved.
+     */
+    data class AdaptiveInterval(
+        val intervalDays: Int,
+        val confidence: Int,
+        val excludedFromBaseLearning: Boolean = false
+    )
 
     /**
      * Signed run length of same-direction feedback ending at the most recent watering.
@@ -323,6 +358,16 @@ object CareSchedule {
      * [NEUTRAL_OBSERVATION_GAIN] — a ceiling on the same gain used elsewhere, not a second learning
      * rate. Confidence still updates normally (gap agreement is evidence about the schedule regardless
      * of what was tapped); only the `base` correction is throttled for a silent observation.
+     *
+     * **#586 (product ADR-0030) narrows that further.** A `null`-feedback observation whose gap
+     * *disagrees* with [currentBaseIntervalDays] is excluded from base learning entirely (gain 0,
+     * [AdaptiveInterval.excludedFromBaseLearning] set). Off-schedule is exactly when the reason prompt
+     * appears, so a `null` there means the user was asked why and declined to attribute it to the
+     * plant — a pre-emptive holiday watering at day 5 of a 7-day plant must not quietly *shorten* the
+     * interval through the passive channel after the user has explicitly said it was about them. The
+     * distinction between "prompt never appeared" and "prompt appeared and was declined" is derived
+     * here from timing (see [wateringOnScheduleNow]), so no fifth state is ever persisted in the
+     * four-state [WateringFeedback] column.
      */
     fun computeAdaptiveInterval(
         feedback: WateringFeedback?,
@@ -338,14 +383,15 @@ object CareSchedule {
             null -> NEUTRAL_TARGET_MULTIPLIER
         }
         val target = observedIntervalDays * multiplier
+        val excluded = isUnattributedOffScheduleObservation(feedback, observedIntervalDays, currentBaseIntervalDays)
 
         if (currentConfidence == null) {
-            val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback)
+            val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback, excluded)
             val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
-            return AdaptiveInterval(clampStep(currentBaseIntervalDays, rawNewBase), 0)
+            return AdaptiveInterval(clampStep(currentBaseIntervalDays, rawNewBase), 0, excluded)
         }
 
-        val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback)
+        val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback, excluded)
         val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
         val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
 
@@ -357,16 +403,33 @@ object CareSchedule {
                 min(currentConfidence + 1, MAX_CONFIDENCE)
             else -> currentConfidence
         }
-        return AdaptiveInterval(newBase, newConfidence)
+        return AdaptiveInterval(newBase, newConfidence, excluded)
     }
+
+    /**
+     * The #586 rule, stated once: no feedback **and** a gap that disagrees with the current base means
+     * the reason prompt was shown and the user declined to attribute the watering to the plant. It is
+     * deliberately derived rather than passed in — a boolean threaded through every call site is one
+     * a caller can forget, and this way the rule holds identically for the quick-log sheets, the
+     * AddCareLog form, a bulk log, and the notification's "Watered" action.
+     */
+    private fun isUnattributedOffScheduleObservation(
+        feedback: WateringFeedback?,
+        observedIntervalDays: Int,
+        currentBaseIntervalDays: Int
+    ): Boolean = feedback == null && !gapAgrees(observedIntervalDays, currentBaseIntervalDays)
 
     /**
      * `null` feedback (silent gap-only observation) never moves `base` faster than
      * [NEUTRAL_OBSERVATION_GAIN], regardless of confidence — explicit feedback (non-null) always
-     * uses the full confidence-driven [confidenceGain] unchanged (#570).
+     * uses the full confidence-driven [confidenceGain] unchanged (#570) — and an [excluded]
+     * observation does not move it at all (#586).
      */
-    private fun gainFor(confidenceGain: Double, feedback: WateringFeedback?): Double =
-        if (feedback == null) min(confidenceGain, NEUTRAL_OBSERVATION_GAIN) else confidenceGain
+    private fun gainFor(confidenceGain: Double, feedback: WateringFeedback?, excluded: Boolean): Double = when {
+        excluded -> 0.0
+        feedback == null -> min(confidenceGain, NEUTRAL_OBSERVATION_GAIN)
+        else -> confidenceGain
+    }
 
     /**
      * Confidence effect of dismissing the ADR-0006 suggestion dialog without applying: a dismissal

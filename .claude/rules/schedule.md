@@ -75,17 +75,34 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
 - **`feedback: WateringFeedback?`** — widened to nullable (#570, product ADR-0027): the WATER-log feedback chip
   collapsed to one optional flag, making `null` the dominant case. `null` maps to `NEUTRAL_TARGET_MULTIPLIER`
   (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
-  `NEUTRAL_OBSERVATION_GAIN` (0.15): `gain = if (feedback == null) min(confidenceGain, NEUTRAL_OBSERVATION_GAIN)
-  else confidenceGain` — a ceiling on the existing gain, not a second learning rate. Confidence still updates
-  normally on gap agreement for a null-feedback observation; only the `base` correction is throttled. This is what
-  keeps a single outlier gap (e.g. a 30-day holiday) with no feedback from dragging `base` as hard as an explicit
-  TOO_SOON/TOO_LATE would — the existing ±40% per-step clamp covers the rest.
-- **`CareType.CHECK`** ("Still moist", #570, product ADR-0027) is a `TOO_SOON` observation fed through this same
-  function by `QuickLogUseCase.recordStillMoistCheck()` — full confidence gain (it's explicit, not silent), and
-  only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
-  silently applied (no dialog exists for a notification action to show). Gated on `ADAPTIVE_WATERING` only —
-  `check_reminders` being on is orthogonal (see `.claude/rules/notifications.md`). Skip watering/Reschedule
-  deliberately does **not** feed this model at all (verified by `SkipWateringReceiverTest`) — see product ADR-0027.
+  `NEUTRAL_OBSERVATION_GAIN` (0.15) — a ceiling on the existing gain, not a second learning rate. Confidence still
+  updates normally on gap agreement for a null-feedback observation; only the `base` correction is throttled.
+- **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
+  **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
+  as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`
+  there means the user was asked why and declined to attribute it — a pre-emptive holiday watering marked "just my
+  timing" must not shorten `base` through the passive channel. **Derived inside the pure function, never passed in**:
+  a boolean threaded through call sites is one a caller can forget, and this way the rule holds identically for the
+  quick-log sheets, AddCareLog, a bulk log, and the notification's "Watered" action. Consequence: `base` now only ever
+  moves on explicit attribution or on an on-schedule nudge inside the tolerance band. Confidence is deliberately not
+  separately suppressed — an off-schedule gap disagrees with the prediction whatever the reason, so it simply
+  doesn't rise. Call sites map an excluded result to `WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED`.
+- **`PlantCareStatus.isWateringOnSchedule`** (#586) is the UI half of the same test, computed in `computeStatus()`
+  via `wateringOnScheduleNow()`: raw observed gap vs the *effective* (seasonal) interval, where the model compares
+  the de-seasonalized gap vs `base` — the same test, since `observed / season` vs `base` is `observed` vs
+  `base × season`. That equivalence is what lets "was the prompt shown" be derived rather than persisted. `true`
+  (no prompt) when there's no interval or no previous watering.
+- **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027, reached via the Reschedule reason prompt since
+  #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
+  `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),
+  and only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
+  silently applied. Gated on `ADAPTIVE_WATERING` only — `check_reminders` being on is orthogonal (see
+  `.claude/rules/notifications.md`). The **length** of the deferral is never a model input (#586): the reason
+  already decided what is learned, and `suggestedStillMoistDeferralDays()` (`newBase - observedGap`, floored at
+  `DEFAULT_STILL_MOIST_DEFERRAL_DAYS` = 1) only *suggests* a date — it shares `computeStillMoistAdaptiveInterval()`
+  with the real write so the two can't drift. A reschedule the user attributed to themselves ("I can't right now")
+  still does **not** feed this model at all (verified by `SkipWateringReceiverTest`) — ADR-0030 keeps ADR-0029's
+  posture for that half.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

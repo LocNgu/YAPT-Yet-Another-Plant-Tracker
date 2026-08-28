@@ -57,7 +57,9 @@ class AddCareLogViewModel(
     var loggedAt by mutableStateOf(System.currentTimeMillis())
 
     // Nothing pre-selected (#570, product ADR-0027) — the 3-way soil-state chip collapsed to one
-    // optional "was dry" flag; a defaulted JUST_RIGHT is no longer written for an untouched log.
+    // optional "the plant needed it" flag (#570, reworded in #586); a defaulted JUST_RIGHT is no
+    // longer written for an untouched log. Leaving it unset on an off-schedule watering is the "just
+    // my timing" answer, which product ADR-0030 excludes from base learning.
     var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
     private var customReminderId: Long? = null
@@ -154,12 +156,14 @@ class AddCareLogViewModel(
     )
 
     private suspend fun insertPairedWaterLog() {
+        // No reason: the user fertilized, and the watering came along with it (ADR-0008) — they were
+        // never asked why they watered, so nothing is attributed (#586, product ADR-0030).
         careLogRepository.addLog(
             CareLog(
                 plantId = plantId,
                 careType = CareType.WATER,
                 loggedAt = loggedAt,
-                wateringFeedback = WateringFeedback.JUST_RIGHT
+                wateringFeedback = null
             )
         )
         clearWateringOverrideIfActive()
@@ -249,7 +253,7 @@ class AddCareLogViewModel(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = adjustmentTriggerFor(feedback),
+                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning),
                 beforeIntervalDays = currentBase,
                 afterIntervalDays = result.intervalDays
             )
@@ -257,11 +261,15 @@ class AddCareLogViewModel(
         return result.intervalDays
     }
 
-    private fun adjustmentTriggerFor(feedback: WateringFeedback?): WateringAdjustmentTrigger = when (feedback) {
-        WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
-        WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
-        WateringFeedback.JUST_RIGHT -> WateringAdjustmentTrigger.WATER_JUST_RIGHT
-        null -> WateringAdjustmentTrigger.WATER_NEUTRAL
+    private fun adjustmentTriggerFor(
+        feedback: WateringFeedback?,
+        excludedFromBaseLearning: Boolean
+    ): WateringAdjustmentTrigger = when {
+        excludedFromBaseLearning -> WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED
+        feedback == WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
+        feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
+        feedback == WateringFeedback.JUST_RIGHT -> WateringAdjustmentTrigger.WATER_JUST_RIGHT
+        else -> WateringAdjustmentTrigger.WATER_NEUTRAL
     }
 
     private suspend fun isAdaptiveWateringEnabled(): Boolean {

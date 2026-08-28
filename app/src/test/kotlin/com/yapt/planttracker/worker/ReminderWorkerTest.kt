@@ -12,6 +12,8 @@ import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
@@ -220,7 +222,7 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork reframes to a Check title with Watered and Still moist actions when check_reminders is on`() =
+    fun `doWork reframes to a Check title with Watered, Still moist and Not now when check_reminders is on`() =
         runBlocking {
             shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
             setCheckRemindersEnabled(true)
@@ -233,8 +235,35 @@ class ReminderWorkerTest {
             val notification = notificationManager.activeNotifications.first().notification
             assertEquals("Check Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
             val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-            assertEquals(listOf("Watered", "Still moist"), actionTitles)
+            assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
         }
+
+    /**
+     * #586 acceptance criterion: the action set is **fixed**, never varied by how overdue the plant
+     * is. Unpredictable buttons between firings would cost more than the one attribution the fixed
+     * set gives up.
+     */
+    @Test
+    fun `doWork offers the same three actions however overdue the plant is`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setCheckRemindersEnabled(true)
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
+        )
+        app.careLogRepository.addLog(
+            CareLog(
+                plantId = plantId,
+                careType = CareType.WATER,
+                loggedAt = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(90)
+            )
+        )
+
+        runWorker()
+
+        val notification = notificationManager.activeNotifications.first().notification
+        val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
+        assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
+    }
 
     @Test
     fun `doWork does not reframe a repotting-only reminder even when check_reminders is on`() = runBlocking {
