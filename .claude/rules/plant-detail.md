@@ -18,15 +18,33 @@ hero opens `FullScreenPhotoViewer`; the no-cover placeholder has no clickable mo
 ## Per-action tabs — behind a feature flag (#436)
 The whole tabs feature (tab strip + inline settings + per-tab insights) sits behind
 `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default **off**). `PlantDetailViewModel` exposes
-`tabsEnabled: StateFlow<Boolean>`; the screen branches — **on** = `PrimaryTabRow` (Water · Fertilize · Repot · Photo)
-as a `LazyColumn` item inside the Box overlay below the hero; **off** = classic single-page layout. The `StatsRow`
-quick-log chips, shared care-history list, and `+` FAB render in **both** paths.
+`tabsEnabled: StateFlow<Boolean>`; the screen branches — **on** = `PlantDetailTabStrip` (a `FlowRow` of standalone
+`Tab`s, not `TabRow`/`PrimaryTabRow` — see below) as a `LazyColumn` item inside the Box overlay below the hero;
+**off** = classic single-page layout. The `StatsRow` quick-log chips, shared care-history list, and `+` FAB render
+in **both** paths.
 > Per ADR-0022's flag-lifecycle rule: when this graduates, delete the registry entry **and** the flag-off branch in
 > the graduating PR.
 
-- `PlantDetailTab` enum = per-tab `labelRes` + icon; `selectedTab` is `rememberSaveable` (defaults Water).
+- `PlantDetailTab` enum (6 entries: `WATER, FERTILIZE, REPOT, PHOTO, CUSTOM_REMINDERS, ISSUES`) = per-tab `labelRes`
+  + icon; `selectedTab` is `rememberSaveable` (defaults Water).
 - Per-tab filtered log lists use prefixed keys (`"fert-"`/`"repot-"`/`"mist-"` + id) so they never collide with the
   shared list's `it.id` keys. Misting is folded into the Water tab.
+
+### Tab row collapse/expand + attention badge (product ADR-0030, #590)
+Six tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
+horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `Tab` composables
+(`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
+`PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, pixel-identical to before; expanded shows
+all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
+- `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
+  and the care-history `isExpanded` chip, **not** a `DataStore` setting; resets to collapsed on every fresh visit.
+- Toggle reuses the care-history `AssistChip`'s exact chevron-rotate pattern (`animateFloatAsState` rotating
+  `Icons.Filled.ExpandMore` 180°), with a `contentDescription` that flips between
+  `plant_detail_tabs_expand_cd`/`plant_detail_tabs_collapse_cd`.
+- Attention `Badge` on the toggle when **collapsed** and (`activeIssues.isNotEmpty()` or any
+  `CustomReminderStatus.isOverdue`) — both already-collected in `PlantDetailScreen.kt`, no new queries. Hidden once
+  expanded.
+- Collapsing while `selectedTab` is `CUSTOM_REMINDERS`/`ISSUES` (now hidden) resets `selectedTab` to `WATER`.
 
 ## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession)
 Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + `Slider`; Fertilize adds the
@@ -82,10 +100,12 @@ Collapses to 5 most recent by default; `AssistChip` with animated chevron expand
 resets on screen open (#253).
 
 ## Custom reminders (technical ADR-0019, #232)
-Always-visible `CustomRemindersCard` — **not** gated behind `PLANT_DETAIL_TABS`, unlike everything below it. In the
-classic layout (flag off) it renders after the watering-due actions row (#508) / `WateringHistoryChart` / photo
-gallery block, so it doesn't sit between the watering stat chip and the actions row (#232 follow-up); in the tabs
-layout it renders right before the tab strip, since the flag-off block is empty there. Backed by
+`CustomRemindersCard`'s **placement** is layout-dependent (product ADR-0030, #590): in the **classic layout**
+(`PLANT_DETAIL_TABS` off) it stays an always-visible card, unchanged — rendered after the watering-due actions row
+(#508) / `WateringHistoryChart` / photo gallery block, so it doesn't sit between the watering stat chip and the
+actions row (#232 follow-up). In the **tabs layout** it is no longer always-visible — it renders only when
+`selectedTab == PlantDetailTab.CUSTOM_REMINDERS`, one of the two tabs hidden behind the collapsed tab row by
+default (see "Tab row collapse/expand" above). Same composable, same params, same behavior either way. Backed by
 `PlantDetailViewModel.customReminders` (`Flow` from
 `CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
 now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
@@ -99,9 +119,11 @@ label; pass `null` (or omit it) when the linked reminder has since been deleted 
 `customReminderId`.
 
 ## Plant issues (technical ADR-0020, #564)
-Always-visible "Active issues" `PlantIssuesCard` — same always-visible slot/pattern as `CustomRemindersCard`, and
-lives right after it in both the classic and tabs layouts. Composables live in a separate file,
-`PlantIssuesSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's per-file `TooManyFunctions` threshold;
+"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0030, #590): always-
+visible, right after `CustomRemindersCard`, in the **classic layout**; rendered only when `selectedTab ==
+PlantDetailTab.ISSUES` — the other tab hidden behind the collapsed tab row by default — in the **tabs layout**.
+Composables live in a separate file, `PlantIssuesSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's
+per-file `TooManyFunctions` threshold;
 `PlantIssuesCard` is `internal` so `PlantDetailScreen.kt` can call it. Backed by `PlantDetailViewModel.activeIssues`
 (`Flow<List<PlantIssue>>` from `PlantIssueRepository.getActiveIssuesForPlant`, already filtered to `resolvedAt ==
 null` — the card never shows resolved issues). Each row shows the issue name, "Ongoing for N days" (via

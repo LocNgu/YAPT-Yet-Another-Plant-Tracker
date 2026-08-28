@@ -748,8 +748,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
-        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
+        // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Water"))
         composeTestRule.onNodeWithText("Water").assertIsDisplayed()
@@ -778,8 +779,9 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
-        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
-        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
+        // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -804,8 +806,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
-        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
+        // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Photo"))
         composeTestRule.onNodeWithText("Photo").performClick()
@@ -853,8 +856,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
-        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
+        // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -894,8 +898,9 @@ class PlantDetailScreenTest {
         }
 
         // Two repots → the Repot tab's insights card shows the count and an average interval.
-        // The always-visible CustomRemindersCard/PlantIssuesCard sections push the tab strip below
-        // the fold on CI's 320x640 emulator; scroll to it first (#232, #564).
+        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
+        // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Repot"))
         composeTestRule.onNodeWithText("Repot").performClick()
@@ -934,6 +939,150 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithText("Repot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    // ---- Tab row collapse/expand + attention badge (#590, product ADR-0030) ----
+
+    @Test
+    fun tabRow_collapsedByDefault_hidesCustomRemindersAndIssuesTabs() {
+        val plant = Plant(id = 90L, name = "Peperomia", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandCd()).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(customRemindersTabLabel())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithText(issuesTabLabel())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun tabRow_expandToggle_revealsHiddenTabsAndFlipsDescription() {
+        val plant = Plant(id = 91L, name = "Philodendron", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(customRemindersTabLabel()))
+        composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(issuesTabLabel()).assertIsDisplayed()
+    }
+
+    @Test
+    fun tabRow_attentionBadge_visibleWhenCollapsedWithActiveIssue_hiddenOnceExpanded() {
+        val plant = Plant(id = 92L, name = "Snake Plant Two", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            plantIssueRepo = reactivePlantIssueRepo(listOf(PlantIssue(id = 10L, plantId = 92L, name = "Aphids")))
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_attention_badge"))
+        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+
+        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertDoesNotExist()
+    }
+
+    @Test
+    fun tabRow_attentionBadge_visibleWithOverdueCustomReminder() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        val plant = Plant(id = 93L, name = "Rubber Plant", createdAt = 0L, updatedAt = 0L)
+        val overdueReminder = CustomReminder(
+            id = 11L,
+            plantId = 93L,
+            name = "Wipe leaves",
+            intervalDays = 1,
+            createdAt = now - (5 * dayInMs)
+        )
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo(listOf(overdueReminder)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_attention_badge"))
+        composeTestRule.onNodeWithTag("plant_detail_tabs_attention_badge").assertIsDisplayed()
+    }
+
+    @Test
+    fun tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater() {
+        val plant = Plant(id = 94L, name = "ZZ Plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo())
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
+        composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(customRemindersSectionLabel())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }
@@ -991,6 +1140,32 @@ class PlantDetailScreenTest {
 
     private fun resolveIssueActionLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_issue_resolve_action)
+
+    private fun customRemindersTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tab_custom_reminders)
+
+    private fun issuesTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tab_issues)
+
+    private fun tabsExpandCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tabs_expand_cd)
+
+    private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tabs_collapse_cd)
+
+    /**
+     * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,
+     * product ADR-0030) — hidden behind the collapsed tab row by default. Scrolls to and taps the
+     * collapse/expand toggle, then scrolls to and taps [tabLabel] to select that tab.
+     */
+    private fun selectPlantDetailTab(tabLabel: String) {
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(tabLabel))
+        composeTestRule.onNodeWithText(tabLabel).performClick()
+    }
 
     /**
      * A [CustomReminderRepository] mock whose [CustomReminderRepository.getRemindersForPlant] flow is
@@ -1131,6 +1306,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(customRemindersTabLabel())
         composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(customRemindersEmptyLabel()).assertIsDisplayed()
     }
@@ -1150,6 +1326,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(customRemindersTabLabel())
         composeTestRule.onNodeWithContentDescription(addReminderCd()).performClick()
         composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextInput("Neem oil treatment")
         composeTestRule.onNodeWithText(saveLabel()).performClick()
@@ -1177,6 +1354,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(customRemindersTabLabel())
         composeTestRule.onNodeWithText("Neem oil treatment").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(editReminderCd()).performClick()
         composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextClearance()
@@ -1210,6 +1388,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(customRemindersTabLabel())
         composeTestRule.onNodeWithText("Rotate pot").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(deleteReminderCd()).performClick()
         composeTestRule.onNodeWithText(deleteReminderTitle()).assertIsDisplayed()
@@ -1243,6 +1422,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(customRemindersTabLabel())
         composeTestRule.onNodeWithContentDescription(markReminderDoneCd("Fungicide spray"))
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -1276,8 +1456,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        selectPlantDetailTab(issuesTabLabel())
         composeTestRule.onNodeWithText(plantIssuesSectionLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
     }
@@ -1302,8 +1481,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        selectPlantDetailTab(issuesTabLabel())
         composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
         composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Spider mites")
         composeTestRule.onNodeWithText(saveLabel()).performClick()
@@ -1336,8 +1514,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(plantIssuesSectionLabel()))
+        selectPlantDetailTab(issuesTabLabel())
         composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
         composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Root rot")
         composeTestRule.onNodeWithText(setReminderToggleLabel()).assertIsDisplayed()
@@ -1373,6 +1550,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        selectPlantDetailTab(issuesTabLabel())
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Mealybugs"))
         composeTestRule.onNodeWithText("Mealybugs").assertIsDisplayed()
