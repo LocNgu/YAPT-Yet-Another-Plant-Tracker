@@ -1113,7 +1113,7 @@ private fun PlantDetailTabStrip(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.Center
         ) {
             TabRowExpandToggle(
                 isExpanded = state.isExpanded,
