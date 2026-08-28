@@ -1177,7 +1177,11 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
+        // 10s, not the usual 5s: tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater timed out here
+        // twice in CI with "Failed to find ColorBuffer" emulator-rendering warnings logged immediately
+        // before it in both runs — consistent with transient emulator rendering slowness at that point in
+        // the suite, not app/test logic (every other selectPlantDetailTab() call reliably clears 5s).
+        composeTestRule.waitUntil(timeoutMillis = 10000) {
             composeTestRule.onAllNodesWithText(tabLabel)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
@@ -1329,6 +1333,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(customRemindersSectionLabel()))
         composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
+        // The empty-state message sits below the header within the same card — scrolling to the
+        // header alone doesn't guarantee it's in the (short, 320x640 CI) viewport too.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(customRemindersEmptyLabel()))
         composeTestRule.onNodeWithText(customRemindersEmptyLabel()).assertIsDisplayed()
     }
 
@@ -1358,6 +1366,9 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Neem oil treatment")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
+        // The empty-state message is replaced by the new reminder, which can land below the fold.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Neem oil treatment"))
         composeTestRule.onNodeWithText("Neem oil treatment").assertIsDisplayed()
     }
 
@@ -1489,6 +1500,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(plantIssuesSectionLabel()))
         composeTestRule.onNodeWithText(plantIssuesSectionLabel()).assertIsDisplayed()
+        // The empty-state message sits below the header within the same card — scrolling to the
+        // header alone doesn't guarantee it's in the (short, 320x640 CI) viewport too.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesEmptyLabel()))
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
     }
 
@@ -1523,6 +1538,9 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Spider mites")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
+        // The empty-state message is replaced by the new issue, which can land below the fold.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Spider mites"))
         composeTestRule.onNodeWithText("Spider mites").assertIsDisplayed()
         coVerify(exactly = 0) { customReminderRepo.addReminder(any()) }
     }
