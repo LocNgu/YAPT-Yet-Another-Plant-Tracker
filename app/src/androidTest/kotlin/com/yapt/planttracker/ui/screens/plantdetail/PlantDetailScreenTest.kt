@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -1072,6 +1073,10 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        // Selecting a tab doesn't auto-scroll its content into view (mirrors
+        // fertilizeTab_showsEmptyState_onlyAfterSelected/resolvingIssue_removesItFromActiveList).
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(customRemindersSectionLabel()))
         composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -1158,15 +1163,15 @@ class PlantDetailScreenTest {
      * product ADR-0030) — hidden behind the collapsed tab row by default. Scrolls to and taps the
      * collapse/expand toggle, then scrolls to and taps [tabLabel] to select that tab.
      *
-     * Expanding grows the tab strip's single lazy `item` (the `FlowRow` gains a second row), which can
-     * push the toggle itself below the viewport on a taller screen's worth of content above it — an
-     * `assertIsDisplayed()` on the toggle here is not a safe sync point (CI failure on #591 confirmed
-     * the toggle's content description does flip on click, but its bounds can legitimately fall outside
-     * the viewport once expanded). What's actually needed is confirmation that [tabLabel]'s node has
-     * been *composed* — independent of whether it's currently in the visible viewport — before asking
-     * `performScrollToNode` to scroll it into view; `waitUntil` + `fetchSemanticsNodes` is the existing
-     * idiom this file already uses for "wait for new content to appear" (e.g. [addingCustomReminder_
-     * appearsInList]).
+     * `waitUntil` + `fetchSemanticsNodes` (rather than an `assertIsDisplayed()` on the toggle) confirms
+     * [tabLabel]'s node has been *composed* before asking `performScrollToNode` to scroll it into view —
+     * expanding grows the tab strip's single lazy `item`, which can legitimately push the toggle itself
+     * below the viewport, so asserting the toggle stays visible isn't a safe sync point.
+     *
+     * Selecting a tab does **not** scroll its content into view — callers must do that themselves before
+     * asserting on/interacting with it, exactly like [fertilizeTab_showsEmptyState_onlyAfterSelected],
+     * [photoTab_showsEmptyState_whenNoPhotos], and [resolvingIssue_removesItFromActiveList] already do
+     * for the pre-existing tabs.
      */
     private fun selectPlantDetailTab(tabLabel: String) {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -1321,6 +1326,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(customRemindersSectionLabel()))
         composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(customRemindersEmptyLabel()).assertIsDisplayed()
     }
@@ -1341,6 +1348,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(customRemindersSectionLabel()))
         composeTestRule.onNodeWithContentDescription(addReminderCd()).performClick()
         composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextInput("Neem oil treatment")
         composeTestRule.onNodeWithText(saveLabel()).performClick()
@@ -1369,6 +1378,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Neem oil treatment"))
         composeTestRule.onNodeWithText("Neem oil treatment").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(editReminderCd()).performClick()
         composeTestRule.onNodeWithText(reminderNameFieldLabel()).performTextClearance()
@@ -1403,6 +1414,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Rotate pot"))
         composeTestRule.onNodeWithText("Rotate pot").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(deleteReminderCd()).performClick()
         composeTestRule.onNodeWithText(deleteReminderTitle()).assertIsDisplayed()
@@ -1437,6 +1450,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription(markReminderDoneCd("Fungicide spray")))
         composeTestRule.onNodeWithContentDescription(markReminderDoneCd("Fungicide spray"))
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -1471,6 +1486,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(issuesTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
         composeTestRule.onNodeWithText(plantIssuesSectionLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
     }
@@ -1496,6 +1513,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(issuesTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
         composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
         composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Spider mites")
         composeTestRule.onNodeWithText(saveLabel()).performClick()
@@ -1529,6 +1548,8 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(issuesTabLabel())
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(plantIssuesSectionLabel()))
         composeTestRule.onNodeWithContentDescription(reportIssueCd()).performClick()
         composeTestRule.onNodeWithText(issueNameFieldLabel()).performTextInput("Root rot")
         composeTestRule.onNodeWithText(setReminderToggleLabel()).assertIsDisplayed()
