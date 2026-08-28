@@ -135,8 +135,11 @@ default (see "Tab row collapse/expand" above). Same composable, same params, sam
 now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
 Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a
 confirm `AlertDialog`; "mark done" (`markCustomReminderDone`) writes a `CareType.CUSTOM` `CareLog` linked via
-`customReminderId` and resets the reminder's `lastDoneAt` in one ViewModel call. Row/card composables bundle their
-callbacks into a private `CustomReminderActions` data class to stay under Detekt's `LongParameterList` threshold —
+`customReminderId` and resets the reminder's `lastDoneAt` in one ViewModel call. Composables live in a separate
+file, `CustomRemindersSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's per-file `TooManyFunctions`
+threshold — same reasoning as `PlantIssuesSection.kt` below. Row/card composables bundle their callbacks into an
+`internal` `CustomReminderActions` data class (needed cross-file, unlike `PlantIssuesSection.kt`'s file-private
+`ReminderToggleState`) to stay under Detekt's `LongParameterList` threshold —
 follow that pattern rather than adding more individual lambda params. `CareLogItem` takes an optional
 `customReminderName: String?` so a `CUSTOM` journal entry shows the reminder's free-text name instead of the generic
 label; pass `null` (or omit it) when the linked reminder has since been deleted — never crash on a dangling
