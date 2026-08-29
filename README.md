@@ -21,7 +21,8 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Quick log buttons** — One-tap water and fertilize buttons on each plant card; no need to open the detail screen. On the plant detail screen, the Watering and Fertilizing stat chips are also tappable to log care in place
 - **Bulk actions** — Tap and hold a plant to enter multi-select mode, then apply a care action (Water, Fertilize, Prune, Mist, Repot) or move to the Graveyard for every selected plant at once from a bottom action sheet
 - **Liquid fertilizer mode** — Mark a plant as using liquid fertilizer; fertilize logs automatically create a paired watering log at the same time
-- **Skip watering** — Push the next due date forward 1–7 days from the plant detail screen; optionally make the change permanent via an interval adjustment dialog
+- **Watering actions with off-schedule reasons** — Plant Detail's watering surface is just **Water** and **Reschedule watering**; watering off schedule asks "The plant needed it" or "Just my timing", and rescheduling asks "Soil still moist" or "I can't right now" — only some answers feed the adaptive model, declining records nothing. Reschedule offers Today / +1 / +2 / +3 days / a custom date
+- **Watering transparency sheet** — Tap "Why this date?" on the Water tab to see how the next watering date was derived (base interval, seasonal adjustment, learned confidence) plus a log of recent automatic adjustments; an "Ask before changing intervals" setting controls whether applying a suggested interval still asks for confirmation or applies silently with an undo option
 - **Sort controls** — Sort the plant list by Alphabetical, Watering due, Fertilizing due, or Recently added; sort direction toggleable; choice persists across restarts
 - **Cared for today** — A sort-dropdown entry that filters the list to just the plants you've logged any care for today, ordered by most-recent care first (toggle for earliest-first)
 - **Date-group dividers** — When sorted by Watering due, Fertilizing due, or Both due, the plant list groups cards under Overdue / Today / Tomorrow / dated / Later / Not scheduled headers
@@ -31,7 +32,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer that shows each photo's date; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
 - **Plant Graveyard** — Deleted plants move to an archive in Settings; restore them or remove them permanently
 - **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
-- **Developer mode** — Tap the Settings → About version row five times to unlock a hidden Developer section: build info, a feature-flag registry for opt-in experimental features (currently the tabbed Plant Detail layout), and debug actions (reset the What's New sheet, run the reminder check now, seed/remove demo plants). Off by default and excluded from backup
+- **Developer mode** — Tap the Settings → About version row five times to unlock a hidden Developer section: build info, a feature-flag registry for opt-in experimental features (tabbed Plant Detail layout, adaptive watering, seasonal watering, Check reminders), and debug actions (reset the What's New sheet, run the reminder check now, seed/remove demo plants). Off by default and excluded from backup
 - **Offline-first** — No account, no cloud, no network calls. All data stays on device
 
 ## Screenshots

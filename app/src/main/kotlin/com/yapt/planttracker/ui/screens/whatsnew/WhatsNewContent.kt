@@ -11,6 +11,34 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 370,
+            versionName = "0.24.0",
+            added = listOf(
+                "\"Why this date?\" watering transparency sheet — see exactly how a plant's next watering date " +
+                    "was worked out (base interval, seasonal adjustment, learned confidence) and a log of the " +
+                    "last few automatic adjustments, from the Water tab's inline settings. A new \"Ask before " +
+                    "changing intervals\" setting lets you apply a suggested interval silently instead of " +
+                    "confirming it every time",
+                "Developer mode now has three more experimental feature flags, off by default: adaptive " +
+                    "watering (a confidence-weighted interval model that learns faster early on and settles " +
+                    "down over time), seasonal watering (stretches/compresses intervals for winter/summer using " +
+                    "your device's timezone, with a per-plant \"Pin interval\" opt-out and a preview chart in " +
+                    "Settings), and Check reminders (a \"Check {plant}\" notification with Watered/Still-moist " +
+                    "actions instead of an instruction to water)"
+            ),
+            changed = listOf(
+                "Plant Detail's watering-due actions are now just Water and Reschedule watering, and ask a " +
+                    "quick reason whenever the action is off schedule (\"The plant needed it\" / \"Just my " +
+                    "timing\" for watering; \"Soil still moist\" / \"I can't right now\" for rescheduling) — " +
+                    "declining to answer records no data. Reschedule watering now offers Today / +1 / +2 / +3 " +
+                    "days / a custom date",
+                "Fertilizing interval slider now goes up to 180 days (was 90), for long-term or slow-release " +
+                    "fertilizers",
+                "With the \"Plant Detail tabs\" flag on, Custom Reminders and Active Issues become their own " +
+                    "tabs behind a collapsible toggle instead of always-visible cards"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 360,
             versionName = "0.23.0",
             added = listOf(
