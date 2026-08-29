@@ -99,7 +99,9 @@ class AddCareLogScreenTest {
     }
 
     @Test
-    fun justRightFeedbackChip_isSelectedByDefault() {
+    fun plantNeededItFeedbackFlag_isUnselectedByDefault() {
+        // #570, product ADR-0027: the 3-way soil-state chip collapsed to one optional flag, with
+        // nothing pre-selected (logging without touching it writes null feedback).
         val viewModel = makeViewModel()
 
         composeTestRule.setContent {
@@ -109,11 +111,11 @@ class AddCareLogScreenTest {
             )
         }
 
-        val justRightLabel = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(R.string.feedback_just_right)
+        val plantNeededItLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.care_log_feedback_plant_needed_it)
 
         composeTestRule
-            .onNode(hasText(justRightLabel, substring = true) and isSelected())
+            .onNode(hasText(plantNeededItLabel, substring = true) and !isSelected())
             .assertIsDisplayed()
     }
 

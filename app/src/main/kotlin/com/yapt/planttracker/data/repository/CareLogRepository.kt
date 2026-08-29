@@ -31,6 +31,14 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     suspend fun getLastTwoWaterings(plantId: Long): List<CareLog> =
         careLogDao.getLastTwoLogsOfType(plantId, CareType.WATER.name).map { it.toDomain() }
 
+    /**
+     * The most recent [limit] WATER logs for [plantId], newest first (default 3 — see technical
+     * ADR-0021's `correctionStreak` window). Feed `.map { it.wateringFeedback }` to
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak].
+     */
+    suspend fun getRecentWaterings(plantId: Long, limit: Int = 3): List<CareLog> =
+        careLogDao.getRecentLogsOfType(plantId, CareType.WATER.name, limit).map { it.toDomain() }
+
     suspend fun getCareLogCount(plantId: Long): Int =
         careLogDao.getCareLogCount(plantId)
 

@@ -4,13 +4,18 @@ import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -20,7 +25,6 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -32,10 +36,8 @@ import io.mockk.runs
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -53,6 +55,9 @@ class PlantDetailViewModelTest {
     private val quickLogUseCase: QuickLogUseCase = mockk()
     private val customReminderRepo: CustomReminderRepository = mockk()
     private val plantIssueRepo: PlantIssueRepository = mockk()
+    private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
+        every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
+    }
 
     // Only reportIssue() touches withTransaction, and no test in this file exercises it
     // (see PlantDetailViewModelPlantIssueTest), so a bare mock is never invoked here.
@@ -84,7 +89,8 @@ class PlantDetailViewModelTest {
             quickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
     }
 
@@ -239,7 +245,8 @@ class PlantDetailViewModelTest {
             quickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
 
         vm.careStatus.test {
@@ -250,94 +257,14 @@ class PlantDetailViewModelTest {
         }
     }
 
-    @Test
-    fun `requestSkip sets showSkipDialog to true`() = runTest {
-        val monstera = plant()
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = makeVm()
-
-        vm.showSkipDialog.test {
-            assertFalse(awaitItem())
-            vm.requestSkip()
-            assertTrue(awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `dismissSkipDialog sets showSkipDialog to false`() = runTest {
-        val monstera = plant()
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = makeVm()
-
-        vm.requestSkip()
-        vm.showSkipDialog.test {
-            assertTrue(awaitItem())
-            vm.dismissSkipDialog()
-            assertFalse(awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `confirmSkip(1) sets wateringDueDateOverride, keeps wateringIntervalDays unchanged, emits SkipConfirmed`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-
-            vm.events.test {
-                vm.confirmSkip(1)
-                val event = awaitItem()
-                assertTrue(event is PlantDetailViewModel.Event.SkipConfirmed)
-                val skipEvent = event as PlantDetailViewModel.Event.SkipConfirmed
-                assertEquals(1, skipEvent.skippedDays)
-                assertEquals(8, skipEvent.proposedInterval)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringDueDateOverride != null && it.wateringIntervalDays == 7 })
-        }
-    }
-
-    @Test
-    fun `confirmSkip(3) pushes due date by 3 days`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-
-            vm.events.test {
-                vm.confirmSkip(3)
-                val event = awaitItem() as PlantDetailViewModel.Event.SkipConfirmed
-                assertEquals(3, event.skippedDays)
-                assertEquals(10, event.proposedInterval)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringDueDateOverride != null && it.wateringIntervalDays == 7 })
-        }
-    }
+    // requestReschedule/chooseRescheduleReason/confirmReschedule* coverage lives in
+    // PlantDetailViewModelRescheduleTest (#508/#586), to keep this file under Detekt's LargeClass threshold.
 
     @Test
     fun `quickWater logs watering, emits message, and applies returned suggestion`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -349,7 +276,7 @@ class PlantDetailViewModelTest {
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.quickLogMessage.test {
-                vm.quickWater(WateringFeedback.JUST_RIGHT)
+                vm.quickWater(reason = null)
                 assertEquals(PlantDetailViewModel.QuickLogMessage.Watered("Monstera"), awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
@@ -357,8 +284,64 @@ class PlantDetailViewModelTest {
         }
 
         assertEquals(9, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickWaterWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
     }
+
+    @Test
+    fun `quickWater with ADAPTIVE_WATERING on and askBeforeChangingIntervals off applies the suggestion silently`() = runTest {
+        every { dataStore.data } returns flowOf(
+            preferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false
+            )
+        )
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered Monstera",
+                logged = true,
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9)
+            )
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.events.test {
+                vm.quickWater(reason = null)
+                val event = awaitItem()
+                assertEquals(PlantDetailViewModel.Event.SilentIntervalApplied(7, 9), event)
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Never shows the dialog.
+        assertEquals(null, vm.suggestedWateringInterval.value)
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 9 }) }
+    }
+
+    @Test
+    fun `undoSilentIntervalApply reverts wateringIntervalDays to the given value`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 9)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.undoSilentIntervalApply(7)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 7 }) }
+    }
+
+    // undoSilentIntervalApply's SILENT_APPLY_UNDONE adjustment-row coverage lives in
+    // PlantDetailViewModelSeasonalTest, to keep this file under Detekt's LargeClass threshold.
 
     @Test
     fun `quickFertilize logs fertilize via use case and emits message`() = runTest {
@@ -415,7 +398,7 @@ class PlantDetailViewModelTest {
             wateringIntervalDays = 7
         )
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -423,7 +406,7 @@ class PlantDetailViewModelTest {
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.quickLogMessage.test {
-                vm.quickLiquidFertilize(WateringFeedback.JUST_RIGHT)
+                vm.quickLiquidFertilize(reason = null)
                 assertEquals(
                     PlantDetailViewModel.QuickLogMessage.WateredAndFertilized("Monstera"),
                     awaitItem()
@@ -434,7 +417,7 @@ class PlantDetailViewModelTest {
         }
 
         assertNull(vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithFeedback(monstera, WateringFeedback.JUST_RIGHT) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
     }
 
     @Test
@@ -466,7 +449,8 @@ class PlantDetailViewModelTest {
             quickLogUseCase,
             customReminderRepo,
             plantIssueRepo,
-            database
+            database,
+            wateringAdjustmentRepo
         )
 
         vm.galleryPhotos.test {

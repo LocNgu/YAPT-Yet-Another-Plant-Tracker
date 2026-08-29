@@ -19,23 +19,35 @@ class SkipWateringReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val app = context.applicationContext as YaptApplication
-                val plant = app.plantRepository.getPlantById(plantId).first() ?: return@launch
-                val newOverride = (plant.wateringDueDateOverride ?: System.currentTimeMillis()) +
-                    TimeUnit.DAYS.toMillis(1)
-                app.plantRepository.updatePlant(
-                    plant.copy(
-                        wateringDueDateOverride = newOverride,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                )
-                val notificationManager =
-                    context.getSystemService(NotificationManager::class.java)
-                notificationManager.cancel(plantId.toInt())
+                skipWatering(context, plantId)
             } finally {
                 pendingResult.finish()
             }
         }
+    }
+
+    /**
+     * Pulled out of [goAsync] so it's directly testable (mirrors `BootReceiver`'s
+     * `rescheduleFromStoredPrefs`, `.claude/rules/notifications.md`) — behavior is unchanged from
+     * before this extraction. Deliberately touches only [com.yapt.planttracker.domain.model.Plant
+     * .wateringDueDateOverride] — never `wateringConfidence`/`wateringIntervalDays`/
+     * `wateringBaseIntervalDays` — per product ADR-0007: skip/reschedule is a calendar-only
+     * operation, not a learning signal (#570, product ADR-0027 records why it stays that way).
+     */
+    internal suspend fun skipWatering(context: Context, plantId: Long) {
+        val app = context.applicationContext as YaptApplication
+        val plant = app.plantRepository.getPlantById(plantId).first() ?: return
+        val newOverride = (plant.wateringDueDateOverride ?: System.currentTimeMillis()) +
+            TimeUnit.DAYS.toMillis(1)
+        app.plantRepository.updatePlant(
+            plant.copy(
+                wateringDueDateOverride = newOverride,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        val notificationManager =
+            context.getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(plantId.toInt())
     }
 
     companion object {

@@ -22,6 +22,11 @@ appears immediately without navigating away.
 ## Care-event markers (`CareEventDecoration`, Vico `Decoration` API)
 - Per-type Material icons drawn at the bottom, day-level precision within each month column; same-day events stack;
   proximity clustering groups icons within 14 dp (`clusterMarkersByCx`, `internal data class PositionedMarker`) (#231/#355/#359).
+- `computeCareEventMarkers()` explicitly excludes both `CareType.WATER` (its own dedicated line/icon series) and
+  `CareType.CHECK` (#570, "Still moist" observations) — `careTypeColors` has no entry for `CHECK` either. CHECK
+  entries still appear in the plain care-history list; only the chart filters them, and does so explicitly (not by
+  relying on `iconBitmaps[marker.careType]` silently returning null, which would otherwise still consume a
+  cluster/stack slot without drawing anything).
 - The connecting line is a smooth **Catmull-Rom cubic spline** (`internal fun catmullRomSegments()` →
   `Path.cubicTo`); Vico's own line is transparent so smoothing applies to the per-event canvas polyline.
 - Tap → `EventMarkerDialog`: `CareEventDecoration` records each drawn icon's canvas position in a plain
@@ -37,3 +42,37 @@ ticks) — replaces Vico's default, which placed fractional ticks that collapsed
 Label/data sync: use `ExtraStore` inside the transaction so labels + data stay atomically consistent. Auto-scroll:
 `initialScroll` is one-shot — pair with `autoScroll` + a custom `AutoScrollCondition` to re-snap on every model change.
 Completes #125 (12M averaging superseded by per-event points; unified zoom rejected per ADR-0004).
+
+**x-step inference breaks on dense, irregular data (#579 follow-up fix).** Without an explicit `getXStep` on
+`rememberCartesianChart(...)`, Vico infers it as the GCD of every consecutive x-delta in the series
+(`CartesianChartModel.getDefaultXStep`). `WateringHistoryChart.kt`'s sparse per-event points get away with this,
+but `SeasonalWateringCurveChart.kt`'s ~365 daily-sampled points don't: unequal month lengths (28-31 days) mean the
+day-within-month fractions share no common divisor above the 4-decimal rounding quantum, so the inferred step
+collapses to ~0.0001 instead of the intended 1-month unit — `HorizontalAxis.ItemPlacer.aligned(spacing = { 1 })`
+then places ticks far too densely, and every one rounds to the same month label. Fix: pass
+`getXStep = { _, _, _ -> 1.0 }` explicitly whenever the x-coordinate scheme's "1 unit" has a known fixed meaning
+(here, 1 calendar month) rather than trusting the auto-inferred GCD — cheap insurance for any future dense,
+evenly-defined-but-numerically-irregular series in a Vico chart.
+
+## Seasonal watering curve preview chart (`SeasonalWateringCurveChart.kt`, #579)
+A second, much smaller Vico chart — own file, not a scaled-down `WateringHistoryChart`, since that one is too
+coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`CartesianChartHost`,
+`rememberLineCartesianLayer`, `rememberM3VicoTheme`), but the data is a pure daily sample of
+`SeasonalWatering.season()` across a year (`domain/schedule/SeasonalWateringCurveSampler.kt`), not care-log history:
+- **x-axis**: 365/366 daily-sampled points, x-coordinate is the same fractional month-index scheme as
+  `WateringHistoryChart.kt` (`monthIndexFor()`, `HorizontalAxis.ItemPlacer.aligned(spacing = { 1 })`) so ticks land
+  on month boundaries Jan…Dec — this is a *generic* calendar year, not tied to real `CareLog` timestamps. The
+  day-within-month fraction itself (`ChartMath.kt`'s `fractionalDayOfMonth()`, 4-decimal-rounded per Vico's GCD
+  precision limit) is shared with `computeWaterEventMarkers()`'s per-event x-coordinate — `monthIndexFor()` adds
+  the calendar month (Jan=0) on top, `computeWaterEventMarkers()` adds months-since-range-start instead.
+- **y-axis**: raw multiplier, **fixed** `0.5×`–`1.5×` (spans `SeasonalAmplitude.STRONG`'s bounds) regardless of the
+  currently selected amplitude, so switching Off/Mild/Standard/Strong visibly changes the curve's *height* within a
+  constant frame rather than rescaling the axis each redraw — the point is to make "how much" legible at a glance.
+- **"today" marker**: a small `Decoration` (`TodayMarkerDecoration`, mirrors `CareEventDecoration`'s coordinate math)
+  draws a dashed vertical guideline + a dot at the current day-of-year's position — not a Vico persistent marker API.
+- Rendered in two places, both gated behind `FeatureFlagRegistry.SEASONAL_WATERING`: directly under the Settings
+  amplitude picker (`showHemisphereCaption = true`, since hemisphere is otherwise inferred with no UI surfacing it
+  anywhere else), and in the Plant Detail Water tab's inline settings card next to the "Pin interval" switch
+  (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
+  pinned plant's due dates ignore this curve entirely — #578).
+- Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.

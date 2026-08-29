@@ -35,7 +35,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).
 - **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
 - **Dates** — `DateUtils.formatRelative()` for all display; never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013).
-- **Same-day WATER/FERTILIZE duplicates are rejected**, not PRUNE/REPOT/NOTE/PHOTO/MIST/CUSTOM — `CareLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs, excludeLogId)` is the single query (DAO-level `countLogsOfTypeOnDay`, no schema change). `QuickLogUseCase` is the one choke point for all four quick-log surfaces; `AddCareLogViewModel` has its own equivalent guard since it doesn't go through that use case. Always check *before* a paired liquid-fertilizer WATER insert, never just against the sibling insert in the same call (#509).
+- **Same-day WATER/FERTILIZE/CHECK duplicates are rejected**, not PRUNE/REPOT/NOTE/PHOTO/MIST/CUSTOM — `CareLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs, excludeLogId)` is the single query (DAO-level `countLogsOfTypeOnDay`, no schema change). `QuickLogUseCase` is the one choke point for all quick-log surfaces (including `recordStillMoistCheck()`, #570/#586) via its `isDuplicateGuarded()` set; `AddCareLogViewModel` has its own equivalent guard since it doesn't go through that use case (CHECK is never manually loggable there, so it doesn't need CHECK in its guard). Always check *before* a paired liquid-fertilizer WATER insert, never just against the sibling insert in the same call (#509).
 - **No `libs.versions.toml`** — versions inlined in `app/build.gradle.kts`; the Compose BOM governs Compose artifacts.
 - **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).
 - **Room migrations are mandatory** — explicit `Migration`s only, hard-crash if one is missing (`fallbackToDestructiveMigration` is never used). Any schema change ships with a `Migration` and a committed schema JSON in `app/schemas/` (technical ADR-0002).
@@ -43,6 +43,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **Room schema** exported to `app/schemas/` via KSP — commit schema JSON when bumping DB version. `PlantDatabase.DB_VERSION` is the single source (also feeds `@Database(version=…)`), so the two can't drift.
 - **Compose UI tests assert user-visible semantics** (contentDescription/stateDescription/text/actionable), **never** tree structure (child counts, testTag topology). A testTag never merges past a clickable/merged ancestor. If a fix is about announcements, assert the announcement — not the topology (#420).
 - **Two-strikes rule** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or a minimal repro), and reconsider whether the test asserts the wrong thing (structure vs. contract) (#420).
+- **Off-schedule actions ask why; the answer decides whether the model learns** (#586, product ADR-0030) — one rule for both watering and rescheduling. "On schedule" reuses `CareSchedule.GAP_AGREEMENT_TOLERANCE` (never a second notion of "close enough"), surfaced as `PlantCareStatus.isWateringOnSchedule`. The reason reuses `CareLog.wateringFeedback` (`WateringReason.PLANT_NEEDED_IT` → `TOO_LATE`, `JUST_MY_TIMING` → `null`), so `TOO_SOON` on a WATER log is unrepresentable and `JUST_RIGHT` is never written for new logs. The fifth state ("asked and declined") is **derived from timing inside `computeAdaptiveInterval()`**, never persisted and never a call-site parameter. Never let a reschedule's *length* become a model input.
 - Palette: SageGreen `#6B8F71`, WarmCream `#F5F0E8`, EarthBrown `#795548`; status OkGreen/WarnOrange/OverdueRed in `Color.kt`. `IssuePurple` is a separate axis (plant-health-problem, not care-due) — never reuse the due-status colors for it (technical ADR-0020).
 
 ## Architecture Decision Records
@@ -86,6 +87,8 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 
 ## Pointers (load on demand — path-scoped rules load only when you touch matching files)
 - `.claude/rules/schedule.md` — CareSchedule status + adaptive-interval rules
+- `.claude/rules/seasonal-watering.md` — computed seasonal watering curve, hemisphere, base interval, pin
+- `.claude/rules/watering-transparency.md` — "Why this date?" sheet, `watering_adjustments` table, ask-before-changing-intervals toggle
 - `.claude/rules/notifications.md` — ReminderWorker, composer, notification toggles
 - `.claude/rules/backup.md` — `.yapt` export/import + backup schema versions
 - `.claude/rules/chart.md` — Vico watering-history chart internals

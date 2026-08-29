@@ -197,7 +197,13 @@ fun YaptNavGraph(
 
             composable(Screen.AddPlant.route) { backStackEntry ->
                 val vm: AddEditPlantViewModel = viewModel(
-                    factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, null)
+                    factory = AddEditPlantViewModel.Factory(
+                        app.plantRepository,
+                        app.plantPhotoRepository,
+                        null,
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
+                    )
                 )
                 AddEditPlantScreen(
                     viewModel = vm,
@@ -211,7 +217,13 @@ fun YaptNavGraph(
             ) { backStackEntry ->
                 val plantId = backStackEntry.arguments!!.getLong("plantId")
                 val vm: AddEditPlantViewModel = viewModel(
-                    factory = AddEditPlantViewModel.Factory(app.plantRepository, app.plantPhotoRepository, plantId)
+                    factory = AddEditPlantViewModel.Factory(
+                        app.plantRepository,
+                        app.plantPhotoRepository,
+                        plantId,
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
+                    )
                 )
                 AddEditPlantScreen(
                     viewModel = vm,
@@ -241,7 +253,8 @@ fun YaptNavGraph(
                         app.quickLogUseCase,
                         app.customReminderRepository,
                         app.plantIssueRepository,
-                        app.database
+                        app.database,
+                        app.wateringAdjustmentRepository
                     )
                 )
 
@@ -249,7 +262,7 @@ fun YaptNavGraph(
                 LaunchedEffect(savedStateHandle) {
                     val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
                     if (suggestedInterval != null) {
-                        vm.suggestedWateringInterval.value = suggestedInterval
+                        vm.handleSuggestedWateringInterval(suggestedInterval)
                         savedStateHandle.remove<Int>("suggestedWateringInterval")
                     }
                 }
@@ -274,7 +287,7 @@ fun YaptNavGraph(
                 arguments = listOf(
                     navArgument("plantId") { type = NavType.LongType },
                     navArgument("careLogId") {
-                        type = NavType.LongType;
+                        type = NavType.LongType
                         defaultValue = 0L
                     }
                 )
@@ -286,7 +299,9 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantRepository,
                         plantId,
-                        careLogId
+                        careLogId,
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository
                     )
                 )
                 AddCareLogScreen(

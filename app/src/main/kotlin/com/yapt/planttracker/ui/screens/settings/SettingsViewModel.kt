@@ -20,6 +20,7 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.devmode.DemoDataSeeder
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -90,6 +91,18 @@ class SettingsViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.SYSTEM)
 
+    val seasonalAmplitude: StateFlow<SeasonalAmplitude> = dataStore.data
+        .map { prefs ->
+            runCatching { SeasonalAmplitude.valueOf(prefs[SettingsKeys.SEASONAL_AMPLITUDE] ?: "") }
+                .getOrDefault(SeasonalAmplitude.STANDARD)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeasonalAmplitude.STANDARD)
+
+    /** "Ask before changing intervals" (#572) — visible only while `adaptive_watering` is on. */
+    val askBeforeChangingIntervals: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -126,6 +139,18 @@ class SettingsViewModel(
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.THEME_MODE] = mode.name }
+        }
+    }
+
+    fun setSeasonalAmplitude(amplitude: SeasonalAmplitude) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.SEASONAL_AMPLITUDE] = amplitude.name }
+        }
+    }
+
+    fun setAskBeforeChangingIntervals(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = enabled }
         }
     }
 

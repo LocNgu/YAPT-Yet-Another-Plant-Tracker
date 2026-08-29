@@ -138,6 +138,32 @@ class CareLogRepositoryTest {
     }
 
     @Test
+    fun `getRecentWaterings returns up to limit most recent water logs newest first`() = runTest {
+        init()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 100L))
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 200L))
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 300L))
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 400L))
+
+        val result = repo.getRecentWaterings(plantId, limit = 3)
+        assertEquals(3, result.size)
+        assertEquals(400L, result[0].loggedAt)
+        assertEquals(300L, result[1].loggedAt)
+        assertEquals(200L, result[2].loggedAt)
+    }
+
+    @Test
+    fun `getRecentWaterings ignores non-WATER logs`() = runTest {
+        init()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 100L))
+        repo.addLog(careLog(plantId = plantId, careType = CareType.FERTILIZE, loggedAt = 200L))
+
+        val result = repo.getRecentWaterings(plantId, limit = 3)
+        assertEquals(1, result.size)
+        assertEquals(CareType.WATER, result[0].careType)
+    }
+
+    @Test
     fun `getCareLogCount returns correct count`() = runTest {
         init()
         repo.addLog(careLog(plantId = plantId))

@@ -1,6 +1,6 @@
 # Product ADR-0007: "Skip watering" is a temporary due-date override, not an interval change
 
-**Status**: accepted
+**Status**: superseded by [ADR-0029](0029-water-still-moist-reschedule-actions.md)
 **Date**: 2026-06-02
 
 ## Context

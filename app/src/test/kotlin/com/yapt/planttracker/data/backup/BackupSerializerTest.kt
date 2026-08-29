@@ -15,6 +15,15 @@ class BackupSerializerTest {
         createdAt = 1_600_000_000_000L
     )
 
+    private val defaultWateringAdjustment = BackupWateringAdjustment(
+        id = 3000L,
+        plantId = 1L,
+        triggeredAt = 1_650_000_000_000L,
+        trigger = "WATER_TOO_SOON",
+        beforeIntervalDays = 8,
+        afterIntervalDays = 9
+    )
+
     private val defaultPlantIssue = BackupPlantIssue(
         id = 2000L,
         plantId = 1L,
@@ -25,60 +34,67 @@ class BackupSerializerTest {
         linkedReminderId = 1000L
     )
 
+    private val defaultPlant = BackupPlant(
+        id = 1L,
+        name = "Monstera",
+        species = "Monstera deliciosa",
+        room = "Living room",
+        coverPhotoUri = "content://uri/photo.jpg",
+        notes = "Loves humidity",
+        wateringIntervalDays = 7,
+        fertilizingIntervalDays = 14,
+        repottingIntervalDays = 365,
+        createdAt = 1_000_000_000_000L,
+        updatedAt = 1_100_000_000_000L,
+        wateringDueDateOverride = 1_700_000_000_000L,
+        useLiquidFertilizer = true,
+        wateringConfidence = 3,
+        wateringBaseIntervalDays = 5.18,
+        pinIntervalToBase = true
+    )
+
+    private val defaultCareLog = BackupCareLog(
+        id = 10L,
+        plantId = 1L,
+        careType = "WATER",
+        loggedAt = 1_600_000_000_000L,
+        notes = "Watered well",
+        photoUri = "content://uri/log.jpg",
+        amount = "500ml",
+        wateringFeedback = "JUST_RIGHT",
+        fertilizerType = "LIQUID"
+    )
+
+    private val defaultSettings = BackupSettings(
+        notificationsEnabled = true,
+        reminderHour = 9,
+        reminderMinute = 0,
+        keepScreenOn = true,
+        combineNotifications = true,
+        photoReminderEnabled = true,
+        themeMode = "DARK",
+        fertilizingNotificationsEnabled = false,
+        askBeforeChangingIntervals = false
+    )
+
+    private val defaultPlantPhoto = BackupPlantPhoto(
+        id = 100L,
+        plantId = 1L,
+        uri = "content://uri/gallery.jpg",
+        capturedAt = 1_650_000_000_000L
+    )
+
     private fun fullRoot() = BackupRoot(
         schemaVersion = 1,
         exportedAt = 1_700_000_000_000L,
         appVersion = "1.0",
-        plants = listOf(
-            BackupPlant(
-                id = 1L,
-                name = "Monstera",
-                species = "Monstera deliciosa",
-                room = "Living room",
-                coverPhotoUri = "content://uri/photo.jpg",
-                notes = "Loves humidity",
-                wateringIntervalDays = 7,
-                fertilizingIntervalDays = 14,
-                repottingIntervalDays = 365,
-                createdAt = 1_000_000_000_000L,
-                updatedAt = 1_100_000_000_000L,
-                wateringDueDateOverride = 1_700_000_000_000L,
-                useLiquidFertilizer = true
-            )
-        ),
-        careLogs = listOf(
-            BackupCareLog(
-                id = 10L,
-                plantId = 1L,
-                careType = "WATER",
-                loggedAt = 1_600_000_000_000L,
-                notes = "Watered well",
-                photoUri = "content://uri/log.jpg",
-                amount = "500ml",
-                wateringFeedback = "JUST_RIGHT",
-                fertilizerType = "LIQUID"
-            )
-        ),
-        settings = BackupSettings(
-            notificationsEnabled = true,
-            reminderHour = 9,
-            reminderMinute = 0,
-            keepScreenOn = true,
-            combineNotifications = true,
-            photoReminderEnabled = true,
-            themeMode = "DARK",
-            fertilizingNotificationsEnabled = false
-        ),
-        plantPhotos = listOf(
-            BackupPlantPhoto(
-                id = 100L,
-                plantId = 1L,
-                uri = "content://uri/gallery.jpg",
-                capturedAt = 1_650_000_000_000L
-            )
-        ),
+        plants = listOf(defaultPlant),
+        careLogs = listOf(defaultCareLog),
+        settings = defaultSettings,
+        plantPhotos = listOf(defaultPlantPhoto),
         customReminders = listOf(defaultCustomReminder),
-        plantIssues = listOf(defaultPlantIssue)
+        plantIssues = listOf(defaultPlantIssue),
+        wateringAdjustments = listOf(defaultWateringAdjustment)
     )
 
     @Test
@@ -359,5 +375,93 @@ class BackupSerializerTest {
         assertNull(issue.resolvedAt)
         assertNull(issue.resolutionNote)
         assertNull(issue.linkedReminderId)
+    }
+
+    @Test
+    fun `wateringConfidence round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(3, decoded.plants[0].wateringConfidence)
+    }
+
+    @Test
+    fun `plant without wateringConfidence defaults to null`() {
+        val json = """
+            {"schemaVersion":10,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.wateringConfidence)
+    }
+
+    @Test
+    fun `wateringBaseIntervalDays and pinIntervalToBase round-trip their stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(5.18, decoded.plants[0].wateringBaseIntervalDays!!, 1e-9)
+        assertEquals(true, decoded.plants[0].pinIntervalToBase)
+    }
+
+    @Test
+    fun `plant without wateringBaseIntervalDays or pinIntervalToBase defaults to null and false`() {
+        val json = """
+            {"schemaVersion":10,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.wateringBaseIntervalDays)
+        assertEquals(false, plant.pinIntervalToBase)
+    }
+
+    @Test
+    fun `wateringAdjustments round-trips its stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(1, decoded.wateringAdjustments.size)
+        val adjustment = decoded.wateringAdjustments[0]
+        assertEquals("WATER_TOO_SOON", adjustment.trigger)
+        assertEquals(8, adjustment.beforeIntervalDays)
+        assertEquals(9, adjustment.afterIntervalDays)
+    }
+
+    @Test
+    fun `backup without wateringAdjustments defaults to an empty list`() {
+        val json = """
+            {"schemaVersion":12,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(emptyList<BackupWateringAdjustment>(), decoded.wateringAdjustments)
+    }
+
+    @Test
+    fun `settings without askBeforeChangingIntervals defaults to true`() {
+        val json = """
+            {"schemaVersion":12,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(true, decoded.settings.askBeforeChangingIntervals)
+    }
+
+    @Test
+    fun `settings askBeforeChangingIntervals round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(false, decoded.settings.askBeforeChangingIntervals)
     }
 }

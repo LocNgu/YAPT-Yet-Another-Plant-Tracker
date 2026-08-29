@@ -14,6 +14,8 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
+import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
@@ -21,8 +23,9 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
-import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -93,8 +96,9 @@ class PlantListViewModel(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
-        _sortOrder
-    ) { plants, _, room, sort ->
+        _sortOrder,
+        dataStore.seasonalAmplitudeFlow()
+    ) { plants, _, room, sort, seasonalAmplitude ->
         val filtered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
@@ -102,7 +106,7 @@ class PlantListViewModel(
         }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            statusList.add(buildStatus(plant))
+            statusList.add(buildStatus(plant, seasonalAmplitude))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
             val (start, end) = DateUtils.todayRangeMillis()
@@ -169,7 +173,7 @@ class PlantListViewModel(
 
     /**
      * Logs [careType] for every currently selected plant, then clears the selection and emits a
-     * snackbar summarising how many plants were affected. Watering uses `JUST_RIGHT` feedback and
+     * snackbar summarising how many plants were affected. Watering carries no reason (#586) and
      * fertilizing routes through [QuickLogUseCase.quickLog] so liquid-fertilizer plants still get a
      * paired watering; per-plant interval-suggestion and photo-reminder dialogs are intentionally
      * skipped in bulk to avoid a dialog storm.
@@ -220,7 +224,7 @@ class PlantListViewModel(
 
     fun quickLog(plantId: Long, careType: CareType) {
         if (careType == CareType.WATER) {
-            quickWaterWithFeedback(plantId, WateringFeedback.JUST_RIGHT)
+            quickWater(plantId, reason = null)
             return
         }
         viewModelScope.launch {
@@ -233,27 +237,28 @@ class PlantListViewModel(
     }
 
     /**
-     * Logs a watering with the given [feedback] (called from the quick-water bottom sheet),
+     * Logs a watering with the given [reason] — `null` when the watering was on schedule and no
+     * reason prompt appeared (#586, product ADR-0030) —
      * clears any active skip override, emits a snackbar message, and emits a
      * [QuickWaterSuggestion] if the adaptive interval system produces a suggestion. A same-day
      * duplicate is a silent no-op with an "Already watered today" snackbar instead (#509).
      */
-    fun quickWaterWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickWater(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickWaterWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickWaterWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
         }
     }
 
-    fun quickLiquidFertilizeWithFeedback(plantId: Long, feedback: WateringFeedback?) {
+    fun quickLiquidFertilize(plantId: Long, reason: WateringReason?) {
         viewModelScope.launch {
             val plant = plantsWithStatus.value
                 .firstOrNull { it.plant.id == plantId }?.plant ?: return@launch
-            val outcome = quickLogUseCase.quickLiquidFertilizeWithFeedback(plant, feedback)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(plant, reason)
             outcome.suggestion?.let { _quickWaterSuggestion.emit(it) }
             _quickLogEvent.emit(outcome.message)
             if (outcome.logged) maybeTriggerPhotoReminder(plant.id)
@@ -293,15 +298,56 @@ class PlantListViewModel(
         }
     }
 
-    fun applySuggestedIntervalFromList(plantId: Long, newInterval: Int) {
+    /**
+     * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
+     * originally suggested (before any retyping); the same confidence rules as
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval]
+     * apply here so the effect is identical regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun applySuggestedIntervalFromList(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
+                val wateringConfidence = if (isAdaptiveWateringEnabled()) {
+                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, suggestedIntervalDays, newInterval)
+                } else {
+                    p.wateringConfidence
+                }
                 plantRepository.updatePlant(
-                    p.copy(wateringIntervalDays = newInterval, updatedAt = System.currentTimeMillis())
+                    p.copy(
+                        wateringIntervalDays = newInterval,
+                        wateringConfidence = wateringConfidence,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
             }
         }
     }
+
+    /**
+     * Dismissing the ADR-0006 suggestion dialog without applying — mirrors
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
+     * so the confidence effect is the same regardless of which screen the dialog was shown from
+     * (#568 comment 5).
+     */
+    fun dismissSuggestedIntervalFromList(plantId: Long) {
+        viewModelScope.launch {
+            if (isAdaptiveWateringEnabled()) {
+                plantRepository.getPlantById(plantId).first()?.let { p ->
+                    plantRepository.updatePlant(
+                        p.copy(
+                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun isAdaptiveWateringEnabled(): Boolean =
+        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
+            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
     fun selectRoom(room: String?) {
         selectedRoom.value = room
@@ -410,7 +456,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -419,7 +465,8 @@ class PlantListViewModel(
             plant = plant,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
-            totalLogs = totalLogs
+            totalLogs = totalLogs,
+            seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = activeIssueCount)
     }
 

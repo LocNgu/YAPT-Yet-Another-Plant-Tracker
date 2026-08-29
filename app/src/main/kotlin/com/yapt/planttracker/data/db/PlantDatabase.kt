@@ -11,6 +11,10 @@ import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import java.time.LocalDate
 
 @Database(
     entities = [
@@ -18,7 +22,8 @@ import com.yapt.planttracker.data.entity.PlantPhotoEntity
         CareLogEntity::class,
         PlantPhotoEntity::class,
         CustomReminderEntity::class,
-        PlantIssueEntity::class
+        PlantIssueEntity::class,
+        WateringAdjustmentEntity::class
     ],
     version = PlantDatabase.DB_VERSION,
     exportSchema = true
@@ -30,11 +35,12 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun plantPhotoDao(): PlantPhotoDao
     abstract fun customReminderDao(): CustomReminderDao
     abstract fun plantIssueDao(): PlantIssueDao
+    abstract fun wateringAdjustmentDao(): WateringAdjustmentDao
 
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 9
+        const val DB_VERSION = 12
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -150,6 +156,75 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #568: wateringConfidence backs the multiplicative + confidence-weighted adaptive watering
+        // model (technical ADR-0021). Ships unconditionally regardless of `adaptive_watering` flag
+        // state, so flipping the flag off/on never loses learned state.
+        @Suppress("MagicNumber")
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringConfidence INTEGER")
+            }
+        }
+
+        // #569 (product ADR-0026): wateringBaseIntervalDays is a season-neutral reference used only
+        // when SEASONAL_WATERING is on and the plant isn't pinned. Not a pure ALTER — every existing
+        // plant's base is de-seasonalized to *migration day* (`wateringIntervalDays / season(today)`)
+        // so its effective interval on migration day is unchanged, regardless of what month the
+        // migration happens to run in. Always uses SeasonalAmplitude.STANDARD (a Room migration can't
+        // read the not-yet-chosen DataStore amplitude setting synchronously, and STANDARD is the
+        // registry default once the flag is turned on). pinIntervalToBase defaults false for every
+        // existing row. Both columns ship unconditionally regardless of the flag's state.
+        @Suppress("MagicNumber")
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringBaseIntervalDays REAL")
+                db.execSQL("ALTER TABLE plants ADD COLUMN pinIntervalToBase INTEGER NOT NULL DEFAULT 0")
+
+                val migrationDate = LocalDate.now()
+                val seasonFactor = SeasonalWatering.season(
+                    migrationDate,
+                    SeasonalAmplitude.STANDARD.value,
+                    SeasonalWatering.currentHemisphere()
+                )
+                db.query("SELECT id, wateringIntervalDays FROM plants WHERE wateringIntervalDays IS NOT NULL")
+                    .use { cursor ->
+                        while (cursor.moveToNext()) {
+                            val id = cursor.getLong(0)
+                            val intervalDays = cursor.getInt(1)
+                            val base = intervalDays / seasonFactor
+                            db.execSQL(
+                                "UPDATE plants SET wateringBaseIntervalDays = ? WHERE id = ?",
+                                arrayOf<Any>(base, id)
+                            )
+                        }
+                    }
+            }
+        }
+
+        // #572: watering_adjustments backs the "Why this date?" sheet's "Recent adjustments" list — a
+        // dedicated table (not a CareLog replay, product ADR-0028) since a dialog dismissal or manual
+        // interval edit changes wateringConfidence/base without ever writing a CareLog row. Ships
+        // unconditionally regardless of `adaptive_watering` flag state, mirroring wateringConfidence's
+        // precedent — rows are only ever written while the flag is on, but the table itself always exists.
+        @Suppress("MagicNumber")
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `watering_adjustments` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`triggeredAt` INTEGER NOT NULL, " +
+                        "`trigger` TEXT NOT NULL, " +
+                        "`beforeIntervalDays` INTEGER NOT NULL, " +
+                        "`afterIntervalDays` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_watering_adjustments_plantId` ON `watering_adjustments` (`plantId`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -165,7 +240,10 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10,
+                        MIGRATION_10_11,
+                        MIGRATION_11_12
                     )
                     .build()
                     .also { INSTANCE = it }

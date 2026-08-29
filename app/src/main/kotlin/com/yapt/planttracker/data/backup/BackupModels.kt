@@ -16,7 +16,10 @@ data class BackupPlant(
     val createdAt: Long,
     val updatedAt: Long,
     val wateringDueDateOverride: Long? = null,
-    val useLiquidFertilizer: Boolean = false
+    val useLiquidFertilizer: Boolean = false,
+    val wateringConfidence: Int? = null,
+    val wateringBaseIntervalDays: Double? = null,
+    val pinIntervalToBase: Boolean = false
 )
 
 @Serializable
@@ -55,6 +58,16 @@ data class BackupPlantIssue(
 )
 
 @Serializable
+data class BackupWateringAdjustment(
+    val id: Long,
+    val plantId: Long,
+    val triggeredAt: Long,
+    val trigger: String,
+    val beforeIntervalDays: Int,
+    val afterIntervalDays: Int
+)
+
+@Serializable
 data class BackupSettings(
     val notificationsEnabled: Boolean,
     val reminderHour: Int,
@@ -63,7 +76,8 @@ data class BackupSettings(
     val combineNotifications: Boolean = false,
     val photoReminderEnabled: Boolean = false,
     val themeMode: String = "SYSTEM",
-    val fertilizingNotificationsEnabled: Boolean = true
+    val fertilizingNotificationsEnabled: Boolean = true,
+    val askBeforeChangingIntervals: Boolean = true
 )
 
 @Serializable
@@ -84,5 +98,6 @@ data class BackupRoot(
     val settings: BackupSettings,
     val plantPhotos: List<BackupPlantPhoto> = emptyList(),
     val customReminders: List<BackupCustomReminder> = emptyList(),
-    val plantIssues: List<BackupPlantIssue> = emptyList()
+    val plantIssues: List<BackupPlantIssue> = emptyList(),
+    val wateringAdjustments: List<BackupWateringAdjustment> = emptyList()
 )

@@ -31,6 +31,22 @@ no schema bump).
   flags), `setFlagEnabled`.
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
+- `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off, #568) gates the multiplicative +
+  confidence-weighted watering interval model — see `.claude/rules/schedule.md`. Unlike `PLANT_DETAIL_TABS`, the
+  flag gates *behavior only* in `CareSchedule`/call sites; the backing `Plant.wateringConfidence` column and
+  `.yapt` backup field ship unconditionally, so toggling the flag off/on never loses learned state (this is a
+  deliberate exception to "flags need no schema" — the schema change here isn't gated by the flag, only its use is).
+- `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`, default off, #569) gates the computed seasonal
+  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture as `ADAPTIVE_WATERING`: the backing
+  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship unconditionally.
+  The amplitude picker itself lives on the main Settings screen (not the Developer section), visible only while
+  this flag is on — only the flag's on/off `Switch` appears in the generic Developer-section flags list.
+- `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off, #570) reframes the watering reminder
+  notification from "Water {plant}" to "Check {plant}" with Watered/Still-moist actions — see
+  `.claude/rules/notifications.md`. Independent of `ADAPTIVE_WATERING` (different risk surface: this one touches
+  `ReminderWorker`, the notification composer, and a new `StillMoistReceiver`); the Still-moist action's adaptive
+  feed is gated on `ADAPTIVE_WATERING` separately, so the two flags compose rather than one implying the other.
+  No new columns/backup fields — `CareType.CHECK` reuses the existing care-log pipeline entirely.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,

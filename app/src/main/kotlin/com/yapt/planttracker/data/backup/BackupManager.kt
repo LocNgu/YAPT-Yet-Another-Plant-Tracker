@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -25,6 +26,14 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 13 (#572): wateringAdjustments: List<BackupWateringAdjustment> round-trips the
+// watering_adjustments table (the "Recent adjustments" source for the "Why this date?" sheet), and
+// askBeforeChangingIntervals added to BackupSettings.
+// Schema 12 (#569): wateringBaseIntervalDays and pinIntervalToBase added to BackupPlant — round-trips
+// the computed-seasonal-watering reference interval and per-plant opt-out unconditionally, since
+// backup is not gated by the `seasonal_watering` flag.
+// Schema 11 (#568): wateringConfidence added to BackupPlant — round-trips the adaptive-watering
+// confidence counter unconditionally, since backup is not gated by the `adaptive_watering` flag.
 // Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing
 // pest/disease/health status, distinct from the recurring custom_reminders table).
 // Schema 9 (#232): customReminders: List<BackupCustomReminder> round-trips the custom_reminders
@@ -37,7 +46,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 10
+const val CURRENT_SCHEMA_VERSION = 13
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -73,6 +82,7 @@ class BackupManager(
             val plantPhotoDao = database.plantPhotoDao()
             val customReminderDao = database.customReminderDao()
             val plantIssueDao = database.plantIssueDao()
+            val wateringAdjustmentDao = database.wateringAdjustmentDao()
 
             val plants = plantDao.getAllPlants().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
@@ -83,6 +93,8 @@ class BackupManager(
             val customReminders = plants.flatMap { allReminders[it.id].orEmpty() }
             val allIssues = plantIssueDao.getAllIssues().first().groupBy { it.plantId }
             val plantIssues = plants.flatMap { allIssues[it.id].orEmpty() }
+            val allAdjustments = wateringAdjustmentDao.getAllAdjustments().first().groupBy { it.plantId }
+            val wateringAdjustments = plants.flatMap { allAdjustments[it.id].orEmpty() }
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -93,6 +105,7 @@ class BackupManager(
             val photoReminderEnabled = prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
             val themeMode = prefs[SettingsKeys.THEME_MODE] ?: "SYSTEM"
             val fertilizingNotificationsEnabled = prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true
+            val askBeforeChangingIntervals = prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -131,7 +144,10 @@ class BackupManager(
                     createdAt = entity.createdAt,
                     updatedAt = entity.updatedAt,
                     wateringDueDateOverride = entity.wateringDueDateOverride,
-                    useLiquidFertilizer = entity.useLiquidFertilizer
+                    useLiquidFertilizer = entity.useLiquidFertilizer,
+                    wateringConfidence = entity.wateringConfidence,
+                    wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
+                    pinIntervalToBase = entity.pinIntervalToBase
                 )
             }
 
@@ -182,6 +198,17 @@ class BackupManager(
                 )
             }
 
+            val backupWateringAdjustments = wateringAdjustments.map { entity ->
+                BackupWateringAdjustment(
+                    id = entity.id,
+                    plantId = entity.plantId,
+                    triggeredAt = entity.triggeredAt,
+                    trigger = entity.trigger,
+                    beforeIntervalDays = entity.beforeIntervalDays,
+                    afterIntervalDays = entity.afterIntervalDays
+                )
+            }
+
             val backupRoot = BackupRoot(
                 schemaVersion = CURRENT_SCHEMA_VERSION,
                 exportedAt = System.currentTimeMillis(),
@@ -193,6 +220,7 @@ class BackupManager(
                 plantPhotos = backupPlantPhotos,
                 customReminders = backupCustomReminders,
                 plantIssues = backupPlantIssues,
+                wateringAdjustments = backupWateringAdjustments,
                 settings = BackupSettings(
                     notificationsEnabled = notificationsEnabled,
                     reminderHour = reminderHour,
@@ -201,7 +229,8 @@ class BackupManager(
                     combineNotifications = combineNotifications,
                     photoReminderEnabled = photoReminderEnabled,
                     themeMode = themeMode,
-                    fertilizingNotificationsEnabled = fertilizingNotificationsEnabled
+                    fertilizingNotificationsEnabled = fertilizingNotificationsEnabled,
+                    askBeforeChangingIntervals = askBeforeChangingIntervals
                 )
             )
 
@@ -342,7 +371,10 @@ class BackupManager(
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,
                     wateringDueDateOverride = bp.wateringDueDateOverride,
-                    useLiquidFertilizer = bp.useLiquidFertilizer
+                    useLiquidFertilizer = bp.useLiquidFertilizer,
+                    wateringConfidence = bp.wateringConfidence,
+                    wateringBaseIntervalDays = bp.wateringBaseIntervalDays,
+                    pinIntervalToBase = bp.pinIntervalToBase
                 )
             }
 
@@ -398,10 +430,22 @@ class BackupManager(
                 )
             }
 
+            val wateringAdjustmentEntities = backup.wateringAdjustments.map { ba ->
+                WateringAdjustmentEntity(
+                    id = ba.id,
+                    plantId = ba.plantId,
+                    triggeredAt = ba.triggeredAt,
+                    trigger = ba.trigger,
+                    beforeIntervalDays = ba.beforeIntervalDays,
+                    afterIntervalDays = ba.afterIntervalDays
+                )
+            }
+
             database.withTransaction {
                 database.plantPhotoDao().deleteAll()
                 database.customReminderDao().deleteAll()
                 database.plantIssueDao().deleteAll()
+                database.wateringAdjustmentDao().deleteAll()
                 database.careLogDao().deleteAll()
                 database.plantDao().deleteAll()
                 database.plantDao().insertAll(plantEntities)
@@ -409,6 +453,7 @@ class BackupManager(
                 database.plantIssueDao().insertAll(plantIssueEntities)
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
+                database.wateringAdjustmentDao().insertAll(wateringAdjustmentEntities)
             }
             dbCommitted = true
 
@@ -422,6 +467,7 @@ class BackupManager(
                 prefs[SettingsKeys.THEME_MODE] = backup.settings.themeMode
                 prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] =
                     backup.settings.fertilizingNotificationsEnabled
+                prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = backup.settings.askBeforeChangingIntervals
             }
 
             if (backup.settings.notificationsEnabled) {

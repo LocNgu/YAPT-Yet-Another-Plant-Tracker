@@ -17,6 +17,15 @@ object SettingsKeys {
     val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
+    val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")
+
+    /**
+     * "Ask before changing intervals" (#572) — a plain user setting, not a [com.yapt.planttracker
+     * .domain.featureflag.FeatureFlagRegistry] entry, so it survives disabling developer mode. Only
+     * consulted when `adaptive_watering` is on; inert otherwise. Default `true` reproduces today's
+     * ADR-0006 dialog behavior exactly.
+     */
+    val ASK_BEFORE_CHANGING_INTERVALS = booleanPreferencesKey("ask_before_changing_intervals")
 }
 
 /**

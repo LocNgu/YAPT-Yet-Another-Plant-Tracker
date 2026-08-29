@@ -14,5 +14,21 @@ data class Plant(
     val wateringDueDateOverride: Long? = null,
     val useLiquidFertilizer: Boolean = false,
     val archivedAt: Long? = null,
-    val repottingIntervalDays: Int? = null
+    val repottingIntervalDays: Int? = null,
+    /**
+     * 0-5, `null` = never adapted (#568). Ships unconditionally (no schema/backup flag-gating) even
+     * though `FeatureFlagRegistry.ADAPTIVE_WATERING` gates whether it's ever written or read for
+     * scheduling — flipping the flag off must not lose learned state.
+     */
+    val wateringConfidence: Int? = null,
+    /**
+     * Season-neutral reference interval (#569, product ADR-0026): `REAL`, not rounded at rest, since
+     * it's multiplied by [com.yapt.planttracker.domain.schedule.SeasonalWatering.season] to derive
+     * the *effective* interval — only that result is rounded. `null` means this plant has never had a
+     * base recorded (created while `SEASONAL_WATERING` was off); due-date computation then falls back
+     * to [wateringIntervalDays] directly as the base.
+     */
+    val wateringBaseIntervalDays: Double? = null,
+    /** Opts this plant out of the seasonal curve entirely — due dates use [wateringIntervalDays] as-is (#569). */
+    val pinIntervalToBase: Boolean = false
 )

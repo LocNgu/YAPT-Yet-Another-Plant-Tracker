@@ -6,6 +6,9 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
 ---
 
+> Computed seasonal watering factor (`seasonalAmplitude`/`hemisphere` params on `computeStatus()`,
+> #569, product ADR-0026) has its own file: `.claude/rules/seasonal-watering.md`.
+
 # CareSchedule rules
 
 Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never millisecond division
@@ -37,6 +40,69 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 - Flow: after a WATER log, `AddCareLogViewModel` computes `actualIntervalDays` from the last two waterings and
   passes the result back via `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal
   editable `AlertDialog` (product ADR-0006, supersedes product ADR-0005).
+
+## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
+Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off) — the legacy
+`computeSuggestedInterval()` above is untouched and stays the flag-off path; call sites (`AddCareLogViewModel`,
+`QuickLogUseCase`) branch on the flag before choosing which pure function to call.
+- `target = observed × multiplier(feedback)` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base = base +
+  g(confidence) × (target − base)`. Gain table indexed 0-5: `[0.60, 0.45, 0.35, 0.28, 0.22, 0.15]`.
+- Clamped to ±40% per step (of the pre-step base, before rounding — rounding to a whole day can add up to another
+  half-day on top of the 40%, an accepted quantization artifact, not a bug) then `.coerceIn(1, 180)` overall.
+- `Plant.wateringConfidence: Int?` (0-5, `null` = never adapted) is the only new column (DB v10, `MIGRATION_9_10`;
+  backup schema v11). `CareSchedule.correctionStreak(recentFeedback)` derives the same-direction run from
+  `CareLogRepository.getRecentWaterings(plantId, limit = 3)` (most-recent-first) — **never** cached on a column
+  (editing/deleting a past WATER log must be reflected on the next adaptation with no stale cache).
+- Confidence never rises from the feedback chip's value alone — only from gap agreement (observed within
+  `GAP_AGREEMENT_TOLERANCE` = 15% of the current base) or a dialog dismissal (capped at
+  `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowers an already-higher value); it falls (`-2`, floored 0) when
+  `correctionStreak()` shows `abs(streak) >= 2`. First observation (`wateringConfidence == null`) bootstraps to 0
+  without evaluating a transition, but still corrects `base` at the confidence-0 gain.
+- Manual-edit semantics differ by surface: an AddEditPlant interval edit is a full reset (`confidence = 0`,
+  `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
+  `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
+  .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
+  `onDismissRequest`, not `clearSuggestedInterval()` — that one stays a silent no-side-effect state clear for the
+  stale-suggestion cleanup `LaunchedEffect`).
+- `CareScheduleAdaptiveReplayTest` is the pure-JVM replay harness (scenarios 1a/1b/2/3a/3b/4); do not alter the
+  multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
+  convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
+  scenario 3b is a known-unreachable bound from the originating issue thread, not a bug in this implementation.
+- `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the observed gap before calling
+  `computeAdaptiveInterval()` when `SEASONAL_WATERING` is on (`observedBase = observedGap / season(dateOfGap)`,
+  #569, product ADR-0026) — `computeAdaptiveInterval()` itself is unaware of seasonality; only its
+  `observedIntervalDays` input is patched at the call site. See `.claude/rules/seasonal-watering.md`.
+- **`feedback: WateringFeedback?`** — widened to nullable (#570, product ADR-0027): the WATER-log feedback chip
+  collapsed to one optional flag, making `null` the dominant case. `null` maps to `NEUTRAL_TARGET_MULTIPLIER`
+  (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
+  `NEUTRAL_OBSERVATION_GAIN` (0.15) — a ceiling on the existing gain, not a second learning rate. Confidence still
+  updates normally on gap agreement for a null-feedback observation; only the `base` correction is throttled.
+- **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
+  **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
+  as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`
+  there means the user was asked why and declined to attribute it — a pre-emptive holiday watering marked "just my
+  timing" must not shorten `base` through the passive channel. **Derived inside the pure function, never passed in**:
+  a boolean threaded through call sites is one a caller can forget, and this way the rule holds identically for the
+  quick-log sheets, AddCareLog, a bulk log, and the notification's "Watered" action. Consequence: `base` now only ever
+  moves on explicit attribution or on an on-schedule nudge inside the tolerance band. Confidence is deliberately not
+  separately suppressed — an off-schedule gap disagrees with the prediction whatever the reason, so it simply
+  doesn't rise. Call sites map an excluded result to `WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED`.
+- **`PlantCareStatus.isWateringOnSchedule`** (#586) is the UI half of the same test, computed in `computeStatus()`
+  via `wateringOnScheduleNow()`: raw observed gap vs the *effective* (seasonal) interval, where the model compares
+  the de-seasonalized gap vs `base` — the same test, since `observed / season` vs `base` is `observed` vs
+  `base × season`. That equivalence is what lets "was the prompt shown" be derived rather than persisted. `true`
+  (no prompt) when there's no interval or no previous watering.
+- **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027, reached via the Reschedule reason prompt since
+  #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
+  `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),
+  and only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
+  silently applied. Gated on `ADAPTIVE_WATERING` only — `check_reminders` being on is orthogonal (see
+  `.claude/rules/notifications.md`). The **length** of the deferral is never a model input (#586): the reason
+  already decided what is learned, and `suggestedStillMoistDeferralDays()` (`newBase - observedGap`, floored at
+  `DEFAULT_STILL_MOIST_DEFERRAL_DAYS` = 1) only *suggests* a date — it shares `computeStillMoistAdaptiveInterval()`
+  with the real write so the two can't drift. A reschedule the user attributed to themselves ("I can't right now")
+  still does **not** feed this model at all (verified by `SkipWateringReceiverTest`) — ADR-0030 keeps ADR-0029's
+  posture for that half.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

@@ -71,8 +71,6 @@ import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.util.emojiRes
-import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
@@ -268,13 +266,17 @@ fun AddCareLogScreen(
             ) {
                 // CUSTOM is only loggable from a plant's Custom reminders card (mark-done ties the
                 // log back to a specific reminder via customReminderId), never from this generic picker.
-                items(CareType.entries.filter { it != CareType.CUSTOM }) { type ->
+                // CHECK is only ever written by the check-reminders notification's Still-moist action
+                // (#570), never manually from this picker.
+                items(CareType.entries.filter { it != CareType.CUSTOM && it != CareType.CHECK }) { type ->
                     CareTypeChip(
                         careType = type,
                         selected = viewModel.selectedCareType == type,
                         onClick = {
                             viewModel.selectedCareType = type
-                            viewModel.selectedFeedback = if (type == CareType.WATER) WateringFeedback.JUST_RIGHT else null
+                            // Nothing pre-selected on type switch (#570, product ADR-0027) — the
+                            // 3-way soil-state chip collapsed to one optional flag.
+                            viewModel.selectedFeedback = null
                         }
                     )
                 }
@@ -289,36 +291,18 @@ fun AddCareLogScreen(
             }
 
             if (viewModel.selectedCareType == CareType.WATER) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.care_log_prompt_how_was_soil),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        WateringFeedback.entries.forEach { feedback ->
-                            FilterChip(
-                                selected = viewModel.selectedFeedback == feedback,
-                                onClick = {
-                                    viewModel.selectedFeedback =
-                                        if (viewModel.selectedFeedback == feedback) null else feedback
-                                },
-                                label = {
-                                    Text(
-                                        stringResource(
-                                            R.string.feedback_label_format,
-                                            stringResource(feedback.emojiRes()),
-                                            stringResource(feedback.labelRes())
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
+                // Single optional flag, not a 3-way chip group (#570, product ADR-0027): "was the
+                // soil dry when watered" is the only signal a WATER log can add that isn't already
+                // captured by the check-first flow's own Watered/Still-moist actions or the
+                // timestamp itself. Nothing pre-selected.
+                FilterChip(
+                    selected = viewModel.selectedFeedback == WateringFeedback.TOO_LATE,
+                    onClick = {
+                        viewModel.selectedFeedback =
+                            if (viewModel.selectedFeedback == WateringFeedback.TOO_LATE) null else WateringFeedback.TOO_LATE
+                    },
+                    label = { Text(stringResource(R.string.care_log_feedback_plant_needed_it)) }
+                )
             }
 
             if (viewModel.selectedCareType == CareType.FERTILIZE) {

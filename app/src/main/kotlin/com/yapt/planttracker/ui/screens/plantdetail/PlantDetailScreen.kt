@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,21 +26,21 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -46,12 +48,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -74,6 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,21 +85,23 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.insights.CareInsights
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
-import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
+import com.yapt.planttracker.domain.model.RescheduleReason
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
+import com.yapt.planttracker.ui.components.RescheduleReasonBottomSheet
+import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.StatsRow
-import com.yapt.planttracker.ui.components.WaterFeedbackBottomSheet
 import com.yapt.planttracker.ui.components.WateringHistoryChart
+import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.theme.OverdueRed
-import com.yapt.planttracker.ui.theme.WarnOrange
 import com.yapt.planttracker.util.DateUtils
 import kotlin.math.roundToInt
 
@@ -121,10 +126,17 @@ fun PlantDetailScreen(
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
-    val showSkipDialog by viewModel.showSkipDialog.collectAsStateWithLifecycle()
+    val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
+    val showRescheduleReasonSheet by viewModel.showRescheduleReasonSheet.collectAsStateWithLifecycle()
+    val rescheduleReason by viewModel.rescheduleReason.collectAsStateWithLifecycle()
+    val rescheduleSuggestedDays by viewModel.rescheduleSuggestedDays.collectAsStateWithLifecycle()
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
+    val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
+    val seasonalAmplitudeValue by viewModel.seasonalAmplitudeValue.collectAsStateWithLifecycle()
+    val wateringExplanation by viewModel.wateringExplanation.collectAsStateWithLifecycle()
+    var showWateringExplanationSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showWaterSheet by remember { mutableStateOf(false) }
@@ -137,6 +149,10 @@ fun PlantDetailScreen(
     val hasPhoto = plant?.coverPhotoUri != null
     val iconTint = if (hasPhoto) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
+
+    // Signals something is hidden behind the collapsed tab row (#590) — reuses the same
+    // already-collected activeIssues/customReminderStatuses the always-visible cards use.
+    val tabRowHasAttention = activeIssues.isNotEmpty() || customReminderStatuses.any { it.isOverdue }
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
@@ -158,6 +174,7 @@ fun PlantDetailScreen(
     )
 
     var selectedTab by rememberSaveable { mutableStateOf(PlantDetailTab.WATER) }
+    var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }
 
     var intervalFieldText by remember(suggestedInterval) {
         mutableStateOf(suggestedInterval?.toString().orEmpty())
@@ -172,11 +189,6 @@ fun PlantDetailScreen(
     var showReportIssueDialog by remember { mutableStateOf(false) }
     var issueToResolve by remember { mutableStateOf<PlantIssue?>(null) }
 
-    var skipDays by remember { mutableIntStateOf(1) }
-    LaunchedEffect(showSkipDialog) {
-        if (showSkipDialog) skipDays = 1
-    }
-
     LaunchedEffect(suggestedInterval, plant?.wateringIntervalDays) {
         val s = suggestedInterval
         val current = plant?.wateringIntervalDays
@@ -185,11 +197,20 @@ fun PlantDetailScreen(
         }
     }
 
+    val intervalAutoAppliedTemplate = stringResource(R.string.interval_auto_applied_snackbar)
+    val undoLabel = stringResource(R.string.snackbar_undo)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is PlantDetailViewModel.Event.SkipConfirmed -> {
-                    viewModel.suggestedWateringInterval.value = event.proposedInterval
+                is PlantDetailViewModel.Event.SilentIntervalApplied -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = String.format(intervalAutoAppliedTemplate, event.afterIntervalDays),
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoSilentIntervalApply(event.beforeIntervalDays)
+                    }
                 }
                 else -> {}
             }
@@ -203,6 +224,8 @@ fun PlantDetailScreen(
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
+    val stillMoistCheckedTemplate = stringResource(R.string.quick_log_still_moist_checked)
+    val alreadyCheckedTemplate = stringResource(R.string.quick_log_already_checked)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
@@ -216,6 +239,10 @@ fun PlantDetailScreen(
                     String.format(alreadyWateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyFertilizedToday ->
                     String.format(alreadyFertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.StillMoistChecked ->
+                    String.format(stillMoistCheckedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.AlreadyCheckedToday ->
+                    String.format(alreadyCheckedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }
@@ -249,46 +276,33 @@ fun PlantDetailScreen(
         )
     }
 
-    if (showSkipDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissSkipDialog() },
-            title = { Text(stringResource(R.string.skip_watering_title)) },
-            text = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    IconButton(
-                        onClick = { if (skipDays > 1) skipDays-- },
-                        enabled = skipDays > 1
-                    ) {
-                        Icon(
-                            Icons.Filled.Remove,
-                            contentDescription = stringResource(R.string.skip_watering_decrease_cd)
-                        )
-                    }
-                    Text(pluralStringResource(R.plurals.skip_watering_days, skipDays, skipDays))
-                    IconButton(
-                        onClick = { if (skipDays < 7) skipDays++ },
-                        enabled = skipDays < 7
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.skip_watering_increase_cd)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.confirmSkip(skipDays) }
-                ) { Text(stringResource(R.string.skip_watering_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissSkipDialog() }) { Text(stringResource(R.string.cancel)) }
-            }
+    if (showRescheduleReasonSheet) {
+        RescheduleReasonBottomSheet(
+            onDismiss = { viewModel.dismissRescheduleReasonSheet() },
+            onReasonChosen = { reason -> viewModel.chooseRescheduleReason(reason) }
         )
+    }
+
+    if (showRescheduleDialog) {
+        RescheduleWateringDialog(
+            // Pulling the date to today would contradict "soil still moist", so that option is
+            // only ever offered for a deferral the user attributed to themselves (#586).
+            todayEnabled = careStatus?.isOverdue == true && rescheduleReason != RescheduleReason.SOIL_STILL_MOIST,
+            onDismiss = { viewModel.dismissRescheduleDialog() },
+            onToday = { viewModel.confirmRescheduleToday() },
+            onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
+            onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) },
+            suggestedDays = rescheduleSuggestedDays
+        )
+    }
+
+    if (showWateringExplanationSheet) {
+        wateringExplanation?.let { explanation ->
+            WateringExplanationSheet(
+                explanation = explanation,
+                onDismiss = { showWateringExplanationSheet = false }
+            )
+        }
     }
 
     if (showAddReminderDialog || editingReminder != null) {
@@ -355,7 +369,7 @@ fun PlantDetailScreen(
 
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.clearSuggestedInterval() },
+            onDismissRequest = { viewModel.dismissSuggestedInterval() },
             title = { Text(stringResource(R.string.interval_suggestion_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -384,7 +398,7 @@ fun PlantDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.clearSuggestedInterval() }) {
+                TextButton(onClick = { viewModel.dismissSuggestedInterval() }) {
                     Text(stringResource(R.string.dismiss))
                 }
             }
@@ -408,11 +422,11 @@ fun PlantDetailScreen(
 
     if (showWaterSheet) {
         plant?.let { p ->
-            WaterFeedbackBottomSheet(
+            WateringReasonBottomSheet(
                 plantName = p.name,
                 onDismiss = { showWaterSheet = false },
-                onLog = { feedback ->
-                    viewModel.quickWater(feedback)
+                onLog = { reason ->
+                    viewModel.quickWater(reason)
                     showWaterSheet = false
                 }
             )
@@ -421,12 +435,12 @@ fun PlantDetailScreen(
 
     if (showLiquidFertilizeSheet) {
         plant?.let { p ->
-            WaterFeedbackBottomSheet(
+            WateringReasonBottomSheet(
                 plantName = p.name,
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
                 onDismiss = { showLiquidFertilizeSheet = false },
-                onLog = { feedback ->
-                    viewModel.quickLiquidFertilize(feedback)
+                onLog = { reason ->
+                    viewModel.quickLiquidFertilize(reason)
                     showLiquidFertilizeSheet = false
                 }
             )
@@ -530,10 +544,12 @@ fun PlantDetailScreen(
                         item {
                             StatsRow(
                                 status = status,
-                                onWaterClick = { showWaterSheet = true },
+                                onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
                                 onFertilizeClick = {
                                     if (plant?.useLiquidFertilizer == true) {
-                                        showLiquidFertilizeSheet = true
+                                        requestLiquidFertilize(status, viewModel) {
+                                            showLiquidFertilizeSheet = true
+                                        }
                                     } else {
                                         viewModel.quickFertilize()
                                     }
@@ -544,18 +560,14 @@ fun PlantDetailScreen(
                     }
 
                     if (!tabsEnabled) {
-                        // Classic single-page layout (feature flag off): skip button, chart, gallery.
+                        // Classic single-page layout (feature flag off): watering-due actions, chart, gallery.
                         careStatus?.let { status ->
                             if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
                                 item {
-                                    OutlinedButton(
-                                        onClick = { viewModel.requestSkip() },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp)
-                                    ) {
-                                        Text(stringResource(R.string.skip_watering_title))
-                                    }
+                                    WateringDueActionsRow(
+                                        onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
+                                        onRescheduleClick = { viewModel.requestReschedule() }
+                                    )
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
@@ -584,47 +596,54 @@ fun PlantDetailScreen(
                                 Spacer(Modifier.height(16.dp))
                             }
                         }
-                    }
 
-                    // Always-visible core section (#232), not gated behind PLANT_DETAIL_TABS.
-                    item {
-                        CustomRemindersCard(
-                            reminders = customReminders,
-                            statuses = customReminderStatuses,
-                            actions = CustomReminderActions(
-                                onAdd = { showAddReminderDialog = true },
-                                onEdit = { editingReminder = it },
-                                onDelete = { reminderToDelete = it },
-                                onMarkDone = { viewModel.markCustomReminderDone(it) }
+                        // Always-visible in the classic layout only (#232/#564, product ADR-0030);
+                        // in the tabs layout these move into the CUSTOM_REMINDERS/ISSUES tabs below.
+                        item {
+                            CustomRemindersCard(
+                                reminders = customReminders,
+                                statuses = customReminderStatuses,
+                                actions = CustomReminderActions(
+                                    onAdd = { showAddReminderDialog = true },
+                                    onEdit = { editingReminder = it },
+                                    onDelete = { reminderToDelete = it },
+                                    onMarkDone = { viewModel.markCustomReminderDone(it) }
+                                )
                             )
-                        )
-                        Spacer(Modifier.height(16.dp))
-                    }
-
-                    // Always-visible core section (#564), not gated behind PLANT_DETAIL_TABS.
-                    item {
-                        PlantIssuesCard(
-                            issues = activeIssues,
-                            customReminderNameById = customReminderNameById,
-                            onReport = { showReportIssueDialog = true },
-                            onResolve = { issueToResolve = it }
-                        )
-                        Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(16.dp))
+                        }
+                        item {
+                            PlantIssuesCard(
+                                issues = activeIssues,
+                                customReminderNameById = customReminderNameById,
+                                onReport = { showReportIssueDialog = true },
+                                onResolve = { issueToResolve = it }
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
                     }
 
                     // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
+                    // Collapse/expand + attention badge: product ADR-0030 (#590).
                     if (tabsEnabled) {
                         item {
-                            PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
-                                PlantDetailTab.entries.forEach { tab ->
-                                    Tab(
-                                        selected = selectedTab == tab,
-                                        onClick = { selectedTab = tab },
-                                        text = { Text(stringResource(tab.labelRes)) },
-                                        icon = { Icon(tab.icon, contentDescription = null) }
-                                    )
+                            PlantDetailTabStrip(
+                                state = TabStripState(
+                                    selectedTab = selectedTab,
+                                    isExpanded = isTabRowExpanded,
+                                    hasAttention = tabRowHasAttention
+                                ),
+                                onTabSelected = { selectedTab = it },
+                                onToggleExpanded = {
+                                    val expanding = !isTabRowExpanded
+                                    isTabRowExpanded = expanding
+                                    val onHiddenTab = selectedTab == PlantDetailTab.CUSTOM_REMINDERS ||
+                                        selectedTab == PlantDetailTab.ISSUES
+                                    if (!expanding && onHiddenTab) {
+                                        selectedTab = PlantDetailTab.WATER
+                                    }
                                 }
-                            }
+                            )
                             Spacer(Modifier.height(8.dp))
                         }
 
@@ -641,7 +660,43 @@ fun PlantDetailScreen(
                                             disabledLabelRes = R.string.watering_reminder_label
                                         ),
                                         onIntervalChange = { viewModel.setWateringInterval(it) }
-                                    )
+                                    ) {
+                                        if (seasonalWateringEnabled && plant?.wateringIntervalDays != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.pin_interval_label),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Switch(
+                                                    modifier = Modifier.testTag("pin_interval_switch"),
+                                                    checked = plant?.pinIntervalToBase == true,
+                                                    onCheckedChange = { viewModel.setPinIntervalToBase(it) }
+                                                )
+                                            }
+                                            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+                                            SeasonalWateringCurveChart(
+                                                amplitude = seasonalAmplitudeValue,
+                                                hemisphere = hemisphere,
+                                                isPinned = plant?.pinIntervalToBase == true,
+                                                modifier = Modifier.padding(top = 12.dp)
+                                            )
+                                        }
+                                        if (plant?.wateringIntervalDays != null) {
+                                            TextButton(
+                                                onClick = { showWateringExplanationSheet = true },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .testTag("why_this_date_button")
+                                            ) {
+                                                Text(stringResource(R.string.why_this_date_button))
+                                            }
+                                        }
+                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                                 item {
@@ -660,14 +715,12 @@ fun PlantDetailScreen(
                                         (status.isOverdue || status.isDueSoon)
                                     ) {
                                         item {
-                                            OutlinedButton(
-                                                onClick = { viewModel.requestSkip() },
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp)
-                                            ) {
-                                                Text(stringResource(R.string.skip_watering_title))
-                                            }
+                                            WateringDueActionsRow(
+                                                onWaterClick = {
+                                                    requestWater(status, viewModel) { showWaterSheet = true }
+                                                },
+                                                onRescheduleClick = { viewModel.requestReschedule() }
+                                            )
                                             Spacer(Modifier.height(16.dp))
                                         }
                                     }
@@ -707,7 +760,7 @@ fun PlantDetailScreen(
                                             enabled = plant?.fertilizingIntervalDays != null,
                                             days = plant?.fertilizingIntervalDays
                                                 ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
-                                            range = 1..90,
+                                            range = 1..180,
                                             enabledLabelRes = R.string.fertilizing_interval_label,
                                             disabledLabelRes = R.string.fertilizing_reminder_label
                                         ),
@@ -835,6 +888,34 @@ fun PlantDetailScreen(
                                         )
                                         Spacer(Modifier.height(16.dp))
                                     }
+                                }
+                            }
+
+                            PlantDetailTab.CUSTOM_REMINDERS -> {
+                                item {
+                                    CustomRemindersCard(
+                                        reminders = customReminders,
+                                        statuses = customReminderStatuses,
+                                        actions = CustomReminderActions(
+                                            onAdd = { showAddReminderDialog = true },
+                                            onEdit = { editingReminder = it },
+                                            onDelete = { reminderToDelete = it },
+                                            onMarkDone = { viewModel.markCustomReminderDone(it) }
+                                        )
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
+
+                            PlantDetailTab.ISSUES -> {
+                                item {
+                                    PlantIssuesCard(
+                                        issues = activeIssues,
+                                        customReminderNameById = customReminderNameById,
+                                        onReport = { showReportIssueDialog = true },
+                                        onResolve = { issueToResolve = it }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
                                 }
                             }
                         }
@@ -972,6 +1053,141 @@ fun PlantDetailScreen(
     }
 }
 
+/** How many tabs stay visible in [PlantDetailTabStrip]'s collapsed (default) state — today's four. */
+private const val COLLAPSED_TAB_COUNT = 4
+
+/**
+ * Bundles [PlantDetailTabStrip]'s value parameters into one so the composable stays under Detekt's
+ * `LongParameterList` threshold, mirroring [IntervalSetting]/[CustomReminderActions]'s bundling.
+ */
+private data class TabStripState(
+    val selectedTab: PlantDetailTab,
+    val isExpanded: Boolean,
+    val hasAttention: Boolean
+)
+
+/** Corner radius of [PlantDetailTabStrip]'s selected-tab highlight, matching the app's other rounded cards/chips. */
+private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
+
+/**
+ * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
+ * (product ADR-0030, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
+ * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
+ * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
+ * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
+ * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
+ * (identical to today), and expanding to 6 wraps the extra 2 onto a second row at that same width,
+ * rather than shrinking every tab or scrolling horizontally.
+ *
+ * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned
+ * via real `TabPosition`s it measures from its own tab slots — unavailable here since these `Tab`s are
+ * standalone children of a [FlowRow], not of a `TabRow`. Each `Tab` is therefore given its own explicit
+ * `selectedContentColor`/`unselectedContentColor` (the two default to the same value when neither is
+ * passed, which left selected and unselected tabs pixel-identical, #591) plus a rounded background
+ * behind the selected tab's icon/text standing in for `PrimaryIndicator` — scoped to that one `Tab`'s
+ * own `Modifier` so it works per-tab regardless of which row it wraps onto.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlantDetailTabStrip(
+    state: TabStripState,
+    onTabSelected: (PlantDetailTab) -> Unit,
+    onToggleExpanded: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleTabs = if (state.isExpanded) {
+        PlantDetailTab.entries
+    } else {
+        PlantDetailTab.entries.take(COLLAPSED_TAB_COUNT)
+    }
+    Column(modifier = modifier.fillMaxWidth()) {
+        FlowRow(modifier = Modifier.fillMaxWidth()) {
+            visibleTabs.forEach { tab ->
+                val isSelected = state.selectedTab == tab
+                Tab(
+                    selected = isSelected,
+                    onClick = { onTabSelected(tab) },
+                    text = { Text(stringResource(tab.labelRes)) },
+                    icon = { Icon(tab.icon, contentDescription = null) },
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth(0.25f)
+                        .padding(4.dp)
+                        .background(
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = TAB_SELECTION_INDICATOR_SHAPE
+                        )
+                )
+            }
+        }
+        TabRowExpandToggle(
+            isExpanded = state.isExpanded,
+            hasAttention = state.hasAttention,
+            onToggle = onToggleExpanded,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * Chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
+ * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
+ * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
+ * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
+ * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own
+ * announced description — folding an "attention needed" clause into that description (rather than the
+ * Badge) while collapsed-and-attention is the only case where the badge is showing (#591).
+ *
+ * The tappable/clickable target is the full-width [Row], not just the icon — a plain `Modifier
+ * .clickable` (not [IconButton], which caps its own touch target) so the whole strip beneath the tabs
+ * expands/collapses on tap, not only the small chevron glyph (#591). `clickable`'s semantics node
+ * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row.
+ */
+@Composable
+private fun TabRowExpandToggle(
+    isExpanded: Boolean,
+    hasAttention: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "tabRowChevronRotation"
+    )
+    val toggleCd = when {
+        isExpanded -> stringResource(R.string.plant_detail_tabs_collapse_cd)
+        hasAttention -> stringResource(R.string.plant_detail_tabs_expand_attention_cd)
+        else -> stringResource(R.string.plant_detail_tabs_expand_cd)
+    }
+    Row(
+        modifier = modifier
+            .clickable(onClickLabel = toggleCd, role = Role.Button, onClick = onToggle)
+            .testTag("plant_detail_tabs_toggle")
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BadgedBox(
+            badge = {
+                if (!isExpanded && hasAttention) {
+                    Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
+                }
+            }
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ExpandMore,
+                contentDescription = toggleCd,
+                modifier = Modifier.rotate(chevronRotation)
+            )
+        }
+    }
+}
+
 /**
  * Config for an [InlineIntervalSetting]: whether the schedule is on, the day count to show, the
  * allowed range, and the label resources for the on/off header. Bundled into one value so the
@@ -1099,180 +1315,24 @@ private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifie
 }
 
 /**
- * Bundles the [CustomRemindersCard]/[CustomReminderRow] callbacks into one parameter so neither
- * composable's parameter list trips Detekt's `LongParameterList` (mirrors [IntervalSetting] bundling
- * a config struct for the same reason).
+ * The #586 fast path (product ADR-0030): an on-schedule watering is logged straight away — no sheet,
+ * no question — and only an off-schedule one opens [WateringReasonBottomSheet] via [showReasonSheet].
+ * Shared by the watering `StatChip` and the watering-due actions row so the two surfaces can never
+ * disagree about when the question is worth asking.
  */
-private data class CustomReminderActions(
-    val onAdd: () -> Unit,
-    val onEdit: (CustomReminder) -> Unit,
-    val onDelete: (CustomReminder) -> Unit,
-    val onMarkDone: (CustomReminder) -> Unit
-)
-
-/**
- * Always-visible "Custom reminders" section (#232) — unbounded, free-text recurring reminders per
- * plant, deliberately not gated behind [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.PLANT_DETAIL_TABS]
- * unlike the per-action tabs below it.
- */
-@Composable
-private fun CustomRemindersCard(
-    reminders: List<CustomReminder>,
-    statuses: List<CustomReminderStatus>,
-    actions: CustomReminderActions,
-    modifier: Modifier = Modifier
+private fun requestWater(
+    status: PlantCareStatus,
+    viewModel: PlantDetailViewModel,
+    showReasonSheet: () -> Unit
 ) {
-    val statusById = remember(statuses) { statuses.associateBy { it.reminder.id } }
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.custom_reminders_section),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                IconButton(onClick = actions.onAdd) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_custom_reminder))
-                }
-            }
-            if (reminders.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.custom_reminders_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            } else {
-                reminders.forEach { reminder ->
-                    CustomReminderRow(
-                        reminder = reminder,
-                        status = statusById[reminder.id],
-                        actions = actions
-                    )
-                }
-            }
-        }
-    }
+    if (status.isWateringOnSchedule) viewModel.quickWater(reason = null) else showReasonSheet()
 }
 
-@Composable
-private fun CustomReminderRow(
-    reminder: CustomReminder,
-    status: CustomReminderStatus?,
-    actions: CustomReminderActions,
-    modifier: Modifier = Modifier
+/** [requestWater]'s counterpart for a liquid-fertilizer plant, whose paired WATER log follows the same rule. */
+private fun requestLiquidFertilize(
+    status: PlantCareStatus,
+    viewModel: PlantDetailViewModel,
+    showReasonSheet: () -> Unit
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = reminder.name, style = MaterialTheme.typography.bodyLarge)
-            val intervalText = pluralStringResource(
-                R.plurals.custom_reminder_interval_summary,
-                reminder.intervalDays,
-                reminder.intervalDays
-            )
-            val countdown = status?.nextDueAt?.let { DateUtils.formatCountdown(it) }
-            val statusColor = when {
-                status?.isOverdue == true -> OverdueRed
-                status?.isDueSoon == true -> WarnOrange
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-            Text(
-                text = if (countdown != null) "$intervalText · $countdown" else intervalText,
-                style = MaterialTheme.typography.bodySmall,
-                color = statusColor
-            )
-        }
-        IconButton(onClick = { actions.onMarkDone(reminder) }) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = stringResource(R.string.cd_mark_custom_reminder_done, reminder.name),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-        IconButton(onClick = { actions.onEdit(reminder) }) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = stringResource(R.string.cd_edit_custom_reminder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        IconButton(onClick = { actions.onDelete(reminder) }) {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.cd_delete_custom_reminder),
-                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-/**
- * Add/edit dialog for a single [CustomReminder]. [initial] `null` means "add"; non-null pre-fills
- * the fields for editing. Plain-days interval only — no months toggle (unlike repotting), since
- * disease/treatment cadences are day-scale (issue #232 spec clarifications).
- */
-@Composable
-private fun CustomReminderDialog(
-    initial: CustomReminder?,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, intervalDays: Int) -> Unit
-) {
-    var name by remember(initial) { mutableStateOf(initial?.name.orEmpty()) }
-    var intervalText by remember(initial) { mutableStateOf((initial?.intervalDays ?: 7).toString()) }
-    val parsedInterval = intervalText.toIntOrNull()?.takeIf { it >= 1 }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (initial != null) R.string.custom_reminder_edit_title else R.string.custom_reminder_add_title
-                )
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(stringResource(R.string.custom_reminder_name_label)) },
-                    placeholder = { Text(stringResource(R.string.custom_reminder_name_placeholder)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = intervalText,
-                    onValueChange = { intervalText = it.filter(Char::isDigit) },
-                    label = { Text(stringResource(R.string.custom_reminder_interval_label)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { parsedInterval?.let { onConfirm(name.trim(), it) } },
-                enabled = name.isNotBlank() && parsedInterval != null
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
+    if (status.isWateringOnSchedule) viewModel.quickLiquidFertilize(reason = null) else showReasonSheet()
 }

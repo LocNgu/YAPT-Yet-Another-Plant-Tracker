@@ -185,4 +185,40 @@ class PlantRepositoryTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `wateringConfidence defaults to null and round-trips a stored value`() = runTest {
+        val id = repo.addPlant(samplePlant())
+        repo.getPlantById(id).test {
+            assertNull(awaitItem()?.wateringConfidence)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        val updated = samplePlant().copy(id = id, wateringConfidence = 3)
+        repo.updatePlant(updated)
+        repo.getPlantById(id).test {
+            assertEquals(3, awaitItem()?.wateringConfidence)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `wateringBaseIntervalDays and pinIntervalToBase default and round-trip stored values`() = runTest {
+        val id = repo.addPlant(samplePlant())
+        repo.getPlantById(id).test {
+            val plant = awaitItem()
+            assertNull(plant?.wateringBaseIntervalDays)
+            assertEquals(false, plant?.pinIntervalToBase)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        val updated = samplePlant().copy(id = id, wateringBaseIntervalDays = 5.18, pinIntervalToBase = true)
+        repo.updatePlant(updated)
+        repo.getPlantById(id).test {
+            val plant = awaitItem()
+            assertEquals(5.18, plant?.wateringBaseIntervalDays!!, 1e-9)
+            assertEquals(true, plant.pinIntervalToBase)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }

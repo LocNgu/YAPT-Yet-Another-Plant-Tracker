@@ -63,7 +63,7 @@ class PlantListScreenTest {
             activeIssueCounts[firstArg<Long>()] ?: 0
         }
         val application = ApplicationProvider.getApplicationContext<Application>()
-        val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, mockk<PlantDatabase>())
+        val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, mockk<PlantDatabase>(), mockk(relaxed = true))
         return PlantListViewModel(
             application,
             plantRepo,

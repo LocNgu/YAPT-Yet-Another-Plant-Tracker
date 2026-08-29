@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -54,3 +55,11 @@ class FeatureFlags(
             booleanPreferencesKey(KEY_PREFIX + flag.key)
     }
 }
+
+/**
+ * One-shot read of [flag]'s current value, for call sites that hold a raw `DataStore<Preferences>`
+ * rather than a [FeatureFlags] instance (quick-log/adaptive-watering call sites, #568) — avoids
+ * duplicating the `data.first()[...] ?: flag.default` snippet at every such site.
+ */
+suspend fun DataStore<Preferences>.isFeatureEnabled(flag: FeatureFlag): Boolean =
+    data.first()[FeatureFlags.preferenceKeyFor(flag)] ?: flag.default
