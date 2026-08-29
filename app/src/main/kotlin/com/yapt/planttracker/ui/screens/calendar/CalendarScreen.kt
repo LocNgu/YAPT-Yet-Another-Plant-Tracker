@@ -208,6 +208,7 @@ fun CalendarScreen(
     waterFeedbackPlant?.let { s ->
         WateringReasonBottomSheet(
             plantName = s.plant.name,
+            gapRanLong = s.isWateringGapLong,
             onDismiss = { waterFeedbackPlant = null },
             onLog = { reason ->
                 viewModel.quickWater(s.plant.id, reason)
@@ -219,6 +220,7 @@ fun CalendarScreen(
     liquidFertilizeFeedbackPlant?.let { s ->
         WateringReasonBottomSheet(
             plantName = s.plant.name,
+            gapRanLong = s.isWateringGapLong,
             title = stringResource(R.string.water_fertilize_feedback_sheet_title, s.plant.name),
             onDismiss = { liquidFertilizeFeedbackPlant = null },
             onLog = { reason ->

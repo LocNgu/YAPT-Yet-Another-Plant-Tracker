@@ -45,6 +45,52 @@ class WateringReasonBottomSheetTest {
         composeTestRule.onNodeWithText(justMyTiming).assertIsDisplayed()
     }
 
+    /**
+     * #586: a gap that ran long gets the same two bits worded for lateness — "Why now?" reads as an
+     * accusation on an overdue plant, and "just my schedule" claims a deliberate choice that
+     * forgetting never involves. Asserting both variants pins that the wording actually switches,
+     * not merely that some text is present.
+     */
+    @Test
+    fun wateringPrompt_whenTheGapRanLong_showsTheLateWording() {
+        composeTestRule.setContent {
+            YaptTheme {
+                WateringReasonBottomSheet(
+                    plantName = "Fern",
+                    gapRanLong = true,
+                    onDismiss = {},
+                    onLog = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText(string(R.string.water_reason_question_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.water_reason_plant_needed_it_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.water_reason_just_my_timing_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.water_reason_question)).assertDoesNotExist()
+    }
+
+    /** The late wording is cosmetic: the reason reported back is the same value either way (#586). */
+    @Test
+    fun wateringPrompt_lateWording_reportsTheSameReasonValue() {
+        var logged: WateringReason? = null
+        composeTestRule.setContent {
+            YaptTheme {
+                WateringReasonBottomSheet(
+                    plantName = "Fern",
+                    gapRanLong = true,
+                    onDismiss = {},
+                    onLog = { logged = it }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText(string(R.string.water_reason_plant_needed_it_late)).performClick()
+        composeTestRule.onNodeWithText(logLabel).performClick()
+
+        assertEquals(WateringReason.PLANT_NEEDED_IT, logged)
+    }
+
     @Test
     fun wateringPrompt_logWithNoChipChosen_reportsNoReason() {
         var logged: WateringReason? = WateringReason.PLANT_NEEDED_IT

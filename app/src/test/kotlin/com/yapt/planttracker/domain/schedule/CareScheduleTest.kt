@@ -745,6 +745,58 @@ class CareScheduleTest {
     }
 
     /**
+     * #586: which side of the schedule an off-schedule watering fell on, so the reason prompt can
+     * ask "why was it late?" rather than "why now?". A 7-day plant last watered 12 days ago.
+     */
+    @Test
+    fun `a gap that ran long is reported as long`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(12),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        assertFalse(status.isWateringOnSchedule)
+        assertTrue(status.isWateringGapLong)
+    }
+
+    /** The early half of the same test: watered at day 2 of a 7-day interval. */
+    @Test
+    fun `a gap that is still short is not reported as long`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(2),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        assertFalse(status.isWateringOnSchedule)
+        assertFalse(status.isWateringGapLong)
+    }
+
+    /**
+     * The reason `isWateringGapLong` is derived from the gap rather than from [PlantCareStatus
+     * .isOverdue]: a deferral pushes the due date out, so this plant is **not** overdue, yet its gap
+     * since the last watering has still run long and the prompt must say so.
+     */
+    @Test
+    fun `a deferred plant with a long gap is not overdue but its gap still ran long`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                wateringDueDateOverride = now + TimeUnit.DAYS.toMillis(5)
+            ),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(12),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        assertFalse(status.isOverdue)
+        assertTrue(status.isWateringGapLong)
+    }
+
+    /**
      * A deferral moves the due *date*, not the interval — so watering on the pushed-out date is still
      * an off-schedule gap, and the user is still asked why. That is deliberate: "I put it off and then
      * watered three days later" is exactly the case where the answer decides whether the plant can go

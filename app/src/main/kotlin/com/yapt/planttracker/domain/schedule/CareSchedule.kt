@@ -57,9 +57,15 @@ object CareSchedule {
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
+        val effectiveWateringDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
         val onSchedule = wateringOnScheduleNow(
             lastWateredAt = lastWateredAt,
-            effectiveIntervalDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere),
+            effectiveIntervalDays = effectiveWateringDays,
+            now = now
+        )
+        val gapRanLong = wateringGapRanLong(
+            lastWateredAt = lastWateredAt,
+            effectiveIntervalDays = effectiveWateringDays,
             now = now
         )
 
@@ -80,7 +86,8 @@ object CareSchedule {
             isRepottingOverdue = isRepottingOverdue,
             isRepottingDueSoon = isRepottingDueSoon,
             customReminderStatuses = customReminderStatuses,
-            isWateringOnSchedule = onSchedule
+            isWateringOnSchedule = onSchedule,
+            isWateringGapLong = gapRanLong
         )
     }
 
@@ -102,6 +109,20 @@ object CareSchedule {
     private fun wateringOnScheduleNow(lastWateredAt: Long?, effectiveIntervalDays: Int?, now: Long): Boolean {
         if (lastWateredAt == null || effectiveIntervalDays == null) return true
         return gapAgrees(daysBetween(lastWateredAt, now), effectiveIntervalDays)
+    }
+
+    /**
+     * Backs [PlantCareStatus.isWateringGapLong] (#586): which *side* of the schedule an off-schedule
+     * watering falls on, so the reason prompt can ask "why was it late?" rather than "why now?" when
+     * the gap ran long. Deliberately derived from the same gap-vs-effective-interval comparison as
+     * [wateringOnScheduleNow] rather than from [PlantCareStatus.isOverdue]: `isOverdue` is measured
+     * against the *due date*, which an active `wateringDueDateOverride` moves, so the two can
+     * disagree — a deferred plant is not overdue while its gap since the last watering may still have
+     * run long. The prompt's wording must match the test that decided to show the prompt at all.
+     */
+    private fun wateringGapRanLong(lastWateredAt: Long?, effectiveIntervalDays: Int?, now: Long): Boolean {
+        if (lastWateredAt == null || effectiveIntervalDays == null) return false
+        return daysBetween(lastWateredAt, now) > effectiveIntervalDays
     }
 
     @Suppress("LongParameterList")

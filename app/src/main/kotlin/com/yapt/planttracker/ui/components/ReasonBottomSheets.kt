@@ -36,14 +36,20 @@ import com.yapt.planttracker.ui.util.labelRes
  * choosing is the explicit "I'd rather not say" answer: the watering is logged and the adaptive model
  * excludes it from base learning, the same as [WateringReason.JUST_MY_TIMING]. Dismissing the sheet
  * cancels the watering outright, so either way nothing wrong reaches the model.
+ *
+ * [gapRanLong] ([com.yapt.planttracker.domain.model.PlantCareStatus.isWateringGapLong]) selects the
+ * late wording for both the question and the chips. The two bits are identical in either direction —
+ * about the plant, or about you — but "Why now?" reads as an accusation once a plant is overdue, and
+ * "just my timing" claims a deliberate choice that forgetting never involves.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WateringReasonBottomSheet(
     plantName: String,
-    title: String = stringResource(R.string.water_feedback_sheet_title, plantName),
     onDismiss: () -> Unit,
-    onLog: (WateringReason?) -> Unit
+    onLog: (WateringReason?) -> Unit,
+    gapRanLong: Boolean = false,
+    title: String = stringResource(R.string.water_feedback_sheet_title, plantName)
 ) {
     var selected by remember { mutableStateOf<WateringReason?>(null) }
 
@@ -59,7 +65,9 @@ fun WateringReasonBottomSheet(
             Text(text = title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.water_reason_question),
+                text = stringResource(
+                    if (gapRanLong) R.string.water_reason_question_late else R.string.water_reason_question
+                ),
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(8.dp))
@@ -67,7 +75,7 @@ fun WateringReasonBottomSheet(
                 FilterChip(
                     selected = selected == reason,
                     onClick = { selected = if (selected == reason) null else reason },
-                    label = { Text(stringResource(reason.labelRes())) }
+                    label = { Text(stringResource(reason.labelRes(gapRanLong))) }
                 )
                 Spacer(Modifier.height(4.dp))
             }

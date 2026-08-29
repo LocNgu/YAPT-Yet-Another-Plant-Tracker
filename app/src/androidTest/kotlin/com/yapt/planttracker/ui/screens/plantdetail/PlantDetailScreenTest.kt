@@ -163,6 +163,9 @@ class PlantDetailScreenTest {
      * `CareSchedule.GAP_AGREEMENT_TOLERANCE`, so `PlantCareStatus.isWateringOnSchedule` is false and
      * the #586 reason prompt appears instead of the watering being logged straight away.
      */
+    private fun str(id: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
     private fun offScheduleWaterLog(plantId: Long) = CareLog(
         id = 99L,
         plantId = plantId,
@@ -742,8 +745,13 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
     }
 
+    /**
+     * The fixture waters 14 days ago on a 7-day interval, so the gap ran **long** — this asserts the
+     * late variant of the prompt (#586). Labels come from resources, not literals, so a wording
+     * change can never leave this test passing against text the app no longer shows.
+     */
     @Test
-    fun wateringChip_offSchedule_tapOpensTheReasonPrompt() {
+    fun wateringChip_offScheduleAndLate_tapOpensTheLateReasonPrompt() {
         val plant = Plant(id = 20L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
 
@@ -767,9 +775,9 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Why now?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("The plant needed it").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Just my timing").assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.water_reason_question_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.water_reason_plant_needed_it_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.water_reason_just_my_timing_late)).assertIsDisplayed()
     }
 
     /** #586: an on-schedule watering prompts for nothing — the quick-log fast path. */

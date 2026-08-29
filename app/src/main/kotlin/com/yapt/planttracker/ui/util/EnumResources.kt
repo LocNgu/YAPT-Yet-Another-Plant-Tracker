@@ -77,11 +77,18 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
     WateringFeedback.TOO_LATE -> R.string.feedback_emoji_too_dry
 }
 
-/** Reason-prompt chip label for an off-schedule watering (#586, product ADR-0030). */
+/**
+ * Reason-prompt chip label for an off-schedule watering (#586, product ADR-0030). [gapRanLong]
+ * ([com.yapt.planttracker.domain.model.PlantCareStatus.isWateringGapLong]) picks the late wording:
+ * the same two bits either way — about the plant, or about you — named for the direction the gap
+ * actually went, since "just my timing" implies a deliberate choice that forgetting never involves.
+ */
 @StringRes
-fun WateringReason.labelRes(): Int = when (this) {
-    WateringReason.PLANT_NEEDED_IT -> R.string.water_reason_plant_needed_it
-    WateringReason.JUST_MY_TIMING -> R.string.water_reason_just_my_timing
+fun WateringReason.labelRes(gapRanLong: Boolean = false): Int = when (this) {
+    WateringReason.PLANT_NEEDED_IT ->
+        if (gapRanLong) R.string.water_reason_plant_needed_it_late else R.string.water_reason_plant_needed_it
+    WateringReason.JUST_MY_TIMING ->
+        if (gapRanLong) R.string.water_reason_just_my_timing_late else R.string.water_reason_just_my_timing
 }
 
 /** Reason-prompt option label for a reschedule (#586, product ADR-0030). */
