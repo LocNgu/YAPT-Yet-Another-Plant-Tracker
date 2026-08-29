@@ -20,8 +20,8 @@ The whole tabs feature (tab strip + inline settings + per-tab insights) sits beh
 `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default **off**). `PlantDetailViewModel` exposes
 `tabsEnabled: StateFlow<Boolean>`; the screen branches — **on** = `PlantDetailTabStrip` (a `FlowRow` of standalone
 `Tab`s, not `TabRow`/`PrimaryTabRow` — see below) as a `LazyColumn` item inside the Box overlay below the hero;
-**off** = classic single-page layout. The `StatsRow` quick-log chips, shared care-history list, and `+` FAB render
-in **both** paths.
+**off** = classic single-page layout. The shared care-history list and `+` FAB render in **both** paths; `StatsRow`
+does not — see "Tappable stat chips" below (#603).
 > Per ADR-0022's flag-lifecycle rule: when this graduates, delete the registry entry **and** the flag-off branch in
 > the graduating PR.
 
@@ -70,24 +70,38 @@ editor for name/species/room/notes/cover.
 `summarizePhotos(galleryPhotos)` → `PhotoSummary`. JVM-tested (`CareInsightsTest`). Shared `TabInsightsCard` +
 `careTypeInsightItems(...)` live in `PlantDetailScreen.kt`.
 
-## Tappable stat chips (#434)
-Watering/Fertilizing `StatChip`s take optional `onWaterClick`/`onFertilizeClick` (with `clickable(onClickLabel=…)`
-for a11y). Water logs directly when on schedule, else opens `WateringReasonBottomSheet` → `quickWater(reason)`;
-Fertilize → `quickFertilize()` (regular) or the same reason-gated path → `quickLiquidFertilize(reason)`
-(liquid-fert, whose paired WATER log follows the same rule). All delegate to the shared `QuickLogUseCase`, feed the
-adaptive suggestion into the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`. Left in place
-alongside the watering-due actions row below (#508/#586) — its removal is a deferred follow-up, out of scope there.
+## Tappable stat chips (#434) — classic layout only (#603)
+Watering/Fertilizing `StatChip`s (in `StatsRow`) take optional `onWaterClick`/`onFertilizeClick` (with
+`clickable(onClickLabel=…)` for a11y). Water logs directly when on schedule, else opens
+`WateringReasonBottomSheet` → `quickWater(reason)`; Fertilize → `quickFertilize()` (regular) or the same
+reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log follows the same
+rule). All delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into the
+`suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
 
-## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030)
-When a watering is due (`status.isOverdue || status.isDueSoon`), `WateringDueActionsRow`
-(`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed from #508's three
-(ADR-0029) — in both the classic layout and the Water tab. "Did water go in, or not?" is a fact, not a
-judgement; *why* is asked afterwards, and only when the action is off schedule.
+**`StatsRow`'s placement is layout-dependent (#603):** in the **classic layout** it stays exactly as before,
+an always-visible summary above the (absent) tab strip, unchanged. In the **tabs layout** it is removed
+entirely — its watering `StatChip` became a redundant second control once `WateringDueActionsRow`'s Water
+button became always-visible (see below), and its fertilizing `StatChip` is replaced by
+`FertilizeDueActionRow` (`WateringDueActions.kt`), a single always-visible `OutlinedButton` rendered under
+the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring `WateringDueActionsRow`'s
+own `wateringIntervalDays` gate) — not on due status, same as the `StatChip` it replaces. It has no
+"reschedule" counterpart since fertilizing has no equivalent concept. `careTypeInsightItems(...)`'s
+`lastAtLabel` stays `null` for both Water/Fertilize tabs even after this change — the "last done" display
+`StatsRow` used to show in the tabs layout is a known, deliberately out-of-scope gap (#603).
+
+## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
+`WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed
+from #508's three (ADR-0029) — in both the classic layout and the Water tab, gated only on
+`plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
+|| status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
+before the plant's due date). "Did water go in, or not?" is a fact, not a judgement; *why* is asked
+afterwards, and only when the action is off schedule.
 
 - **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
   opens `WateringReasonBottomSheet` ("Why now?" → "The plant needed it" / "Just my timing"). The
   `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
-  branch, shared with the tappable watering/fertilizing `StatChip`s so the surfaces can't disagree.
+  branch, shared with the classic layout's tappable `StatChip`s and the tabs layout's
+  `FertilizeDueActionRow` so no surface can disagree.
 - **Reschedule watering** — `requestReschedule()` opens `RescheduleReasonBottomSheet` ("Why put it
   off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
   `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.

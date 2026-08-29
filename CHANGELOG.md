@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **Plant Detail's Water / Reschedule watering row is now always visible, not just when watering is due** — the row's only remaining gate is whether the plant has a watering interval set at all. Previously the row (both buttons) was omitted entirely on any day before the plant's due date; since Reschedule watering has no other entry point in the app, that made the whole reason-prompt → date-dialog flow (including the "Soil still moist" adaptive-observation path) completely unreachable while a plant wasn't yet due. Water still has the classic layout's `StatsRow` chip as a fallback, but Reschedule did not — this was a full outage of that flow, not a minor inconvenience. With the `plant_detail_tabs` flag on, the now-redundant `StatsRow` quick-log summary above the tab strip is removed (its watering chip duplicated the always-visible Water button; its fertilizing chip is replaced by a new always-visible action button under the Fertilize tab, with no "reschedule" equivalent since fertilizing has none). The classic layout (flag off) is unchanged — `StatsRow` stays exactly as before. No DB migration, no behavior change to the underlying quick-log/reschedule logic itself (#603)
+
 ---
 
 ## [0.24.0] - 2026-08-28

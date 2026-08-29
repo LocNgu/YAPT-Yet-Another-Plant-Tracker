@@ -35,7 +35,11 @@ object WhatsNewContent {
                 "Fertilizing interval slider now goes up to 180 days (was 90), for long-term or slow-release " +
                     "fertilizers",
                 "With the \"Plant Detail tabs\" flag on, Custom Reminders and Active Issues become their own " +
-                    "tabs behind a collapsible toggle instead of always-visible cards"
+                    "tabs behind a collapsible toggle instead of always-visible cards",
+                "Plant Detail's Water and Reschedule watering buttons are now always available, not just when " +
+                    "watering is due — Reschedule had no other way to reach it. With the \"Plant Detail tabs\" " +
+                    "flag on, the quick-log summary above the tabs is gone (now redundant); Fertilize gets its " +
+                    "own always-available button under the Fertilize tab instead. The classic layout is unchanged"
             )
         ),
         ReleaseNotes(

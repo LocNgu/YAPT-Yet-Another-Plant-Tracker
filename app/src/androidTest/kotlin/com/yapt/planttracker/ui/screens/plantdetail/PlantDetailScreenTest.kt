@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -448,10 +449,10 @@ class PlantDetailScreenTest {
     fun wateringDueActionsRow_isDisplayedWhenDueSoon() {
         // A never-watered plant's `nextWateringDueAt` is `maxOf(now, wateringDueDateOverride)`
         // (CareSchedule stays due-today, never overdue, until the first WATER log) — a past override
-        // of 0L (epoch) alone makes this plant `isDueSoon` (due today), not `isOverdue`. The row's
-        // visibility condition is `isOverdue || isDueSoon`, so this covers the due-soon half; the
-        // overdue half is covered by `rescheduleDialog_todayOption_enabledWhenOverdue`, which requires
-        // a real past `WATER` log to genuinely make a plant overdue.
+        // of 0L (epoch) alone makes this plant `isDueSoon` (due today), not `isOverdue`. The row is
+        // now always visible whenever `wateringIntervalDays` is set (#603) — this is one due-state
+        // sample of that; `wateringDueActionsRow_isDisplayedWhenNotYetDue` covers a plant that isn't
+        // due at all, and the overdue state is covered by `rescheduleDialog_todayOption_enabledWhenOverdue`.
         val plant = Plant(
             id = 10L,
             name = "Due Soon Plant",
@@ -487,8 +488,9 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun wateringDueActionsRow_isHiddenWhenNotDue() {
-        // No wateringIntervalDays → row condition fails, row not composed
+    fun wateringDueActionsRow_isHiddenWhenNoScheduleSet() {
+        // No wateringIntervalDays → row condition fails, row not composed (#603: this is now the
+        // row's only gate — due status no longer matters).
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -511,6 +513,42 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Still moist")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    @Test
+    fun wateringDueActionsRow_isDisplayedWhenNotYetDue() {
+        // #603 regression case: the row used to be gated on `isOverdue || isDueSoon`; a plant
+        // watered today against a long interval is neither, so this is the state that used to hide
+        // the row (and made Reschedule fully unreachable) before this fix.
+        val plant = Plant(
+            id = 17L,
+            name = "Not Due Plant",
+            wateringIntervalDays = 30,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val recentLog = CareLog(
+            id = 97L,
+            plantId = plant.id,
+            careType = CareType.WATER,
+            loggedAt = System.currentTimeMillis()
+        )
+        val viewModel = makeViewModel(plant, listOf(recentLog))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Reschedule watering"))
+        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -719,7 +757,11 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering").performClick()
+        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
+        // button in WateringDueActionsRow is the equivalent entry point now.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water Fern?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -755,7 +797,11 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Watering").performClick()
+        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
+        // button in WateringDueActionsRow is the equivalent entry point now.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
         composeTestRule.waitForIdle()
 
         assertTrue(
@@ -788,7 +834,14 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Fertilizing").performClick()
+        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
+        // lives under the Fertilize tab.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -824,7 +877,14 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Fertilizing").performClick()
+        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
+        // lives under the Fertilize tab.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize"))
+        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
         // A regular plant logs the fertilizing directly and shows a snackbar; no feedback sheet opens.
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Fertilized Basil")
@@ -851,7 +911,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -911,7 +971,7 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("No fertilizing logged yet.")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
-        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -938,7 +998,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -974,7 +1034,8 @@ class PlantDetailScreenTest {
     @Test
     fun fertilizeTab_showsInlineScheduleControl() {
         // No fertilizing interval → the inline control shows its disabled "Fertilizing reminder" header,
-        // which is unique to this control (the fertilizing stat chip is absent without an interval).
+        // which is unique to this control (the Fertilize tab's action button is gated on the interval
+        // being set too, #603, so it's also absent here).
         val plant = Plant(id = 34L, name = "Oregano", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -988,7 +1049,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -997,6 +1058,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilizing reminder"))
         composeTestRule.onNodeWithText("Fertilizing reminder").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     @Test
@@ -1030,7 +1095,7 @@ class PlantDetailScreenTest {
         }
 
         // Two repots → the Repot tab's insights card shows the count and an average interval.
-        // The hero/name-header/StatsRow sections push the tab strip below the fold on CI's 320x640
+        // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)

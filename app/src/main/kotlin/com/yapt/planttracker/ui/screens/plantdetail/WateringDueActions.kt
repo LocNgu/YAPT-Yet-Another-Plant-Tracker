@@ -37,6 +37,13 @@ import java.time.ZoneOffset
 internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_button"
 
 /**
+ * Disambiguates [FertilizeDueActionRow]'s "Fertilize" button from the `plant_detail_tab_fertilize`
+ * tab strip label (same string, both clickable) in Compose UI tests — same rationale as
+ * [WATERING_DUE_WATER_BUTTON_TEST_TAG] (#508 review fix).
+ */
+internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
+
+/**
  * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
  * **Water** and **Reschedule watering**, in both the classic layout and the Water tab — see
  * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
@@ -67,6 +74,30 @@ internal fun WateringDueActionsRow(
         }
         OutlinedButton(onClick = onRescheduleClick, modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.reschedule_watering_title))
+        }
+    }
+}
+
+/**
+ * Fertilize tab's single always-visible action button (#603), replacing the fertilizing `StatChip`'s
+ * `onFertilizeClick` entry point once `StatsRow` is dropped from the tabs layout. No "reschedule"
+ * counterpart — fertilizing has no equivalent concept, so this is one button, not a row of two.
+ */
+@Composable
+internal fun FertilizeDueActionRow(
+    onFertilizeClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        OutlinedButton(
+            onClick = onFertilizeClick,
+            modifier = Modifier.weight(1f).testTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG)
+        ) {
+            Text(stringResource(R.string.bulk_action_fertilize))
         }
     }
 }
