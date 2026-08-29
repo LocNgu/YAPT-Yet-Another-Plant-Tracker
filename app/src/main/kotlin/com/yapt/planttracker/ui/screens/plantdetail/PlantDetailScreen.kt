@@ -424,6 +424,7 @@ fun PlantDetailScreen(
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
+                gapRanLong = careStatus?.isWateringGapLong == true,
                 onDismiss = { showWaterSheet = false },
                 onLog = { reason ->
                     viewModel.quickWater(reason)
@@ -437,6 +438,7 @@ fun PlantDetailScreen(
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
+                gapRanLong = careStatus?.isWateringGapLong == true,
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
                 onDismiss = { showLiquidFertilizeSheet = false },
                 onLog = { reason ->

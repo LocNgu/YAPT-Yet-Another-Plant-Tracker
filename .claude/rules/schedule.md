@@ -87,6 +87,15 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   moves on explicit attribution or on an on-schedule nudge inside the tolerance band. Confidence is deliberately not
   separately suppressed — an off-schedule gap disagrees with the prediction whatever the reason, so it simply
   doesn't rise. Call sites map an excluded result to `WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED`.
+- **`PlantCareStatus.isWateringGapLong`** (#586 follow-up) is the *direction* of an off-schedule gap —
+  `true` once the observed gap has run longer than the effective interval. Only meaningful while
+  `isWateringOnSchedule` is false, and it selects the reason prompt's late wording ("Why was it late?" /
+  "It was dry by then" / "Forgot, or no time") over the early one ("Why now?" / "The plant needed it" /
+  "Just my schedule"). Same two bits in either direction — about the plant, or about you — so this is
+  wording only and ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
+  gap-vs-effective-interval comparison as `isWateringOnSchedule`, **never** from `isOverdue`: the latter
+  measures against the due date, which a `wateringDueDateOverride` moves, so a deferred plant can be
+  not-overdue while its gap has still run long.
 - **`PlantCareStatus.isWateringOnSchedule`** (#586) is the UI half of the same test, computed in `computeStatus()`
   via `wateringOnScheduleNow()`: raw observed gap vs the *effective* (seasonal) interval, where the model compares
   the de-seasonalized gap vs `base` — the same test, since `observed / season` vs `base` is `observed` vs
