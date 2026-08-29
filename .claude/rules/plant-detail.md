@@ -86,8 +86,9 @@ button became always-visible (see below), and its fertilizing `StatChip` is repl
 the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring `WateringDueActionsRow`'s
 own `wateringIntervalDays` gate) — not on due status, same as the `StatChip` it replaces. It has no
 "reschedule" counterpart since fertilizing has no equivalent concept. `careTypeInsightItems(...)`'s
-`lastAtLabel` stays `null` for both Water/Fertilize tabs even after this change — the "last done" display
-`StatsRow` used to show in the tabs layout is a known, deliberately out-of-scope gap (#603).
+`lastAtLabel` is populated (`R.string.insight_last_watered` / `R.string.insight_last_fertilized`) for
+both Water/Fertilize tabs, restoring the "last done" display `StatsRow` used to show above the tab strip
+(round-2 fix, #603) — it is no longer `null` there.
 
 ## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
 `WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed

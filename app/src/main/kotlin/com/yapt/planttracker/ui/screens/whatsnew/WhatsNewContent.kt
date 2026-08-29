@@ -39,7 +39,9 @@ object WhatsNewContent {
                 "Plant Detail's Water and Reschedule watering buttons are now always available, not just when " +
                     "watering is due — Reschedule had no other way to reach it. With the \"Plant Detail tabs\" " +
                     "flag on, the quick-log summary above the tabs is gone (now redundant); Fertilize gets its " +
-                    "own always-available button under the Fertilize tab instead. The classic layout is unchanged"
+                    "own always-available button under the Fertilize tab instead, and the \"last watered\"/" +
+                    "\"last fertilized\" text that summary used to show now appears in each tab's insights " +
+                    "card instead. The classic layout is unchanged"
             )
         ),
         ReleaseNotes(

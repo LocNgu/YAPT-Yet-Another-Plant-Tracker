@@ -896,6 +896,37 @@ class PlantDetailScreenTest {
         )
     }
 
+    /**
+     * Regression guard for #603 round-2: `StatsRow` (and its watering/fertilizing `StatChip`s) was
+     * removed from the tabs layout entirely, not merely relocated — the `if (!tabsEnabled)` block it
+     * lives in is never composed when the flag is on, so this needs no scrolling to prove absence.
+     */
+    @Test
+    fun statsRowStatChips_areAbsentFromTabsLayout() {
+        val plant = Plant(
+            id = 40L,
+            name = "Pothos",
+            wateringIntervalDays = 7,
+            fertilizingIntervalDays = 30,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText(statLabelWateringText()).assertDoesNotExist()
+        composeTestRule.onNodeWithText(statLabelFertilizingText()).assertDoesNotExist()
+    }
+
     @Test
     fun careTabs_areDisplayed() {
         val plant = Plant(id = 30L, name = "Aloe", createdAt = 0L, updatedAt = 0L)
@@ -1400,6 +1431,12 @@ class PlantDetailScreenTest {
 
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
+
+    private fun statLabelWateringText(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.stat_label_watering)
+
+    private fun statLabelFertilizingText(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.stat_label_fertilizing)
 
     /**
      * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,

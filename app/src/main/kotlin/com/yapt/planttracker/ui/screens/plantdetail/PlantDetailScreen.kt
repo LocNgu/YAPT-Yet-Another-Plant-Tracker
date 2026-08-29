@@ -702,7 +702,7 @@ fun PlantDetailScreen(
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.WATER),
                                         countLabel = stringResource(R.string.insight_waterings),
-                                        lastAtLabel = null
+                                        lastAtLabel = stringResource(R.string.insight_last_watered)
                                     )
                                     if (insights.isNotEmpty()) {
                                         TabInsightsCard(insights)
@@ -785,7 +785,7 @@ fun PlantDetailScreen(
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.FERTILIZE),
                                         countLabel = stringResource(R.string.insight_fertilizings),
-                                        lastAtLabel = null
+                                        lastAtLabel = stringResource(R.string.insight_last_fertilized)
                                     )
                                     if (insights.isNotEmpty()) {
                                         TabInsightsCard(insights)
@@ -1280,8 +1280,8 @@ private fun InlineIntervalSetting(
 /**
  * Builds the label/value rows for a care type's insight card (#436, sub-task 3). Returns an empty
  * list when there are no events of that type so the caller can skip the card entirely. [lastAtLabel]
- * adds a "last done" row (used by the Repot tab, which has no summary chip above the tabs); pass
- * `null` where the StatsRow above the tabs already shows the last event.
+ * adds a "last done" row; pass `null` only where another surface already shows the last event
+ * (none currently do — `StatsRow` was removed from the tabs layout entirely, #603).
  */
 @Composable
 private fun careTypeInsightItems(
