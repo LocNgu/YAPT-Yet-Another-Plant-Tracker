@@ -3,12 +3,20 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreTime
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +61,12 @@ internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_
  * "Still moist" is gone as a top-level action, not as a behaviour: it is now the "Soil still moist"
  * answer to the Reschedule prompt, writing the same `CareType.CHECK` log through the same
  * `QuickLogUseCase.recordStillMoistCheck()` call site.
+ *
+ * Water is a filled primary [Button] (water-drop icon + text, `colorScheme.primary` — resolving to
+ * `SageGreen`/`SageGreenLight` in both themes, no hardcoded color); Reschedule is a secondary,
+ * icon-only [OutlinedIconButton] (`Icons.Filled.MoreTime`, no visible text — its `contentDescription`
+ * reuses [R.string.reschedule_watering_title]) so Water's [Modifier.weight] naturally takes the rest
+ * of the row's width (#603 round-3 visual polish).
  */
 @Composable
 internal fun WateringDueActionsRow(
@@ -66,14 +80,19 @@ internal fun WateringDueActionsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedButton(
+        Button(
             onClick = onWaterClick,
             modifier = Modifier.weight(1f).testTag(WATERING_DUE_WATER_BUTTON_TEST_TAG)
         ) {
+            Icon(Icons.Filled.WaterDrop, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.watering_due_action_water))
         }
-        OutlinedButton(onClick = onRescheduleClick, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.reschedule_watering_title))
+        OutlinedIconButton(onClick = onRescheduleClick) {
+            Icon(
+                Icons.Filled.MoreTime,
+                contentDescription = stringResource(R.string.reschedule_watering_title)
+            )
         }
     }
 }

@@ -650,6 +650,19 @@ fun PlantDetailScreen(
 
                         when (selectedTab) {
                             PlantDetailTab.WATER -> {
+                                careStatus?.let { status ->
+                                    if (plant?.wateringIntervalDays != null) {
+                                        item {
+                                            WateringDueActionsRow(
+                                                onWaterClick = {
+                                                    requestWater(status, viewModel) { showWaterSheet = true }
+                                                },
+                                                onRescheduleClick = { viewModel.requestReschedule() }
+                                            )
+                                            Spacer(Modifier.height(16.dp))
+                                        }
+                                    }
+                                }
                                 item {
                                     InlineIntervalSetting(
                                         setting = IntervalSetting(
@@ -711,19 +724,6 @@ fun PlantDetailScreen(
                                         Spacer(Modifier.height(16.dp))
                                     }
                                 }
-                                careStatus?.let { status ->
-                                    if (plant?.wateringIntervalDays != null) {
-                                        item {
-                                            WateringDueActionsRow(
-                                                onWaterClick = {
-                                                    requestWater(status, viewModel) { showWaterSheet = true }
-                                                },
-                                                onRescheduleClick = { viewModel.requestReschedule() }
-                                            )
-                                            Spacer(Modifier.height(16.dp))
-                                        }
-                                    }
-                                }
                                 item {
                                     WateringHistoryChart(
                                         careLogs = careLogs,
@@ -753,6 +753,24 @@ fun PlantDetailScreen(
                             }
 
                             PlantDetailTab.FERTILIZE -> {
+                                careStatus?.let { status ->
+                                    if (plant?.fertilizingIntervalDays != null) {
+                                        item {
+                                            FertilizeDueActionRow(
+                                                onFertilizeClick = {
+                                                    if (plant?.useLiquidFertilizer == true) {
+                                                        requestLiquidFertilize(status, viewModel) {
+                                                            showLiquidFertilizeSheet = true
+                                                        }
+                                                    } else {
+                                                        viewModel.quickFertilize()
+                                                    }
+                                                }
+                                            )
+                                            Spacer(Modifier.height(16.dp))
+                                        }
+                                    }
+                                }
                                 item {
                                     InlineIntervalSetting(
                                         setting = IntervalSetting(
@@ -792,24 +810,6 @@ fun PlantDetailScreen(
                                     if (insights.isNotEmpty()) {
                                         TabInsightsCard(insights)
                                         Spacer(Modifier.height(16.dp))
-                                    }
-                                }
-                                careStatus?.let { status ->
-                                    if (plant?.fertilizingIntervalDays != null) {
-                                        item {
-                                            FertilizeDueActionRow(
-                                                onFertilizeClick = {
-                                                    if (plant?.useLiquidFertilizer == true) {
-                                                        requestLiquidFertilize(status, viewModel) {
-                                                            showLiquidFertilizeSheet = true
-                                                        }
-                                                    } else {
-                                                        viewModel.quickFertilize()
-                                                    }
-                                                }
-                                            )
-                                            Spacer(Modifier.height(16.dp))
-                                        }
                                     }
                                 }
                                 val fertLogs = careLogs.filter { it.careType == CareType.FERTILIZE }

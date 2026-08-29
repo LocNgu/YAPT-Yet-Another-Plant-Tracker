@@ -479,8 +479,8 @@ class PlantDetailScreenTest {
         // The Water tab content pushes the actions row below the fold; scroll the list to it (this
         // composes the off-screen item, which a waitUntil-on-existence check never would).
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
         // #586: exactly two actions — "Still moist" is now an answer to the Reschedule prompt, not
         // a third button.
@@ -509,7 +509,7 @@ class PlantDetailScreenTest {
 
         composeTestRule.waitForIdle()
         assertTrue(
-            composeTestRule.onAllNodesWithText("Reschedule watering")
+            composeTestRule.onAllNodesWithContentDescription("Reschedule watering")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
         assertTrue(
@@ -549,8 +549,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
     }
 
@@ -577,8 +577,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
         // #586: the reason prompt comes first — both answers offered, the date options not yet.
         composeTestRule.onNodeWithText("Why put it off?").assertIsDisplayed()
@@ -615,8 +615,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("Soil still moist").performClick()
 
         // The picker opens on the derived suggestion rather than #570's flat +1 day.
@@ -654,8 +654,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
@@ -714,8 +714,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsEnabled()
@@ -738,8 +738,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Reschedule watering"))
-        composeTestRule.onNodeWithText("Reschedule watering").performClick()
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
@@ -1064,7 +1064,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The inline watering-interval header sits at the top of the default Water tab.
+        // The inline watering-interval header sits on the default Water tab, below the always-visible
+        // Water/Reschedule actions row (#603 round-3: the actions row now renders first).
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()

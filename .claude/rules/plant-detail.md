@@ -91,12 +91,25 @@ both Water/Fertilize tabs, restoring the "last done" display `StatsRow` used to 
 (round-2 fix, #603) — it is no longer `null` there.
 
 ## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
-`WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed
+`WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** buttons in one row — narrowed
 from #508's three (ADR-0029) — in both the classic layout and the Water tab, gated only on
 `plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
 || status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
 before the plant's due date). "Did water go in, or not?" is a fact, not a judgement; *why* is asked
 afterwards, and only when the action is off schedule.
+
+**Styling (#603 round-3 visual polish):** Water is a filled Material3 `Button` (`colorScheme.primary`,
+no hardcoded color — resolves to `SageGreen`/`SageGreenLight` in `Theme.kt`) with a leading
+`Icons.Filled.WaterDrop` icon ahead of its text, `Modifier.weight(1f)`. Reschedule watering is an
+icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `contentDescription` reuses
+`R.string.reschedule_watering_title`), sized to its own content so Water's `weight(1f)` takes the rest
+of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
+`onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
+
+**Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
+Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions
+row → interval card → per-tab insights card. Classic layout has no inline interval settings (ADR-0023 is
+tabs-only), so its row position is unchanged.
 
 - **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
   opens `WateringReasonBottomSheet` ("Why now?" → "The plant needed it" / "Just my timing"). The

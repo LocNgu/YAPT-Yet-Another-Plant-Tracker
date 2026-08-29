@@ -41,7 +41,11 @@ object WhatsNewContent {
                     "flag on, the quick-log summary above the tabs is gone (now redundant); Fertilize gets its " +
                     "own always-available button under the Fertilize tab instead, and the \"last watered\"/" +
                     "\"last fertilized\" text that summary used to show now appears in each tab's insights " +
-                    "card instead. The classic layout is unchanged"
+                    "card instead. The classic layout is unchanged",
+                "With the \"Plant Detail tabs\" flag on, the Water/Reschedule watering row (and Fertilize's " +
+                    "action button) now sits above the interval settings on its tab instead of below. Water is " +
+                    "a filled green button with a water-drop icon; Reschedule watering is now an icon-only " +
+                    "button, freeing up more width for Water"
             )
         ),
         ReleaseNotes(
