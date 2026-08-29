@@ -61,6 +61,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -1151,7 +1152,10 @@ private fun PlantDetailTabStrip(
  * The tappable/clickable target is the full-width [Row], not just the icon — a plain `Modifier
  * .clickable` (not [IconButton], which caps its own touch target) so the whole strip beneath the tabs
  * expands/collapses on tap, not only the small chevron glyph (#591). `clickable`'s semantics node
- * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row.
+ * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row;
+ * `onClickLabel` is deliberately omitted since it would duplicate that same description in TalkBack's
+ * announcement. `minimumInteractiveComponentSize()` restores the 48dp-minimum touch target [IconButton]
+ * used to guarantee on its own, which the horizontal-only widening above doesn't otherwise cover (#597).
  */
 @Composable
 private fun TabRowExpandToggle(
@@ -1171,8 +1175,9 @@ private fun TabRowExpandToggle(
     }
     Row(
         modifier = modifier
-            .clickable(onClickLabel = toggleCd, role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClick = onToggle)
             .testTag("plant_detail_tabs_toggle")
+            .minimumInteractiveComponentSize()
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -1180,7 +1185,7 @@ private fun TabRowExpandToggle(
         BadgedBox(
             badge = {
                 if (!isExpanded && hasAttention) {
-                    Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
+                    Badge()
                 }
             }
         ) {

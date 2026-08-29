@@ -77,6 +77,7 @@
     <ID>TooManyFunctions:CareLogDao.kt$CareLogDao</ID>
     <ID>TooManyFunctions:EnumResources.kt$com.yapt.planttracker.ui.util.EnumResources.kt</ID>
     <ID>TooManyFunctions:PlantDao.kt$PlantDao</ID>
+    <ID>TooManyFunctions:PlantDetailScreen.kt$com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen.kt</ID>
     <ID>TooManyFunctions:PlantDetailViewModel.kt$PlantDetailViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantListViewModel.kt$PlantListViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantRepository.kt$PlantRepository</ID>
