@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **The off-schedule watering reason prompt now words itself for the direction the schedule was missed** — asking *"Why now?"* is fine when you water early, but reads as an accusation once a plant is overdue, and *"Just my timing"* claims a deliberate choice that forgetting never involves. A watering whose gap has already run long now asks **"Why was it late?" — "It was dry by then" / "Forgot, or no time"**, naming forgetting outright instead of hoping you recognise yourself in an abstraction; the early case keeps **"Why now?" — "The plant needed it" / "Just my schedule"**. Both directions still record exactly the same two things — that it was about the plant, or that it wasn't — so what the adaptive model learns is completely unchanged; only the words differ. The direction comes from the same gap-versus-interval comparison that decides whether to ask at all, deliberately not from whether the plant reads as "overdue", since rescheduling moves the due date while leaving the gap long (#586)
+
 ---
 
 ## [0.24.0] - 2026-08-28
