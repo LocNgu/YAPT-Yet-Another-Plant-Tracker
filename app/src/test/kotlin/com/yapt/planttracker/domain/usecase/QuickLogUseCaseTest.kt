@@ -581,17 +581,22 @@ class QuickLogUseCaseTest {
         assertEquals(WateringAdjustmentTrigger.CHECK_STILL_MOIST, captured[0].trigger)
     }
 
+    // #612 regression: the override write and adaptive watering's off-state must land in the same
+    // single updatePlant call — a stale-object clobber previously reverted the override.
     @Test
     fun `recordStillMoistCheck does not touch wateringConfidence when adaptive_watering is off`() = runTest {
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
 
         useCase.recordStillMoistCheck(monstera, newDueAt)
 
-        coVerify(exactly = 0) {
-            plantRepo.updatePlant(match { it.wateringConfidence != 2 })
+        coVerify(exactly = 1) {
+            plantRepo.updatePlant(match { it.wateringDueDateOverride == newDueAt && it.wateringConfidence == 2 })
         }
     }
 
+    // #612 regression: recordStillMoistAdaptiveObservation used to write wateringConfidence off a
+    // stale pre-override plant snapshot in a second updatePlant call, silently reverting the override
+    // written moments earlier. The fix folds both into one updatePlant call built off the same state.
     @Test
     fun `recordStillMoistCheck feeds computeAdaptiveInterval and updates confidence when adaptive_watering is on`() =
         runTest {
@@ -610,8 +615,10 @@ class QuickLogUseCaseTest {
             useCase.recordStillMoistCheck(monstera, newDueAt)
 
             // Bootstrap (currentConfidence == null) -> confidence becomes 0, which differs from null,
-            // so the confidence-only update fires.
-            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 0 }) }
+            // so the confidence update fires — and must land in the same call as the override write.
+            coVerify(exactly = 1) {
+                plantRepo.updatePlant(match { it.wateringConfidence == 0 && it.wateringDueDateOverride == newDueAt })
+            }
         }
 
     @Test

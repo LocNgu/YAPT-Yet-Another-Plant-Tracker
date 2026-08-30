@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **"Soil still moist" reschedule no longer silently reverts the new due date when adaptive watering is on** — `QuickLogUseCase.recordStillMoistCheck()` wrote the new `wateringDueDateOverride` in one `updatePlant()` call, then (when `adaptive_watering` was enabled and confidence changed) issued a second `updatePlant()` call built from the stale pre-write `Plant` snapshot, whose `.copy()` silently reverted the override that had just been persisted — so a plant rescheduled via the in-app Reschedule dialog or the notification's "Still moist" action kept showing as due/overdue. The override write and the confidence write are now combined into a single `updatePlant()` call built off the same up-to-date state, so this class of clobber can't recur. No DB migration, no behavior change to the adaptive model's math or to the `watering_adjustments` row it writes (#612)
+
 ---
 
 ## [0.25.0] - 2026-08-30

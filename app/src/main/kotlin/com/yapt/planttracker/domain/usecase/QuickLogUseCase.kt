@@ -267,6 +267,11 @@ class QuickLogUseCase(
      * "apply" step to silently substitute for). The *length* of the deferral is never an input to the
      * model — only the reason is (#586): a "soil still moist" reschedule of +1 day and one of +5 teach
      * exactly the same thing.
+     *
+     * The override and (when adaptive watering is on) confidence are written in a single
+     * [PlantRepository.updatePlant] call built off this same [plant] snapshot (#612) — two sequential
+     * `.copy()`/`updatePlant` calls off the same stale snapshot let the second silently revert the
+     * first's [Plant.wateringDueDateOverride] write.
      */
     suspend fun recordStillMoistCheck(plant: Plant, newDueAtMillis: Long): Boolean {
         if (isDuplicateGuarded(CareType.CHECK) && hasLoggedToday(plant.id, CareType.CHECK)) {
@@ -282,11 +287,19 @@ class QuickLogUseCase(
             )
         )
 
-        plantRepository.updatePlant(plant.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = now))
-
-        if (isAdaptiveWateringEnabled()) {
+        val updatedConfidence = if (isAdaptiveWateringEnabled()) {
             recordStillMoistAdaptiveObservation(plant, now)
+        } else {
+            null
         }
+
+        plantRepository.updatePlant(
+            plant.copy(
+                wateringDueDateOverride = newDueAtMillis,
+                wateringConfidence = updatedConfidence ?: plant.wateringConfidence,
+                updatedAt = now
+            )
+        )
         return true
     }
 
@@ -313,20 +326,20 @@ class QuickLogUseCase(
         return (result.intervalDays - observedIntervalDays).coerceAtLeast(DEFAULT_STILL_MOIST_DEFERRAL_DAYS)
     }
 
+    /**
+     * Returns the new [Plant.wateringConfidence] if this observation changes it, or `null` when
+     * there's nothing to derive from or confidence is unchanged — [recordStillMoistCheck] folds the
+     * result into its single combined `updatePlant` call rather than writing here (#612).
+     */
     @Suppress("ReturnCount")
-    private suspend fun recordStillMoistAdaptiveObservation(plant: Plant, now: Long) {
-        val currentInterval = plant.wateringIntervalDays ?: return
-        val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER) ?: return
+    private suspend fun recordStillMoistAdaptiveObservation(plant: Plant, now: Long): Int? {
+        val currentInterval = plant.wateringIntervalDays ?: return null
+        val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER) ?: return null
         val actualIntervalDays = CareSchedule.daysBetween(lastWatering.loggedAt, now)
-        if (actualIntervalDays <= 0) return
+        if (actualIntervalDays <= 0) return null
 
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val result = computeStillMoistAdaptiveInterval(plant, actualIntervalDays)
-        if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(
-                plant.copy(wateringConfidence = result.confidence, updatedAt = now)
-            )
-        }
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
@@ -336,6 +349,7 @@ class QuickLogUseCase(
                 afterIntervalDays = result.intervalDays
             )
         )
+        return result.confidence.takeIf { it != plant.wateringConfidence }
     }
 
     /**
