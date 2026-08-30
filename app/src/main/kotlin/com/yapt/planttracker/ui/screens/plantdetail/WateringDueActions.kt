@@ -52,6 +52,13 @@ internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_butt
 internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
 
 /**
+ * [WateringDueActionsRow]'s trailing-edge inset — big enough to keep the row's rightmost clickable
+ * bounds clear of the pinned "Log care" FAB's own reach from the true screen edge (16dp FAB padding +
+ * 56dp default M3 FAB size = 72dp), plus a small buffer, rather than the 16dp every other card uses.
+ */
+private val ROW_END_INSET = 88.dp
+
+/**
  * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
  * **Water** and **Reschedule watering**, in both the classic layout and the Water tab — see
  * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
@@ -67,6 +74,18 @@ internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_
  * icon-only [OutlinedIconButton] (`Icons.Filled.MoreTime`, no visible text — its `contentDescription`
  * reuses [R.string.reschedule_watering_title]) so Water's [Modifier.weight] naturally takes the rest
  * of the row's width (#603 round-3 visual polish).
+ *
+ * The row's trailing edge is inset by [ROW_END_INSET], not the usual 16dp — this row can be scrolled
+ * (in the tabs layout, where it's the first item under its tab, #603 round-3) to sit flush against
+ * either edge of the screen's own scrollable viewport, which is exactly where the *permanently
+ * pinned* Edit icon button (top-right) and "Log care" FAB (bottom-right, `56dp` + its own `16dp`
+ * padding — see `PlantDetailScreen.kt`) live, regardless of scroll position (Box overlay, not
+ * Scaffold — technical ADR-0018). A trailing icon-only button hugging this row's own 16dp edge would
+ * land its clickable bounds *inside* those pinned buttons' real hit-test region, which draw on top in
+ * z-order and win the touch — Water's own click keeps working because its `weight(1f)` bounds stay
+ * centered well clear of either screen edge, but the narrow, edge-hugging Reschedule button doesn't.
+ * [ROW_END_INSET] clears the FAB's full reach (its wider of the two danger zones) with a small
+ * buffer, which also clears the narrower Edit button's reach as a side effect.
  */
 @Composable
 internal fun WateringDueActionsRow(
@@ -77,7 +96,7 @@ internal fun WateringDueActionsRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(start = 16.dp, end = ROW_END_INSET),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Button(

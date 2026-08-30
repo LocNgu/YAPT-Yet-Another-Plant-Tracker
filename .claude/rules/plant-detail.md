@@ -106,6 +106,17 @@ icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `co
 of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
 `onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
 
+The row's trailing inset is `88.dp` (`WateringDueActions.kt`'s `ROW_END_INSET`), not the usual `16.dp`
+every other card uses. In the tabs layout this row can be scrolled flush against either edge of the
+screen's own scrollable viewport (it's the first item under its tab), which is exactly where the
+*permanently pinned* Edit icon button (top-right) and "Log care" FAB (bottom-right) live regardless of
+scroll position (Box overlay, not Scaffold — technical ADR-0018). Those draw on top in z-order and win
+any touch that lands in their bounds; a trailing icon-only button hugging the row's own `16.dp` edge
+would have its clickable bounds fall inside theirs. `ROW_END_INSET` clears the FAB's full reach (its
+`16.dp` padding + `56.dp` default size = `72.dp` from the true edge) with a small buffer, which also
+clears the narrower Edit button's reach as a side effect — Water's own click was never affected since
+its `weight(1f)` bounds stay centered well clear of either screen edge (#604 CI fix).
+
 **Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
 Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions
 row → interval card → per-tab insights card. Classic layout has no inline interval settings (ADR-0023 is
