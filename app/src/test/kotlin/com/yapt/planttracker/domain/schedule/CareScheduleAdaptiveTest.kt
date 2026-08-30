@@ -460,4 +460,54 @@ class CareScheduleAdaptiveTest {
         assertFalse(result.excludedFromBaseLearning)
         assertTrue(result.intervalDays > 7)
     }
+
+    // --- computeAdaptiveInterval(): frozen (#571, REPOT freeze window) ---
+
+    /**
+     * A frozen observation is excluded from base-learning exactly like an unattributed off-schedule
+     * one (#586's mechanism reused, technical ADR-0023) — even explicit, on-schedule feedback that
+     * would otherwise move `base` is held at gain 0 while frozen.
+     */
+    @Test
+    fun `a frozen observation is excluded from base learning even with explicit on-schedule feedback`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 0,
+            recentFeedback = listOf(TOO_SOON),
+            frozen = true
+        )
+        assertEquals(7, result.intervalDays)
+        assertTrue(result.excludedFromBaseLearning)
+    }
+
+    /**
+     * Confidence is not separately suppressed while frozen — it is evidence about the schedule
+     * regardless of why `base` itself is being excluded (mirrors #586's rule for `WATER_NOT_ATTRIBUTED`).
+     */
+    @Test
+    fun `confidence still rises on gap agreement while frozen`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = JUST_RIGHT,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 10,
+            currentConfidence = 1,
+            recentFeedback = listOf(JUST_RIGHT),
+            frozen = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    @Test
+    fun `frozen defaults to false, unaffected existing call sites`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_LATE,
+            observedIntervalDays = 5,
+            currentBaseIntervalDays = 20,
+            currentConfidence = 0,
+            recentFeedback = listOf(TOO_LATE)
+        )
+        assertFalse(result.excludedFromBaseLearning)
+    }
 }

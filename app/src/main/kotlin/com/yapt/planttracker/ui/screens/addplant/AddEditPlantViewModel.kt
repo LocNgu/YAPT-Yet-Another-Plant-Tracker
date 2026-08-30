@@ -21,6 +21,7 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
+import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +34,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+// #571 added the room-change lifecycle-reset check alongside the existing manual-edit reset; splitting
+// it out into its own class would scatter one cohesive save flow across files for no readability gain
+// (cf. QuickLogUseCase/CareLogRepository's identical justification).
+@Suppress("TooManyFunctions")
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
@@ -172,60 +177,113 @@ class AddEditPlantViewModel(
         }
     }
 
+    /** [deseasonalizedNewBase] paired with the [Plant.wateringBaseIntervalDays] value to persist. */
+    private data class RecomputedBase(val deseasonalizedNewBase: Double?, val wateringBaseIntervalDays: Double?)
+
+    /**
+     * Mirrors the confidence reset in [saveEdit]: de-seasonalize a newly typed interval to today
+     * (#569) so the effective interval doesn't jump on the next due-date computation. Unchanged when
+     * `SEASONAL_WATERING` is off, the plant is pinned, or the interval wasn't touched — the prior base
+     * (if any) is preserved rather than cleared. Extracted out of [saveEdit] to stay under Detekt's
+     * `CyclomaticComplexMethod` threshold.
+     */
+    private suspend fun recomputeWateringBase(
+        existing: Plant?,
+        newWateringIntervalDays: Int?,
+        intervalChanged: Boolean,
+        now: Long
+    ): RecomputedBase {
+        val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
+        if (!baseShouldBeRecomputed) return RecomputedBase(null, existing?.wateringBaseIntervalDays)
+        val deseasonalizedNewBase = deseasonalizedBaseOrNull(newWateringIntervalDays!!, now)
+        return RecomputedBase(deseasonalizedNewBase, deseasonalizedNewBase ?: existing?.wateringBaseIntervalDays)
+    }
+
     private suspend fun saveEdit(plant: Plant, newWateringIntervalDays: Int?, intervalChanged: Boolean, now: Long) {
         val existing = plantRepository.getPlantById(plantId!!).first()
+        val adaptiveOn = isAdaptiveWateringEnabled()
+        // A room change is a lifecycle reset too (#571), except blank/empty -> filled for the first
+        // time (data entry, not a physical move) — gated on `adaptive_watering` like the REPOT trigger.
+        val roomChangeResetFires = adaptiveOn && existing != null &&
+            WateringLifecycleReset.roomChangeTriggersReset(existing.room, plant.room)
         // An unprompted edit to the watering interval on this screen is a full confidence
         // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
         // dialog, which never routes through here.
-        val wateringConfidence = if (intervalChanged) 0 else existing?.wateringConfidence
-        // Mirrors the confidence reset above: de-seasonalize the newly typed value to today
-        // (#569) so the effective interval doesn't jump on the next due-date computation.
-        // Unchanged when SEASONAL_WATERING is off, the plant is pinned, or the interval
-        // wasn't touched — the prior base (if any) is preserved rather than cleared.
-        val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
-        val deseasonalizedNewBase = if (baseShouldBeRecomputed) {
-            deseasonalizedBaseOrNull(newWateringIntervalDays!!, now)
-        } else {
-            null
-        }
-        val wateringBaseIntervalDays = if (baseShouldBeRecomputed) {
-            deseasonalizedNewBase ?: existing?.wateringBaseIntervalDays
-        } else {
-            existing?.wateringBaseIntervalDays
-        }
+        val wateringConfidence = if (intervalChanged || roomChangeResetFires) 0 else existing?.wateringConfidence
+        val (deseasonalizedNewBase, wateringBaseIntervalDays) =
+            recomputeWateringBase(existing, newWateringIntervalDays, intervalChanged, now)
         plantRepository.updatePlant(
             plant.copy(
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
                 wateringConfidence = wateringConfidence,
-                wateringBaseIntervalDays = wateringBaseIntervalDays
+                wateringBaseIntervalDays = wateringBaseIntervalDays,
+                // Room-change reset (#571): a fresh wateringResetAt anchor for the post-reset bootstrap
+                // check, but deliberately no freeze window — a moved plant relies purely on the normal
+                // confidence-0 gain ramp-up, unlike a REPOT reset. A manual interval edit alone leaves
+                // any existing anchor/freeze untouched (out of this feature's scope).
+                wateringResetAt = if (roomChangeResetFires) now else existing?.wateringResetAt,
+                wateringFreezeUntil = if (roomChangeResetFires) null else existing?.wateringFreezeUntil
             )
         )
-        if (intervalChanged && newWateringIntervalDays != null && isAdaptiveWateringEnabled()) {
-            // #584 review: log base-space before/after, not the literal typed value — matches
-            // PlantDetailViewModel.setWateringInterval()'s equivalent MANUAL_EDIT fix.
-            val loggedBefore = currentBaseIntervalDaysOrLiteral(
-                pinned = existing?.pinIntervalToBase == true,
-                storedBase = existing?.wateringBaseIntervalDays,
-                literal = existing?.wateringIntervalDays ?: newWateringIntervalDays
-            )
-            val loggedAfter = if (!pinIntervalToBase) {
-                (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
-            } else {
-                newWateringIntervalDays
-            }
-            wateringAdjustmentRepository?.addAdjustment(
-                WateringAdjustment(
-                    plantId = plantId!!,
-                    triggeredAt = now,
-                    trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
-                    beforeIntervalDays = loggedBefore,
-                    afterIntervalDays = loggedAfter
-                )
-            )
+        if (intervalChanged && newWateringIntervalDays != null && adaptiveOn) {
+            logManualEditAdjustment(existing, newWateringIntervalDays, deseasonalizedNewBase, now)
+        }
+        if (roomChangeResetFires) {
+            logRoomChangeResetAdjustment(existing, now)
         }
         savePendingPhotos(plantId!!, now)
         _events.emit(Event.Saved(plantId))
+    }
+
+    /**
+     * #584 review: logs base-space before/after, not the literal typed value — matches
+     * `PlantDetailViewModel.setWateringInterval()`'s equivalent `MANUAL_EDIT` fix. Extracted out of
+     * [saveEdit] to keep it under Detekt's `LongMethod`/`CyclomaticComplexMethod` thresholds.
+     */
+    private suspend fun logManualEditAdjustment(
+        existing: Plant?,
+        newWateringIntervalDays: Int,
+        deseasonalizedNewBase: Double?,
+        now: Long
+    ) {
+        val loggedBefore = currentBaseIntervalDaysOrLiteral(
+            pinned = existing?.pinIntervalToBase == true,
+            storedBase = existing?.wateringBaseIntervalDays,
+            literal = existing?.wateringIntervalDays ?: newWateringIntervalDays
+        )
+        val loggedAfter = if (!pinIntervalToBase) {
+            (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
+        } else {
+            newWateringIntervalDays
+        }
+        wateringAdjustmentRepository?.addAdjustment(
+            WateringAdjustment(
+                plantId = plantId!!,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
+                beforeIntervalDays = loggedBefore,
+                afterIntervalDays = loggedAfter
+            )
+        )
+    }
+
+    /** A room-change reset changes confidence, not the interval — `before == after`, same as [WateringLifecycleReset.applyRepotReset]. */
+    private suspend fun logRoomChangeResetAdjustment(existing: Plant?, now: Long) {
+        val beforeAfter = currentBaseIntervalDaysOrLiteral(
+            pinned = existing?.pinIntervalToBase == true,
+            storedBase = existing?.wateringBaseIntervalDays,
+            literal = existing?.wateringIntervalDays ?: 0
+        )
+        wateringAdjustmentRepository?.addAdjustment(
+            WateringAdjustment(
+                plantId = plantId!!,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.ROOM_CHANGE_RESET,
+                beforeIntervalDays = beforeAfter,
+                afterIntervalDays = beforeAfter
+            )
+        )
     }
 
     private suspend fun isAdaptiveWateringEnabled(): Boolean {

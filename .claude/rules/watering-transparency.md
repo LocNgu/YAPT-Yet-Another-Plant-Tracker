@@ -37,7 +37,13 @@ the notification action), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
 (`PlantDetailViewModel.applyIntervalInternal()` — shared by both the dialog's Apply button and the
 silent-apply path), `MANUAL_EDIT` (`AddEditPlantViewModel.saveEdit()`, `PlantDetailViewModel
-.setWateringInterval()`). A row is written **every time one of these is evaluated while
+.setWateringInterval()`), and (#571) `REPOT_RESET`/`ROOM_CHANGE_RESET` (the lifecycle-reset triggers —
+`WateringLifecycleReset.applyRepotReset()` and `AddEditPlantViewModel.saveEdit()`'s room-diff check;
+`beforeIntervalDays == afterIntervalDays` always, since a reset changes confidence, not the interval
+itself), `FROZEN_POST_REPOT` (a WATER/CHECK observation excluded from base-learning by the REPOT freeze
+window — distinct from `WATER_NOT_ATTRIBUTED` so the sheet doesn't misrepresent an automatic freeze as
+a declined attribution), and `HISTORY_BOOTSTRAP` (the one-time cold-start from watering history,
+`WateringLifecycleReset.maybeBootstrap()`). A row is written **every time one of these is evaluated while
 `ADAPTIVE_WATERING` is on**, including a no-op observation (`before == after`) — that's still evidence
 the model considered. Gated on `ADAPTIVE_WATERING` only, matching where `wateringConfidence` itself is
 written; ships unconditionally regardless of the flag's state (same posture as `wateringConfidence`).

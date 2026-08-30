@@ -26,6 +26,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 14 (#571): wateringResetAt and wateringFreezeUntil added to BackupPlant — round-trip the
+// REPOT/room-change lifecycle-reset anchor and the REPOT-only freeze-window marker unconditionally,
+// since backup is not gated by the `adaptive_watering` flag (same posture as wateringConfidence).
 // Schema 13 (#572): wateringAdjustments: List<BackupWateringAdjustment> round-trips the
 // watering_adjustments table (the "Recent adjustments" source for the "Why this date?" sheet), and
 // askBeforeChangingIntervals added to BackupSettings.
@@ -46,7 +49,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 13
+const val CURRENT_SCHEMA_VERSION = 14
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -147,7 +150,9 @@ class BackupManager(
                     useLiquidFertilizer = entity.useLiquidFertilizer,
                     wateringConfidence = entity.wateringConfidence,
                     wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
-                    pinIntervalToBase = entity.pinIntervalToBase
+                    pinIntervalToBase = entity.pinIntervalToBase,
+                    wateringResetAt = entity.wateringResetAt,
+                    wateringFreezeUntil = entity.wateringFreezeUntil
                 )
             }
 
@@ -374,7 +379,9 @@ class BackupManager(
                     useLiquidFertilizer = bp.useLiquidFertilizer,
                     wateringConfidence = bp.wateringConfidence,
                     wateringBaseIntervalDays = bp.wateringBaseIntervalDays,
-                    pinIntervalToBase = bp.pinIntervalToBase
+                    pinIntervalToBase = bp.pinIntervalToBase,
+                    wateringResetAt = bp.wateringResetAt,
+                    wateringFreezeUntil = bp.wateringFreezeUntil
                 )
             }
 

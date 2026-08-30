@@ -534,6 +534,10 @@
     <string name="adjustment_trigger_dialog_edit">applied suggestion</string>
     <string name="adjustment_trigger_manual_edit">manual edit</string>
     <string name="adjustment_trigger_silent_apply_undone">undone</string>
+    <string name="adjustment_trigger_repot_reset">repotted — relearning</string>
+    <string name="adjustment_trigger_room_change_reset">moved rooms — relearning</string>
+    <string name="adjustment_trigger_frozen_post_repot">still settling in after repotting</string>
+    <string name="adjustment_trigger_history_bootstrap">estimated from your watering history</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

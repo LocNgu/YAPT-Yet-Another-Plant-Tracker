@@ -22,5 +22,7 @@ data class PlantEntity(
     val repottingIntervalDays: Int? = null,
     val wateringConfidence: Int? = null,
     val wateringBaseIntervalDays: Double? = null,
-    val pinIntervalToBase: Boolean = false
+    val pinIntervalToBase: Boolean = false,
+    val wateringResetAt: Long? = null,
+    val wateringFreezeUntil: Long? = null
 )
