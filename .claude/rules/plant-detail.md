@@ -106,36 +106,29 @@ icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `co
 of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
 `onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
 
-The row's trailing inset is `88.dp` (`WateringDueActions.kt`'s `ROW_END_INSET`) and its leading inset
-is `64.dp` (`ROW_START_INSET`), neither the usual `16.dp` every other card uses. In the tabs layout this
-row can be scrolled flush against any edge of the screen's own scrollable viewport (it's the first item
-under its tab), which is exactly where the *permanently pinned* Back icon button (top-left), Edit icon
-button (top-right), and "Log care" FAB (bottom-right) live regardless of scroll position (Box overlay,
-not Scaffold — technical ADR-0018). Those draw on top in z-order and win any touch that lands in their
-bounds; a button hugging the row's own `16.dp` edge would have its clickable bounds fall inside theirs.
-`ROW_END_INSET` clears the FAB's full reach (its `16.dp` padding + `56.dp` default size = `72.dp` from
-the true edge) with a small buffer, which also clears the narrower Edit button's reach as a side effect
-— Water's own click at the trailing edge was never affected since its `weight(1f)` bounds stay centered
-well clear of the row's right side (#604 CI fix). `ROW_START_INSET` clears Back's reach the same way:
-Back has no extra padding of its own around it, so its reach is just the default M3 `IconButton` touch
-target (`48.dp`) from the true edge, plus the same small buffer — smaller than the FAB's, since there's
-no padding stacked on top of it. Water's own *leading* edge sits right at the row's start inset (its
-`weight(1f)` only keeps it clear on the trailing side), so it needed the same protection Reschedule's
-edge-hugging icon button did on the other side (#604 round-2 review fix — the first fix only widened the
-trailing inset, leaving the mirror-image leading-edge/Back collision unfixed). Both insets are shared by
-`FertilizeDueActionRow` too: its single `weight(1f)` button fills nearly the whole row, so unlike
-Water's off-center Reschedule button, both of *its* edges sit close to the row bounds and are equally
-exposed on both sides.
+The row uses plain `padding(horizontal = 16.dp)`, same as every other card on the screen (#610,
+technical ADR-0022) — an earlier fix (#604) widened this to `88.dp`/`64.dp` trailing/leading insets to
+keep the row's clickable bounds clear of the *permanently pinned* Back icon button (top-left), Edit icon
+button (top-right), and "Log care" FAB (bottom-right, all Box-overlay buttons per technical ADR-0018)
+whenever the row (first item under its tab) scrolled flush against a screen edge, but that traded away
+visual consistency with every sibling card for a worst-case-sized buffer paid at every scroll position.
+ADR-0022 instead fades the Edit button out once the user has scrolled substantially past the hero photo
+— see "Edit button scroll fade" below — so the row's own margins could revert to normal. The residual
+collision risk with Back/FAB is a deliberate, accepted trade-off (ADR-0022), not an oversight; do not
+reintroduce a smaller "just in case" inset here without a new decision. `FertilizeDueActionRow` uses the
+same plain `16.dp` padding for the same reason.
 
-A `LazyColumn`-level top/bottom `contentPadding` was considered instead of these per-row insets (the
-screen's own `LazyColumn` already has an `88.dp` bottom `contentPadding`, but that exists to keep the
-*true last item* of the whole list clear of the FAB at max scroll, an unrelated concern). That mechanism
-only bounds the start/end of the *whole* scrollable range — it can't protect a row that isn't the first
-or last item in the list from landing flush against a pinned corner at some *intermediate* scroll
-position, which is exactly the scenario here (`WateringDueActionsRow`/`FertilizeDueActionRow` are early
-in their tab, not first/last in the overall `LazyColumn`, since the hero photo/title/tab strip precede
-them). The per-row horizontal inset is the general fix that actually holds at any scroll position; a
-`LazyColumn`-level change was left as a possible future structural cleanup, not pursued here.
+### Edit button scroll fade (technical ADR-0022)
+The pinned Edit `IconButton` (`PlantDetailScreen.kt`'s Back/Edit `Row`, `Alignment.TopStart` in the Box
+overlay) fades out (`AnimatedVisibility` + `fadeIn()`/`fadeOut()`, matching the `PlantDetailTabStrip`
+chevron's `animateFloatAsState` fade/rotate convention) once the `LazyColumn`'s named `LazyListState`
+reports `firstVisibleItemIndex > 0` — i.e. the 280dp hero photo (item index 0) has fully scrolled out of
+the viewport. `AnimatedVisibility` removes the button from composition (not just alpha) once its exit
+animation finishes, so it stops being clickable and disappears from the semantics tree, not just
+visually. **Back stays exactly as before** — always pinned, never fades, no visibility logic — and so
+does the "Log care" FAB, since persistent visibility across scrolling is the whole point of a FAB. Edit
+becomes unreachable via its icon once scrolled past the hero, with no alternative on-screen entry point
+today — a real, if narrow, functional regression accepted in ADR-0022.
 
 **Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
 Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions

@@ -52,23 +52,6 @@ internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_butt
 internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
 
 /**
- * [WateringDueActionsRow]'s trailing-edge inset — big enough to keep the row's rightmost clickable
- * bounds clear of the pinned "Log care" FAB's own reach from the true screen edge (16dp FAB padding +
- * 56dp default M3 FAB size = 72dp), plus a small buffer, rather than the 16dp every other card uses.
- */
-private val ROW_END_INSET = 88.dp
-
-/**
- * The mirror-image leading-edge inset — keeps the row's leftmost clickable bounds clear of the pinned
- * Back icon button's reach from the true screen edge. Unlike the FAB/Edit buttons, Back sits in a `Row`
- * with no extra horizontal padding of its own (see `PlantDetailScreen.kt`), so its reach is just its
- * default M3 `IconButton` touch target (`minimumInteractiveComponentSize()`, 48dp) from the edge —
- * smaller than the FAB's, since there's no additional padding to add on top of it — plus the same small
- * buffer [ROW_END_INSET] uses (#604 round-2 review fix).
- */
-private val ROW_START_INSET = 64.dp
-
-/**
  * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
  * **Water** and **Reschedule watering**, in both the classic layout and the Water tab — see
  * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
@@ -85,21 +68,12 @@ private val ROW_START_INSET = 64.dp
  * reuses [R.string.reschedule_watering_title]) so Water's [Modifier.weight] naturally takes the rest
  * of the row's width (#603 round-3 visual polish).
  *
- * The row's trailing edge is inset by [ROW_END_INSET] and its leading edge by [ROW_START_INSET],
- * neither the usual 16dp — this row can be scrolled (in the tabs layout, where it's the first item
- * under its tab, #603 round-3) to sit flush against any edge of the screen's own scrollable viewport,
- * which is exactly where the *permanently pinned* Back icon button (top-left), Edit icon button
- * (top-right), and "Log care" FAB (bottom-right, `56dp` + its own `16dp` padding — see
- * `PlantDetailScreen.kt`) all live, regardless of scroll position (Box overlay, not Scaffold —
- * technical ADR-0018). A button hugging this row's own 16dp edge would land its clickable bounds
- * *inside* those pinned buttons' real hit-test region, which draw on top in z-order and win the touch
- * — Water's own click keeps working at the trailing edge because its `weight(1f)` bounds stay centered
- * well clear of the row's right side, but Water's own *leading* edge starts right at the row's own
- * start inset, so it's just as exposed to Back as the narrow, edge-hugging Reschedule button is to
- * Edit/FAB (#604 round-2 review fix — the first fix only widened the trailing side). [ROW_END_INSET]
- * clears the FAB's full reach (the wider of the two trailing danger zones) with a small buffer, which
- * also clears the narrower Edit button's reach as a side effect; [ROW_START_INSET] clears Back's reach
- * the same way.
+ * Plain `16dp` horizontal padding, matching every other card on the screen (#610) — this row can
+ * still scroll flush against a screen edge and land inside the pinned Back/Edit/FAB overlay buttons'
+ * touch targets there (Box overlay, not Scaffold — technical ADR-0018), but that narrow collision risk
+ * is now a deliberate, human-confirmed trade-off in exchange for visual consistency (technical
+ * ADR-0022) rather than something this row's own margins should compensate for; ADR-0022 addresses
+ * the Edit corner by fading that button on scroll instead.
  */
 @Composable
 internal fun WateringDueActionsRow(
@@ -110,7 +84,7 @@ internal fun WateringDueActionsRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = ROW_START_INSET, end = ROW_END_INSET),
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Button(
@@ -135,11 +109,8 @@ internal fun WateringDueActionsRow(
  * `onFertilizeClick` entry point once `StatsRow` is dropped from the tabs layout. No "reschedule"
  * counterpart — fertilizing has no equivalent concept, so this is one button, not a row of two.
  *
- * Uses the same [ROW_START_INSET]/[ROW_END_INSET] as [WateringDueActionsRow] — its single
- * `weight(1f)` button fills nearly the entire row, so unlike Water's off-center Reschedule button,
- * *both* its edges sit close to the row's own bounds and are equally exposed to the pinned Back
- * (leading) and Edit/FAB (trailing) buttons whenever this row — also first-in-tab since #603 round-3
- * — scrolls flush against either side of the viewport (#604 round-2 review fix).
+ * Uses the same plain `16dp` horizontal padding as [WateringDueActionsRow] (#610) — see that
+ * function's KDoc for the accepted residual collision trade-off with the pinned Back/FAB buttons.
  */
 @Composable
 internal fun FertilizeDueActionRow(
@@ -149,7 +120,7 @@ internal fun FertilizeDueActionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = ROW_START_INSET, end = ROW_END_INSET)
+            .padding(horizontal = 16.dp)
     ) {
         OutlinedButton(
             onClick = onFertilizeClick,
