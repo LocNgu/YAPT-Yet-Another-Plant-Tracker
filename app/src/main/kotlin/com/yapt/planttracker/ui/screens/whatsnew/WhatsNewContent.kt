@@ -11,6 +11,25 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 380,
+            versionName = "0.25.0",
+            changed = listOf(
+                "Plant Detail's Water and Reschedule watering buttons are now always visible, not just when " +
+                    "watering is due — Reschedule watering had no other way to reach it before this. With the " +
+                    "\"Plant Detail tabs\" flag on, the now-redundant quick-log summary above the tabs is gone; " +
+                    "Fertilize gets its own always-visible action button under its tab instead",
+                "The off-schedule watering reason prompt now words itself for the direction the schedule was " +
+                    "missed — a late watering asks \"Why was it late?\" — \"It was dry by then\" / \"Forgot, or " +
+                    "no time\", naming forgetting outright instead of an abstract excuse. An early watering " +
+                    "still asks \"Why now?\" — \"The plant needed it\" / \"Just my schedule\". What the " +
+                    "adaptive model learns from either answer is unchanged — only the wording",
+                "With the \"Plant Detail tabs\" flag on, the Water/Reschedule watering row (and Fertilize's " +
+                    "action button) now sits above the interval settings on its tab instead of below. Water is " +
+                    "a filled button with a water-drop icon; Reschedule watering is now an icon-only button, " +
+                    "freeing up more width for Water"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 370,
             versionName = "0.24.0",
             added = listOf(
@@ -35,7 +54,17 @@ object WhatsNewContent {
                 "Fertilizing interval slider now goes up to 180 days (was 90), for long-term or slow-release " +
                     "fertilizers",
                 "With the \"Plant Detail tabs\" flag on, Custom Reminders and Active Issues become their own " +
-                    "tabs behind a collapsible toggle instead of always-visible cards"
+                    "tabs behind a collapsible toggle instead of always-visible cards",
+                "Plant Detail's Water and Reschedule watering buttons are now always available, not just when " +
+                    "watering is due — Reschedule had no other way to reach it. With the \"Plant Detail tabs\" " +
+                    "flag on, the quick-log summary above the tabs is gone (now redundant); Fertilize gets its " +
+                    "own always-available button under the Fertilize tab instead, and the \"last watered\"/" +
+                    "\"last fertilized\" text that summary used to show now appears in each tab's insights " +
+                    "card instead. The classic layout is unchanged",
+                "With the \"Plant Detail tabs\" flag on, the Water/Reschedule watering row (and Fertilize's " +
+                    "action button) now sits above the interval settings on its tab instead of below. Water is " +
+                    "a filled green button with a water-drop icon; Reschedule watering is now an icon-only " +
+                    "button, freeing up more width for Water"
             )
         ),
         ReleaseNotes(

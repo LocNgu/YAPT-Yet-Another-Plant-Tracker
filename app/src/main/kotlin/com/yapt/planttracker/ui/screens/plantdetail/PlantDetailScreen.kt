@@ -59,6 +59,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -424,6 +425,7 @@ fun PlantDetailScreen(
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
+                gapRanLong = careStatus?.isWateringGapLong == true,
                 onDismiss = { showWaterSheet = false },
                 onLog = { reason ->
                     viewModel.quickWater(reason)
@@ -437,6 +439,7 @@ fun PlantDetailScreen(
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
+                gapRanLong = careStatus?.isWateringGapLong == true,
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
                 onDismiss = { showLiquidFertilizeSheet = false },
                 onLog = { reason ->
@@ -539,30 +542,28 @@ fun PlantDetailScreen(
                         }
                     }
 
-                    // #434 quick-log chips stay above the tab strip as an always-visible summary.
-                    careStatus?.let { status ->
-                        item {
-                            StatsRow(
-                                status = status,
-                                onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
-                                onFertilizeClick = {
-                                    if (plant?.useLiquidFertilizer == true) {
-                                        requestLiquidFertilize(status, viewModel) {
-                                            showLiquidFertilizeSheet = true
-                                        }
-                                    } else {
-                                        viewModel.quickFertilize()
-                                    }
-                                }
-                            )
-                            Spacer(Modifier.height(16.dp))
-                        }
-                    }
-
                     if (!tabsEnabled) {
-                        // Classic single-page layout (feature flag off): watering-due actions, chart, gallery.
+                        // Classic single-page layout (feature flag off): #434 quick-log chips,
+                        // watering-due actions, chart, gallery. StatsRow stays above the (absent)
+                        // tab strip as an always-visible summary here (tabs layout drops it, #603).
                         careStatus?.let { status ->
-                            if (plant?.wateringIntervalDays != null && (status.isOverdue || status.isDueSoon)) {
+                            item {
+                                StatsRow(
+                                    status = status,
+                                    onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
+                                    onFertilizeClick = {
+                                        if (plant?.useLiquidFertilizer == true) {
+                                            requestLiquidFertilize(status, viewModel) {
+                                                showLiquidFertilizeSheet = true
+                                            }
+                                        } else {
+                                            viewModel.quickFertilize()
+                                        }
+                                    }
+                                )
+                                Spacer(Modifier.height(16.dp))
+                            }
+                            if (plant?.wateringIntervalDays != null) {
                                 item {
                                     WateringDueActionsRow(
                                         onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
@@ -649,6 +650,19 @@ fun PlantDetailScreen(
 
                         when (selectedTab) {
                             PlantDetailTab.WATER -> {
+                                careStatus?.let { status ->
+                                    if (plant?.wateringIntervalDays != null) {
+                                        item {
+                                            WateringDueActionsRow(
+                                                onWaterClick = {
+                                                    requestWater(status, viewModel) { showWaterSheet = true }
+                                                },
+                                                onRescheduleClick = { viewModel.requestReschedule() }
+                                            )
+                                            Spacer(Modifier.height(16.dp))
+                                        }
+                                    }
+                                }
                                 item {
                                     InlineIntervalSetting(
                                         setting = IntervalSetting(
@@ -703,26 +717,11 @@ fun PlantDetailScreen(
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.WATER),
                                         countLabel = stringResource(R.string.insight_waterings),
-                                        lastAtLabel = null
+                                        lastAtLabel = stringResource(R.string.insight_last_watered)
                                     )
                                     if (insights.isNotEmpty()) {
                                         TabInsightsCard(insights)
                                         Spacer(Modifier.height(16.dp))
-                                    }
-                                }
-                                careStatus?.let { status ->
-                                    if (plant?.wateringIntervalDays != null &&
-                                        (status.isOverdue || status.isDueSoon)
-                                    ) {
-                                        item {
-                                            WateringDueActionsRow(
-                                                onWaterClick = {
-                                                    requestWater(status, viewModel) { showWaterSheet = true }
-                                                },
-                                                onRescheduleClick = { viewModel.requestReschedule() }
-                                            )
-                                            Spacer(Modifier.height(16.dp))
-                                        }
                                     }
                                 }
                                 item {
@@ -754,6 +753,24 @@ fun PlantDetailScreen(
                             }
 
                             PlantDetailTab.FERTILIZE -> {
+                                careStatus?.let { status ->
+                                    if (plant?.fertilizingIntervalDays != null) {
+                                        item {
+                                            FertilizeDueActionRow(
+                                                onFertilizeClick = {
+                                                    if (plant?.useLiquidFertilizer == true) {
+                                                        requestLiquidFertilize(status, viewModel) {
+                                                            showLiquidFertilizeSheet = true
+                                                        }
+                                                    } else {
+                                                        viewModel.quickFertilize()
+                                                    }
+                                                }
+                                            )
+                                            Spacer(Modifier.height(16.dp))
+                                        }
+                                    }
+                                }
                                 item {
                                     InlineIntervalSetting(
                                         setting = IntervalSetting(
@@ -788,7 +805,7 @@ fun PlantDetailScreen(
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.FERTILIZE),
                                         countLabel = stringResource(R.string.insight_fertilizings),
-                                        lastAtLabel = null
+                                        lastAtLabel = stringResource(R.string.insight_last_fertilized)
                                     )
                                     if (insights.isNotEmpty()) {
                                         TabInsightsCard(insights)
@@ -1146,7 +1163,10 @@ private fun PlantDetailTabStrip(
  * The tappable/clickable target is the full-width [Row], not just the icon — a plain `Modifier
  * .clickable` (not [IconButton], which caps its own touch target) so the whole strip beneath the tabs
  * expands/collapses on tap, not only the small chevron glyph (#591). `clickable`'s semantics node
- * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row.
+ * merges its descendants, so the [Icon]'s `contentDescription` is what gets announced for the row;
+ * `onClickLabel` is deliberately omitted since it would duplicate that same description in TalkBack's
+ * announcement. `minimumInteractiveComponentSize()` restores the 48dp-minimum touch target [IconButton]
+ * used to guarantee on its own, which the horizontal-only widening above doesn't otherwise cover (#597).
  */
 @Composable
 private fun TabRowExpandToggle(
@@ -1166,8 +1186,9 @@ private fun TabRowExpandToggle(
     }
     Row(
         modifier = modifier
-            .clickable(onClickLabel = toggleCd, role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClick = onToggle)
             .testTag("plant_detail_tabs_toggle")
+            .minimumInteractiveComponentSize()
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -1175,7 +1196,7 @@ private fun TabRowExpandToggle(
         BadgedBox(
             badge = {
                 if (!isExpanded && hasAttention) {
-                    Badge(modifier = Modifier.testTag("plant_detail_tabs_attention_badge"))
+                    Badge()
                 }
             }
         ) {
@@ -1261,8 +1282,8 @@ private fun InlineIntervalSetting(
 /**
  * Builds the label/value rows for a care type's insight card (#436, sub-task 3). Returns an empty
  * list when there are no events of that type so the caller can skip the card entirely. [lastAtLabel]
- * adds a "last done" row (used by the Repot tab, which has no summary chip above the tabs); pass
- * `null` where the StatsRow above the tabs already shows the last event.
+ * adds a "last done" row; pass `null` only where another surface already shows the last event
+ * (none currently do — `StatsRow` was removed from the tabs layout entirely, #603).
  */
 @Composable
 private fun careTypeInsightItems(

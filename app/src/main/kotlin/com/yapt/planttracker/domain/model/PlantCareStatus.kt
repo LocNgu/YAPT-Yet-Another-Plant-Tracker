@@ -27,6 +27,19 @@ data class PlantCareStatus(
      */
     val isWateringOnSchedule: Boolean = true,
     /**
+     * Which side of the schedule an off-schedule watering falls on: `true` when the gap since the
+     * last watering has already run **longer** than the effective interval (watered late), `false`
+     * when it is still short of it (watered early). Only meaningful while [isWateringOnSchedule] is
+     * `false` — it is what lets the reason prompt ask "why was it late?" instead of "why now?",
+     * which reads as an accusation on an overdue plant (#586, product ADR-0030).
+     *
+     * Derived from the same gap-vs-effective-interval comparison as [isWateringOnSchedule], **not**
+     * from [isOverdue]: the latter is measured against the due date, which an active
+     * `wateringDueDateOverride` moves, so a deferred plant can be not-overdue while its gap has
+     * still run long. Defaulted `false` so a status built by hand in a test reads as the early case.
+     */
+    val isWateringGapLong: Boolean = false,
+    /**
      * Count of currently-unresolved [PlantIssue]s on this plant (issue #564) — a passive count, not
      * a due-date status like the other fields, so it's populated directly by each ViewModel rather
      * than routed through [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus].

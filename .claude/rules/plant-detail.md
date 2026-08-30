@@ -20,8 +20,8 @@ The whole tabs feature (tab strip + inline settings + per-tab insights) sits beh
 `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default **off**). `PlantDetailViewModel` exposes
 `tabsEnabled: StateFlow<Boolean>`; the screen branches — **on** = `PlantDetailTabStrip` (a `FlowRow` of standalone
 `Tab`s, not `TabRow`/`PrimaryTabRow` — see below) as a `LazyColumn` item inside the Box overlay below the hero;
-**off** = classic single-page layout. The `StatsRow` quick-log chips, shared care-history list, and `+` FAB render
-in **both** paths.
+**off** = classic single-page layout. The shared care-history list and `+` FAB render in **both** paths; `StatsRow`
+does not — see "Tappable stat chips" below (#603).
 > Per ADR-0022's flag-lifecycle rule: when this graduates, delete the registry entry **and** the flag-off branch in
 > the graduating PR.
 
@@ -70,24 +70,83 @@ editor for name/species/room/notes/cover.
 `summarizePhotos(galleryPhotos)` → `PhotoSummary`. JVM-tested (`CareInsightsTest`). Shared `TabInsightsCard` +
 `careTypeInsightItems(...)` live in `PlantDetailScreen.kt`.
 
-## Tappable stat chips (#434)
-Watering/Fertilizing `StatChip`s take optional `onWaterClick`/`onFertilizeClick` (with `clickable(onClickLabel=…)`
-for a11y). Water logs directly when on schedule, else opens `WateringReasonBottomSheet` → `quickWater(reason)`;
-Fertilize → `quickFertilize()` (regular) or the same reason-gated path → `quickLiquidFertilize(reason)`
-(liquid-fert, whose paired WATER log follows the same rule). All delegate to the shared `QuickLogUseCase`, feed the
-adaptive suggestion into the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`. Left in place
-alongside the watering-due actions row below (#508/#586) — its removal is a deferred follow-up, out of scope there.
+## Tappable stat chips (#434) — classic layout only (#603)
+Watering/Fertilizing `StatChip`s (in `StatsRow`) take optional `onWaterClick`/`onFertilizeClick` (with
+`clickable(onClickLabel=…)` for a11y). Water logs directly when on schedule, else opens
+`WateringReasonBottomSheet` → `quickWater(reason)`; Fertilize → `quickFertilize()` (regular) or the same
+reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log follows the same
+rule). All delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into the
+`suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
 
-## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030)
-When a watering is due (`status.isOverdue || status.isDueSoon`), `WateringDueActionsRow`
-(`WateringDueActions.kt`) renders **two** `OutlinedButton`s in one row — narrowed from #508's three
-(ADR-0029) — in both the classic layout and the Water tab. "Did water go in, or not?" is a fact, not a
-judgement; *why* is asked afterwards, and only when the action is off schedule.
+**`StatsRow`'s placement is layout-dependent (#603):** in the **classic layout** it stays exactly as before,
+an always-visible summary above the (absent) tab strip, unchanged. In the **tabs layout** it is removed
+entirely — its watering `StatChip` became a redundant second control once `WateringDueActionsRow`'s Water
+button became always-visible (see below), and its fertilizing `StatChip` is replaced by
+`FertilizeDueActionRow` (`WateringDueActions.kt`), a single always-visible `OutlinedButton` rendered under
+the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring `WateringDueActionsRow`'s
+own `wateringIntervalDays` gate) — not on due status, same as the `StatChip` it replaces. It has no
+"reschedule" counterpart since fertilizing has no equivalent concept. `careTypeInsightItems(...)`'s
+`lastAtLabel` is populated (`R.string.insight_last_watered` / `R.string.insight_last_fertilized`) for
+both Water/Fertilize tabs, restoring the "last done" display `StatsRow` used to show above the tab strip
+(round-2 fix, #603) — it is no longer `null` there.
+
+## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
+`WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** buttons in one row — narrowed
+from #508's three (ADR-0029) — in both the classic layout and the Water tab, gated only on
+`plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
+|| status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
+before the plant's due date). "Did water go in, or not?" is a fact, not a judgement; *why* is asked
+afterwards, and only when the action is off schedule.
+
+**Styling (#603 round-3 visual polish):** Water is a filled Material3 `Button` (`colorScheme.primary`,
+no hardcoded color — resolves to `SageGreen`/`SageGreenLight` in `Theme.kt`) with a leading
+`Icons.Filled.WaterDrop` icon ahead of its text, `Modifier.weight(1f)`. Reschedule watering is an
+icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `contentDescription` reuses
+`R.string.reschedule_watering_title`), sized to its own content so Water's `weight(1f)` takes the rest
+of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
+`onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
+
+The row's trailing inset is `88.dp` (`WateringDueActions.kt`'s `ROW_END_INSET`) and its leading inset
+is `64.dp` (`ROW_START_INSET`), neither the usual `16.dp` every other card uses. In the tabs layout this
+row can be scrolled flush against any edge of the screen's own scrollable viewport (it's the first item
+under its tab), which is exactly where the *permanently pinned* Back icon button (top-left), Edit icon
+button (top-right), and "Log care" FAB (bottom-right) live regardless of scroll position (Box overlay,
+not Scaffold — technical ADR-0018). Those draw on top in z-order and win any touch that lands in their
+bounds; a button hugging the row's own `16.dp` edge would have its clickable bounds fall inside theirs.
+`ROW_END_INSET` clears the FAB's full reach (its `16.dp` padding + `56.dp` default size = `72.dp` from
+the true edge) with a small buffer, which also clears the narrower Edit button's reach as a side effect
+— Water's own click at the trailing edge was never affected since its `weight(1f)` bounds stay centered
+well clear of the row's right side (#604 CI fix). `ROW_START_INSET` clears Back's reach the same way:
+Back has no extra padding of its own around it, so its reach is just the default M3 `IconButton` touch
+target (`48.dp`) from the true edge, plus the same small buffer — smaller than the FAB's, since there's
+no padding stacked on top of it. Water's own *leading* edge sits right at the row's start inset (its
+`weight(1f)` only keeps it clear on the trailing side), so it needed the same protection Reschedule's
+edge-hugging icon button did on the other side (#604 round-2 review fix — the first fix only widened the
+trailing inset, leaving the mirror-image leading-edge/Back collision unfixed). Both insets are shared by
+`FertilizeDueActionRow` too: its single `weight(1f)` button fills nearly the whole row, so unlike
+Water's off-center Reschedule button, both of *its* edges sit close to the row bounds and are equally
+exposed on both sides.
+
+A `LazyColumn`-level top/bottom `contentPadding` was considered instead of these per-row insets (the
+screen's own `LazyColumn` already has an `88.dp` bottom `contentPadding`, but that exists to keep the
+*true last item* of the whole list clear of the FAB at max scroll, an unrelated concern). That mechanism
+only bounds the start/end of the *whole* scrollable range — it can't protect a row that isn't the first
+or last item in the list from landing flush against a pinned corner at some *intermediate* scroll
+position, which is exactly the scenario here (`WateringDueActionsRow`/`FertilizeDueActionRow` are early
+in their tab, not first/last in the overall `LazyColumn`, since the hero photo/title/tab strip precede
+them). The per-row horizontal inset is the general fix that actually holds at any scroll position; a
+`LazyColumn`-level change was left as a possible future structural cleanup, not pursued here.
+
+**Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
+Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions
+row → interval card → per-tab insights card. Classic layout has no inline interval settings (ADR-0023 is
+tabs-only), so its row position is unchanged.
 
 - **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
   opens `WateringReasonBottomSheet` ("Why now?" → "The plant needed it" / "Just my timing"). The
   `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
-  branch, shared with the tappable watering/fertilizing `StatChip`s so the surfaces can't disagree.
+  branch, shared with the classic layout's tappable `StatChip`s and the tabs layout's
+  `FertilizeDueActionRow` so no surface can disagree.
 - **Reschedule watering** — `requestReschedule()` opens `RescheduleReasonBottomSheet` ("Why put it
   off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
   `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.

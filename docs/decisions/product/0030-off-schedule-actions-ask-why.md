@@ -198,3 +198,6 @@ attribution.
   need a third control.
 - The thing a future change is most likely to break is the symmetric rule itself, by adding a fourth
   control or a fourth reason. That is what this ADR exists to record.
+- Amended by [ADR-0031](0031-watering-actions-always-visible.md) (visibility gate): the
+  `isOverdue || isDueSoon` due-status gate this ADR carried forward from ADR-0029 is dropped, so both
+  Water and Reschedule watering render on any day, not only once a plant is due.
