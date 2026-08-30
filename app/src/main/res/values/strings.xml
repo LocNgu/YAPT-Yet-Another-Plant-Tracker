@@ -332,6 +332,7 @@
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>
     <string name="empty_state_all_assigned">All plants are assigned to a room.</string>
     <string name="empty_state_cared_today">No plants cared for yet today</string>
+    <string name="empty_state_active_issues">No plants have active issues</string>
     <string name="sort_alphabetical">Alphabetical</string>
     <string name="sort_alphabetical_asc">Alphabetical (A→Z)</string>
     <string name="sort_alphabetical_desc">Alphabetical (Z→A)</string>
@@ -340,6 +341,7 @@
     <string name="sort_recently_added">Recently added</string>
     <string name="sort_both_due">Water + Fertilize due</string>
     <string name="sort_cared_for_today">Cared for today</string>
+    <string name="sort_active_issues">Active issues</string>
     <string name="date_group_overdue">Overdue</string>
     <string name="date_group_today">Today</string>
     <string name="date_group_tomorrow">Tomorrow</string>
