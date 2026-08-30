@@ -578,6 +578,10 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Reschedule watering"))
+        // performScrollToNode's minimal-scroll lands the row flush against the bottom-edge FAB;
+        // scroll a hair further to a node just below it so Reschedule sits mid-viewport, not flush.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
         // #586: the reason prompt comes first — both answers offered, the date options not yet.
@@ -616,6 +620,8 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("Soil still moist").performClick()
 
@@ -655,6 +661,8 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
@@ -715,6 +723,8 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
@@ -739,6 +749,8 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
         composeTestRule.onNodeWithText("I can't right now").performClick()
 
