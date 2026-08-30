@@ -13,6 +13,10 @@ object WhatsNewContent {
         ReleaseNotes(
             versionCode = 390,
             versionName = "0.25.1",
+            added = listOf(
+                "A new \"Active issues\" option in the Plant List sort menu narrows the list to only plants " +
+                    "currently flagged with a pest/health issue"
+            ),
             fixed = listOf(
                 "\"Soil still moist\" reschedules (in-app or from the notification) now actually clear the " +
                     "plant's due/overdue status when adaptive watering is on, instead of silently reverting a " +

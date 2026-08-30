@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Plant List sort menu gains an "Active issues" filter** — a new `ACTIVE_ISSUES` `SortOption` value narrows the plant list to only plants with at least one active `PlantIssue` (`activeIssueCount > 0`), following the exact same filter-like-sort pattern as `BOTH_DUE`/`CARED_FOR_TODAY`. Combines with the existing room filter (AND, inherited automatically since room filtering happens upstream of `applySortOrder()`). Persists to DataStore like every other `SortOption` value. No new reactive Flow — reuses `PlantCareStatus.activeIssueCount` exactly as already computed by `buildStatus()`, so it shares the same staleness window as the `IssuePurple` badge on `PlantCard` (#617)
+
 ---
 
 ## [0.25.1] - 2026-08-30
