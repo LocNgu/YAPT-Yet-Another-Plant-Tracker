@@ -106,16 +106,36 @@ icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `co
 of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
 `onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
 
-The row's trailing inset is `88.dp` (`WateringDueActions.kt`'s `ROW_END_INSET`), not the usual `16.dp`
-every other card uses. In the tabs layout this row can be scrolled flush against either edge of the
-screen's own scrollable viewport (it's the first item under its tab), which is exactly where the
-*permanently pinned* Edit icon button (top-right) and "Log care" FAB (bottom-right) live regardless of
-scroll position (Box overlay, not Scaffold — technical ADR-0018). Those draw on top in z-order and win
-any touch that lands in their bounds; a trailing icon-only button hugging the row's own `16.dp` edge
-would have its clickable bounds fall inside theirs. `ROW_END_INSET` clears the FAB's full reach (its
-`16.dp` padding + `56.dp` default size = `72.dp` from the true edge) with a small buffer, which also
-clears the narrower Edit button's reach as a side effect — Water's own click was never affected since
-its `weight(1f)` bounds stay centered well clear of either screen edge (#604 CI fix).
+The row's trailing inset is `88.dp` (`WateringDueActions.kt`'s `ROW_END_INSET`) and its leading inset
+is `64.dp` (`ROW_START_INSET`), neither the usual `16.dp` every other card uses. In the tabs layout this
+row can be scrolled flush against any edge of the screen's own scrollable viewport (it's the first item
+under its tab), which is exactly where the *permanently pinned* Back icon button (top-left), Edit icon
+button (top-right), and "Log care" FAB (bottom-right) live regardless of scroll position (Box overlay,
+not Scaffold — technical ADR-0018). Those draw on top in z-order and win any touch that lands in their
+bounds; a button hugging the row's own `16.dp` edge would have its clickable bounds fall inside theirs.
+`ROW_END_INSET` clears the FAB's full reach (its `16.dp` padding + `56.dp` default size = `72.dp` from
+the true edge) with a small buffer, which also clears the narrower Edit button's reach as a side effect
+— Water's own click at the trailing edge was never affected since its `weight(1f)` bounds stay centered
+well clear of the row's right side (#604 CI fix). `ROW_START_INSET` clears Back's reach the same way:
+Back has no extra padding of its own around it, so its reach is just the default M3 `IconButton` touch
+target (`48.dp`) from the true edge, plus the same small buffer — smaller than the FAB's, since there's
+no padding stacked on top of it. Water's own *leading* edge sits right at the row's start inset (its
+`weight(1f)` only keeps it clear on the trailing side), so it needed the same protection Reschedule's
+edge-hugging icon button did on the other side (#604 round-2 review fix — the first fix only widened the
+trailing inset, leaving the mirror-image leading-edge/Back collision unfixed). Both insets are shared by
+`FertilizeDueActionRow` too: its single `weight(1f)` button fills nearly the whole row, so unlike
+Water's off-center Reschedule button, both of *its* edges sit close to the row bounds and are equally
+exposed on both sides.
+
+A `LazyColumn`-level top/bottom `contentPadding` was considered instead of these per-row insets (the
+screen's own `LazyColumn` already has an `88.dp` bottom `contentPadding`, but that exists to keep the
+*true last item* of the whole list clear of the FAB at max scroll, an unrelated concern). That mechanism
+only bounds the start/end of the *whole* scrollable range — it can't protect a row that isn't the first
+or last item in the list from landing flush against a pinned corner at some *intermediate* scroll
+position, which is exactly the scenario here (`WateringDueActionsRow`/`FertilizeDueActionRow` are early
+in their tab, not first/last in the overall `LazyColumn`, since the hero photo/title/tab strip precede
+them). The per-row horizontal inset is the general fix that actually holds at any scroll position; a
+`LazyColumn`-level change was left as a possible future structural cleanup, not pursued here.
 
 **Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
 Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions
