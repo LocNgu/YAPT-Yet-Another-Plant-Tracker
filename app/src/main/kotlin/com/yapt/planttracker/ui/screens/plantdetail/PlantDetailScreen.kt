@@ -1,7 +1,10 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -173,6 +177,11 @@ fun PlantDetailScreen(
         targetValue = if (isExpanded) 180f else 0f,
         label = "chevronRotation"
     )
+
+    // Edit fades out once the hero photo (the LazyColumn's item index 0) has fully scrolled past —
+    // Back and the FAB stay pinned regardless of scroll (technical ADR-0022).
+    val listState = rememberLazyListState()
+    val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
     var selectedTab by rememberSaveable { mutableStateOf(PlantDetailTab.WATER) }
     var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }
@@ -457,6 +466,7 @@ fun PlantDetailScreen(
         Box(Modifier.fillMaxSize()) {
             if (plant != null) {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag(PLANT_DETAIL_CONTENT_TEST_TAG),
@@ -1035,17 +1045,23 @@ fun PlantDetailScreen(
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(
-                    onClick = onNavigateToEdit,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = iconContainerColor
-                    )
+                AnimatedVisibility(
+                    visible = !scrolledPastHero,
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = stringResource(R.string.cd_edit_plant),
-                        tint = iconTint
-                    )
+                    IconButton(
+                        onClick = onNavigateToEdit,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = iconContainerColor
+                        )
+                    ) {
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.cd_edit_plant),
+                            tint = iconTint
+                        )
+                    }
                 }
             }
 

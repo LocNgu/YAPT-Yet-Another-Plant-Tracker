@@ -11,6 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 390,
+            versionName = "0.25.1",
+            changed = listOf(
+                "The Water/Reschedule watering row and Fertilize's action button now use the same margins as " +
+                    "every other card on Plant Detail, instead of the wide gaps introduced to avoid overlapping " +
+                    "the pinned Back/Edit/\"Log care\" buttons. Instead, the Edit button now fades out once " +
+                    "you've scrolled past the plant's cover photo, and Back and \"Log care\" stay put"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 380,
             versionName = "0.25.0",
             changed = listOf(

@@ -30,3 +30,4 @@ See `PlantDetailScreen.kt`.
 - The tab strip is not pinned — it scrolls off-screen with the hero. Accepted: Plant Detail is a browse/scroll surface, not a workspace that needs a persistent tab bar, and pinning would require the `Scaffold` layout ADR-0005 rejects.
 - Any future full-bleed-hero screen that also needs tabs should follow this pattern (tabs as scrolling content in the Box) rather than reintroducing a `Scaffold`.
 - Per-tab inline settings and richer insights (issue #436 sub-tasks 2–3) render as additional items under the selected tab within this same structure; they do not require revisiting the scaffold decision.
+- Amended by ADR-0022 (Edit button scroll fade): the overlaid Edit icon button is no longer persistently interactive throughout scrolling as described above — it now fades out (and stops being clickable) once the hero photo has scrolled substantially out of view. Back and the FAB are unaffected and remain exactly as described here.
