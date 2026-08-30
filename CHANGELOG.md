@@ -14,6 +14,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ---
 
+## [0.25.1] - 2026-08-30
+
+### Changed
+- **Water/Reschedule watering row and Fertilize's action button reverted to plain 16dp margins, matching every other card on Plant Detail** — #604's wide `ROW_START_INSET`/`ROW_END_INSET` (64dp/88dp, 152dp total) looked visibly broken next to every sibling card's 16dp. Instead, the pinned Edit icon button now fades out once you've scrolled substantially past the hero photo, removing the one collision risk that mattered most (Edit sits opposite the row's off-center Reschedule/Fertilize buttons); Back and the "Log care" FAB stay pinned and clickable throughout scrolling, as before. This knowingly re-accepts a narrow residual touch-collision risk with Back/FAB when the row happens to be scrolled flush against a screen edge — a deliberate visual-consistency trade-off, not an oversight (technical ADR-0022, narrows ADR-0018) (#610)
+### Fixed
+- **"Soil still moist" reschedule no longer silently reverts the new due date when adaptive watering is on** — `QuickLogUseCase.recordStillMoistCheck()` wrote the new `wateringDueDateOverride` in one `updatePlant()` call, then (when `adaptive_watering` was enabled and confidence changed) issued a second `updatePlant()` call built from the stale pre-write `Plant` snapshot, whose `.copy()` silently reverted the override that had just been persisted — so a plant rescheduled via the in-app Reschedule dialog or the notification's "Still moist" action kept showing as due/overdue. The override write and the confidence write are now combined into a single `updatePlant()` call built off the same up-to-date state, so this class of clobber can't recur. No DB migration, no behavior change to the adaptive model's math or to the `watering_adjustments` row it writes (#612)
+
+---
+
 ## [0.25.0] - 2026-08-30
 
 ### Changed
