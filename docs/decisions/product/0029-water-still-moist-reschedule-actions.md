@@ -96,3 +96,6 @@ Reschedule symmetric with Still moist: one writer of `wateringDueDateOverride` t
 - The Reschedule dialog's five options replace one full-width button with a stepper; Plant Detail's
   watering-due surface goes from one button to three, which was evaluated against the tabs/inline-settings
   layout (product ADR-0023) rather than assumed safe by default.
+- Amended by [ADR-0031](0031-watering-actions-always-visible.md) (visibility gate): the
+  `isOverdue || isDueSoon` due-status gate this ADR introduced is dropped, since it made Reschedule —
+  which has no other entry point — unreachable before a plant's due date.

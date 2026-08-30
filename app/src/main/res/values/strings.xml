@@ -317,6 +317,9 @@
     <string name="insight_repottings">Repottings</string>
     <string name="insight_photos">Photos</string>
     <string name="insight_avg_interval">Avg. interval</string>
+    <!-- #603: last watered/fertilized restored to the tabs layout after StatsRow was removed there -->
+    <string name="insight_last_watered">Last watered</string>
+    <string name="insight_last_fertilized">Last fertilized</string>
     <string name="insight_last_repotted">Last repotted</string>
     <string name="insight_first_photo">First photo</string>
     <string name="insight_latest_photo">Latest photo</string>
