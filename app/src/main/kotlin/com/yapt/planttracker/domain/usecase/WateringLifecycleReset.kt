@@ -115,6 +115,8 @@ object WateringLifecycleReset {
         val plant = request.plant
         val before = currentIntervalOrZero(plant)
         val after = result.baseIntervalDays.roundToInt()
+        // Intentionally overwrites any incremental confidence/base learned per-observation between
+        // the freeze ending and this bootstrap firing — the cold-start estimate wins, not a bug.
         plantRepository.updatePlant(
             plant.copy(
                 wateringBaseIntervalDays = result.baseIntervalDays,

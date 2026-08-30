@@ -330,6 +330,46 @@ class AddCareLogViewModelTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
+    // #571 AC3 regression: editing a past REPOT log's date/type must never re-trigger the reset —
+    // it's written once at original log-creation time, not derived from querying REPOT history live.
+    @Test
+    fun `editing an existing REPOT log's date does not re-trigger the reset`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.REPOT,
+            loggedAt = now - 10L * 24 * 60 * 60 * 1000
+        )
+        val adaptiveDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 99L,
+            dataStore = adaptiveDataStore,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        advanceUntilIdle()
+        vm.loggedAt = now
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+    }
+
     @Test
     fun `save PHOTO log with photoUri updates plant coverPhotoUri`() = runTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(plant())
