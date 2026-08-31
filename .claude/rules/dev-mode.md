@@ -50,7 +50,7 @@ no schema bump).
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,
-deterministic 8-plant dataset generator, `object` with a single `generate(now)` entry point — the anchor-time math
+deterministic 10-plant dataset generator, `object` with a single `generate(now)` entry point — the anchor-time math
 and per-plant definitions are split into `DemoDataTime`/`DemoPlantBuilders` to stay under Detekt's `TooManyFunctions`
 threshold) and `DemoDataSeeder` (impure orchestration: writes/deletes via `PlantRepository`/`CareLogRepository`,
 wrapped in one `database.withTransaction {}` so a killed process can't leave a partial demo set behind). Every demo
@@ -59,6 +59,16 @@ existing `[Demo] `-prefixed plants first, so repeated taps never stack duplicate
 that prefix, cascading care logs, never touching a real plant. `SettingsViewModel.seedDemoPlants()` /
 `removeDemoPlants()` lazily construct `DemoDataSeeder` (not a constructor param — avoids growing the VM's param list)
 and route through the same `debugActionEvent` snackbar as the other Debug actions.
+
+Two of the ten (ZZ Plant, Rubber Plant — #571) ship with a pre-adapted `wateringConfidence` (3 and 4) purely so a
+developer can manually exercise the lifecycle-reset triggers without grinding out real watering history first: log
+a REPOT on the ZZ Plant to see confidence drop to 0 and the 4-week freeze start, or edit the Rubber Plant to a
+different room to see the reset with no freeze. Aloe Vera also carries a pre-adapted confidence (2) with its
+already-`null` room, to demo the blank→filled exception (assigning its room for the first time must not reset it).
+The rest of the dataset covers the cold-start bootstrap for free: every other plant keeps `wateringConfidence ==
+null`, so once `ADAPTIVE_WATERING` is on, the next WATER log against a plant with enough history (Monstera, Snake
+Plant, Fiddle Leaf Fig, Pothos, Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants
+(Aloe Vera, Cactus, Calathea) correctly keep their typed interval.
 
 ## Debug actions (#522)
 Two non-destructive rows below the flags list; neither touches the DB or confirms.

@@ -7,11 +7,12 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringFeedback
 
 /**
- * The 8 fixed demo plants (#523) — their static attributes plus how each one's care-log history
- * is built. Split out of [DemoData] purely to keep each object's function count under Detekt's
- * `TooManyFunctions` threshold (#463) — there is no other reason for the split. All day offsets
- * and dataset constants are named below rather than inlined, since Detekt's `MagicNumber` rule is
- * active outside `ui/` (#463).
+ * 8 of the 10 fixed demo plants (#523) — their static attributes plus how each one's care-log
+ * history is built. The other 2 (ZZ Plant, Rubber Plant, #571) live in
+ * [DemoAdaptiveResetPlantBuilders], appended in [buildAll]. Both objects exist purely to keep
+ * function counts under Detekt's `TooManyFunctions` threshold (#463) — there is no other reason
+ * for the split. All day offsets and dataset constants are named below rather than inlined, since
+ * Detekt's `MagicNumber` rule is active outside `ui/` (#463).
  */
 internal object DemoPlantBuilders {
 
@@ -85,6 +86,11 @@ internal object DemoPlantBuilders {
     private const val CALATHEA_WATER_INTERVAL_DAYS = 6
     private const val CALATHEA_CREATED_DAYS_AGO = 3
 
+    // Aloe Vera also carries a pre-adapted confidence (#571 manual test): assigning its
+    // never-set room for the first time must NOT reset it (blank->filled is data entry, not a
+    // move) — see `roomChangeTriggersReset()`.
+    private const val ALOE_PRE_ADAPTED_CONFIDENCE = 2
+
     fun buildAll(anchor: Long): List<DemoPlantSeed> = listOf(
         buildMonstera(anchor),
         buildSnakePlant(anchor),
@@ -94,7 +100,7 @@ internal object DemoPlantBuilders {
         buildAloeVera(anchor),
         buildCactus(anchor),
         buildCalathea(anchor)
-    )
+    ) + DemoAdaptiveResetPlantBuilders.buildAll(anchor)
 
     private fun buildMonstera(anchor: Long): DemoPlantSeed {
         val plant = Plant(
@@ -220,7 +226,8 @@ internal object DemoPlantBuilders {
             wateringIntervalDays = ALOE_WATER_INTERVAL_DAYS,
             fertilizingIntervalDays = null,
             createdAt = DemoDataTime.offsetMillis(anchor, ALOE_CREATED_DAYS_AGO),
-            updatedAt = DemoDataTime.offsetMillis(anchor, ALOE_CREATED_DAYS_AGO)
+            updatedAt = DemoDataTime.offsetMillis(anchor, ALOE_CREATED_DAYS_AGO),
+            wateringConfidence = ALOE_PRE_ADAPTED_CONFIDENCE
         )
         val logs = listOf(
             DemoDataTime.careLog(anchor, ALOE_LAST_WATER_DAYS_AGO, CareType.WATER, WateringFeedback.JUST_RIGHT)

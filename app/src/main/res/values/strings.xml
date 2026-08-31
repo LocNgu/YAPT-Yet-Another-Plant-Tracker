@@ -480,9 +480,9 @@
     <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
     <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
     <string name="dev_mode_action_seed_demo_title">Seed demo plants</string>
-    <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 8-plant dataset</string>
+    <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 10-plant dataset</string>
     <string name="dev_mode_seed_demo_confirm_title">Seed demo plants?</string>
-    <string name="dev_mode_seed_demo_confirm_text">Inserts 8 demo plants with back-dated care history, prefixed \"[Demo] \". Any existing demo plants are removed first.</string>
+    <string name="dev_mode_seed_demo_confirm_text">Inserts 10 demo plants with back-dated care history, prefixed \"[Demo] \". Any existing demo plants are removed first.</string>
     <string name="dev_mode_seed_demo_confirm_button">Seed</string>
     <plurals name="dev_mode_seed_demo_result">
         <item quantity="one">1 demo plant seeded</item>
