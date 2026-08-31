@@ -11,8 +11,8 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
-            versionCode = 390,
-            versionName = "0.25.1",
+            versionCode = 400,
+            versionName = "0.26.0",
             added = listOf(
                 "A new \"Active issues\" option in the Plant List sort menu narrows the list to only plants " +
                     "currently flagged with a pest/health issue",
@@ -22,13 +22,19 @@ object WhatsNewContent {
                     "Recent adjustments"
             ),
             fixed = listOf(
-                "\"Soil still moist\" reschedules (in-app or from the notification) now actually clear the " +
-                    "plant's due/overdue status when adaptive watering is on, instead of silently reverting a " +
-                    "moment later",
                 "With both adaptive and seasonal watering on, the \"Water every N days?\" suggestion dialog " +
                     "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
                     "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
                     "the suggestion's underlying value and the seasonally adjusted current interval"
+            )
+        ),
+        ReleaseNotes(
+            versionCode = 390,
+            versionName = "0.25.1",
+            fixed = listOf(
+                "\"Soil still moist\" reschedules (in-app or from the notification) now actually clear the " +
+                    "plant's due/overdue status when adaptive watering is on, instead of silently reverting a " +
+                    "moment later"
             ),
             changed = listOf(
                 "The Water/Reschedule watering row and Fertilize's action button now use the same margins as " +
