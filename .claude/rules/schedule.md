@@ -62,8 +62,10 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
   `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
   .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
-  `onDismissRequest`, not `clearSuggestedInterval()` — that one stays a silent no-side-effect state clear for the
-  stale-suggestion cleanup `LaunchedEffect`).
+  `onDismissRequest`, not `clearSuggestedInterval()`, a plain no-side-effect reset with no production caller since
+  #620 round 2 removed the screen's stale-suggestion cleanup `LaunchedEffect` — `pendingWateringSuggestion`
+  collapses to `null` by itself once the effective-space delta is 0, so a raw-value short-circuit at the screen
+  layer is no longer needed and would risk discarding a suggestion that only *looks* unchanged in base space).
 - `CareScheduleAdaptiveReplayTest` is the pure-JVM replay harness (scenarios 1a/1b/2/3a/3b/4); do not alter the
   multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
   convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in

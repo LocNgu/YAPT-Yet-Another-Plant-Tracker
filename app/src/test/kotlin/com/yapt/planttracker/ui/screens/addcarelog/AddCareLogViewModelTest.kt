@@ -708,6 +708,76 @@ class AddCareLogViewModelTest {
         )
         assertEquals(expected.intervalDays.takeIf { it != 10 }, suggestedInterval)
     }
+
+    // #620 round 2: computeSuggestedInterval() must gate on the effective-space value, not the raw
+    // base-space suggestion, or a pure unit-mismatch artifact reaches Event.Saved ungated.
+    @Test
+    fun `save WATER log suppresses a suggestion whose effective-space value equals current under a non-1_0 seasonal multiplier`() =
+        runTest {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val peakDay = localDateUtcMillis(2023, 1, 5)
+            val fiveDaysBeforePeak = peakDay - 5L * 24 * 60 * 60 * 1000
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+                )
+            }
+            // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the raw
+            // observed gap (JUST_RIGHT, legacy non-adaptive path) is 5 days, so the raw suggestion is 5 —
+            // a real base-space delta from 7. But at the peak day, season() = 1.35, so
+            // round(5 * 1.35) = 7 == current: the entire "5 vs 7" jump is a unit-mismatch artifact, not a
+            // real model change, and must be suppressed exactly like the ADR-0006 dialog gate is.
+            every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+            coEvery { careLogRepo.addLog(any()) } returns 1L
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                waterLog(loggedAt = peakDay),
+                waterLog(loggedAt = fiveDaysBeforePeak)
+            )
+            val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+            vm.selectedCareType = CareType.WATER
+            vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+            vm.loggedAt = peakDay
+
+            vm.events.test {
+                vm.saveLog()
+                val event = awaitItem() as AddCareLogViewModel.Event.Saved
+                assertNull(event.suggestedWateringInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    // Sanity check for the same fix: a raw suggestion whose effective-space value genuinely differs
+    // from current must still surface, seasonal multiplier or not.
+    @Test
+    fun `save WATER log still surfaces a suggestion whose effective-space value genuinely differs from current`() = runTest {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        val oneDayBeforePeak = peakDay - 1L * 24 * 60 * 60 * 1000
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+            )
+        }
+        // Raw suggestion is 1 day (JUST_RIGHT on a 1-day gap); round(1 * 1.35) = 1 != 7 == current —
+        // a genuine effective-space change, so the suggestion must still surface.
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = peakDay),
+            waterLog(loggedAt = oneDayBeforePeak)
+        )
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = peakDay
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            assertEquals(1, event.suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {

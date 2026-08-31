@@ -200,14 +200,6 @@ fun PlantDetailScreen(
     var showReportIssueDialog by remember { mutableStateOf(false) }
     var issueToResolve by remember { mutableStateOf<PlantIssue?>(null) }
 
-    LaunchedEffect(suggestedInterval, plant?.wateringIntervalDays) {
-        val s = suggestedInterval
-        val current = plant?.wateringIntervalDays
-        if (s != null && current != null && s == current) {
-            viewModel.clearSuggestedInterval()
-        }
-    }
-
     val intervalAutoAppliedTemplate = stringResource(R.string.interval_auto_applied_snackbar)
     val undoLabel = stringResource(R.string.snackbar_undo)
     LaunchedEffect(Unit) {
@@ -380,7 +372,7 @@ fun PlantDetailScreen(
     val suggestion = pendingWateringSuggestion
     val showDialog = suggestion != null
 
-    if (showDialog && suggestion != null) {
+    suggestion?.let { s ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissSuggestedInterval() },
             title = { Text(stringResource(R.string.interval_suggestion_title)) },
@@ -389,8 +381,8 @@ fun PlantDetailScreen(
                     Text(
                         stringResource(
                             R.string.interval_suggestion_body,
-                            suggestion.effectiveIntervalDays,
-                            suggestion.currentIntervalDays ?: 0
+                            s.effectiveIntervalDays,
+                            s.currentIntervalDays ?: 0
                         )
                     )
                     OutlinedTextField(

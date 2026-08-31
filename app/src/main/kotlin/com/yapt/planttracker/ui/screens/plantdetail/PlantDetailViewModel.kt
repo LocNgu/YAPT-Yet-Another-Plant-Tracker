@@ -399,17 +399,23 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Plain reset of the raw suggestion with no confidence side effect — as opposed to
+     * [dismissSuggestedInterval], the explicit Dismiss tap. [PlantDetailScreen] no longer calls this
+     * to silently pre-empt a stale suggestion before it renders (#620 round 2) — [pendingWateringSuggestion]
+     * already collapses to `null` by itself whenever the effective-space delta is 0, so a screen-side
+     * short-circuit against the raw value would only risk discarding a suggestion that is genuinely
+     * different in effective space but happens to numerically coincide with it in base space.
+     */
     fun clearSuggestedInterval() {
         suggestedWateringInterval.value = null
     }
 
     /**
      * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
-     * outside it) — as opposed to [clearSuggestedInterval], which is also used to silently clear a
-     * now-stale suggestion that never needed showing. A genuine dismissal raises
-     * [Plant.wateringConfidence] up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when
-     * [FeatureFlagRegistry.ADAPTIVE_WATERING] is on (#568) — the user is saying the current schedule
-     * is fine.
+     * outside it). A genuine dismissal raises [Plant.wateringConfidence] up to
+     * [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when [FeatureFlagRegistry.ADAPTIVE_WATERING] is on
+     * (#568) — the user is saying the current schedule is fine.
      */
     fun dismissSuggestedInterval() {
         viewModelScope.launch {
