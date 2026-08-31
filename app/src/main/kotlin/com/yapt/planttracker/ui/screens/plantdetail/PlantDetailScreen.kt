@@ -130,6 +130,7 @@ fun PlantDetailScreen(
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
+    val convertedSuggestedInterval by viewModel.convertedSuggestedWateringInterval.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
     val showRescheduleReasonSheet by viewModel.showRescheduleReasonSheet.collectAsStateWithLifecycle()
@@ -373,9 +374,13 @@ fun PlantDetailScreen(
         )
     }
 
+    // Compares in effective (display) space on both sides — suggestedInterval is season-neutral base
+    // space, so comparing it directly against the already-seasonally-adjusted current interval flagged
+    // pure unit-mismatch artifacts as real changes (#620). convertedSuggestedInterval is null whenever
+    // suggestedInterval/plant is null, so the null check above still gates this correctly.
     val showDialog = suggestedInterval != null &&
         plant != null &&
-        suggestedInterval != plant?.wateringIntervalDays
+        convertedSuggestedInterval != plant?.wateringIntervalDays
 
     if (showDialog) {
         AlertDialog(
@@ -386,7 +391,7 @@ fun PlantDetailScreen(
                     Text(
                         stringResource(
                             R.string.interval_suggestion_body,
-                            suggestedInterval!!,
+                            convertedSuggestedInterval ?: suggestedInterval!!,
                             plant!!.wateringIntervalDays ?: 0
                         )
                     )

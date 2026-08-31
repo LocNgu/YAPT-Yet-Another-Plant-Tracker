@@ -24,7 +24,11 @@ object WhatsNewContent {
             fixed = listOf(
                 "\"Soil still moist\" reschedules (in-app or from the notification) now actually clear the " +
                     "plant's due/overdue status when adaptive watering is on, instead of silently reverting a " +
-                    "moment later"
+                    "moment later",
+                "With both adaptive and seasonal watering on, the \"Water every N days?\" suggestion dialog no " +
+                    "longer shows a misleadingly large jump (or pops up at all) when the whole apparent change " +
+                    "was just a unit mismatch between the suggestion's underlying value and the seasonally " +
+                    "adjusted current interval"
             ),
             changed = listOf(
                 "The Water/Reschedule watering row and Fertilize's action button now use the same margins as " +

@@ -205,6 +205,30 @@ class PlantDetailViewModel(
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
+    /**
+     * [suggestedWateringInterval] converted from base space to effective (display) space for the
+     * ADR-0006 dialog (#620). [suggestedWateringInterval] itself is season-neutral base space — see
+     * [applyIntervalInternal]'s comment on `newInterval` — while [Plant.wateringIntervalDays] ("current")
+     * is already seasonally-adjusted, so comparing/displaying them side by side without converting first
+     * produced misleading multi-day "jumps" that were really just a unit mismatch. Treats the raw
+     * suggestion as if it were the plant's new base and runs it through the same base→effective
+     * conversion [wateringExplanation] already uses ([CareSchedule.effectiveWateringIntervalDaysForDisplay]),
+     * so the two rows can't drift. A single one-way conversion — no round-trip, no double-rounding.
+     * The dialog's editable text field stays bound to the raw [suggestedWateringInterval] (fine-tuning
+     * the model's base, not a literal effective override) — this flow is display/gating-only.
+     */
+    val convertedSuggestedWateringInterval: StateFlow<Int?> = combine(
+        plant,
+        suggestedWateringInterval,
+        seasonalAmplitudeValue
+    ) { p, suggestion, amplitude ->
+        if (p == null || suggestion == null) return@combine null
+        CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = p.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            seasonalAmplitude = amplitude
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
     val showRescheduleDialog = MutableStateFlow(false)

@@ -16,6 +16,8 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -397,6 +399,93 @@ class PlantDetailViewModelSeasonalTest {
                 )
             }
         }
+
+    @Test
+    fun `convertedSuggestedWateringInterval converts base-space suggestion to effective space`() =
+        runTest {
+            // #620 repro: with SEASONAL_WATERING on, suggestedWateringInterval (9) is base-space, while
+            // plant.wateringIntervalDays (7) is already seasonally-adjusted. The dialog previously compared
+            // the two directly, producing a misleading "suggested 9, current 7" jump that was really just a
+            // unit mismatch. The converted value must equal CareSchedule's own base->effective conversion of
+            // the suggestion — never the raw 9 — so the two rows can't drift.
+            every { dataStore.data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+            )
+            val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            val vm = makeVm()
+
+            val expected = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+                plant = monstera.copy(wateringBaseIntervalDays = 9.0, wateringIntervalDays = 9),
+                seasonalAmplitude = SeasonalAmplitude.STANDARD.value
+            )
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            vm.suggestedWateringInterval.value = 9
+
+            vm.convertedSuggestedWateringInterval.test {
+                assertEquals(expected, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `convertedSuggestedWateringInterval equals the raw suggestion when the plant is pinned`() = runTest {
+        // Spec edge case: effectiveWateringIntervalDaysForDisplay collapses to identity when pinned —
+        // no special-casing needed here, it falls out of reusing the same function.
+        every { dataStore.data } returns flowOf(
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.suggestedWateringInterval.value = 9
+
+        vm.convertedSuggestedWateringInterval.test {
+            assertEquals(9, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `convertedSuggestedWateringInterval equals the raw suggestion when SEASONAL_WATERING is off`() = runTest {
+        // dataStore's default `every { data }` (set in the field mock above) reads empty preferences, so
+        // SEASONAL_WATERING is off and amplitude is 0.0 — identity conversion, same as the pinned case.
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.suggestedWateringInterval.value = 9
+
+        vm.convertedSuggestedWateringInterval.test {
+            assertEquals(9, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `convertedSuggestedWateringInterval is null when there is no pending suggestion`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val vm = makeVm()
+
+        vm.convertedSuggestedWateringInterval.test {
+            assertEquals(null, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
     @Test
     fun `setPinIntervalToBase persists the pin flag via repo`() = runTest {
