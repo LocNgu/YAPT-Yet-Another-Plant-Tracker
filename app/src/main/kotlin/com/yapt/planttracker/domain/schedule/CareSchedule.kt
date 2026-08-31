@@ -389,13 +389,23 @@ object CareSchedule {
      * distinction between "prompt never appeared" and "prompt appeared and was declined" is derived
      * here from timing (see [wateringOnScheduleNow]), so no fifth state is ever persisted in the
      * four-state [WateringFeedback] column.
+     *
+     * [frozen] (#571) is the REPOT-triggered 4-week freeze window: `true` when the observation falls
+     * before [Plant.wateringFreezeUntil] elapses, forcing the same exclusion treatment #586 already
+     * gives an unattributed off-schedule observation (gain 0, [AdaptiveInterval.excludedFromBaseLearning]
+     * set) — reusing that mechanism rather than inventing a second one. Confidence is **not** separately
+     * suppressed while frozen, for the same reason ADR-0030 gives: it is evidence about the schedule
+     * regardless of why an observation is excluded from `base`. Defaults `false` so every existing call
+     * site/test is unaffected.
      */
+    @Suppress("LongParameterList")
     fun computeAdaptiveInterval(
         feedback: WateringFeedback?,
         observedIntervalDays: Int,
         currentBaseIntervalDays: Int,
         currentConfidence: Int?,
-        recentFeedback: List<WateringFeedback?>
+        recentFeedback: List<WateringFeedback?>,
+        frozen: Boolean = false
     ): AdaptiveInterval {
         val multiplier = when (feedback) {
             WateringFeedback.TOO_SOON -> TOO_SOON_TARGET_MULTIPLIER
@@ -404,7 +414,8 @@ object CareSchedule {
             null -> NEUTRAL_TARGET_MULTIPLIER
         }
         val target = observedIntervalDays * multiplier
-        val excluded = isUnattributedOffScheduleObservation(feedback, observedIntervalDays, currentBaseIntervalDays)
+        val excluded = frozen ||
+            isUnattributedOffScheduleObservation(feedback, observedIntervalDays, currentBaseIntervalDays)
 
         if (currentConfidence == null) {
             val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback, excluded)
@@ -486,6 +497,67 @@ object CareSchedule {
     private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Int): Boolean {
         if (predictedIntervalDays <= 0) return false
         return abs(observedIntervalDays - predictedIntervalDays) <= GAP_AGREEMENT_TOLERANCE * predictedIntervalDays
+    }
+
+    // --- Cold-start bootstrap from watering history (#571 Part B) ---
+
+    /** [bootstrapBaseInterval] needs at least this many gaps (4 waterings) before a caller may apply it. */
+    const val MIN_BOOTSTRAP_GAPS = 3
+
+    private const val BOOTSTRAP_GAPS_PER_CONFIDENCE_POINT = 3
+
+    /**
+     * Result of [bootstrapBaseInterval]: always computed when there is at least one gap (pure,
+     * always testable), regardless of whether [gapCount] clears [MIN_BOOTSTRAP_GAPS] — it is the
+     * caller's job to gate applying it on that threshold (#571 spec: below 3 gaps, initial-enable
+     * keeps the user's typed interval, and a post-reset plant just stays at confidence 0).
+     */
+    data class BootstrapResult(val baseIntervalDays: Double, val confidence: Int, val gapCount: Int)
+
+    /**
+     * Cold-starts a per-plant base interval from the user's own watering history (#571 Part B, salvaged
+     * from #285's approach 2): `base = median over past waterings of (gap_i / season(date_i))`,
+     * `confidence = min(5, count / 3)`. Dividing each historical gap by its own season factor
+     * de-seasonalizes it, so waterings from any month contribute to the same estimate — the whole
+     * history is usable, not one twelfth of it (#569's per-month bootstrap alternative, rejected).
+     * Median (not mean) absorbs a single outlier gap (e.g. a holiday) without extra trimming logic.
+     *
+     * [waterLogTimestampsMs] may be in any order and represents one plant's WATER log timestamps (a
+     * caller evaluating the post-reset opportunity pre-filters to timestamps at/after the freeze
+     * boundary — #571 spec: "a gap that isn't trusted for live per-observation learning isn't trusted
+     * for the one-time cold-start estimate either"). [seasonFn] is `{ 1.0 }` when `SEASONAL_WATERING`
+     * is off or the plant is pinned, matching every other de-seasonalization call site in this file.
+     *
+     * Returns `null` when there are fewer than 2 timestamps (zero gaps — "no estimate", per the spec's
+     * empty-history edge case). A single gap (2 timestamps) still returns a real, testable result with
+     * [BootstrapResult.gapCount] == 1; it is the caller's job not to apply it below [MIN_BOOTSTRAP_GAPS].
+     */
+    fun bootstrapBaseInterval(
+        waterLogTimestampsMs: List<Long>,
+        seasonFn: (LocalDate) -> Double
+    ): BootstrapResult? {
+        val sorted = waterLogTimestampsMs.sorted()
+        if (sorted.size < 2) return null
+
+        val deseasonalizedGaps = sorted.zipWithNext { earlier, later ->
+            val gapDays = daysBetween(earlier, later)
+            gapDays / seasonFn(later.toLocalDate())
+        }
+        val gapCount = deseasonalizedGaps.size
+        val baseIntervalDays = median(deseasonalizedGaps)
+            .coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS.toDouble(), MAX_ADAPTIVE_INTERVAL_DAYS.toDouble())
+        val confidence = (gapCount / BOOTSTRAP_GAPS_PER_CONFIDENCE_POINT).coerceAtMost(MAX_CONFIDENCE)
+        return BootstrapResult(baseIntervalDays, confidence, gapCount)
+    }
+
+    private fun median(values: List<Double>): Double {
+        val sorted = values.sorted()
+        val mid = sorted.size / 2
+        return if (sorted.size % 2 == 0) {
+            (sorted[mid - 1] + sorted[mid]) / 2.0
+        } else {
+            sorted[mid]
+        }
     }
 
     private fun clampStep(oldBaseIntervalDays: Int, rawNewBaseIntervalDays: Double): Int {

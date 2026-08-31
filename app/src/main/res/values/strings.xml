@@ -332,6 +332,7 @@
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>
     <string name="empty_state_all_assigned">All plants are assigned to a room.</string>
     <string name="empty_state_cared_today">No plants cared for yet today</string>
+    <string name="empty_state_active_issues">No plants have active issues</string>
     <string name="sort_alphabetical">Alphabetical</string>
     <string name="sort_alphabetical_asc">Alphabetical (A→Z)</string>
     <string name="sort_alphabetical_desc">Alphabetical (Z→A)</string>
@@ -340,6 +341,7 @@
     <string name="sort_recently_added">Recently added</string>
     <string name="sort_both_due">Water + Fertilize due</string>
     <string name="sort_cared_for_today">Cared for today</string>
+    <string name="sort_active_issues">Active issues</string>
     <string name="date_group_overdue">Overdue</string>
     <string name="date_group_today">Today</string>
     <string name="date_group_tomorrow">Tomorrow</string>
@@ -478,9 +480,9 @@
     <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
     <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
     <string name="dev_mode_action_seed_demo_title">Seed demo plants</string>
-    <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 8-plant dataset</string>
+    <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 10-plant dataset</string>
     <string name="dev_mode_seed_demo_confirm_title">Seed demo plants?</string>
-    <string name="dev_mode_seed_demo_confirm_text">Inserts 8 demo plants with back-dated care history, prefixed \"[Demo] \". Any existing demo plants are removed first.</string>
+    <string name="dev_mode_seed_demo_confirm_text">Inserts 10 demo plants with back-dated care history, prefixed \"[Demo] \". Any existing demo plants are removed first.</string>
     <string name="dev_mode_seed_demo_confirm_button">Seed</string>
     <plurals name="dev_mode_seed_demo_result">
         <item quantity="one">1 demo plant seeded</item>
@@ -532,6 +534,10 @@
     <string name="adjustment_trigger_dialog_edit">applied suggestion</string>
     <string name="adjustment_trigger_manual_edit">manual edit</string>
     <string name="adjustment_trigger_silent_apply_undone">undone</string>
+    <string name="adjustment_trigger_repot_reset">repotted — relearning</string>
+    <string name="adjustment_trigger_room_change_reset">moved rooms — relearning</string>
+    <string name="adjustment_trigger_frozen_post_repot">still settling in after repotting</string>
+    <string name="adjustment_trigger_history_bootstrap">estimated from your watering history</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

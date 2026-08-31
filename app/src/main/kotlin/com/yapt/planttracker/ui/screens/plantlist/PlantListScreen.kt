@@ -231,6 +231,7 @@ fun PlantListScreen(
                                 val sortRecent = stringResource(R.string.sort_recently_added)
                                 val sortBothDue = stringResource(R.string.sort_both_due)
                                 val sortCaredToday = stringResource(R.string.sort_cared_for_today)
+                                val sortActiveIssues = stringResource(R.string.sort_active_issues)
                                 SortOption.entries.forEach { option ->
                                     val isActive = sortOrder.option == option
                                     val label = when (option) {
@@ -244,6 +245,7 @@ fun PlantListScreen(
                                         SortOption.RECENTLY_ADDED -> sortRecent
                                         SortOption.BOTH_DUE -> sortBothDue
                                         SortOption.CARED_FOR_TODAY -> sortCaredToday
+                                        SortOption.ACTIVE_ISSUES -> sortActiveIssues
                                     }
                                     DropdownMenuItem(
                                         text = {
@@ -333,11 +335,13 @@ fun PlantListScreen(
             if (plantsWithStatus.isEmpty()) {
                 val emptyBothDue = stringResource(R.string.empty_state_both_due)
                 val emptyCaredToday = stringResource(R.string.empty_state_cared_today)
+                val emptyActiveIssues = stringResource(R.string.empty_state_active_issues)
                 val emptyAllAssigned = stringResource(R.string.empty_state_all_assigned)
                 val emptyNoPlants = stringResource(R.string.no_plants_yet)
                 val emptyMessage = when {
                     sortOrder.option == SortOption.BOTH_DUE -> emptyBothDue
                     sortOrder.option == SortOption.CARED_FOR_TODAY -> emptyCaredToday
+                    sortOrder.option == SortOption.ACTIVE_ISSUES -> emptyActiveIssues
                     selectedRoom == PlantListViewModel.UNASSIGNED_ROOM -> emptyAllAssigned
                     else -> emptyNoPlants
                 }
@@ -436,7 +440,7 @@ fun PlantListScreen(
                     Text(
                         stringResource(
                             R.string.interval_suggestion_body,
-                            suggestion.suggestedInterval,
+                            suggestion.suggestedIntervalEffective,
                             currentInterval
                         )
                     )

@@ -42,6 +42,10 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     suspend fun getCareLogCount(plantId: Long): Int =
         careLogDao.getCareLogCount(plantId)
 
+    /** Every WATER log timestamp for [plantId], oldest first (#571) — see [CareLogDao.getLogTimestampsOfTypeAscending]. */
+    suspend fun getWaterLogTimestampsAscending(plantId: Long): List<Long> =
+        careLogDao.getLogTimestampsOfTypeAscending(plantId, CareType.WATER.name)
+
     /**
      * Maps each plant that has ≥ 1 care log with `loggedAt` in `[startMillis, endMillis)` to that
      * plant's most recent care-log timestamp in the window. Used by the "Cared for today" sort.

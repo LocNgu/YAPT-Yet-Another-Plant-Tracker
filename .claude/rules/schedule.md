@@ -62,8 +62,10 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
   `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
   .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
-  `onDismissRequest`, not `clearSuggestedInterval()` — that one stays a silent no-side-effect state clear for the
-  stale-suggestion cleanup `LaunchedEffect`).
+  `onDismissRequest`, not `clearSuggestedInterval()`, a plain no-side-effect reset with no production caller since
+  #620 round 2 removed the screen's stale-suggestion cleanup `LaunchedEffect` — `pendingWateringSuggestion`
+  collapses to `null` by itself once the effective-space delta is 0, so a raw-value short-circuit at the screen
+  layer is no longer needed and would risk discarding a suggestion that only *looks* unchanged in base space).
 - `CareScheduleAdaptiveReplayTest` is the pure-JVM replay harness (scenarios 1a/1b/2/3a/3b/4); do not alter the
   multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
   convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
@@ -101,6 +103,26 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   the de-seasonalized gap vs `base` — the same test, since `observed / season` vs `base` is `observed` vs
   `base × season`. That equivalence is what lets "was the prompt shown" be derived rather than persisted. `true`
   (no prompt) when there's no interval or no previous watering.
+- **Lifecycle resets + cold-start bootstrap (#571)** — see `domain/usecase/WateringLifecycleReset.kt`.
+  A `REPOT` care log or a qualifying `Plant.room` change (any real change except blank/empty -> filled
+  for the first time) resets `wateringConfidence` to 0, gated on `ADAPTIVE_WATERING` and written once
+  as a side effect at log-creation/plant-save time — never derived live from querying REPOT log
+  history, so editing/deleting a past REPOT log can't spuriously re-trigger a reset. A REPOT reset also
+  sets `Plant.wateringFreezeUntil` (`wateringResetAt + 28 days`, room-change resets never set this) —
+  `computeAdaptiveInterval(..., frozen = true)` while `now < wateringFreezeUntil` forces the same
+  exclusion treatment as an unattributed off-schedule observation (gain 0, `excludedFromBaseLearning`),
+  reusing #586's mechanism rather than inventing a second one; confidence still updates normally
+  (evidence about the schedule regardless of why `base` is excluded). `CareSchedule.bootstrapBaseInterval
+  (waterLogTimestampsMs, seasonFn)` cold-starts `base`/confidence from history — `median(gap_i /
+  season(date_i))` / `min(5, gapCount / 3)` — evaluated on every WATER-log adaptive observation via
+  `WateringLifecycleReset.maybeBootstrap()`: once when `wateringConfidence == null` (first-ever
+  observation, whole history eligible) or repeatedly while `wateringResetAt != null` (post-reset,
+  eligible history bounded to `wateringFreezeUntil ?: wateringResetAt`), applying only when
+  `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing `wateringIntervalDays`/
+  `wateringBaseIntervalDays` (mirroring `applyIntervalInternal()`'s dual-write fix) plus clearing
+  `wateringResetAt` so it fires exactly once. When it fires, `adaptWateringInterval()` returns the
+  pre-bootstrap interval unchanged so the ADR-0006 suggestion dialog never re-surfaces a value the
+  bootstrap already silently committed.
 - **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027, reached via the Reschedule reason prompt since
   #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
   `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),

@@ -140,7 +140,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
 
-    implementation("androidx.navigation:navigation-compose:2.9.8")
+    implementation("androidx.navigation:navigation-compose:2.10.0")
 
     implementation("com.patrykandpatrick.vico:compose-m3:2.5.2")
     implementation("com.kizitonwose.calendar:compose:2.10.1")

@@ -24,8 +24,8 @@ class DemoDataTest {
     private fun dataset() = DemoData.generate(now)
 
     @Test
-    fun `generate produces exactly 8 plants`() {
-        assertEquals(8, dataset().plants.size)
+    fun `generate produces exactly 10 plants`() {
+        assertEquals(10, dataset().plants.size)
     }
 
     @Test
@@ -46,7 +46,10 @@ class DemoDataTest {
     @Test
     fun `rooms cover multiple rooms plus one unassigned plant`() {
         val rooms = dataset().plants.map { it.plant.room }
-        assertEquals(setOf("Living Room", "Bedroom", "Kitchen", "Bathroom"), rooms.filterNotNull().toSet())
+        assertEquals(
+            setOf("Living Room", "Bedroom", "Kitchen", "Bathroom", "Office", "Guest Room"),
+            rooms.filterNotNull().toSet()
+        )
         assertEquals(1, rooms.count { it == null })
     }
 
@@ -60,10 +63,33 @@ class DemoDataTest {
     @Test
     fun `watering and fertilizing intervals cover scheduled and not-scheduled plants`() {
         val plants = dataset().plants.map { it.plant }
-        assertEquals(7, plants.count { it.wateringIntervalDays != null })
+        assertEquals(9, plants.count { it.wateringIntervalDays != null })
         assertEquals(1, plants.count { it.wateringIntervalDays == null })
-        assertEquals(5, plants.count { it.fertilizingIntervalDays != null })
+        assertEquals(7, plants.count { it.fertilizingIntervalDays != null })
         assertEquals(3, plants.count { it.fertilizingIntervalDays == null })
+    }
+
+    @Test
+    fun `ZZ Plant and Rubber Plant ship pre-adapted for manual repot and room-change reset testing`() {
+        val zzPlant = dataset().plants.single { it.plant.name == "${DemoData.NAME_PREFIX}ZZ Plant" }
+        val rubberPlant = dataset().plants.single { it.plant.name == "${DemoData.NAME_PREFIX}Rubber Plant" }
+
+        assertEquals(3, zzPlant.plant.wateringConfidence)
+        assertNotNull(zzPlant.plant.room)
+        assertNull(zzPlant.plant.wateringResetAt)
+        assertNull(zzPlant.plant.wateringFreezeUntil)
+
+        assertEquals(4, rubberPlant.plant.wateringConfidence)
+        assertNotNull(rubberPlant.plant.room)
+        assertNull(rubberPlant.plant.wateringResetAt)
+        assertNull(rubberPlant.plant.wateringFreezeUntil)
+    }
+
+    @Test
+    fun `Aloe Vera is pre-adapted with no room, for the blank-to-filled no-reset exception`() {
+        val seed = dataset().plants.single { it.plant.name == "${DemoData.NAME_PREFIX}Aloe Vera" }
+        assertNull(seed.plant.room)
+        assertEquals(2, seed.plant.wateringConfidence)
     }
 
     @Test

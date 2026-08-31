@@ -11,6 +11,24 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 400,
+            versionName = "0.26.0",
+            added = listOf(
+                "A new \"Active issues\" option in the Plant List sort menu narrows the list to only plants " +
+                    "currently flagged with a pest/health issue",
+                "Adaptive watering now resets its learned confidence when you repot a plant or move it to a " +
+                    "different room, and can cold-start its estimate from a plant's own watering history " +
+                    "instead of starting from scratch — both show up in the \"Why this date?\" sheet's " +
+                    "Recent adjustments"
+            ),
+            fixed = listOf(
+                "With both adaptive and seasonal watering on, the \"Water every N days?\" suggestion dialog " +
+                    "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
+                    "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
+                    "the suggestion's underlying value and the seasonally adjusted current interval"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 390,
             versionName = "0.25.1",
             fixed = listOf(

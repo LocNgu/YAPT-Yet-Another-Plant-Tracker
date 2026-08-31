@@ -11,10 +11,20 @@ data class DemoDataset(val plants: List<DemoPlantSeed>)
 
 /**
  * Pure, deterministic generator for the developer-mode demo dataset (#523). Given a single `now`
- * anchor, [generate] always returns the exact same 8-plant dataset — no randomness, no I/O — so
+ * anchor, [generate] always returns the exact same 10-plant dataset — no randomness, no I/O — so
  * it is reproducible in tests and safe to call from a Room transaction without side effects of
  * its own. Every [Plant]/[CareLog] here carries a placeholder `plantId`; the caller
  * (`DemoDataSeeder`) assigns the real, DB-generated id after insert.
+ *
+ * Two plants (ZZ Plant, Rubber Plant) ship with a pre-adapted `wateringConfidence` specifically so
+ * a developer can manually exercise #571's lifecycle-reset triggers on a live install without
+ * first grinding out enough real watering history to build confidence up from scratch: log a
+ * REPOT on the ZZ Plant to see the reset + 4-week freeze, or move the Rubber Plant to a different
+ * room to see the reset with no freeze. The rest of the dataset already covers #571's cold-start
+ * bootstrap for free — every other plant keeps `wateringConfidence == null`, so once
+ * `adaptive_watering` is on, the next WATER log against a plant with enough history (Monstera,
+ * Snake Plant, Fiddle Leaf Fig, Pothos, Peace Lily) triggers `bootstrapBaseInterval()`, while the
+ * sparse-history plants (Aloe Vera, Cactus, Calathea) correctly keep their typed interval.
  *
  * The actual anchor-time math, per-log helpers, and per-plant definitions live in
  * [DemoDataTime] and [DemoPlantBuilders] respectively — this object stays a thin entry point so

@@ -451,4 +451,71 @@ class AddEditPlantViewModelTest {
             )
         }
     }
+
+    // #571: a room change (a real move, not initial data entry) resets wateringConfidence with no freeze window.
+
+    @Test
+    fun `edit mode room change resets confidence with no freeze window when adaptive_watering is on`() = runTest {
+        val existingPlant = plant(id = 1L).copy(room = "Living room", wateringConfidence = 3)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        val dataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
+        advanceUntilIdle()
+
+        vm.room = "Bedroom"
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringConfidence == 0 && it.wateringResetAt != null && it.wateringFreezeUntil == null
+                }
+            )
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.ROOM_CHANGE_RESET })
+        }
+    }
+
+    @Test
+    fun `edit mode room change from blank to filled for the first time does not reset confidence`() = runTest {
+        val existingPlant = plant(id = 1L).copy(room = null, wateringConfidence = 3)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val dataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore)
+        advanceUntilIdle()
+
+        vm.room = "Living room"
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 && it.wateringResetAt == null }) }
+    }
+
+    @Test
+    fun `edit mode room change does not reset confidence when adaptive_watering is off`() = runTest {
+        val existingPlant = plant(id = 1L).copy(room = "Living room", wateringConfidence = 3)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        advanceUntilIdle()
+
+        vm.room = "Bedroom"
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 && it.wateringResetAt == null }) }
+    }
 }

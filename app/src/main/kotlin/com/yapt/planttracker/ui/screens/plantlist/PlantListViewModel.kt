@@ -357,7 +357,7 @@ class PlantListViewModel(
         val current = _sortOrder.value
         val newOrder = if (option == current.option) {
             when (option) {
-                SortOption.RECENTLY_ADDED, SortOption.BOTH_DUE -> current
+                SortOption.RECENTLY_ADDED, SortOption.BOTH_DUE, SortOption.ACTIVE_ISSUES -> current
                 else -> current.copy(
                     direction = if (current.direction == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC
                 )
@@ -368,6 +368,7 @@ class PlantListViewModel(
                 SortOption.WATERING_DUE, SortOption.FERTILIZING_DUE -> SortDirection.DESC
                 SortOption.RECENTLY_ADDED, SortOption.BOTH_DUE -> SortDirection.DESC
                 SortOption.CARED_FOR_TODAY -> SortDirection.DESC
+                SortOption.ACTIVE_ISSUES -> SortDirection.DESC
             }
             SortOrder(option = option, direction = defaultDirection)
         }
@@ -452,6 +453,9 @@ class PlantListViewModel(
                     compareByDescending<PlantCareStatus> { caredTodayAt[it.plant.id] ?: 0L }.then(tiebreak)
                 }
                 list.filter { caredTodayAt.containsKey(it.plant.id) }.sortedWith(comparator)
+            }
+            SortOption.ACTIVE_ISSUES -> {
+                list.filter { it.activeIssueCount > 0 }.sortedWith(tiebreak)
             }
         }
     }

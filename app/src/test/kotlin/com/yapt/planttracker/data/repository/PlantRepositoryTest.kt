@@ -221,4 +221,24 @@ class PlantRepositoryTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `wateringResetAt and wateringFreezeUntil default to null and round-trip stored values`() = runTest {
+        val id = repo.addPlant(samplePlant())
+        repo.getPlantById(id).test {
+            val plant = awaitItem()
+            assertNull(plant?.wateringResetAt)
+            assertNull(plant?.wateringFreezeUntil)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        val updated = samplePlant().copy(id = id, wateringResetAt = 1_000L, wateringFreezeUntil = 2_000L)
+        repo.updatePlant(updated)
+        repo.getPlantById(id).test {
+            val plant = awaitItem()
+            assertEquals(1_000L, plant?.wateringResetAt)
+            assertEquals(2_000L, plant?.wateringFreezeUntil)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }

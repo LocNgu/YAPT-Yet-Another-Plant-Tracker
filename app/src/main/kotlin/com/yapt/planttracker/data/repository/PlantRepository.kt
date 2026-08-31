@@ -65,7 +65,9 @@ private fun PlantEntity.toDomain() = Plant(
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
-    pinIntervalToBase = pinIntervalToBase
+    pinIntervalToBase = pinIntervalToBase,
+    wateringResetAt = wateringResetAt,
+    wateringFreezeUntil = wateringFreezeUntil
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -85,5 +87,7 @@ private fun Plant.toEntity() = PlantEntity(
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
-    pinIntervalToBase = pinIntervalToBase
+    pinIntervalToBase = pinIntervalToBase,
+    wateringResetAt = wateringResetAt,
+    wateringFreezeUntil = wateringFreezeUntil
 )

@@ -45,12 +45,12 @@ class DemoDataSeederTest {
     fun tearDown() = db.close()
 
     @Test
-    fun `seed inserts the 8-plant demo dataset with care logs`() = runTest {
+    fun `seed inserts the 10-plant demo dataset with care logs`() = runTest {
         val inserted = seeder.seed()
 
-        assertEquals(8, inserted)
+        assertEquals(10, inserted)
         val plants = db.plantDao().getAllPlants().first()
-        assertEquals(8, plants.size)
+        assertEquals(10, plants.size)
         assertTrue(plants.all { it.name.startsWith(DemoData.NAME_PREFIX) })
         val totalLogs = db.careLogDao().getAllLogs().first().size
         assertTrue(totalLogs > 0)
@@ -62,7 +62,7 @@ class DemoDataSeederTest {
         seeder.seed()
 
         val plants = db.plantDao().getAllPlants().first()
-        assertEquals(8, plants.size)
+        assertEquals(10, plants.size)
     }
 
     @Test
@@ -74,7 +74,7 @@ class DemoDataSeederTest {
         val realPlant = db.plantDao().getPlantById(realPlantId).first()
         assertEquals("My Real Fern", realPlant?.name)
         val allPlants = db.plantDao().getAllPlants().first()
-        assertEquals(9, allPlants.size)
+        assertEquals(11, allPlants.size)
     }
 
     @Test
@@ -85,7 +85,7 @@ class DemoDataSeederTest {
 
         val removed = seeder.remove()
 
-        assertEquals(8, removed)
+        assertEquals(10, removed)
         assertEquals(0, db.plantDao().getAllPlants().first().size)
         assertEquals(0, db.plantDao().getArchivedPlants().first().size)
         assertEquals(0, db.careLogDao().getAllLogs().first().size)

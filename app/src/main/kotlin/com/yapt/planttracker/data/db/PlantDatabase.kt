@@ -40,7 +40,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 12
+        const val DB_VERSION = 13
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -225,6 +225,19 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #571: wateringResetAt/wateringFreezeUntil back the REPOT/room-change confidence-reset
+        // lifecycle events — plain columns written once as a side effect at reset time (never derived
+        // live from querying REPOT log history), so editing/deleting a past REPOT log can't spuriously
+        // re-trigger a reset. Ship unconditionally regardless of `adaptive_watering` flag state,
+        // mirroring wateringConfidence's precedent.
+        @Suppress("MagicNumber")
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringResetAt INTEGER")
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringFreezeUntil INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -243,7 +256,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10,
                         MIGRATION_10_11,
-                        MIGRATION_11_12
+                        MIGRATION_11_12,
+                        MIGRATION_12_13
                     )
                     .build()
                     .also { INSTANCE = it }

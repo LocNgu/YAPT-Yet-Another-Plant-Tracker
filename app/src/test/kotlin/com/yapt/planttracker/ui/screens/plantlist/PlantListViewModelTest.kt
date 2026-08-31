@@ -560,6 +560,20 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `toggleSort ACTIVE_ISSUES repeated taps do not change direction`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
+        advanceUntilIdle()
+
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+
+        assertEquals(SortOption.ACTIVE_ISSUES, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+    }
+
+    @Test
     fun `toggleSort switching from ALPHABETICAL to WATERING_DUE resets to DESC`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
@@ -760,6 +774,67 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `applySortOrder ACTIVE_ISSUES keeps only plants with active issues`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", createdAt = 0L, updatedAt = 0L)
+        val p3 = Plant(id = 3L, name = "P3", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2, p3))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 2
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 0
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(3L) } returns 1
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
+
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(3L, 1L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder ACTIVE_ISSUES emits empty when no plant has an active issue`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 0
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
+
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(0, items.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `applySortOrder ACTIVE_ISSUES combines with room filter (AND)`() = runTest {
+        val p1 = Plant(id = 1L, name = "P1", room = "Kitchen", createdAt = 0L, updatedAt = 0L)
+        val p2 = Plant(id = 2L, name = "P2", room = "Bedroom", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 1
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 1
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
+
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+        vm.selectRoom("Bedroom")
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            val items = awaitItem()
+            assertEquals(listOf(2L), items.map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `empty list does not crash for any sort option`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
@@ -812,7 +887,7 @@ class PlantListViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4, suggestedIntervalEffective = 5)
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -825,6 +900,10 @@ class PlantListViewModelTest {
             val suggestion = awaitItem()
             assertEquals(1L, suggestion.plantId)
             assertEquals(4, suggestion.suggestedInterval)
+            // #620: the dialog binds display/gating to suggestedIntervalEffective, not the raw
+            // base-space suggestedInterval — verify PlantListViewModel forwards it unchanged, since it
+            // does no conversion of its own (QuickLogUseCase.computeSuggestion() is the sole source).
+            assertEquals(5, suggestion.suggestedIntervalEffective)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -903,7 +982,7 @@ class PlantListViewModelTest {
                 message = "Watered and fertilized Monstera",
                 logged = true,
                 waterPaired = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 8)
+                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 8, suggestedIntervalEffective = 8)
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 

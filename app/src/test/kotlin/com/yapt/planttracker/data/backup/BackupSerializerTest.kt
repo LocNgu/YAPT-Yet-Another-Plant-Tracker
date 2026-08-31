@@ -50,7 +50,9 @@ class BackupSerializerTest {
         useLiquidFertilizer = true,
         wateringConfidence = 3,
         wateringBaseIntervalDays = 5.18,
-        pinIntervalToBase = true
+        pinIntervalToBase = true,
+        wateringResetAt = 1_690_000_000_000L,
+        wateringFreezeUntil = 1_692_000_000_000L
     )
 
     private val defaultCareLog = BackupCareLog(
@@ -443,6 +445,29 @@ class BackupSerializerTest {
         """.trimIndent()
         val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
         assertEquals(emptyList<BackupWateringAdjustment>(), decoded.wateringAdjustments)
+    }
+
+    @Test
+    fun `wateringResetAt and wateringFreezeUntil round-trip their stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(1_690_000_000_000L, decoded.plants[0].wateringResetAt)
+        assertEquals(1_692_000_000_000L, decoded.plants[0].wateringFreezeUntil)
+    }
+
+    @Test
+    fun `plant without wateringResetAt or wateringFreezeUntil defaults to null`() {
+        val json = """
+            {"schemaVersion":13,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.wateringResetAt)
+        assertNull(plant.wateringFreezeUntil)
     }
 
     @Test
