@@ -130,7 +130,7 @@ fun PlantDetailScreen(
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
     val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
-    val convertedSuggestedInterval by viewModel.convertedSuggestedWateringInterval.collectAsStateWithLifecycle()
+    val pendingWateringSuggestion by viewModel.pendingWateringSuggestion.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
     val showRescheduleReasonSheet by viewModel.showRescheduleReasonSheet.collectAsStateWithLifecycle()
@@ -374,15 +374,13 @@ fun PlantDetailScreen(
         )
     }
 
-    // Compares in effective (display) space on both sides — suggestedInterval is season-neutral base
-    // space, so comparing it directly against the already-seasonally-adjusted current interval flagged
-    // pure unit-mismatch artifacts as real changes (#620). convertedSuggestedInterval is null whenever
-    // suggestedInterval/plant is null, so the null check above still gates this correctly.
-    val showDialog = suggestedInterval != null &&
-        plant != null &&
-        convertedSuggestedInterval != plant?.wateringIntervalDays
+    // pendingWateringSuggestion bundles raw+converted+current into one atomically-updating tuple
+    // (#620 round 2) so the dialog can never render a stale/unconverted number for a frame, and is
+    // null outright whenever the entire "jump" is a base/effective unit-mismatch artifact (#620).
+    val suggestion = pendingWateringSuggestion
+    val showDialog = suggestion != null
 
-    if (showDialog) {
+    if (showDialog && suggestion != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissSuggestedInterval() },
             title = { Text(stringResource(R.string.interval_suggestion_title)) },
@@ -391,8 +389,8 @@ fun PlantDetailScreen(
                     Text(
                         stringResource(
                             R.string.interval_suggestion_body,
-                            convertedSuggestedInterval ?: suggestedInterval!!,
-                            plant!!.wateringIntervalDays ?: 0
+                            suggestion.effectiveIntervalDays,
+                            suggestion.currentIntervalDays ?: 0
                         )
                     )
                     OutlinedTextField(

@@ -440,7 +440,7 @@ fun PlantListScreen(
                     Text(
                         stringResource(
                             R.string.interval_suggestion_body,
-                            suggestion.suggestedInterval,
+                            suggestion.suggestedIntervalEffective,
                             currentInterval
                         )
                     )

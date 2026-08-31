@@ -206,26 +206,43 @@ class PlantDetailViewModel(
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
     /**
-     * [suggestedWateringInterval] converted from base space to effective (display) space for the
-     * ADR-0006 dialog (#620). [suggestedWateringInterval] itself is season-neutral base space — see
-     * [applyIntervalInternal]'s comment on `newInterval` — while [Plant.wateringIntervalDays] ("current")
-     * is already seasonally-adjusted, so comparing/displaying them side by side without converting first
-     * produced misleading multi-day "jumps" that were really just a unit mismatch. Treats the raw
-     * suggestion as if it were the plant's new base and runs it through the same base→effective
+     * The ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
+     * updating tuple (#620 round 2) rather than three independently `collectAsStateWithLifecycle()`-
+     * collected `StateFlow`s: `suggestedWateringInterval` updates synchronously off the raw
+     * `MutableStateFlow`, while a derived value built through an extra `combine()` hop can lag it by a
+     * frame — long enough to transiently render an unconverted number. [effectiveIntervalDays] is
+     * [rawIntervalDays] treated as the plant's new base and run through the same base→effective
      * conversion [wateringExplanation] already uses ([CareSchedule.effectiveWateringIntervalDaysForDisplay]),
      * so the two rows can't drift. A single one-way conversion — no round-trip, no double-rounding.
-     * The dialog's editable text field stays bound to the raw [suggestedWateringInterval] (fine-tuning
-     * the model's base, not a literal effective override) — this flow is display/gating-only.
      */
-    val convertedSuggestedWateringInterval: StateFlow<Int?> = combine(
+    data class PendingWateringSuggestion(
+        val rawIntervalDays: Int,
+        val effectiveIntervalDays: Int,
+        val currentIntervalDays: Int?
+    )
+
+    /**
+     * `null` whenever there's no pending suggestion, or the suggestion's effective-space value equals
+     * [Plant.wateringIntervalDays] — the entire "jump" was a base/effective unit-mismatch artifact
+     * (#620), not a real model change, so the dialog shouldn't appear at all. The dialog's editable text
+     * field stays bound to the raw [suggestedWateringInterval] (fine-tuning the model's base, not a
+     * literal effective override) — this flow is display/gating-only.
+     */
+    val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,
         suggestedWateringInterval,
         seasonalAmplitudeValue
     ) { p, suggestion, amplitude ->
         if (p == null || suggestion == null) return@combine null
-        CareSchedule.effectiveWateringIntervalDaysForDisplay(
+        val effective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
             plant = p.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
             seasonalAmplitude = amplitude
+        ) ?: suggestion
+        if (effective == p.wateringIntervalDays) return@combine null
+        PendingWateringSuggestion(
+            rawIntervalDays = suggestion,
+            effectiveIntervalDays = effective,
+            currentIntervalDays = p.wateringIntervalDays
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
