@@ -268,7 +268,7 @@ class PlantDetailViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -301,7 +301,7 @@ class PlantDetailViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         coEvery { plantRepo.updatePlant(any()) } just runs

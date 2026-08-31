@@ -111,7 +111,12 @@ class CalendarViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 4,
+                    suggestedIntervalEffective = 5
+                )
             )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
@@ -124,6 +129,10 @@ class CalendarViewModelTest {
             val suggestion = awaitItem()
             assertEquals(1L, suggestion.plantId)
             assertEquals(4, suggestion.suggestedInterval)
+            // #620: the dialog binds display/gating to suggestedIntervalEffective, not the raw
+            // base-space suggestedInterval — verify CalendarViewModel forwards it unchanged, since it
+            // does no conversion of its own (QuickLogUseCase.computeSuggestion() is the sole source).
+            assertEquals(5, suggestion.suggestedIntervalEffective)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -242,7 +251,12 @@ class CalendarViewModelTest {
                 message = "Watered and fertilized Monstera",
                 logged = true,
                 waterPaired = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 4,
+                    suggestedIntervalEffective = 4
+                )
             )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 

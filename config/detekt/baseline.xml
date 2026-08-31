@@ -13,6 +13,7 @@
     <ID>CyclomaticComplexMethod:PlantListViewModel.kt$PlantListViewModel$private fun applySortOrder( list: List&lt;PlantCareStatus&gt;, sort: SortOrder, caredTodayAt: Map&lt;Long, Long&gt; = emptyMap() ): List&lt;PlantCareStatus&gt;</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( viewModel: SettingsViewModel, onNavigateBack: () -&gt; Unit, onRestoreSuccess: (plantCount: Int, logCount: Int) -&gt; Unit, onShowWhatsNew: () -&gt; Unit, onNavigateToGraveyard: () -&gt; Unit = {} )</ID>
     <ID>CyclomaticComplexMethod:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
+    <ID>LargeClass:AddCareLogViewModelTest.kt$AddCareLogViewModelTest</ID>
     <ID>LargeClass:CareScheduleTest.kt$CareScheduleTest</ID>
     <ID>LargeClass:PlantListViewModelTest.kt$PlantListViewModelTest</ID>
     <ID>LongMethod:AddCareLogScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddCareLogScreen( viewModel: AddCareLogViewModel, onNavigateBack: (suggestedInterval: Int?) -&gt; Unit )</ID>
@@ -77,7 +78,6 @@
     <ID>TooManyFunctions:CareLogDao.kt$CareLogDao</ID>
     <ID>TooManyFunctions:EnumResources.kt$com.yapt.planttracker.ui.util.EnumResources.kt</ID>
     <ID>TooManyFunctions:PlantDao.kt$PlantDao</ID>
-    <ID>TooManyFunctions:PlantDetailScreen.kt$com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen.kt</ID>
     <ID>TooManyFunctions:PlantDetailViewModel.kt$PlantDetailViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantListViewModel.kt$PlantListViewModel : ViewModel</ID>
     <ID>TooManyFunctions:PlantRepository.kt$PlantRepository</ID>

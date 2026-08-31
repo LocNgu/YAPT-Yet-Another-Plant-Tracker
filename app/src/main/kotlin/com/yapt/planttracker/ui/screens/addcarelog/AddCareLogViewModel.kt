@@ -231,8 +231,31 @@ class AddCareLogViewModel(
         } else {
             feedback?.let { CareSchedule.computeSuggestedInterval(it, actualIntervalDays, currentInterval) } ?: return null
         }
-        return if (suggested != currentInterval) suggested else null
+        val effectiveSuggested = effectiveIntervalForDisplay(plant, suggested)
+        return if (effectiveSuggested != currentInterval) suggested else null
     }
+
+    /**
+     * Gates on the **effective**-space comparison (#620 round 2), not the raw base-space [suggestion]
+     * vs [currentInterval] — mirrors [com.yapt.planttracker.domain.usecase.QuickLogUseCase
+     * .effectiveIntervalForDisplay]/`computeSuggestion` exactly, since this VM computes its own
+     * suggestion rather than going through that use case (per this file's convention). Without this
+     * gate a pure base/effective unit-mismatch artifact reaches `Event.Saved` ungated, and when
+     * `askBeforeChangingIntervals` is off, `PlantDetailViewModel.applySuggestionOrPrompt()`'s
+     * silent-apply branch writes it straight into `plant.wateringIntervalDays` with nothing else to
+     * catch it.
+     *
+     * [loggedAt] is the reference date, not `LocalDate.now()` — this whole computation runs
+     * synchronously as part of the same save that set [loggedAt], mirroring how
+     * [deseasonalizedObservedIntervalDays] already anchors this file's other seasonal math to
+     * [loggedAt] rather than the wall-clock instant the suspend function happens to run.
+     */
+    private suspend fun effectiveIntervalForDisplay(plant: Plant, suggestion: Int): Int =
+        CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = plant.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            nowDate = loggedAt.toLocalDate(),
+            seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+        ) ?: suggestion
 
     /**
      * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and

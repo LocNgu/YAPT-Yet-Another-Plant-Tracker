@@ -205,6 +205,47 @@ class PlantDetailViewModel(
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
 
+    /**
+     * The ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
+     * updating tuple (#620 round 2) rather than three independently `collectAsStateWithLifecycle()`-
+     * collected `StateFlow`s: `suggestedWateringInterval` updates synchronously off the raw
+     * `MutableStateFlow`, while a derived value built through an extra `combine()` hop can lag it by a
+     * frame — long enough to transiently render an unconverted number. [effectiveIntervalDays] is
+     * [rawIntervalDays] treated as the plant's new base and run through the same base→effective
+     * conversion [wateringExplanation] already uses ([CareSchedule.effectiveWateringIntervalDaysForDisplay]),
+     * so the two rows can't drift. A single one-way conversion — no round-trip, no double-rounding.
+     */
+    data class PendingWateringSuggestion(
+        val rawIntervalDays: Int,
+        val effectiveIntervalDays: Int,
+        val currentIntervalDays: Int?
+    )
+
+    /**
+     * `null` whenever there's no pending suggestion, or the suggestion's effective-space value equals
+     * [Plant.wateringIntervalDays] — the entire "jump" was a base/effective unit-mismatch artifact
+     * (#620), not a real model change, so the dialog shouldn't appear at all. The dialog's editable text
+     * field stays bound to the raw [suggestedWateringInterval] (fine-tuning the model's base, not a
+     * literal effective override) — this flow is display/gating-only.
+     */
+    val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
+        plant,
+        suggestedWateringInterval,
+        seasonalAmplitudeValue
+    ) { p, suggestion, amplitude ->
+        if (p == null || suggestion == null) return@combine null
+        val effective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = p.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            seasonalAmplitude = amplitude
+        ) ?: suggestion
+        if (effective == p.wateringIntervalDays) return@combine null
+        PendingWateringSuggestion(
+            rawIntervalDays = suggestion,
+            effectiveIntervalDays = effective,
+            currentIntervalDays = p.wateringIntervalDays
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
     val showRescheduleDialog = MutableStateFlow(false)
@@ -358,17 +399,23 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Plain reset of the raw suggestion with no confidence side effect — as opposed to
+     * [dismissSuggestedInterval], the explicit Dismiss tap. [PlantDetailScreen] no longer calls this
+     * to silently pre-empt a stale suggestion before it renders (#620 round 2) — [pendingWateringSuggestion]
+     * already collapses to `null` by itself whenever the effective-space delta is 0, so a screen-side
+     * short-circuit against the raw value would only risk discarding a suggestion that is genuinely
+     * different in effective space but happens to numerically coincide with it in base space.
+     */
     fun clearSuggestedInterval() {
         suggestedWateringInterval.value = null
     }
 
     /**
      * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
-     * outside it) — as opposed to [clearSuggestedInterval], which is also used to silently clear a
-     * now-stale suggestion that never needed showing. A genuine dismissal raises
-     * [Plant.wateringConfidence] up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when
-     * [FeatureFlagRegistry.ADAPTIVE_WATERING] is on (#568) — the user is saying the current schedule
-     * is fine.
+     * outside it). A genuine dismissal raises [Plant.wateringConfidence] up to
+     * [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when [FeatureFlagRegistry.ADAPTIVE_WATERING] is on
+     * (#568) — the user is saying the current schedule is fine.
      */
     fun dismissSuggestedInterval() {
         viewModelScope.launch {

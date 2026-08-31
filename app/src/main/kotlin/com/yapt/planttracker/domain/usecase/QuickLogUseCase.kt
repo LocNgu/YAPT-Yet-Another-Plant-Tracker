@@ -425,6 +425,13 @@ class QuickLogUseCase(
      * [feedback] may be `null` (#570, product ADR-0027) — the quick-water sheet's chip collapsed to
      * one optional flag, so `null` is now the dominant case. The legacy (flag-off) branch still
      * needs an explicit value to produce a suggestion; the adaptive branch accepts `null` directly.
+     *
+     * Gates on the **effective**-space comparison (#620), not the raw base-space [suggestion] vs
+     * [current] — [suggestion] is season-neutral base space while `plant.wateringIntervalDays`
+     * ("current") is what the Calendar/Plant List/Plant Detail dialogs display as today's cadence, so
+     * comparing them directly could flag a pure unit-mismatch artifact as a real change (the same bug
+     * #620 fixed for the Plant Detail dialog specifically). This is the single choke point all three
+     * quick-log surfaces share, so none of them can independently regress this comparison again.
      */
     private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
         val lastTwo = careLogRepository.getLastTwoWaterings(plant.id)
@@ -437,8 +444,28 @@ class QuickLogUseCase(
         } else {
             feedback?.let { CareSchedule.computeSuggestedInterval(it, actual, current) } ?: return null
         }
-        return if (suggestion != current) QuickWaterSuggestion(plant.id, plant.name, suggestion) else null
+        val effectiveSuggestion = effectiveIntervalForDisplay(plant, suggestion)
+        return if (effectiveSuggestion != current) {
+            QuickWaterSuggestion(plant.id, plant.name, suggestion, effectiveSuggestion)
+        } else {
+            null
+        }
     }
+
+    /**
+     * Converts a base-space [suggestion] to effective (display) space via the same wrapper
+     * [CareSchedule.effectiveWateringIntervalDaysForDisplay] the "Why this date?" sheet and
+     * `PlantDetailViewModel.pendingWateringSuggestion` use (#620), so no call site can drift from
+     * another. Treats [suggestion] as if it were the plant's new base — mirroring
+     * `PlantDetailViewModel`'s identical `plant.copy(...)` pattern — so this is a display-only, one-way
+     * conversion; the returned [QuickWaterSuggestion.suggestedInterval] (write path) is untouched.
+     */
+    private suspend fun effectiveIntervalForDisplay(plant: Plant, suggestion: Int): Int =
+        CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = plant.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            nowDate = nowProvider().toLocalDate(),
+            seasonalAmplitude = dataStore.seasonalAmplitudeOnce()
+        ) ?: suggestion
 
     /**
      * Applies the multiplicative + confidence-weighted model (#568, technical ADR-0021) and
