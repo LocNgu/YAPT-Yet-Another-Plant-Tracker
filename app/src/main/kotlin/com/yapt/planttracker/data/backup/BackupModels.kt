@@ -19,7 +19,9 @@ data class BackupPlant(
     val useLiquidFertilizer: Boolean = false,
     val wateringConfidence: Int? = null,
     val wateringBaseIntervalDays: Double? = null,
-    val pinIntervalToBase: Boolean = false
+    val pinIntervalToBase: Boolean = false,
+    val wateringResetAt: Long? = null,
+    val wateringFreezeUntil: Long? = null
 )
 
 @Serializable

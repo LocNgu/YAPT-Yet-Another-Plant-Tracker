@@ -30,6 +30,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
@@ -130,6 +131,7 @@ class QuickLogUseCase(
             fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
         )
         careLogRepository.addLog(log)
+        maybeApplyRepotReset(plant, careType, now)
         val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
         if (waterPaired) {
             // No reason: the user fertilized, and the watering came along with it (ADR-0008) — they
@@ -339,12 +341,13 @@ class QuickLogUseCase(
         if (actualIntervalDays <= 0) return null
 
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
-        val result = computeStillMoistAdaptiveInterval(plant, actualIntervalDays)
+        val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
+        val result = computeStillMoistAdaptiveInterval(plant, actualIntervalDays, frozen)
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = WateringAdjustmentTrigger.CHECK_STILL_MOIST,
+                trigger = if (frozen) WateringAdjustmentTrigger.FROZEN_POST_REPOT else WateringAdjustmentTrigger.CHECK_STILL_MOIST,
                 beforeIntervalDays = currentBase,
                 afterIntervalDays = result.intervalDays
             )
@@ -356,11 +359,13 @@ class QuickLogUseCase(
      * The one place a "soil still moist" observation is turned into an [CareSchedule.AdaptiveInterval]
      * — shared by [suggestedStillMoistDeferralDays] (preview, writes nothing) and
      * [recordStillMoistAdaptiveObservation] (the real write), so the deferral the picker suggests and
-     * the interval the model actually learns are computed by the same code (#586).
+     * the interval the model actually learns are computed by the same code (#586). [frozen] (#571) is
+     * always `false` for the preview, since a real freeze can only be known at the moment of the write.
      */
     private suspend fun computeStillMoistAdaptiveInterval(
         plant: Plant,
-        observedIntervalDays: Int
+        observedIntervalDays: Int,
+        frozen: Boolean = false
     ): CareSchedule.AdaptiveInterval {
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
@@ -372,7 +377,8 @@ class QuickLogUseCase(
                 plant.wateringIntervalDays ?: observedIntervalDays
             ),
             currentConfidence = plant.wateringConfidence,
-            recentFeedback = recentFeedback
+            recentFeedback = recentFeedback,
+            frozen = frozen
         )
     }
 
@@ -439,6 +445,13 @@ class QuickLogUseCase(
      * persists the resulting [Plant.wateringConfidence] immediately, independent of whether the
      * caller ends up surfacing/applying the returned suggestion. [feedback] may be `null` (#570) — a
      * silent gap-only observation, capped at [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
+     *
+     * Before evaluating the per-observation update, checks whether this WATER log is the one that
+     * unlocks the #571 history bootstrap (either the plant's first-ever adaptive observation, or a
+     * pending post-reset opportunity) — see [maybeApplyHistoryBootstrap]. When it fires, the bootstrap
+     * already silently committed the new interval, so this returns [currentInterval] unchanged
+     * (suppressing the ADR-0006 suggestion dialog for this observation) rather than also running the
+     * incremental per-step correction on top of a value the model just cold-started.
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
@@ -446,17 +459,21 @@ class QuickLogUseCase(
         actualIntervalDays: Int,
         currentInterval: Int
     ): Int {
+        val now = System.currentTimeMillis()
+        if (maybeApplyHistoryBootstrap(plant, now)) return currentInterval
+
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
+        val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
-            recentFeedback = recentFeedback
+            recentFeedback = recentFeedback,
+            frozen = frozen
         )
-        val now = System.currentTimeMillis()
         if (result.confidence != plant.wateringConfidence) {
             plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
         }
@@ -464,7 +481,7 @@ class QuickLogUseCase(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning),
+                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
                 beforeIntervalDays = currentBase,
                 afterIntervalDays = result.intervalDays
             )
@@ -472,10 +489,61 @@ class QuickLogUseCase(
         return result.intervalDays
     }
 
+    /**
+     * The #571 REPOT-triggered lifecycle reset, reached from [quickLog]'s bulk-action REPOT path
+     * (`BulkActionBar`) — extracted out of [quickLog] to stay under Detekt's
+     * `CyclomaticComplexMethod` threshold. Gated on `adaptive_watering` (AC: neither lifecycle trigger
+     * fires when the flag is off).
+     */
+    private suspend fun maybeApplyRepotReset(plant: Plant, careType: CareType, now: Long) {
+        if (careType == CareType.REPOT && isAdaptiveWateringEnabled()) {
+            WateringLifecycleReset.applyRepotReset(plant, now, plantRepository, wateringAdjustmentRepository)
+        }
+    }
+
+    /**
+     * The #571 cold-start bootstrap opportunity, evaluated on every WATER-log adaptive observation:
+     * the plant's first-ever adaptive observation ([Plant.wateringConfidence] == `null`, using its
+     * whole history), or a pending post-reset opportunity ([Plant.wateringResetAt] != `null`, using
+     * only history at/after the freeze boundary). Returns `false` (no-op) when neither applies, or
+     * when [WateringLifecycleReset.maybeBootstrap] doesn't find enough gaps yet.
+     */
+    private suspend fun maybeApplyHistoryBootstrap(plant: Plant, now: Long): Boolean {
+        val boundaryMs = when {
+            plant.wateringConfidence == null -> Long.MIN_VALUE
+            plant.wateringResetAt != null -> plant.wateringFreezeUntil ?: plant.wateringResetAt
+            else -> return false
+        }
+        val request = WateringLifecycleReset.BootstrapRequest(
+            plant = plant,
+            waterLogTimestampsMs = careLogRepository.getWaterLogTimestampsAscending(plant.id),
+            boundaryMs = boundaryMs,
+            seasonFn = seasonFnFor(plant)
+        )
+        return WateringLifecycleReset.maybeBootstrap(request, plantRepository, wateringAdjustmentRepository, now)
+    }
+
+    /**
+     * The season function [WateringLifecycleReset.maybeBootstrap]/[CareSchedule.bootstrapBaseInterval]
+     * de-seasonalize each historical gap with — `{ 1.0 }` (a no-op) when [Plant.pinIntervalToBase] is
+     * set or `SEASONAL_WATERING` is off, mirroring every other de-seasonalization call site in this
+     * file ([deseasonalizedObservedIntervalDays]/[currentAdaptiveBaseIntervalDays]).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
+        if (plant.pinIntervalToBase) return { 1.0 }
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return { 1.0 }
+        val hemisphere = SeasonalWatering.currentHemisphere()
+        return { date -> SeasonalWatering.season(date, amplitude, hemisphere) }
+    }
+
     private fun adjustmentTriggerFor(
         feedback: WateringFeedback?,
-        excludedFromBaseLearning: Boolean
+        excludedFromBaseLearning: Boolean,
+        frozen: Boolean = false
     ): WateringAdjustmentTrigger = when {
+        frozen -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
         excludedFromBaseLearning -> WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED
         feedback == WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
         feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE

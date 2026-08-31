@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
@@ -72,6 +73,9 @@ class AddCareLogViewModelTest {
         // Default: no same-day log of any type exists yet; individual tests override to true to
         // exercise the duplicate-rejection paths (#509).
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
+        // #571: below the 3-gap bootstrap threshold by default, so existing adaptive-model tests keep
+        // exercising the plain per-observation path — tests exercising the bootstrap itself override this.
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
     }
 
     @Test
@@ -273,6 +277,97 @@ class AddCareLogViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+    }
+
+    // #571: a new REPOT log resets wateringConfidence and starts the freeze window when adaptive_watering is on.
+    @Test
+    fun `save new REPOT log resets confidence and starts the freeze window when adaptive_watering is on`() = runTest {
+        val adaptiveDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            dataStore = adaptiveDataStore,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.REPOT
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) {
+            plantRepo.updatePlant(
+                match { it.wateringConfidence == 0 && it.wateringResetAt != null && it.wateringFreezeUntil != null }
+            )
+        }
+        coVerify { wateringAdjustmentRepo.addAdjustment(any()) }
+    }
+
+    @Test
+    fun `save new REPOT log does not reset confidence when adaptive_watering is off`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.REPOT
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
+
+    // #571 AC3 regression: editing a past REPOT log's date/type must never re-trigger the reset —
+    // it's written once at original log-creation time, not derived from querying REPOT history live.
+    @Test
+    fun `editing an existing REPOT log's date does not re-trigger the reset`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.REPOT,
+            loggedAt = now - 10L * 24 * 60 * 60 * 1000
+        )
+        val adaptiveDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 99L,
+            dataStore = adaptiveDataStore,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        advanceUntilIdle()
+        vm.loggedAt = now
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
     @Test

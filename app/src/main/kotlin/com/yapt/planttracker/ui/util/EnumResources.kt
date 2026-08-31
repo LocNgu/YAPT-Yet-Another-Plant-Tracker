@@ -99,6 +99,7 @@ fun RescheduleReason.labelRes(): Int = when (this) {
 }
 
 @StringRes
+@Suppress("CyclomaticComplexMethod")
 fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.WATER_TOO_SOON -> R.string.adjustment_trigger_water_too_soon
     WateringAdjustmentTrigger.WATER_TOO_LATE -> R.string.adjustment_trigger_water_too_late
@@ -110,6 +111,10 @@ fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.DIALOG_EDIT -> R.string.adjustment_trigger_dialog_edit
     WateringAdjustmentTrigger.MANUAL_EDIT -> R.string.adjustment_trigger_manual_edit
     WateringAdjustmentTrigger.SILENT_APPLY_UNDONE -> R.string.adjustment_trigger_silent_apply_undone
+    WateringAdjustmentTrigger.REPOT_RESET -> R.string.adjustment_trigger_repot_reset
+    WateringAdjustmentTrigger.ROOM_CHANGE_RESET -> R.string.adjustment_trigger_room_change_reset
+    WateringAdjustmentTrigger.FROZEN_POST_REPOT -> R.string.adjustment_trigger_frozen_post_repot
+    WateringAdjustmentTrigger.HISTORY_BOOTSTRAP -> R.string.adjustment_trigger_history_bootstrap
 }
 
 @StringRes

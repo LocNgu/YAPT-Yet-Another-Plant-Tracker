@@ -44,6 +44,17 @@ interface CareLogDao {
     suspend fun getCareLogCount(plantId: Long): Int
 
     /**
+     * Every [careType] log timestamp for [plantId], oldest first — feeds
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.bootstrapBaseInterval] (#571), which needs
+     * the full ordered WATER-log history (or a boundary-filtered slice of it) to compute gaps.
+     */
+    @Query(
+        "SELECT loggedAt FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
+            "ORDER BY loggedAt ASC"
+    )
+    suspend fun getLogTimestampsOfTypeAscending(plantId: Long, careType: String): List<Long>
+
+    /**
      * The most recent care-log timestamp per plant for logs in the half-open window
      * `[startMillis, endMillis)`. One row per plant that has ≥ 1 log in the window.
      */

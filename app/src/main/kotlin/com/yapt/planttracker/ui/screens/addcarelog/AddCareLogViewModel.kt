@@ -25,11 +25,13 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
+import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 // #568 added two small adaptive-watering helpers to this VM's one cohesive save flow; splitting
@@ -118,6 +120,16 @@ class AddCareLogViewModel(
 
             careLogRepository.addLog(buildLogFromState())
 
+            if (!isEditMode && selectedCareType == CareType.REPOT && isAdaptiveWateringEnabled()) {
+                plantRepository.getPlantById(plantId).first()?.let { plant ->
+                    WateringLifecycleReset.applyRepotReset(
+                        plant,
+                        resetAnchorMs = loggedAt,
+                        plantRepository = plantRepository,
+                        wateringAdjustmentRepository = wateringAdjustmentRepository
+                    )
+                }
+            }
             if (willPairWater) insertPairedWaterLog()
             if (!isEditMode && selectedCareType == CareType.WATER) clearWateringOverrideIfActive()
             if (selectedCareType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
@@ -227,7 +239,8 @@ class AddCareLogViewModel(
      * persists the resulting [Plant.wateringConfidence] immediately — confidence updates on every
      * qualifying observation, independent of whether the caller later shows/applies the resulting
      * suggestion dialog. [feedback] may be `null` (#570) — a silent gap-only observation, capped at
-     * [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
+     * [CareSchedule.NEUTRAL_OBSERVATION_GAIN]. See [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same function for
+     * the #571 history-bootstrap short-circuit this mirrors.
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
@@ -235,17 +248,21 @@ class AddCareLogViewModel(
         actualIntervalDays: Int,
         currentInterval: Int
     ): Int {
+        val now = System.currentTimeMillis()
+        if (maybeApplyHistoryBootstrap(plant, now)) return currentInterval
+
         val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
+        val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
-            recentFeedback = recentFeedback
+            recentFeedback = recentFeedback,
+            frozen = frozen
         )
-        val now = System.currentTimeMillis()
         if (result.confidence != plant.wateringConfidence) {
             plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
         }
@@ -253,7 +270,7 @@ class AddCareLogViewModel(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning),
+                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
                 beforeIntervalDays = currentBase,
                 afterIntervalDays = result.intervalDays
             )
@@ -261,10 +278,42 @@ class AddCareLogViewModel(
         return result.intervalDays
     }
 
+    /**
+     * See [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same helper — identical
+     * rule, duplicated per this file's convention.
+     */
+    private suspend fun maybeApplyHistoryBootstrap(plant: Plant, now: Long): Boolean {
+        val boundaryMs = when {
+            plant.wateringConfidence == null -> Long.MIN_VALUE
+            plant.wateringResetAt != null -> plant.wateringFreezeUntil ?: plant.wateringResetAt
+            else -> return false
+        }
+        val request = WateringLifecycleReset.BootstrapRequest(
+            plant = plant,
+            waterLogTimestampsMs = careLogRepository.getWaterLogTimestampsAscending(plantId),
+            boundaryMs = boundaryMs,
+            seasonFn = seasonFnFor(plant)
+        )
+        return WateringLifecycleReset.maybeBootstrap(request, plantRepository, wateringAdjustmentRepository, now)
+    }
+
+    /** See [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same helper. `null` [dataStore] behaves like amplitude 0.0. */
+    @Suppress("ReturnCount")
+    private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
+        if (plant.pinIntervalToBase) return { 1.0 }
+        val store = dataStore ?: return { 1.0 }
+        val amplitude = store.seasonalAmplitudeOnce()
+        if (amplitude == 0.0) return { 1.0 }
+        val hemisphere = SeasonalWatering.currentHemisphere()
+        return { date -> SeasonalWatering.season(date, amplitude, hemisphere) }
+    }
+
     private fun adjustmentTriggerFor(
         feedback: WateringFeedback?,
-        excludedFromBaseLearning: Boolean
+        excludedFromBaseLearning: Boolean,
+        frozen: Boolean = false
     ): WateringAdjustmentTrigger = when {
+        frozen -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
         excludedFromBaseLearning -> WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED
         feedback == WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
         feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE

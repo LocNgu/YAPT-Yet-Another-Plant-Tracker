@@ -100,6 +100,9 @@ class QuickLogUseCaseTest {
         PhotoReminderPolicy.shownThisSession.clear()
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        // #571: below the 3-gap bootstrap threshold by default, so existing adaptive-model tests keep
+        // exercising the plain per-observation path — tests exercising the bootstrap itself override this.
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         // Default: plant has no log of any type today; individual tests override to true to
         // exercise the duplicate-rejection paths (#509).
@@ -190,6 +193,41 @@ class QuickLogUseCaseTest {
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.PRUNE && it.wateringFeedback == null })
         }
+    }
+
+    // #571: quickLog's REPOT path is reached from BulkActionBar's bulk-repot action.
+
+    @Test
+    fun `quickLog REPOT resets confidence and starts the freeze window when adaptive_watering is on`() = runTest {
+        val adaptiveDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        useCase = QuickLogUseCase(
+            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
+        )
+        every { application.getString(R.string.care_type_repotted) } returns "Repotted"
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 3)
+
+        useCase.quickLog(monstera, CareType.REPOT)
+
+        coVerify(exactly = 1) {
+            plantRepo.updatePlant(
+                match { it.wateringConfidence == 0 && it.wateringResetAt != null && it.wateringFreezeUntil != null }
+            )
+        }
+        coVerify { wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.REPOT_RESET }) }
+    }
+
+    @Test
+    fun `quickLog REPOT does not reset confidence when adaptive_watering is off`() = runTest {
+        every { application.getString(R.string.care_type_repotted) } returns "Repotted"
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 3)
+
+        useCase.quickLog(monstera, CareType.REPOT)
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -311,6 +349,51 @@ class QuickLogUseCaseTest {
         assertEquals(1L, outcome.suggestion!!.plantId)
         assertEquals(4, outcome.suggestion!!.suggestedInterval)
     }
+
+    // #571: the first-ever adaptive observation cold-starts from existing watering history when
+    // there's enough of it (>= 3 gaps), instead of the plain per-observation nudge.
+    @Test
+    fun `quickWaterWithReason bootstraps from history on the first adaptive observation when enough gaps exist`() =
+        runTest {
+            val adaptiveDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                )
+            }
+            useCase = QuickLogUseCase(
+                application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
+            )
+            val now = System.currentTimeMillis()
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(7)),
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(14))
+            )
+            // 5 timestamps, 7 days apart -> 4 gaps, clears MIN_BOOTSTRAP_GAPS (3).
+            coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns (0..4).map {
+                now - TimeUnit.DAYS.toMillis((28 - it * 7).toLong())
+            }
+
+            val outcome = useCase.quickWaterWithReason(monstera, null)
+
+            // Bootstrap already silently committed the interval, so no suggestion dialog fires.
+            assertNull(outcome.suggestion)
+            coVerify(exactly = 1) {
+                plantRepo.updatePlant(
+                    match {
+                        it.wateringConfidence == 1 &&
+                            it.wateringIntervalDays == 7 &&
+                            it.wateringResetAt == null
+                    }
+                )
+            }
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }
+                )
+            }
+        }
 
     @Test
     fun `quickWaterWithReason with no reason and same actual-as-stored interval returns null`() = runTest {
