@@ -11,6 +11,16 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 410,
+            versionName = "0.26.1",
+            fixed = listOf(
+                "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
+                    "no longer silently drifts the plant's watering interval a little further every time you " +
+                    "apply one — it was writing an internal value instead of the number the app actually " +
+                    "shows you"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 400,
             versionName = "0.26.0",
             added = listOf(

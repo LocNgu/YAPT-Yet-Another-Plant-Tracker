@@ -471,8 +471,14 @@ class PlantDetailViewModel(
             return
         }
         val p = plant.value ?: return
-        val before = applyIntervalInternal(p, originalSuggestion = suggestedInterval, newInterval = suggestedInterval)
-        _events.emit(Event.SilentIntervalApplied(before, suggestedInterval))
+        val result = applyIntervalInternal(p, originalSuggestion = suggestedInterval, newInterval = suggestedInterval)
+        _events.emit(
+            Event.SilentIntervalApplied(
+                beforeIntervalDays = result.previousEffectiveIntervalDays,
+                beforeBaseIntervalDays = result.previousBaseIntervalDays,
+                afterIntervalDays = result.newEffectiveIntervalDays
+            )
+        )
     }
 
     /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
@@ -485,14 +491,36 @@ class PlantDetailViewModel(
     }
 
     /**
+     * Result of [applyIntervalInternal] — enough for both call sites to report what actually got
+     * written, not just the raw base-space number handed in (#626).
+     */
+    private data class IntervalApplyResult(
+        val previousEffectiveIntervalDays: Int,
+        val previousBaseIntervalDays: Double?,
+        val newEffectiveIntervalDays: Int
+    )
+
+    /**
      * The single write path for committing a new [Plant.wateringIntervalDays] from an adaptive
      * suggestion (#572) — used by both the ADR-0006 dialog's Apply button and the silent-apply path.
      * Adopts the same dual-write [setWateringInterval] already uses for manual edits (§1 of the #572
      * spec: applying a suggestion with `SEASONAL_WATERING` on previously left
-     * [Plant.wateringBaseIntervalDays] stale, so the due date silently never moved). Returns the
-     * pre-apply interval, for the silent-apply Snackbar's undo.
+     * [Plant.wateringBaseIntervalDays] stale, so the due date silently never moved).
+     *
+     * [newInterval] is base-space (QuickLogUseCase's adaptive suggestion), but [Plant.wateringIntervalDays]
+     * is read everywhere else as an *effective*, seasonally-adjusted value (the suggestion dialog's
+     * "currently" figure, the Water tab slider, [WateringExplanationBuilder]) — writing the raw base
+     * straight in silently drifted the literal interval on every apply (#626). [newInterval] is run
+     * through [CareSchedule.effectiveWateringIntervalDaysForDisplay] before being written, mirroring
+     * [pendingWateringSuggestion]'s exact conversion pattern; that function already collapses to
+     * identity (returns [newInterval] unchanged) when the plant is pinned or `SEASONAL_WATERING` is
+     * off, so no extra gating is needed here.
      */
-    private suspend fun applyIntervalInternal(plant: Plant, originalSuggestion: Int?, newInterval: Int): Int {
+    private suspend fun applyIntervalInternal(
+        plant: Plant,
+        originalSuggestion: Int?,
+        newInterval: Int
+    ): IntervalApplyResult {
         val now = System.currentTimeMillis()
         val adaptiveOn = isAdaptiveWateringEnabled()
         // Retyping the suggested number before tapping Apply is fine-tuning within the model, not a
@@ -514,35 +542,46 @@ class PlantDetailViewModel(
         // writing it straight into wateringBaseIntervalDays would clobber a real prior base. Gate on
         // amplitude too, matching setWateringInterval/currentBaseIntervalDaysOrLiteral (#584 review
         // round 2).
-        val wateringBaseIntervalDays = if (!plant.pinIntervalToBase && dataStore.seasonalAmplitudeOnce() != 0.0) {
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        val newBaseIntervalDays = if (!plant.pinIntervalToBase && amplitude != 0.0) {
             newInterval.toDouble()
         } else {
             plant.wateringBaseIntervalDays
         }
-        val before = plant.wateringIntervalDays ?: newInterval
+        val previousEffectiveIntervalDays = plant.wateringIntervalDays ?: newInterval
+        val previousBaseIntervalDays = plant.wateringBaseIntervalDays
+        // #626: newInterval is base-space; wateringIntervalDays must hold the effective (seasonally
+        // adjusted) value actually shown everywhere else — the same conversion pendingWateringSuggestion
+        // already applies for display.
+        val newEffectiveIntervalDays = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = plant.copy(wateringBaseIntervalDays = newBaseIntervalDays, wateringIntervalDays = newInterval),
+            seasonalAmplitude = amplitude
+        ) ?: newInterval
         plantRepository.updatePlant(
             plant.copy(
-                wateringIntervalDays = newInterval,
-                wateringBaseIntervalDays = wateringBaseIntervalDays,
+                wateringIntervalDays = newEffectiveIntervalDays,
+                wateringBaseIntervalDays = newBaseIntervalDays,
                 wateringConfidence = wateringConfidence,
                 updatedAt = now
             )
         )
         if (adaptiveOn) {
-            // #584 review: `before` is `plant.wateringIntervalDays`, which may still be a literal
-            // effective value (e.g. never dual-written by this function before) rather than
-            // base-space — read the plant's actual current base for the row instead.
+            // #584 review: `previousEffectiveIntervalDays` is `plant.wateringIntervalDays`, which may
+            // still be a literal effective value rather than base-space — read the plant's actual
+            // current base for the row instead. #626: this row stays base-space and deliberately keeps
+            // diverging from the literal wateringIntervalDays now written above — it represents the
+            // model's base-space accounting, not the user-facing effective value.
             wateringAdjustmentRepository.addAdjustment(
                 WateringAdjustment(
                     plantId = plant.id,
                     triggeredAt = now,
                     trigger = WateringAdjustmentTrigger.DIALOG_EDIT,
-                    beforeIntervalDays = currentBaseIntervalDaysOrLiteral(plant, before),
+                    beforeIntervalDays = currentBaseIntervalDaysOrLiteral(plant, previousEffectiveIntervalDays),
                     afterIntervalDays = newInterval
                 )
             )
         }
-        return before
+        return IntervalApplyResult(previousEffectiveIntervalDays, previousBaseIntervalDays, newEffectiveIntervalDays)
     }
 
     fun applySuggestedInterval(newInterval: Int) {
@@ -555,31 +594,27 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Reverts a silently-applied suggestion (#572) back to [beforeIntervalDays] — the Snackbar's
-     * "Undo" action. Writes a compensating [WateringAdjustment] row ([WateringAdjustmentTrigger
-     * .SILENT_APPLY_UNDONE], #584 review) so "Recent adjustments" reflects the revert instead of
-     * still showing the original silent apply as if it stood — `before` is the silently-applied
-     * value being undone, `after` is the restored original.
+     * Reverts a silently-applied suggestion (#572) back to [beforeIntervalDays] /
+     * [beforeBaseIntervalDays] — the Snackbar's "Undo" action. Both values are the plant's actual
+     * prior [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], captured and threaded
+     * straight through from [applyIntervalInternal] via [Event.SilentIntervalApplied] — restored
+     * as-is, never recomputed (#626: recomputing [beforeBaseIntervalDays] from [beforeIntervalDays]
+     * relied on [beforeIntervalDays] coincidentally already being base-space, which stopped being true
+     * once [applyIntervalInternal] started writing a genuine effective value there). Writes a
+     * compensating [WateringAdjustment] row ([WateringAdjustmentTrigger.SILENT_APPLY_UNDONE], #584
+     * review) so "Recent adjustments" reflects the revert instead of still showing the original silent
+     * apply as if it stood — `before` is the silently-applied value being undone, `after` is the
+     * restored original.
      */
-    fun undoSilentIntervalApply(beforeIntervalDays: Int) {
+    fun undoSilentIntervalApply(beforeIntervalDays: Int, beforeBaseIntervalDays: Double?) {
         viewModelScope.launch {
             plant.value?.let { p ->
-                // beforeIntervalDays is the prior wateringIntervalDays captured by applyIntervalInternal,
-                // only genuinely base-space when SEASONAL_WATERING was on at that time too — same
-                // double-deseasonalization pitfall applies here (assign directly, never through
-                // deseasonalizedBaseOrNull), and the same amplitude gate applies too, otherwise this
-                // would clobber a real prior base with a literal value (#584 review round 2).
-                val wateringBaseIntervalDays = if (!p.pinIntervalToBase && dataStore.seasonalAmplitudeOnce() != 0.0) {
-                    beforeIntervalDays.toDouble()
-                } else {
-                    p.wateringBaseIntervalDays
-                }
                 val silentlyAppliedInterval = p.wateringIntervalDays ?: beforeIntervalDays
                 val now = System.currentTimeMillis()
                 plantRepository.updatePlant(
                     p.copy(
                         wateringIntervalDays = beforeIntervalDays,
-                        wateringBaseIntervalDays = wateringBaseIntervalDays,
+                        wateringBaseIntervalDays = beforeBaseIntervalDays,
                         updatedAt = now
                     )
                 )
@@ -928,8 +963,18 @@ class PlantDetailViewModel(
     sealed class Event {
         object IntervalUpdated : Event()
 
-        /** A suggestion applied silently because "Ask before changing intervals" is off (#572). */
-        data class SilentIntervalApplied(val beforeIntervalDays: Int, val afterIntervalDays: Int) : Event()
+        /**
+         * A suggestion applied silently because "Ask before changing intervals" is off (#572).
+         * [beforeIntervalDays]/[beforeBaseIntervalDays] are the plant's actual prior
+         * [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], for [undoSilentIntervalApply]
+         * to restore exactly (#626) — never recomputed at the call site. [afterIntervalDays] is the
+         * effective value [applyIntervalInternal] actually wrote, not the raw base-space suggestion.
+         */
+        data class SilentIntervalApplied(
+            val beforeIntervalDays: Int,
+            val beforeBaseIntervalDays: Double?,
+            val afterIntervalDays: Int
+        ) : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */
