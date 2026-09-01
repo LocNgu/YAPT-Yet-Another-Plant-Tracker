@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,9 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
@@ -38,6 +43,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.core.common.component.TextComponent
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.schedule.Hemisphere
@@ -51,7 +57,6 @@ import kotlin.math.roundToInt
 
 private const val Y_AXIS_HALF_RANGE = 0.5
 private const val Y_AXIS_STEP = 0.25
-private const val MONTHS_IN_YEAR = 12
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val TodayPointKey = ExtraStore.Key<TodayCurvePoint>()
 
@@ -225,9 +230,9 @@ private fun SeasonalCurveVicoChart(
     today: LocalDate,
     todayMultiplier: Double,
 ) {
-    val monthLabels = remember {
+    val baseMonthLabels = remember {
         val fmt = DateTimeFormatter.ofPattern("MMM")
-        (0 until MONTHS_IN_YEAR).associateWith { fmt.format(LocalDate.of(2001, it + 1, 1)) }
+        (0 until MONTHS_IN_YEAR).map { fmt.format(LocalDate.of(2001, it + 1, 1)) }
     }
 
     val curveColor = MaterialTheme.colorScheme.primary
@@ -238,17 +243,69 @@ private fun SeasonalCurveVicoChart(
     }
 
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(points, monthLabels, todayMultiplier) {
+    val density = LocalDensity.current
+
+    // BoxWithConstraints measures the actual width given at runtime rather than testing against a
+    // hardcoded breakpoint (#621) — the month-label format/size continuously adapts to it.
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val availableWidthPx = with(density) { maxWidth.toPx() }
+        SeasonalCurveChartHost(
+            curveSeries = SeasonalCurveSeries(points, today, todayMultiplier),
+            visuals = SeasonalCurveVisuals(curveColor, todayMarkerDecoration),
+            layout = SeasonalCurveLayout(baseMonthLabels, availableWidthPx, density),
+            modelProducer = modelProducer,
+        )
+    }
+}
+
+private data class SeasonalCurveSeries(
+    val points: List<SeasonalCurvePoint>,
+    val today: LocalDate,
+    val todayMultiplier: Double,
+)
+
+private data class SeasonalCurveVisuals(
+    val curveColor: Color,
+    val todayMarkerDecoration: Decoration,
+)
+
+private data class SeasonalCurveLayout(
+    val baseMonthLabels: List<String>,
+    val availableWidthPx: Float,
+    val density: Density,
+)
+
+@Composable
+private fun SeasonalCurveChartHost(
+    curveSeries: SeasonalCurveSeries,
+    visuals: SeasonalCurveVisuals,
+    layout: SeasonalCurveLayout,
+    modelProducer: CartesianChartModelProducer,
+) {
+    val monthLabelStrategy = remember(layout.availableWidthPx, layout.baseMonthLabels) {
+        val plotWidthPx = (layout.availableWidthPx - estimateYAxisReservedWidthPx(layout.density)).coerceAtLeast(0f)
+        resolveMonthLabelStrategy(
+            availableWidthPx = plotWidthPx,
+            monthLabels = layout.baseMonthLabels,
+            measureTextWidthPx = { text, fontSizeSp -> measureLabelWidthPx(text, fontSizeSp, layout.density) },
+        )
+    }
+    val monthLabels = remember(layout.baseMonthLabels, monthLabelStrategy) {
+        buildMonthLabelMap(layout.baseMonthLabels, monthLabelStrategy)
+    }
+
+    LaunchedEffect(curveSeries.points, monthLabels, curveSeries.todayMultiplier) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
-                    x = points.map { monthIndexFor(it.date) },
-                    y = points.map { it.multiplier.toFloat() }
+                    x = curveSeries.points.map { monthIndexFor(it.date) },
+                    y = curveSeries.points.map { it.multiplier.toFloat() }
                 )
             }
             extras { store ->
                 store[MonthLabelsKey] = monthLabels
-                store[TodayPointKey] = TodayCurvePoint(monthIndexFor(today), todayMultiplier.toFloat())
+                store[TodayPointKey] =
+                    TodayCurvePoint(monthIndexFor(curveSeries.today), curveSeries.todayMultiplier.toFloat())
             }
         }
     }
@@ -263,8 +320,19 @@ private fun SeasonalCurveVicoChart(
     }
 
     ProvideVicoTheme(rememberM3VicoTheme()) {
+        // rememberAxisLabelComponent() defaults its color to vicoTheme.textColor, a
+        // CompositionLocal only set inside this ProvideVicoTheme scope — must be created here,
+        // not above, or the month labels would fall back to Vico's own Light/Dark palette instead
+        // of the M3 theme's.
+        val monthLabelComponent = rememberAxisLabelComponent(textSize = monthLabelStrategy.fontSizeSp.sp)
         CartesianChartHost(
-            chart = rememberSeasonalCurveChart(curveColor, monthFormatter, multiplierFormatter, todayMarkerDecoration),
+            chart = rememberSeasonalCurveChart(
+                visuals.curveColor,
+                monthFormatter,
+                multiplierFormatter,
+                visuals.todayMarkerDecoration,
+                monthLabelComponent,
+            ),
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
@@ -282,6 +350,7 @@ private fun rememberSeasonalCurveChart(
     monthFormatter: CartesianValueFormatter,
     multiplierFormatter: CartesianValueFormatter,
     todayMarkerDecoration: Decoration,
+    monthLabelComponent: TextComponent?,
 ) = rememberCartesianChart(
     rememberLineCartesianLayer(
         lineProvider = LineCartesianLayer.LineProvider.series(
@@ -303,6 +372,7 @@ private fun rememberSeasonalCurveChart(
         itemPlacer = remember { VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP }) },
     ),
     bottomAxis = HorizontalAxis.rememberBottom(
+        label = monthLabelComponent,
         valueFormatter = monthFormatter,
         itemPlacer = remember { HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }) },
     ),

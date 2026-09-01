@@ -76,3 +76,19 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
   pinned plant's due dates ignore this curve entirely — #578).
 - Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.
+- **Responsive month labels on narrow screens (#621).** The bottom axis's 12 "MMM" ticks are laid out inside a
+  `BoxWithConstraints` that measures the actual plot width at runtime (never a hardcoded breakpoint) and feeds it
+  to `resolveMonthLabelStrategy()` — a pure, unit-tested function (`SeasonalWateringCurveChartTest.kt`) decoupled
+  from the Vico `CartesianChartHost` composition itself, per the project's semantics-only Compose-UI-test rule (a
+  Vico canvas chart has no tree structure to assert). It degrades continuously through, stopping at the first
+  stage that fits without cropping/overlap: `"MMM"` at normal size → `"MMM"` shrunk toward a 9sp floor → single
+  letters (J F M A M J J A S O N D) re-run through the same shrink-to-floor check → single letters thinned to
+  alternating months (remaining ticks still drawn, just unlabeled) as an absolute last resort. Text width is
+  measured via an injected `measureTextWidthPx` lambda (production wiring uses `android.graphics.Paint`, via
+  `LocalDensity`) so the resolver itself stays a plain deterministic function testable with a fake measurer. The
+  y-axis's reserved width is estimated once from its fixed `"0.50×"`–`"1.50×"` format (`estimateYAxisReservedWidthPx`)
+  rather than resolved by the pure function, which only ever sees the plot width actually left for month ticks.
+  `HorizontalAxis.rememberBottom(label = ...)`'s `TextComponent` must be built from `rememberAxisLabelComponent()`
+  *inside* `ProvideVicoTheme { ... }` — its default color reads `vicoTheme.textColor`, a `CompositionLocal` only
+  set inside that scope; built outside it silently falls back to Vico's own Light/Dark palette instead of the M3
+  theme's.

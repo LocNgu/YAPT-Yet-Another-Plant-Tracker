@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Seasonal watering curve preview chart's month labels no longer crop or overlap on narrow screens** — `SeasonalWateringCurveChart` (Settings amplitude picker and Plant Detail's Water tab inline-settings card) measures its actual plot width at runtime (`BoxWithConstraints`) instead of assuming there's always room for 12 full "Jan"–"Dec" labels at a fixed size. A new pure `resolveMonthLabelStrategy()` continuously degrades through a fallback order — full "MMM" labels at normal size, then shrunk toward a 9sp floor, then single-letter labels (J F M A M J J A S O N D) re-run through the same shrink-to-floor check, and only as a last resort alternating months left unlabeled (still ticked) — stopping at the first stage that fits without cropping/overlap. The underlying curve math (`SeasonalWateringCurveSampler`/`SeasonalWatering.season()`) is untouched; both render sites are fixed automatically since they share the one composable (#621)
+
 ---
 
 ## [0.26.0] - 2026-08-31
