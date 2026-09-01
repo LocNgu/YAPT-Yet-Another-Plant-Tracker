@@ -102,6 +102,7 @@ import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.RescheduleReasonBottomSheet
+import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.StatsRow
 import com.yapt.planttracker.ui.components.WateringHistoryChart
@@ -701,8 +702,12 @@ fun PlantDetailScreen(
                                             SeasonalWateringCurveChart(
                                                 amplitude = seasonalAmplitudeValue,
                                                 hemisphere = hemisphere,
-                                                isPinned = plant?.pinIntervalToBase == true,
-                                                modifier = Modifier.padding(top = 12.dp)
+                                                modifier = Modifier.padding(top = 12.dp),
+                                                plantContext = SeasonalCurvePlantContext(
+                                                    isPinned = plant?.pinIntervalToBase == true,
+                                                    baseIntervalDays = plant?.wateringBaseIntervalDays
+                                                        ?: plant?.wateringIntervalDays?.toDouble(),
+                                                )
                                             )
                                         }
                                         if (plant?.wateringIntervalDays != null) {

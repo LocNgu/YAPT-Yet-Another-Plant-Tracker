@@ -47,15 +47,28 @@ import com.yapt.planttracker.domain.schedule.SeasonalWateringCurveSampler
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private const val Y_AXIS_HALF_RANGE = 0.5
 private const val Y_AXIS_STEP = 0.25
 private const val MONTHS_IN_YEAR = 12
+private const val TICK_MATCH_EPSILON = 0.001
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val TodayPointKey = ExtraStore.Key<TodayCurvePoint>()
 
 internal data class TodayCurvePoint(val x: Float, val y: Float)
+
+/**
+ * Bundles the Plant-Detail-only params of [SeasonalWateringCurveChart] — kept together to stay under
+ * Detekt's `LongParameterList` threshold, mirroring `CustomReminderActions`'s pattern elsewhere in the
+ * codebase — rather than adding more individual params. Both default to Settings' posture (no plant in
+ * scope): not pinned, no base interval to convert the axis to days with.
+ */
+internal data class SeasonalCurvePlantContext(
+    val isPinned: Boolean = false,
+    val baseIntervalDays: Double? = null,
+)
 
 /**
  * Fractional month-index x-coordinate for [date] (Jan 1 = 0.0, Dec 31 ≈ 11.97), matching
@@ -66,6 +79,32 @@ internal data class TodayCurvePoint(val x: Float, val y: Float)
  */
 internal fun monthIndexFor(date: LocalDate): Float =
     (date.monthValue - 1) + fractionalDayOfMonth(date.dayOfMonth, date.lengthOfMonth())
+
+/** The fixed multiplier ticks the y-axis renders, `[0.5, 0.75, 1.0, 1.25, 1.5]` — unchanged by
+ *  [baseIntervalDays] (Plant Detail's days-format axis), which only converts the *label* shown at
+ *  each of these tick positions, never the axis's own numeric range/step. */
+internal fun seasonalCurveYAxisTicks(): List<Double> {
+    val stepCount = (2 * Y_AXIS_HALF_RANGE / Y_AXIS_STEP).roundToInt()
+    return (0..stepCount).map { (1.0 - Y_AXIS_HALF_RANGE) + it * Y_AXIS_STEP }
+}
+
+/**
+ * Whole-day tick labels (`"Nd"`, `round(baseIntervalDays × multiplier)`) for [ticks] in axis order.
+ * When a tick's rounded day value equals the immediately preceding tick's, the later tick's label is
+ * blanked instead of repeated — the first tick is never blanked (#622).
+ */
+internal fun seasonalCurveDayTickLabels(
+    baseIntervalDays: Double,
+    ticks: List<Double> = seasonalCurveYAxisTicks(),
+): List<String> {
+    var previousDays: Int? = null
+    return ticks.map { multiplier ->
+        val days = (multiplier * baseIntervalDays).roundToInt()
+        val label = if (days == previousDays) "" else "${days}d"
+        previousDays = days
+        label
+    }
+}
 
 /** Draws a dashed vertical guideline + a highlighted dot at "today"'s position on the curve. */
 private class TodayMarkerDecoration(
@@ -118,18 +157,26 @@ private class TodayMarkerDecoration(
  *
  * The y-axis is the raw multiplier (fixed 0.5×–1.5×, spanning [SeasonalAmplitude.STRONG]'s bounds
  * regardless of the currently selected [amplitude]) so switching amplitudes visibly changes the
- * curve's *height* within a constant frame, rather than rescaling the axis each time. [isPinned]
- * (Plant Detail only) grays the curve out and adds an inline note — the plant's due dates ignore
- * this curve entirely while pinned (#578).
+ * curve's *height* within a constant frame, rather than rescaling the axis each time.
+ * [plantContext]'s `isPinned` (Plant Detail only) grays the curve out and adds an inline note — the
+ * plant's due dates ignore this curve entirely while pinned (#578).
+ *
+ * [plantContext]'s `baseIntervalDays` (#622) is `null` on the Settings screen call site, where there
+ * is no per-plant base interval to anchor days to — the axis and captions stay the raw multiplier
+ * there, byte-for-byte unchanged. On Plant Detail it is non-null, and the axis/captions switch to
+ * whole days (`round(baseIntervalDays × multiplier)`) instead — only the label text changes, never
+ * the axis's numeric range/step.
  */
 @Composable
 internal fun SeasonalWateringCurveChart(
     amplitude: Double,
     hemisphere: Hemisphere,
     modifier: Modifier = Modifier,
-    isPinned: Boolean = false,
     showHemisphereCaption: Boolean = false,
+    plantContext: SeasonalCurvePlantContext = SeasonalCurvePlantContext(),
 ) {
+    val isPinned = plantContext.isPinned
+    val baseIntervalDays = plantContext.baseIntervalDays
     val today = remember { LocalDate.now() }
     val points = remember(amplitude, hemisphere, today.year) {
         SeasonalWateringCurveSampler.sample(amplitude, hemisphere, today.year)
@@ -149,6 +196,7 @@ internal fun SeasonalWateringCurveChart(
             today = today,
             todayMultiplier = todayMultiplier,
             isPinned = isPinned,
+            baseIntervalDays = baseIntervalDays,
         )
 
         if (showHemisphereCaption) {
@@ -171,6 +219,7 @@ private fun SeasonalCurveChartBody(
     today: LocalDate,
     todayMultiplier: Double,
     isPinned: Boolean,
+    baseIntervalDays: Double?,
 ) {
     val minMultiplier = remember(points) { points.minOf { it.multiplier } }
     val maxMultiplier = remember(points) { points.maxOf { it.multiplier } }
@@ -180,21 +229,39 @@ private fun SeasonalCurveChartBody(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Box(modifier = Modifier.alpha(if (isPinned) 0.45f else 1f)) {
-            SeasonalCurveVicoChart(points, today, todayMultiplier)
+            SeasonalCurveVicoChart(points, today, todayMultiplier, baseIntervalDays)
         }
 
-        Text(
-            text = stringResource(R.string.seasonal_curve_range, minMultiplier, maxMultiplier),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-        Text(
-            text = stringResource(R.string.seasonal_curve_today, todayMultiplier),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        if (baseIntervalDays != null) {
+            val minDays = (minMultiplier * baseIntervalDays).roundToInt()
+            val maxDays = (maxMultiplier * baseIntervalDays).roundToInt()
+            val todayDays = (todayMultiplier * baseIntervalDays).roundToInt()
+            Text(
+                text = stringResource(R.string.seasonal_curve_range_days, minDays, maxDays),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Text(
+                text = stringResource(R.string.seasonal_curve_today_days, todayDays),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.seasonal_curve_range, minMultiplier, maxMultiplier),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Text(
+                text = stringResource(R.string.seasonal_curve_today, todayMultiplier),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
     }
 }
 
@@ -224,6 +291,7 @@ private fun SeasonalCurveVicoChart(
     points: List<SeasonalCurvePoint>,
     today: LocalDate,
     todayMultiplier: Double,
+    baseIntervalDays: Double?,
 ) {
     val monthLabels = remember {
         val fmt = DateTimeFormatter.ofPattern("MMM")
@@ -258,13 +326,11 @@ private fun SeasonalCurveVicoChart(
             context.model.extraStore.getOrNull(MonthLabelsKey)?.get(x.roundToInt()) ?: " "
         }
     }
-    val multiplierFormatter = remember {
-        CartesianValueFormatter { _, y, _ -> String.format(Locale.getDefault(), "%.2f×", y) }
-    }
+    val yAxisFormatter = rememberSeasonalCurveYAxisFormatter(baseIntervalDays)
 
     ProvideVicoTheme(rememberM3VicoTheme()) {
         CartesianChartHost(
-            chart = rememberSeasonalCurveChart(curveColor, monthFormatter, multiplierFormatter, todayMarkerDecoration),
+            chart = rememberSeasonalCurveChart(curveColor, monthFormatter, yAxisFormatter, todayMarkerDecoration),
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
@@ -276,11 +342,31 @@ private fun SeasonalCurveVicoChart(
     }
 }
 
+/**
+ * The multiplier formatter (`"%.2f×"`) when [baseIntervalDays] is `null` (Settings), or a whole-day
+ * formatter (`"Nd"`, with adjacent-duplicate blanking — see [seasonalCurveDayTickLabels]) when it's
+ * non-null (Plant Detail, #622). Only the label text differs; the axis's numeric range/step doesn't.
+ */
+@Composable
+private fun rememberSeasonalCurveYAxisFormatter(baseIntervalDays: Double?): CartesianValueFormatter {
+    val dayTicks = remember { seasonalCurveYAxisTicks() }
+    return remember(baseIntervalDays, dayTicks) {
+        if (baseIntervalDays == null) {
+            return@remember CartesianValueFormatter { _, y, _ -> String.format(Locale.getDefault(), "%.2f×", y) }
+        }
+        val labels = seasonalCurveDayTickLabels(baseIntervalDays, dayTicks)
+        CartesianValueFormatter { _, y, _ ->
+            val tickIndex = dayTicks.indexOfFirst { abs(it - y) < TICK_MATCH_EPSILON }
+            if (tickIndex >= 0) labels[tickIndex] else "${(y * baseIntervalDays).roundToInt()}d"
+        }
+    }
+}
+
 @Composable
 private fun rememberSeasonalCurveChart(
     curveColor: Color,
     monthFormatter: CartesianValueFormatter,
-    multiplierFormatter: CartesianValueFormatter,
+    yAxisFormatter: CartesianValueFormatter,
     todayMarkerDecoration: Decoration,
 ) = rememberCartesianChart(
     rememberLineCartesianLayer(
@@ -299,7 +385,7 @@ private fun rememberSeasonalCurveChart(
         },
     ),
     startAxis = VerticalAxis.rememberStart(
-        valueFormatter = multiplierFormatter,
+        valueFormatter = yAxisFormatter,
         itemPlacer = remember { VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP }) },
     ),
     bottomAxis = HorizontalAxis.rememberBottom(

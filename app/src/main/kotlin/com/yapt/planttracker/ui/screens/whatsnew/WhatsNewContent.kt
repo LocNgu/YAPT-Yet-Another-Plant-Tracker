@@ -26,6 +26,11 @@ object WhatsNewContent {
                     "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
                     "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
                     "the suggestion's underlying value and the seasonally adjusted current interval"
+            ),
+            changed = listOf(
+                "Plant Detail's seasonal watering curve preview now shows actual days (e.g. \"6d\", \"9d\") " +
+                    "instead of the raw multiplier, based on that plant's watering interval. The Settings " +
+                    "screen's version of the chart is unchanged, since it isn't tied to a specific plant"
             )
         ),
         ReleaseNotes(

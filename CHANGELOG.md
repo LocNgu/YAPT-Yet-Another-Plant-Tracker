@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **Plant Detail's seasonal watering curve chart shows actual days instead of the raw multiplier** — the y-axis tick labels and the range/today captions under the chart now read `"Nd"` (`round(baseIntervalDays × multiplier)`, using `plant.wateringBaseIntervalDays` with the same `wateringIntervalDays` fallback the schedule itself uses), where two adjacent ticks that round to the same day value have the later one blanked instead of repeated. The Settings screen's chart, which has no per-plant base interval to anchor days to, is unchanged — still the raw multiplier. Visualization-only; the underlying axis range/step and the watering-interval computation itself are untouched (#622)
+
 ---
 
 ## [0.26.0] - 2026-08-31
