@@ -357,6 +357,8 @@ private fun rememberSeasonalCurveYAxisFormatter(baseIntervalDays: Double?): Cart
         val labels = seasonalCurveDayTickLabels(baseIntervalDays, dayTicks)
         CartesianValueFormatter { _, y, _ ->
             val tickIndex = dayTicks.indexOfFirst { abs(it - y) < TICK_MATCH_EPSILON }
+            // Believed unreachable: the fixed ticks are exact dyadic doubles and step()'s
+            // fixed-range item placer only ever calls this formatter with one of them.
             if (tickIndex >= 0) labels[tickIndex] else "${(y * baseIntervalDays).roundToInt()}d"
         }
     }
