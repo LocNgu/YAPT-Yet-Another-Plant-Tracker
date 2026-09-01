@@ -25,10 +25,7 @@ object WhatsNewContent {
                 "With both adaptive and seasonal watering on, the \"Water every N days?\" suggestion dialog " +
                     "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
                     "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
-                    "the suggestion's underlying value and the seasonally adjusted current interval",
-                "The seasonal watering curve preview chart's month labels (Settings and Plant Detail's Water " +
-                    "tab) no longer crop or overlap on narrow screens — they now shrink, abbreviate to single " +
-                    "letters, or thin to alternating months as needed to fit whatever width is available"
+                    "the suggestion's underlying value and the seasonally adjusted current interval"
             )
         ),
         ReleaseNotes(

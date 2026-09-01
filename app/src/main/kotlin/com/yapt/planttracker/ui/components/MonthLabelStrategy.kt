@@ -19,7 +19,18 @@ private const val MONTH_LABEL_FLOOR_SP = 9f
 /** Sample string used only to estimate the y-axis's reserved width; not itself rendered. */
 private const val Y_AXIS_WIDTH_SAMPLE = "1.50×"
 
-/** Slack (margins + padding + tick length) around the y-axis label, matching Vico's axis defaults. */
+/**
+ * Slack around the y-axis label's raw text width, deliberately more conservative than Vico
+ * actually reserves (verified against `VerticalAxis` 2.5.2 source, the pinned version in
+ * `app/build.gradle.kts`, since the real value is only known after Vico's own layout pass):
+ * `VerticalAxis.getWidth()` for `Size.Auto` reserves `labelWidth + tickLength + lineThickness`,
+ * where `labelWidth` already includes the label `TextComponent`'s own horizontal padding. With
+ * every axis component left at its `rememberAxisLabelComponent()`/`rememberAxisTickComponent()`
+ * default (`AxisComponents.kt`), that's `8dp` padding (`Defaults.AXIS_LABEL_HORIZONTAL_PADDING`
+ * = 4dp per side) + `4dp` tick (`Defaults.AXIS_TICK_LENGTH`) + `1dp` line
+ * (`Defaults.AXIS_LINE_WIDTH`) = `13dp` around the raw text width — so this `16dp` constant
+ * over-reserves by ~3dp (a negligible, never-cropping margin) rather than under-reserving.
+ */
 private const val Y_AXIS_RESERVED_SLACK_DP = 16f
 
 internal enum class MonthLabelTextCase { ABBREVIATED, SINGLE_LETTER }
