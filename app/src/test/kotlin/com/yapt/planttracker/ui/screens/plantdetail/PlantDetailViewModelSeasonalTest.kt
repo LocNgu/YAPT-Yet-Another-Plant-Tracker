@@ -272,6 +272,35 @@ class PlantDetailViewModelSeasonalTest {
         }
 
     @Test
+    fun `undoSilentIntervalApply with SEASONAL_WATERING on and unpinned restores the captured base verbatim`() =
+        runTest {
+            // #626 regression, distinguishing case: the old buggy formula
+            // (`if (!p.pinIntervalToBase && amplitude != 0.0) beforeIntervalDays.toDouble() else
+            // p.wateringBaseIntervalDays`) only diverges from "restore verbatim" when SEASONAL_WATERING is
+            // on and the plant is unpinned — exactly this setup. beforeIntervalDays (7) and
+            // beforeBaseIntervalDays (6.0) are deliberately different values; the old formula would have
+            // written 7.0 into wateringBaseIntervalDays, clobbering the real captured base of 6.0.
+            every { dataStore.data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+            )
+            val monstera = plant()
+                .copy(wateringIntervalDays = 9, pinIntervalToBase = false, wateringBaseIntervalDays = 8.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.undoSilentIntervalApply(beforeIntervalDays = 7, beforeBaseIntervalDays = 6.0)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 6.0 })
+            }
+        }
+
+    @Test
     fun `setWateringInterval logs the MANUAL_EDIT row's before-after in base-space, not the stale literal`() = runTest {
         // #584 review: mirrors AddEditPlantViewModel.saveEdit()'s equivalent MANUAL_EDIT fix — the row
         // must use the true base (6, from wateringBaseIntervalDays), not the stale literal
