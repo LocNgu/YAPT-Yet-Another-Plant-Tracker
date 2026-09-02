@@ -1,5 +1,11 @@
 package com.yapt.planttracker.ui.components
 
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.CartesianMeasuringContext
+import com.patrykandpatrick.vico.core.cartesian.axis.Axis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.common.Position
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -278,7 +284,7 @@ class SeasonalCurveLabeledTicksTest {
 
     @Test
     fun dayFormatterFormula_neverProducesBlankForAnyLabeledTick() {
-        // Mirrors rememberSeasonalCurveYAxisFormatter()'s day-label branch exactly: "${(y *
+        // Mirrors rememberSeasonalCurveYAxis()'s day-label branch exactly: "${(y *
         // baseIntervalDays).roundToInt()}d" for any y handed to it. Since the ItemPlacer now
         // guarantees the formatter only ever sees a labeled tick's value, this must never be blank.
         for (baseIntervalDays in listOf(0.0, 1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 7.0, 10.0, 14.0, 20.0, 30.0, 45.0, 90.0)) {
@@ -291,5 +297,92 @@ class SeasonalCurveLabeledTicksTest {
                 )
             }
         }
+    }
+}
+
+// A fake VerticalAxis.ItemPlacer that always returns [allValues] from every value-producing method
+// — a stand-in for the real step(...) placer's runtime output, so DayLabelItemPlacer's own filtering
+// (rather than the real placer's tick-selection logic) is what's under test.
+private class FakeDelegateItemPlacer(private val allValues: List<Double>) : VerticalAxis.ItemPlacer {
+    override fun getLabelValues(
+        context: CartesianDrawingContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getWidthMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getHeightMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getLineValues(
+        context: CartesianDrawingContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getTopLayerMargin(
+        context: CartesianMeasuringContext,
+        verticalLabelPosition: Position.Vertical,
+        maxLabelHeight: Float,
+        maxLineThickness: Float,
+    ): Float = 0f
+
+    override fun getBottomLayerMargin(
+        context: CartesianMeasuringContext,
+        verticalLabelPosition: Position.Vertical,
+        maxLabelHeight: Float,
+        maxLineThickness: Float,
+    ): Float = 0f
+}
+
+// #638 follow-up: exercises DayLabelItemPlacer's own getLabelValues/getWidthMeasurementLabelValues/
+// getHeightMeasurementLabelValues overrides (the TICK_MATCH_EPSILON filter itself) directly, against a
+// stub delegate returning a known fixed set — SeasonalCurveLabeledTicksTest above only covers
+// seasonalCurveLabeledTicks(), the pure function fed into this class's constructor, not the class's own
+// filtering logic.
+class DayLabelItemPlacerTest {
+
+    private val allTicks = listOf(0.5, 0.75, 1.0, 1.25, 1.5)
+    private val labeledTicks = listOf(0.5, 0.75, 1.25)
+
+    private val drawingContext = mockk<CartesianDrawingContext>()
+    private val measuringContext = mockk<CartesianMeasuringContext>()
+    private val position = Axis.Position.Vertical.Start
+
+    private val placer = DayLabelItemPlacer(FakeDelegateItemPlacer(allTicks), labeledTicks)
+
+    @Test
+    fun getLabelValues_excludesTicksNotInLabeledSet() {
+        val result = placer.getLabelValues(drawingContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getWidthMeasurementLabelValues_excludesTicksNotInLabeledSet() {
+        val result =
+            placer.getWidthMeasurementLabelValues(measuringContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getHeightMeasurementLabelValues_excludesTicksNotInLabeledSet() {
+        val result = placer.getHeightMeasurementLabelValues(measuringContext, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getLineValues_untouched_returnsDelegatesFullUnfilteredSet() {
+        val result = placer.getLineValues(drawingContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(allTicks, result)
     }
 }

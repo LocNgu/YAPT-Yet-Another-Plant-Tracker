@@ -149,7 +149,7 @@ internal fun seasonalCurveLabeledTicks(
  * trace shows `VerticalAxis.getMaxLabelWidth` calls the formatter on values from those methods as
  * well, so leaving them unfiltered just moves the crash from label-drawing to width-measurement.
  */
-private class DayLabelItemPlacer(
+internal class DayLabelItemPlacer(
     private val delegate: VerticalAxis.ItemPlacer,
     private val labeledTicks: List<Double>,
 ) : VerticalAxis.ItemPlacer by delegate {

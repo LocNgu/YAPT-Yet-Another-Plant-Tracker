@@ -125,7 +125,7 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   `VerticalAxis`/`formatForAxis` treats a `""` formatter result as a fatal programming error (uncaught
   `IllegalStateException`, crashes the whole app) — its own exception message says so: use
   `VerticalAxis.ItemPlacer`, not empty strings, to control which values get labeled.
-  `rememberSeasonalCurveYAxisFormatter()`'s day-label branch now **always returns a non-empty `"Nd"`
+  `rememberSeasonalCurveYAxis()`'s day-label branch now **always returns a non-empty `"Nd"`
   string** for any value; `seasonalCurveDayTickLabels()` itself is unchanged and stays the single
   source of truth for "which day value belongs to which tick." A new pure function,
   `seasonalCurveLabeledTicks(baseIntervalDays, ticks)`, filters `seasonalCurveYAxisTicks()` down to the
@@ -139,7 +139,7 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   so leaving them unfiltered just moves the crash from label-drawing to width-measurement.
   `getLineValues`/gridlines and the top/bottom layer margins are left untouched (still delegate) — all
   5 gridlines still render, only which ones get a text label changes, preserving the chart's visual
-  layout. `rememberSeasonalCurveYAxisItemPlacer()` wires this in only for the `baseIntervalDays != null`
+  layout. `rememberSeasonalCurveYAxis()` wires this in only for the `baseIntervalDays != null`
   (Plant Detail) path; the Settings raw-multiplier axis keeps the plain `step(...)` placer unmodified.
   `SeasonalCurveLabeledTicksTest`/day-formatter-never-blank tests in
   `SeasonalWateringCurveChartTest.kt` cover the extracted filtering function directly (the exact one
