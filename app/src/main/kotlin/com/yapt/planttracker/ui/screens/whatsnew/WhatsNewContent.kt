@@ -17,7 +17,9 @@ object WhatsNewContent {
                 "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
                     "no longer silently drifts the plant's watering interval a little further every time you " +
                     "apply one — it was writing an internal value instead of the number the app actually " +
-                    "shows you"
+                    "shows you",
+                "The seasonal watering curve preview chart's month labels no longer crop or overlap on " +
+                    "narrow screens"
             )
         ),
         ReleaseNotes(
