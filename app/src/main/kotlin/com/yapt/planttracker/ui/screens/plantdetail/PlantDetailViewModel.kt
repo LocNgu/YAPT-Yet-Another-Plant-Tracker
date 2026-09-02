@@ -491,98 +491,18 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Result of [applyIntervalInternal] — enough for both call sites to report what actually got
-     * written, not just the raw base-space number handed in (#626).
-     */
-    private data class IntervalApplyResult(
-        val previousEffectiveIntervalDays: Int,
-        val previousBaseIntervalDays: Double?,
-        val newEffectiveIntervalDays: Int
-    )
-
-    /**
      * The single write path for committing a new [Plant.wateringIntervalDays] from an adaptive
      * suggestion (#572) — used by both the ADR-0006 dialog's Apply button and the silent-apply path.
-     * Adopts the same dual-write [setWateringInterval] already uses for manual edits (§1 of the #572
-     * spec: applying a suggestion with `SEASONAL_WATERING` on previously left
-     * [Plant.wateringBaseIntervalDays] stale, so the due date silently never moved).
-     *
-     * [newInterval] is base-space (QuickLogUseCase's adaptive suggestion), but [Plant.wateringIntervalDays]
-     * is read everywhere else as an *effective*, seasonally-adjusted value (the suggestion dialog's
-     * "currently" figure, the Water tab slider, [WateringExplanationBuilder]) — writing the raw base
-     * straight in silently drifted the literal interval on every apply (#626). [newInterval] is run
-     * through [CareSchedule.effectiveWateringIntervalDaysForDisplay] before being written, mirroring
-     * [pendingWateringSuggestion]'s exact conversion pattern; that function already collapses to
-     * identity (returns [newInterval] unchanged) when the plant is pinned or `SEASONAL_WATERING` is
-     * off, so no extra gating is needed here.
+     * Delegates to [QuickLogUseCase.applyWateringIntervalSuggestion] (#631), which now owns this math
+     * as the single choke point shared with the Calendar and Plant List suggestion dialogs — this
+     * function used to carry its own copy, which is how #626/#572 came to be fixed here but not there.
      */
     private suspend fun applyIntervalInternal(
         plant: Plant,
         originalSuggestion: Int?,
         newInterval: Int
-    ): IntervalApplyResult {
-        val now = System.currentTimeMillis()
-        val adaptiveOn = isAdaptiveWateringEnabled()
-        // Retyping the suggested number before tapping Apply is fine-tuning within the model, not a
-        // rejection of it — never a full reset like an AddEditPlant edit (#568). Outside
-        // GAP_AGREEMENT_TOLERANCE of the original suggestion, the suggestion was materially wrong and
-        // confidence falls, but the model still stands. A silent apply always passes
-        // originalSuggestion == newInterval, so confidence never falls from an apply the user never edited.
-        val wateringConfidence = if (adaptiveOn && originalSuggestion != null) {
-            CareSchedule.confidenceAfterDialogEdit(plant.wateringConfidence, originalSuggestion, newInterval)
-        } else {
-            plant.wateringConfidence
-        }
-        // newInterval is already season-neutral (base-space) when SEASONAL_WATERING is also on — it's
-        // QuickLogUseCase's adaptive suggestion, computed entirely from already-deseasonalized inputs
-        // (unlike setWateringInterval's `days` param below, which is a literal effective value the user
-        // just typed and genuinely needs deseasonalizing). Re-deseasonalizing it here would
-        // double-divide by season() (#584 review round 1). But ADAPTIVE_WATERING/SEASONAL_WATERING are
-        // independent flags — when amplitude is 0, newInterval is a *literal* value, not base-space, so
-        // writing it straight into wateringBaseIntervalDays would clobber a real prior base. Gate on
-        // amplitude too, matching setWateringInterval/currentBaseIntervalDaysOrLiteral (#584 review
-        // round 2).
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        val newBaseIntervalDays = if (!plant.pinIntervalToBase && amplitude != 0.0) {
-            newInterval.toDouble()
-        } else {
-            plant.wateringBaseIntervalDays
-        }
-        val previousEffectiveIntervalDays = plant.wateringIntervalDays ?: newInterval
-        val previousBaseIntervalDays = plant.wateringBaseIntervalDays
-        // #626: newInterval is base-space; wateringIntervalDays must hold the effective (seasonally
-        // adjusted) value actually shown everywhere else — the same conversion pendingWateringSuggestion
-        // already applies for display.
-        val newEffectiveIntervalDays = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = plant.copy(wateringBaseIntervalDays = newBaseIntervalDays, wateringIntervalDays = newInterval),
-            seasonalAmplitude = amplitude
-        ) ?: newInterval
-        plantRepository.updatePlant(
-            plant.copy(
-                wateringIntervalDays = newEffectiveIntervalDays,
-                wateringBaseIntervalDays = newBaseIntervalDays,
-                wateringConfidence = wateringConfidence,
-                updatedAt = now
-            )
-        )
-        if (adaptiveOn) {
-            // #584 review: `previousEffectiveIntervalDays` is `plant.wateringIntervalDays`, which may
-            // still be a literal effective value rather than base-space — read the plant's actual
-            // current base for the row instead. #626: this row stays base-space and deliberately keeps
-            // diverging from the literal wateringIntervalDays now written above — it represents the
-            // model's base-space accounting, not the user-facing effective value.
-            wateringAdjustmentRepository.addAdjustment(
-                WateringAdjustment(
-                    plantId = plant.id,
-                    triggeredAt = now,
-                    trigger = WateringAdjustmentTrigger.DIALOG_EDIT,
-                    beforeIntervalDays = currentBaseIntervalDaysOrLiteral(plant, previousEffectiveIntervalDays),
-                    afterIntervalDays = newInterval
-                )
-            )
-        }
-        return IntervalApplyResult(previousEffectiveIntervalDays, previousBaseIntervalDays, newEffectiveIntervalDays)
-    }
+    ): QuickLogUseCase.IntervalApplyResult =
+        quickLogUseCase.applyWateringIntervalSuggestion(plant, originalSuggestion, newInterval)
 
     fun applySuggestedInterval(newInterval: Int) {
         viewModelScope.launch {
