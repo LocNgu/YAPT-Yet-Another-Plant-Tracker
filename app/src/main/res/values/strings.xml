@@ -76,6 +76,8 @@
     <string name="seasonal_curve_title">Seasonal watering curve</string>
     <string name="seasonal_curve_range">Range across the year: %1$.2f× – %2$.2f×</string>
     <string name="seasonal_curve_today">Today: %1$.2f×</string>
+    <string name="seasonal_curve_range_days">Range across the year: %1$dd – %2$dd</string>
+    <string name="seasonal_curve_today_days">Today: %1$dd</string>
     <string name="seasonal_curve_hemisphere_caption">Based on your device\'s timezone — %1$s hemisphere, peak in %2$s</string>
     <string name="seasonal_curve_hemisphere_northern">Northern</string>
     <string name="seasonal_curve_hemisphere_southern">Southern</string>
@@ -104,6 +106,14 @@
         <item quantity="one">In 1 day (suggested)</item>
         <item quantity="other">In %d days (suggested)</item>
     </plurals>
+    <!-- Reschedule delta + revert (#630) — the "Rescheduled +N days" chip above WateringDueActionsRow
+         and the matching display-only row in the "Why this date?" sheet, mirroring
+         reschedule_watering_plus_days's wording/format args. -->
+    <plurals name="watering_reschedule_delta_days">
+        <item quantity="one">Rescheduled +1 day</item>
+        <item quantity="other">Rescheduled +%d days</item>
+    </plurals>
+    <string name="reschedule_reverted_snackbar">Reschedule reverted</string>
     <string name="watering_due_action_water">Water</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
          way a user would say them; the answer alone decides whether the model learns. -->

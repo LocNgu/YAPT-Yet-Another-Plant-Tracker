@@ -137,93 +137,12 @@ class PlantDetailViewModelSeasonalTest {
         coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == null }) }
     }
 
-    @Test
-    fun `applySuggestedInterval with SEASONAL_WATERING on and unpinned updates wateringBaseIntervalDays`() = runTest {
-        // #572 regression: applySuggestedInterval() previously wrote only wateringIntervalDays, so
-        // once SEASONAL_WATERING is on, CareSchedule.effectiveWateringIntervalDays() kept reading the
-        // stale wateringBaseIntervalDays and the due date never moved — the whole point of the "Why
-        // this date?" sheet's "every number matches CareSchedule" acceptance criterion.
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-        )
-        val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.applySuggestedInterval(14)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        // #584 review: newInterval (14) is QuickLogUseCase's adaptive suggestion, already season-neutral
-        // (base-space) — the base must be set to it *directly*, exactly 14.0, never re-deseasonalized
-        // (which would silently corrupt it to 14 / season(today) on any day where season(today) != 1.0).
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 14.0 })
-        }
-    }
-
-    @Test
-    fun `applySuggestedInterval with SEASONAL_WATERING on writes an effective-space wateringIntervalDays`() =
-        runTest {
-            // #626 regression: applyIntervalInternal previously wrote the raw base-space newInterval
-            // straight into wateringIntervalDays, even though every other read site (the suggestion
-            // dialog's "currently" figure, the Water tab slider/"every N days" text,
-            // WateringExplanationBuilder) treats wateringIntervalDays as an effective, seasonally-adjusted
-            // value — silently drifting the literal interval a little further on every single apply. This
-            // asserts wateringIntervalDays now holds the exact same base->effective conversion
-            // pendingWateringSuggestion already applies for display, never the raw 14.
-            every { dataStore.data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
-            val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
-            val vm = makeVm()
-            val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-                plant = monstera.copy(wateringBaseIntervalDays = 14.0, wateringIntervalDays = 14),
-                seasonalAmplitude = SeasonalAmplitude.STANDARD.value
-            )
-
-            vm.plant.test {
-                assertEquals(monstera, awaitItem())
-                vm.applySuggestedInterval(14)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            coVerify {
-                plantRepo.updatePlant(match { it.wateringIntervalDays == expectedEffective })
-            }
-        }
-
-    @Test
-    fun `applySuggestedInterval with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() = runTest {
-        // #584 review round 2: ADAPTIVE_WATERING/SEASONAL_WATERING are independent flags. With season
-        // off, newInterval is QuickLogUseCase's literal suggestion (not base-space) — writing it
-        // straight into wateringBaseIntervalDays would clobber a real prior base (6.0, established
-        // while season was previously on) with the literal 8. Mirrors setWateringInterval's season-off
-        // test above.
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-        )
-        val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.applySuggestedInterval(8)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
-        }
-    }
+    // Math-correctness coverage for applySuggestedInterval's underlying write (the three tests
+    // previously here: SEASONAL_WATERING on/unpinned updating wateringBaseIntervalDays, SEASONAL_WATERING
+    // on writing an effective-space wateringIntervalDays, SEASONAL_WATERING off leaving
+    // wateringBaseIntervalDays untouched) now lives in QuickLogUseCaseIntervalApplyTest, against
+    // QuickLogUseCase.applyWateringIntervalSuggestion() directly (#631) — applySuggestedInterval() is a
+    // thin delegation to that shared function now, tested as such in PlantDetailViewModelTest.
 
     @Test
     fun `undoSilentIntervalApply restores the exact captured prior interval and base`() =
@@ -328,38 +247,8 @@ class PlantDetailViewModelSeasonalTest {
         }
     }
 
-    @Test
-    fun `applySuggestedInterval logs the DIALOG_EDIT row's beforeIntervalDays in base-space, not the stale literal`() =
-        runTest {
-            // #584 review: mirrors QuickLogUseCaseSeasonalTest's "adapts against wateringBaseIntervalDays,
-            // not stale wateringIntervalDays" case with the identical plant shape (wateringIntervalDays=10
-            // literal, wateringBaseIntervalDays=6.0 true base) — a WATER_*-triggered row and this
-            // DIALOG_EDIT-triggered row must both log beforeIntervalDays=6, never the stale literal 10,
-            // so "Recent adjustments" never mixes units for the same underlying change.
-            every { dataStore.data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-                )
-            )
-            val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
-            coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
-            val vm = makeVm()
-
-            vm.plant.test {
-                assertEquals(monstera, awaitItem())
-                vm.applySuggestedInterval(9)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            coVerify {
-                wateringAdjustmentRepo.addAdjustment(
-                    match { it.beforeIntervalDays == 6 && it.afterIntervalDays == 9 }
-                )
-            }
-        }
+    // "applySuggestedInterval logs the DIALOG_EDIT row's beforeIntervalDays in base-space, not the
+    // stale literal" moved to QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above.
 
     @Test
     fun `undoSilentIntervalApply with ADAPTIVE_WATERING on writes a SILENT_APPLY_UNDONE row`() = runTest {
@@ -408,26 +297,8 @@ class PlantDetailViewModelSeasonalTest {
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
-    @Test
-    fun `applySuggestedInterval on a pinned plant leaves wateringBaseIntervalDays untouched`() = runTest {
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-        )
-        val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.applySuggestedInterval(14)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
-        }
-    }
+    // "applySuggestedInterval on a pinned plant leaves wateringBaseIntervalDays untouched" moved to
+    // QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above.
 
     @Test
     fun `dismissSuggestedInterval logs the DIALOG_DISMISSAL row's before-after in base-space, not the stale literal`() =

@@ -11,13 +11,21 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
-            versionCode = 410,
-            versionName = "0.26.1",
+            versionCode = 420,
+            versionName = "0.27.0",
+            added = listOf(
+                "Plant Detail now shows a \"Rescheduled +N days\" chip when a reschedule is currently pushing " +
+                    "a plant's watering due date out — tap it to revert instantly (with an Undo Snackbar). The " +
+                    "\"Why this date?\" sheet shows a matching read-only row"
+            ),
             fixed = listOf(
                 "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
                     "no longer silently drifts the plant's watering interval a little further every time you " +
                     "apply one — it was writing an internal value instead of the number the app actually " +
-                    "shows you"
+                    "shows you",
+                "Applying a suggested watering interval from the Calendar or Plant List dialogs is now " +
+                    "consistent with Plant Detail — those two had their own separate (and buggy) copy of " +
+                    "this logic"
             )
         ),
         ReleaseNotes(
@@ -36,6 +44,11 @@ object WhatsNewContent {
                     "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
                     "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
                     "the suggestion's underlying value and the seasonally adjusted current interval"
+            ),
+            changed = listOf(
+                "Plant Detail's seasonal watering curve preview now shows actual days (e.g. \"6d\", \"9d\") " +
+                    "instead of the raw multiplier, based on that plant's watering interval. The Settings " +
+                    "screen's version of the chart is unchanged, since it isn't tied to a specific plant"
             )
         ),
         ReleaseNotes(

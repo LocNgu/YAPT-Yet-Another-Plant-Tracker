@@ -119,11 +119,20 @@ class PlantDetailViewModelTest {
         }
     }
 
+    // Math-correctness coverage for applySuggestedInterval's write (base dual-write, effective-space
+    // conversion, confidence math, WateringAdjustment row shape) now lives in QuickLogUseCaseTest,
+    // against QuickLogUseCase.applyWateringIntervalSuggestion() directly (#631) — this is a thin
+    // delegation/smoke test, mirroring how quickWater/quickFertilize are tested below.
     @Test
-    fun `applySuggestedInterval updates plant via repo and emits IntervalUpdated event`() = runTest {
+    fun `applySuggestedInterval delegates to QuickLogUseCase and emits IntervalUpdated event`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14) } returns
+            QuickLogUseCase.IntervalApplyResult(
+                previousEffectiveIntervalDays = 7,
+                previousBaseIntervalDays = null,
+                newEffectiveIntervalDays = 14
+            )
         val vm = makeVm()
 
         vm.plant.test {
@@ -138,7 +147,7 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 14 }) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14) }
     }
 
     @Test
@@ -304,8 +313,12 @@ class PlantDetailViewModelTest {
                 suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) } returns
+            QuickLogUseCase.IntervalApplyResult(
+                previousEffectiveIntervalDays = 7,
+                previousBaseIntervalDays = null,
+                newEffectiveIntervalDays = 9
+            )
         val vm = makeVm()
 
         vm.plant.test {
@@ -321,7 +334,7 @@ class PlantDetailViewModelTest {
 
         // Never shows the dialog.
         assertEquals(null, vm.suggestedWateringInterval.value)
-        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 9 }) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) }
     }
 
     @Test

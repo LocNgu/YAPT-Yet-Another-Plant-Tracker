@@ -300,26 +300,18 @@ class PlantListViewModel(
 
     /**
      * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
-     * originally suggested (before any retyping); the same confidence rules as
-     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval]
-     * apply here so the effect is identical regardless of which screen the dialog was shown from
-     * (#568 comment 5).
+     * originally suggested (before any retyping). Delegates to
+     * [QuickLogUseCase.applyWateringIntervalSuggestion] (#631) — the same choke point
+     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval] uses —
+     * so the effect (including the #572 base dual-write and the #626 effective-space conversion) is
+     * identical regardless of which screen the dialog was shown from, rather than each screen carrying
+     * its own copy of the math. Plant List has no silent-apply/undo equivalent, so the result is
+     * intentionally not surfaced further — the dialog itself is dismissed by the caller.
      */
     fun applySuggestedIntervalFromList(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
-                val wateringConfidence = if (isAdaptiveWateringEnabled()) {
-                    CareSchedule.confidenceAfterDialogEdit(p.wateringConfidence, suggestedIntervalDays, newInterval)
-                } else {
-                    p.wateringConfidence
-                }
-                plantRepository.updatePlant(
-                    p.copy(
-                        wateringIntervalDays = newInterval,
-                        wateringConfidence = wateringConfidence,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                )
+                quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedIntervalDays, newInterval)
             }
         }
     }

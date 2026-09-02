@@ -298,30 +298,30 @@ class CalendarViewModelTest {
         assertEquals(month, vm.visibleMonth.value)
     }
 
-    // applySuggestedInterval / dismissSuggestedInterval mirror PlantDetailViewModel's equivalents
-    // (#568 comment 5) so the ADR-0006 dialog has the same confidence effect regardless of which
-    // of the three screens it was shown from. The confidence math itself is covered by
-    // CareScheduleAdaptiveTest; these verify the VM wires the flag check and repo update.
+    // dismissSuggestedInterval mirrors PlantDetailViewModel's equivalent (#568 comment 5) so the
+    // ADR-0006 dialog has the same confidence effect regardless of which of the three screens it was
+    // shown from. applySuggestedInterval's write-path math-correctness coverage (base dual-write,
+    // effective-space conversion, confidence math, WateringAdjustment row shape) now lives in
+    // QuickLogUseCaseIntervalApplyTest, against QuickLogUseCase.applyWateringIntervalSuggestion()
+    // directly (#631) — applySuggestedInterval() is a thin delegation to that shared function now.
 
     @Test
-    fun `applySuggestedInterval persists the new interval and adaptive confidence when flag enabled`() = runTest {
-        val enabledDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
+    fun `applySuggestedInterval delegates to QuickLogUseCase with the resolved plant`() = runTest {
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 2)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, quickLogUseCase)
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) } returns
+            QuickLogUseCase.IntervalApplyResult(
+                previousEffectiveIntervalDays = 7,
+                previousBaseIntervalDays = null,
+                newEffectiveIntervalDays = 10
+            )
+        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
-        // Applied value == suggested value: within GAP_AGREEMENT_TOLERANCE, so confidenceAfterDialogEdit
-        // leaves confidence unchanged at 2 (normal rules), not a reset.
         vm.applySuggestedInterval(1L, suggestedIntervalDays = 10, newInterval = 10)
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 10 && it.wateringConfidence == 2 }) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) }
     }
 
     @Test
