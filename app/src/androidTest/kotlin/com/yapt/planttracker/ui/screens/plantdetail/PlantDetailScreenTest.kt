@@ -63,6 +63,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
 class PlantDetailScreenTest {
@@ -1937,9 +1938,9 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
     }
 
-    private fun seasonalCurveTodayText(multiplier: Double): String =
+    private fun seasonalCurveTodayDaysText(days: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(R.string.seasonal_curve_today, multiplier)
+            .getString(R.string.seasonal_curve_today_days, days)
 
     private fun seasonalCurvePinnedNoteText(): String =
         InstrumentationRegistry.getInstrumentation().targetContext
@@ -1948,8 +1949,9 @@ class PlantDetailScreenTest {
     /**
      * The seasonal-curve preview chart (#579) renders in the Water tab's inline settings card
      * alongside the "Pin interval" switch, only while [FeatureFlagRegistry.SEASONAL_WATERING] is on.
-     * Asserts the visible "Today" caption text, computed the same way the chart itself does — never
-     * chart canvas/tree structure, per #420.
+     * On Plant Detail the caption is in whole days (#622), not the raw multiplier — asserts the
+     * visible "Today" caption text, computed the same way the chart itself does — never chart
+     * canvas/tree structure, per #420.
      */
     @Test
     fun seasonalCurveChart_todayCaption_isDisplayed_whenSeasonalWateringEnabled() {
@@ -1971,10 +1973,12 @@ class PlantDetailScreenTest {
             SeasonalAmplitude.STANDARD.value,
             SeasonalWatering.currentHemisphere()
         )
+        val baseIntervalDays = plant.wateringBaseIntervalDays ?: plant.wateringIntervalDays!!.toDouble()
+        val expectedDays = (expectedMultiplier * baseIntervalDays).roundToInt()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(seasonalCurveTodayText(expectedMultiplier)))
-        composeTestRule.onNodeWithText(seasonalCurveTodayText(expectedMultiplier)).assertIsDisplayed()
+            .performScrollToNode(hasText(seasonalCurveTodayDaysText(expectedDays)))
+        composeTestRule.onNodeWithText(seasonalCurveTodayDaysText(expectedDays)).assertIsDisplayed()
         composeTestRule.onNodeWithText(seasonalCurvePinnedNoteText())
             .assertDoesNotExist()
     }

@@ -76,3 +76,14 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
   pinned plant's due dates ignore this curve entirely — #578).
 - Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.
+- **Y-axis label unit is call-site-controlled (#622).** `SeasonalWateringCurveChart`'s optional
+  `baseIntervalDays: Double?` (default `null`) switches the y-axis `valueFormatter` and the
+  `seasonal_curve_range`/`seasonal_curve_today` captions between the raw multiplier (`null` — Settings,
+  which has no per-plant base interval to anchor days to) and whole days (non-null — Plant Detail,
+  `plant.wateringBaseIntervalDays ?: plant.wateringIntervalDays.toDouble()`, the same fallback
+  `CareSchedule.effectiveWateringIntervalDaysForDisplay()` uses). The axis's numeric range/step (the
+  fixed `0.5×`–`1.5×`/`0.25×` ticks above) is unaffected either way — only the label text converts.
+  `seasonalCurveYAxisTicks()`/`seasonalCurveDayTickLabels()` are pure, JVM-tested functions: labels are
+  `"Nd"` (`round(baseIntervalDays × multiplier)`), and when two adjacent ticks in axis order round to
+  the same day value, the later one's label is blanked (never repeated) — the first tick in axis order
+  is never blanked.
