@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreTime
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -65,7 +68,9 @@ internal const val RESCHEDULE_DELTA_CHIP_TEST_TAG = "reschedule_delta_chip"
  * .rescheduleDeltaDays] is non-null — i.e. [com.yapt.planttracker.domain.model.Plant
  * .wateringDueDateOverride] is the actual `maxOf()` winner over the schedule-computed due date.
  * Tapping the chip reverts the reschedule immediately (no confirmation dialog, snackbar-undo instead —
- * product spec decision on #630).
+ * product spec decision on #630). A trailing close icon (decorative — the chip is one clickable unit,
+ * not a separately-tappable target) makes the revert affordance visually obvious rather than relying
+ * on the chip's clickability alone (review follow-up).
  */
 @Composable
 internal fun RescheduleDeltaChip(
@@ -77,6 +82,13 @@ internal fun RescheduleDeltaChip(
         onClick = onClick,
         label = {
             Text(pluralStringResource(R.plurals.watering_reschedule_delta_days, deltaDays, deltaDays))
+        },
+        trailingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.reschedule_delta_chip_remove_cd),
+                modifier = Modifier.size(AssistChipDefaults.IconSize)
+            )
         },
         modifier = modifier.testTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
     )
