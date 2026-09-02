@@ -17,10 +17,7 @@ object WhatsNewContent {
                 "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
                     "no longer silently drifts the plant's watering interval a little further every time you " +
                     "apply one — it was writing an internal value instead of the number the app actually " +
-                    "shows you",
-                "The seasonal watering curve preview chart's month labels no longer crop or overlap on " +
-                    "narrow screens, and the whole chart no longer runs off the right edge (cutting off " +
-                    "November/December) on narrower cards"
+                    "shows you"
             )
         ),
         ReleaseNotes(
@@ -39,6 +36,11 @@ object WhatsNewContent {
                     "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
                     "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
                     "the suggestion's underlying value and the seasonally adjusted current interval"
+            ),
+            changed = listOf(
+                "Plant Detail's seasonal watering curve preview now shows actual days (e.g. \"6d\", \"9d\") " +
+                    "instead of the raw multiplier, based on that plant's watering interval. The Settings " +
+                    "screen's version of the chart is unchanged, since it isn't tied to a specific plant"
             )
         ),
         ReleaseNotes(

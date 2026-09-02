@@ -73,8 +73,9 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
 - Rendered in two places, both gated behind `FeatureFlagRegistry.SEASONAL_WATERING`: directly under the Settings
   amplitude picker (`showHemisphereCaption = true`, since hemisphere is otherwise inferred with no UI surfacing it
   anywhere else), and in the Plant Detail Water tab's inline settings card next to the "Pin interval" switch
-  (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
-  pinned plant's due dates ignore this curve entirely — #578).
+  (`plantContext = SeasonalCurvePlantContext(isPinned = plant.pinIntervalToBase, baseIntervalDays = ...)`, which
+  grays the curve out at 45% alpha + shows an inline note when pinned, since a pinned plant's due dates ignore this
+  curve entirely — #578).
 - Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.
 - **Responsive month labels on narrow screens (#621).** The bottom axis's 12 "MMM" ticks are laid out inside a
   `BoxWithConstraints` that measures the actual plot width at runtime (never a hardcoded breakpoint) and feeds it
@@ -107,3 +108,15 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   `scrollEnabled = true` and *wants* the floor-driven overflow to be reachable by scrolling rather than always
   compressed to fit. `SeasonalCurveZoomFitTest.kt` exercises the real Vico `Zoom` primitives (not a hand re-derived
   formula) to pin this.
+- **Y-axis label unit is call-site-controlled (#622).** `SeasonalWateringCurveChart`'s optional
+  `plantContext: SeasonalCurvePlantContext` (default `SeasonalCurvePlantContext()`, `baseIntervalDays = null`)
+  switches the y-axis `valueFormatter` and the `seasonal_curve_range`/`seasonal_curve_today` (or
+  `seasonal_curve_range_days`/`seasonal_curve_today_days`) captions between the raw multiplier (`null` — Settings,
+  which has no per-plant base interval to anchor days to) and whole days (non-null — Plant Detail,
+  `plant.wateringBaseIntervalDays ?: plant.wateringIntervalDays.toDouble()`, the same fallback
+  `CareSchedule.effectiveWateringIntervalDaysForDisplay()` uses). The axis's numeric range/step (the
+  fixed `0.5×`–`1.5×`/`0.25×` ticks above) is unaffected either way — only the label text converts.
+  `seasonalCurveYAxisTicks()`/`seasonalCurveDayTickLabels()` are pure, JVM-tested functions: labels are
+  `"Nd"` (`round(baseIntervalDays × multiplier)`), and when two adjacent ticks in axis order round to
+  the same day value, the later one's label is blanked (never repeated) — the first tick in axis order
+  is never blanked.
