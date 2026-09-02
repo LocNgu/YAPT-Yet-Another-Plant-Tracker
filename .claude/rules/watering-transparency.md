@@ -22,6 +22,24 @@ paths:
 (`currentAdaptiveBaseIntervalDays`). Before this fix, applying a suggestion with `SEASONAL_WATERING` on
 and the plant unpinned silently never moved the due date.
 
+**Follow-up (#626):** the dual-write above only fixed `wateringBaseIntervalDays`; `applyIntervalInternal()`
+was still writing the raw base-space `newInterval` straight into the *literal* `wateringIntervalDays`
+field, even though every other read site (the dialog's "currently" figure, the Water tab slider/"every N
+days" text, `WateringExplanationBuilder`) treats `wateringIntervalDays` as an effective, seasonally-adjusted
+value — silently drifting the literal interval a little further on every single apply. `applyIntervalInternal()`
+now runs `newInterval` through `CareSchedule.effectiveWateringIntervalDaysForDisplay()` (the same
+conversion `pendingWateringSuggestion` already applies for display) before writing it, so
+`wateringIntervalDays` and `wateringBaseIntervalDays` genuinely diverge from each other going forward
+whenever `SEASONAL_WATERING` is on and the plant is unpinned — that divergence is now correct, not a bug.
+The `DIALOG_EDIT` `WateringAdjustment` row's `afterIntervalDays` deliberately stays the raw base-space
+`newInterval` (unchanged) — it's the model's base-space accounting, not the user-facing effective value,
+and the two are meant to differ. `Event.SilentIntervalApplied` and `undoSilentIntervalApply()` both carry
+the plant's actual prior `wateringIntervalDays`/`wateringBaseIntervalDays`, captured once inside
+`applyIntervalInternal()` and threaded straight through — undo restores them as-is rather than
+recomputing either (recomputing `wateringBaseIntervalDays` from `beforeIntervalDays` relied on
+`beforeIntervalDays` coincidentally already being base-space, which stopped being true once this fix
+landed).
+
 ## `watering_adjustments` table (`data/entity/WateringAdjustmentEntity.kt`, `data/db/WateringAdjustmentDao.kt`,
 `data/repository/WateringAdjustmentRepository.kt`)
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a
@@ -62,10 +80,13 @@ consulted when `ADAPTIVE_WATERING` is on (`PlantDetailViewModel.shouldShowInterv
 otherwise, so the ADR-0006 dialog stays unconditional for anyone not on the adaptive model.
 - **On** (default): today's ADR-0006 `AlertDialog`, byte-for-byte unchanged.
 - **Off**: `PlantDetailViewModel.applySuggestionOrPrompt()` calls `applyIntervalInternal()` directly
-  (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(before, after)`;
+  (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays,
+  beforeBaseIntervalDays, afterIntervalDays)` — `afterIntervalDays` is the effective value actually
+  written (#626), not the raw suggestion; `before*` are the plant's actual prior values, not derived.
   `PlantDetailScreen` shows a `Snackbar` (`R.string.interval_auto_applied_snackbar` +
   `R.string.snackbar_undo`, mirroring `PlantListScreen`'s archive-undo convention) whose action calls
-  `undoSilentIntervalApply(before)` — a plain revert, not a new `WateringAdjustment` row.
+  `undoSilentIntervalApply(beforeIntervalDays, beforeBaseIntervalDays)` — a plain revert restoring both
+  captured values as-is, not a new `WateringAdjustment` row.
 - Settings UI row lives on the main Settings screen (not Developer section), visible only while
   `ADAPTIVE_WATERING` is on — mirrors the seasonal-amplitude picker's visibility pattern.
 - The `AddCareLogScreen` save-flow suggestion (routed through `NavGraph`'s `savedStateHandle`) goes
