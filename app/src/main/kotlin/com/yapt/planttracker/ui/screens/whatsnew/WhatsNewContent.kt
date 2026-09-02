@@ -19,7 +19,8 @@ object WhatsNewContent {
                     "apply one — it was writing an internal value instead of the number the app actually " +
                     "shows you",
                 "The seasonal watering curve preview chart's month labels no longer crop or overlap on " +
-                    "narrow screens"
+                    "narrow screens, and the whole chart no longer runs off the right edge (cutting off " +
+                    "November/December) on narrower cards"
             )
         ),
         ReleaseNotes(

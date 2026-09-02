@@ -35,6 +35,7 @@ import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -339,7 +340,23 @@ private fun SeasonalCurveChartHost(
                 .height(140.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
             scrollState = rememberVicoScrollState(scrollEnabled = false),
-            zoomState = rememberVicoZoomState(zoomEnabled = false),
+            // `rememberVicoZoomState(zoomEnabled = false)`'s *default* `initialZoom` is
+            // `Zoom.max(Zoom.fixed(), Zoom.Content)` — the larger of a hardcoded 1.0x and the
+            // fit-to-bounds value (verified against Vico 2.5.2's `Zoom.kt`/`VicoZoomState.kt`
+            // source, the pinned version in `app/build.gradle.kts`). Our `LineCartesianLayer` sets
+            // no `pointProvider`, so its un-zoomed base `xSpacing` is exactly
+            // `Defaults.POINT_SPACING` (32dp) per x-unit (`LineCartesianLayer.updateDimensions()`)
+            // — 12 months therefore has a ~384dp un-zoomed base width. On any card narrower than
+            // that (common inside the Plant Detail inline-settings card and the Settings screen),
+            // the fit-to-bounds value is below 1.0, so `Zoom.max` picks the 1.0 floor instead,
+            // pinning the chart's real content width at ~384dp regardless of the container. Since
+            // scroll is disabled above, that excess silently overflows past the right edge — where
+            // Nov/Dec sit — and gets hard-clipped by the Composable's own bounds (#628 follow-up:
+            // still cut off around November after the #621 responsive-label fix, which only ever
+            // addressed per-label text sizing, not this separate whole-chart-doesn't-fit issue).
+            // `Zoom.Content` alone has no such floor, so the chart always shrinks (or grows) to
+            // exactly fill whatever width `BoxWithConstraints` measured above, on every screen size.
+            zoomState = rememberVicoZoomState(zoomEnabled = false, initialZoom = Zoom.Content),
         )
     }
 }

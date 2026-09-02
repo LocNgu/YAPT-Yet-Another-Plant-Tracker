@@ -92,3 +92,18 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   *inside* `ProvideVicoTheme { ... }` — its default color reads `vicoTheme.textColor`, a `CompositionLocal` only
   set inside that scope; built outside it silently falls back to Vico's own Light/Dark palette instead of the M3
   theme's.
+- **An unscrollable Vico chart needs an explicit `initialZoom = Zoom.Content`, not the default.** `rememberVicoZoomState
+  (zoomEnabled = false)`'s default `initialZoom` is `Zoom.max(Zoom.fixed(), Zoom.Content)` (verified in Vico 2.5.2's
+  `Zoom.kt`/`VicoZoomState.kt`) — the *larger* of a hardcoded 1.0x and the fit-to-bounds value, so it never shrinks
+  below the layer's un-zoomed base width (`LineCartesianLayer`'s `xSpacing = maxPointSize + pointSpacingDp.pixels`;
+  with no `pointProvider` configured that's just `Defaults.POINT_SPACING` = 32dp per x-unit — ~384dp for 12 months).
+  On any container narrower than that base width, the real content silently overflows past the right edge and gets
+  hard-clipped, since scroll is disabled — this bit `SeasonalWateringCurveChart.kt` on narrow screens (cut off
+  around November/December) even after #621's responsive-label fix, because it's a wholly separate whole-chart-
+  doesn't-fit issue, not a per-label sizing one. Fix: pass `zoomState = rememberVicoZoomState(zoomEnabled = false,
+  initialZoom = Zoom.Content)` explicitly whenever a chart intentionally disables scrolling and must always show
+  its full x-range regardless of container width — `Zoom.Content` alone has no 1.0 floor. `WateringHistoryChart.kt`
+  deliberately keeps the default (`zoomEnabled = false` with no `initialZoom` override) since it has
+  `scrollEnabled = true` and *wants* the floor-driven overflow to be reachable by scrolling rather than always
+  compressed to fit. `SeasonalCurveZoomFitTest.kt` exercises the real Vico `Zoom` primitives (not a hand re-derived
+  formula) to pin this.
