@@ -202,6 +202,7 @@ fun PlantDetailScreen(
     var issueToResolve by remember { mutableStateOf<PlantIssue?>(null) }
 
     val intervalAutoAppliedTemplate = stringResource(R.string.interval_auto_applied_snackbar)
+    val rescheduleRevertedMessage = stringResource(R.string.reschedule_reverted_snackbar)
     val undoLabel = stringResource(R.string.snackbar_undo)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -214,6 +215,16 @@ fun PlantDetailScreen(
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         viewModel.undoSilentIntervalApply(event.beforeIntervalDays, event.beforeBaseIntervalDays)
+                    }
+                }
+                is PlantDetailViewModel.Event.RescheduleReverted -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = rescheduleRevertedMessage,
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoRevertReschedule(event.previousOverrideAtMillis)
                     }
                 }
                 else -> {}
@@ -571,6 +582,14 @@ fun PlantDetailScreen(
                             }
                             if (plant?.wateringIntervalDays != null) {
                                 item {
+                                    status.rescheduleDeltaDays?.let { delta ->
+                                        RescheduleDeltaChip(
+                                            deltaDays = delta,
+                                            onClick = { viewModel.revertReschedule() },
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                    }
                                     WateringDueActionsRow(
                                         onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
                                         onRescheduleClick = { viewModel.requestReschedule() }
@@ -659,6 +678,14 @@ fun PlantDetailScreen(
                                 careStatus?.let { status ->
                                     if (plant?.wateringIntervalDays != null) {
                                         item {
+                                            status.rescheduleDeltaDays?.let { delta ->
+                                                RescheduleDeltaChip(
+                                                    deltaDays = delta,
+                                                    onClick = { viewModel.revertReschedule() },
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                                )
+                                                Spacer(Modifier.height(8.dp))
+                                            }
                                             WateringDueActionsRow(
                                                 onWaterClick = {
                                                     requestWater(status, viewModel) { showWaterSheet = true }

@@ -776,6 +776,142 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
     }
 
+    // ---- Reschedule delta chip + revert (#630) ----
+
+    @Test
+    fun rescheduleDeltaChip_isDisplayedWhenOverrideExceedsSchedule() {
+        // Never watered → computedNextDueAt is `now`; a future override beyond that is the actual
+        // maxOf() winner, so the chip should show the gap between them.
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val plant = Plant(
+            id = 24L,
+            name = "Deferred Plant",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = System.currentTimeMillis() + (3 * dayInMs),
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithText("Rescheduled +3 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDeltaChip_isHiddenWhenNoOverride() {
+        val plant = Plant(id = 25L, name = "No Override", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun rescheduleDeltaChip_isHiddenWhenOverrideIsStale() {
+        // A past override the schedule has already caught up with and exceeded is not the maxOf()
+        // winner (mirrors wateringDueActionsRow_isDisplayedWhenDueSoon's fixture).
+        val plant = Plant(
+            id = 27L,
+            name = "Stale Override",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = 0L,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun rescheduleDeltaChip_tapRevertsOverride_andShowsUndoSnackbar() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val originalOverride = System.currentTimeMillis() + (3 * dayInMs)
+        val plant = Plant(
+            id = 28L,
+            name = "Deferred Plant",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = originalOverride,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        // A live-backed repo (mirrors the seasonal-curve "Pin interval" tests) so the chip's
+        // disappearance after revert, and its reappearance after Undo, reflect real state changes
+        // rather than a static flow that would never move.
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStore)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        composeTestRule.onNodeWithText("Rescheduled +3 days").performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Reschedule reverted")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Reschedule reverted").assertIsDisplayed()
+        composeTestRule.onNodeWithText("UNDO").performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Rescheduled +3 days")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Rescheduled +3 days").assertIsDisplayed()
+    }
+
     /**
      * The fixture waters 14 days ago on a 7-day interval, so the gap ran **long** — this asserts the
      * late variant of the prompt (#586). Labels come from resources, not literals, so a wording
@@ -2077,5 +2213,66 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(
             InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_confidence)
         ).assertDoesNotExist()
+    }
+
+    /**
+     * The "Why this date?" sheet's display-only mirror of the reschedule delta chip (#630) — same
+     * wording, no tap action of its own (the chip outside the sheet is the only actionable UI).
+     */
+    @Test
+    fun wateringExplanationSheet_showsRescheduleDeltaRow_whenOverrideExceedsSchedule() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val plant = Plant(
+            id = 82L,
+            name = "Deferred Plant",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = System.currentTimeMillis() + (3 * dayInMs)
+        )
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Rescheduled +3 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun wateringExplanationSheet_hidesRescheduleDeltaRow_whenNoOverride() {
+        val plant = Plant(id = 83L, name = "Snake Plant", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 9)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Rescheduled", substring = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 }

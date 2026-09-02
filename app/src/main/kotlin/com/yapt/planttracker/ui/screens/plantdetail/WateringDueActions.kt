@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreTime
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -50,6 +51,32 @@ internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_butt
  * [WATERING_DUE_WATER_BUTTON_TEST_TAG] (#508 review fix).
  */
 internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
+
+/** Locates [RescheduleDeltaChip] in Compose UI tests — its label text also uniquely identifies it. */
+internal const val RESCHEDULE_DELTA_CHIP_TEST_TAG = "reschedule_delta_chip"
+
+/**
+ * "Rescheduled +N days" chip (#630), rendered directly above [WateringDueActionsRow] in both the
+ * classic layout and the Water tab, whenever [com.yapt.planttracker.domain.model.PlantCareStatus
+ * .rescheduleDeltaDays] is non-null — i.e. [com.yapt.planttracker.domain.model.Plant
+ * .wateringDueDateOverride] is the actual `maxOf()` winner over the schedule-computed due date.
+ * Tapping the chip reverts the reschedule immediately (no confirmation dialog, snackbar-undo instead —
+ * product spec decision on #630).
+ */
+@Composable
+internal fun RescheduleDeltaChip(
+    deltaDays: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AssistChip(
+        onClick = onClick,
+        label = {
+            Text(pluralStringResource(R.plurals.watering_reschedule_delta_days, deltaDays, deltaDays))
+        },
+        modifier = modifier.testTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
+    )
+}
 
 /**
  * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):

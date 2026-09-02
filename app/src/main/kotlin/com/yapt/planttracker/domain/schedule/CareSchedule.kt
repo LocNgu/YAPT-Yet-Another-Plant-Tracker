@@ -50,8 +50,8 @@ object CareSchedule {
         }
         val nowDate = now.toLocalDate()
 
-        val (nextDueAt, isOverdue, isDueSoon) =
-            computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
+        val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
+        val (nextDueAt, isOverdue, isDueSoon) = wateringDue.dueStatus
         val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
@@ -87,7 +87,8 @@ object CareSchedule {
             isRepottingDueSoon = isRepottingDueSoon,
             customReminderStatuses = customReminderStatuses,
             isWateringOnSchedule = onSchedule,
-            isWateringGapLong = gapRanLong
+            isWateringGapLong = gapRanLong,
+            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays
         )
     }
 
@@ -125,6 +126,9 @@ object CareSchedule {
         return daysBetween(lastWateredAt, now) > effectiveIntervalDays
     }
 
+    /** [computeWateringDue]'s result: the usual [DueStatus] plus the #630 reschedule delta. */
+    private data class WateringDueStatus(val dueStatus: DueStatus, val rescheduleDeltaDays: Int?)
+
     @Suppress("LongParameterList")
     private fun computeWateringDue(
         plant: Plant,
@@ -133,7 +137,7 @@ object CareSchedule {
         nowDate: LocalDate,
         seasonalAmplitude: Double,
         hemisphere: Hemisphere
-    ): DueStatus {
+    ): WateringDueStatus {
         val effectiveIntervalDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
         val computedNextDueAt = if (effectiveIntervalDays == null) {
             null
@@ -143,13 +147,22 @@ object CareSchedule {
             now
         }
 
+        val override = plant.wateringDueDateOverride
         val nextDueAt = when {
-            computedNextDueAt == null -> plant.wateringDueDateOverride
-            plant.wateringDueDateOverride == null -> computedNextDueAt
-            else -> maxOf(computedNextDueAt, plant.wateringDueDateOverride)
+            computedNextDueAt == null -> override
+            override == null -> computedNextDueAt
+            else -> maxOf(computedNextDueAt, override)
         }
 
-        return dueStatusFor(nextDueAt, nowDate)
+        // #630: non-null only when the override is the actual maxOf() winner, so a stale override the
+        // schedule has since caught up with (and exceeded) reports no delta — nothing to explain or revert.
+        val rescheduleDeltaDays = if (computedNextDueAt != null && override != null && override > computedNextDueAt) {
+            daysBetween(computedNextDueAt, override)
+        } else {
+            null
+        }
+
+        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays)
     }
 
     /**

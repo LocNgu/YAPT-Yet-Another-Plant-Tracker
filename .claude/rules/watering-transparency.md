@@ -121,3 +121,9 @@ for "Watering every N days" — the sheet's numbers cannot drift from the schedu
 - Deliberately textual/numeric only — does not embed `SeasonalWateringCurveChart` (#579), which lives
   one card away in the same inline-settings card and shows only the multiplier curve, no day-based
   numbers.
+- **Reschedule delta row (#630):** `WateringExplanation.rescheduleDeltaDays` mirrors
+  `PlantCareStatus.rescheduleDeltaDays` verbatim (populated regardless of `adaptiveWateringEnabled`,
+  same as `nextWateringDueAt`/`lastWateredAt`) — a plain `ExplanationRow` using the same
+  `watering_reschedule_delta_days` plural as the actionable chip outside the sheet. Display-only, no
+  tap target here — see `.claude/rules/plant-detail.md`'s "Reschedule delta chip + revert" for the
+  chip/revert flow itself.

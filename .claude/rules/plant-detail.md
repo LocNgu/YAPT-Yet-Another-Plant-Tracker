@@ -164,6 +164,25 @@ Material 3 `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-U
 what the picker itself displays, not the device's local "today"). **Never fires the ADR-0006
 interval-suggestion dialog** afterward, on either branch; there is no `Event` for a reschedule at all.
 
+### Reschedule delta chip + revert (#630)
+`PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
+— non-null only when `plant.wateringDueDateOverride` is the actual `maxOf()` winner over the
+schedule-computed due date (`override != null && override > computedNextDueAt`), so a stale,
+non-winning override reports no delta and the chip self-hides once the schedule catches back up. A
+`RescheduleDeltaChip` `AssistChip` (`WateringDueActions.kt`, "Rescheduled +N days" via the
+`watering_reschedule_delta_days` plural) renders directly above `WateringDueActionsRow` in both the
+classic layout and the Water tab, gated on this same field; tapping it calls
+`PlantDetailViewModel.revertReschedule()` directly — no confirmation dialog. `revertReschedule()`
+clears `wateringDueDateOverride` only (never `wateringIntervalDays`/`wateringBaseIntervalDays`/
+`wateringConfidence`, never a `WateringAdjustment` row — same posture `applyReschedule` already keeps)
+and emits `Event.RescheduleReverted(previousOverrideAtMillis)`; `PlantDetailScreen` shows a Snackbar
+("Reschedule reverted" + `R.string.snackbar_undo`) whose Undo action calls
+`undoRevertReschedule(previousOverrideAtMillis)` to restore the captured prior override as-is — mirrors
+`Event.SilentIntervalApplied`/`undoSilentIntervalApply()`'s capture-before-write shape exactly, same
+accepted race if a newer reschedule lands before Undo is tapped. The "Why this date?" sheet
+(`WateringExplanationSheet`/`WateringExplanationBuilder`) gets a matching **display-only** mirror row
+(same plural, no tap target) — the chip outside the sheet is the only actionable UI for this.
+
 ## Photos
 Unified `PhotoGallery` merges `plant_photos` + care-log photos (`GalleryPhoto(uri, timestamp)`,
 `.distinctBy { it.uri }`) newest-first (technical ADR-0015, #290). `FullScreenPhotoViewer` is a `HorizontalPager`

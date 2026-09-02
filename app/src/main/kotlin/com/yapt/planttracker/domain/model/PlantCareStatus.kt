@@ -44,5 +44,15 @@ data class PlantCareStatus(
      * a due-date status like the other fields, so it's populated directly by each ViewModel rather
      * than routed through [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus].
      */
-    val activeIssueCount: Int = 0
+    val activeIssueCount: Int = 0,
+    /**
+     * How many days [Plant.wateringDueDateOverride] has pushed the due date out beyond what the
+     * schedule alone would compute (#630) — non-null only when the override is the actual `maxOf()`
+     * winner (`wateringDueDateOverride != null && wateringDueDateOverride > computedNextDueAt`), so
+     * the chip/sheet row self-hides once the schedule catches up and exceeds a stale override.
+     * Computed once inside [com.yapt.planttracker.domain.schedule.CareSchedule.computeWateringDue] —
+     * never re-derived in the UI layer, same "no drift by construction" posture as the rest of this
+     * status.
+     */
+    val rescheduleDeltaDays: Int? = null
 )
