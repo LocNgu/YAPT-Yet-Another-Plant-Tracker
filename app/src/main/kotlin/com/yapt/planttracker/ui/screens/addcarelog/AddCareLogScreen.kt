@@ -198,9 +198,13 @@ fun AddCareLogScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (viewModel.isEditMode) stringResource(
-                            R.string.care_log_title_edit
-                        ) else stringResource(R.string.care_log_title_add)
+                        if (viewModel.isEditMode) {
+                            stringResource(
+                                R.string.care_log_title_edit
+                            )
+                        } else {
+                            stringResource(R.string.care_log_title_add)
+                        }
                     )
                 },
                 navigationIcon = {
