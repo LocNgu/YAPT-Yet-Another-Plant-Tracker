@@ -15,6 +15,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - **Plant Detail's seasonal watering curve chart shows actual days instead of the raw multiplier** — the y-axis tick labels and the range/today captions under the chart now read `"Nd"` (`round(baseIntervalDays × multiplier)`, using `plant.wateringBaseIntervalDays` with the same `wateringIntervalDays` fallback the schedule itself uses), where two adjacent ticks that round to the same day value have the later one blanked instead of repeated. The Settings screen's chart, which has no per-plant base interval to anchor days to, is unchanged — still the raw multiplier. Visualization-only; the underlying axis range/step and the watering-interval computation itself are untouched (#622)
 
+### Fixed
+- **A quick-water watering no longer silently reverts an active reschedule override when adaptive watering also moves confidence** — `QuickLogUseCase.quickWaterWithReason()` and `quickLiquidFertilizeWithReason()`'s paired-water branch called `clearWateringOverrideIfActive()` (which re-fetches the plant and clears `wateringDueDateOverride` in its own `updatePlant()` call), then passed the caller's **stale** pre-clear `Plant` parameter into `computeSuggestion()` → `adaptWateringInterval()`; when that observation changed `wateringConfidence`, its `.copy()` was built off the stale snapshot and carried the old `wateringDueDateOverride` value right back into the DB, undoing the clear that had just landed. `clearWateringOverrideIfActive()` now returns the freshly-fetched (and, if applicable, already-cleared) plant, and both call sites thread that fresh plant into `computeSuggestion()` instead of the stale parameter — `adaptWateringInterval()`'s confidence write, and the `maybeApplyHistoryBootstrap()` write one call deeper, now build off consistent post-clear state by construction. Same bug class as #612/#613, a different call site (#614)
+
 ---
 
 ## [0.26.1] - 2026-09-02

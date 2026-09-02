@@ -186,8 +186,8 @@ class QuickLogUseCase(
                 wateringFeedback = feedback
             )
         )
-        clearWateringOverrideIfActive(plant.id)
-        val suggestion = computeSuggestion(plant, feedback)
+        val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
+        val suggestion = computeSuggestion(freshPlant, feedback)
         return QuickLogOutcome(
             message = application.getString(R.string.quick_log_watered, plant.name),
             logged = true,
@@ -237,12 +237,12 @@ class QuickLogUseCase(
                     wateringFeedback = feedback
                 )
             )
-            clearWateringOverrideIfActive(plant.id)
+            val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
             QuickLogOutcome(
                 message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
                 logged = true,
                 waterPaired = true,
-                suggestion = computeSuggestion(plant, feedback)
+                suggestion = computeSuggestion(freshPlant, feedback)
             )
         }
     }
@@ -617,14 +617,22 @@ class QuickLogUseCase(
         return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
     }
 
-    private suspend fun clearWateringOverrideIfActive(plantId: Long) {
-        plantRepository.getPlantById(plantId).first()?.let { p ->
-            if (p.wateringDueDateOverride != null) {
-                plantRepository.updatePlant(
-                    p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-                )
-            }
-        }
+    /**
+     * Clears [Plant.wateringDueDateOverride] if [plantId] currently has one active, and returns the
+     * freshly-fetched plant (cleared or not) so callers that go on to call [computeSuggestion] can
+     * build any follow-up [PlantRepository.updatePlant] call off consistent, post-clear state rather
+     * than the stale [Plant] snapshot they were originally passed (#614, same bug class as #612) —
+     * without this, [adaptWateringInterval]'s own `.copy()` would silently resurrect the override it
+     * just cleared. Returns `null` only if [plantId] no longer exists (a pre-existing race, not
+     * introduced here); callers fall back to their own stale snapshot in that case.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun clearWateringOverrideIfActive(plantId: Long): Plant? {
+        val p = plantRepository.getPlantById(plantId).first() ?: return null
+        if (p.wateringDueDateOverride == null) return p
+        val cleared = p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+        plantRepository.updatePlant(cleared)
+        return cleared
     }
 
     companion object {
