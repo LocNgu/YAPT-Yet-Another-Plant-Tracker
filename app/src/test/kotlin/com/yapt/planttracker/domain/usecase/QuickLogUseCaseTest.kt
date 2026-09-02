@@ -331,6 +331,11 @@ class QuickLogUseCaseTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
+    // #614 regression coverage (does not revert an active override when adaptive watering changes
+    // confidence, for both quickWaterWithReason and quickLiquidFertilizeWithReason) now lives in
+    // QuickLogUseCaseOverrideRevertTest, split out to stay under Detekt's LargeClass threshold —
+    // mirrors QuickLogUseCaseSeasonalTest's precedent.
+
     @Test
     fun `quickWaterWithReason PLANT_NEEDED_IT with a different interval returns a suggestion`() = runTest {
         val now = System.currentTimeMillis()
