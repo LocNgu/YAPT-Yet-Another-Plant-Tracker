@@ -120,3 +120,30 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   `"Nd"` (`round(baseIntervalDays × multiplier)`), and when two adjacent ticks in axis order round to
   the same day value, the later one's label is blanked (never repeated) — the first tick in axis order
   is never blanked.
+- **Duplicate day labels are withheld via a custom `VerticalAxis.ItemPlacer`, never via a blank
+  `CartesianValueFormatter` result (#638 fix, supersedes the original #622 mechanism).** Vico 2.5.2's
+  `VerticalAxis`/`formatForAxis` treats a `""` formatter result as a fatal programming error (uncaught
+  `IllegalStateException`, crashes the whole app) — its own exception message says so: use
+  `VerticalAxis.ItemPlacer`, not empty strings, to control which values get labeled.
+  `rememberSeasonalCurveYAxisFormatter()`'s day-label branch now **always returns a non-empty `"Nd"`
+  string** for any value; `seasonalCurveDayTickLabels()` itself is unchanged and stays the single
+  source of truth for "which day value belongs to which tick." A new pure function,
+  `seasonalCurveLabeledTicks(baseIntervalDays, ticks)`, filters `seasonalCurveYAxisTicks()` down to the
+  ticks `seasonalCurveDayTickLabels()` would *not* blank. `DayLabelItemPlacer` (private class, Kotlin
+  interface delegation to the existing `VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP })` placer)
+  is constructed with that filtered set and overrides `getLabelValues`, `getWidthMeasurementLabelValues`,
+  and `getHeightMeasurementLabelValues` — each intersects the delegate's returned values against the
+  allowed set (via `TICK_MATCH_EPSILON`, the same floating-point tick-match tolerance used elsewhere in
+  this file). Both measurement methods must be filtered, not just `getLabelValues` — the crash trace
+  shows `VerticalAxis.getMaxLabelWidth` calls the formatter on values from the measurement methods too,
+  so leaving them unfiltered just moves the crash from label-drawing to width-measurement.
+  `getLineValues`/gridlines and the top/bottom layer margins are left untouched (still delegate) — all
+  5 gridlines still render, only which ones get a text label changes, preserving the chart's visual
+  layout. `rememberSeasonalCurveYAxisItemPlacer()` wires this in only for the `baseIntervalDays != null`
+  (Plant Detail) path; the Settings raw-multiplier axis keeps the plain `step(...)` placer unmodified.
+  `SeasonalCurveLabeledTicksTest`/day-formatter-never-blank tests in
+  `SeasonalWateringCurveChartTest.kt` cover the extracted filtering function directly (the exact one
+  wired into the real `ItemPlacer`, not a parallel reimplementation) — a pure test on
+  `seasonalCurveDayTickLabels()` alone was insufficient to catch #638, since that function's `""`
+  result is by-design and the actual crash only reproduces once Vico's real axis is hard-coded to call
+  `formatForAxis` on a value whose formatted result is blank.
