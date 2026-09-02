@@ -52,7 +52,11 @@ internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_butt
  */
 internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
 
-/** Locates [RescheduleDeltaChip] in Compose UI tests — its label text also uniquely identifies it. */
+/**
+ * Locates [RescheduleDeltaChip] in Compose UI tests. Its label text is not unique on its own — the
+ * "Why this date?" sheet mirrors the same "Rescheduled +N days" string in a display-only row while
+ * both remain in the semantics tree together, so a text-only query can match both at once.
+ */
 internal const val RESCHEDULE_DELTA_CHIP_TEST_TAG = "reschedule_delta_chip"
 
 /**

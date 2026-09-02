@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -2247,7 +2248,9 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("why_this_date_button").performClick()
 
         composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Rescheduled +3 days").assertIsDisplayed()
+        composeTestRule.onNode(
+            hasText("Rescheduled +3 days").and(hasAnyAncestor(hasTestTag("watering_explanation_sheet")))
+        ).assertIsDisplayed()
     }
 
     @Test
