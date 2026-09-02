@@ -313,7 +313,7 @@ class PlantDetailViewModelTest {
             vm.events.test {
                 vm.quickWater(reason = null)
                 val event = awaitItem()
-                assertEquals(PlantDetailViewModel.Event.SilentIntervalApplied(7, 9), event)
+                assertEquals(PlantDetailViewModel.Event.SilentIntervalApplied(7, null, 9), event)
                 cancelAndIgnoreRemainingEvents()
             }
             cancelAndIgnoreRemainingEvents()
@@ -333,7 +333,7 @@ class PlantDetailViewModelTest {
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7)
+            vm.undoSilentIntervalApply(7, null)
             cancelAndIgnoreRemainingEvents()
         }
 

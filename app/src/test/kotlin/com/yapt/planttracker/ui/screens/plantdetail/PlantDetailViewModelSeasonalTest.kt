@@ -161,9 +161,42 @@ class PlantDetailViewModelSeasonalTest {
         // (base-space) — the base must be set to it *directly*, exactly 14.0, never re-deseasonalized
         // (which would silently corrupt it to 14 / season(today) on any day where season(today) != 1.0).
         coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == 14.0 })
+            plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 14.0 })
         }
     }
+
+    @Test
+    fun `applySuggestedInterval with SEASONAL_WATERING on writes an effective-space wateringIntervalDays`() =
+        runTest {
+            // #626 regression: applyIntervalInternal previously wrote the raw base-space newInterval
+            // straight into wateringIntervalDays, even though every other read site (the suggestion
+            // dialog's "currently" figure, the Water tab slider/"every N days" text,
+            // WateringExplanationBuilder) treats wateringIntervalDays as an effective, seasonally-adjusted
+            // value — silently drifting the literal interval a little further on every single apply. This
+            // asserts wateringIntervalDays now holds the exact same base->effective conversion
+            // pendingWateringSuggestion already applies for display, never the raw 14.
+            every { dataStore.data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+            )
+            val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
+            val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+                plant = monstera.copy(wateringBaseIntervalDays = 14.0, wateringIntervalDays = 14),
+                seasonalAmplitude = SeasonalAmplitude.STANDARD.value
+            )
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.applySuggestedInterval(14)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == expectedEffective })
+            }
+        }
 
     @Test
     fun `applySuggestedInterval with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() = runTest {
@@ -193,29 +226,79 @@ class PlantDetailViewModelSeasonalTest {
     }
 
     @Test
-    fun `undoSilentIntervalApply with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() = runTest {
-        // #584 review round 2: same amplitude gate as applySuggestedInterval's season-off case —
-        // beforeIntervalDays is only genuinely base-space when SEASONAL_WATERING was on; with it off,
-        // writing it directly would clobber the real prior base (6.0) with a literal value (7).
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-        )
-        val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 6.0)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
-        val vm = makeVm()
+    fun `undoSilentIntervalApply restores the exact captured prior interval and base`() =
+        runTest {
+            // #626 regression: undoSilentIntervalApply() used to recompute wateringBaseIntervalDays on
+            // undo as beforeIntervalDays.toDouble() — correct only by the pre-fix bug's coincidence that
+            // beforeIntervalDays happened to already be base-space. Now that applyIntervalInternal writes
+            // a genuine effective value there, deriving the base from it on undo would silently corrupt a
+            // real prior base. beforeBaseIntervalDays must be threaded through from the actual prior
+            // Plant.wateringBaseIntervalDays and restored as-is.
+            val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 6.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
 
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7)
-            cancelAndIgnoreRemainingEvents()
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.undoSilentIntervalApply(beforeIntervalDays = 7, beforeBaseIntervalDays = 6.0)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 6.0 })
+            }
         }
 
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 6.0 })
+    @Test
+    fun `undoSilentIntervalApply restores a null captured prior base rather than deriving one from the literal`() =
+        runTest {
+            // #626: the corruption risk is sharpest here — deriving a base from beforeIntervalDays.toDouble()
+            // would fabricate a non-null base for a plant that genuinely never had one recorded.
+            val monstera = plant().copy(wateringIntervalDays = 14, wateringBaseIntervalDays = null)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.undoSilentIntervalApply(beforeIntervalDays = 7, beforeBaseIntervalDays = null)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == null })
+            }
         }
-    }
+
+    @Test
+    fun `undoSilentIntervalApply with SEASONAL_WATERING on and unpinned restores the captured base verbatim`() =
+        runTest {
+            // #626 regression, distinguishing case: the old buggy formula
+            // (`if (!p.pinIntervalToBase && amplitude != 0.0) beforeIntervalDays.toDouble() else
+            // p.wateringBaseIntervalDays`) only diverges from "restore verbatim" when SEASONAL_WATERING is
+            // on and the plant is unpinned — exactly this setup. beforeIntervalDays (7) and
+            // beforeBaseIntervalDays (6.0) are deliberately different values; the old formula would have
+            // written 7.0 into wateringBaseIntervalDays, clobbering the real captured base of 6.0.
+            every { dataStore.data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
+            )
+            val monstera = plant()
+                .copy(wateringIntervalDays = 9, pinIntervalToBase = false, wateringBaseIntervalDays = 8.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.undoSilentIntervalApply(beforeIntervalDays = 7, beforeBaseIntervalDays = 6.0)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 6.0 })
+            }
+        }
 
     @Test
     fun `setWateringInterval logs the MANUAL_EDIT row's before-after in base-space, not the stale literal`() = runTest {
@@ -279,30 +362,6 @@ class PlantDetailViewModelSeasonalTest {
         }
 
     @Test
-    fun `undoSilentIntervalApply with SEASONAL_WATERING on and unpinned restores the exact prior base`() = runTest {
-        // #584 review: beforeIntervalDays is also already base-space (the plant's prior
-        // wateringIntervalDays, itself written by applyIntervalInternal's direct assignment above) —
-        // the restored base must be exactly beforeIntervalDays.toDouble(), never re-deseasonalized.
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-        )
-        val monstera = plant().copy(wateringIntervalDays = 14, wateringBaseIntervalDays = 14.0)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 7.0 })
-        }
-    }
-
-    @Test
     fun `undoSilentIntervalApply with ADAPTIVE_WATERING on writes a SILENT_APPLY_UNDONE row`() = runTest {
         // #584 review: the undo must not leave "Recent adjustments" looking like the original silent
         // apply still stands — a compensating row records the revert itself, before = the
@@ -318,7 +377,7 @@ class PlantDetailViewModelSeasonalTest {
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7)
+            vm.undoSilentIntervalApply(7, null)
             cancelAndIgnoreRemainingEvents()
         }
 
@@ -342,7 +401,7 @@ class PlantDetailViewModelSeasonalTest {
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7)
+            vm.undoSilentIntervalApply(7, null)
             cancelAndIgnoreRemainingEvents()
         }
 

@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Applying a suggested watering interval no longer silently drifts a plant's literal `wateringIntervalDays` further out of sync on every apply, with `seasonal_watering` on and the plant unpinned** — `PlantDetailViewModel.applyIntervalInternal()` (the write path shared by the ADR-0006 dialog's Apply button and the silent-apply flow) was writing the raw, base-space adaptive suggestion straight into `wateringIntervalDays`, even though every other read site (the dialog's own "currently" figure, the Water tab slider/"every N days" text, the "Why this date?" sheet) treats that field as an effective, seasonally-adjusted value — a real user saw their plant's interval creep from 3 to 4 days after a single apply with no manual edit. `applyIntervalInternal()` now converts the suggestion through the same `CareSchedule.effectiveWateringIntervalDaysForDisplay()` conversion `pendingWateringSuggestion` already uses for display before writing it; behavior is unchanged when the plant is pinned or `seasonal_watering` is off, since that conversion already collapses to identity there. The `DIALOG_EDIT` `watering_adjustments` row deliberately keeps logging the raw base-space value (unchanged) — it's the model's own accounting, not the user-facing number. The silent-apply Snackbar and its Undo action (`Event.SilentIntervalApplied`/`undoSilentIntervalApply()`) now carry the plant's actual prior `wateringIntervalDays`/`wateringBaseIntervalDays`, captured once and threaded straight through, rather than the Snackbar showing the raw suggestion or Undo recomputing the prior base from a value that stopped being base-space once this fix landed — the latter was a live corruption risk on every Undo (#626, follow-up to #620/#623)
+
 ---
 
 ## [0.26.0] - 2026-08-31
