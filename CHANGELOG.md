@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.27.0] - 2026-09-02
+
 ### Added
 - **Plant Detail shows a "Rescheduled +N days" chip when a reschedule is currently pushing a plant's watering due date out, with tap-to-revert** — `CareSchedule.computeWateringDue()` now also reports `PlantCareStatus.rescheduleDeltaDays` (the gap in days between `Plant.wateringDueDateOverride` and the schedule-computed due date), non-null only when the override is the actual `maxOf()` winner, so a stale override the schedule has since caught up with reports no delta. A new `AssistChip` above `WateringDueActionsRow`, in both the classic layout and the Water tab, shows this delta with a trailing close icon signaling it's removable, and reverts it (clears `wateringDueDateOverride`, no confirmation dialog) on tap anywhere on the chip; a Snackbar ("Reschedule reverted" + Undo) mirrors the existing silent-interval-apply Undo pattern. The "Why this date?" sheet gains a matching **display-only** row (no tap action — the chip is the only actionable UI). Never touches `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and never writes a `watering_adjustments` row, preserving ADR-0029/ADR-0030's "reschedule is inert to the model" posture. No schema change (#630)
 
