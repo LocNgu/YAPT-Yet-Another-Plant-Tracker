@@ -212,7 +212,7 @@ fun PlantDetailScreen(
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoSilentIntervalApply(event.beforeIntervalDays)
+                        viewModel.undoSilentIntervalApply(event.beforeIntervalDays, event.beforeBaseIntervalDays)
                     }
                 }
                 else -> {}
