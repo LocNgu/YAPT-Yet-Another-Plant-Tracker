@@ -171,9 +171,11 @@ schedule-computed due date (`override != null && override > computedNextDueAt`),
 non-winning override reports no delta and the chip self-hides once the schedule catches back up. A
 `RescheduleDeltaChip` `AssistChip` (`WateringDueActions.kt`, "Rescheduled +N days" via the
 `watering_reschedule_delta_days` plural, plus a decorative trailing close icon —
-`reschedule_delta_chip_remove_cd` — so tap-to-revert reads as removable rather than relying on the
-chip's clickability alone) renders directly above `WateringDueActionsRow` in both the classic layout
-and the Water tab, gated on this same field; tapping anywhere on the chip calls
+`contentDescription = null`, matching this file's convention for a decorative icon inside an
+already-labeled clickable unit, since `AssistChip` merges descendant semantics into one TalkBack
+announcement — so tap-to-revert reads as removable rather than relying on the chip's clickability
+alone) renders directly above `WateringDueActionsRow` in both the classic layout and the Water tab,
+gated on this same field; tapping anywhere on the chip calls
 `PlantDetailViewModel.revertReschedule()` directly — no confirmation dialog. `revertReschedule()`
 clears `wateringDueDateOverride` only (never `wateringIntervalDays`/`wateringBaseIntervalDays`/
 `wateringConfidence`, never a `WateringAdjustment` row — same posture `applyReschedule` already keeps)

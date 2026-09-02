@@ -114,9 +114,6 @@
         <item quantity="other">Rescheduled +%d days</item>
     </plurals>
     <string name="reschedule_reverted_snackbar">Reschedule reverted</string>
-    <!-- Trailing icon on RescheduleDeltaChip (#630 follow-up) — makes tap-to-revert discoverable;
-         merges into the chip's overall announced label alongside watering_reschedule_delta_days. -->
-    <string name="reschedule_delta_chip_remove_cd">Remove reschedule</string>
     <string name="watering_due_action_water">Water</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
          way a user would say them; the answer alone decides whether the model learns. -->

@@ -70,7 +70,11 @@ internal const val RESCHEDULE_DELTA_CHIP_TEST_TAG = "reschedule_delta_chip"
  * Tapping the chip reverts the reschedule immediately (no confirmation dialog, snackbar-undo instead —
  * product spec decision on #630). A trailing close icon (decorative — the chip is one clickable unit,
  * not a separately-tappable target) makes the revert affordance visually obvious rather than relying
- * on the chip's clickability alone (review follow-up).
+ * on the chip's clickability alone (review follow-up). The icon's own `contentDescription` is `null`,
+ * matching this file's convention for decorative icons inside an already-labeled clickable unit (e.g.
+ * [WateringDueActionsRow]'s Water icon) — `AssistChip` merges descendant semantics into one TalkBack
+ * announcement, so a spoken description here would just tack a redundant phrase onto the chip's own
+ * label (round-2 review follow-up).
  */
 @Composable
 internal fun RescheduleDeltaChip(
@@ -86,7 +90,7 @@ internal fun RescheduleDeltaChip(
         trailingIcon = {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = stringResource(R.string.reschedule_delta_chip_remove_cd),
+                contentDescription = null,
                 modifier = Modifier.size(AssistChipDefaults.IconSize)
             )
         },
