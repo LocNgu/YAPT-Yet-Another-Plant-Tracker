@@ -73,12 +73,45 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
 - Rendered in two places, both gated behind `FeatureFlagRegistry.SEASONAL_WATERING`: directly under the Settings
   amplitude picker (`showHemisphereCaption = true`, since hemisphere is otherwise inferred with no UI surfacing it
   anywhere else), and in the Plant Detail Water tab's inline settings card next to the "Pin interval" switch
-  (`isPinned = plant.pinIntervalToBase`, which grays the curve out at 45% alpha + shows an inline note, since a
-  pinned plant's due dates ignore this curve entirely — #578).
+  (`plantContext = SeasonalCurvePlantContext(isPinned = plant.pinIntervalToBase, baseIntervalDays = ...)`, which
+  grays the curve out at 45% alpha + shows an inline note when pinned, since a pinned plant's due dates ignore this
+  curve entirely — #578).
 - Visualization-only: never touches `CareSchedule.computeStatus()` or `SeasonalWatering.kt`'s actual computation.
+- **Responsive month labels on narrow screens (#621).** The bottom axis's 12 "MMM" ticks are laid out inside a
+  `BoxWithConstraints` that measures the actual plot width at runtime (never a hardcoded breakpoint) and feeds it
+  to `resolveMonthLabelStrategy()` — a pure, unit-tested function (`SeasonalWateringCurveChartTest.kt`) decoupled
+  from the Vico `CartesianChartHost` composition itself, per the project's semantics-only Compose-UI-test rule (a
+  Vico canvas chart has no tree structure to assert). It degrades continuously through, stopping at the first
+  stage that fits without cropping/overlap: `"MMM"` at normal size → `"MMM"` shrunk toward a 9sp floor → single
+  letters (J F M A M J J A S O N D) re-run through the same shrink-to-floor check → single letters thinned to
+  alternating months (remaining ticks still drawn, just unlabeled) as an absolute last resort. Text width is
+  measured via an injected `measureTextWidthPx` lambda (production wiring uses `android.graphics.Paint`, via
+  `LocalDensity`) so the resolver itself stays a plain deterministic function testable with a fake measurer. The
+  y-axis's reserved width is estimated once from its fixed `"0.50×"`–`"1.50×"` format (`estimateYAxisReservedWidthPx`)
+  rather than resolved by the pure function, which only ever sees the plot width actually left for month ticks.
+  `HorizontalAxis.rememberBottom(label = ...)`'s `TextComponent` must be built from `rememberAxisLabelComponent()`
+  *inside* `ProvideVicoTheme { ... }` — its default color reads `vicoTheme.textColor`, a `CompositionLocal` only
+  set inside that scope; built outside it silently falls back to Vico's own Light/Dark palette instead of the M3
+  theme's.
+- **An unscrollable Vico chart needs an explicit `initialZoom = Zoom.Content`, not the default.** `rememberVicoZoomState
+  (zoomEnabled = false)`'s default `initialZoom` is `Zoom.max(Zoom.fixed(), Zoom.Content)` (verified in Vico 2.5.2's
+  `Zoom.kt`/`VicoZoomState.kt`) — the *larger* of a hardcoded 1.0x and the fit-to-bounds value, so it never shrinks
+  below the layer's un-zoomed base width (`LineCartesianLayer`'s `xSpacing = maxPointSize + pointSpacingDp.pixels`;
+  with no `pointProvider` configured that's just `Defaults.POINT_SPACING` = 32dp per x-unit — ~384dp for 12 months).
+  On any container narrower than that base width, the real content silently overflows past the right edge and gets
+  hard-clipped, since scroll is disabled — this bit `SeasonalWateringCurveChart.kt` on narrow screens (cut off
+  around November/December) even after #621's responsive-label fix, because it's a wholly separate whole-chart-
+  doesn't-fit issue, not a per-label sizing one. Fix: pass `zoomState = rememberVicoZoomState(zoomEnabled = false,
+  initialZoom = Zoom.Content)` explicitly whenever a chart intentionally disables scrolling and must always show
+  its full x-range regardless of container width — `Zoom.Content` alone has no 1.0 floor. `WateringHistoryChart.kt`
+  deliberately keeps the default (`zoomEnabled = false` with no `initialZoom` override) since it has
+  `scrollEnabled = true` and *wants* the floor-driven overflow to be reachable by scrolling rather than always
+  compressed to fit. `SeasonalCurveZoomFitTest.kt` exercises the real Vico `Zoom` primitives (not a hand re-derived
+  formula) to pin this.
 - **Y-axis label unit is call-site-controlled (#622).** `SeasonalWateringCurveChart`'s optional
-  `baseIntervalDays: Double?` (default `null`) switches the y-axis `valueFormatter` and the
-  `seasonal_curve_range`/`seasonal_curve_today` captions between the raw multiplier (`null` — Settings,
+  `plantContext: SeasonalCurvePlantContext` (default `SeasonalCurvePlantContext()`, `baseIntervalDays = null`)
+  switches the y-axis `valueFormatter` and the `seasonal_curve_range`/`seasonal_curve_today` (or
+  `seasonal_curve_range_days`/`seasonal_curve_today_days`) captions between the raw multiplier (`null` — Settings,
   which has no per-plant base interval to anchor days to) and whole days (non-null — Plant Detail,
   `plant.wateringBaseIntervalDays ?: plant.wateringIntervalDays.toDouble()`, the same fallback
   `CareSchedule.effectiveWateringIntervalDaysForDisplay()` uses). The axis's numeric range/step (the
