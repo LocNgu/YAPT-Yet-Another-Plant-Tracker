@@ -1,3 +1,8 @@
+// Small, cohesive pure/composable helpers for one chart (#579/#622/#638) — splitting the file to dodge
+// Detekt's TooManyFunctions threshold would scatter closely-related logic for no readability gain
+// (cf. CareSchedule.kt's identical justification).
+@file:Suppress("TooManyFunctions")
+
 package com.yapt.planttracker.ui.components
 
 import androidx.compose.foundation.background
@@ -35,7 +40,9 @@ import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.core.cartesian.Zoom
+import com.patrykandpatrick.vico.core.cartesian.axis.Axis
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -97,7 +104,10 @@ internal fun seasonalCurveYAxisTicks(): List<Double> {
 /**
  * Whole-day tick labels (`"Nd"`, `round(baseIntervalDays × multiplier)`) for [ticks] in axis order.
  * When a tick's rounded day value equals the immediately preceding tick's, the later tick's label is
- * blanked instead of repeated — the first tick is never blanked (#622).
+ * blanked instead of repeated — the first tick is never blanked (#622). This is still the single
+ * source of truth for "which day value belongs to which tick" — [seasonalCurveLabeledTicks] uses it
+ * to decide which tick *values* get handed to Vico for labeling (#638); the `CartesianValueFormatter`
+ * itself never sees or returns this blank string (a blank formatter result is fatal in Vico 2.5.2).
  */
 internal fun seasonalCurveDayTickLabels(
     baseIntervalDays: Double,
@@ -110,6 +120,62 @@ internal fun seasonalCurveDayTickLabels(
         previousDays = days
         label
     }
+}
+
+/**
+ * [ticks] filtered down to only the ones [seasonalCurveDayTickLabels] would actually label (i.e.
+ * excludes any tick whose entry there is `""`) — the set of values a [DayLabelItemPlacer] permits
+ * `VerticalAxis` to draw/measure a label for (#638). This is the exact function wired into the real
+ * `ItemPlacer` below, not a parallel reimplementation, so a regression test against this function is
+ * a regression test against production behavior.
+ */
+internal fun seasonalCurveLabeledTicks(
+    baseIntervalDays: Double,
+    ticks: List<Double> = seasonalCurveYAxisTicks(),
+): List<Double> {
+    val labels = seasonalCurveDayTickLabels(baseIntervalDays, ticks)
+    return ticks.filterIndexed { index, _ -> labels[index].isNotEmpty() }
+}
+
+/**
+ * Wraps [delegate] (the fixed-range `VerticalAxis.ItemPlacer.step(...)` placer) so only ticks in
+ * [labeledTicks] are ever offered to Vico for *labeling* — gridlines/ticks themselves
+ * ([getLineValues], inherited unchanged from [delegate]) still render at all 5 positions, only which
+ * ones get a text label changes. This is the fix for #638: Vico 2.5.2's `VerticalAxis` treats a blank
+ * `CartesianValueFormatter` result as a fatal programming error, so "don't repeat an adjacent
+ * duplicate day label" (#622) must be expressed by withholding the *value* from `getLabelValues`/the
+ * width- and height-measurement variants, never by formatting a withheld value as `""`.
+ * `getWidthMeasurementLabelValues`/`getHeightMeasurementLabelValues` must be filtered too — the crash
+ * trace shows `VerticalAxis.getMaxLabelWidth` calls the formatter on values from those methods as
+ * well, so leaving them unfiltered just moves the crash from label-drawing to width-measurement.
+ */
+internal class DayLabelItemPlacer(
+    private val delegate: VerticalAxis.ItemPlacer,
+    private val labeledTicks: List<Double>,
+) : VerticalAxis.ItemPlacer by delegate {
+
+    private fun filterToLabeled(values: List<Double>): List<Double> =
+        values.filter { value -> labeledTicks.any { abs(it - value) < TICK_MATCH_EPSILON } }
+
+    override fun getLabelValues(
+        context: CartesianDrawingContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = filterToLabeled(delegate.getLabelValues(context, axisHeight, maxLabelHeight, position))
+
+    override fun getWidthMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> =
+        filterToLabeled(delegate.getWidthMeasurementLabelValues(context, axisHeight, maxLabelHeight, position))
+
+    override fun getHeightMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        position: Axis.Position.Vertical,
+    ): List<Double> = filterToLabeled(delegate.getHeightMeasurementLabelValues(context, position))
 }
 
 /** Draws a dashed vertical guideline + a highlighted dot at "today"'s position on the curve. */
@@ -391,7 +457,7 @@ private fun SeasonalCurveChartHost(
             context.model.extraStore.getOrNull(MonthLabelsKey)?.get(x.roundToInt()) ?: " "
         }
     }
-    val yAxisFormatter = rememberSeasonalCurveYAxisFormatter(baseIntervalDays)
+    val yAxis = rememberSeasonalCurveYAxis(baseIntervalDays)
 
     ProvideVicoTheme(rememberM3VicoTheme()) {
         // rememberAxisLabelComponent() defaults its color to vicoTheme.textColor, a
@@ -403,7 +469,7 @@ private fun SeasonalCurveChartHost(
             chart = rememberSeasonalCurveChart(
                 visuals.curveColor,
                 monthFormatter,
-                yAxisFormatter,
+                yAxis,
                 visuals.todayMarkerDecoration,
                 monthLabelComponent,
             ),
@@ -434,24 +500,43 @@ private fun SeasonalCurveChartHost(
     }
 }
 
+/** Bundles the y-axis's [formatter] and [itemPlacer] — kept together to stay under Detekt's
+ *  `LongParameterList` threshold on [rememberSeasonalCurveChart], mirroring [SeasonalCurvePlantContext]'s
+ *  pattern elsewhere in this file. */
+private data class SeasonalCurveYAxis(
+    val formatter: CartesianValueFormatter,
+    val itemPlacer: VerticalAxis.ItemPlacer,
+)
+
 /**
- * The multiplier formatter (`"%.2f×"`) when [baseIntervalDays] is `null` (Settings), or a whole-day
- * formatter (`"Nd"`, with adjacent-duplicate blanking — see [seasonalCurveDayTickLabels]) when it's
- * non-null (Plant Detail, #622). Only the label text differs; the axis's numeric range/step doesn't.
+ * The multiplier formatter (`"%.2f×"`) + plain `step(...)` item placer when [baseIntervalDays] is
+ * `null` (Settings — every fixed tick is labeled, unchanged), or a whole-day formatter (`"Nd"`) +
+ * [DayLabelItemPlacer]-wrapped item placer when it's non-null (Plant Detail, #622/#638).
+ *
+ * The day-label formatter **always** returns a non-empty `"Nd"` string — never `""` — since a blank
+ * `CartesianValueFormatter` result is a fatal error in Vico 2.5.2 (#638). The "don't repeat an
+ * adjacent duplicate day label" polish (#622) is enforced upstream instead: [DayLabelItemPlacer] is
+ * constructed with only the ticks [seasonalCurveLabeledTicks] selects (i.e. excluding whichever ticks
+ * [seasonalCurveDayTickLabels] would have blanked), so this formatter is guaranteed to never be asked
+ * to format an excluded value. All 5 fixed ticks still render as gridlines either way
+ * ([DayLabelItemPlacer] delegates [VerticalAxis.ItemPlacer.getLineValues] unchanged) — only which
+ * ones get a text label changes.
  */
 @Composable
-private fun rememberSeasonalCurveYAxisFormatter(baseIntervalDays: Double?): CartesianValueFormatter {
+private fun rememberSeasonalCurveYAxis(baseIntervalDays: Double?): SeasonalCurveYAxis {
     val dayTicks = remember { seasonalCurveYAxisTicks() }
-    return remember(baseIntervalDays, dayTicks) {
+    val stepPlacer = remember { VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP }) }
+    return remember(baseIntervalDays, dayTicks, stepPlacer) {
         if (baseIntervalDays == null) {
-            return@remember CartesianValueFormatter { _, y, _ -> String.format(Locale.getDefault(), "%.2f×", y) }
-        }
-        val labels = seasonalCurveDayTickLabels(baseIntervalDays, dayTicks)
-        CartesianValueFormatter { _, y, _ ->
-            val tickIndex = dayTicks.indexOfFirst { abs(it - y) < TICK_MATCH_EPSILON }
-            // Believed unreachable: the fixed ticks are exact dyadic doubles and step()'s
-            // fixed-range item placer only ever calls this formatter with one of them.
-            if (tickIndex >= 0) labels[tickIndex] else "${(y * baseIntervalDays).roundToInt()}d"
+            SeasonalCurveYAxis(
+                formatter = CartesianValueFormatter { _, y, _ -> String.format(Locale.getDefault(), "%.2f×", y) },
+                itemPlacer = stepPlacer,
+            )
+        } else {
+            SeasonalCurveYAxis(
+                formatter = CartesianValueFormatter { _, y, _ -> "${(y * baseIntervalDays).roundToInt()}d" },
+                itemPlacer = DayLabelItemPlacer(stepPlacer, seasonalCurveLabeledTicks(baseIntervalDays, dayTicks)),
+            )
         }
     }
 }
@@ -460,7 +545,7 @@ private fun rememberSeasonalCurveYAxisFormatter(baseIntervalDays: Double?): Cart
 private fun rememberSeasonalCurveChart(
     curveColor: Color,
     monthFormatter: CartesianValueFormatter,
-    yAxisFormatter: CartesianValueFormatter,
+    yAxis: SeasonalCurveYAxis,
     todayMarkerDecoration: Decoration,
     monthLabelComponent: TextComponent?,
 ) = rememberCartesianChart(
@@ -480,8 +565,8 @@ private fun rememberSeasonalCurveChart(
         },
     ),
     startAxis = VerticalAxis.rememberStart(
-        valueFormatter = yAxisFormatter,
-        itemPlacer = remember { VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP }) },
+        valueFormatter = yAxis.formatter,
+        itemPlacer = yAxis.itemPlacer,
     ),
     bottomAxis = HorizontalAxis.rememberBottom(
         label = monthLabelComponent,

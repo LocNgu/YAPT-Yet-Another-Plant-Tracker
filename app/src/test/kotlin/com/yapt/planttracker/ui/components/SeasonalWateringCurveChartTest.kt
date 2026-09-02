@@ -1,10 +1,17 @@
 package com.yapt.planttracker.ui.components
 
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.CartesianMeasuringContext
+import com.patrykandpatrick.vico.core.cartesian.axis.Axis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.common.Position
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.roundToInt
 
 class ResolveMonthLabelStrategyTest {
 
@@ -231,5 +238,151 @@ class SeasonalCurveDayTickLabelsTest {
         // 0.75 * 10 = 7.5 → roundToInt() rounds half-up to 8.
         val labels = seasonalCurveDayTickLabels(10.0)
         assertEquals("8d", labels[1])
+    }
+}
+
+// #638 regression: a pure test on seasonalCurveDayTickLabels() alone would still pass even though
+// the app crashes on-device, since that function's "" result is by design. These tests exercise
+// seasonalCurveLabeledTicks() instead — the exact function wired into the real Vico ItemPlacer
+// (DayLabelItemPlacer) — asserting the set of tick *values* actually handed to Vico for labeling
+// never includes one whose seasonalCurveDayTickLabels() entry is "".
+class SeasonalCurveLabeledTicksTest {
+
+    @Test
+    fun noDuplicates_allTicksLabeled() {
+        assertEquals(seasonalCurveYAxisTicks(), seasonalCurveLabeledTicks(20.0))
+    }
+
+    @Test
+    fun adjacentDuplicates_blankedTicksExcluded() {
+        // baseIntervalDays = 2 → ticks round to 1, 2, 2, 3, 3 (see SeasonalCurveDayTickLabelsTest);
+        // indices 2 and 4 (1.0× and 1.5×) are blanked and must be excluded here.
+        val labeled = seasonalCurveLabeledTicks(2.0)
+        assertEquals(listOf(0.5, 0.75, 1.25), labeled)
+    }
+
+    @Test
+    fun degenerateBase_onlyFirstTickLabeled() {
+        assertEquals(listOf(0.5), seasonalCurveLabeledTicks(0.0))
+    }
+
+    @Test
+    fun neverIncludesATickWhoseLabelIsBlank_acrossManyBaseIntervals() {
+        for (baseIntervalDays in listOf(0.0, 1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 7.0, 10.0, 14.0, 20.0, 30.0, 45.0, 90.0)) {
+            val ticks = seasonalCurveYAxisTicks()
+            val labels = seasonalCurveDayTickLabels(baseIntervalDays, ticks)
+            val blankedTicks = ticks.filterIndexed { index, _ -> labels[index].isEmpty() }
+            val labeled = seasonalCurveLabeledTicks(baseIntervalDays, ticks)
+            blankedTicks.forEach { blanked ->
+                assertFalse(
+                    "baseIntervalDays=$baseIntervalDays: blanked tick $blanked must not be labeled",
+                    labeled.contains(blanked),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun dayFormatterFormula_neverProducesBlankForAnyLabeledTick() {
+        // Mirrors rememberSeasonalCurveYAxis()'s day-label branch exactly: "${(y *
+        // baseIntervalDays).roundToInt()}d" for any y handed to it. Since the ItemPlacer now
+        // guarantees the formatter only ever sees a labeled tick's value, this must never be blank.
+        for (baseIntervalDays in listOf(0.0, 1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 7.0, 10.0, 14.0, 20.0, 30.0, 45.0, 90.0)) {
+            val labeled = seasonalCurveLabeledTicks(baseIntervalDays)
+            labeled.forEach { y ->
+                val formatted = "${(y * baseIntervalDays).roundToInt()}d"
+                assertTrue(
+                    "baseIntervalDays=$baseIntervalDays, y=$y produced blank label",
+                    formatted.isNotEmpty(),
+                )
+            }
+        }
+    }
+}
+
+// A fake VerticalAxis.ItemPlacer that always returns [allValues] from every value-producing method
+// — a stand-in for the real step(...) placer's runtime output, so DayLabelItemPlacer's own filtering
+// (rather than the real placer's tick-selection logic) is what's under test.
+private class FakeDelegateItemPlacer(private val allValues: List<Double>) : VerticalAxis.ItemPlacer {
+    override fun getLabelValues(
+        context: CartesianDrawingContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getWidthMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getHeightMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getLineValues(
+        context: CartesianDrawingContext,
+        axisHeight: Float,
+        maxLabelHeight: Float,
+        position: Axis.Position.Vertical,
+    ): List<Double> = allValues
+
+    override fun getTopLayerMargin(
+        context: CartesianMeasuringContext,
+        verticalLabelPosition: Position.Vertical,
+        maxLabelHeight: Float,
+        maxLineThickness: Float,
+    ): Float = 0f
+
+    override fun getBottomLayerMargin(
+        context: CartesianMeasuringContext,
+        verticalLabelPosition: Position.Vertical,
+        maxLabelHeight: Float,
+        maxLineThickness: Float,
+    ): Float = 0f
+}
+
+// #638 follow-up: exercises DayLabelItemPlacer's own getLabelValues/getWidthMeasurementLabelValues/
+// getHeightMeasurementLabelValues overrides (the TICK_MATCH_EPSILON filter itself) directly, against a
+// stub delegate returning a known fixed set — SeasonalCurveLabeledTicksTest above only covers
+// seasonalCurveLabeledTicks(), the pure function fed into this class's constructor, not the class's own
+// filtering logic.
+class DayLabelItemPlacerTest {
+
+    private val allTicks = listOf(0.5, 0.75, 1.0, 1.25, 1.5)
+    private val labeledTicks = listOf(0.5, 0.75, 1.25)
+
+    private val drawingContext = mockk<CartesianDrawingContext>()
+    private val measuringContext = mockk<CartesianMeasuringContext>()
+    private val position = Axis.Position.Vertical.Start
+
+    private val placer = DayLabelItemPlacer(FakeDelegateItemPlacer(allTicks), labeledTicks)
+
+    @Test
+    fun getLabelValues_excludesTicksNotInLabeledSet() {
+        val result = placer.getLabelValues(drawingContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getWidthMeasurementLabelValues_excludesTicksNotInLabeledSet() {
+        val result =
+            placer.getWidthMeasurementLabelValues(measuringContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getHeightMeasurementLabelValues_excludesTicksNotInLabeledSet() {
+        val result = placer.getHeightMeasurementLabelValues(measuringContext, position)
+        assertEquals(labeledTicks, result)
+    }
+
+    @Test
+    fun getLineValues_untouched_returnsDelegatesFullUnfilteredSet() {
+        val result = placer.getLineValues(drawingContext, axisHeight = 100f, maxLabelHeight = 20f, position)
+        assertEquals(allTicks, result)
     }
 }
