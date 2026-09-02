@@ -259,7 +259,7 @@ class PlantDetailViewModel(
      */
     val rescheduleSuggestedDays = MutableStateFlow<Int?>(null)
 
-    internal val _events = MutableSharedFlow<Event>()
+    private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
     private val photoReminderEnabled: StateFlow<Boolean> = dataStore.data
@@ -272,8 +272,14 @@ class PlantDetailViewModel(
     private val _photoReminderDaysSince = MutableStateFlow(0L)
     val photoReminderDaysSince: StateFlow<Long> = _photoReminderDaysSince.asStateFlow()
 
-    internal val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
+    private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
     val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
+
+    /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_events] itself. */
+    internal suspend fun emitEvent(event: Event) = _events.emit(event)
+
+    /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_quickLogMessage]. */
+    internal suspend fun emitQuickLogMessage(message: QuickLogMessage) = _quickLogMessage.emit(message)
 
     init {
         viewModelScope.launch {
@@ -432,9 +438,9 @@ class PlantDetailViewModel(
         /**
          * A suggestion applied silently because "Ask before changing intervals" is off (#572).
          * [beforeIntervalDays]/[beforeBaseIntervalDays] are the plant's actual prior
-         * [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], for [undoSilentIntervalApply]
+         * [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], for `undoSilentIntervalApply`
          * to restore exactly (#626) — never recomputed at the call site. [afterIntervalDays] is the
-         * effective value [applyIntervalInternal] actually wrote, not the raw base-space suggestion.
+         * effective value `applySuggestionOrPrompt` actually wrote, not the raw base-space suggestion.
          */
         data class SilentIntervalApplied(
             val beforeIntervalDays: Int,
@@ -443,8 +449,8 @@ class PlantDetailViewModel(
         ) : Event()
 
         /**
-         * [revertReschedule] cleared [Plant.wateringDueDateOverride] (#630). [previousOverrideAtMillis]
-         * is the plant's actual prior override value, for [undoRevertReschedule] to restore exactly —
+         * `revertReschedule` cleared [Plant.wateringDueDateOverride] (#630). [previousOverrideAtMillis]
+         * is the plant's actual prior override value, for `undoRevertReschedule` to restore exactly —
          * never recomputed at the call site.
          */
         data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()
