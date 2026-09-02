@@ -40,6 +40,21 @@ recomputing either (recomputing `wateringBaseIntervalDays` from `beforeIntervalD
 `beforeIntervalDays` coincidentally already being base-space, which stopped being true once this fix
 landed).
 
+**Follow-up (#631):** `CalendarViewModel.applySuggestedInterval()` and `PlantListViewModel
+.applySuggestedIntervalFromList()` each carried their own independent copy of this write path and had
+never received either the #572 or #626 fix above — they wrote the raw base-space suggestion straight
+into the literal `wateringIntervalDays` and never touched `wateringBaseIntervalDays` at all. The fix
+extracts the write path out of `PlantDetailViewModel.applyIntervalInternal()` into
+`QuickLogUseCase.applyWateringIntervalSuggestion(plant, originalSuggestion, newInterval):
+QuickLogUseCase.IntervalApplyResult` — the single choke point all three suggestion dialogs (Plant
+Detail, Calendar, Plant List) now call, so this class of bug can't recur independently on any one
+screen again. `PlantDetailViewModel.applyIntervalInternal()` is now a thin delegation to this function;
+its own `Event.SilentIntervalApplied`/`undoSilentIntervalApply()` wrapping (the "ask before changing
+intervals" flow below) stays Plant-Detail-specific, since Calendar/Plant List have no silent-apply/undo
+equivalent and always show the ADR-0006 dialog unconditionally. Math-correctness tests for the write
+path itself live in `QuickLogUseCaseIntervalApplyTest`; each ViewModel keeps only a thin
+delegation/smoke test verifying it calls the shared function with the right arguments.
+
 ## `watering_adjustments` table (`data/entity/WateringAdjustmentEntity.kt`, `data/db/WateringAdjustmentDao.kt`,
 `data/repository/WateringAdjustmentRepository.kt`)
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a
@@ -53,8 +68,9 @@ on-schedule "nothing to change" so the sheet can explain a row where nothing mov
 (`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, now reached from the Reschedule reason prompt as well as
 the notification action), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
-(`PlantDetailViewModel.applyIntervalInternal()` — shared by both the dialog's Apply button and the
-silent-apply path), `MANUAL_EDIT` (`AddEditPlantViewModel.saveEdit()`, `PlantDetailViewModel
+(`QuickLogUseCase.applyWateringIntervalSuggestion()` — shared by the Plant Detail dialog's Apply
+button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDIT`
+(`AddEditPlantViewModel.saveEdit()`, `PlantDetailViewModel
 .setWateringInterval()`), and (#571) `REPOT_RESET`/`ROOM_CHANGE_RESET` (the lifecycle-reset triggers —
 `WateringLifecycleReset.applyRepotReset()` and `AddEditPlantViewModel.saveEdit()`'s room-diff check;
 `beforeIntervalDays == afterIntervalDays` always, since a reset changes confidence, not the interval

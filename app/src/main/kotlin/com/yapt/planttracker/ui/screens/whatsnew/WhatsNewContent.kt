@@ -17,7 +17,10 @@ object WhatsNewContent {
                 "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
                     "no longer silently drifts the plant's watering interval a little further every time you " +
                     "apply one — it was writing an internal value instead of the number the app actually " +
-                    "shows you"
+                    "shows you",
+                "Applying a suggested watering interval from the Calendar or Plant List dialogs is now " +
+                    "consistent with Plant Detail — those two had their own separate (and buggy) copy of " +
+                    "this logic"
             )
         ),
         ReleaseNotes(
