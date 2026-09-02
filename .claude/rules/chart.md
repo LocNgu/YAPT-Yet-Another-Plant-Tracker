@@ -129,7 +129,7 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   string** for any value; `seasonalCurveDayTickLabels()` itself is unchanged and stays the single
   source of truth for "which day value belongs to which tick." A new pure function,
   `seasonalCurveLabeledTicks(baseIntervalDays, ticks)`, filters `seasonalCurveYAxisTicks()` down to the
-  ticks `seasonalCurveDayTickLabels()` would *not* blank. `DayLabelItemPlacer` (private class, Kotlin
+  ticks `seasonalCurveDayTickLabels()` would *not* blank. `DayLabelItemPlacer` (internal class, Kotlin
   interface delegation to the existing `VerticalAxis.ItemPlacer.step(step = { Y_AXIS_STEP })` placer)
   is constructed with that filtered set and overrides `getLabelValues`, `getWidthMeasurementLabelValues`,
   and `getHeightMeasurementLabelValues` — each intersects the delegate's returned values against the
