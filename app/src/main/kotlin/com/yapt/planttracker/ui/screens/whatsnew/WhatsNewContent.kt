@@ -11,8 +11,8 @@ data class ReleaseNotes(
 object WhatsNewContent {
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
-            versionCode = 410,
-            versionName = "0.26.1",
+            versionCode = 420,
+            versionName = "0.27.0",
             added = listOf(
                 "Plant Detail now shows a \"Rescheduled +N days\" chip when a reschedule is currently pushing " +
                     "a plant's watering due date out — tap it to revert instantly (with an Undo Snackbar). The " +
