@@ -155,6 +155,56 @@ class WateringExplanationBuilderTest {
     }
 
     @Test
+    fun `rescheduleDeltaDays is passed through verbatim when adaptive watering is off`() {
+        val explanation = WateringExplanationBuilder.build(
+            plant = plantWith(wateringIntervalDays = 10),
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            waterLogCount = 5,
+            adaptiveWateringEnabled = false,
+            seasonalAmplitude = 0.0,
+            recentAdjustments = emptyList(),
+            hemisphere = Hemisphere.NORTHERN,
+            now = now,
+            rescheduleDeltaDays = 3
+        )
+        assertEquals(3, explanation!!.rescheduleDeltaDays)
+    }
+
+    @Test
+    fun `rescheduleDeltaDays is passed through verbatim when adaptive watering is on`() {
+        val explanation = WateringExplanationBuilder.build(
+            plant = plantWith(wateringIntervalDays = 10, wateringBaseIntervalDays = 8.0),
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            waterLogCount = 3,
+            adaptiveWateringEnabled = true,
+            seasonalAmplitude = 0.35,
+            recentAdjustments = emptyList(),
+            hemisphere = Hemisphere.NORTHERN,
+            now = now,
+            rescheduleDeltaDays = 4
+        )
+        assertEquals(4, explanation!!.rescheduleDeltaDays)
+    }
+
+    @Test
+    fun `rescheduleDeltaDays defaults to null`() {
+        val explanation = WateringExplanationBuilder.build(
+            plant = plantWith(wateringIntervalDays = 10),
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            waterLogCount = 0,
+            adaptiveWateringEnabled = false,
+            seasonalAmplitude = 0.0,
+            recentAdjustments = emptyList(),
+            hemisphere = Hemisphere.NORTHERN,
+            now = now
+        )
+        assertNull(explanation!!.rescheduleDeltaDays)
+    }
+
+    @Test
     fun `effectiveIntervalDays matches CareSchedule effectiveWateringIntervalDaysForDisplay`() {
         val plant = plantWith(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
         val explanation = WateringExplanationBuilder.build(

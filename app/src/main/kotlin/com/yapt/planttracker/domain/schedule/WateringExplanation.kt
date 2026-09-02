@@ -24,7 +24,14 @@ data class WateringExplanation(
     val confidenceLevel: WateringConfidenceLevel? = null,
     /** Raw 0-5 dot count backing [confidenceLevel]'s decorative dots — `0` when never adapted. */
     val confidenceScore: Int = 0,
-    val recentAdjustments: List<WateringAdjustment> = emptyList()
+    val recentAdjustments: List<WateringAdjustment> = emptyList(),
+    /**
+     * Display-only mirror of [com.yapt.planttracker.domain.model.PlantCareStatus.rescheduleDeltaDays]
+     * (#630) — the sheet's matching read-only row for the "Rescheduled +N days" chip, taken as-is from
+     * the already-computed status rather than re-derived here. Populated regardless of
+     * [adaptiveWateringEnabled], same as [nextWateringDueAt]/[lastWateredAt].
+     */
+    val rescheduleDeltaDays: Int? = null
 )
 
 /** The season row — hidden entirely (not `null` multiplier) when amplitude is 0.0 or the plant is pinned. */
@@ -82,7 +89,8 @@ object WateringExplanationBuilder {
         seasonalAmplitude: Double,
         recentAdjustments: List<WateringAdjustment>,
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        rescheduleDeltaDays: Int? = null
     ): WateringExplanation? {
         plant.wateringIntervalDays ?: return null
         val nowDate = now.toLocalDate()
@@ -96,7 +104,8 @@ object WateringExplanationBuilder {
                 lastWateredAt = lastWateredAt,
                 effectiveIntervalDays = effectiveIntervalDays,
                 waterLogCount = waterLogCount,
-                adaptiveWateringEnabled = false
+                adaptiveWateringEnabled = false,
+                rescheduleDeltaDays = rescheduleDeltaDays
             )
         }
 
@@ -119,7 +128,8 @@ object WateringExplanationBuilder {
             season = season,
             confidenceLevel = WateringConfidenceLevel.fromScore(plant.wateringConfidence),
             confidenceScore = plant.wateringConfidence ?: 0,
-            recentAdjustments = recentAdjustments
+            recentAdjustments = recentAdjustments,
+            rescheduleDeltaDays = rescheduleDeltaDays
         )
     }
 

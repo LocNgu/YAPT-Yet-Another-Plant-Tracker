@@ -65,6 +65,8 @@ class CareScheduleTest {
         assertEquals(override, status.nextWateringDueAt)
         assertFalse(status.isDueSoon)
         assertFalse(status.isOverdue)
+        // #630: computedNextDueAt was `now` (no watering history) — the override is 5 days beyond it.
+        assertEquals(5, status.rescheduleDeltaDays)
     }
 
     @Test
@@ -81,6 +83,55 @@ class CareScheduleTest {
         assertEquals(now, status.nextWateringDueAt)
         assertTrue(status.isDueSoon)
         assertFalse(status.isOverdue)
+        // #630: a stale, non-winning override reports no delta — nothing to explain or revert.
+        assertNull(status.rescheduleDeltaDays)
+    }
+
+    // ---- rescheduleDeltaDays (#630) ----
+
+    @Test
+    fun `rescheduleDeltaDays is null when there is no override`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(3),
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.rescheduleDeltaDays)
+    }
+
+    @Test
+    fun `rescheduleDeltaDays is the gap in days between the computed due date and a winning override`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(3)
+        val computedNextDueAt = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val override = computedNextDueAt + TimeUnit.DAYS.toMillis(4)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(override, status.nextWateringDueAt)
+        assertEquals(4, status.rescheduleDeltaDays)
+    }
+
+    @Test
+    fun `rescheduleDeltaDays stays populated once overdue against a winning override`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(30)
+        val computedNextDueAt = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val override = computedNextDueAt + TimeUnit.DAYS.toMillis(2)
+        val overdueNow = override + TimeUnit.DAYS.toMillis(10)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = overdueNow
+        )
+        assertTrue(status.isOverdue)
+        assertEquals(2, status.rescheduleDeltaDays)
     }
 
     @Test

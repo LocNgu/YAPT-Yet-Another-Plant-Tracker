@@ -13,6 +13,11 @@ object WhatsNewContent {
         ReleaseNotes(
             versionCode = 410,
             versionName = "0.26.1",
+            added = listOf(
+                "Plant Detail now shows a \"Rescheduled +N days\" chip when a reschedule is currently pushing " +
+                    "a plant's watering due date out — tap it to revert instantly (with an Undo Snackbar). The " +
+                    "\"Why this date?\" sheet shows a matching read-only row"
+            ),
             fixed = listOf(
                 "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
                     "no longer silently drifts the plant's watering interval a little further every time you " +

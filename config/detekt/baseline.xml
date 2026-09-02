@@ -15,6 +15,7 @@
     <ID>CyclomaticComplexMethod:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
     <ID>LargeClass:AddCareLogViewModelTest.kt$AddCareLogViewModelTest</ID>
     <ID>LargeClass:CareScheduleTest.kt$CareScheduleTest</ID>
+    <ID>LargeClass:PlantDetailViewModel.kt$PlantDetailViewModel : ViewModel</ID>
     <ID>LargeClass:PlantListViewModelTest.kt$PlantListViewModelTest</ID>
     <ID>LongMethod:AddCareLogScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun AddCareLogScreen( viewModel: AddCareLogViewModel, onNavigateBack: (suggestedInterval: Int?) -&gt; Unit )</ID>
     <ID>LongMethod:AddEditPlantScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun AddEditPlantScreen( viewModel: AddEditPlantViewModel, onNavigateBack: () -&gt; Unit, onPlantArchived: (plantId: Long, plantName: String) -&gt; Unit = { _, _ -&gt; } )</ID>

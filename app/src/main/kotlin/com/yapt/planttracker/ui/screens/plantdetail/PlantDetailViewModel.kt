@@ -199,7 +199,8 @@ class PlantDetailViewModel(
             waterLogCount = waterCount,
             adaptiveWateringEnabled = adaptiveOn,
             seasonalAmplitude = amplitude,
-            recentAdjustments = adjustments
+            recentAdjustments = adjustments,
+            rescheduleDeltaDays = status?.rescheduleDeltaDays
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -846,6 +847,41 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * The "Rescheduled +N days" chip's tap-to-revert action (#630) — clears
+     * [Plant.wateringDueDateOverride], restoring the schedule-computed due date immediately. A plain
+     * override-only write, same posture [applyReschedule] already keeps for "I can't right now"
+     * (ADR-0029/ADR-0030): never touches `wateringIntervalDays`/`wateringBaseIntervalDays`/
+     * `wateringConfidence`, never a [WateringAdjustment] row. No confirmation dialog per spec — the
+     * Snackbar/Undo pair is the only safety net, mirroring [applySuggestionOrPrompt]'s silent-apply
+     * flow. [Event.RescheduleReverted] carries the plant's actual prior override value, captured once
+     * here and threaded straight through for [undoRevertReschedule] to restore as-is.
+     */
+    fun revertReschedule() {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            val previousOverride = p.wateringDueDateOverride ?: return@launch
+            plantRepository.updatePlant(p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis()))
+            _events.emit(Event.RescheduleReverted(previousOverride))
+        }
+    }
+
+    /**
+     * Undo action for the [Event.RescheduleReverted] Snackbar (#630) — restores
+     * [Plant.wateringDueDateOverride] to [previousOverrideAtMillis] as-is, no recomputation, mirroring
+     * [undoSilentIntervalApply]'s posture. If a newer reschedule was written in the meantime, this
+     * silently overwrites it with the stale captured value (documented, not solved — same accepted
+     * race as the existing interval-undo Snackbar).
+     */
+    fun undoRevertReschedule(previousOverrideAtMillis: Long) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            plantRepository.updatePlant(
+                p.copy(wateringDueDateOverride = previousOverrideAtMillis, updatedAt = System.currentTimeMillis())
+            )
+        }
+    }
+
     fun deletePhoto(photo: GalleryPhoto) {
         viewModelScope.launch {
             when (val src = photo.source) {
@@ -895,6 +931,13 @@ class PlantDetailViewModel(
             val beforeBaseIntervalDays: Double?,
             val afterIntervalDays: Int
         ) : Event()
+
+        /**
+         * [revertReschedule] cleared [Plant.wateringDueDateOverride] (#630). [previousOverrideAtMillis]
+         * is the plant's actual prior override value, for [undoRevertReschedule] to restore exactly —
+         * never recomputed at the call site.
+         */
+        data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */

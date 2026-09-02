@@ -106,6 +106,14 @@
         <item quantity="one">In 1 day (suggested)</item>
         <item quantity="other">In %d days (suggested)</item>
     </plurals>
+    <!-- Reschedule delta + revert (#630) — the "Rescheduled +N days" chip above WateringDueActionsRow
+         and the matching display-only row in the "Why this date?" sheet, mirroring
+         reschedule_watering_plus_days's wording/format args. -->
+    <plurals name="watering_reschedule_delta_days">
+        <item quantity="one">Rescheduled +1 day</item>
+        <item quantity="other">Rescheduled +%d days</item>
+    </plurals>
+    <string name="reschedule_reverted_snackbar">Reschedule reverted</string>
     <string name="watering_due_action_water">Water</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
          way a user would say them; the answer alone decides whether the model learns. -->

@@ -64,6 +64,13 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
         value = explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
     )
 
+    explanation.rescheduleDeltaDays?.let { delta ->
+        ExplanationRow(
+            label = pluralStringResource(R.plurals.watering_reschedule_delta_days, delta, delta),
+            value = ""
+        )
+    }
+
     if (explanation.adaptiveWateringEnabled && explanation.baseIntervalDays != null) {
         ExplanationRow(
             label = stringResource(R.string.watering_explanation_base_interval),
