@@ -165,13 +165,15 @@ class CalendarViewModel(
 
     /**
      * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
-     * originally suggested (before any retyping). Delegates to
-     * [QuickLogUseCase.applyWateringIntervalSuggestion] (#631) — the same choke point
-     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval] uses —
-     * so the effect (including the #572 base dual-write and the #626 effective-space conversion) is
-     * identical regardless of which screen the dialog was shown from, rather than each screen carrying
-     * its own copy of the math. Calendar has no silent-apply/undo equivalent, so the result is
-     * intentionally not surfaced further — the dialog itself is dismissed by the caller.
+     * originally suggested (before any retyping) — still base-space. [newInterval] is effective-space
+     * (#644) — `CalendarScreen`'s editable field is pre-filled from and submits
+     * `QuickWaterSuggestion.suggestedIntervalEffective`, matching the dialog's "Suggested: N days"
+     * sentence. Delegates to [QuickLogUseCase.applyWateringIntervalSuggestion] (#631) — the same choke
+     * point [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.applySuggestedInterval]
+     * uses — so the effect (including the #572 base dual-write and the #626/#644 effective-space
+     * handling) is identical regardless of which screen the dialog was shown from, rather than each
+     * screen carrying its own copy of the math. Calendar has no silent-apply/undo equivalent, so the
+     * result is intentionally not surfaced further — the dialog itself is dismissed by the caller.
      */
     fun applySuggestedInterval(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
         viewModelScope.launch {

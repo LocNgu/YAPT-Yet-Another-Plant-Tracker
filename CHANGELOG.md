@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **The "Water every N days?" suggestion dialog's editable text box no longer shows a different number than its own "Suggested: N days" sentence** — with adaptive and seasonal watering both on, the box was pre-filled from the suggestion's raw (base-space) value while the sentence above it showed the seasonally-converted (effective) value, so the two could read e.g. "Suggested: 13 days" next to a "15" in the box; accepting the untouched box then silently produced yet a third number (13) on Apply, matching neither the box's own value nor the "currently" figure. The box (on Plant Detail, Calendar, and Plant List alike) now shows and submits the same effective value the sentence does, and `QuickLogUseCase.applyWateringIntervalSuggestion()`'s write path was inverted to match — `wateringIntervalDays` is written directly from the submitted value with no re-conversion, and `wateringBaseIntervalDays` is derived from it instead (#644)
+
 ---
 
 ## [0.27.0] - 2026-09-02
