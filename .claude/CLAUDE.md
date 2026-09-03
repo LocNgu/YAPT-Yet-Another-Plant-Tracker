@@ -100,3 +100,4 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 - `.claude/rules/ci-build.md` — AGP 9 toolchain, Detekt, cloud/session build setup
 - `.claude/rules/release.md` — release-cutting workflow
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. Not duplicated here.
+- `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference (open directly in a browser; GitHub shows HTML as source, see the folder's `README.md`).
