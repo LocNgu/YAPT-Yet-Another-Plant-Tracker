@@ -95,7 +95,7 @@ object WateringLifecycleReset {
      * [BootstrapRequest.waterLogTimestampsMs] at or after [BootstrapRequest.boundaryMs], and — only
      * when the result clears [CareSchedule.MIN_BOOTSTRAP_GAPS] — dual-writes
      * [Plant.wateringBaseIntervalDays]/[Plant.wateringIntervalDays] (mirroring the dual-write bug fix
-     * `PlantDetailViewModel.applyIntervalInternal()` already established, so the due date can't
+     * `QuickLogUseCase.applyWateringIntervalSuggestion()` already established, so the due date can't
      * silently fail to move) and [Plant.wateringConfidence], clears the pending
      * [Plant.wateringResetAt] anchor so this fires exactly once, and records a
      * [WateringAdjustmentTrigger.HISTORY_BOOTSTRAP] row.
