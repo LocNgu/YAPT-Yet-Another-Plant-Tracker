@@ -19,9 +19,10 @@ Triggered when the human asks to cut a release ("do a release", "bump to X.Y.Z",
      `ReleaseNotes(versionCode = 0, versionName = "Unreleased")`. If `unreleased` is still at that empty
      sentinel (a chore-only release cycle with nothing user-visible), skip prepending it to `all` entirely —
      don't create an empty-bulleted entry — the reset is then a no-op
-     (**`WhatsNewContentTest` fails at CI if skipped** — `topEntryMatchesCurrentVersionName` asserts
-     `all.first().versionName == BuildConfig.VERSION_NAME`, and `unreleasedIsClearedAfterRelease` asserts
-     `unreleased` is back to its sentinel)
+     (**`WhatsNewContentTest` fails at CI if the version bump is skipped** — `topEntryMatchesCurrentVersionName`
+     asserts `all.first().versionName == BuildConfig.VERSION_NAME`; correctly clearing `unreleased` back to
+     its sentinel at release-cut is a manual step enforced by this checklist, not by CI — same posture as
+     `CHANGELOG.md`'s `[Unreleased]` promotion)
    - `README.md` — add any new features not already under Features
    - `.claude/CLAUDE.md` — add any missing conventions/pointers (no longer a big "completed" log)
 3. **Commit + push** to the feature branch: `chore: bump version to X.Y.Z, promote changelog, update docs`.

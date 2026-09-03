@@ -41,10 +41,12 @@ user-visible), it is not prepended to `all` — an entry with a version heading 
 visual artifact in the sheet — and the reset step is then a no-op.
 
 `WhatsNewContentTest.topEntryMatchesCurrentVersionName` stays byte-for-byte unchanged; it keeps passing
-because `all` never receives a mid-cycle entry. A new test,
-`WhatsNewContentTest.unreleasedIsClearedAfterRelease`, asserts `WhatsNewContent.unreleased ==
-ReleaseNotes(versionCode = 0, versionName = "Unreleased")` via data-class equality, so it fails if a future
-release-cut PR forgets to reset `unreleased`, or forgets a bullet still sitting in it after promotion.
+because `all` never receives a mid-cycle entry. Resetting `unreleased` back to its sentinel at
+release-cut is a manual step in `.claude/rules/release.md`'s checklist, not an automated test — an
+unconditional test asserting `unreleased == ReleaseNotes(versionCode = 0, versionName = "Unreleased")`
+would fail on every ordinary feature PR that correctly appends a bullet mid-cycle, reproducing the exact
+"follow the docs → CI goes red" failure mode this ADR exists to fix, just relocated onto `unreleased`
+instead of `all`.
 
 ## Consequences
 
@@ -52,9 +54,12 @@ release-cut PR forgets to reset `unreleased`, or forgets a bullet still sitting 
   PR"). The accurate rule going forward: keep `unreleased` current every PR; `all` only changes at
   release-cut.
 - `topEntryMatchesCurrentVersionName` keeps passing unmodified, and is now genuinely always true rather than
-  incidentally true only right after a release.
-- A forgotten reset or promotion at release-cut now fails CI (`unreleasedIsClearedAfterRelease`) instead of
-  silently shipping stale or duplicated notes.
+  incidentally true only right after a release. It is the only automated check on `WhatsNewContent.kt`.
+- Correctly resetting/promoting `unreleased` at release-cut is enforced by the documented manual checklist
+  in `.claude/rules/release.md`, not by CI — the same posture `CHANGELOG.md`'s `[Unreleased]` promotion
+  already has. This is a deliberate non-goal, not an oversight: an automated "unreleased is back to its
+  sentinel" check can only be true right after a release-cut, so it would fail on every ordinary mid-cycle
+  PR that correctly appends a bullet — the same contradiction this ADR was written to eliminate.
 - `.claude/CLAUDE.md`, `.claude/rules/release.md`, and `.github/pull_request_template.md` wording updated to
   say "append to `unreleased`" / "promote `unreleased` into `all`" instead of the previous single-tier
   phrasing.
