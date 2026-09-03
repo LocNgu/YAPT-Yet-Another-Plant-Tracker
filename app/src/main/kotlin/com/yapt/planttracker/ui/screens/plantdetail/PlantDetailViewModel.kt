@@ -218,8 +218,10 @@ class PlantDetailViewModel(
      * `null` whenever there's no pending suggestion, or the suggestion's effective-space value equals
      * [Plant.wateringIntervalDays] — the entire "jump" was a base/effective unit-mismatch artifact
      * (#620), not a real model change, so the dialog shouldn't appear at all. The dialog's editable text
-     * field stays bound to the raw [suggestedWateringInterval] (fine-tuning the model's base, not a
-     * literal effective override) — this flow is display/gating-only.
+     * field is pre-filled from [effectiveIntervalDays] (#644) — matching the "Suggested: N days" sentence
+     * built from the same field — not the raw [suggestedWateringInterval]; [PlantDetailViewModel
+     * .applySuggestedInterval] then passes whatever the user submits straight through to
+     * [QuickLogUseCase.applyWateringIntervalSuggestion] as its now-effective-space `newInterval`.
      */
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,

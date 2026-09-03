@@ -7,6 +7,7 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.components.TimeRange
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -83,7 +84,18 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInter
         return
     }
     val p = plant.value ?: return
-    val result = quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, suggestedInterval)
+    // #644: applyWateringIntervalSuggestion's newInterval is effective-space now — convert the raw
+    // (base-space) suggestedInterval the same way pendingWateringSuggestion does, so a silent apply
+    // commits the same number the dialog would have shown/pre-filled had it been shown.
+    val amplitude = dataStore.seasonalAmplitudeOnce()
+    val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+        plant = p.copy(
+            wateringBaseIntervalDays = suggestedInterval.toDouble(),
+            wateringIntervalDays = suggestedInterval
+        ),
+        seasonalAmplitude = amplitude
+    ) ?: suggestedInterval
+    val result = quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, effectiveInterval)
     emitEvent(
         PlantDetailViewModel.Event.SilentIntervalApplied(
             beforeIntervalDays = result.previousEffectiveIntervalDays,

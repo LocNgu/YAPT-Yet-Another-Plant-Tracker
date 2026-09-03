@@ -130,7 +130,6 @@ fun PlantDetailScreen(
     val activeIssues by viewModel.activeIssues.collectAsStateWithLifecycle()
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
-    val suggestedInterval by viewModel.suggestedWateringInterval.collectAsStateWithLifecycle()
     val pendingWateringSuggestion by viewModel.pendingWateringSuggestion.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
@@ -188,8 +187,11 @@ fun PlantDetailScreen(
     var selectedTab by rememberSaveable { mutableStateOf(PlantDetailTab.WATER) }
     var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }
 
-    var intervalFieldText by remember(suggestedInterval) {
-        mutableStateOf(suggestedInterval?.toString().orEmpty())
+    // #644: the field mirrors what the "Suggested: ... days" sentence below shows — the effective
+    // (seasonally-converted) value, not the raw base-space suggestion — so the two numbers in the
+    // dialog can never disagree.
+    var intervalFieldText by remember(pendingWateringSuggestion) {
+        mutableStateOf(pendingWateringSuggestion?.effectiveIntervalDays?.toString().orEmpty())
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it >= 1 }
 

@@ -55,6 +55,34 @@ equivalent and always show the ADR-0006 dialog unconditionally. Math-correctness
 path itself live in `QuickLogUseCaseIntervalApplyTest`; each ViewModel keeps only a thin
 delegation/smoke test verifying it calls the shared function with the right arguments.
 
+**Follow-up (#644):** the three ADR-0006 dialogs' editable text fields were pre-filled from the raw
+base-space suggestion (`suggestedWateringInterval`/`QuickWaterSuggestion.suggestedInterval`) while the
+dialog's own "Suggested: N days" sentence showed the *effective* (seasonally-converted) value from the
+same suggestion — two different numbers presented as one "suggestion", and accepting the untouched field
+silently re-derived a third number on Apply (the field's raw value re-run through the base→effective
+conversion). `applyWateringIntervalSuggestion(plant, originalSuggestion, newInterval)`'s `newInterval`
+parameter is now **effective-space**, matching what the field shows/submits — `PlantDetailScreen`'s
+`intervalFieldText` is pre-filled from `pendingWateringSuggestion.effectiveIntervalDays`, and
+`CalendarScreen`/`PlantListScreen`'s from `QuickWaterSuggestion.suggestedIntervalEffective`, all three
+already-existing fields that previously drove only the dialog's sentence, never the box. The write path
+inverted accordingly: `newInterval` is written to `wateringIntervalDays` **directly** (no re-conversion —
+that used to be #626's fix, now folded into the derivation below), and `wateringBaseIntervalDays` is
+derived from it via `SeasonalWatering.deseasonalize()` — the inverse of `effectiveWateringIntervalDaysForDisplay()`'s
+multiplication, mirroring `PlantDetailViewModel`'s existing `deseasonalizedBaseOrNull()`/
+`setWateringInterval()` manual-edit precedent — gated on the same `!plant.pinIntervalToBase && amplitude
+!= 0.0` condition as before (#584 review round 2 still applies: pinned/zero-amplitude plants keep
+`newInterval` as a literal and leave the stored base untouched). `originalSuggestion` is unchanged,
+still base-space (this class's own raw adaptive suggestion) — `confidenceAfterDialogEdit()`'s tolerance
+check now converts the effective `newInterval` back down to base-space once (`newIntervalBaseSpace`,
+reused for both the base write and the `DIALOG_EDIT` row's `afterIntervalDays`) rather than converting
+`originalSuggestion` up, since that conversion is already needed regardless of the confidence check.
+`PlantDetailViewModel.applySuggestionOrPrompt()`'s silent-apply branch (no dialog shown) now converts its
+own raw suggestion through `effectiveWateringIntervalDaysForDisplay()` before calling
+`applyIntervalInternal()`, mirroring `pendingWateringSuggestion`'s conversion, so a silent apply commits
+the same number the dialog would have shown/pre-filled had it appeared. The `DIALOG_EDIT` row's
+`afterIntervalDays` still deliberately stays base-space (unchanged posture from #626) — only the value
+it's derived from changed.
+
 ## `watering_adjustments` table (`data/entity/WateringAdjustmentEntity.kt`, `data/db/WateringAdjustmentDao.kt`,
 `data/repository/WateringAdjustmentRepository.kt`)
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a

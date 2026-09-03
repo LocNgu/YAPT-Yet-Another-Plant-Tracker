@@ -109,8 +109,10 @@ fun CalendarScreen(
     var waterFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
     var liquidFertilizeFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
     var pendingIntervalSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
+    // #644: pre-fill from the effective (seasonally-converted) value, matching the "Suggested: N days"
+    // sentence in the dialog below — not the raw base-space suggestedInterval.
     var intervalFieldText by remember(pendingIntervalSuggestion) {
-        mutableStateOf(pendingIntervalSuggestion?.suggestedInterval?.toString().orEmpty())
+        mutableStateOf(pendingIntervalSuggestion?.suggestedIntervalEffective?.toString().orEmpty())
     }
     val parsedInterval = intervalFieldText.toIntOrNull()?.takeIf { it > 0 }
     var reminderPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
