@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Reference for the shipped adaptive-watering algorithm (domain/schedule/CareSchedule.kt,
+  domain/schedule/SeasonalWatering.kt, domain/usecase/WateringLifecycleReset.kt).
+  Companion to docs/research/watering-schedule-algorithms.html, which covers the *exploration*
+  that led here (#285 -> #568-#572); this page documents what actually got built and why the
+  constants are what they are. Standalone page: open directly in a browser, no build step.
+-->
+<title>The Adaptive Watering Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F5F0E8;
+  --surface:#FFFFFFB3;
+  --ink:#2E2019;
+  --ink-soft:#5B4A40;
+  --rule:rgba(62,39,35,0.14);
+  --sage:#4F7A57;
+  --sage-dark:#3B5E42;
+  --sage-tint:#E1EDDE;
+  --earth:#795548;
+  --earth-tint:#EFE1D8;
+  --water:#1F7FA8;
+  --water-tint:#E2F1F7;
+  --warn:#9C5B0E;
+  --warn-tint:#FBEBD6;
+  --too-late:#B24343;
+  --too-late-tint:#F8E4E1;
+  --too-soon:#1F7FA8;
+  --too-soon-tint:#E2F1F7;
+  --neutral:#5B4A40;
+  --neutral-tint:#EDE7DE;
+  --chip-bg:#FFFFFF;
+  --code-bg:#3E2723;
+  --code-ink:#F1E7DD;
+  --formula-bg:#FBF8F2;
+  --shadow:0 1px 2px rgba(46,32,25,0.06), 0 6px 20px -12px rgba(46,32,25,0.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14171A;
+    --surface:#1D2320B3;
+    --ink:#EFE9E1;
+    --ink-soft:#B9AFA5;
+    --rule:rgba(239,233,225,0.14);
+    --sage:#8FC195;
+    --sage-dark:#6FA378;
+    --sage-tint:#1E2E20;
+    --earth:#C9AA9C;
+    --earth-tint:#2A211C;
+    --water:#6FC3E8;
+    --water-tint:#152A32;
+    --warn:#E8B268;
+    --warn-tint:#302209;
+    --too-late:#E38A83;
+    --too-late-tint:#331C1A;
+    --too-soon:#6FC3E8;
+    --too-soon-tint:#152A32;
+    --neutral:#B9AFA5;
+    --neutral-tint:#242220;
+    --chip-bg:#20211F;
+    --code-bg:#0E1210;
+    --code-ink:#DCEBDF;
+    --formula-bg:#191B17;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px -12px rgba(0,0,0,0.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14171A;
+  --surface:#1D2320B3;
+  --ink:#EFE9E1;
+  --ink-soft:#B9AFA5;
+  --rule:rgba(239,233,225,0.14);
+  --sage:#8FC195;
+  --sage-dark:#6FA378;
+  --sage-tint:#1E2E20;
+  --earth:#C9AA9C;
+  --earth-tint:#2A211C;
+  --water:#6FC3E8;
+  --water-tint:#152A32;
+  --warn:#E8B268;
+  --warn-tint:#302209;
+  --too-late:#E38A83;
+  --too-late-tint:#331C1A;
+  --too-soon:#6FC3E8;
+  --too-soon-tint:#152A32;
+  --neutral:#B9AFA5;
+  --neutral-tint:#242220;
+  --chip-bg:#20211F;
+  --code-bg:#0E1210;
+  --code-ink:#DCEBDF;
+  --formula-bg:#191B17;
+  --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px -12px rgba(0,0,0,0.6);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:980px;margin:0 auto;padding:56px 24px 96px;}
+h1,h2,h3{font-family:"Fraunces", Georgia, serif;text-wrap:balance;margin:0;}
+code, .mono{font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;}
+
+header{margin-bottom:44px;}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--sage-dark);font-weight:500;display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--sage-dark);display:inline-block;}
+h1{font-size:clamp(32px,5vw,46px);font-weight:600;line-height:1.05;}
+.sub{margin-top:14px;max-width:66ch;font-size:17px;line-height:1.6;color:var(--ink-soft);}
+.sub b{color:var(--ink);font-weight:600;}
+
+section{margin-top:60px;}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+.sec-num{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);}
+h2{font-size:23px;font-weight:600;}
+.sec-note{font-size:14.5px;color:var(--ink-soft);line-height:1.65;max-width:72ch;margin-top:6px;}
+.sec-note code{font-size:12.5px;}
+
+/* ---------- the two/three numbers ---------- */
+.grid{display:grid;gap:14px;}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-2{grid-template-columns:repeat(2,1fr);}
+@media (max-width:760px){.grid.cols-3,.grid.cols-2{grid-template-columns:1fr;}}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px 18px;}
+.card h3{font-size:15.5px;font-weight:600;margin-bottom:6px;}
+.card .field{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--sage-dark);display:block;margin-bottom:8px;}
+.card p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-soft);}
+.card p b{color:var(--ink);font-weight:600;}
+
+/* ---------- formula blocks ---------- */
+.formula{
+  background:var(--formula-bg);border:1px solid var(--rule);border-radius:12px;
+  padding:22px 26px;box-shadow:var(--shadow);
+}
+.formula .line{
+  font-family:"IBM Plex Mono",monospace;font-size:15px;line-height:2.1;color:var(--ink);
+}
+.formula .line .k{color:var(--sage-dark);font-weight:500;}
+.formula .caption{font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
+
+/* ---------- constant tables ---------- */
+.tbl-wrap{overflow-x:auto;border-radius:12px;background:var(--surface);border:1px solid var(--rule);padding:6px 16px;margin-top:16px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{
+  text-align:left;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-soft);font-weight:500;padding:0 12px 10px;border-bottom:1px solid var(--rule);
+}
+td{padding:11px 12px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.5;}
+td:first-child,th:first-child{padding-left:0;}
+td:last-child,th:last-child{padding-right:0;}
+tr:last-child td{border-bottom:none;}
+td .num{font-family:"IBM Plex Mono",monospace;font-weight:600;}
+.pill{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:500;
+  padding:2px 8px;border-radius:999px;
+}
+.pill.too-soon{background:var(--too-soon-tint);color:var(--too-soon);}
+.pill.too-late{background:var(--too-late-tint);color:var(--too-late);}
+.pill.neutral{background:var(--neutral-tint);color:var(--neutral);}
+
+/* ---------- confidence ladder ---------- */
+.ladder{display:flex;gap:6px;align-items:stretch;margin-top:16px;}
+.rung{
+  flex:1;border:1px solid var(--rule);border-radius:10px;padding:12px 10px;text-align:center;
+  background:var(--surface);
+}
+.rung .lvl{font-family:"Fraunces",serif;font-weight:600;font-size:20px;color:var(--sage-dark);}
+.rung .gain{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-soft);margin-top:4px;}
+.ladder-legend{display:flex;gap:20px;margin-top:12px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft);}
+.ladder-legend span{display:flex;align-items:center;gap:6px;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.dot.up{background:var(--sage);}
+.dot.down{background:var(--too-late);}
+
+/* ---------- exclusion flow ---------- */
+.flow{display:flex;flex-direction:column;gap:0;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface);}
+.flow-row{display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;border-top:1px solid var(--rule);}
+.flow-row:first-child{border-top:none;}
+.flow-cond{padding:14px 18px;font-size:13.5px;line-height:1.5;}
+.flow-cond b{display:block;font-family:"Fraunces",serif;font-size:14.5px;font-weight:600;margin-bottom:3px;color:var(--ink);}
+.flow-arrow{text-align:center;color:var(--ink-soft);font-size:16px;}
+.flow-out{padding:14px 18px;font-size:13px;color:var(--ink-soft);border-left:1px solid var(--rule);}
+.flow-out .tag{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;}
+.flow-out .tag.learn{color:var(--sage-dark);}
+.flow-out .tag.excl{color:var(--too-late);}
+@media (max-width:700px){.flow-row{grid-template-columns:1fr;}.flow-arrow{transform:rotate(90deg);padding:2px 0;}.flow-out{border-left:none;border-top:1px dashed var(--rule);}}
+
+/* ---------- worked example steps ---------- */
+.steps{display:flex;flex-direction:column;gap:12px;}
+.step{
+  display:grid;grid-template-columns:56px 1fr 220px;gap:16px;
+  border:1px solid var(--rule);border-radius:12px;padding:16px 18px;background:var(--surface);
+}
+@media (max-width:760px){.step{grid-template-columns:1fr;}}
+.step .idx{font-family:"Fraunces",serif;font-weight:600;font-size:26px;color:var(--sage);}
+.step .body b{color:var(--ink);}
+.step .body{font-size:13.5px;line-height:1.6;color:var(--ink-soft);}
+.step .result{
+  background:var(--formula-bg);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.7;align-self:center;
+}
+.step .result .r-label{color:var(--ink-soft);}
+.step .result .r-val{color:var(--sage-dark);font-weight:600;}
+
+/* ---------- trigger list ---------- */
+.lookup{border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface);}
+.lu-row{display:grid;grid-template-columns:1fr 1.6fr;gap:18px;padding:12px 18px;border-top:1px solid var(--rule);align-items:start;}
+.lu-row:first-child{border-top:none;}
+.lu-row code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--sage-dark);}
+.lu-row .desc{font-size:13px;color:var(--ink-soft);line-height:1.5;}
+@media (max-width:640px){.lu-row{grid-template-columns:1fr;gap:4px;}}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+footer a{color:var(--sage-dark);}
+footer code{font-family:"IBM Plex Mono",monospace;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Math reference · domain/schedule/CareSchedule.kt</div>
+  <h1>The adaptive watering model</h1>
+  <p class="sub">
+    Two independent knobs decide when a plant is next due for water: a <b>confidence-weighted
+    per-observation model</b> that learns from what you tell it (#568, technical ADR-0021), and a
+    <b>computed seasonal curve</b> that stretches or compresses the result by time of year (#569,
+    product ADR-0026). This page is the mechanical reference for both, plus the cold-start and
+    lifecycle-reset rules that keep the model honest. For the research that led to this design —
+    the algorithm families considered and rejected — see
+    <a href="../research/watering-schedule-algorithms.html">watering-schedule-algorithms.html</a>.
+  </p>
+</header>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>Three numbers, one plant</h2></div>
+  <p class="sec-note">The model never touches the number the schedule actually uses directly — it touches a season-neutral <b>base</b>, and a separate function derives the day-to-day <b>effective</b> interval from it.</p>
+  <div class="grid cols-3">
+    <div class="card">
+      <span class="field">wateringBaseIntervalDays: Double?</span>
+      <h3>Base</h3>
+      <p>Season-neutral. The only number the adaptive model ever writes to. Stored unrounded — only the effective interval gets rounded to a whole day.</p>
+    </div>
+    <div class="card">
+      <span class="field">wateringIntervalDays: Int?</span>
+      <h3>Effective</h3>
+      <p>What <code>CareSchedule.computeStatus()</code> actually schedules against. <b>= base</b> when seasonal watering is off or the plant is pinned; otherwise <b>base × season(today)</b>, rounded.</p>
+    </div>
+    <div class="card">
+      <span class="field">wateringConfidence: Int?</span>
+      <h3>Confidence</h3>
+      <p><code>null</code> = never adapted. Otherwise 0–5: how much the model trusts its own base, and how cautiously it moves in response to new evidence.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>The update rule</h2></div>
+  <p class="sec-note">Every WATER log with adaptive watering on runs through <code>CareSchedule.computeAdaptiveInterval()</code>. One target, one exponential step toward it, two clamps.</p>
+  <div class="formula">
+    <div class="line"><span class="k">target</span> = observedGapDays × multiplier(feedback)</div>
+    <div class="line"><span class="k">base′</span> = base + g(confidence) × (target − base)</div>
+    <div class="line"><span class="k">base′</span> = clamp(base′, base × 0.60, base × 1.40) <span style="color:var(--ink-soft)">/* ±40% per step */</span></div>
+    <div class="line"><span class="k">base′</span> = round(base′).coerceIn(1, 180)</div>
+    <div class="caption">A same-day duplicate (observedGapDays == 0) still clamps to at least 1 — a regression guard from #446, not a special case in the formula itself.</div>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:16px;">
+    <div class="card">
+      <h3>multiplier(feedback)</h3>
+      <div class="tbl-wrap" style="margin-top:8px;">
+        <table>
+          <tr><th>Feedback</th><th>Target</th></tr>
+          <tr><td><span class="pill too-soon">TOO_SOON</span></td><td class="num">observed × 1.25</td></tr>
+          <tr><td><span class="pill neutral">JUST_RIGHT / null</span></td><td class="num">observed × 1.00</td></tr>
+          <tr><td><span class="pill too-late">TOO_LATE</span></td><td class="num">observed × 0.82</td></tr>
+        </table>
+      </div>
+      <p style="margin-top:10px;">A "too soon" watering says the real rhythm is <i>longer</i> than what was observed (you jumped the gun), so the target overshoots the raw gap; "too late" undershoots it.</p>
+    </div>
+    <div class="card">
+      <h3>g(confidence) — the gain table</h3>
+      <div class="ladder">
+        <div class="rung"><div class="lvl">0</div><div class="gain">0.60</div></div>
+        <div class="rung"><div class="lvl">1</div><div class="gain">0.45</div></div>
+        <div class="rung"><div class="lvl">2</div><div class="gain">0.35</div></div>
+        <div class="rung"><div class="lvl">3</div><div class="gain">0.28</div></div>
+        <div class="rung"><div class="lvl">4</div><div class="gain">0.22</div></div>
+        <div class="rung"><div class="lvl">5</div><div class="gain">0.15</div></div>
+      </div>
+      <p style="margin-top:10px;">Confidence 0 (bootstrap / just reset) moves fastest; a dialed-in plant at confidence 5 barely budges on one new observation. <code>currentConfidence == null</code> (never adapted) uses the confidence-0 gain and reports back confidence 0, without evaluating a rise/fall transition.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>How confidence itself moves</h2></div>
+  <p class="sec-note">Confidence <b>never</b> rises just because a feedback chip was tapped — only from evidence that the schedule is (or isn't) predicting reality.</p>
+  <div class="ladder-legend">
+    <span><span class="dot up"></span> rises</span>
+    <span><span class="dot down"></span> falls</span>
+  </div>
+  <div class="grid cols-2" style="margin-top:12px;">
+    <div class="card">
+      <h3><span class="dot up" style="display:inline-block;margin-right:6px;"></span>Rises</h3>
+      <p><b>Gap agreement</b> — the observed gap lands within <code>GAP_AGREEMENT_TOLERANCE</code> (15%) of the current base: <code>+1</code>, capped at 5. Checked on every observation, feedback or not — a silent but on-schedule watering still counts as evidence.</p>
+      <p style="margin-top:8px;"><b>Dialog dismissal</b> — dismissing the ADR-0006 suggestion without applying says "the schedule is fine": <code>+1</code>, but capped at <code>DISMISSAL_CONFIDENCE_CEILING</code> (3) and never lowers an already-higher value. A habit-dismisser can't reach a level that implies real agreement.</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot down" style="display:inline-block;margin-right:6px;"></span>Falls</h3>
+      <p><b>Correction streak</b> — <code>correctionStreak()</code> reads the most recent waterings' feedback (most-recent-first) and finds the signed run length of same-direction TOO_SOON/TOO_LATE calls. Two or more in a row: <code>−2</code>, floored at 0. JUST_RIGHT and <code>null</code> break a streak; a direction reversal stops it without counting the reversing entry.</p>
+      <p style="margin-top:8px;">Deliberately <b>not</b> cached on a column — logs can be edited or deleted, so the streak is recomputed from the last 3 waterings every time rather than trusted from a stored value that could go stale.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Off-schedule: ask why, the answer decides</h2></div>
+  <p class="sec-note">Product ADR-0030 (#586), one rule for watering and rescheduling alike. "On schedule" is the exact same <code>GAP_AGREEMENT_TOLERANCE</code> test used above, surfaced as <code>PlantCareStatus.isWateringOnSchedule</code> — never a second notion of "close enough."</p>
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-cond"><b>On schedule</b>observed gap agrees with the effective interval — no prompt at all.</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-out"><span class="tag learn">learns normally</span> — full multiplier + gain for whatever feedback (usually null) was given.</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-cond"><b>Off schedule, attributed</b>the user is asked why and picks a reason that maps to TOO_SOON or TOO_LATE ("the plant needed it" / "it was dry by then").</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-out"><span class="tag learn">learns normally</span> — the explicit multiplier applies at full confidence-driven gain.</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-cond"><b>Off schedule, declined</b>asked why, picks "just my timing" / "I can't right now" — maps to <code>null</code> feedback on a gap that disagrees with base.</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-out"><span class="tag excl">excluded</span> — gain forced to 0. Logged as <code>WATER_NOT_ATTRIBUTED</code>. Confidence is not separately punished; it simply doesn't rise from this observation.</div>
+    </div>
+  </div>
+  <p class="sec-note" style="margin-top:14px;">This third row is <b>derived</b> inside <code>computeAdaptiveInterval()</code> from timing (<code>feedback == null &amp;&amp; !gapAgrees(...)</code>) rather than passed in as a boolean — a flag threaded through every quick-log surface, the AddCareLog form, a bulk log, and the notification's "Watered" action is one a caller can eventually forget. The four-state <code>WateringFeedback</code> column never grows a fifth persisted state to represent it.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>The seasonal curve</h2></div>
+  <p class="sec-note"><code>domain/schedule/SeasonalWatering.kt</code> — computed, not learned (ADR-0026: too little per-plant data to learn twelve monthly factors, and every houseplant broadly shares the same "faster growth in local summer" shape).</p>
+  <div class="formula">
+    <div class="line"><span class="k">season</span>(date, amplitude, hemisphere) = 1 + amplitude · cos(2π · (dayOfYear − peakDay) / 365)</div>
+    <div class="line"><span class="k">effective</span> = round(base × season(today)).coerceIn(1, 180)</div>
+    <div class="caption">peakDay = day 5 (northern hemisphere growth peak, early January); +182 for southern. Hemisphere is derived from the device's <code>TimeZone</code> ID — no location permission, no network.</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>SeasonalAmplitude</th><th>Value</th><th>Effect at the summer peak</th></tr>
+      <tr><td>OFF</td><td class="num">0.00</td><td>No seasonal adjustment — effective = base, always.</td></tr>
+      <tr><td>MILD</td><td class="num">0.20</td><td>±20% swing across the year.</td></tr>
+      <tr><td>STANDARD</td><td class="num">0.35</td><td>±35% swing (the registry default).</td></tr>
+      <tr><td>STRONG</td><td class="num">0.50</td><td>±50% swing.</td></tr>
+    </table>
+  </div>
+  <p class="sec-note" style="margin-top:14px;">A plant can opt out entirely with <code>pinIntervalToBase</code> — effective interval then equals base year-round regardless of amplitude. Before an observed gap is fed into <code>computeAdaptiveInterval()</code>, it's <b>de-seasonalized</b> first (<code>observedGap / season(dateOfGap)</code>), so a plant that dried out fast in July doesn't get permanently marked thirstier once autumn's season factor drops back toward 1.0 — the model only ever learns about the season-neutral base.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Cold-start: bootstrapping from history</h2></div>
+  <p class="sec-note">A plant with real watering history but no learned confidence yet (just turned the flag on, or just reset) doesn't have to start from scratch.</p>
+  <div class="formula">
+    <div class="line"><span class="k">base</span> = median over past waterings of (gap<sub>i</sub> / season(date<sub>i</sub>))</div>
+    <div class="line"><span class="k">confidence</span> = min(5, gapCount / 3)</div>
+    <div class="caption">Median, not mean — absorbs one outlier gap (a two-week holiday) without extra trimming logic. Applied only once <code>MIN_BOOTSTRAP_GAPS</code> (3 gaps → 4 waterings) is met; below that, a fresh flag-enable keeps the user's typed interval and a post-reset plant just stays at confidence 0.</div>
+  </div>
+  <p class="sec-note" style="margin-top:14px;">Runs automatically on the next adaptive observation: once when <code>wateringConfidence == null</code> (first-ever observation — the whole history is eligible), or repeatedly while <code>wateringResetAt</code> is set after a lifecycle reset (eligible history bounded to what happened after the freeze/reset boundary — a gap not trusted for live learning isn't trusted for the bootstrap either). When it fires, the triggering observation's own suggested interval is discarded in favor of the bootstrap result, so the ADR-0006 dialog never re-surfaces a value the bootstrap already silently committed.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>Lifecycle resets</h2></div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Repot</h3>
+      <p>Logging a <code>REPOT</code> care event resets <code>wateringConfidence</code> to 0 and sets a <b>28-day freeze</b> (<code>wateringFreezeUntil</code>). Every observation inside that window is forced through the same exclusion path as an unattributed off-schedule watering — gain 0 — while <b>confidence still updates normally</b>: it's evidence about the schedule regardless of why <code>base</code> itself is being held back.</p>
+    </div>
+    <div class="card">
+      <h3>Room change</h3>
+      <p>Moving a plant to a genuinely different room (any real change except blank → filled for the first time) also resets confidence to 0, but sets <b>no freeze window</b> — a room change is a smaller shock than uprooting the plant, and the model resumes learning immediately at the confidence-0 gain.</p>
+    </div>
+  </div>
+  <p class="sec-note" style="margin-top:14px;">Both are written once, as a side effect at log-creation/plant-save time in <code>domain/usecase/WateringLifecycleReset.kt</code> — never derived live from querying REPOT history — so editing or deleting a past REPOT log can't spuriously re-trigger a reset later.</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>Worked example</h2></div>
+  <p class="sec-note">A plant added with a typed interval of 7 days, adaptive watering on, no history yet (<code>wateringConfidence = null</code>). Three real waterings, three different outcomes — this is ADR-0030's thesis end to end.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="idx">A</div>
+      <div class="body">
+        Watered on <b>day 9</b> (base was 7 → off schedule, gap ran long). Asked "Why was it late?", picks <b>"It was dry by then"</b> → <code>TOO_LATE</code>.
+        <br><br>
+        target = 9 × 0.82 = 7.38 · gain = g(0) = 0.60 (bootstrap, explicit feedback)<br>
+        base′ = 7 + 0.60 × (7.38 − 7) = 7.70 → clamp[4.2, 9.8] → round → <b>9</b>
+      </div>
+      <div class="result">
+        <div><span class="r-label">base:</span> <span class="r-val">7 → 9</span></div>
+        <div><span class="r-label">confidence:</span> <span class="r-val">null → 0</span></div>
+        <div><span class="r-label">excluded:</span> <span class="r-val">no</span></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="idx">B</div>
+      <div class="body">
+        9 days later, watered right on the new schedule (base = 9). No chip tapped — on-schedule, so no prompt appears at all → <code>null</code> feedback, but the gap agrees.
+        <br><br>
+        target = 9 × 1.00 = 9 · gain = min(g(0)=0.60, 0.15) = 0.15 (null-feedback cap)<br>
+        base′ = 9 + 0.15 × (9 − 9) = <b>9</b> (nothing to correct) · gap agrees → confidence +1
+      </div>
+      <div class="result">
+        <div><span class="r-label">base:</span> <span class="r-val">9 (held)</span></div>
+        <div><span class="r-label">confidence:</span> <span class="r-val">0 → 1</span></div>
+        <div><span class="r-label">excluded:</span> <span class="r-val">no</span></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="idx">C</div>
+      <div class="body">
+        13 days later (base = 9 → off schedule, gap ran long again). Asked why, this time picks <b>"Forgot, or no time"</b> — wait, that maps to TOO_LATE too; suppose instead they pick <b>"Just my timing"</b> → <code>null</code>, declining to attribute it to the plant.
+        <br><br>
+        <code>null</code> feedback + gap disagrees with base (13 vs 9, tolerance 1.35) → <b>excluded</b>, gain forced to 0.
+      </div>
+      <div class="result">
+        <div><span class="r-label">base:</span> <span class="r-val">9 (held)</span></div>
+        <div><span class="r-label">confidence:</span> <span class="r-val">1 (held)</span></div>
+        <div><span class="r-label">excluded:</span> <span class="r-val">yes — WATER_NOT_ATTRIBUTED</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>Where you can see this happen</h2></div>
+  <p class="sec-note">Nothing here is invisible math — every one of the outcomes above writes a row the app itself shows you.</p>
+  <div class="lookup">
+    <div class="lu-row"><code>"Why this date?" sheet</code><div class="desc">Plant Detail → Water tab → <code>WateringExplanationSheet.kt</code>. Shows base interval, season multiplier, confidence level (Still learning / Getting there / Dialed in), and the last 5 <code>WateringAdjustment</code> rows for the plant.</div></div>
+    <div class="lu-row"><code>watering_adjustments table</code><div class="desc"><code>data/entity/WateringAdjustmentEntity.kt</code> — one row per evaluation, whether or not anything moved. Not a replay of <code>CareLog</code>: a dialog dismissal or silent apply changes confidence without ever writing a care log.</div></div>
+    <div class="lu-row"><code>WateringAdjustmentTrigger</code><div class="desc"><code>domain/model/WateringAdjustment.kt</code> — <code>WATER_TOO_SOON</code> / <code>WATER_TOO_LATE</code> / <code>WATER_JUST_RIGHT</code> / <code>WATER_NEUTRAL</code> / <code>WATER_NOT_ATTRIBUTED</code> (step C above) / <code>CHECK_STILL_MOIST</code> / <code>DIALOG_DISMISSAL</code> / <code>DIALOG_EDIT</code> / <code>REPOT_RESET</code> / <code>ROOM_CHANGE_RESET</code> / <code>FROZEN_POST_REPOT</code> / <code>HISTORY_BOOTSTRAP</code>.</div></div>
+    <div class="lu-row"><code>CareScheduleAdaptiveReplayTest</code><div class="desc">Pure-JVM replay harness covering the named scenarios (1a/1b/2/3a/3b/4) referenced in technical ADR-0021 — the place to check convergence behavior before touching any constant on this page.</div></div>
+  </div>
+</section>
+
+<footer>
+  <span>Constants live in <code>CareSchedule</code> / <code>SeasonalWatering</code> — this page describes them, it does not restate them as a second source of truth. See also <a href="mental-map.html">the repo mental map</a>.</span>
+  <span class="mono">technical ADR-0021 · product ADR-0025/0026/0028/0030</span>
+</footer>
+
+</div>
+</body>
+</html>
