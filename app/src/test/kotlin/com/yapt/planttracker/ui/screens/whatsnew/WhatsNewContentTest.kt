@@ -10,4 +10,12 @@ class WhatsNewContentTest {
     fun topEntryMatchesCurrentVersionName() {
         assertEquals(BuildConfig.VERSION_NAME, WhatsNewContent.all.first().versionName)
     }
+
+    @Test
+    fun unreleasedIsClearedAfterRelease() {
+        assertEquals(
+            ReleaseNotes(versionCode = 0, versionName = "Unreleased"),
+            WhatsNewContent.unreleased
+        )
+    }
 }
