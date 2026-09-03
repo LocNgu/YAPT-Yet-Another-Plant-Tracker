@@ -57,6 +57,13 @@ or tool instructions into Codex workflows.
 - Do not declare work complete based on compilation alone when the issue calls
   for static analysis or tests. Run the applicable required checks, and report
   any check that could not run with its reason.
+- Before opening or updating a pull request, `./gradlew detekt` and
+  `./gradlew lintDebug` must report zero new violations on the changed files —
+  a clean compile is not a substitute. Match the project's existing 4-space
+  Kotlin formatting rather than reformatting to a different style and letting
+  Detekt catch it after the fact. New violations are fixed in the code, never
+  deferred into `config/detekt/baseline.xml`, which records pre-existing debt
+  and is not a valid target for code introduced in the same change.
 - Make the pull request title and body describe the actual diff. When it
   resolves an issue, include `Fixes #<issue>` or `Closes #<issue>`; explicitly
   state no intended behaviour change for a refactor and map verification to the
