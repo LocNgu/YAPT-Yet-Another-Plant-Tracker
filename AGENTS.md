@@ -45,3 +45,19 @@ or tool instructions into Codex workflows.
 - Verify changes with the smallest relevant Gradle checks from
   `.claude/CLAUDE.md` and `.claude/rules/ci-build.md`; use the build files for
   current versions and task names.
+
+## Issue delivery and pull requests
+
+- Use an issue's acceptance criteria as the completion checklist. For pure
+  refactors, preserve behaviour as well as meaningful KDoc, ADR/issue
+  rationale, and targeted suppressions.
+- Before preparing a pull request, inspect `git status`, the staged diff, and
+  `git diff --check`. Keep agent-local files and unrelated formatter churn out
+  of the change.
+- Do not declare work complete based on compilation alone when the issue calls
+  for static analysis or tests. Run the applicable required checks, and report
+  any check that could not run with its reason.
+- Make the pull request title and body describe the actual diff. When it
+  resolves an issue, include `Fixes #<issue>` or `Closes #<issue>`; explicitly
+  state no intended behaviour change for a refactor and map verification to the
+  issue's acceptance criteria.
