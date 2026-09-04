@@ -141,7 +141,21 @@ tabs-only), so its row position is unchanged.
   → "Soil was still moist" / "Forgot, or no time") — a late gap never offers a shorten attribution. The
   `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
   branch, shared with the classic layout's tappable `StatChip`s and the tabs layout's
-  `FertilizeDueActionRow` so no surface can disagree.
+  `FertilizeDueActionRow` so no surface can disagree. On the Water tab, this "Water" button **always**
+  calls plain `requestWater()`, regardless of `Plant.useLiquidFertilizer` — it never branches (#652).
+
+**Combined Water + Fertilize action on the Water tab (#652):** for a liquid-fertilizer plant
+(`plant?.useLiquidFertilizer == true`), a second, visually distinct `OutlinedButton`
+(`CombinedWaterFertilizeActionRow`, `WateringDueActions.kt`,
+`WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG`) renders directly below
+`WateringDueActionsRow`, wired to `requestLiquidFertilize()`/`showLiquidFertilizeSheet` — the same
+combined path `FertilizeDueActionRow` uses — so a liquid-fertilizer plant owner doesn't have to switch
+to the Fertilize tab to log the one action they take every time they water. It is additive, not a
+replacement: the plain "Water" button stays present and unchanged next to it. Absent entirely for a
+non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "Water + Fertilize"
+(shared string `R.string.water_fertilize_combined_button`) under the same `useLiquidFertilizer`
+condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
+and unchanged.
 - **Reschedule watering** — `requestReschedule()` opens `RescheduleReasonBottomSheet` ("Why put it
   off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
   `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.

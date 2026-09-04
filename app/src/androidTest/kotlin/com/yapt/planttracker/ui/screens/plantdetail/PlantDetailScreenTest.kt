@@ -987,6 +987,86 @@ class PlantDetailScreenTest {
         coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, null) }
     }
 
+    /**
+     * #652 round 2: on the Water tab, a liquid-fertilizer plant gets a second, distinct
+     * [CombinedWaterFertilizeActionRow] button that routes through [requestLiquidFertilize] (the same
+     * combined path [FertilizeDueActionRow] uses) — the plain "Water" button stays present and
+     * unaffected (regression guard: the first commit's silent behavior swap on the same-looking button
+     * was rejected in favor of a visibly distinct second button).
+     */
+    @Test
+    fun wateringDueRow_liquidPlant_offSchedule_tapOpensCombinedReasonPrompt() {
+        val plant = Plant(
+            id = 24L,
+            name = "Ivy",
+            useLiquidFertilizer = true,
+            fertilizingIntervalDays = 30,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Default tab is Water — no tab switch needed to reach these buttons.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG))
+        // Regression guard: the plain Water button is still present, not removed or repurposed.
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Water & fertilize Ivy?").assertIsDisplayed()
+    }
+
+    /**
+     * #652 round 2: a non-liquid-fertilizer plant's Water tab shows only the plain "Water" button —
+     * the combined button is absent entirely, not merely inert.
+     */
+    @Test
+    fun wateringDueRow_regularPlant_offSchedule_tapOpensPlainWaterReasonPrompt() {
+        val plant = Plant(id = 25L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Water Fern?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Water & fertilize Fern?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
     @Test
     fun fertilizingChip_liquidPlant_offSchedule_tapOpensCombinedReasonPrompt() {
         val plant = Plant(
@@ -1017,6 +1097,9 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        // #652 round 2: the button is relabeled "Water + Fertilize" for a liquid-fertilizer plant.
+        composeTestRule.onNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG) and hasText("Water + Fertilize"))
+            .assertIsDisplayed()
         composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
@@ -1060,6 +1143,9 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        // #652 round 2: a non-liquid-fertilizer plant keeps the plain "Fertilize" label, unchanged.
+        composeTestRule.onNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG) and hasText("Fertilize"))
+            .assertIsDisplayed()
         composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
         // A regular plant logs the fertilizing directly and shows a snackbar; no feedback sheet opens.
         composeTestRule.waitUntil(timeoutMillis = 5000) {
