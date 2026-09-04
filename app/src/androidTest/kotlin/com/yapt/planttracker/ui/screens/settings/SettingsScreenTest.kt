@@ -327,6 +327,43 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun keepScreenOnRow_isDisplayed() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Keep screen on").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun keepScreenOnSwitch_startsOff_andTogglingInvokesViewModelSetter() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("keep_screen_on_switch").performScrollTo().assertIsOff()
+
+        composeTestRule.onNodeWithTag("keep_screen_on_switch").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(
+                hasTestTag("keep_screen_on_switch") and isOn()
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithTag("keep_screen_on_switch").assertIsOn()
+    }
+
+    @Test
     fun graveyardRow_isDisplayed() {
         composeTestRule.setContent {
             SettingsScreen(
