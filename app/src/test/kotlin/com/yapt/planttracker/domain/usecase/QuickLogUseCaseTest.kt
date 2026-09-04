@@ -288,7 +288,7 @@ class QuickLogUseCaseTest {
         }
     }
 
-    // #649 (product ADR-0032): SOIL_STILL_MOIST coverage (the late-direction reason that replaced
+    // #649 (product ADR-0033): SOIL_STILL_MOIST coverage (the late-direction reason that replaced
     // "It was dry by then") now lives in QuickLogUseCaseWateringReasonTest, split out to stay under
     // Detekt's LargeClass threshold — mirrors QuickLogUseCaseSeasonalTest's precedent.
 

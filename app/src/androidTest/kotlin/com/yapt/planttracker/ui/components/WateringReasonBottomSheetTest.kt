@@ -50,7 +50,7 @@ class WateringReasonBottomSheetTest {
     /**
      * #586/#649: a gap that ran long gets late-direction wording *and* a different option set, not
      * merely relabeled chips — the late direction never offers a "shorten" attribution (product
-     * ADR-0032), so "The plant needed it" must not appear at all once the gap ran long.
+     * ADR-0033), so "The plant needed it" must not appear at all once the gap ran long.
      */
     @Test
     fun wateringPrompt_whenTheGapRanLong_showsTheLateWording() {
@@ -73,7 +73,7 @@ class WateringReasonBottomSheetTest {
     }
 
     /**
-     * #649 (product ADR-0032): unlike [WateringReason.JUST_MY_TIMING], the late direction's
+     * #649 (product ADR-0033): unlike [WateringReason.JUST_MY_TIMING], the late direction's
      * plant-attribution chip is a genuinely different reason from the early one — "Soil was still
      * moist" reports [WateringReason.SOIL_STILL_MOIST], never [WateringReason.PLANT_NEEDED_IT], since
      * a late gap must never shorten the interval.

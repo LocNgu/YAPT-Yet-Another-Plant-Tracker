@@ -30,7 +30,7 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * `WateringReason.SOIL_STILL_MOIST` coverage (#649, product ADR-0032) — the late-direction reason
+ * `WateringReason.SOIL_STILL_MOIST` coverage (#649, product ADR-0033) — the late-direction reason
  * that replaced "It was dry by then", split out of [QuickLogUseCaseTest] to keep that file under
  * Detekt's `LargeClass` threshold, mirroring [QuickLogUseCaseSeasonalTest]'s precedent.
  */
@@ -68,7 +68,7 @@ class QuickLogUseCaseWateringReasonTest {
         )
     }
 
-    // #649 (product ADR-0032): SOIL_STILL_MOIST is the late-direction reason that replaced the old
+    // #649 (product ADR-0033): SOIL_STILL_MOIST is the late-direction reason that replaced the old
     // "It was dry by then" attribution — a late gap must never shorten the interval (a single
     // retrospective observation can't localize exactly when inside an overdue window the plant went
     // dry), so the late direction only ever holds (JUST_MY_TIMING) or lengthens (this reason).
@@ -109,7 +109,7 @@ class QuickLogUseCaseWateringReasonTest {
         }
     }
 
-    // #649 (product ADR-0032): a late "Soil was still moist" observation lengthens the interval
+    // #649 (product ADR-0033): a late "Soil was still moist" observation lengthens the interval
     // (TOO_SOON's multiplier, same as the Reschedule flow's identical signal) and records
     // WATER_TOO_SOON — confirming the new late-direction reason reaches the adaptive model exactly
     // like any other explicit attribution, with no special-casing needed for the WATER-log path.

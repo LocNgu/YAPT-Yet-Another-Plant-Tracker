@@ -7,7 +7,7 @@ import org.junit.Test
 
 /**
  * The reason → stored-feedback mapping (#586, product ADR-0030; late-direction mapping amended by
- * #649, product ADR-0032). [WateringReason.SOIL_STILL_MOIST] is the point at which "TOO_SOON on a
+ * #649, product ADR-0033). [WateringReason.SOIL_STILL_MOIST] is the point at which "TOO_SOON on a
  * WATER log is illogical" stopped being a hard invariant — it's now reachable, but only from the
  * late-direction reason prompt, never the early one.
  */

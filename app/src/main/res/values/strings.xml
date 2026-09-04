@@ -116,7 +116,7 @@
     <string name="reschedule_reverted_snackbar">Reschedule reverted</string>
     <string name="watering_due_action_water">Water</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030; late-direction option set amended by
-         #649, product ADR-0032) — two options per prompt, phrased the way a user would say them; the
+         #649, product ADR-0033) — two options per prompt, phrased the way a user would say them; the
          answer alone decides whether the model learns. The option *set*, not just the wording, now
          differs by direction: the late direction never offers a shorten attribution. -->
     <!-- Early variant: the gap is still short of the interval, so "Why now?" reads naturally. -->

@@ -79,7 +79,7 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
 
 /**
  * Reason-prompt chip label for an off-schedule watering (#586, product ADR-0030; late-direction
- * option set amended by #649, product ADR-0032). [PLANT_NEEDED_IT] is early-only and
+ * option set amended by #649, product ADR-0033). [PLANT_NEEDED_IT] is early-only and
  * [SOIL_STILL_MOIST] is late-only (see [WateringReasonBottomSheet]'s direction-specific option
  * list), so neither actually branches on [gapRanLong] here — only [JUST_MY_TIMING] is offered in
  * both directions and needs the two wordings ("just my timing" implies a deliberate choice that

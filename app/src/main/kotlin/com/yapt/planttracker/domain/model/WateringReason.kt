@@ -2,7 +2,7 @@ package com.yapt.planttracker.domain.model
 
 /**
  * Why an off-schedule watering happened (#586, product ADR-0030; late-direction mapping amended by
- * #649 product ADR-0032). The app **asks** rather than infers: the same observable gap carries
+ * #649 product ADR-0033). The app **asks** rather than infers: the same observable gap carries
  * opposite meanings — watered three days late because the plant was fine and could go longer, or
  * because you were busy and it went thirsty — so timing alone can never tell *the plant's needs*
  * from *the user's availability*, the exact conflation ADR-0007 exists to prevent.
@@ -31,7 +31,7 @@ enum class WateringReason {
     PLANT_NEEDED_IT,
 
     /**
-     * "Soil was still moist" — late-direction only (#649, product ADR-0032). Evidence about the
+     * "Soil was still moist" — late-direction only (#649, product ADR-0033). Evidence about the
      * plant, feeding the model as [WateringFeedback.TOO_SOON] — the same signal
      * [RescheduleReason.SOIL_STILL_MOIST] represents, just captured retroactively on the WATER log
      * for a user who checked informally rather than tapping Reschedule. A late gap **never** shortens
@@ -49,7 +49,7 @@ enum class WateringReason {
      * the absence of evidence, and reusing the existing nullable column is what keeps this issue
      * schema-free.
      *
-     * [SOIL_STILL_MOIST] maps to [WateringFeedback.TOO_SOON] (#649, product ADR-0032, amending
+     * [SOIL_STILL_MOIST] maps to [WateringFeedback.TOO_SOON] (#649, product ADR-0033, amending
      * ADR-0030's "TOO_SOON becomes structurally impossible on a WATER log" — that no longer holds:
      * TOO_SOON is now reachable on a WATER log via this value, not only via [RescheduleReason
      * .SOIL_STILL_MOIST]'s `CareType.CHECK` log).

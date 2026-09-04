@@ -45,3 +45,32 @@ or tool instructions into Codex workflows.
 - Verify changes with the smallest relevant Gradle checks from
   `.claude/CLAUDE.md` and `.claude/rules/ci-build.md`; use the build files for
   current versions and task names.
+
+## Issue delivery and pull requests
+
+- Use an issue's acceptance criteria as the completion checklist. When
+  extracting or moving code in a pure refactor, preserve behaviour and carry
+  existing KDoc, issue/ADR references, rationale comments, documented races,
+  and targeted suppressions verbatim to their new location unless the change
+  explicitly updates the documented behaviour. Before committing, compare
+  each extracted region against its base-branch version to confirm that
+  behaviour and supporting context were not silently omitted or altered.
+- Before preparing a pull request, inspect `git status`, the staged diff, and
+  `git diff --check`. Keep agent-local files and unrelated formatter churn out
+  of the change.
+- Do not declare work complete based on compilation alone when the issue calls
+  for static analysis or tests. Run the applicable required checks, and report
+  any check that could not run with its reason.
+- Before opening or updating a pull request, run
+  `./gradlew detekt lintDebug compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`;
+  every task must succeed. Detekt and lint must report zero new violations on
+  the changed files. A partial or clean compile is not a substitute. Match the
+  project's existing 4-space Kotlin formatting rather than reformatting to a
+  different style and letting Detekt catch it after the fact. New violations
+  are fixed in the code, never deferred into `config/detekt/baseline.xml`,
+  which records pre-existing debt and is not a valid target for code introduced
+  in the same change.
+- Make the pull request title and body describe the actual diff. When it
+  resolves an issue, include `Fixes #<issue>` or `Closes #<issue>`; explicitly
+  state no intended behaviour change for a refactor and map verification to the
+  issue's acceptance criteria.

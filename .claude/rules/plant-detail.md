@@ -137,7 +137,7 @@ tabs-only), so its row position is unchanged.
 
 - **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
   opens `WateringReasonBottomSheet`, whose two-chip option set is direction-specific (#649, product
-  ADR-0032): early ("Why now?" → "The plant needed it" / "Just my timing") vs. late ("Why was it late?"
+  ADR-0033): early ("Why now?" → "The plant needed it" / "Just my timing") vs. late ("Why was it late?"
   → "Soil was still moist" / "Forgot, or no time") — a late gap never offers a shorten attribution. The
   `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
   branch, shared with the classic layout's tappable `StatChip`s and the tabs layout's

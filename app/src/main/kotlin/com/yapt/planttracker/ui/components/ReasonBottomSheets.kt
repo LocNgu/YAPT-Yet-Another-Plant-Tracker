@@ -28,7 +28,7 @@ import com.yapt.planttracker.ui.util.labelRes
 
 /**
  * The off-schedule watering reason prompt (#586, product ADR-0030; late-direction option set
- * amended by #649, product ADR-0032), replacing #570's single "was dry" flag on the same bottom
+ * amended by #649, product ADR-0033), replacing #570's single "was dry" flag on the same bottom
  * sheet. Only ever shown when
  * [com.yapt.planttracker.domain.model.PlantCareStatus.isWateringOnSchedule] is false — an on-schedule
  * watering is logged straight away, which is what keeps the quick-log surfaces' fast path.

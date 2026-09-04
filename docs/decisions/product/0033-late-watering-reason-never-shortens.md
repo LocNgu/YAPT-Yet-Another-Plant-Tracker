@@ -1,4 +1,4 @@
-# ADR-0032: The late-watering reason prompt never shortens the interval
+# ADR-0033: The late-watering reason prompt never shortens the interval
 
 **Status**: accepted
 
