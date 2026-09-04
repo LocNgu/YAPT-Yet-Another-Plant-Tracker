@@ -149,9 +149,10 @@ class PlantDetailViewModelSeasonalTest {
         runTest {
             // #626 regression: undoSilentIntervalApply() used to recompute wateringBaseIntervalDays on
             // undo as beforeIntervalDays.toDouble() — correct only by the pre-fix bug's coincidence that
-            // beforeIntervalDays happened to already be base-space. Now that applyIntervalInternal writes
-            // a genuine effective value there, deriving the base from it on undo would silently corrupt a
-            // real prior base. beforeBaseIntervalDays must be threaded through from the actual prior
+            // beforeIntervalDays happened to already be base-space. Now that
+            // QuickLogUseCase.applyWateringIntervalSuggestion() writes a genuine effective value there,
+            // deriving the base from it on undo would silently corrupt a real prior base.
+            // beforeBaseIntervalDays must be threaded through from the actual prior
             // Plant.wateringBaseIntervalDays and restored as-is.
             val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 6.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

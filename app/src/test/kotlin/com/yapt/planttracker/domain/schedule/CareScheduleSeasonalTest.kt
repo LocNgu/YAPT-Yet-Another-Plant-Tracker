@@ -183,7 +183,7 @@ class CareScheduleSeasonalTest {
      * `effectiveInterval(deseasonalize(x, today), today) == x` regardless of amplitude — the
      * corruption only surfaces once the due date is computed on a materially different point in the
      * season curve. This applies a suggestion (already base-space, per
-     * `PlantDetailViewModel.applyIntervalInternal`'s contract) on the Jan-5 peak day, then re-derives
+     * `QuickLogUseCase.applyWateringIntervalSuggestion()`'s contract) on the Jan-5 peak day, then re-derives
      * the due date six months later near the trough, and asserts it matches what the *correct*
      * (un-re-deseasonalized) base implies — not the shorter interval the pre-#584-fix
      * double-deseasonalization would have produced.
@@ -194,7 +194,7 @@ class CareScheduleSeasonalTest {
         val sixMonthsLater = LocalDateUtcMillis(2023, 7, 5)
         val suggestedInterval = 12
 
-        // The fixed behavior (PlantDetailViewModel.applyIntervalInternal): newInterval is already
+        // The fixed behavior (QuickLogUseCase.applyWateringIntervalSuggestion()): newInterval is already
         // season-neutral/base-space, written to wateringBaseIntervalDays unchanged.
         val correctlyAppliedPlant = plantWith(
             wateringIntervalDays = suggestedInterval,

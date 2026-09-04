@@ -123,8 +123,9 @@ A plain settings key, not a `FeatureFlagRegistry` entry — survives disabling d
 consulted when `ADAPTIVE_WATERING` is on (`PlantDetailViewModel.shouldShowIntervalDialog()`); inert
 otherwise, so the ADR-0006 dialog stays unconditional for anyone not on the adaptive model.
 - **On** (default): today's ADR-0006 `AlertDialog`, byte-for-byte unchanged.
-- **Off**: `PlantDetailViewModel.applySuggestionOrPrompt()` calls `applyIntervalInternal()` directly
-  (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays,
+- **Off**: `applySuggestionOrPrompt()` (an extension on `PlantDetailViewModel` in
+  `PlantDetailIntervalActions.kt`, #641) calls `quickLogUseCase.applyWateringIntervalSuggestion()`
+  directly (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays,
   beforeBaseIntervalDays, afterIntervalDays)` — `afterIntervalDays` is the effective value actually
   written (#626), not the raw suggestion; `before*` are the plant's actual prior values, not derived.
   `PlantDetailScreen` shows a `Snackbar` (`R.string.interval_auto_applied_snackbar` +
