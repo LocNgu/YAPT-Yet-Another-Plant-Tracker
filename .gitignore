@@ -36,3 +36,6 @@ google-services.json
 # Claude Code agent worktrees (runtime artifact)
 .claude/worktrees/
 
+# Codex agent runtime state (environment/session config, not project source)
+.codex/
+
