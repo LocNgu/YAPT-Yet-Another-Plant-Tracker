@@ -144,4 +144,47 @@ class QuickLogUseCaseWateringReasonTest {
             )
         }
     }
+
+    // Codex review finding on #661: the #571 cold-start bootstrap computes a plain median of
+    // historical WATER-log gaps, entirely blind to WateringFeedback — so a late "Soil was still
+    // moist" observation landing on a plant's first-ever adaptive observation could otherwise still
+    // bootstrap to an interval *shorter* than the plant already had, breaking ADR-0033's guarantee
+    // through the one path that bypasses CareSchedule.computeAdaptiveInterval's TOO_SOON multiplier.
+    // History here is 3-day gaps (median 3) on a plant currently at a 7-day interval — without the
+    // WateringLifecycleReset.maybeBootstrap() floor, this would bootstrap down to 3.
+    @Test
+    fun `quickWaterWithReason SOIL_STILL_MOIST never shortens the interval even via history bootstrap`() = runTest {
+        val adaptiveDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            )
+        }
+        useCase = QuickLogUseCase(
+            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
+        )
+        val now = System.currentTimeMillis()
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(3)),
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(6))
+        )
+        // 5 timestamps, 3 days apart -> 4 gaps (median 3), clears MIN_BOOTSTRAP_GAPS (3).
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns (0..4).map {
+            now - TimeUnit.DAYS.toMillis((12 - it * 3).toLong())
+        }
+
+        useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST)
+
+        coVerify(exactly = 1) {
+            plantRepo.updatePlant(
+                match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 7.0 }
+            )
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP && it.afterIntervalDays == 7 }
+            )
+        }
+    }
 }

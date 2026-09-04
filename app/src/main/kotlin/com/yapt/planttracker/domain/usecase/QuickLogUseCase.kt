@@ -612,7 +612,7 @@ class QuickLogUseCase(
         currentInterval: Int
     ): Int {
         val now = System.currentTimeMillis()
-        if (maybeApplyHistoryBootstrap(plant, now)) return currentInterval
+        if (maybeApplyHistoryBootstrap(plant, feedback, now)) return currentInterval
 
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
@@ -659,8 +659,13 @@ class QuickLogUseCase(
      * whole history), or a pending post-reset opportunity ([Plant.wateringResetAt] != `null`, using
      * only history at/after the freeze boundary). Returns `false` (no-op) when neither applies, or
      * when [WateringLifecycleReset.maybeBootstrap] doesn't find enough gaps yet.
+     *
+     * [feedback] is threaded through to [WateringLifecycleReset.BootstrapRequest] so a bootstrap
+     * triggered by a late "Soil was still moist" observation ([WateringFeedback.TOO_SOON]) can't
+     * undercut ADR-0033's "a late watering never shortens the interval" guarantee — see that
+     * function's doc for why the median-of-history estimate needs this floor (#649 follow-up).
      */
-    private suspend fun maybeApplyHistoryBootstrap(plant: Plant, now: Long): Boolean {
+    private suspend fun maybeApplyHistoryBootstrap(plant: Plant, feedback: WateringFeedback?, now: Long): Boolean {
         val boundaryMs = when {
             plant.wateringConfidence == null -> Long.MIN_VALUE
             plant.wateringResetAt != null -> plant.wateringFreezeUntil ?: plant.wateringResetAt
@@ -670,7 +675,8 @@ class QuickLogUseCase(
             plant = plant,
             waterLogTimestampsMs = careLogRepository.getWaterLogTimestampsAscending(plant.id),
             boundaryMs = boundaryMs,
-            seasonFn = seasonFnFor(plant)
+            seasonFn = seasonFnFor(plant),
+            feedback = feedback
         )
         return WateringLifecycleReset.maybeBootstrap(request, plantRepository, wateringAdjustmentRepository, now)
     }

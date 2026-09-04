@@ -103,6 +103,22 @@ now holds three total values, but each individual prompt still shows exactly two
 three per prompt" constraint from ADR-0030 is unchanged; only the total-enum-size proxy for it no
 longer applies now that the two prompts don't share their full option set.
 
+### The #571 cold-start bootstrap needed its own floor (found in review)
+
+The "never shortens" guarantee above only covers the steady-state per-observation path
+(`CareSchedule.computeAdaptiveInterval`'s `TOO_SOON_TARGET_MULTIPLIER`). It does not, by
+construction, cover `WateringLifecycleReset.maybeBootstrap()` (#571) — the one-time cold-start that
+fires instead of the normal update on a plant's first-ever adaptive observation, or its first
+post-reset one. That function computes `base` as a plain median of historical WATER-log gaps
+(`CareSchedule.bootstrapBaseInterval`), entirely blind to `WateringFeedback`: a late "Soil was
+still moist" watering landing on exactly one of those two triggering observations could still
+bootstrap the interval *down*, silently breaking the guarantee through the path that bypasses the
+multiplier entirely. Fixed by threading the triggering `WateringFeedback` into
+`WateringLifecycleReset.BootstrapRequest`; when it's `TOO_SOON`, the bootstrapped base is floored
+at the plant's pre-bootstrap interval. `confidence` is still taken from the bootstrap result
+as-is — it reflects how much history exists, not which direction the interval should move, so
+flooring it alongside the base would misrepresent how much is actually known.
+
 ## Consequences
 
 - A user who is confident a plant was already dry well before they got around to watering it late
