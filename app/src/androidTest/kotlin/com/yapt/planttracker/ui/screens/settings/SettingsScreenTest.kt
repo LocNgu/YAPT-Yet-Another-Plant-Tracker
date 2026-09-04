@@ -354,7 +354,11 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithTag("keep_screen_on_switch").performScrollTo().assertIsOff()
 
         composeTestRule.onNodeWithTag("keep_screen_on_switch").performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(
+                hasTestTag("keep_screen_on_switch") and isOn()
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
 
         composeTestRule.onNodeWithTag("keep_screen_on_switch").assertIsOn()
     }
