@@ -115,6 +115,10 @@
     </plurals>
     <string name="reschedule_reverted_snackbar">Reschedule reverted</string>
     <string name="watering_due_action_water">Water</string>
+    <!-- #652 round 2: shared label for the liquid-fertilizer combined action, used both by the Water
+         tab's second button (CombinedWaterFertilizeActionRow) and the Fertilize tab's button when
+         the plant uses liquid fertilizer (FertilizeDueActionRow). -->
+    <string name="water_fertilize_combined_button">Water + Fertilize</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
          way a user would say them; the answer alone decides whether the model learns. -->
     <!-- Early variant: the gap is still short of the interval, so "Why now?" reads naturally. -->

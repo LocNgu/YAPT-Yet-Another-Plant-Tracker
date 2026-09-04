@@ -690,16 +690,20 @@ fun PlantDetailScreen(
                                             }
                                             WateringDueActionsRow(
                                                 onWaterClick = {
-                                                    if (plant?.useLiquidFertilizer == true) {
-                                                        requestLiquidFertilize(status, viewModel) {
-                                                            showLiquidFertilizeSheet = true
-                                                        }
-                                                    } else {
-                                                        requestWater(status, viewModel) { showWaterSheet = true }
-                                                    }
+                                                    requestWater(status, viewModel) { showWaterSheet = true }
                                                 },
                                                 onRescheduleClick = { viewModel.requestReschedule() }
                                             )
+                                            if (plant?.useLiquidFertilizer == true) {
+                                                Spacer(Modifier.height(8.dp))
+                                                CombinedWaterFertilizeActionRow(
+                                                    onClick = {
+                                                        requestLiquidFertilize(status, viewModel) {
+                                                            showLiquidFertilizeSheet = true
+                                                        }
+                                                    }
+                                                )
+                                            }
                                             Spacer(Modifier.height(16.dp))
                                         }
                                     }
@@ -802,6 +806,7 @@ fun PlantDetailScreen(
                                     if (plant?.fertilizingIntervalDays != null) {
                                         item {
                                             FertilizeDueActionRow(
+                                                useLiquidFertilizer = plant?.useLiquidFertilizer == true,
                                                 onFertilizeClick = {
                                                     if (plant?.useLiquidFertilizer == true) {
                                                         requestLiquidFertilize(status, viewModel) {
