@@ -9,6 +9,13 @@ data class ReleaseNotes(
 )
 
 object WhatsNewContent {
+    // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased"
+    )
+
+    // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
             versionCode = 420,
