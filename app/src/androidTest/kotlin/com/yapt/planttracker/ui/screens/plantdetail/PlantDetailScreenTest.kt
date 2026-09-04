@@ -987,6 +987,78 @@ class PlantDetailScreenTest {
         coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, null) }
     }
 
+    /**
+     * #652: on the Water tab, a liquid-fertilizer plant's "Water" button routes through
+     * [requestLiquidFertilize] (the same combined path [FertilizeDueActionRow] uses) instead of plain
+     * [requestWater] — no tab switch needed to log the paired WATER+FERTILIZE action.
+     */
+    @Test
+    fun wateringDueRow_liquidPlant_offSchedule_tapOpensCombinedReasonPrompt() {
+        val plant = Plant(
+            id = 24L,
+            name = "Ivy",
+            useLiquidFertilizer = true,
+            fertilizingIntervalDays = 30,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        // Default tab is Water — no tab switch needed to reach this button.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Water & fertilize Ivy?").assertIsDisplayed()
+    }
+
+    /**
+     * #652: a non-liquid-fertilizer plant's Water tab behavior is unchanged — plain [requestWater],
+     * never the combined sheet.
+     */
+    @Test
+    fun wateringDueRow_regularPlant_offSchedule_tapOpensPlainWaterReasonPrompt() {
+        val plant = Plant(id = 25L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Water Fern?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Water & fertilize Fern?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
     @Test
     fun fertilizingChip_liquidPlant_offSchedule_tapOpensCombinedReasonPrompt() {
         val plant = Plant(

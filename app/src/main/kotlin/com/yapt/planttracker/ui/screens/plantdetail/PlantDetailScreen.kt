@@ -690,7 +690,13 @@ fun PlantDetailScreen(
                                             }
                                             WateringDueActionsRow(
                                                 onWaterClick = {
-                                                    requestWater(status, viewModel) { showWaterSheet = true }
+                                                    if (plant?.useLiquidFertilizer == true) {
+                                                        requestLiquidFertilize(status, viewModel) {
+                                                            showLiquidFertilizeSheet = true
+                                                        }
+                                                    } else {
+                                                        requestWater(status, viewModel) { showWaterSheet = true }
+                                                    }
                                                 },
                                                 onRescheduleClick = { viewModel.requestReschedule() }
                                             )
