@@ -76,9 +76,9 @@ still base-space (this class's own raw adaptive suggestion) — `confidenceAfter
 check now converts the effective `newInterval` back down to base-space once (`newIntervalBaseSpace`,
 reused for both the base write and the `DIALOG_EDIT` row's `afterIntervalDays`) rather than converting
 `originalSuggestion` up, since that conversion is already needed regardless of the confidence check.
-`PlantDetailViewModel.applySuggestionOrPrompt()`'s silent-apply branch (no dialog shown) now converts its
+`applySuggestionOrPrompt()`'s silent-apply branch (no dialog shown) now converts its
 own raw suggestion through `effectiveWateringIntervalDaysForDisplay()` before calling
-`applyIntervalInternal()`, mirroring `pendingWateringSuggestion`'s conversion, so a silent apply commits
+`quickLogUseCase.applyWateringIntervalSuggestion()`, mirroring `pendingWateringSuggestion`'s conversion, so a silent apply commits
 the same number the dialog would have shown/pre-filled had it appeared. The `DIALOG_EDIT` row's
 `afterIntervalDays` still deliberately stays base-space (unchanged posture from #626) — only the value
 it's derived from changed.
