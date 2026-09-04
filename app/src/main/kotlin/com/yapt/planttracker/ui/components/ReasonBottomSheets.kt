@@ -27,8 +27,9 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.ui.util.labelRes
 
 /**
- * The off-schedule watering reason prompt (#586, product ADR-0030), replacing #570's single
- * "was dry" flag on the same bottom sheet. Only ever shown when
+ * The off-schedule watering reason prompt (#586, product ADR-0030; late-direction option set
+ * amended by #649, product ADR-0032), replacing #570's single "was dry" flag on the same bottom
+ * sheet. Only ever shown when
  * [com.yapt.planttracker.domain.model.PlantCareStatus.isWateringOnSchedule] is false — an on-schedule
  * watering is logged straight away, which is what keeps the quick-log surfaces' fast path.
  *
@@ -37,10 +38,13 @@ import com.yapt.planttracker.ui.util.labelRes
  * excludes it from base learning, the same as [WateringReason.JUST_MY_TIMING]. Dismissing the sheet
  * cancels the watering outright, so either way nothing wrong reaches the model.
  *
- * [gapRanLong] ([com.yapt.planttracker.domain.model.PlantCareStatus.isWateringGapLong]) selects the
- * late wording for both the question and the chips. The two bits are identical in either direction —
- * about the plant, or about you — but "Why now?" reads as an accusation once a plant is overdue, and
- * "just my timing" claims a deliberate choice that forgetting never involves.
+ * [gapRanLong] ([com.yapt.planttracker.domain.model.PlantCareStatus.isWateringGapLong]) selects both
+ * the question wording *and* which two [WateringReason] values are offered — not just the label text.
+ * Early: [WateringReason.PLANT_NEEDED_IT] / [WateringReason.JUST_MY_TIMING] ("Why now?" reads as an
+ * accusation once a plant is overdue, which is also why the late direction doesn't reuse this pair).
+ * Late: [WateringReason.SOIL_STILL_MOIST] / [WateringReason.JUST_MY_TIMING] — a late gap never offers
+ * a "shorten" attribution (#649): a single retrospective observation can't pin down exactly when
+ * inside an overdue window the plant went dry, so the late direction only ever holds or lengthens.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +56,11 @@ fun WateringReasonBottomSheet(
     title: String = stringResource(R.string.water_feedback_sheet_title, plantName)
 ) {
     var selected by remember { mutableStateOf<WateringReason?>(null) }
+    val options = if (gapRanLong) {
+        listOf(WateringReason.SOIL_STILL_MOIST, WateringReason.JUST_MY_TIMING)
+    } else {
+        listOf(WateringReason.PLANT_NEEDED_IT, WateringReason.JUST_MY_TIMING)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -71,7 +80,7 @@ fun WateringReasonBottomSheet(
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(8.dp))
-            for (reason in WateringReason.entries) {
+            for (reason in options) {
                 FilterChip(
                     selected = selected == reason,
                     onClick = { selected = if (selected == reason) null else reason },

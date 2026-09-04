@@ -125,7 +125,6 @@
          long. "Why now?" reads as an accusation on an overdue plant, and "just my timing" implies a
          choice that forgetting never involves — so forgetting is named outright instead. -->
     <string name="water_reason_question_late">Why was it late?</string>
-    <string name="water_reason_plant_needed_it_late">It was dry by then</string>
     <string name="water_reason_just_my_timing_late">Forgot, or no time</string>
     <string name="reschedule_reason_question">Why put it off?</string>
     <string name="reschedule_reason_soil_still_moist">Soil still moist</string>

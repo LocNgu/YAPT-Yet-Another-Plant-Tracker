@@ -30,6 +30,8 @@ class WateringReasonBottomSheetTest {
 
     private val plantNeededIt get() = string(R.string.water_reason_plant_needed_it)
     private val justMyTiming get() = string(R.string.water_reason_just_my_timing)
+    private val justMyTimingLate get() = string(R.string.water_reason_just_my_timing_late)
+    private val soilStillMoist get() = string(R.string.reschedule_reason_soil_still_moist)
     private val logLabel get() = string(R.string.quick_water_log)
 
     @Test
@@ -46,10 +48,9 @@ class WateringReasonBottomSheetTest {
     }
 
     /**
-     * #586: a gap that ran long gets the same two bits worded for lateness — "Why now?" reads as an
-     * accusation on an overdue plant, and "just my schedule" claims a deliberate choice that
-     * forgetting never involves. Asserting both variants pins that the wording actually switches,
-     * not merely that some text is present.
+     * #586/#649: a gap that ran long gets late-direction wording *and* a different option set, not
+     * merely relabeled chips — the late direction never offers a "shorten" attribution (product
+     * ADR-0032), so "The plant needed it" must not appear at all once the gap ran long.
      */
     @Test
     fun wateringPrompt_whenTheGapRanLong_showsTheLateWording() {
@@ -65,14 +66,20 @@ class WateringReasonBottomSheetTest {
         }
 
         composeTestRule.onNodeWithText(string(R.string.water_reason_question_late)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.water_reason_plant_needed_it_late)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.water_reason_just_my_timing_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(soilStillMoist).assertIsDisplayed()
+        composeTestRule.onNodeWithText(justMyTimingLate).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.water_reason_question)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(plantNeededIt).assertDoesNotExist()
     }
 
-    /** The late wording is cosmetic: the reason reported back is the same value either way (#586). */
+    /**
+     * #649 (product ADR-0032): unlike [WateringReason.JUST_MY_TIMING], the late direction's
+     * plant-attribution chip is a genuinely different reason from the early one — "Soil was still
+     * moist" reports [WateringReason.SOIL_STILL_MOIST], never [WateringReason.PLANT_NEEDED_IT], since
+     * a late gap must never shorten the interval.
+     */
     @Test
-    fun wateringPrompt_lateWording_reportsTheSameReasonValue() {
+    fun wateringPrompt_choosingSoilStillMoistLate_reportsThatReason() {
         var logged: WateringReason? = null
         composeTestRule.setContent {
             YaptTheme {
@@ -85,10 +92,30 @@ class WateringReasonBottomSheetTest {
             }
         }
 
-        composeTestRule.onNodeWithText(string(R.string.water_reason_plant_needed_it_late)).performClick()
+        composeTestRule.onNodeWithText(soilStillMoist).performClick()
         composeTestRule.onNodeWithText(logLabel).performClick()
 
-        assertEquals(WateringReason.PLANT_NEEDED_IT, logged)
+        assertEquals(WateringReason.SOIL_STILL_MOIST, logged)
+    }
+
+    @Test
+    fun wateringPrompt_choosingJustMyTimingLate_reportsThatReason() {
+        var logged: WateringReason? = null
+        composeTestRule.setContent {
+            YaptTheme {
+                WateringReasonBottomSheet(
+                    plantName = "Fern",
+                    gapRanLong = true,
+                    onDismiss = {},
+                    onLog = { logged = it }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText(justMyTimingLate).performClick()
+        composeTestRule.onNodeWithText(logLabel).performClick()
+
+        assertEquals(WateringReason.JUST_MY_TIMING, logged)
     }
 
     @Test

@@ -33,7 +33,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -289,26 +288,9 @@ class QuickLogUseCaseTest {
         }
     }
 
-    // #586 acceptance criterion: TOO_SOON is never written to a WATER log. WateringReason has no
-    // value that maps to it, so every reason — and the no-reason case — is checked exhaustively here
-    // rather than pinning one example.
-    @Test
-    fun `no WateringReason ever writes TOO_SOON to a WATER log`() = runTest {
-        val monstera = plant(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-
-        for (reason in WateringReason.entries + listOf(null)) {
-            assertNotEquals(WateringFeedback.TOO_SOON, reason?.toWateringFeedback())
-        }
-
-        useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
-
-        coVerify(exactly = 0) {
-            careLogRepo.addLog(
-                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.TOO_SOON }
-            )
-        }
-    }
+    // #649 (product ADR-0032): SOIL_STILL_MOIST coverage (the late-direction reason that replaced
+    // "It was dry by then") now lives in QuickLogUseCaseWateringReasonTest, split out to stay under
+    // Detekt's LargeClass threshold — mirrors QuickLogUseCaseSeasonalTest's precedent.
 
     @Test
     fun `quickWaterWithReason clears wateringDueDateOverride when active`() = runTest {
