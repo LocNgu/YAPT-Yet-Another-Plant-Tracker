@@ -30,6 +30,18 @@ CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-lin
 # build; only build-tools is pinned, to the AGP-required revision (AGP 9.3.1 -> 35.0.0).
 BUILD_TOOLS_VERSION="35.0.0"
 
+tmp=""
+sdk_log=""
+cleanup() {
+  if [ -n "$tmp" ]; then
+    rm -rf "$tmp"
+  fi
+  if [ -n "$sdk_log" ]; then
+    rm -f "$sdk_log"
+  fi
+}
+trap cleanup EXIT
+
 echo "==> Android SDK -> $ANDROID_HOME"
 export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
 
@@ -61,9 +73,17 @@ if [ ! -x "$BOOTSTRAP_DIR/bin/sdkmanager" ]; then
   unzip -q "$tmp/cmdline-tools.zip" -d "$tmp/unpacked"
   mv "$tmp/unpacked/cmdline-tools" "$BOOTSTRAP_DIR"
   rm -rf "$tmp"
+  tmp=""
 else
   echo "    bootstrap command-line tools already present"
 fi
+
+for stale_bootstrap_dir in "$ANDROID_HOME"/cmdline-tools/bootstrap-*; do
+  if [ -d "$stale_bootstrap_dir" ] && [ "$stale_bootstrap_dir" != "$BOOTSTRAP_DIR" ]; then
+    echo "    removing stale bootstrap command-line tools: $stale_bootstrap_dir"
+    rm -rf "$stale_bootstrap_dir"
+  fi
+done
 
 SDKMANAGER="$BOOTSTRAP_DIR/bin/sdkmanager"
 accept_licenses() { yes 2>/dev/null | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; }
@@ -80,7 +100,6 @@ fi
 echo "==> Accepting licenses and installing SDK packages"
 accept_licenses
 sdk_log="$(mktemp)"
-trap 'rm -f "$sdk_log"' EXIT
 
 if ! "$SDKMANAGER" "${BASE_PACKAGES[@]}" >"$sdk_log" 2>&1; then
   cat "$sdk_log" >&2
