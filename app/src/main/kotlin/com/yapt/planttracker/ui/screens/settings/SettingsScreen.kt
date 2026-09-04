@@ -594,6 +594,7 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.keep_screen_on_subtitle),
                 trailingContent = {
                     Switch(
+                        modifier = Modifier.testTag("keep_screen_on_switch"),
                         checked = keepScreenOn,
                         onCheckedChange = { viewModel.setKeepScreenOn(it) }
                     )
