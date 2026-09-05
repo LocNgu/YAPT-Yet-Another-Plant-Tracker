@@ -1397,7 +1397,7 @@ class PlantListViewModelTest {
         }
 
     @Test
-    fun `dismissSuggestedIntervalFromList raises confidence when flag enabled`() = runTest {
+    fun `dismissSuggestedIntervalFromList raises confidence`() = runTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
                 preferencesOf()

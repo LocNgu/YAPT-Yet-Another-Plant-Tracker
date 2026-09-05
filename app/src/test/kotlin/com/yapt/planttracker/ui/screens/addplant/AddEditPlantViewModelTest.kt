@@ -454,7 +454,7 @@ class AddEditPlantViewModelTest {
     // #571: a room change (a real move, not initial data entry) resets wateringConfidence with no freeze window.
 
     @Test
-    fun `edit mode room change resets confidence with no freeze window when adaptive_watering is on`() = runTest {
+    fun `edit mode room change resets confidence with no freeze window`() = runTest {
         val existingPlant = plant(id = 1L).copy(room = "Living room", wateringConfidence = 3)
         every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
         coEvery { plantRepo.updatePlant(any()) } just runs
