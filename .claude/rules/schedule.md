@@ -32,19 +32,13 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
 
-## computeSuggestedInterval() — adaptive watering (product ADR-0006)
-- `JUST_RIGHT` suggests when `actualIntervalDays != currentInterval`.
-- `TOO_SOON` uses `currentInterval` as base when the user watered early (`actual < stored`).
-- `TOO_LATE` clamps to `min(actual, stored)`.
-- Final result `.coerceAtLeast(1)` — two same-day waterings (`actual == 0`) can't yield a 0-day suggestion (#446).
-- Flow: after a WATER log, `AddCareLogViewModel` computes `actualIntervalDays` from the last two waterings and
-  passes the result back via `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal
-  editable `AlertDialog` (product ADR-0006, supersedes product ADR-0005).
-
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
-Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off) — the legacy
-`computeSuggestedInterval()` above is untouched and stays the flag-off path; call sites (`AddCareLogViewModel`,
-`QuickLogUseCase`) branch on the flag before choosing which pure function to call.
+The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy
+`computeSuggestedInterval()` ±1-day nudge (product ADR-0006) it replaced has been deleted along with the flag
+check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLogViewModel` computes
+`actualIntervalDays` from the last two waterings, calls this function, and passes the result back via
+`savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal editable `AlertDialog`
+(product ADR-0006 dialog shape, supersedes product ADR-0005).
 - `target = observed × multiplier(feedback)` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base = base +
   g(confidence) × (target − base)`. Gain table indexed 0-5: `[0.60, 0.45, 0.35, 0.28, 0.22, 0.15]`.
 - Clamped to ±40% per step (of the pre-step base, before rounding — rounding to a whole day can add up to another
@@ -105,8 +99,8 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   (no prompt) when there's no interval or no previous watering.
 - **Lifecycle resets + cold-start bootstrap (#571)** — see `domain/usecase/WateringLifecycleReset.kt`.
   A `REPOT` care log or a qualifying `Plant.room` change (any real change except blank/empty -> filled
-  for the first time) resets `wateringConfidence` to 0, gated on `ADAPTIVE_WATERING` and written once
-  as a side effect at log-creation/plant-save time — never derived live from querying REPOT log
+  for the first time) resets `wateringConfidence` to 0 (unconditional since `ADAPTIVE_WATERING`
+  graduated, #655), written once as a side effect at log-creation/plant-save time — never derived live from querying REPOT log
   history, so editing/deleting a past REPOT log can't spuriously re-trigger a reset. A REPOT reset also
   sets `Plant.wateringFreezeUntil` (`wateringResetAt + 28 days`, room-change resets never set this) —
   `computeAdaptiveInterval(..., frozen = true)` while `now < wateringFreezeUntil` forces the same
@@ -127,8 +121,8 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
   `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),
   and only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
-  silently applied. Gated on `ADAPTIVE_WATERING` only — `check_reminders` being on is orthogonal (see
-  `.claude/rules/notifications.md`). The **length** of the deferral is never a model input (#586): the reason
+  silently applied. Unconditional (`ADAPTIVE_WATERING` graduated, #655) — `check_reminders` being on is orthogonal
+  (see `.claude/rules/notifications.md`). The **length** of the deferral is never a model input (#586): the reason
   already decided what is learned, and `suggestedStillMoistDeferralDays()` (`newBase - observedGap`, floored at
   `DEFAULT_STILL_MOIST_DEFERRAL_DAYS` = 1) only *suggests* a date — it shares `computeStillMoistAdaptiveInterval()`
   with the real write so the two can't drift. A reschedule the user attributed to themselves ("I can't right now")

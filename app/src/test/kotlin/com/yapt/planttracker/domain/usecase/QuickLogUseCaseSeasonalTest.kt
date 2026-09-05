@@ -67,14 +67,11 @@ class QuickLogUseCaseSeasonalTest {
         updatedAt = 0L
     )
 
-    /** ADAPTIVE_WATERING + SEASONAL_WATERING both on, with [nowProvider] pinned to [peakDay]. */
+    /** SEASONAL_WATERING on, with [nowProvider] pinned to [peakDay]. */
     private fun useCaseWithSeasonOn(peakDay: Long): QuickLogUseCase {
         val seasonalDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-                )
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             )
         }
         return QuickLogUseCase(
@@ -235,25 +232,6 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(expectedSuggestion, outcome.suggestion?.suggestedInterval)
     }
 
-    /** SEASONAL_WATERING on, ADAPTIVE_WATERING off — the legacy `computeSuggestedInterval()` path. */
-    private fun useCaseWithSeasonOnLegacyPath(peakDay: Long): QuickLogUseCase {
-        val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
-        }
-        return QuickLogUseCase(
-            application,
-            plantRepo,
-            careLogRepo,
-            plantPhotoRepo,
-            seasonalDataStore,
-            database,
-            wateringAdjustmentRepo,
-            nowProvider = { peakDay }
-        )
-    }
-
     /**
      * #620's own gate, at the choke point ([QuickLogUseCase.computeSuggestion]) shared by Calendar,
      * Plant List, and Plant Detail: when the base-space suggestion's effective-space conversion equals
@@ -265,31 +243,32 @@ class QuickLogUseCaseSeasonalTest {
     fun `quickWaterWithReason suppresses the suggestion entirely when its effective value equals current`() =
         runTest {
             val peakDay = localDateUtcMillis(2023, 1, 5)
-            val useCase = useCaseWithSeasonOnLegacyPath(peakDay)
-            val elevenDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(11)
+            val useCase = useCaseWithSeasonOn(peakDay)
+            val fourteenDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(14)
 
+            // No feedback (`null` -> NEUTRAL_TARGET_MULTIPLIER = 1.0): the deseasonalized observed gap
+            // (round(14 / 1.35) = 10) matches the base exactly, so the model returns the base unchanged
+            // regardless of gain — a deterministic raw suggestion of 10 with no adaptive-model math to
+            // hand-simulate.
             val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
                 plant = plant(wateringIntervalDays = 10).copy(wateringBaseIntervalDays = 10.0),
                 nowDate = LocalDate.of(2023, 1, 5),
                 seasonalAmplitude = SeasonalAmplitude.STANDARD.value
             ) ?: 10
-            // TOO_LATE's legacy suggestion is `max(1, base - 1)` where base = current when actual (11)
-            // exceeds it, so pinning current >= 11 keeps the raw suggestion a deterministic 10
-            // regardless of exactly what expectedEffective rounds to — no adaptive-model math to
-            // hand-simulate.
-            val monstera = plant(wateringIntervalDays = expectedEffective)
+            val monstera = plant(wateringIntervalDays = expectedEffective).copy(wateringBaseIntervalDays = 10.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = null),
                 CareLog(
                     plantId = 1L,
                     careType = CareType.WATER,
-                    loggedAt = elevenDaysBeforePeak,
+                    loggedAt = fourteenDaysBeforePeak,
                     wateringFeedback = null
                 )
             )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
-            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+            val outcome = useCase.quickWaterWithReason(monstera, null)
 
             assertEquals(null, outcome.suggestion)
         }
@@ -297,32 +276,52 @@ class QuickLogUseCaseSeasonalTest {
     @Test
     fun `quickWaterWithReason's suggestedIntervalEffective is the base-to-effective conversion`() = runTest {
         val peakDay = localDateUtcMillis(2023, 1, 5)
-        val useCase = useCaseWithSeasonOnLegacyPath(peakDay)
-        val elevenDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(11)
+        val useCase = useCaseWithSeasonOn(peakDay)
+        val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
 
-        val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = plant(wateringIntervalDays = 10).copy(wateringBaseIntervalDays = 10.0),
-            nowDate = LocalDate.of(2023, 1, 5),
-            seasonalAmplitude = SeasonalAmplitude.STANDARD.value
-        ) ?: 10
-        // A current interval deliberately different from expectedEffective, so the suggestion isn't
-        // suppressed by the #620 gate covered above, while still keeping current >= actual (11) so
-        // the raw suggestion stays the same deterministic 10.
-        val monstera = plant(wateringIntervalDays = expectedEffective + 1)
+        // TOO_LATE feedback, so a gap that disagrees with the base still moves it (unlike a null
+        // observation, which #586/ADR-0030 excludes from base learning entirely when off-schedule) —
+        // a real raw suggestion distinct from the current literal interval.
+        val monstera = plant(wateringIntervalDays = 10)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = null),
             CareLog(
                 plantId = 1L,
                 careType = CareType.WATER,
-                loggedAt = elevenDaysBeforePeak,
-                wateringFeedback = null
+                loggedAt = peakDay,
+                wateringFeedback = WateringFeedback.JUST_RIGHT
+            ),
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = twentyDaysBeforePeak,
+                wateringFeedback = WateringFeedback.JUST_RIGHT
             )
         )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
-        assertEquals(10, outcome.suggestion?.suggestedInterval)
+        val deseasonalizedObserved = SeasonalWatering.deseasonalizeToDays(
+            20,
+            LocalDate.of(2023, 1, 5),
+            SeasonalAmplitude.STANDARD.value,
+            Hemisphere.NORTHERN
+        )
+        val expectedRaw = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.TOO_LATE,
+            observedIntervalDays = deseasonalizedObserved,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        ).intervalDays
+        val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = plant(wateringIntervalDays = expectedRaw).copy(wateringBaseIntervalDays = expectedRaw.toDouble()),
+            nowDate = LocalDate.of(2023, 1, 5),
+            seasonalAmplitude = SeasonalAmplitude.STANDARD.value
+        ) ?: expectedRaw
+
+        assertEquals(expectedRaw, outcome.suggestion?.suggestedInterval)
         assertEquals(expectedEffective, outcome.suggestion?.suggestedIntervalEffective)
     }
 }

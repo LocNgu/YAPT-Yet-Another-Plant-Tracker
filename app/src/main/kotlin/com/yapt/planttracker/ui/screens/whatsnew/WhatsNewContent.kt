@@ -13,6 +13,11 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "The confidence-weighted adaptive watering model (interval suggestions that adjust based on your " +
+                "watering feedback and get calmer once the schedule proves itself) is now always on — no more " +
+                "developer-mode flag to turn it on"
+        ),
         fixed = listOf(
             "With seasonal watering on, a plant's \"currently every N days\" figure could briefly show a " +
                 "stale number right after adaptive watering cold-started its estimate from that plant's " +

@@ -130,20 +130,7 @@ class PlantDetailScreenTest {
         )
     }
 
-    /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] and [FeatureFlagRegistry.ADAPTIVE_WATERING] on, for the
-     * "Why this date?" sheet tests (#572).
-     */
-    private val mockDataStoreWithAdaptive: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
-        )
-    }
-
-    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — `adaptive_watering` stays off (#572 degrade). */
+    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout without the seasonal curve preview. */
     private val mockDataStoreTabsOnly: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(
             mutablePreferencesOf(
@@ -2251,7 +2238,7 @@ class PlantDetailScreenTest {
             wateringIntervalDays = 7,
             wateringConfidence = 4
         )
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithAdaptive)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -2271,35 +2258,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(
             InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
         ).assertIsDisplayed()
-    }
-
-    /** ADAPTIVE_WATERING off (#572): the sheet shows only the plain interval — no invented rows. */
-    @Test
-    fun wateringExplanationSheet_degradesToPlainInterval_whenAdaptiveWateringOff() {
-        val plant = Plant(id = 81L, name = "Snake Plant", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 9)
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("why_this_date_button"))
-        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
-
-        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_base_interval)
-        ).assertDoesNotExist()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_confidence)
-        ).assertDoesNotExist()
     }
 
     /**

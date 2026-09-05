@@ -10,8 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.isFeatureEnabled
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -191,15 +189,13 @@ class CalendarViewModel(
      */
     fun dismissSuggestedInterval(plantId: Long) {
         viewModelScope.launch {
-            if (dataStore.isFeatureEnabled(FeatureFlagRegistry.ADAPTIVE_WATERING)) {
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    plantRepository.updatePlant(
-                        p.copy(
-                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                            updatedAt = System.currentTimeMillis()
-                        )
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(
+                        wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                        updatedAt = System.currentTimeMillis()
                     )
-                }
+                )
             }
         }
     }

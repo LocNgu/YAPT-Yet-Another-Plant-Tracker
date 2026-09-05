@@ -2,8 +2,8 @@ package com.yapt.planttracker.domain.model
 
 /**
  * A record of one adaptive-watering-model evaluation for a plant (#572) — written every time
- * [com.yapt.planttracker.domain.schedule.CareSchedule.computeAdaptiveInterval] is evaluated while
- * `ADAPTIVE_WATERING` is on, including a no-op observation where [beforeIntervalDays] equals
+ * [com.yapt.planttracker.domain.schedule.CareSchedule.computeAdaptiveInterval] is evaluated,
+ * including a no-op observation where [beforeIntervalDays] equals
  * [afterIntervalDays] (still evidence the model considered). Backs the "Recent adjustments" list on
  * the "Why this date?" sheet.
  *
@@ -75,7 +75,7 @@ enum class WateringAdjustmentTrigger {
     /**
      * The one-time cold-start bootstrap from watering history (#571 Part B) —
      * [com.yapt.planttracker.domain.usecase.WateringLifecycleReset.maybeBootstrap], reached either when
-     * `adaptive_watering` is first evaluated for a plant with enough existing history, or once enough
+     * the adaptive model is first evaluated for a plant with enough existing history, or once enough
      * post-reset history accumulates after a [REPOT_RESET]/[ROOM_CHANGE_RESET].
      */
     HISTORY_BOOTSTRAP
