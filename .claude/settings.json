@@ -65,7 +65,7 @@
       "Bash(cat*)",
       "Bash(pwd)",
       "Bash(which*)",
-      "Read(/tmp/**)",
+      "Read(//tmp/**)",
       "Bash(jar tf *)",
       "Bash(javap *)"
     ],
