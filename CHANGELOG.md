@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **The #571 cold-start watering history bootstrap no longer leaves a stale "currently every N days" figure when seasonal watering is on** — `WateringLifecycleReset.maybeBootstrap()` wrote its base-space median-of-history estimate straight into the literal `Plant.wateringIntervalDays`, skipping the base→effective seasonal conversion `QuickLogUseCase.applyWateringIntervalSuggestion()` already performs for the equivalent interval-suggestion write (#626/#644). The due date itself was unaffected (`CareSchedule.computeStatus()` always recomputes it from `wateringBaseIntervalDays`), but the Water tab's "every N days" text, the "Why this date?" sheet's "currently" figure, and `WateringExplanationBuilder` could show a stale/off number until the next per-observation adaptation corrected it. `wateringIntervalDays` is now written as the seasonally-converted effective value (clamped to `[1, 180]`); `wateringBaseIntervalDays` and the `HISTORY_BOOTSTRAP` adjustment row's `before`/`afterIntervalDays` are unchanged (still raw base-space). No behavior change for pinned plants or when seasonal watering is off/amplitude is Off (#662)
+
 ---
 
 ## [0.27.1] - 2026-09-05
