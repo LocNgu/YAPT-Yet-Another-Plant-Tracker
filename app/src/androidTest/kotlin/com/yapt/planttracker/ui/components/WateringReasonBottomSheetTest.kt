@@ -31,7 +31,7 @@ class WateringReasonBottomSheetTest {
     private val plantNeededIt get() = string(R.string.water_reason_plant_needed_it)
     private val justMyTiming get() = string(R.string.water_reason_just_my_timing)
     private val justMyTimingLate get() = string(R.string.water_reason_just_my_timing_late)
-    private val soilStillMoist get() = string(R.string.reschedule_reason_soil_still_moist)
+    private val soilStillMoist get() = string(R.string.water_reason_soil_still_moist_late)
     private val logLabel get() = string(R.string.quick_water_log)
 
     @Test

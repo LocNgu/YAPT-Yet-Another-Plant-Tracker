@@ -83,13 +83,15 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
  * [SOIL_STILL_MOIST] is late-only (see [WateringReasonBottomSheet]'s direction-specific option
  * list), so neither actually branches on [gapRanLong] here — only [JUST_MY_TIMING] is offered in
  * both directions and needs the two wordings ("just my timing" implies a deliberate choice that
- * forgetting never involves). [SOIL_STILL_MOIST] deliberately reuses [RescheduleReason
- * .SOIL_STILL_MOIST]'s string — same underlying observation, same wording, no near-duplicate string.
+ * forgetting never involves). [SOIL_STILL_MOIST] is the same underlying observation as
+ * [RescheduleReason.SOIL_STILL_MOIST] but gets its own string ("Soil was still moist") rather than
+ * reusing that one verbatim — it needs to read as a direct answer to "Why was it late?", a full
+ * clause, not a short button label.
  */
 @StringRes
 fun WateringReason.labelRes(gapRanLong: Boolean = false): Int = when (this) {
     WateringReason.PLANT_NEEDED_IT -> R.string.water_reason_plant_needed_it
-    WateringReason.SOIL_STILL_MOIST -> R.string.reschedule_reason_soil_still_moist
+    WateringReason.SOIL_STILL_MOIST -> R.string.water_reason_soil_still_moist_late
     WateringReason.JUST_MY_TIMING ->
         if (gapRanLong) R.string.water_reason_just_my_timing_late else R.string.water_reason_just_my_timing
 }

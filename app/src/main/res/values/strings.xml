@@ -131,12 +131,14 @@
     <string name="water_reason_just_my_timing">Just my schedule</string>
     <!-- Late variant (PlantCareStatus.isWateringGapLong): "Why now?" reads as an accusation on an
          overdue plant, so this asks "why was it late" instead. The plant-attribution answer here is a
-         genuinely different reason — WateringReason.SOIL_STILL_MOIST, which reuses
-         reschedule_reason_soil_still_moist's string below rather than a new one — since a late gap can
-         never shorten the interval (#649). Only "just my timing" is shared with the early variant, and
-         even it is reworded: "just my timing" implies a choice that forgetting never involves, so
-         forgetting is named outright instead. -->
+         genuinely different reason — WateringReason.SOIL_STILL_MOIST — since a late gap can never
+         shorten the interval (#649); phrased as its own full clause ("Soil was still moist") rather
+         than reusing reschedule_reason_soil_still_moist's shorter label verbatim, since it needs to
+         read as a direct answer to "Why was it late?", not a button label. Only "just my timing" is
+         shared with the early variant, and even it is reworded: "just my timing" implies a choice
+         that forgetting never involves, so forgetting is named outright instead. -->
     <string name="water_reason_question_late">Why was it late?</string>
+    <string name="water_reason_soil_still_moist_late">Soil was still moist</string>
     <string name="water_reason_just_my_timing_late">Forgot, or no time</string>
     <string name="reschedule_reason_question">Why put it off?</string>
     <string name="reschedule_reason_soil_still_moist">Soil still moist</string>

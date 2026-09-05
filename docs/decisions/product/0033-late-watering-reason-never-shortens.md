@@ -87,8 +87,10 @@ late-direction-only, mirroring `PLANT_NEEDED_IT`'s early-direction-only role —
 now picks its two-chip option set by `gapRanLong` rather than rendering the same two enum values
 with only relabeled text.
 
-No new string: the late chip reuses `R.string.reschedule_reason_soil_still_moist` ("Soil still
-moist") verbatim rather than adding a near-duplicate — it is the same underlying observation.
+New string `water_reason_soil_still_moist_late` ("Soil was still moist") — it's the same
+underlying observation as `RescheduleReason.SOIL_STILL_MOIST`'s "Soil still moist", but phrased as
+its own full clause rather than reusing that shorter label verbatim: it needs to read as a direct
+answer to "Why was it late?", not a button label repurposed as one.
 
 ### Two properties ADR-0030 pinned that no longer hold
 
