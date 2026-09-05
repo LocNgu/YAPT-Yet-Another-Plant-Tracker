@@ -85,6 +85,7 @@ class QuickLogUseCaseBackdateTest {
     fun setup() {
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         useCase = QuickLogUseCase(
@@ -130,16 +131,71 @@ class QuickLogUseCaseBackdateTest {
         )
         val monstera = plant().copy(wateringConfidence = 2)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = backdated - TimeUnit.DAYS.toMillis(7)),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = backdated - TimeUnit.DAYS.toMillis(14))
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, backdated) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = backdated - TimeUnit.DAYS.toMillis(7))
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
         useCase.quickWaterWithReason(monstera, null, loggedAt = backdated)
 
         coVerify { wateringAdjustmentRepo.addAdjustment(match { it.triggeredAt == backdated }) }
     }
+
+    /**
+     * Codex review finding (#671 round 2, P2): backdating a new WATER log to a date *before* an
+     * already-existing WATER log used to compute the observed gap against "the two globally newest
+     * waterings" ([CareLogRepository.getLastTwoWaterings], `ORDER BY loggedAt DESC LIMIT 2`) rather
+     * than the newly-inserted log's own chronological predecessor. Here the plant already has a
+     * WATER log at [threeDaysAgo] (more recent than the backdated pick) — the fix
+     * ([CareLogRepository.getLastWateringBefore]) must skip past it and find [tenDaysAgo], the log
+     * that actually precedes the backdated [fiveDaysAgo] pick, not pair the new log with the later,
+     * already-existing one.
+     */
+    @Test
+    fun `quickWaterWithReason backdated before an existing later WATER log uses its own chronological predecessor`() =
+        runTest {
+            val adaptiveDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                )
+            }
+            useCase = QuickLogUseCase(
+                application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
+            )
+            val now = System.currentTimeMillis()
+            val threeDaysAgo = now - TimeUnit.DAYS.toMillis(3)
+            val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
+            val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
+            val monstera = plant().copy(wateringConfidence = 2)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            // fiveDaysAgo's real chronological predecessor is tenDaysAgo, not threeDaysAgo (which sits
+            // *after* fiveDaysAgo and must never be used to compute this gap).
+            coEvery { careLogRepo.getLastWateringBefore(1L, fiveDaysAgo) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            useCase.quickWaterWithReason(monstera, null, loggedAt = fiveDaysAgo)
+
+            val expected = CareSchedule.computeAdaptiveInterval(
+                feedback = null,
+                observedIntervalDays = 5,
+                currentBaseIntervalDays = 7,
+                currentConfidence = 2,
+                recentFeedback = emptyList()
+            )
+            // The pre-fix bug would have paired the backdated log with the later, already-existing
+            // threeDaysAgo log instead of its own predecessor — a materially different gap, so a
+            // regression can't accidentally satisfy both assertions at once.
+            val wrongGapIfPairedWithLaterExistingLog = CareSchedule.daysBetween(fiveDaysAgo, threeDaysAgo)
+            assertTrue(wrongGapIfPairedWithLaterExistingLog != 5)
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.triggeredAt == fiveDaysAgo && it.afterIntervalDays == expected.intervalDays }
+                )
+            }
+            // threeDaysAgo (the existing, later log) must never even be consulted for this gap — the
+            // pre-fix code's only source of "the last two waterings" is gone from the production path.
+            coVerify(exactly = 0) { careLogRepo.getLastTwoWaterings(any()) }
+        }
 
     /**
      * BLOCKING review fix (#654 round 1): [QuickLogUseCase.adaptWateringInterval]'s call to its private
@@ -169,10 +225,8 @@ class QuickLogUseCaseBackdateTest {
             )
             val monstera = plant().copy(wateringConfidence = 2)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAtDay),
+            coEvery { careLogRepo.getLastWateringBefore(1L, loggedAtDay) } returns
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAtDay - TimeUnit.DAYS.toMillis(20))
-            )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
             useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAtDay)

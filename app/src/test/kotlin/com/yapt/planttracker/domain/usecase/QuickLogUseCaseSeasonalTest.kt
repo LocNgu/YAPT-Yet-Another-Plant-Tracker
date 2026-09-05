@@ -103,20 +103,13 @@ class QuickLogUseCaseSeasonalTest {
             val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
             val monstera = plant(wateringIntervalDays = 10)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(
-                    plantId = 1L,
-                    careType = CareType.WATER,
-                    loggedAt = peakDay,
-                    wateringFeedback = WateringFeedback.JUST_RIGHT
-                ),
+            coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
                 CareLog(
                     plantId = 1L,
                     careType = CareType.WATER,
                     loggedAt = twentyDaysBeforePeak,
                     wateringFeedback = WateringFeedback.JUST_RIGHT
                 )
-            )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
             val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
@@ -151,20 +144,13 @@ class QuickLogUseCaseSeasonalTest {
             val useCase = useCaseWithSeasonOn(peakDay)
             val monstera = plant(wateringIntervalDays = 10).copy(wateringBaseIntervalDays = 6.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(
-                    plantId = 1L,
-                    careType = CareType.WATER,
-                    loggedAt = peakDay,
-                    wateringFeedback = WateringFeedback.JUST_RIGHT
-                ),
+            coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
                 CareLog(
                     plantId = 1L,
                     careType = CareType.WATER,
                     loggedAt = peakDay - TimeUnit.DAYS.toMillis(20),
                     wateringFeedback = WateringFeedback.JUST_RIGHT
                 )
-            )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
             val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
@@ -212,20 +198,13 @@ class QuickLogUseCaseSeasonalTest {
         val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
         val monstera = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(
-                plantId = 1L,
-                careType = CareType.WATER,
-                loggedAt = peakDay,
-                wateringFeedback = WateringFeedback.JUST_RIGHT
-            ),
+        coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
             CareLog(
                 plantId = 1L,
                 careType = CareType.WATER,
                 loggedAt = twentyDaysBeforePeak,
                 wateringFeedback = WateringFeedback.JUST_RIGHT
             )
-        )
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
@@ -285,15 +264,13 @@ class QuickLogUseCaseSeasonalTest {
             // hand-simulate.
             val monstera = plant(wateringIntervalDays = expectedEffective)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = null),
+            coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
                 CareLog(
                     plantId = 1L,
                     careType = CareType.WATER,
                     loggedAt = elevenDaysBeforePeak,
                     wateringFeedback = null
                 )
-            )
 
             val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
@@ -316,15 +293,13 @@ class QuickLogUseCaseSeasonalTest {
         // the raw suggestion stays the same deterministic 10.
         val monstera = plant(wateringIntervalDays = expectedEffective + 1)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = peakDay, wateringFeedback = null),
+        coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
             CareLog(
                 plantId = 1L,
                 careType = CareType.WATER,
                 loggedAt = elevenDaysBeforePeak,
                 wateringFeedback = null
             )
-        )
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 

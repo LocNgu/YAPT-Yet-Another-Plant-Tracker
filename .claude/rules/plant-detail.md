@@ -196,6 +196,24 @@ keep matching their pinned `nowProvider` — they previously relied on the pre-f
 `nowProvider()` for season while `loggedAt` (unpassed, defaulting to the real device clock) drove
 everything else, which the fix correctly stopped tolerating.
 
+**Review round 2 fixes (#654 PR #671, external bot findings):** two more. (1) `LogWateringDatePickerDialog`'s
+`initialSelectedDateMillis` passed `System.currentTimeMillis()` — a raw UTC instant — directly into
+Material3's `DatePicker`, which interprets that parameter as a UTC-midnight-encoded calendar date, not
+an instant; in timezones where local calendar day differs from UTC's (e.g. early morning in UTC+14, late
+evening in UTC−8) the picker could preselect the wrong day. Fixed via a new
+`localTodayAsUtcMidnightMillis()` helper (`LogWateringDatePicker.kt`, mirroring `isOnOrBeforeLocalToday`'s
+own local-day ↔ UTC-midnight conversion in the opposite direction) that encodes local today as UTC
+midnight before handing it to the picker. (2) `QuickLogUseCase.computeSuggestion()` computed the
+adaptive-gap observation from `CareLogRepository.getLastTwoWaterings()` — "the two globally newest
+waterings by `loggedAt`" — rather than the newly-inserted (possibly backdated) log's own chronological
+predecessor. Backdating a new WATER log to a date *before* an already-existing one silently paired the
+new log with that later, unrelated log instead of its real neighbor, feeding the adaptive model a wrong
+gap. Fixed by adding `CareLogRepository.getLastWateringBefore(plantId, beforeMillis)` (`CareLogDao
+.getLastLogOfTypeBefore`, `... WHERE loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1`) and
+switching `computeSuggestion()` to look up the log strictly preceding its own `now`/`loggedAt` argument.
+`AddCareLogViewModel`'s independent `getLastTwoWaterings()` call site is untouched — out of scope for
+this fix, a pre-existing, separately-reported concern.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

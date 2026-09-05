@@ -47,6 +47,19 @@ private object TodayOrEarlierSelectableDates : SelectableDates {
 }
 
 /**
+ * The picker's `initialSelectedDateMillis` (#654 round-2 review fix): Material3's `DatePicker`
+ * interprets that parameter as a UTC-midnight-encoded calendar date, not a raw instant — passing
+ * [System.currentTimeMillis] directly (a UTC instant) silently preselects the wrong calendar day
+ * whenever the device's local calendar day differs from UTC's (e.g. early morning in UTC+14, or
+ * late evening in UTC−8). Mirrors [isOnOrBeforeLocalToday]'s own local-day → UTC-midnight
+ * reinterpretation, just in the opposite direction (encoding a local day, not decoding one).
+ */
+internal fun localTodayAsUtcMidnightMillis(
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    today: LocalDate = LocalDate.now(zoneId),
+): Long = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+/**
  * The quick-water/quick-liquid-fertilize entry points' "Log watering" date picker (#654, superseding
  * the earlier long-press-only spec — see the issue's spec-clarification amendment): a plain tap on
  * Water/the combined Water+Fertilize action now **always** opens this first, pre-selected to today, in
@@ -67,7 +80,7 @@ internal fun LogWateringDatePickerDialog(
     onConfirm: (loggedAt: Long) -> Unit
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = System.currentTimeMillis(),
+        initialSelectedDateMillis = localTodayAsUtcMidnightMillis(),
         selectableDates = TodayOrEarlierSelectableDates
     )
     DatePickerDialog(

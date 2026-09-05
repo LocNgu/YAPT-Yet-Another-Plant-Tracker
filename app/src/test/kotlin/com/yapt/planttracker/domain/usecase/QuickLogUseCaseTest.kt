@@ -99,6 +99,7 @@ class QuickLogUseCaseTest {
         PhotoReminderPolicy.shownThisSession.clear()
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         // #571: below the 3-gap bootstrap threshold by default, so existing adaptive-model tests keep
         // exercising the plain per-observation path — tests exercising the bootstrap itself override this.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
@@ -322,13 +323,10 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason PLANT_NEEDED_IT with a different interval returns a suggestion`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
@@ -353,10 +351,8 @@ class QuickLogUseCaseTest {
             val now = System.currentTimeMillis()
             val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(7)),
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(14))
-            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(7))
             // 5 timestamps, 7 days apart -> 4 gaps, clears MIN_BOOTSTRAP_GAPS (3).
             coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns (0..4).map {
                 now - TimeUnit.DAYS.toMillis((28 - it * 7).toLong())
@@ -386,13 +382,10 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason with no reason and same actual-as-stored interval returns null`() = runTest {
         val now = System.currentTimeMillis()
         val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
-        val fourteenDaysAgo = now - TimeUnit.DAYS.toMillis(14)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fourteenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, null)
 
@@ -425,13 +418,10 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason with no reason returns no suggestion even when one would otherwise fire`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, null)
 
@@ -512,13 +502,10 @@ class QuickLogUseCaseTest {
     fun `quickLiquidFertilizeWithReason PLANT_NEEDED_IT with a lower actual interval returns a suggestion`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 

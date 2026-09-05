@@ -580,16 +580,23 @@ class QuickLogUseCase(
      * comparing them directly could flag a pure unit-mismatch artifact as a real change (the same bug
      * #620 fixed for the Plant Detail dialog specifically). This is the single choke point all three
      * quick-log surfaces share, so none of them can independently regress this comparison again.
+     *
+     * The observed gap is computed against [now]'s own chronological predecessor
+     * ([CareLogRepository.getLastWateringBefore], strictly earlier `loggedAt`), not "the two globally
+     * newest waterings" (#654 round-2 review fix) — [now] is the just-inserted log's own `loggedAt`
+     * (real "now", or Plant Detail's backdated pick), and the two can disagree once a caller backdates
+     * a log to a date *before* an already-existing WATER log: the old `getLastTwoWaterings()`-based
+     * query would pair the new log with that later, already-existing one (or skip the new log's real
+     * neighbor entirely) instead of the log the new one actually follows.
      */
     private suspend fun computeSuggestion(
         plant: Plant,
         feedback: WateringFeedback?,
         now: Long = System.currentTimeMillis()
     ): QuickWaterSuggestion? {
-        val lastTwo = careLogRepository.getLastTwoWaterings(plant.id)
-        if (lastTwo.size < 2) return null
         val current = plant.wateringIntervalDays ?: return null
-        val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
+        val previousWatering = careLogRepository.getLastWateringBefore(plant.id, now) ?: return null
+        val actual = CareSchedule.daysBetween(previousWatering.loggedAt, now)
         if (actual <= 0) return null
         val suggestion = if (isAdaptiveWateringEnabled()) {
             adaptWateringInterval(plant, feedback, actual, current, now)

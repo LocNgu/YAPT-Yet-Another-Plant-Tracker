@@ -60,6 +60,29 @@ class LogWateringDatePickerTest {
         assertTrue(isOnOrBeforeLocalToday(candidateMillis, tokyo, today = today))
     }
 
+    // #654 round-2 review fix: the picker's `initialSelectedDateMillis` must resolve to *local*
+    // today's date encoded as UTC midnight, not the raw current instant — otherwise timezones where
+    // local calendar day differs from UTC (e.g. early morning in UTC+14, late evening in UTC-8)
+    // would preselect the wrong day.
+    @Test
+    fun `localTodayAsUtcMidnightMillis resolves to local today regardless of the device's UTC offset`() {
+        val today = LocalDate.of(2026, 1, 15)
+
+        val result = localTodayAsUtcMidnightMillis(tokyo, today = today)
+
+        val resultDate = java.time.Instant.ofEpochMilli(result).atZone(ZoneOffset.UTC).toLocalDate()
+        assertEquals(today, resultDate)
+    }
+
+    @Test
+    fun `localTodayAsUtcMidnightMillis is selectable by isOnOrBeforeLocalToday for the same local today`() {
+        val today = LocalDate.of(2026, 1, 15)
+
+        val result = localTodayAsUtcMidnightMillis(tokyo, today = today)
+
+        assertTrue(isOnOrBeforeLocalToday(result, tokyo, today = today))
+    }
+
     @Test
     fun `utcMidnightMsToLoggedAtMillis copies the picked calendar day onto the current time-of-day`() {
         val pickedUtcMidnight = LocalDate.of(2026, 1, 10).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
