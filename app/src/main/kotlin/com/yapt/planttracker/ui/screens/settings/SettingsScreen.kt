@@ -508,6 +508,7 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.photo_reminder_setting_subtitle),
                 trailingContent = {
                     Switch(
+                        modifier = Modifier.testTag("photo_reminder_switch"),
                         checked = photoReminderEnabled,
                         onCheckedChange = { viewModel.setPhotoReminderEnabled(it) }
                     )

@@ -327,6 +327,43 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun photoReminderRow_isDisplayed() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Photo reminder").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun photoReminderSwitch_startsOff_andTogglingInvokesViewModelSetter() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("photo_reminder_switch").performScrollTo().assertIsOff()
+
+        composeTestRule.onNodeWithTag("photo_reminder_switch").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(
+                hasTestTag("photo_reminder_switch") and isOn()
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithTag("photo_reminder_switch").assertIsOn()
+    }
+
+    @Test
     fun keepScreenOnRow_isDisplayed() {
         composeTestRule.setContent {
             SettingsScreen(
