@@ -944,7 +944,7 @@ class PlantDetailScreenTest {
         }
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.water_reason_question_late)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.water_reason_plant_needed_it_late)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.water_reason_soil_still_moist_late)).assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.water_reason_just_my_timing_late)).assertIsDisplayed()
     }
 

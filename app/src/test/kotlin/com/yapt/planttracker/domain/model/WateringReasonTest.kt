@@ -6,8 +6,10 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The reason → stored-feedback mapping (#586, product ADR-0030). Small, but it is the point at which
- * "TOO_SOON on a WATER log is illogical" stops being a convention and becomes unrepresentable.
+ * The reason → stored-feedback mapping (#586, product ADR-0030; late-direction mapping amended by
+ * #649, product ADR-0033). [WateringReason.SOIL_STILL_MOIST] is the point at which "TOO_SOON on a
+ * WATER log is illogical" stopped being a hard invariant — it's now reachable, but only from the
+ * late-direction reason prompt, never the early one.
  */
 class WateringReasonTest {
 
@@ -17,28 +19,39 @@ class WateringReasonTest {
     }
 
     @Test
+    fun `soil was still moist is stored as TOO_SOON`() {
+        assertEquals(WateringFeedback.TOO_SOON, WateringReason.SOIL_STILL_MOIST.toWateringFeedback())
+    }
+
+    @Test
     fun `just my timing stores no feedback at all`() {
         assertNull(WateringReason.JUST_MY_TIMING.toWateringFeedback())
     }
 
     /**
-     * Acceptance criterion: TOO_SOON is never written to a WATER log. Enumerating the whole enum
-     * rather than the two cases above means a future third reason cannot quietly reintroduce it.
+     * Only [WateringReason.SOIL_STILL_MOIST] maps to TOO_SOON — [WateringReason.PLANT_NEEDED_IT] and
+     * [WateringReason.JUST_MY_TIMING] must not, so a future edit can't quietly widen this.
      */
     @Test
-    fun `no watering reason maps to TOO_SOON`() {
+    fun `only soil still moist maps to TOO_SOON`() {
         for (reason in WateringReason.entries) {
-            assertNotEquals(WateringFeedback.TOO_SOON, reason.toWateringFeedback())
+            if (reason != WateringReason.SOIL_STILL_MOIST) {
+                assertNotEquals(WateringFeedback.TOO_SOON, reason.toWateringFeedback())
+            }
         }
     }
 
     /**
-     * The design constraint from the issue: the model needs exactly one bit, and reason lists bloat.
-     * At most three options per prompt, phrased the way a user would say them.
+     * The design constraint from the issue: the model needs exactly one bit per direction, and
+     * reason lists bloat. [WateringReason] now holds three values total — [WateringReason
+     * .PLANT_NEEDED_IT] (early-only), [WateringReason.SOIL_STILL_MOIST] (late-only), and
+     * [WateringReason.JUST_MY_TIMING] (both) — but each individual prompt still offers exactly two,
+     * per [com.yapt.planttracker.ui.components.WateringReasonBottomSheet]'s direction-specific
+     * option list.
      */
     @Test
-    fun `each prompt offers at most three reasons`() {
-        assertEquals(2, WateringReason.entries.size)
+    fun `watering reason has exactly three values, reschedule reason at most three`() {
+        assertEquals(3, WateringReason.entries.size)
         assertEquals(2, RescheduleReason.entries.size)
     }
 }

@@ -5,6 +5,7 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
@@ -80,13 +81,15 @@ object WateringLifecycleReset {
      * threshold): [waterLogTimestampsMs] is every WATER log timestamp for [plant] (any order);
      * [boundaryMs] bounds which of them are eligible (pass `Long.MIN_VALUE` for the "initial enable"
      * case, which has no boundary — the whole history is eligible); [seasonFn] is the same
-     * de-seasonalization function [CareSchedule.bootstrapBaseInterval] uses.
+     * de-seasonalization function [CareSchedule.bootstrapBaseInterval] uses. [feedback] is the
+     * triggering observation's [WateringFeedback] (see [maybeBootstrap]'s doc for why it matters).
      */
     data class BootstrapRequest(
         val plant: Plant,
         val waterLogTimestampsMs: List<Long>,
         val boundaryMs: Long,
-        val seasonFn: (LocalDate) -> Double
+        val seasonFn: (LocalDate) -> Double,
+        val feedback: WateringFeedback? = null
     )
 
     /**
@@ -103,6 +106,19 @@ object WateringLifecycleReset {
      * Returns `true` if it applied, `false` otherwise — not enough history yet is an accepted long-tail
      * outcome, not a bug (a plant may simply never accumulate [CareSchedule.MIN_BOOTSTRAP_GAPS] post-
      * boundary gaps).
+     *
+     * **The median-of-history estimate is otherwise blind to today's `WateringReason`** (#649, product
+     * ADR-0033 follow-up, Codex review finding on #661) — [CareSchedule.bootstrapBaseInterval] only
+     * ever sees raw timestamps, so a late "Soil was still moist" watering (`WateringFeedback.TOO_SOON`)
+     * landing on a plant's very first adaptive observation (or its first post-reset one) could
+     * otherwise still bootstrap to a *shorter* interval than the plant already had, silently breaking
+     * ADR-0033's "a late watering can never shorten the interval" guarantee through this one cold-start
+     * path — the normal per-observation [CareSchedule.computeAdaptiveInterval] call this bypasses
+     * enforces it via the `TOO_SOON_TARGET_MULTIPLIER`, but `maybeBootstrap` never reaches that
+     * function. When [BootstrapRequest.feedback] is [WateringFeedback.TOO_SOON], the bootstrapped base
+     * is floored at the plant's pre-bootstrap interval so this path can't undercut it either — the
+     * *confidence* the bootstrap computes is still applied as-is (it reflects how much history exists,
+     * not which direction it should have moved the interval).
      */
     suspend fun maybeBootstrap(
         request: BootstrapRequest,
@@ -114,12 +130,17 @@ object WateringLifecycleReset {
 
         val plant = request.plant
         val before = currentIntervalOrZero(plant)
-        val after = result.baseIntervalDays.roundToInt()
+        val baseIntervalDays = if (request.feedback == WateringFeedback.TOO_SOON) {
+            maxOf(result.baseIntervalDays, before.toDouble())
+        } else {
+            result.baseIntervalDays
+        }
+        val after = baseIntervalDays.roundToInt()
         // Intentionally overwrites any incremental confidence/base learned per-observation between
         // the freeze ending and this bootstrap firing — the cold-start estimate wins, not a bug.
         plantRepository.updatePlant(
             plant.copy(
-                wateringBaseIntervalDays = result.baseIntervalDays,
+                wateringBaseIntervalDays = baseIntervalDays,
                 wateringIntervalDays = after,
                 wateringConfidence = result.confidence,
                 wateringResetAt = null,
