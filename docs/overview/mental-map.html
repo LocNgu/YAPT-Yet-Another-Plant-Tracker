@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Repo mental map / architecture overview. Standalone page: open directly in a browser.
+  No build step, no external assets beyond Google Fonts (falls back to system faces offline).
+  GitHub shows HTML as source rather than rendering it — see docs/overview/README.md for the index.
+-->
+<title>YAPT Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F5F0E8;
+  --surface:#FFFFFFB3;
+  --ink:#2E2019;
+  --ink-soft:#5B4A40;
+  --rule:rgba(62,39,35,0.14);
+  --sage:#4F7A57;
+  --sage-dark:#3B5E42;
+  --sage-ink:#1A3D22;
+  --sage-tint:#E1EDDE;
+  --earth:#795548;
+  --earth-tint:#EFE1D8;
+  --water:#1F7FA8;
+  --water-tint:#E2F1F7;
+  --warn:#9C5B0E;
+  --warn-tint:#FBEBD6;
+  --issue:#8E3F9E;
+  --issue-tint:#F1E3F3;
+  --chip-bg:#FFFFFF;
+  --code-bg:#3E2723;
+  --code-ink:#F1E7DD;
+  --shadow:0 1px 2px rgba(46,32,25,0.06), 0 6px 20px -12px rgba(46,32,25,0.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14171A;
+    --surface:#1D2320B3;
+    --ink:#EFE9E1;
+    --ink-soft:#B9AFA5;
+    --rule:rgba(239,233,225,0.14);
+    --sage:#8FC195;
+    --sage-dark:#6FA378;
+    --sage-ink:#CFE9D2;
+    --sage-tint:#1E2E20;
+    --earth:#C9AA9C;
+    --earth-tint:#2A211C;
+    --water:#6FC3E8;
+    --water-tint:#152A32;
+    --warn:#E8B268;
+    --warn-tint:#302209;
+    --issue:#D79AE0;
+    --issue-tint:#2B1A2E;
+    --chip-bg:#20211F;
+    --code-bg:#0E1210;
+    --code-ink:#DCEBDF;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px -12px rgba(0,0,0,0.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14171A;
+  --surface:#1D2320B3;
+  --ink:#EFE9E1;
+  --ink-soft:#B9AFA5;
+  --rule:rgba(239,233,225,0.14);
+  --sage:#8FC195;
+  --sage-dark:#6FA378;
+  --sage-ink:#CFE9D2;
+  --sage-tint:#1E2E20;
+  --earth:#C9AA9C;
+  --earth-tint:#2A211C;
+  --water:#6FC3E8;
+  --water-tint:#152A32;
+  --warn:#E8B268;
+  --warn-tint:#302209;
+  --issue:#D79AE0;
+  --issue-tint:#2B1A2E;
+  --chip-bg:#20211F;
+  --code-bg:#0E1210;
+  --code-ink:#DCEBDF;
+  --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px -12px rgba(0,0,0,0.6);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:980px;margin:0 auto;padding:56px 24px 96px;}
+h1,h2,h3{font-family:"Fraunces", Georgia, serif;text-wrap:balance;margin:0;}
+code, .mono{font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;}
+
+/* ---------- header ---------- */
+header{margin-bottom:44px;}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--sage-dark);font-weight:500;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--sage-dark);display:inline-block;}
+h1{font-size:clamp(34px,5vw,48px);font-weight:600;color:var(--ink);line-height:1.05;}
+.sub{
+  margin-top:14px;max-width:62ch;font-size:17px;line-height:1.6;color:var(--ink-soft);
+}
+.sub b{color:var(--ink);font-weight:600;}
+
+/* ---------- section scaffolding ---------- */
+section{margin-top:64px;}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
+.sec-num{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);}
+h2{font-size:24px;font-weight:600;}
+.sec-note{font-size:14.5px;color:var(--ink-soft);line-height:1.6;max-width:70ch;margin-top:6px;}
+
+/* ---------- soil cross-section diagram ---------- */
+.profile{
+  border:1px solid var(--rule);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.band{
+  display:grid;
+  grid-template-columns:150px 1fr;
+  border-top:1px solid var(--rule);
+}
+.band:first-child{border-top:none;}
+.band-label{
+  padding:20px 16px;
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+  border-right:1px solid var(--rule);
+}
+.band-label .name{font-family:"Fraunces",serif;font-weight:600;font-size:16px;}
+.band-label .role{font-size:12px;color:var(--ink-soft);line-height:1.4;}
+.band-body{padding:18px 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.band.canopy{background:linear-gradient(180deg,var(--water-tint),transparent);}
+.band.trunk{background:linear-gradient(180deg,var(--sage-tint),transparent);}
+.band.roots{background:linear-gradient(180deg,var(--warn-tint),transparent);}
+.band.bedrock{background:linear-gradient(180deg,var(--earth-tint),transparent);}
+.mod{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;
+  background:var(--chip-bg);
+  border:1px solid var(--rule);
+  border-radius:8px;
+  padding:6px 10px;
+  white-space:nowrap;
+  box-shadow:0 1px 0 rgba(0,0,0,0.02);
+}
+.mod.hi{border-color:var(--sage);color:var(--sage-dark);font-weight:500;}
+.flow-note{font-size:12.5px;color:var(--ink-soft);width:100%;margin-top:2px;}
+
+/* ---------- card grids ---------- */
+.grid{display:grid;gap:14px;}
+.grid.cols-2{grid-template-columns:repeat(2,1fr);}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+@media (max-width:720px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr;}}
+
+.card{
+  background:var(--surface);
+  backdrop-filter:blur(2px);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  padding:16px 18px;
+}
+.card .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.card h3{font-size:16px;font-weight:600;}
+.card .route{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-soft);}
+.card p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-soft);}
+.card p b{color:var(--ink);font-weight:600;}
+.tag{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.03em;
+  padding:2px 7px;border-radius:5px;font-weight:500;
+}
+.tag.water{background:var(--water-tint);color:var(--water);}
+.tag.sage{background:var(--sage-tint);color:var(--sage-dark);}
+.tag.earth{background:var(--earth-tint);color:var(--earth);}
+.tag.warn{background:var(--warn-tint);color:var(--warn);}
+.tag.issue{background:var(--issue-tint);color:var(--issue);}
+
+/* ---------- entity table ---------- */
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{
+  text-align:left;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-soft);font-weight:500;
+  padding:0 12px 10px;border-bottom:1px solid var(--rule);
+}
+td{padding:12px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.5;}
+td:first-child, th:first-child{padding-left:0;}
+td:last-child, th:last-child{padding-right:0;}
+tr:last-child td{border-bottom:none;}
+.entity{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--sage-dark);white-space:nowrap;}
+.tbl-wrap{overflow-x:auto;border-radius:12px;background:var(--surface);border:1px solid var(--rule);padding:6px 16px;}
+
+/* ---------- engine section ---------- */
+.engine{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+}
+@media (max-width:720px){.engine{grid-template-columns:1fr;}}
+.engine .card{display:flex;flex-direction:column;gap:8px;}
+.step-no{
+  font-family:"Fraunces",serif;font-weight:600;font-size:22px;color:var(--sage);
+  line-height:1;
+}
+
+/* ---------- lookup list ---------- */
+.lookup{border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface);}
+.lu-row{
+  display:grid;grid-template-columns:1fr 1.3fr;gap:18px;
+  padding:13px 18px;border-top:1px solid var(--rule);
+  align-items:start;
+}
+.lu-row:first-child{border-top:none;}
+.lu-q{font-size:13.5px;color:var(--ink-soft);padding-top:2px;}
+.lu-a code{
+  display:inline-block;font-size:12.5px;background:var(--code-bg);color:var(--code-ink);
+  padding:3px 8px;border-radius:6px;margin:2px 4px 2px 0;
+}
+@media (max-width:640px){.lu-row{grid-template-columns:1fr;gap:4px;}}
+
+/* ---------- pipeline strip ---------- */
+.pipeline{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface);}
+.pstep{flex:1 1 120px;padding:14px 16px;border-left:1px solid var(--rule);}
+.pstep:first-child{border-left:none;}
+.pstep .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--sage-dark);}
+.pstep .t{font-weight:600;font-size:13.5px;margin-top:3px;}
+.pstep .d{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+footer code{font-family:"IBM Plex Mono",monospace;}
+footer a{color:var(--sage-dark);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Field guide · offline-first Android</div>
+  <h1>How YAPT grows</h1>
+  <p class="sub">
+    A cross-section of <b>Yet Another Plant Tracker</b>: a Kotlin/Compose app that logs care
+    events for houseplants and learns each plant's real watering rhythm from the user's own
+    feedback — no cloud, no accounts, everything on-device in Room.
+  </p>
+</header>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The four layers, top to bottom</h2></div>
+  <p class="sec-note">Read it like soil: light hits the <b>canopy</b> (screens) first, the <b>trunk</b> (ViewModels) carries state up and down, the <b>roots</b> (domain logic) do the real work out of sight, and everything is anchored in <b>bedrock</b> (Room + DataStore). There's no Hilt — <code class="mono">YaptApplication</code> wires every dependency by hand as a lazy singleton (technical ADR-0001).</p>
+
+  <div class="profile">
+    <div class="band canopy">
+      <div class="band-label">
+        <span class="name">Canopy</span>
+        <span class="role">ui/screens, ui/components, ui/navigation</span>
+      </div>
+      <div class="band-body">
+        <span class="mod hi">PlantListScreen</span>
+        <span class="mod hi">PlantDetailScreen</span>
+        <span class="mod">AddCareLogScreen</span>
+        <span class="mod">AddEditPlantScreen</span>
+        <span class="mod">CalendarScreen</span>
+        <span class="mod">SettingsScreen</span>
+        <span class="mod">GraveyardScreen</span>
+        <span class="mod">NavGraph.kt</span>
+        <span class="flow-note">Compose + Material 3 · <code class="mono">Screen</code> sealed class routes · always <code class="mono">collectAsStateWithLifecycle()</code></span>
+      </div>
+    </div>
+    <div class="band trunk">
+      <div class="band-label">
+        <span class="name">Trunk</span>
+        <span class="role">one ViewModel per screen, plus manual DI</span>
+      </div>
+      <div class="band-body">
+        <span class="mod">PlantListViewModel</span>
+        <span class="mod">PlantDetailViewModel</span>
+        <span class="mod">AddCareLogViewModel</span>
+        <span class="mod">CalendarViewModel</span>
+        <span class="mod hi">YaptApplication</span>
+        <span class="flow-note">Every ViewModel has an inner <code class="mono">Factory</code>; <code class="mono">NavGraph</code> hands it the repositories built once in <code class="mono">YaptApplication</code>. StateFlow out, SharedFlow for one-shot events (snackbars, nav).</span>
+      </div>
+    </div>
+    <div class="band roots">
+      <div class="band-label">
+        <span class="name">Roots</span>
+        <span class="role">domain/schedule, domain/usecase — pure logic</span>
+      </div>
+      <div class="band-body">
+        <span class="mod hi">CareSchedule</span>
+        <span class="mod hi">QuickLogUseCase</span>
+        <span class="mod">SeasonalWatering</span>
+        <span class="mod">WateringLifecycleReset</span>
+        <span class="mod">WateringExplanationBuilder</span>
+        <span class="mod">CareInsights</span>
+        <span class="flow-note">No Android framework types — testable in plain JUnit. This is where "is watering overdue" and "should the interval change" actually get decided. Full math reference: <code class="mono">watering-math.html</code>.</span>
+      </div>
+    </div>
+    <div class="band bedrock">
+      <div class="band-label">
+        <span class="name">Bedrock</span>
+        <span class="role">data/db, data/entity, data/repository + DataStore</span>
+      </div>
+      <div class="band-body">
+        <span class="mod hi">PlantDatabase (Room, v13)</span>
+        <span class="mod">6 DAOs</span>
+        <span class="mod">6 repositories</span>
+        <span class="mod">settingsDataStore</span>
+        <span class="flow-note">Repositories are the only code that translates entity ⇄ domain model — UI and ViewModels never see an <code class="mono">@Entity</code> directly.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Screens &amp; how you get there</h2></div>
+  <p class="sec-note">Only <b>Plant List</b> and <b>Calendar</b> sit on the bottom nav bar (product ADR-0019) — everything else is a stack push from one of those two.</p>
+  <div class="grid cols-3">
+    <div class="card">
+      <div class="top"><h3>Plant List</h3><span class="tag sage">start</span></div>
+      <div class="route">plant_list?restoreMessage={msg}</div>
+      <p>Home screen. Sortable/filterable <b>PlantCard</b> grid, quick-log buttons per card, bulk-select action bar. Entry to Add Plant and Settings.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Calendar</h3></div>
+      <div class="route">calendar</div>
+      <p>Month grid (Kizitonwose library, technical ADR-0017) with care-event day markers; tapping a plant's event jumps to Plant Detail.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Plant Detail</h3><span class="tag warn">hub</span></div>
+      <div class="route">plant_detail/{plantId}</div>
+      <p>The busiest screen: chart, photo gallery, care history, and (behind <code class="mono">PLANT_DETAIL_TABS</code>) six per-action tabs — Water, Fertilize, Repot, Photo, Custom Reminders, Issues.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Add / Edit Plant</h3></div>
+      <div class="route">add_plant · edit_plant/{plantId}</div>
+      <p>Name, species, room, cover photo, base watering/fertilizing intervals. Editing room triggers a watering lifecycle reset check.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Add Care Log</h3></div>
+      <div class="route">add_care_log/{plantId}?careLogId={id}</div>
+      <p>Manual log entry for any <code class="mono">CareType</code> except <code class="mono">CHECK</code>; also the edit surface for an existing log.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Settings</h3></div>
+      <div class="route">settings</div>
+      <p>Notification prefs, adaptive-watering toggle, seasonal amplitude, backup/restore, Developer Mode unlock, About/What's New.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Graveyard</h3></div>
+      <div class="route">graveyard</div>
+      <p>Archived (not deleted) plants, reachable from Settings. Restore surfaces a snackbar back on Plant List.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>What's actually stored</h2></div>
+  <p class="sec-note">Room database <code class="mono">PlantDatabase</code>, currently <b>version 13</b> — every bump ships an explicit <code class="mono">Migration</code> plus a committed schema JSON under <code class="mono">app/schemas/</code>; there is no destructive fallback (technical ADR-0002).</p>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Entity</th><th>Holds</th><th>Notable rule</th></tr>
+      <tr><td class="entity">PlantEntity</td><td>Name, species, room, photo, watering/fertilizing intervals, adaptive-watering confidence + base interval, pin flags.</td><td>The row every other table hangs off; archiving sets a flag rather than deleting.</td></tr>
+      <tr><td class="entity">CareLogEntity</td><td>One row per logged event — <code class="mono">CareType</code>, timestamp, note, fertilizer type, watering feedback.</td><td>Same-day WATER/FERTILIZE/CHECK duplicates are rejected at the repository level; PRUNE/REPOT/NOTE/PHOTO/MIST/CUSTOM aren't.</td></tr>
+      <tr><td class="entity">PlantPhotoEntity</td><td>Gallery photos, separate from care logs so the gallery can combine both (product ADR-0013).</td><td>Backup streams photo bytes rather than base64-inlining them (technical ADR-0014).</td></tr>
+      <tr><td class="entity">CustomReminderEntity</td><td>User-defined recurring reminders beyond water/fertilize.</td><td>Child table keyed to a plant (technical ADR-0019).</td></tr>
+      <tr><td class="entity">PlantIssueEntity</td><td>Pest/disease issues, tracked on a separate axis from due-status.</td><td>Renders with <code class="mono">IssuePurple</code>, never a due-status color (technical ADR-0020).</td></tr>
+      <tr><td class="entity">WateringAdjustmentEntity</td><td>Audit trail: every time the adaptive model considers changing an interval, on or off, a row is written.</td><td>Not a CareLog replay — dialog dismissals and silent applies change confidence without ever writing a care log (product ADR-0028).</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>The adaptive watering engine</h2></div>
+  <p class="sec-note">YAPT's actual thesis: watering intervals aren't fixed, they're a confidence-weighted model (technical ADR-0021) that moves when the user's own feedback says the schedule was wrong — and everything about how it moves is inspectable from inside the app. The full formulas, constants, and a worked example live in <a href="watering-math.html"><code class="mono">watering-math.html</code></a>.</p>
+  <div class="engine">
+    <div class="card">
+      <span class="step-no">1</span>
+      <h3>A quick-log happens</h3>
+      <p>Every quick-water/fertilize surface funnels through <code class="mono">QuickLogUseCase</code> — the one choke point (never duplicated per-screen) that inserts the <code class="mono">CareLog</code> and, if adaptive watering is on, evaluates the interval.</p>
+    </div>
+    <div class="card">
+      <span class="step-no">2</span>
+      <h3>Off-schedule? Ask why</h3>
+      <p><code class="mono">CareSchedule.GAP_AGREEMENT_TOLERANCE</code> decides "on schedule." If not, the user is asked <i>"Why was it late?"</i> / <i>"Why now?"</i> (direction-aware wording, product ADR-0030) — the answer, not the gap length, decides whether the model learns.</p>
+    </div>
+    <div class="card">
+      <span class="step-no">3</span>
+      <h3>Seasonal curve applies</h3>
+      <p><code class="mono">SeasonalWatering</code> multiplies the learned base interval by a computed seasonal factor (hemisphere-aware) to get the effective interval actually shown and scheduled — unless the plant is pinned.</p>
+    </div>
+    <div class="card">
+      <span class="step-no">4</span>
+      <h3>Every decision is logged</h3>
+      <p>A <code class="mono">WateringAdjustment</code> row is written regardless of outcome — trigger, before/after interval, confidence delta — so <b>"Why this date?"</b> on Plant Detail can show real history, not a guess (product ADR-0028).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Cross-cutting systems</h2></div>
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="top"><h3>Notifications</h3><span class="tag water">worker/</span></div>
+      <p><code class="mono">ReminderWorker</code> (WorkManager, daily) scans due plants and posts via <code class="mono">NotificationHelper</code>; <code class="mono">BootReceiver</code> re-schedules after reboot. Notification actions (skip / still-moist) land on <code class="mono">SkipWateringReceiver</code> / <code class="mono">StillMoistReceiver</code>, which both call back into <code class="mono">QuickLogUseCase</code>.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Backup &amp; restore</h3><span class="tag earth">.yapt file</span></div>
+      <p><code class="mono">BackupManager</code>/<code class="mono">BackupSerializer</code> export the full DB (plants, logs, photos, reminders, issues, watering adjustments, settings) to a single versioned <code class="mono">.yapt</code> file — the only way data ever leaves the device.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Feature flags &amp; dev mode</h3><span class="tag warn">off by default</span></div>
+      <p><code class="mono">FeatureFlagRegistry</code> is the single list of in-flight experiments, all defaulting <code class="mono">false</code>; a hidden gesture (<code class="mono">DeveloperModeUnlock</code>) reveals the Developer settings section and demo-data seeding (<code class="mono">DemoDataSeeder</code>).</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Theme</h3><span class="tag sage">ui/theme</span></div>
+      <p>Material 3 nature palette — Sage Green, Warm Cream, Earth Brown — plus a separate due-status axis (Ok/Warn/Overdue) and <code class="mono">IssuePurple</code>, which is deliberately never reused for due-status.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>"Where do I&hellip;" — quick lookup</h2></div>
+  <div class="lookup">
+    <div class="lu-row"><div class="lu-q">…change what a plant card shows on the list?</div><div class="lu-a"><code>ui/screens/plantlist/PlantListScreen.kt</code><code>ui/screens/plantlist/PlantListItem.kt</code></div></div>
+    <div class="lu-row"><div class="lu-q">…add a new field to a plant?</div><div class="lu-a"><code>data/entity/PlantEntity.kt</code><code>data/db/PlantDatabase.kt (new Migration)</code><code>domain/model/Plant.kt</code></div></div>
+    <div class="lu-row"><div class="lu-q">…tweak when a plant counts as "overdue"?</div><div class="lu-a"><code>domain/schedule/CareSchedule.kt</code><code>.claude/rules/schedule.md</code></div></div>
+    <div class="lu-row"><div class="lu-q">…change reminder notification text or timing?</div><div class="lu-a"><code>notification/NotificationHelper.kt</code><code>worker/ReminderWorker.kt</code><code>.claude/rules/notifications.md</code></div></div>
+    <div class="lu-row"><div class="lu-q">…add a new quick-log surface?</div><div class="lu-a"><code>domain/usecase/QuickLogUseCase.kt</code></div></div>
+    <div class="lu-row"><div class="lu-q">…change enum display strings or icons?</div><div class="lu-a"><code>ui/util/EnumResources.kt</code> (never on the enum itself)</div></div>
+    <div class="lu-row"><div class="lu-q">…gate something behind a new experiment?</div><div class="lu-a"><code>domain/featureflag/FeatureFlag.kt</code><code>.claude/rules/dev-mode.md</code></div></div>
+    <div class="lu-row"><div class="lu-q">…touch backup/export format?</div><div class="lu-a"><code>data/backup/BackupManager.kt</code><code>.claude/rules/backup.md</code></div></div>
+    <div class="lu-row"><div class="lu-q">…find a past decision before changing a pattern?</div><div class="lu-a"><code>docs/decisions/product/</code><code>docs/decisions/technical/</code></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>How a change actually ships</h2></div>
+  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec + QA only, never Review).</p>
+  <div class="pipeline">
+    <div class="pstep"><div class="n">issue</div><div class="t">File it first</div><div class="d">GitHub issue before any code</div></div>
+    <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">interviews, ADR scan</div></div>
+    <div class="pstep"><div class="n">02</div><div class="t">Implement</div><div class="d">claude/* branch, PR to develop</div></div>
+    <div class="pstep"><div class="n">03</div><div class="t">Review</div><div class="d">BLOCKING findings, max 2 rounds</div></div>
+    <div class="pstep"><div class="n">04</div><div class="t">QA</div><div class="d">acceptance criteria CI can't check</div></div>
+    <div class="pstep"><div class="n">05</div><div class="t">Docs</div><div class="d">CHANGELOG, What's New</div></div>
+    <div class="pstep"><div class="n">06</div><div class="t">Merge</div><div class="d">human only</div></div>
+  </div>
+</section>
+
+<footer>
+  <span>YAPT — offline-first, Room-backed, no telemetry · see also <a href="watering-math.html">the adaptive watering math reference</a></span>
+  <span class="mono">compileSdk 37 · minSdk 26 · Kotlin + Compose + Material 3</span>
+</footer>
+
+</div>
+</body>
+</html>

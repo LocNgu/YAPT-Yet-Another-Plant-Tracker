@@ -9,7 +9,23 @@ data class ReleaseNotes(
 )
 
 object WhatsNewContent {
+    // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased"
+    )
+
+    // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 430,
+            versionName = "0.27.1",
+            fixed = listOf(
+                "The confusing \"It was dry by then\" answer on the late-watering prompt is now \"Soil was still " +
+                    "moist\" — a late watering can no longer shorten your watering interval, only hold it steady " +
+                    "or lengthen it"
+            )
+        ),
         ReleaseNotes(
             versionCode = 420,
             versionName = "0.27.0",

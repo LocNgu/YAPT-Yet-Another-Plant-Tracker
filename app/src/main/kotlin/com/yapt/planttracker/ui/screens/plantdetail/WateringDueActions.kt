@@ -56,6 +56,15 @@ internal const val WATERING_DUE_WATER_BUTTON_TEST_TAG = "watering_due_water_butt
 internal const val FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG = "fertilize_due_action_button"
 
 /**
+ * Locates [CombinedWaterFertilizeActionRow]'s button in Compose UI tests, distinct from
+ * [WATERING_DUE_WATER_BUTTON_TEST_TAG] — the two are visible side-by-side (stacked) on the Water tab
+ * for a liquid-fertilizer plant (#652 round 2), so a shared tag or text-only query could not
+ * distinguish them.
+ */
+internal const val WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG =
+    "watering_due_combined_water_fertilize_button"
+
+/**
  * Locates [RescheduleDeltaChip] in Compose UI tests. Its label text is not unique on its own — the
  * "Why this date?" sheet mirrors the same "Rescheduled +N days" string in a display-only row while
  * both remain in the semantics tree together, so a text-only query can match both at once.
@@ -152,15 +161,55 @@ internal fun WateringDueActionsRow(
 }
 
 /**
+ * A second, visually distinct action for a liquid-fertilizer plant (#652 round 2), rendered directly
+ * below [WateringDueActionsRow] on the Water tab whenever
+ * [com.yapt.planttracker.domain.model.Plant.useLiquidFertilizer] is `true` — never on the Water tab of
+ * a regular plant. [WateringDueActionsRow]'s own "Water" button is left unchanged (plain
+ * `requestWater`, never branching on `useLiquidFertilizer`) so this is purely additive: a liquid-fert
+ * plant owner gets *both* a plain Water action and this combined one, rather than the first commit's
+ * silent same-looking-button behavior swap the human rejected. Wired to the same
+ * `requestLiquidFertilize`/`showLiquidFertilizeSheet` path [FertilizeDueActionRow] already uses.
+ *
+ * `OutlinedButton` (not the filled primary style of [WateringDueActionsRow]'s Water button) so the two
+ * are visually distinguishable at a glance, not just by label text.
+ */
+@Composable
+internal fun CombinedWaterFertilizeActionRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = Modifier.weight(1f).testTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG)
+        ) {
+            Icon(Icons.Filled.WaterDrop, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.water_fertilize_combined_button))
+        }
+    }
+}
+
+/**
  * Fertilize tab's single always-visible action button (#603), replacing the fertilizing `StatChip`'s
  * `onFertilizeClick` entry point once `StatsRow` is dropped from the tabs layout. No "reschedule"
  * counterpart — fertilizing has no equivalent concept, so this is one button, not a row of two.
+ *
+ * [useLiquidFertilizer] only changes the button's label (#652 round 2) — `onFertilizeClick`'s
+ * behavior already branched on the same flag at the call site before this change, so relabeling here
+ * just makes the button's text match what it already does: "Water + Fertilize" for a liquid-fertilizer
+ * plant, plain "Fertilize" otherwise.
  *
  * Uses the same plain `16dp` horizontal padding as [WateringDueActionsRow] (#610) — see that
  * function's KDoc for the accepted residual collision trade-off with the pinned Back/FAB buttons.
  */
 @Composable
 internal fun FertilizeDueActionRow(
+    useLiquidFertilizer: Boolean,
     onFertilizeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -173,7 +222,15 @@ internal fun FertilizeDueActionRow(
             onClick = onFertilizeClick,
             modifier = Modifier.weight(1f).testTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG)
         ) {
-            Text(stringResource(R.string.bulk_action_fertilize))
+            Text(
+                stringResource(
+                    if (useLiquidFertilizer) {
+                        R.string.water_fertilize_combined_button
+                    } else {
+                        R.string.bulk_action_fertilize
+                    }
+                )
+            )
         }
     }
 }

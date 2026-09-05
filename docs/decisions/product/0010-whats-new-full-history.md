@@ -1,6 +1,6 @@
 # Product ADR-0010: What's New sheet shows full release history, not just the current release
 
-**Status**: accepted
+**Status**: superseded by [ADR-0032](0032-whats-new-two-tier-unreleased.md)
 **Date**: 2026-06-02
 
 ## Context

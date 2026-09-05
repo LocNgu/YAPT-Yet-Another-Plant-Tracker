@@ -149,11 +149,17 @@ fun AddEditPlantScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(
-                    if (viewModel.isEditMode) stringResource(
-                        R.string.edit_plant
-                    ) else stringResource(R.string.add_plant)
-                ) },
+                title = {
+                    Text(
+                        if (viewModel.isEditMode) {
+                            stringResource(
+                                R.string.edit_plant
+                            )
+                        } else {
+                            stringResource(R.string.add_plant)
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))

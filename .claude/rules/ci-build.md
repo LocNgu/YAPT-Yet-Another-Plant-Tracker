@@ -62,7 +62,7 @@ resolved via canary won't install under sdkmanager's stable default either. If n
 warns and continues rather than aborting: AGP downloads missing SDK components itself once licenses are accepted,
 so the verification build is the real test. Don't restore a hard failure there.
 **Only works if the pre-installed Gradle matches the wrapper's major** (AGP 9 needs Gradle 9): the script refuses to
-seed an older major rather than trading a wrapper-download failure for a "minimum supported Gradle version" one. On a
+seed a different major rather than trading a wrapper-download failure for a "minimum supported Gradle version" one. On a
 Gradle 8.x image, allowlist the wrapper's hosts (`services.gradle.org`, `downloads.gradle.org`,
 `release-assets.githubusercontent.com`) so the real dist downloads instead. CI is unaffected (`setup-gradle` downloads
 its own pinned Gradle) and remains the authoritative gate. Instrumented tests still need CI's emulator.

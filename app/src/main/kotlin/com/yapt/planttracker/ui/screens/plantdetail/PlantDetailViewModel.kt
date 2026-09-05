@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.room.withTransaction
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
@@ -29,18 +28,14 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustment
-import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
-import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.domain.schedule.WateringExplanationBuilder
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
-import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
-import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -49,25 +44,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
 
 @Suppress("LongParameterList")
 class PlantDetailViewModel(
-    private val plantRepository: PlantRepository,
-    private val careLogRepository: CareLogRepository,
+    internal val plantRepository: PlantRepository,
+    internal val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
-    private val plantId: Long,
-    private val dataStore: DataStore<Preferences>,
-    private val quickLogUseCase: QuickLogUseCase,
-    private val customReminderRepository: CustomReminderRepository,
-    private val plantIssueRepository: PlantIssueRepository,
-    private val database: PlantDatabase,
-    private val wateringAdjustmentRepository: WateringAdjustmentRepository
+    internal val plantId: Long,
+    internal val dataStore: DataStore<Preferences>,
+    internal val quickLogUseCase: QuickLogUseCase,
+    internal val customReminderRepository: CustomReminderRepository,
+    internal val plantIssueRepository: PlantIssueRepository,
+    internal val database: PlantDatabase,
+    internal val wateringAdjustmentRepository: WateringAdjustmentRepository
 ) : ViewModel() {
 
     /**
@@ -226,8 +218,10 @@ class PlantDetailViewModel(
      * `null` whenever there's no pending suggestion, or the suggestion's effective-space value equals
      * [Plant.wateringIntervalDays] — the entire "jump" was a base/effective unit-mismatch artifact
      * (#620), not a real model change, so the dialog shouldn't appear at all. The dialog's editable text
-     * field stays bound to the raw [suggestedWateringInterval] (fine-tuning the model's base, not a
-     * literal effective override) — this flow is display/gating-only.
+     * field is pre-filled from [effectiveIntervalDays] (#644) — matching the "Suggested: N days" sentence
+     * built from the same field — not the raw [suggestedWateringInterval]; [PlantDetailViewModel
+     * .applySuggestedInterval] then passes whatever the user submits straight through to
+     * [QuickLogUseCase.applyWateringIntervalSuggestion] as its now-effective-space `newInterval`.
      */
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,
@@ -282,6 +276,12 @@ class PlantDetailViewModel(
 
     private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
     val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
+
+    /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_events] itself. */
+    internal suspend fun emitEvent(event: Event) = _events.emit(event)
+
+    /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_quickLogMessage]. */
+    internal suspend fun emitQuickLogMessage(message: QuickLogMessage) = _quickLogMessage.emit(message)
 
     init {
         viewModelScope.launch {
@@ -400,488 +400,6 @@ class PlantDetailViewModel(
         }
     }
 
-    /**
-     * Plain reset of the raw suggestion with no confidence side effect — as opposed to
-     * [dismissSuggestedInterval], the explicit Dismiss tap. [PlantDetailScreen] no longer calls this
-     * to silently pre-empt a stale suggestion before it renders (#620 round 2) — [pendingWateringSuggestion]
-     * already collapses to `null` by itself whenever the effective-space delta is 0, so a screen-side
-     * short-circuit against the raw value would only risk discarding a suggestion that is genuinely
-     * different in effective space but happens to numerically coincide with it in base space.
-     */
-    fun clearSuggestedInterval() {
-        suggestedWateringInterval.value = null
-    }
-
-    /**
-     * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
-     * outside it). A genuine dismissal raises [Plant.wateringConfidence] up to
-     * [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when [FeatureFlagRegistry.ADAPTIVE_WATERING] is on
-     * (#568) — the user is saying the current schedule is fine.
-     */
-    fun dismissSuggestedInterval() {
-        viewModelScope.launch {
-            if (isAdaptiveWateringEnabled()) {
-                plant.value?.let { p ->
-                    plantRepository.updatePlant(
-                        p.copy(
-                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    )
-                    p.wateringIntervalDays?.let { current ->
-                        // #584 review: log the base-space reference, not the literal effective
-                        // value, so this row's units match the WATER_*/CHECK_STILL_MOIST rows when
-                        // season is on and the plant isn't pinned.
-                        val currentBase = currentBaseIntervalDaysOrLiteral(p, current)
-                        wateringAdjustmentRepository.addAdjustment(
-                            WateringAdjustment(
-                                plantId = p.id,
-                                trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
-                                beforeIntervalDays = currentBase,
-                                afterIntervalDays = currentBase
-                            )
-                        )
-                    }
-                }
-            }
-            suggestedWateringInterval.value = null
-        }
-    }
-
-    private suspend fun isAdaptiveWateringEnabled(): Boolean =
-        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
-
-    /**
-     * "Ask before changing intervals" (#572) — the ADR-0006 dialog is skipped only when
-     * `adaptive_watering` is on **and** the setting is off; the toggle is inert while the flag is off
-     * (today's dialog-always behavior).
-     */
-    private suspend fun shouldShowIntervalDialog(): Boolean {
-        if (!isAdaptiveWateringEnabled()) return true
-        return dataStore.data.first()[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
-    }
-
-    /**
-     * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
-     * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
-     */
-    private suspend fun applySuggestionOrPrompt(suggestedInterval: Int) {
-        if (shouldShowIntervalDialog()) {
-            suggestedWateringInterval.value = suggestedInterval
-            return
-        }
-        val p = plant.value ?: return
-        val result = applyIntervalInternal(p, originalSuggestion = suggestedInterval, newInterval = suggestedInterval)
-        _events.emit(
-            Event.SilentIntervalApplied(
-                beforeIntervalDays = result.previousEffectiveIntervalDays,
-                beforeBaseIntervalDays = result.previousBaseIntervalDays,
-                afterIntervalDays = result.newEffectiveIntervalDays
-            )
-        )
-    }
-
-    /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
-    fun handleSuggestedWateringInterval(suggestedInterval: Int) {
-        viewModelScope.launch { applySuggestionOrPrompt(suggestedInterval) }
-    }
-
-    internal fun setTimeRange(range: TimeRange) {
-        selectedTimeRange.value = range
-    }
-
-    /**
-     * The single write path for committing a new [Plant.wateringIntervalDays] from an adaptive
-     * suggestion (#572) — used by both the ADR-0006 dialog's Apply button and the silent-apply path.
-     * Delegates to [QuickLogUseCase.applyWateringIntervalSuggestion] (#631), which now owns this math
-     * as the single choke point shared with the Calendar and Plant List suggestion dialogs — this
-     * function used to carry its own copy, which is how #626/#572 came to be fixed here but not there.
-     */
-    private suspend fun applyIntervalInternal(
-        plant: Plant,
-        originalSuggestion: Int?,
-        newInterval: Int
-    ): QuickLogUseCase.IntervalApplyResult =
-        quickLogUseCase.applyWateringIntervalSuggestion(plant, originalSuggestion, newInterval)
-
-    fun applySuggestedInterval(newInterval: Int) {
-        viewModelScope.launch {
-            val originalSuggestion = suggestedWateringInterval.value
-            plant.value?.let { p -> applyIntervalInternal(p, originalSuggestion, newInterval) }
-            suggestedWateringInterval.value = null
-            _events.emit(Event.IntervalUpdated)
-        }
-    }
-
-    /**
-     * Reverts a silently-applied suggestion (#572) back to [beforeIntervalDays] /
-     * [beforeBaseIntervalDays] — the Snackbar's "Undo" action. Both values are the plant's actual
-     * prior [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], captured and threaded
-     * straight through from [applyIntervalInternal] via [Event.SilentIntervalApplied] — restored
-     * as-is, never recomputed (#626: recomputing [beforeBaseIntervalDays] from [beforeIntervalDays]
-     * relied on [beforeIntervalDays] coincidentally already being base-space, which stopped being true
-     * once [applyIntervalInternal] started writing a genuine effective value there). Writes a
-     * compensating [WateringAdjustment] row ([WateringAdjustmentTrigger.SILENT_APPLY_UNDONE], #584
-     * review) so "Recent adjustments" reflects the revert instead of still showing the original silent
-     * apply as if it stood — `before` is the silently-applied value being undone, `after` is the
-     * restored original.
-     */
-    fun undoSilentIntervalApply(beforeIntervalDays: Int, beforeBaseIntervalDays: Double?) {
-        viewModelScope.launch {
-            plant.value?.let { p ->
-                val silentlyAppliedInterval = p.wateringIntervalDays ?: beforeIntervalDays
-                val now = System.currentTimeMillis()
-                plantRepository.updatePlant(
-                    p.copy(
-                        wateringIntervalDays = beforeIntervalDays,
-                        wateringBaseIntervalDays = beforeBaseIntervalDays,
-                        updatedAt = now
-                    )
-                )
-                if (isAdaptiveWateringEnabled()) {
-                    wateringAdjustmentRepository.addAdjustment(
-                        WateringAdjustment(
-                            plantId = p.id,
-                            triggeredAt = now,
-                            trigger = WateringAdjustmentTrigger.SILENT_APPLY_UNDONE,
-                            beforeIntervalDays = silentlyAppliedInterval,
-                            afterIntervalDays = beforeIntervalDays
-                        )
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Inline scheduling edits from the Plant Detail tabs (#436, product ADR-0022). Each persists a
-     * single field straight through [PlantRepository.updatePlant]; the change flows back via the
-     * [plant] StateFlow so the tab insights update immediately. A `null` interval clears the schedule
-     * (the "Not scheduled" state), matching the reminder toggle on Add/Edit Plant.
-     */
-    fun setWateringInterval(days: Int?) {
-        viewModelScope.launch {
-            plant.value?.let { p ->
-                // De-seasonalize the newly set value to today (#569), mirroring AddEditPlant's
-                // manual-edit handling — unchanged when SEASONAL_WATERING is off, the plant is
-                // pinned, or the schedule was just switched off (`days == null`); the prior base
-                // (if any) is preserved rather than cleared.
-                val deseasonalizedDays = if (days != null && !p.pinIntervalToBase) {
-                    deseasonalizedBaseOrNull(days)
-                } else {
-                    null
-                }
-                val wateringBaseIntervalDays = if (days != null && !p.pinIntervalToBase) {
-                    deseasonalizedDays ?: p.wateringBaseIntervalDays
-                } else {
-                    p.wateringBaseIntervalDays
-                }
-                val now = System.currentTimeMillis()
-                plantRepository.updatePlant(
-                    p.copy(
-                        wateringIntervalDays = days,
-                        wateringBaseIntervalDays = wateringBaseIntervalDays,
-                        updatedAt = now
-                    )
-                )
-                if (days != null && days != p.wateringIntervalDays && isAdaptiveWateringEnabled()) {
-                    // #584 review: log the base-space before/after, not the literal typed value. This
-                    // deliberately does *not* reuse `wateringBaseIntervalDays` above for "after" — that
-                    // preserves a stale prior base when season is off, whereas the log's "after" must
-                    // collapse to the literal `days` in that case (mirrors the "before" side's collapse).
-                    val loggedAfter = if (!p.pinIntervalToBase) {
-                        (deseasonalizedDays ?: days.toDouble()).roundToInt()
-                    } else {
-                        days
-                    }
-                    wateringAdjustmentRepository.addAdjustment(
-                        WateringAdjustment(
-                            plantId = p.id,
-                            triggeredAt = now,
-                            trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
-                            beforeIntervalDays = currentBaseIntervalDaysOrLiteral(p, p.wateringIntervalDays ?: days),
-                            afterIntervalDays = loggedAfter
-                        )
-                    )
-                }
-            }
-        }
-    }
-
-    /** "Pin interval" switch on the inline Water tab settings card (#569) — see [seasonalWateringEnabled]. */
-    fun setPinIntervalToBase(pinned: Boolean) {
-        viewModelScope.launch {
-            plant.value?.let { p ->
-                plantRepository.updatePlant(p.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
-            }
-        }
-    }
-
-    private suspend fun deseasonalizedBaseOrNull(intervalDays: Int): Double? {
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        if (amplitude == 0.0) return null
-        return SeasonalWatering.deseasonalize(
-            intervalDays.toDouble(),
-            System.currentTimeMillis().toLocalDate(),
-            amplitude,
-            SeasonalWatering.currentHemisphere()
-        )
-    }
-
-    /**
-     * [plant]'s current base-space reference for [WateringAdjustment] row units (#584 review) —
-     * mirrors [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s
-     * `currentAdaptiveBaseIntervalDays()` fallback. Collapses to [literal] itself when the plant is
-     * pinned or SEASONAL_WATERING is off, matching every other read of [Plant.wateringBaseIntervalDays].
-     */
-    @Suppress("ReturnCount")
-    private suspend fun currentBaseIntervalDaysOrLiteral(plant: Plant, literal: Int): Int {
-        if (plant.pinIntervalToBase) return literal
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        if (amplitude == 0.0) return literal
-        return (plant.wateringBaseIntervalDays ?: literal.toDouble()).roundToInt()
-    }
-
-    fun setFertilizingInterval(days: Int?) {
-        viewModelScope.launch {
-            plant.value?.let { p ->
-                plantRepository.updatePlant(
-                    p.copy(fertilizingIntervalDays = days, updatedAt = System.currentTimeMillis())
-                )
-            }
-        }
-    }
-
-    fun setLiquidFertilizer(enabled: Boolean) {
-        viewModelScope.launch {
-            plant.value?.let { p ->
-                plantRepository.updatePlant(
-                    p.copy(useLiquidFertilizer = enabled, updatedAt = System.currentTimeMillis())
-                )
-            }
-        }
-    }
-
-    /** Adds a new custom reminder (#232) — free-text [name] plus a plain-days [intervalDays]. */
-    fun addCustomReminder(name: String, intervalDays: Int) {
-        viewModelScope.launch {
-            customReminderRepository.addReminder(
-                CustomReminder(plantId = plantId, name = name, intervalDays = intervalDays)
-            )
-        }
-    }
-
-    /** Renames/re-intervals an existing custom reminder without touching its [CustomReminder.lastDoneAt]. */
-    fun updateCustomReminder(reminder: CustomReminder, name: String, intervalDays: Int) {
-        viewModelScope.launch {
-            customReminderRepository.updateReminder(reminder.copy(name = name, intervalDays = intervalDays))
-        }
-    }
-
-    fun deleteCustomReminder(reminder: CustomReminder) {
-        viewModelScope.launch { customReminderRepository.deleteReminder(reminder) }
-    }
-
-    /**
-     * Marks a custom reminder done: writes a [CareType.CUSTOM] [CareLog] linked back to it (visible
-     * in the journal) and resets its [CustomReminder.lastDoneAt], mirroring how logging a built-in
-     * care type resets its schedule (#232).
-     */
-    fun markCustomReminderDone(reminder: CustomReminder) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = reminder.plantId,
-                    careType = CareType.CUSTOM,
-                    loggedAt = now,
-                    customReminderId = reminder.id
-                )
-            )
-            customReminderRepository.updateReminder(reminder.copy(lastDoneAt = now))
-        }
-    }
-
-    /**
-     * Reports a new plant issue (#564). When [reminderName] and [reminderIntervalDays] are both
-     * non-null (the optional "set a treatment reminder" sub-section was filled in), a [CustomReminder]
-     * is created first and its id stored on [PlantIssue.linkedReminderId] — a one-way, unenforced
-     * link (see technical ADR-0019's `CareLog.customReminderId` precedent): resolving or deleting
-     * this issue never touches the linked reminder, which keeps running independently. Both writes
-     * run inside a single [PlantDatabase] transaction (mirroring [QuickLogUseCase]'s paired-write
-     * precedent) so a killed process or DB error between the two inserts can never leave an orphan
-     * [CustomReminder] with no [PlantIssue] pointing at it.
-     */
-    fun reportIssue(name: String, reminderName: String?, reminderIntervalDays: Int?) {
-        viewModelScope.launch {
-            database.withTransaction {
-                val linkedReminderId = if (reminderName != null && reminderIntervalDays != null) {
-                    customReminderRepository.addReminder(
-                        CustomReminder(plantId = plantId, name = reminderName, intervalDays = reminderIntervalDays)
-                    )
-                } else {
-                    null
-                }
-                plantIssueRepository.addIssue(
-                    PlantIssue(plantId = plantId, name = name, linkedReminderId = linkedReminderId)
-                )
-            }
-        }
-    }
-
-    /** Marks [issue] resolved with an optional free-text [resolutionNote] (#564). */
-    fun resolveIssue(issue: PlantIssue, resolutionNote: String?) {
-        viewModelScope.launch {
-            plantIssueRepository.updateIssue(
-                issue.copy(
-                    resolvedAt = System.currentTimeMillis(),
-                    resolutionNote = resolutionNote?.takeIf { it.isNotBlank() }
-                )
-            )
-        }
-    }
-
-    /** Opens the #586 reason prompt; the date dialog only follows once a reason is chosen. */
-    fun requestReschedule() {
-        showRescheduleReasonSheet.value = true
-    }
-
-    /**
-     * Dismissing the reason prompt abandons the whole reschedule — no override write, no log, no
-     * model effect. "Records no signal" is satisfied here by recording nothing at all (#586).
-     */
-    fun dismissRescheduleReasonSheet() {
-        showRescheduleReasonSheet.value = false
-        rescheduleReason.value = null
-        rescheduleSuggestedDays.value = null
-    }
-
-    /**
-     * Answer to the #586 reason prompt. For [RescheduleReason.SOIL_STILL_MOIST] the date picker opens
-     * on a deferral derived from the interval the model lands on after that observation, rather than
-     * on today or #570's flat +1 day; for [RescheduleReason.CANT_RIGHT_NOW] there is nothing to
-     * suggest, because nothing about the plant was observed.
-     */
-    fun chooseRescheduleReason(reason: RescheduleReason) {
-        viewModelScope.launch {
-            rescheduleReason.value = reason
-            rescheduleSuggestedDays.value = plant.value
-                ?.takeIf { reason == RescheduleReason.SOIL_STILL_MOIST }
-                ?.let { quickLogUseCase.suggestedStillMoistDeferralDays(it) }
-            showRescheduleReasonSheet.value = false
-            showRescheduleDialog.value = true
-        }
-    }
-
-    fun dismissRescheduleDialog() {
-        showRescheduleDialog.value = false
-        rescheduleReason.value = null
-        rescheduleSuggestedDays.value = null
-    }
-
-    /**
-     * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
-     * since the screen disables it while [PlantCareStatus.isDueSoon] (already due today, a true
-     * no-op there), and also while the reason is "Soil still moist", where pulling the date forward
-     * would contradict what the user just said. See [applyReschedule].
-     */
-    fun confirmRescheduleToday() {
-        applyReschedule(System.currentTimeMillis())
-    }
-
-    /**
-     * Reschedule "+[days]" option (#508, product ADR-0029) — anchored to the current *effective* due
-     * date (`maxOf(nextWateringDueAt, now)`, already override-aware via [CareSchedule]), unchanged
-     * from the stepper dialog this replaces. [days] never affects what the model learns (#586).
-     */
-    fun confirmRescheduleRelativeDays(days: Int) {
-        val currentDue = maxOf(careStatus.value?.nextWateringDueAt ?: 0L, System.currentTimeMillis())
-        applyReschedule(currentDue + TimeUnit.DAYS.toMillis(days.toLong()))
-    }
-
-    /**
-     * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked
-     * date at local start-of-day; the `DatePicker` itself excludes past dates via `SelectableDates`,
-     * so no further validation happens here.
-     */
-    fun confirmRescheduleCustomDate(newDueAtMillis: Long) {
-        applyReschedule(newDueAtMillis)
-    }
-
-    /**
-     * The one place a reschedule is committed, whichever date option was tapped. What the answer to
-     * the #586 reason prompt decides — never the length of the deferral:
-     *
-     * - **"Soil still moist"** routes through the same [QuickLogUseCase.recordStillMoistCheck] the
-     *   notification's Still-moist action calls, so the two paths produce identical `CareType.CHECK`
-     *   logs and model effects by construction rather than by two implementations happening to agree.
-     * - **"I can't right now"** writes [Plant.wateringDueDateOverride] only — never
-     *   [Plant.wateringIntervalDays] / [Plant.wateringBaseIntervalDays] / [Plant.wateringConfidence],
-     *   and never a [WateringAdjustment] row. That is ADR-0029's posture for *every* reschedule,
-     *   preserved here for the half of them that really is about the user's availability.
-     *
-     * Neither path ever fires the ADR-0006 interval-suggestion dialog.
-     */
-    private fun applyReschedule(newDueAtMillis: Long) {
-        viewModelScope.launch {
-            val reason = rescheduleReason.value
-            showRescheduleDialog.value = false
-            rescheduleReason.value = null
-            rescheduleSuggestedDays.value = null
-            val p = plant.value ?: return@launch
-            if (reason == RescheduleReason.SOIL_STILL_MOIST) {
-                val logged = quickLogUseCase.recordStillMoistCheck(p, newDueAtMillis)
-                _quickLogMessage.emit(
-                    if (logged) {
-                        QuickLogMessage.StillMoistChecked(p.name)
-                    } else {
-                        QuickLogMessage.AlreadyCheckedToday(p.name)
-                    }
-                )
-            } else {
-                plantRepository.updatePlant(
-                    p.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = System.currentTimeMillis())
-                )
-            }
-        }
-    }
-
-    /**
-     * The "Rescheduled +N days" chip's tap-to-revert action (#630) — clears
-     * [Plant.wateringDueDateOverride], restoring the schedule-computed due date immediately. A plain
-     * override-only write, same posture [applyReschedule] already keeps for "I can't right now"
-     * (ADR-0029/ADR-0030): never touches `wateringIntervalDays`/`wateringBaseIntervalDays`/
-     * `wateringConfidence`, never a [WateringAdjustment] row. No confirmation dialog per spec — the
-     * Snackbar/Undo pair is the only safety net, mirroring [applySuggestionOrPrompt]'s silent-apply
-     * flow. [Event.RescheduleReverted] carries the plant's actual prior override value, captured once
-     * here and threaded straight through for [undoRevertReschedule] to restore as-is.
-     */
-    fun revertReschedule() {
-        viewModelScope.launch {
-            val p = plant.value ?: return@launch
-            val previousOverride = p.wateringDueDateOverride ?: return@launch
-            plantRepository.updatePlant(p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis()))
-            _events.emit(Event.RescheduleReverted(previousOverride))
-        }
-    }
-
-    /**
-     * Undo action for the [Event.RescheduleReverted] Snackbar (#630) — restores
-     * [Plant.wateringDueDateOverride] to [previousOverrideAtMillis] as-is, no recomputation, mirroring
-     * [undoSilentIntervalApply]'s posture. If a newer reschedule was written in the meantime, this
-     * silently overwrites it with the stale captured value (documented, not solved — same accepted
-     * race as the existing interval-undo Snackbar).
-     */
-    fun undoRevertReschedule(previousOverrideAtMillis: Long) {
-        viewModelScope.launch {
-            val p = plant.value ?: return@launch
-            plantRepository.updatePlant(
-                p.copy(wateringDueDateOverride = previousOverrideAtMillis, updatedAt = System.currentTimeMillis())
-            )
-        }
-    }
-
     fun deletePhoto(photo: GalleryPhoto) {
         viewModelScope.launch {
             when (val src = photo.source) {
@@ -922,9 +440,9 @@ class PlantDetailViewModel(
         /**
          * A suggestion applied silently because "Ask before changing intervals" is off (#572).
          * [beforeIntervalDays]/[beforeBaseIntervalDays] are the plant's actual prior
-         * [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], for [undoSilentIntervalApply]
+         * [Plant.wateringIntervalDays]/[Plant.wateringBaseIntervalDays], for `undoSilentIntervalApply`
          * to restore exactly (#626) — never recomputed at the call site. [afterIntervalDays] is the
-         * effective value [applyIntervalInternal] actually wrote, not the raw base-space suggestion.
+         * effective value `applySuggestionOrPrompt` actually wrote, not the raw base-space suggestion.
          */
         data class SilentIntervalApplied(
             val beforeIntervalDays: Int,
@@ -933,8 +451,8 @@ class PlantDetailViewModel(
         ) : Event()
 
         /**
-         * [revertReschedule] cleared [Plant.wateringDueDateOverride] (#630). [previousOverrideAtMillis]
-         * is the plant's actual prior override value, for [undoRevertReschedule] to restore exactly —
+         * `revertReschedule` cleared [Plant.wateringDueDateOverride] (#630). [previousOverrideAtMillis]
+         * is the plant's actual prior override value, for `undoRevertReschedule` to restore exactly —
          * never recomputed at the call site.
          */
         data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()

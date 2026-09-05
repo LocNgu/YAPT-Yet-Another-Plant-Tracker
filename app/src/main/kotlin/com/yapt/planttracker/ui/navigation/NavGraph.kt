@@ -47,6 +47,7 @@ import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
+import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
