@@ -86,6 +86,12 @@ edit, silently diverging from what `CareSchedule.computeStatus()` was actually u
 once season was on. See `.claude/rules/watering-transparency.md` for the write-side half of the same
 fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug fix feeds.
 
+`WateringLifecycleReset.maybeBootstrap()` follows the same unit-space rule (#662): the history estimate
+is stored unchanged in `wateringBaseIntervalDays`, while `wateringIntervalDays` is its effective value
+for the bootstrap day, computed through `SeasonalWatering.effectiveInterval()`. The matching
+`HISTORY_BOOTSTRAP` adjustment remains base-space model accounting, like `DIALOG_EDIT`; pinned plants
+and zero amplitude collapse naturally to the identity conversion.
+
 ## Settings UI
 Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, visible only while
 `FeatureFlagRegistry.SEASONAL_WATERING` is on (`SettingsViewModel.seasonalAmplitude` StateFlow +

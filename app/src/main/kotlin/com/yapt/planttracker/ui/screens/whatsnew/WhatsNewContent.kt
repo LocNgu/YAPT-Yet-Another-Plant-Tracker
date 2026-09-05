@@ -14,6 +14,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         fixed = listOf(
+            "Adaptive watering's history bootstrap now keeps the watering interval shown in the app aligned " +
+                "with the current seasonal adjustment, instead of briefly showing its underlying base value",
             "The confusing \"It was dry by then\" answer on the late-watering prompt is now \"Soil was still " +
                 "moist\" — a late watering can no longer shorten your watering interval, only hold it steady or " +
                 "lengthen it"

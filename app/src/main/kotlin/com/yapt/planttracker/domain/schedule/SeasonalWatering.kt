@@ -81,10 +81,14 @@ object SeasonalWatering {
         return 1 + amplitude * cos(2 * PI * (date.dayOfYear - peakDay) / DAYS_IN_YEAR)
     }
 
+    /** `round(base * seasonalFactor)`, clamped to the supported effective-interval range. */
+    fun effectiveInterval(base: Double, seasonalFactor: Double): Int =
+        (base * seasonalFactor).roundToInt()
+            .coerceIn(MIN_EFFECTIVE_INTERVAL_DAYS, MAX_EFFECTIVE_INTERVAL_DAYS)
+
     /** `round(base * season(date))`, clamped to [[MIN_EFFECTIVE_INTERVAL_DAYS], [MAX_EFFECTIVE_INTERVAL_DAYS]]. */
     fun effectiveInterval(base: Double, date: LocalDate, amplitude: Double, hemisphere: Hemisphere): Int =
-        (base * season(date, amplitude, hemisphere)).roundToInt()
-            .coerceIn(MIN_EFFECTIVE_INTERVAL_DAYS, MAX_EFFECTIVE_INTERVAL_DAYS)
+        effectiveInterval(base, season(date, amplitude, hemisphere))
 
     /**
      * The inverse of [effectiveInterval]'s multiplication: strips [date]'s seasonal factor back out

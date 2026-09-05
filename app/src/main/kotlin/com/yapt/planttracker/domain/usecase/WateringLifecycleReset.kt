@@ -7,6 +7,8 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -96,12 +98,12 @@ object WateringLifecycleReset {
      * Evaluates and (if eligible) applies the cold-start history bootstrap (#571 Part B) for
      * [request]: runs [CareSchedule.bootstrapBaseInterval] over every timestamp in
      * [BootstrapRequest.waterLogTimestampsMs] at or after [BootstrapRequest.boundaryMs], and — only
-     * when the result clears [CareSchedule.MIN_BOOTSTRAP_GAPS] — dual-writes
-     * [Plant.wateringBaseIntervalDays]/[Plant.wateringIntervalDays] (mirroring the dual-write bug fix
-     * `QuickLogUseCase.applyWateringIntervalSuggestion()` already established, so the due date can't
-     * silently fail to move) and [Plant.wateringConfidence], clears the pending
+     * when the result clears [CareSchedule.MIN_BOOTSTRAP_GAPS] — writes
+     * [Plant.wateringBaseIntervalDays] in base space and [Plant.wateringIntervalDays] in effective
+     * display space (mirroring the unit-space rule `QuickLogUseCase.applyWateringIntervalSuggestion()`
+     * already established), writes [Plant.wateringConfidence], clears the pending
      * [Plant.wateringResetAt] anchor so this fires exactly once, and records a
-     * [WateringAdjustmentTrigger.HISTORY_BOOTSTRAP] row.
+     * [WateringAdjustmentTrigger.HISTORY_BOOTSTRAP] row in base space.
      *
      * Returns `true` if it applied, `false` otherwise — not enough history yet is an accepted long-tail
      * outcome, not a bug (a plant may simply never accumulate [CareSchedule.MIN_BOOTSTRAP_GAPS] post-
@@ -135,13 +137,17 @@ object WateringLifecycleReset {
         } else {
             result.baseIntervalDays
         }
-        val after = baseIntervalDays.roundToInt()
+        val afterBase = baseIntervalDays.roundToInt()
+        val afterEffective = SeasonalWatering.effectiveInterval(
+            baseIntervalDays,
+            request.seasonFn(now.toLocalDate())
+        )
         // Intentionally overwrites any incremental confidence/base learned per-observation between
         // the freeze ending and this bootstrap firing — the cold-start estimate wins, not a bug.
         plantRepository.updatePlant(
             plant.copy(
                 wateringBaseIntervalDays = baseIntervalDays,
-                wateringIntervalDays = after,
+                wateringIntervalDays = afterEffective,
                 wateringConfidence = result.confidence,
                 wateringResetAt = null,
                 updatedAt = now
@@ -153,7 +159,7 @@ object WateringLifecycleReset {
                 triggeredAt = now,
                 trigger = WateringAdjustmentTrigger.HISTORY_BOOTSTRAP,
                 beforeIntervalDays = before,
-                afterIntervalDays = after
+                afterIntervalDays = afterBase
             )
         )
         return true

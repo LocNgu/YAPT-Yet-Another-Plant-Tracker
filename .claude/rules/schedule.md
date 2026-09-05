@@ -118,9 +118,11 @@ Behind `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off
   `WateringLifecycleReset.maybeBootstrap()`: once when `wateringConfidence == null` (first-ever
   observation, whole history eligible) or repeatedly while `wateringResetAt != null` (post-reset,
   eligible history bounded to `wateringFreezeUntil ?: wateringResetAt`), applying only when
-  `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing `wateringIntervalDays`/
-  `wateringBaseIntervalDays` (mirroring `QuickLogUseCase.applyWateringIntervalSuggestion()`'s dual-write fix) plus clearing
-  `wateringResetAt` so it fires exactly once. When it fires, `adaptWateringInterval()` returns the
+  `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing the estimated base to
+  `wateringBaseIntervalDays` plus its current seasonally effective conversion to `wateringIntervalDays`
+  (#662, mirroring `QuickLogUseCase.applyWateringIntervalSuggestion()`'s unit-space rule), then clearing
+  `wateringResetAt` so it fires exactly once. The `HISTORY_BOOTSTRAP` adjustment stays base-space. When
+  it fires, `adaptWateringInterval()` returns the
   pre-bootstrap interval unchanged so the ADR-0006 suggestion dialog never re-surfaces a value the
   bootstrap already silently committed.
 - **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027, reached via the Reschedule reason prompt since
