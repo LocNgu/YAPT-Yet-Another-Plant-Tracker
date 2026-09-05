@@ -64,14 +64,33 @@ class LogWateringDatePickerTest {
     // today's date encoded as UTC midnight, not the raw current instant — otherwise timezones where
     // local calendar day differs from UTC (e.g. early morning in UTC+14, late evening in UTC-8)
     // would preselect the wrong day.
+    //
+    // This test pins `today` explicitly (mirroring `WateringDueActionsTest`'s deliberate avoidance of
+    // `LocalDate.now()` for `isOnOrAfterLocalToday`, so results never depend on when CI happens to
+    // run), so it only exercises the *encoding* half of `localTodayAsUtcMidnightMillis` — a given
+    // local calendar day is correctly written out as that same day's UTC midnight — not the
+    // `zoneId`-driven `today` *default* (`LocalDate.now(zoneId)`), which only runs when `today` is
+    // omitted. That default has no clock-injection seam without changing the production signature (it
+    // is exercised at the call site by `LogWateringDatePickerDialog` itself, same posture as
+    // `isOnOrAfterLocalToday`/`isOnOrBeforeLocalToday`'s own untested `LocalDate.now(zoneId)` defaults).
     @Test
-    fun `localTodayAsUtcMidnightMillis resolves to local today regardless of the device's UTC offset`() {
+    fun `localTodayAsUtcMidnightMillis encodes an explicit local today as UTC midnight`() {
         val today = LocalDate.of(2026, 1, 15)
 
         val result = localTodayAsUtcMidnightMillis(tokyo, today = today)
 
         val resultDate = java.time.Instant.ofEpochMilli(result).atZone(ZoneOffset.UTC).toLocalDate()
         assertEquals(today, resultDate)
+    }
+
+    @Test
+    fun `localTodayAsUtcMidnightMillis encodes the same today identically across different zoneId values`() {
+        val today = LocalDate.of(2026, 1, 15)
+
+        val tokyoResult = localTodayAsUtcMidnightMillis(tokyo, today = today)
+        val losAngelesResult = localTodayAsUtcMidnightMillis(ZoneId.of("America/Los_Angeles"), today = today)
+
+        assertEquals(tokyoResult, losAngelesResult)
     }
 
     @Test
