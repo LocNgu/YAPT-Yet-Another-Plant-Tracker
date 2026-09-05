@@ -163,7 +163,7 @@ and unchanged.
 **Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
 on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
 the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s
-liquid-fert path) first opens `LogWateringDatePickerDialog` (`WateringDueActions.kt`, not-future-only
+liquid-fert path) first opens `LogWateringDatePickerDialog` (`LogWateringDatePicker.kt`, not-future-only
 via `SelectableDates`, pre-selected to today, distinct from `RescheduleWateringDialog`'s custom date —
 that one sets `wateringDueDateOverride` on the *next due date*, this one backdates the *logged event*
 itself). Confirming with today selected reproduces the old instant-log fast path in one extra confirm
