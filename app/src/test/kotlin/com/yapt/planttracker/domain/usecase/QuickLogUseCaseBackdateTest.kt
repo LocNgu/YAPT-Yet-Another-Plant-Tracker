@@ -121,14 +121,6 @@ class QuickLogUseCaseBackdateTest {
 
     @Test
     fun `quickWaterWithReason with a backdated loggedAt feeds the adaptive model that same date, not now`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
-        useCase = QuickLogUseCase(
-            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-        )
         val monstera = plant().copy(wateringConfidence = 2)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { careLogRepo.getLastWateringBefore(1L, backdated) } returns
@@ -153,14 +145,6 @@ class QuickLogUseCaseBackdateTest {
     @Test
     fun `quickWaterWithReason backdated before an existing later WATER log uses its own chronological predecessor`() =
         runTest {
-            val adaptiveDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-                )
-            }
-            useCase = QuickLogUseCase(
-                application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-            )
             val now = System.currentTimeMillis()
             val threeDaysAgo = now - TimeUnit.DAYS.toMillis(3)
             val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
@@ -213,10 +197,7 @@ class QuickLogUseCaseBackdateTest {
             val loggedAtDay = localDateUtcMillis(2023, 1, 5) // northern winter — the backdated pick
             val seasonalDataStore: DataStore<Preferences> = mockk {
                 every { data } returns flowOf(
-                    preferencesOf(
-                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
-                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-                    )
+                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
                 )
             }
             useCase = QuickLogUseCase(
