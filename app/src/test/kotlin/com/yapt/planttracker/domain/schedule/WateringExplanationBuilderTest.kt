@@ -7,7 +7,6 @@ import com.yapt.planttracker.util.toLocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
 import java.util.TimeZone
@@ -40,7 +39,6 @@ class WateringExplanationBuilderTest {
             nextWateringDueAt = null,
             lastWateredAt = null,
             waterLogCount = 0,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.0,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,
@@ -50,13 +48,12 @@ class WateringExplanationBuilderTest {
     }
 
     @Test
-    fun `adaptive_watering off shows only the plain interval, no base or season or confidence or adjustments`() {
+    fun `shows base, confidence and adjustments unconditionally`() {
         val explanation = WateringExplanationBuilder.build(
             plant = plantWith(wateringIntervalDays = 10),
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 5,
-            adaptiveWateringEnabled = false,
             seasonalAmplitude = 0.0,
             recentAdjustments = listOf(
                 WateringAdjustment(
@@ -71,21 +68,19 @@ class WateringExplanationBuilderTest {
         )
         assertNotNull(explanation)
         assertEquals(10, explanation!!.effectiveIntervalDays)
-        assertEquals(false, explanation.adaptiveWateringEnabled)
-        assertNull(explanation.baseIntervalDays)
+        assertEquals(10, explanation.baseIntervalDays)
         assertNull(explanation.season)
-        assertNull(explanation.confidenceLevel)
-        assertTrue(explanation.recentAdjustments.isEmpty())
+        assertNotNull(explanation.confidenceLevel)
+        assertEquals(1, explanation.recentAdjustments.size)
     }
 
     @Test
-    fun `adaptive_watering on with seasonal amplitude shows the season row`() {
+    fun `seasonal amplitude shows the season row`() {
         val explanation = WateringExplanationBuilder.build(
             plant = plantWith(wateringIntervalDays = 10, wateringBaseIntervalDays = 8.0),
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 3,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.35,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,
@@ -111,7 +106,6 @@ class WateringExplanationBuilderTest {
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 4,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.35,
             recentAdjustments = listOf(
                 WateringAdjustment(
@@ -140,7 +134,6 @@ class WateringExplanationBuilderTest {
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 1,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.0,
             recentAdjustments = emptyList(),
             now = now
@@ -155,13 +148,12 @@ class WateringExplanationBuilderTest {
     }
 
     @Test
-    fun `rescheduleDeltaDays is passed through verbatim when adaptive watering is off`() {
+    fun `rescheduleDeltaDays is passed through verbatim`() {
         val explanation = WateringExplanationBuilder.build(
             plant = plantWith(wateringIntervalDays = 10),
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 5,
-            adaptiveWateringEnabled = false,
             seasonalAmplitude = 0.0,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,
@@ -172,13 +164,12 @@ class WateringExplanationBuilderTest {
     }
 
     @Test
-    fun `rescheduleDeltaDays is passed through verbatim when adaptive watering is on`() {
+    fun `rescheduleDeltaDays is passed through verbatim with a seasonal base interval`() {
         val explanation = WateringExplanationBuilder.build(
             plant = plantWith(wateringIntervalDays = 10, wateringBaseIntervalDays = 8.0),
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 3,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.35,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,
@@ -195,7 +186,6 @@ class WateringExplanationBuilderTest {
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 0,
-            adaptiveWateringEnabled = false,
             seasonalAmplitude = 0.0,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,
@@ -212,7 +202,6 @@ class WateringExplanationBuilderTest {
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 1,
-            adaptiveWateringEnabled = true,
             seasonalAmplitude = 0.35,
             recentAdjustments = emptyList(),
             hemisphere = Hemisphere.NORTHERN,

@@ -88,14 +88,6 @@ class PlantDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    /** Gates the "Why this date?" sheet's base/season/confidence/adjustments rows (#572). */
-    val adaptiveWateringEnabled: StateFlow<Boolean> = dataStore.data
-        .map { prefs ->
-            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-                ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     /**
      * Raw global amplitude value (0.0 when the flag is off) for the seasonal-curve preview chart
      * (#579) shown alongside the "Pin interval" switch — reuses the same choke point [careStatus]
@@ -175,21 +167,15 @@ class PlantDetailViewModel(
      */
     val wateringExplanation: StateFlow<WateringExplanation?> = combine(
         combine(plant, careStatus, waterLogCount) { p, status, count -> Triple(p, status, count) },
-        combine(
-            adaptiveWateringEnabled,
-            seasonalAmplitudeValue,
-            recentWateringAdjustments
-        ) { adaptiveOn, amplitude, adjustments ->
-            Triple(adaptiveOn, amplitude, adjustments)
-        }
-    ) { (p, status, waterCount), (adaptiveOn, amplitude, adjustments) ->
+        seasonalAmplitudeValue,
+        recentWateringAdjustments
+    ) { (p, status, waterCount), amplitude, adjustments ->
         p ?: return@combine null
         WateringExplanationBuilder.build(
             plant = p,
             nextWateringDueAt = status?.nextWateringDueAt,
             lastWateredAt = status?.lastWateredAt,
             waterLogCount = waterCount,
-            adaptiveWateringEnabled = adaptiveOn,
             seasonalAmplitude = amplitude,
             recentAdjustments = adjustments,
             rescheduleDeltaDays = status?.rescheduleDeltaDays

@@ -433,8 +433,7 @@ class AddEditPlantViewModelTest {
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
                 preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
+                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
                 )
             )
         }
@@ -462,7 +461,7 @@ class AddEditPlantViewModelTest {
         val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                preferencesOf()
             )
         }
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
@@ -491,28 +490,13 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                preferencesOf()
             )
         }
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore)
         advanceUntilIdle()
 
         vm.room = "Living room"
-        vm.save()
-        advanceUntilIdle()
-
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 && it.wateringResetAt == null }) }
-    }
-
-    @Test
-    fun `edit mode room change does not reset confidence when adaptive_watering is off`() = runTest {
-        val existingPlant = plant(id = 1L).copy(room = "Living room", wateringConfidence = 3)
-        every { plantRepo.getPlantById(1L) } returns flowOf(existingPlant)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        advanceUntilIdle()
-
-        vm.room = "Bedroom"
         vm.save()
         advanceUntilIdle()
 

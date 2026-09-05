@@ -11,8 +11,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
@@ -1402,7 +1400,7 @@ class PlantListViewModelTest {
     fun `dismissSuggestedIntervalFromList raises confidence when flag enabled`() = runTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                preferencesOf()
             )
         }
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
@@ -1424,28 +1422,6 @@ class PlantListViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
-    }
-
-    @Test
-    fun `dismissSuggestedIntervalFromList does nothing when flag disabled`() = runTest {
-        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(
-            application,
-            plantRepo,
-            careLogRepo,
-            plantPhotoRepo,
-            dataStore,
-            quickLogUseCase,
-            plantIssueRepo
-        )
-
-        vm.dismissSuggestedIntervalFromList(1L)
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 }
 
