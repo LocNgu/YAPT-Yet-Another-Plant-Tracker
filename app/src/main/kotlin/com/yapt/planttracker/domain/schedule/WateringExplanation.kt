@@ -17,19 +17,17 @@ data class WateringExplanation(
     /** The number [CareSchedule.computeStatus] actually used for the due date — "Watering every N days". */
     val effectiveIntervalDays: Int,
     val waterLogCount: Int,
-    val adaptiveWateringEnabled: Boolean,
-    /** `null` when [adaptiveWateringEnabled] is false — no base/confidence/adjustments are invented. */
-    val baseIntervalDays: Int? = null,
+    val baseIntervalDays: Int,
     val season: WateringExplanationSeason? = null,
-    val confidenceLevel: WateringConfidenceLevel? = null,
+    val confidenceLevel: WateringConfidenceLevel,
     /** Raw 0-5 dot count backing [confidenceLevel]'s decorative dots — `0` when never adapted. */
     val confidenceScore: Int = 0,
     val recentAdjustments: List<WateringAdjustment> = emptyList(),
     /**
      * Display-only mirror of [com.yapt.planttracker.domain.model.PlantCareStatus.rescheduleDeltaDays]
      * (#630) — the sheet's matching read-only row for the "Rescheduled +N days" chip, taken as-is from
-     * the already-computed status rather than re-derived here. Populated regardless of
-     * [adaptiveWateringEnabled], same as [nextWateringDueAt]/[lastWateredAt].
+     * the already-computed status rather than re-derived here. Populated regardless of the adaptive
+     * model's own fields, same as [nextWateringDueAt]/[lastWateredAt].
      */
     val rescheduleDeltaDays: Int? = null
 )
@@ -79,35 +77,22 @@ object WateringExplanationBuilder {
      * drift between the schedule and the sheet. Returns `null` when [plant] has no watering
      * schedule at all (nothing to explain).
      */
-    @Suppress("LongParameterList", "ReturnCount")
+    @Suppress("LongParameterList")
     fun build(
         plant: Plant,
         nextWateringDueAt: Long?,
         lastWateredAt: Long?,
         waterLogCount: Int,
-        adaptiveWateringEnabled: Boolean,
         seasonalAmplitude: Double,
         recentAdjustments: List<WateringAdjustment>,
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
         now: Long = System.currentTimeMillis(),
         rescheduleDeltaDays: Int? = null
     ): WateringExplanation? {
-        plant.wateringIntervalDays ?: return null
         val nowDate = now.toLocalDate()
-        val effectiveIntervalDays =
+        val effectiveIntervalDays = plant.wateringIntervalDays?.let {
             CareSchedule.effectiveWateringIntervalDaysForDisplay(plant, nowDate, seasonalAmplitude, hemisphere)
-                ?: return null
-
-        if (!adaptiveWateringEnabled) {
-            return WateringExplanation(
-                nextWateringDueAt = nextWateringDueAt,
-                lastWateredAt = lastWateredAt,
-                effectiveIntervalDays = effectiveIntervalDays,
-                waterLogCount = waterLogCount,
-                adaptiveWateringEnabled = false,
-                rescheduleDeltaDays = rescheduleDeltaDays
-            )
-        }
+        } ?: return null
 
         val baseIntervalDays = (plant.wateringBaseIntervalDays ?: effectiveIntervalDays.toDouble()).roundToInt()
         val showSeason = seasonalAmplitude != 0.0 && !plant.pinIntervalToBase
@@ -123,7 +108,6 @@ object WateringExplanationBuilder {
             lastWateredAt = lastWateredAt,
             effectiveIntervalDays = effectiveIntervalDays,
             waterLogCount = waterLogCount,
-            adaptiveWateringEnabled = true,
             baseIntervalDays = baseIntervalDays,
             season = season,
             confidenceLevel = WateringConfidenceLevel.fromScore(plant.wateringConfidence),

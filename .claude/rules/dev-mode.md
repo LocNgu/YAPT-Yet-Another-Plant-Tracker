@@ -31,21 +31,20 @@ no schema bump).
   flags), `setFlagEnabled`.
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
-- `FeatureFlagRegistry.ADAPTIVE_WATERING` (`adaptive_watering`, default off, #568) gates the multiplicative +
-  confidence-weighted watering interval model — see `.claude/rules/schedule.md`. Unlike `PLANT_DETAIL_TABS`, the
-  flag gates *behavior only* in `CareSchedule`/call sites; the backing `Plant.wateringConfidence` column and
-  `.yapt` backup field ship unconditionally, so toggling the flag off/on never loses learned state (this is a
-  deliberate exception to "flags need no schema" — the schema change here isn't gated by the flag, only its use is).
+- `ADAPTIVE_WATERING` graduated (#655) — the multiplicative + confidence-weighted watering interval model
+  (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
+  no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
+  already shipped unconditionally before the flag was removed, are unaffected.
 - `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`, default off, #569) gates the computed seasonal
-  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture as `ADAPTIVE_WATERING`: the backing
-  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship unconditionally.
-  The amplitude picker itself lives on the main Settings screen (not the Developer section), visible only while
-  this flag is on — only the flag's on/off `Switch` appears in the generic Developer-section flags list.
+  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture the graduated `ADAPTIVE_WATERING` flag
+  had: the backing `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship
+  unconditionally regardless of this flag's state. The amplitude picker itself lives on the main Settings screen
+  (not the Developer section), visible only while this flag is on — only the flag's on/off `Switch` appears in
+  the generic Developer-section flags list.
 - `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off, #570) reframes the watering reminder
   notification from "Water {plant}" to "Check {plant}" with Watered/Still-moist actions — see
-  `.claude/rules/notifications.md`. Independent of `ADAPTIVE_WATERING` (different risk surface: this one touches
-  `ReminderWorker`, the notification composer, and a new `StillMoistReceiver`); the Still-moist action's adaptive
-  feed is gated on `ADAPTIVE_WATERING` separately, so the two flags compose rather than one implying the other.
+  `.claude/rules/notifications.md`. This one touches `ReminderWorker`, the notification composer, and a new
+  `StillMoistReceiver`; the Still-moist action always feeds the (now-unconditional) adaptive watering model.
   No new columns/backup fields — `CareType.CHECK` reuses the existing care-log pipeline entirely.
 
 ## Demo data (#523)
@@ -66,9 +65,9 @@ a REPOT on the ZZ Plant to see confidence drop to 0 and the 4-week freeze start,
 different room to see the reset with no freeze. Aloe Vera also carries a pre-adapted confidence (2) with its
 already-`null` room, to demo the blank→filled exception (assigning its room for the first time must not reset it).
 The rest of the dataset covers the cold-start bootstrap for free: every other plant keeps `wateringConfidence ==
-null`, so once `ADAPTIVE_WATERING` is on, the next WATER log against a plant with enough history (Monstera, Snake
-Plant, Fiddle Leaf Fig, Pothos, Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants
-(Aloe Vera, Cactus, Calathea) correctly keep their typed interval.
+null`, so the next WATER log against a plant with enough history (Monstera, Snake Plant, Fiddle Leaf Fig, Pothos,
+Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants (Aloe Vera, Cactus, Calathea)
+correctly keep their typed interval.
 
 ## Debug actions (#522)
 Two non-destructive rows below the flags list; neither touches the DB or confirms.

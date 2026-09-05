@@ -76,6 +76,10 @@ class AddCareLogViewModelTest {
         // #571: below the 3-gap bootstrap threshold by default, so existing adaptive-model tests keep
         // exercising the plain per-observation path — tests exercising the bootstrap itself override this.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
+        // Now unconditional (no more ADAPTIVE_WATERING flag gate) — every WATER-log save with a
+        // configured interval and 2+ prior waterings reaches this; individual tests override with a
+        // real correction-streak window where that matters.
+        coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
     }
 
     @Test
@@ -87,6 +91,7 @@ class AddCareLogViewModelTest {
             waterLog(loggedAt = now),
             waterLog(loggedAt = sevenDaysAgo)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -109,6 +114,7 @@ class AddCareLogViewModelTest {
             waterLog(loggedAt = now),
             waterLog(loggedAt = sevenDaysAgo)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -116,7 +122,9 @@ class AddCareLogViewModelTest {
         vm.events.test {
             vm.saveLog()
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
-            assertEquals(7, event.suggestedWateringInterval)
+            // Confidence-weighted adaptive model (#655): base=14, target=observed(7)*JUST_RIGHT(1.00)=7,
+            // first-ever observation uses the confidence-0 gain (0.60) -> 14 + 0.60*(7-14) = 9.8 -> 10.
+            assertEquals(10, event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -130,6 +138,7 @@ class AddCareLogViewModelTest {
             waterLog(loggedAt = now),
             waterLog(loggedAt = threeDaysAgo)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.TOO_SOON
@@ -279,14 +288,9 @@ class AddCareLogViewModelTest {
         coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
     }
 
-    // #571: a new REPOT log resets wateringConfidence and starts the freeze window when adaptive_watering is on.
+    // #571: a new REPOT log resets wateringConfidence and starts the freeze window.
     @Test
-    fun `save new REPOT log resets confidence and starts the freeze window when adaptive_watering is on`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
+    fun `save new REPOT log resets confidence and starts the freeze window`() = runTest {
         val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
         coEvery { careLogRepo.addLog(any()) } returns 1L
@@ -295,7 +299,6 @@ class AddCareLogViewModelTest {
             careLogRepo,
             plantRepo,
             plantId = 1L,
-            dataStore = adaptiveDataStore,
             wateringAdjustmentRepository = wateringAdjustmentRepo
         )
         vm.selectedCareType = CareType.REPOT
@@ -314,22 +317,6 @@ class AddCareLogViewModelTest {
         coVerify { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
-    @Test
-    fun `save new REPOT log does not reset confidence when adaptive_watering is off`() = runTest {
-        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7).copy(wateringConfidence = 3))
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
-        vm.selectedCareType = CareType.REPOT
-
-        vm.events.test {
-            vm.saveLog()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
     // #571 AC3 regression: editing a past REPOT log's date/type must never re-trigger the reset —
     // it's written once at original log-creation time, not derived from querying REPOT history live.
     @Test
@@ -340,11 +327,6 @@ class AddCareLogViewModelTest {
             careType = CareType.REPOT,
             loggedAt = now - 10L * 24 * 60 * 60 * 1000
         )
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
         val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
         coEvery { careLogRepo.getLogById(99L) } returns existingLog
         coEvery { careLogRepo.addLog(any()) } returns 99L
@@ -354,7 +336,6 @@ class AddCareLogViewModelTest {
             plantRepo,
             plantId = 1L,
             careLogId = 99L,
-            dataStore = adaptiveDataStore,
             wateringAdjustmentRepository = wateringAdjustmentRepo
         )
         advanceUntilIdle()
@@ -397,6 +378,7 @@ class AddCareLogViewModelTest {
             waterLog(loggedAt = now),
             waterLog(loggedAt = sevenDaysAgo)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -408,7 +390,10 @@ class AddCareLogViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        // A WATER log may still trigger a confidence-only updatePlant() (unconditional adaptive
+        // model, #655) — this only asserts that call never carries the WATER log's photo through
+        // to coverPhotoUri, which is PHOTO-log-only behavior.
+        coVerify(exactly = 0) { plantRepo.updatePlant(match { it.coverPhotoUri == "content://photo.jpg" }) }
     }
 
     @Test
@@ -508,6 +493,7 @@ class AddCareLogViewModelTest {
             waterLog(loggedAt = now),
             waterLog(loggedAt = sevenDaysAgo)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         // hasLogOfTypeOnDay defaults to false for the queried day in setup() — simulates a day
         // with no existing WATER log even though other days have one.
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
@@ -618,10 +604,7 @@ class AddCareLogViewModelTest {
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-                )
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             )
         }
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 10))
@@ -670,10 +653,7 @@ class AddCareLogViewModelTest {
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-                )
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             )
         }
         val pinnedPlant = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
@@ -722,9 +702,10 @@ class AddCareLogViewModelTest {
                     preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
                 )
             }
-            // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the raw
-            // observed gap (JUST_RIGHT, legacy non-adaptive path) is 5 days, so the raw suggestion is 5 —
-            // a real base-space delta from 7. But at the peak day, season() = 1.35, so
+            // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the
+            // observed 5-day gap de-seasonalizes to round(5 / 1.35) = 4 before the adaptive model sees
+            // it, and the model (confidence-0, JUST_RIGHT, target = 4) lands the raw base-space
+            // suggestion back at round(7 + 0.60*(4-7)) = 5. But at the peak day, season() = 1.35, so
             // round(5 * 1.35) = 7 == current: the entire "5 vs 7" jump is a unit-mismatch artifact, not a
             // real model change, and must be suppressed exactly like the ADR-0006 dialog gate is.
             every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
@@ -733,6 +714,7 @@ class AddCareLogViewModelTest {
                 waterLog(loggedAt = peakDay),
                 waterLog(loggedAt = fiveDaysBeforePeak)
             )
+            coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
             vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -758,14 +740,17 @@ class AddCareLogViewModelTest {
                 preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             )
         }
-        // Raw suggestion is 1 day (JUST_RIGHT on a 1-day gap); round(1 * 1.35) = 1 != 7 == current —
-        // a genuine effective-space change, so the suggestion must still surface.
+        // The observed 1-day gap de-seasonalizes to round(1 / 1.35) = 1; the model's confidence-0 gain
+        // (0.60) pulls the base from 7 toward target=1 down to 3.4, clamped at the ±40% floor
+        // (7*0.6=4.2) and rounded to 4 — the raw base-space suggestion. round(4 * 1.35) = 5 != 7 ==
+        // current — a genuine effective-space change, so the suggestion must still surface.
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
             waterLog(loggedAt = peakDay),
             waterLog(loggedAt = oneDayBeforePeak)
         )
+        coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
@@ -774,7 +759,7 @@ class AddCareLogViewModelTest {
         vm.events.test {
             vm.saveLog()
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
-            assertEquals(1, event.suggestedWateringInterval)
+            assertEquals(4, event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
     }

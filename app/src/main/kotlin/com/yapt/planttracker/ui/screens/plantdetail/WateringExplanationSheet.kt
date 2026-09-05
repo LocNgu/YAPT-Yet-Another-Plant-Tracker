@@ -32,8 +32,7 @@ import com.yapt.planttracker.util.DateUtils
 
 /**
  * "Why this date?" (#572) — every row is a stored value or a single multiplication from
- * [WateringExplanation], never re-derived here. Degrades to just the next-watering-date and plain
- * interval rows when [WateringExplanation.adaptiveWateringEnabled] is false.
+ * [WateringExplanation], never re-derived here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,21 +70,19 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
         )
     }
 
-    if (explanation.adaptiveWateringEnabled && explanation.baseIntervalDays != null) {
-        ExplanationRow(
-            label = stringResource(R.string.watering_explanation_base_interval),
-            value = pluralStringResource(
-                R.plurals.insight_interval_days,
-                explanation.baseIntervalDays,
-                explanation.baseIntervalDays
-            ),
-            caption = pluralStringResource(
-                R.plurals.watering_explanation_learned_from,
-                explanation.waterLogCount,
-                explanation.waterLogCount
-            )
+    ExplanationRow(
+        label = stringResource(R.string.watering_explanation_base_interval),
+        value = pluralStringResource(
+            R.plurals.insight_interval_days,
+            explanation.baseIntervalDays,
+            explanation.baseIntervalDays
+        ),
+        caption = pluralStringResource(
+            R.plurals.watering_explanation_learned_from,
+            explanation.waterLogCount,
+            explanation.waterLogCount
         )
-    }
+    )
 
     explanation.season?.let { season ->
         ExplanationRow(
@@ -114,38 +111,37 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
 
 @Composable
 private fun WateringExplanationAdaptiveSection(explanation: WateringExplanation) {
-    explanation.confidenceLevel?.let { level ->
-        Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = stringResource(R.string.watering_explanation_confidence),
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Row(
+        modifier = Modifier.testTag("watering_confidence_row"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ConfidenceDots(filled = explanation.confidenceScore)
         Text(
-            text = stringResource(R.string.watering_explanation_confidence),
+            text = stringResource(explanation.confidenceLevel.labelRes()),
             style = MaterialTheme.typography.bodyMedium
         )
-        Row(
-            modifier = Modifier.testTag("watering_confidence_row"),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ConfidenceDots(filled = explanation.confidenceScore)
-            Text(text = stringResource(level.labelRes()), style = MaterialTheme.typography.bodyMedium)
-        }
     }
 
-    if (explanation.adaptiveWateringEnabled) {
-        Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(16.dp))
+    Text(
+        text = stringResource(R.string.watering_explanation_recent_adjustments),
+        style = MaterialTheme.typography.titleSmall
+    )
+    Spacer(Modifier.height(4.dp))
+    if (explanation.recentAdjustments.isEmpty()) {
         Text(
-            text = stringResource(R.string.watering_explanation_recent_adjustments),
-            style = MaterialTheme.typography.titleSmall
+            text = stringResource(R.string.watering_explanation_no_adjustments),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(4.dp))
-        if (explanation.recentAdjustments.isEmpty()) {
-            Text(
-                text = stringResource(R.string.watering_explanation_no_adjustments),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            explanation.recentAdjustments.forEach { adjustment -> AdjustmentRow(adjustment) }
-        }
+    } else {
+        explanation.recentAdjustments.forEach { adjustment -> AdjustmentRow(adjustment) }
     }
 }
 

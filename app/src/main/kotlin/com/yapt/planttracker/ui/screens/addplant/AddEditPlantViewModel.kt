@@ -45,8 +45,8 @@ class AddEditPlantViewModel(
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
     // updating; null is treated the same as SEASONAL_WATERING being off (#569).
     private val dataStore: DataStore<Preferences>? = null,
-    // Nullable + defaulted for the same reason as [dataStore] — never read when [dataStore] is null,
-    // since a MANUAL_EDIT row is only ever written when `adaptive_watering` is on (#572).
+    // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
+    // safe no-ops for tests that don't pass one (#572).
     private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
 ) : ViewModel() {
 
@@ -201,10 +201,9 @@ class AddEditPlantViewModel(
 
     private suspend fun saveEdit(plant: Plant, newWateringIntervalDays: Int?, intervalChanged: Boolean, now: Long) {
         val existing = plantRepository.getPlantById(plantId!!).first()
-        val adaptiveOn = isAdaptiveWateringEnabled()
         // A room change is a lifecycle reset too (#571), except blank/empty -> filled for the first
-        // time (data entry, not a physical move) — gated on `adaptive_watering` like the REPOT trigger.
-        val roomChangeResetFires = adaptiveOn && existing != null &&
+        // time (data entry, not a physical move).
+        val roomChangeResetFires = existing != null &&
             WateringLifecycleReset.roomChangeTriggersReset(existing.room, plant.room)
         // An unprompted edit to the watering interval on this screen is a full confidence
         // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
@@ -226,7 +225,7 @@ class AddEditPlantViewModel(
                 wateringFreezeUntil = if (roomChangeResetFires) null else existing?.wateringFreezeUntil
             )
         )
-        if (intervalChanged && newWateringIntervalDays != null && adaptiveOn) {
+        if (intervalChanged && newWateringIntervalDays != null) {
             logManualEditAdjustment(existing, newWateringIntervalDays, deseasonalizedNewBase, now)
         }
         if (roomChangeResetFires) {
@@ -284,12 +283,6 @@ class AddEditPlantViewModel(
                 afterIntervalDays = beforeAfter
             )
         )
-    }
-
-    private suspend fun isAdaptiveWateringEnabled(): Boolean {
-        val store = dataStore ?: return false
-        return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
     }
 
     private suspend fun saveNew(plant: Plant, newWateringIntervalDays: Int?, now: Long) {

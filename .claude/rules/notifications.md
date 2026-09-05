@@ -71,8 +71,8 @@ even with the flag on, since there's no "check the soil" action to offer it.
   point that also owns the CHECK same-day dedupe guard (`isDuplicateGuarded()`). It writes a `CareType.CHECK` log
   (`wateringFeedback = TOO_SOON`), **sets** `wateringDueDateOverride` to a caller-supplied date — the receiver
   passes `now + suggestedStillMoistDeferralDays(plant)`, since it has no picker, replacing #570's flat +1 day that
-  could never clear "due" for a plant overdue by two or more days (#586) — and, only when `ADAPTIVE_WATERING` is
-  also on — feeds the observation into
+  could never clear "due" for a plant overdue by two or more days (#586) — and unconditionally (`ADAPTIVE_WATERING`
+  graduated, #655) feeds the observation into
   `CareSchedule.computeAdaptiveInterval()` (see `.claude/rules/schedule.md`), persisting only the resulting
   `wateringConfidence`, never a silent interval change.
 - Notification IDs/`PendingIntent` request codes stay `plant.id.toInt()` for the Still-moist action too (technical

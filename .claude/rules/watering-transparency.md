@@ -120,10 +120,10 @@ button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDI
 itself), `FROZEN_POST_REPOT` (a WATER/CHECK observation excluded from base-learning by the REPOT freeze
 window — distinct from `WATER_NOT_ATTRIBUTED` so the sheet doesn't misrepresent an automatic freeze as
 a declined attribution), and `HISTORY_BOOTSTRAP` (the one-time cold-start from watering history,
-`WateringLifecycleReset.maybeBootstrap()`). A row is written **every time one of these is evaluated while
-`ADAPTIVE_WATERING` is on**, including a no-op observation (`before == after`) — that's still evidence
-the model considered. Gated on `ADAPTIVE_WATERING` only, matching where `wateringConfidence` itself is
-written; ships unconditionally regardless of the flag's state (same posture as `wateringConfidence`).
+`WateringLifecycleReset.maybeBootstrap()`). A row is written **every time one of these is evaluated**,
+including a no-op observation (`before == after`) — that's still evidence the model considered.
+Unconditional now that `ADAPTIVE_WATERING` graduated (#655), matching where `wateringConfidence`
+itself is written.
 `WateringAdjustmentRepository.getRecentForPlant(plantId, limit)` is `ORDER BY triggeredAt DESC LIMIT
 :limit` — same "collapse to N most recent" posture as care history (`PlantDetailViewModel
 .RECENT_ADJUSTMENTS_LIMIT` = 5).
@@ -150,9 +150,9 @@ backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdj
 `.claude/rules/backup.md`.
 
 ## "Ask before changing intervals" (`SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS`, default `true`)
-A plain settings key, not a `FeatureFlagRegistry` entry — survives disabling developer mode. Only
-consulted when `ADAPTIVE_WATERING` is on (`PlantDetailViewModel.shouldShowIntervalDialog()`); inert
-otherwise, so the ADR-0006 dialog stays unconditional for anyone not on the adaptive model.
+A plain settings key, not a `FeatureFlagRegistry` entry — survives disabling developer mode. Always
+consulted (`PlantDetailViewModel.shouldShowIntervalDialog()`) — `ADAPTIVE_WATERING` graduated (#655),
+so the confidence-weighted model and this toggle are both unconditional now.
 - **On** (default): today's ADR-0006 `AlertDialog`, byte-for-byte unchanged.
 - **Off**: `applySuggestionOrPrompt()` (an extension on `PlantDetailViewModel` in
   `PlantDetailIntervalActions.kt`, #641) calls `quickLogUseCase.applyWateringIntervalSuggestion()`
@@ -163,8 +163,8 @@ otherwise, so the ADR-0006 dialog stays unconditional for anyone not on the adap
   `R.string.snackbar_undo`, mirroring `PlantListScreen`'s archive-undo convention) whose action calls
   `undoSilentIntervalApply(beforeIntervalDays, beforeBaseIntervalDays)` — a plain revert restoring both
   captured values as-is, not a new `WateringAdjustment` row.
-- Settings UI row lives on the main Settings screen (not Developer section), visible only while
-  `ADAPTIVE_WATERING` is on — mirrors the seasonal-amplitude picker's visibility pattern.
+- Settings UI row lives on the main Settings screen (not Developer section), always visible now that
+  `ADAPTIVE_WATERING` graduated (#655).
 - The `AddCareLogScreen` save-flow suggestion (routed through `NavGraph`'s `savedStateHandle`) goes
   through the same toggle via `PlantDetailViewModel.handleSuggestedWateringInterval()` — `NavGraph`
   never sets `vm.suggestedWateringInterval.value` directly anymore.
@@ -178,12 +178,9 @@ function that takes `nextWateringDueAt`/`lastWateredAt` from `PlantCareStatus` (
 `CareSchedule.effectiveWateringIntervalDaysForDisplay()` public wrapper the due-date math itself uses
 for "Watering every N days" — the sheet's numbers cannot drift from the schedule by construction.
 `PlantDetailViewModel.wateringExplanation: StateFlow<WateringExplanation?>` combines `plant`,
-`careStatus`, `waterLogCount` (derived from `careLogs`), `adaptiveWateringEnabled`,
-`seasonalAmplitudeValue`, and `recentWateringAdjustments`.
-
-- `adaptiveWateringEnabled == false` → only `effectiveIntervalDays`/`nextWateringDueAt`/`lastWateredAt`
-  populated; `baseIntervalDays`/`season`/`confidenceLevel`/`recentAdjustments` all null/empty — no rows
-  invented.
+`careStatus`, `waterLogCount` (derived from `careLogs`), `seasonalAmplitudeValue`, and
+`recentWateringAdjustments`. `ADAPTIVE_WATERING` graduated (#655) — `baseIntervalDays`/`confidenceLevel`
+are always populated now; there is no flag-off degraded state to gate on anymore.
 - Season row (`WateringExplanationSeason`) shown only when `seasonalAmplitude != 0.0 &&
   !plant.pinIntervalToBase` — hidden entirely (never `× 1.00`) when amplitude is Off or pinned.
   `SeasonBand` (`SLOWER_GROWTH`/`FASTER_GROWTH`/`TRANSITIONAL`) is a 3-way bucket of the outer/middle
@@ -198,7 +195,7 @@ for "Watering every N days" — the sheet's numbers cannot drift from the schedu
   one card away in the same inline-settings card and shows only the multiplier curve, no day-based
   numbers.
 - **Reschedule delta row (#630):** `WateringExplanation.rescheduleDeltaDays` mirrors
-  `PlantCareStatus.rescheduleDeltaDays` verbatim (populated regardless of `adaptiveWateringEnabled`,
+  `PlantCareStatus.rescheduleDeltaDays` verbatim (populated unconditionally,
   same as `nextWateringDueAt`/`lastWateredAt`) — a plain `ExplanationRow` using the same
   `watering_reschedule_delta_days` plural as the actionable chip outside the sheet. Display-only, no
   tap target here — see `.claude/rules/plant-detail.md`'s "Reschedule delta chip + revert" for the

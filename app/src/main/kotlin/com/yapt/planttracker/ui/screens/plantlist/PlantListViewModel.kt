@@ -14,8 +14,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
@@ -326,22 +324,16 @@ class PlantListViewModel(
      */
     fun dismissSuggestedIntervalFromList(plantId: Long) {
         viewModelScope.launch {
-            if (isAdaptiveWateringEnabled()) {
-                plantRepository.getPlantById(plantId).first()?.let { p ->
-                    plantRepository.updatePlant(
-                        p.copy(
-                            wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                            updatedAt = System.currentTimeMillis()
-                        )
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                plantRepository.updatePlant(
+                    p.copy(
+                        wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                        updatedAt = System.currentTimeMillis()
                     )
-                }
+                )
             }
         }
     }
-
-    private suspend fun isAdaptiveWateringEnabled(): Boolean =
-        dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
     fun selectRoom(room: String?) {
         selectedRoom.value = room

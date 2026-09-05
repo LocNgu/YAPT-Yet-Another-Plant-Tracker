@@ -54,6 +54,7 @@ class PlantDetailViewModelSeasonalTest {
     private val database: PlantDatabase = mockk()
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
+        coEvery { addAdjustment(any()) } returns 1L
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
@@ -226,10 +227,7 @@ class PlantDetailViewModelSeasonalTest {
         // must use the true base (6, from wateringBaseIntervalDays), not the stale literal
         // wateringIntervalDays (10), for either side.
         every { dataStore.data } returns flowOf(
-            preferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
+            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
         )
         val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
@@ -252,13 +250,10 @@ class PlantDetailViewModelSeasonalTest {
     // stale literal" moved to QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above.
 
     @Test
-    fun `undoSilentIntervalApply with ADAPTIVE_WATERING on writes a SILENT_APPLY_UNDONE row`() = runTest {
+    fun `undoSilentIntervalApply writes a SILENT_APPLY_UNDONE row`() = runTest {
         // #584 review: the undo must not leave "Recent adjustments" looking like the original silent
         // apply still stands — a compensating row records the revert itself, before = the
         // silently-applied value being undone (9), after = the restored original (7).
-        every { dataStore.data } returns flowOf(
-            preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-        )
         val monstera = plant().copy(wateringIntervalDays = 9)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
@@ -282,22 +277,6 @@ class PlantDetailViewModelSeasonalTest {
         }
     }
 
-    @Test
-    fun `undoSilentIntervalApply with ADAPTIVE_WATERING off writes no adjustment row`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 9)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7, null)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-    }
-
     // "applySuggestedInterval on a pinned plant leaves wateringBaseIntervalDays untouched" moved to
     // QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above.
 
@@ -307,10 +286,7 @@ class PlantDetailViewModelSeasonalTest {
             // #584 review: mirrors the DIALOG_EDIT/MANUAL_EDIT fixes — the row must use the true base
             // (6, from wateringBaseIntervalDays) rather than the stale literal wateringIntervalDays (10).
             every { dataStore.data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-                )
+                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             )
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

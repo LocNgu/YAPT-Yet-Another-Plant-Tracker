@@ -41,7 +41,7 @@ fun PlantDetailViewModel.setWateringInterval(days: Int?) {
                     updatedAt = now
                 )
             )
-            if (days != null && days != p.wateringIntervalDays && isAdaptiveWateringEnabled()) {
+            if (days != null && days != p.wateringIntervalDays) {
                 // #584 review: log the base-space before/after, not the literal typed value. This
                 // deliberately does *not* reuse `wateringBaseIntervalDays` above for "after" — that
                 // preserves a stale prior base when season is off, whereas the log's "after" must

@@ -16,9 +16,8 @@ data class Plant(
     val archivedAt: Long? = null,
     val repottingIntervalDays: Int? = null,
     /**
-     * 0-5, `null` = never adapted (#568). Ships unconditionally (no schema/backup flag-gating) even
-     * though `FeatureFlagRegistry.ADAPTIVE_WATERING` gates whether it's ever written or read for
-     * scheduling — flipping the flag off must not lose learned state.
+     * 0-5, `null` = never adapted (#568) — the confidence-weighted watering model
+     * (`CareSchedule.computeAdaptiveInterval()`) tracks and reads this unconditionally.
      */
     val wateringConfidence: Int? = null,
     /**

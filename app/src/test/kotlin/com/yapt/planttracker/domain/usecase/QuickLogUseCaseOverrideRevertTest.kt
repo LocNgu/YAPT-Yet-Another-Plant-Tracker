@@ -9,8 +9,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -82,19 +80,17 @@ class QuickLogUseCaseOverrideRevertTest {
         updatedAt = 0L
     )
 
-    /** ADAPTIVE_WATERING on, so an observation can move [Plant.wateringConfidence]. */
+    /** The adaptive watering model is unconditional, so an observation can move [Plant.wateringConfidence]. */
     private fun adaptiveUseCase(): QuickLogUseCase {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
+        val emptyDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(preferencesOf())
         }
         return QuickLogUseCase(
             application,
             plantRepo,
             careLogRepo,
             plantPhotoRepo,
-            adaptiveDataStore,
+            emptyDataStore,
             database,
             wateringAdjustmentRepo
         )

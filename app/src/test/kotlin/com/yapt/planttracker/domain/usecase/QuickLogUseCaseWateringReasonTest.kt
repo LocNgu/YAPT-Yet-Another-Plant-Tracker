@@ -4,14 +4,11 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -116,14 +113,6 @@ class QuickLogUseCaseWateringReasonTest {
     // like any other explicit attribution, with no special-casing needed for the WATER-log path.
     @Test
     fun `quickWaterWithReason SOIL_STILL_MOIST lengthens the interval and records WATER_TOO_SOON`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
-        useCase = QuickLogUseCase(
-            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-        )
         val now = System.currentTimeMillis()
         val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
@@ -153,14 +142,6 @@ class QuickLogUseCaseWateringReasonTest {
     // WateringLifecycleReset.maybeBootstrap() floor, this would bootstrap down to 3.
     @Test
     fun `quickWaterWithReason SOIL_STILL_MOIST never shortens the interval even via history bootstrap`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
-        useCase = QuickLogUseCase(
-            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-        )
         val now = System.currentTimeMillis()
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

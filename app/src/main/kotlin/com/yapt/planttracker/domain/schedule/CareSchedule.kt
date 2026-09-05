@@ -274,38 +274,10 @@ object CareSchedule {
 
     private data class DueStatus(val dueAt: Long?, val isOverdue: Boolean, val isDueSoon: Boolean)
 
-    fun computeSuggestedInterval(
-        feedback: WateringFeedback,
-        actualIntervalDays: Int,
-        currentIntervalDays: Int? = null
-    ): Int {
-        return when (feedback) {
-            WateringFeedback.TOO_LATE -> {
-                val base = if (currentIntervalDays != null && actualIntervalDays > currentIntervalDays) {
-                    currentIntervalDays
-                } else {
-                    actualIntervalDays
-                }
-                max(1, base - 1)
-            }
-            WateringFeedback.JUST_RIGHT -> actualIntervalDays
-            WateringFeedback.TOO_SOON -> {
-                val base = if (currentIntervalDays != null && actualIntervalDays < currentIntervalDays) {
-                    currentIntervalDays
-                } else {
-                    actualIntervalDays
-                }
-                base + 1
-            }
-        }.coerceAtLeast(1)
-    }
-
     fun daysBetween(earlierMs: Long, laterMs: Long): Int =
         ChronoUnit.DAYS.between(earlierMs.toLocalDate(), laterMs.toLocalDate()).toInt()
 
-    // --- Adaptive watering (multiplicative + confidence-weighted), behind `adaptive_watering` ---
-    // (#568, technical ADR-0021). Gated entirely at the call site — computeSuggestedInterval() above
-    // is untouched and stays the flag-off path.
+    // --- Adaptive watering (multiplicative + confidence-weighted) (#568, technical ADR-0021) ---
 
     /**
      * How close (as a fraction of the predicted interval) an observed watering gap must be to count
