@@ -17,6 +17,11 @@ object WhatsNewContent {
             "Tapping the Water button (or its liquid-fertilizer counterpart) on Plant Detail now always opens " +
                 "a \"Log watering\" date picker first, pre-selected to today — confirm it as-is for the old " +
                 "instant-log behavior, or pick an earlier date to backfill a watering you forgot to log"
+        ),
+        fixed = listOf(
+            "With seasonal watering on, a plant's \"currently every N days\" figure could briefly show a " +
+                "stale number right after adaptive watering cold-started its estimate from that plant's " +
+                "own watering history — it's now converted the same way a suggested-interval apply already was"
         )
     )
 
