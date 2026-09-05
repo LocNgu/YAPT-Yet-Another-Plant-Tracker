@@ -48,7 +48,7 @@ actions with no existing long-press affordance and would need their own interact
 
 The one extra confirm tap is an accepted, deliberate cost: discoverability for the backdating
 feature (option A's failure) outweighs preserving the zero-friction instant tap for the common
-"log now" case. `LogWateringDatePickerDialog` (`ui/screens/plantdetail/WateringDueActions.kt`) is
+"log now" case. `LogWateringDatePickerDialog` (`ui/screens/plantdetail/LogWateringDatePicker.kt`) is
 a plain Material3 `DatePickerDialog`, not-future-only via `SelectableDates`
 (`TodayOrEarlierSelectableDates`, the mirror-image of `RescheduleWateringDialog`'s existing
 `TodayOrLaterSelectableDates` — this control backfills a *past* date, Reschedule defers to a

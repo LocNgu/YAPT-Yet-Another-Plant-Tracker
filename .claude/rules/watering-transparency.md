@@ -83,6 +83,19 @@ the same number the dialog would have shown/pre-filled had it appeared. The `DIA
 `afterIntervalDays` still deliberately stays base-space (unchanged posture from #626) — only the value
 it's derived from changed.
 
+**Follow-up (#654 review):** `QuickLogUseCase.adaptWateringInterval()`'s private
+`deseasonalizedObservedIntervalDays()` helper (used to de-seasonalize an observed watering gap before
+feeding it into the adaptive model) evaluated the season at `nowProvider()` (real wall-clock "now")
+rather than the caller's `loggedAt`, so a backdated quick-water (#654's "Log watering" date picker) with
+`SEASONAL_WATERING` on de-seasonalized using *today's* season, not the logged day's — contradicting the
+"`loggedAt` threads through everywhere" claim documented above. Fixed by giving the helper an explicit
+`atDate: LocalDate` parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s
+two callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now
+passes `now.toLocalDate()` into, mirroring this section's own `loggedAt`-threading pattern.
+`effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion dialog's "different from
+current" check) had the identical bug and got the same fix via an explicit `now` parameter threaded from
+`computeSuggestion()`.
+
 ## `watering_adjustments` table (`data/entity/WateringAdjustmentEntity.kt`, `data/db/WateringAdjustmentDao.kt`,
 `data/repository/WateringAdjustmentRepository.kt`)
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a

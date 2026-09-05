@@ -98,13 +98,18 @@ internal fun LogWateringDatePickerDialog(
  * [utcMidnightMs] (the picker's UTC-midnight-encoded selected day) reinterpreted as a local calendar
  * day, with the current wall-clock time-of-day copied on — the exact `Calendar` field-copy pattern
  * `AddCareLogScreen.kt`'s own new-log date picker uses, so a backdated quick-water's `CareLog.loggedAt`
- * carries a realistic time-of-day rather than local midnight.
+ * carries a realistic time-of-day rather than local midnight. [wallClockNowMs] defaults to the real
+ * wall-clock time but is overridable so a unit test can pin the time-of-day being copied on rather than
+ * depending on whenever the test happens to run.
  */
-private fun utcMidnightMsToLoggedAtMillis(utcMidnightMs: Long): Long {
+internal fun utcMidnightMsToLoggedAtMillis(
+    utcMidnightMs: Long,
+    wallClockNowMs: Long = System.currentTimeMillis()
+): Long {
     val pickerCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     pickerCal.timeInMillis = utcMidnightMs
     val localCal = Calendar.getInstance()
-    localCal.timeInMillis = System.currentTimeMillis()
+    localCal.timeInMillis = wallClockNowMs
     localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
     localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
     localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))

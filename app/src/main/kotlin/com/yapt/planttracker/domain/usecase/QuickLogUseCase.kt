@@ -596,7 +596,7 @@ class QuickLogUseCase(
         } else {
             feedback?.let { CareSchedule.computeSuggestedInterval(it, actual, current) } ?: return null
         }
-        val effectiveSuggestion = effectiveIntervalForDisplay(plant, suggestion)
+        val effectiveSuggestion = effectiveIntervalForDisplay(plant, suggestion, now)
         return if (effectiveSuggestion != current) {
             QuickWaterSuggestion(plant.id, plant.name, suggestion, effectiveSuggestion)
         } else {
@@ -611,11 +611,20 @@ class QuickLogUseCase(
      * another. Treats [suggestion] as if it were the plant's new base — mirroring
      * `PlantDetailViewModel`'s identical `plant.copy(...)` pattern — so this is a display-only, one-way
      * conversion; the returned [QuickWaterSuggestion.suggestedInterval] (write path) is untouched.
+     *
+     * [now] mirrors [computeSuggestion]'s own parameter of the same name (#654 review) — the season used
+     * to convert [suggestion] must be the day the watering was actually logged (possibly backdated), not
+     * [nowProvider]'s real wall-clock time, or the "different from current" comparison the ADR-0006
+     * dialog relies on could be judged against the wrong season.
      */
-    private suspend fun effectiveIntervalForDisplay(plant: Plant, suggestion: Int): Int =
+    private suspend fun effectiveIntervalForDisplay(
+        plant: Plant,
+        suggestion: Int,
+        now: Long = System.currentTimeMillis()
+    ): Int =
         CareSchedule.effectiveWateringIntervalDaysForDisplay(
             plant = plant.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
-            nowDate = nowProvider().toLocalDate(),
+            nowDate = now.toLocalDate(),
             seasonalAmplitude = dataStore.seasonalAmplitudeOnce()
         ) ?: suggestion
 
@@ -653,7 +662,11 @@ class QuickLogUseCase(
         val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
+            observedIntervalDays = deseasonalizedObservedIntervalDays(
+                actualIntervalDays,
+                plant.pinIntervalToBase,
+                atDate = now.toLocalDate()
+            ),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
@@ -752,15 +765,25 @@ class QuickLogUseCase(
      * A no-op when SEASONAL_WATERING is off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
      * math never applies the seasonal curve for a pinned plant, so its observed gaps are already
      * flat and must not be seasonally corrected.
+     *
+     * [atDate] defaults to [nowProvider]'s real wall-clock date — the right choice for
+     * [computeStillMoistAdaptiveInterval]'s two callers, neither of which can be backdated today — but
+     * [adaptWateringInterval] passes its own `now` (possibly a backdated `loggedAt`, #654) explicitly, so
+     * the observed gap is de-seasonalized using the day the watering actually happened, not the day the
+     * app happens to be evaluating it.
      */
     @Suppress("ReturnCount")
-    private suspend fun deseasonalizedObservedIntervalDays(actualIntervalDays: Int, pinIntervalToBase: Boolean): Int {
+    private suspend fun deseasonalizedObservedIntervalDays(
+        actualIntervalDays: Int,
+        pinIntervalToBase: Boolean,
+        atDate: LocalDate = nowProvider().toLocalDate()
+    ): Int {
         if (pinIntervalToBase) return actualIntervalDays
         val amplitude = dataStore.seasonalAmplitudeOnce()
         if (amplitude == 0.0) return actualIntervalDays
         return SeasonalWatering.deseasonalizeToDays(
             actualIntervalDays,
-            nowProvider().toLocalDate(),
+            atDate,
             amplitude,
             SeasonalWatering.currentHemisphere()
         )

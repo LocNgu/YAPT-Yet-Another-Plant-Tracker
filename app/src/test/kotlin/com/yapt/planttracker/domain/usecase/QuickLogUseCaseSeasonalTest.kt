@@ -40,6 +40,12 @@ import java.util.concurrent.TimeUnit
  * `quickWaterWithReason`'s de-seasonalization coverage (#569/#572), split out of
  * [QuickLogUseCaseTest] to keep that file under Detekt's `LargeClass` threshold — mirrors
  * `PlantDetailViewModelSeasonalTest`'s precedent.
+ *
+ * Every `quickWaterWithReason` call below passes `loggedAt = peakDay` explicitly (#654 review round 1):
+ * since the season used to de-seasonalize an observed gap is now evaluated at the caller's `loggedAt`
+ * rather than [nowProvider] (see `QuickLogUseCase.deseasonalizedObservedIntervalDays`/
+ * `effectiveIntervalForDisplay`), leaving `loggedAt` at its real-wall-clock default would decouple it
+ * from [nowProvider]'s pinned [peakDay] and make these tests depend on whatever day they happen to run.
  */
 class QuickLogUseCaseSeasonalTest {
 
@@ -113,7 +119,7 @@ class QuickLogUseCaseSeasonalTest {
             )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
-            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
             // Peak day (Jan 5, northern): season(peakDay) = 1 + 0.35 = 1.35, so the observed 20-day
             // gap de-seasonalizes to round(20 / 1.35) = 15 before feeding the adaptive model.
@@ -161,7 +167,7 @@ class QuickLogUseCaseSeasonalTest {
             )
             coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
-            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
             val deseasonalizedObserved = SeasonalWatering.deseasonalizeToDays(
                 20,
@@ -222,7 +228,7 @@ class QuickLogUseCaseSeasonalTest {
         )
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
 
-        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
         val expected = CareSchedule.computeAdaptiveInterval(
             feedback = WateringFeedback.TOO_LATE,
@@ -289,7 +295,7 @@ class QuickLogUseCaseSeasonalTest {
                 )
             )
 
-            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+            val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
             assertEquals(null, outcome.suggestion)
         }
@@ -320,7 +326,7 @@ class QuickLogUseCaseSeasonalTest {
             )
         )
 
-        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
+        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
 
         assertEquals(10, outcome.suggestion?.suggestedInterval)
         assertEquals(expectedEffective, outcome.suggestion?.suggestedIntervalEffective)

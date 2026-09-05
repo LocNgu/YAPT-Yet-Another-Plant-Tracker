@@ -181,6 +181,21 @@ value can't be allowed to drift across those three. Plain (non-liquid) `quickFer
 — no date picker, since fertilizing alone has no adaptive-interval/reason-prompt concept for a chosen
 date to feed into.
 
+**Review round 1 fix (#654 PR #671):** `loggedAt` threading missed one spot — `QuickLogUseCase
+.adaptWateringInterval()`'s call to its private `deseasonalizedObservedIntervalDays()` helper still
+evaluated the season at `nowProvider()` (real wall-clock "now") instead of the caller's backdated
+`loggedAt`, so a backdated quick-water with `SEASONAL_WATERING` on de-seasonalized the observed gap
+using *today's* season factor, not the logged day's. Fixed by adding an explicit `atDate: LocalDate`
+parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s two
+callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now passes
+`now.toLocalDate()` into. `effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion
+dialog's "different from current" check) had the identical bug and got the same fix via an explicit
+`now` parameter threaded from `computeSuggestion()`. `QuickLogUseCaseSeasonalTest`'s pre-existing
+adaptive-path calls to `quickWaterWithReason()` had to start passing `loggedAt = peakDay` explicitly to
+keep matching their pinned `nowProvider` — they previously relied on the pre-fix code silently reading
+`nowProvider()` for season while `loggedAt` (unpassed, defaulting to the real device clock) drove
+everything else, which the fix correctly stopped tolerating.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

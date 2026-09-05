@@ -16,6 +16,10 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -24,8 +28,12 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.util.Calendar
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 /**
@@ -133,6 +141,67 @@ class QuickLogUseCaseBackdateTest {
         coVerify { wateringAdjustmentRepo.addAdjustment(match { it.triggeredAt == backdated }) }
     }
 
+    /**
+     * BLOCKING review fix (#654 round 1): [QuickLogUseCase.adaptWateringInterval]'s call to its private
+     * de-seasonalization helper used to evaluate the season at [QuickLogUseCase]'s `nowProvider()`
+     * (real wall-clock "now") rather than the caller's backdated `loggedAt` — neither
+     * [QuickLogUseCaseSeasonalTest] (never backdates) nor the rest of this file (never enables
+     * `SEASONAL_WATERING`) combined both dimensions to catch it. `nowProvider` is pinned to a summer
+     * day while `loggedAt` is a winter day so the two seasons' de-seasonalized values provably differ;
+     * asserting against the winter (loggedAt) value fails if the helper reverts to nowProvider().
+     */
+    @Test
+    fun `quickWaterWithReason with SEASONAL_WATERING on de-seasonalizes using the backdated loggedAt's season`() =
+        runTest {
+            val nowProviderDay = localDateUtcMillis(2023, 7, 5) // northern summer — real "now"
+            val loggedAtDay = localDateUtcMillis(2023, 1, 5) // northern winter — the backdated pick
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(
+                    preferencesOf(
+                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
+                        FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
+                    )
+                )
+            }
+            useCase = QuickLogUseCase(
+                application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database,
+                wateringAdjustmentRepo, nowProvider = { nowProviderDay }
+            )
+            val monstera = plant().copy(wateringConfidence = 2)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAtDay),
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAtDay - TimeUnit.DAYS.toMillis(20))
+            )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAtDay)
+
+            val fromLoggedAtSeason = SeasonalWatering.deseasonalizeToDays(
+                20,
+                LocalDate.of(2023, 1, 5),
+                SeasonalAmplitude.STANDARD.value,
+                Hemisphere.NORTHERN
+            )
+            val fromNowProviderSeason = SeasonalWatering.deseasonalizeToDays(
+                20,
+                LocalDate.of(2023, 7, 5),
+                SeasonalAmplitude.STANDARD.value,
+                Hemisphere.NORTHERN
+            )
+            assertTrue(fromLoggedAtSeason != fromNowProviderSeason)
+            val expected = CareSchedule.computeAdaptiveInterval(
+                feedback = null,
+                observedIntervalDays = fromLoggedAtSeason,
+                currentBaseIntervalDays = 7,
+                currentConfidence = 2,
+                recentFeedback = emptyList()
+            )
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(match { it.afterIntervalDays == expected.intervalDays })
+            }
+        }
+
     // quickLiquidFertilizeWithReason mirrors the same two checks.
 
     @Test
@@ -160,4 +229,11 @@ class QuickLogUseCaseBackdateTest {
         assertFalse(outcome.logged)
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
     }
+}
+
+private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.clear()
+    cal.set(year, month - 1, day, 12, 0, 0)
+    return cal.timeInMillis
 }
