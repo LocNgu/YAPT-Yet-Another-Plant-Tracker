@@ -113,6 +113,18 @@ object CareSchedule {
     }
 
     /**
+     * Public wrapper around [wateringOnScheduleNow] for a **backdated** quick-water (#654): would a
+     * watering logged on [chosenDate] (not necessarily "now") agree with the schedule, within
+     * [GAP_AGREEMENT_TOLERANCE] — the exact same comparison [computeStatus] uses for
+     * [PlantCareStatus.isWateringOnSchedule], just generalized to any candidate date so the Plant
+     * Detail "Log watering" date picker's reason-prompt gate can evaluate the date the user actually
+     * picked instead of always "now". Passing today's date reproduces [PlantCareStatus
+     * .isWateringOnSchedule] exactly, since [daysBetween] is calendar-day granular.
+     */
+    fun isWateringOnScheduleAt(lastWateredAt: Long?, effectiveIntervalDays: Int?, chosenDate: Long): Boolean =
+        wateringOnScheduleNow(lastWateredAt, effectiveIntervalDays, chosenDate)
+
+    /**
      * Backs [PlantCareStatus.isWateringGapLong] (#586): which *side* of the schedule an off-schedule
      * watering falls on, so the reason prompt can ask "why was it late?" rather than "why now?" when
      * the gap ran long. Deliberately derived from the same gap-vs-effective-interval comparison as
@@ -125,6 +137,14 @@ object CareSchedule {
         if (lastWateredAt == null || effectiveIntervalDays == null) return false
         return daysBetween(lastWateredAt, now) > effectiveIntervalDays
     }
+
+    /**
+     * Public wrapper around [wateringGapRanLong] for a backdated quick-water (#654) — [isWateringOnScheduleAt]'s
+     * counterpart, so the "Log watering" date picker's off-schedule sheet can pick the correct
+     * early/late wording for the date the user actually chose rather than "now".
+     */
+    fun isWateringGapLongAt(lastWateredAt: Long?, effectiveIntervalDays: Int?, chosenDate: Long): Boolean =
+        wateringGapRanLong(lastWateredAt, effectiveIntervalDays, chosenDate)
 
     /** [computeWateringDue]'s result: the usual [DueStatus] plus the #630 reschedule delta. */
     private data class WateringDueStatus(val dueStatus: DueStatus, val rescheduleDeltaDays: Int?)

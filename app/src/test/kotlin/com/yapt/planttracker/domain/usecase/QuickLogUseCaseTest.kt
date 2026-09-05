@@ -464,6 +464,10 @@ class QuickLogUseCaseTest {
         coVerify(exactly = 1) { careLogRepo.addLog(any()) }
     }
 
+    // #654 loggedAt-threading coverage (duplicate guard/CareLog write/adaptive-gap math all keyed
+    // off a backdated date, not "now") now lives in QuickLogUseCaseBackdateTest, split out to stay
+    // under Detekt's LargeClass threshold — mirrors QuickLogUseCaseSeasonalTest's precedent.
+
     // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #572 follow-up)
     // now lives in QuickLogUseCaseSeasonalTest, split out to stay under Detekt's LargeClass threshold.
 

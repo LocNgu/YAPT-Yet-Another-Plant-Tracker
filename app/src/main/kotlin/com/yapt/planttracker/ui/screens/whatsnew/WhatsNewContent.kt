@@ -12,7 +12,12 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        changed = listOf(
+            "Tapping the Water button (or its liquid-fertilizer counterpart) on Plant Detail now always opens " +
+                "a \"Log watering\" date picker first, pre-selected to today — confirm it as-is for the old " +
+                "instant-log behavior, or pick an earlier date to backfill a watering you forgot to log"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.

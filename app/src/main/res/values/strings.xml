@@ -106,6 +106,9 @@
         <item quantity="one">In 1 day (suggested)</item>
         <item quantity="other">In %d days (suggested)</item>
     </plurals>
+    <!-- "Log watering" date picker (#654) — every Water/Water+Fertilize quick-log entry point on
+         Plant Detail opens this first, pre-selected to today, replacing the old instant "log now" tap. -->
+    <string name="log_watering_date_picker_title">Log watering</string>
     <!-- Reschedule delta + revert (#630) — the "Rescheduled +N days" chip above WateringDueActionsRow
          and the matching display-only row in the "Why this date?" sheet, mirroring
          reschedule_watering_plus_days's wording/format args. -->
@@ -157,8 +160,8 @@
     <string name="quick_log_fertilized">Fertilized %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
-    <string name="quick_log_already_watered">Already watered %s today</string>
-    <string name="quick_log_already_fertilized">Already fertilized %s today</string>
+    <string name="quick_log_already_watered">Already watered %s that day</string>
+    <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
     <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
     <string name="quick_log_already_checked">Already checked %s today</string>
     <string name="care_history_show_less">Show less</string>

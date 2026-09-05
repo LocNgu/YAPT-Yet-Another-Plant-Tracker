@@ -115,6 +115,22 @@ written; ships unconditionally regardless of the flag's state (same posture as `
 :limit` — same "collapse to N most recent" posture as care history (`PlantDetailViewModel
 .RECENT_ADJUSTMENTS_LIMIT` = 5).
 
+**Follow-up (#654):** Plant Detail's quick-water/quick-liquid-fertilize surfaces can now backdate a
+log via a "Log watering" date picker (`.claude/rules/plant-detail.md`'s "Watering-due actions row"
+section) rather than always logging "now". `QuickLogUseCase.quickWaterWithReason()`/
+`quickLiquidFertilizeWithReason()` gained an explicit `loggedAt: Long = System.currentTimeMillis()`
+parameter that replaces every internal `now = System.currentTimeMillis()` those two functions and
+`computeSuggestion()`/`adaptWateringInterval()` used to compute independently — the same value now
+drives the same-day duplicate guard, the `CareLog.loggedAt` write, `WateringLifecycleReset.isFrozen()`'s
+freeze-window check, and the `WateringAdjustment.triggeredAt` this section documents, so a backdated
+observation is evaluated (and its adjustment row dated) as of the day it claims to have happened on,
+not the day it was actually entered — mirroring `WateringLifecycleReset.applyRepotReset()`'s existing
+`resetAnchorMs` precedent ("not necessarily 'now', since a REPOT log can be backdated"). `hasLoggedToday()`
+was widened from an implicit `System.currentTimeMillis()` to an explicit `dayTimestampMs` parameter for
+the same reason. Every other call site of these two functions (`PlantListViewModel`, `CalendarViewModel`,
+`QuickLogUseCase.bulkLog()`) is unaffected — they never pass `loggedAt`, so they keep using real "now" by
+default.
+
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default
 `emptyList()`) + `BackupSettings.askBeforeChangingIntervals: Boolean` (default `true`) — see

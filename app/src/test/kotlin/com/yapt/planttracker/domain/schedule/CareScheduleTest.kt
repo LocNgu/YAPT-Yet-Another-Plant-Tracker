@@ -873,4 +873,46 @@ class CareScheduleTest {
         )
         assertFalse(status.isWateringOnSchedule)
     }
+
+    // --- isWateringOnScheduleAt / isWateringGapLongAt (#654) ---
+    // Public wrappers for a backdated quick-water's chosen-date gate: same comparison as
+    // isWateringOnSchedule/isWateringGapLong above, generalized to a caller-supplied date instead of
+    // always "now".
+
+    @Test
+    fun `isWateringOnScheduleAt with today reproduces isWateringOnSchedule's own result`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(12)
+        val effectiveIntervalDays = 7
+
+        assertEquals(
+            onScheduleFor(daysSinceWatering = 12),
+            CareSchedule.isWateringOnScheduleAt(lastWateredAt, effectiveIntervalDays, chosenDate = now)
+        )
+    }
+
+    @Test
+    fun `isWateringOnScheduleAt treats an earlier chosen date as on schedule when the gap agrees there`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(20)
+        // Backdating the log to 7 days after the last watering (a 7-day plant) is on schedule for that
+        // day, even though "today" (20 days later) would be well off schedule.
+        val chosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt, 7, chosenDate))
+    }
+
+    @Test
+    fun `isWateringOnScheduleAt is true with no interval or no prior watering, same as the now variant`() {
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt = null, effectiveIntervalDays = 7, now))
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt = now, effectiveIntervalDays = null, now))
+    }
+
+    @Test
+    fun `isWateringGapLongAt reports the direction for a chosen date, not now`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(20)
+        val onScheduleChosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val lateChosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(15)
+
+        assertFalse(CareSchedule.isWateringGapLongAt(lastWateredAt, 7, onScheduleChosenDate))
+        assertTrue(CareSchedule.isWateringGapLongAt(lastWateredAt, 7, lateChosenDate))
+    }
 }

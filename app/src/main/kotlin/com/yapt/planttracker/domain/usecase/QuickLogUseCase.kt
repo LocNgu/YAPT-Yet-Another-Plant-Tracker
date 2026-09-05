@@ -179,29 +179,37 @@ class QuickLogUseCase(
      * Logs a watering with the given [reason] (#586, product ADR-0030), clears any active skip
      * override, and returns a [QuickLogOutcome] with a [QuickWaterSuggestion] if the adaptive
      * interval system produces one. Returns [QuickLogOutcome.logged] = false without inserting
-     * anything if [plant] already has a WATER log today (#509).
+     * anything if [plant] already has a WATER log on the calendar day containing [loggedAt] (#509).
      *
      * [reason] is `null` for an on-schedule watering (no prompt appears at all — the fast path), for
      * a watering the user logged without choosing a reason, and for surfaces that never ask (bulk
      * log, the notification's "Watered" action). Which of those it was is never stored: the model
      * separates them from timing alone (see [CareSchedule.computeAdaptiveInterval]).
+     *
+     * [loggedAt] defaults to "now" but Plant Detail's "Log watering" date picker (#654) can pass a
+     * backdated timestamp instead — the same value drives the duplicate-day check, the [CareLog] write,
+     * and the adaptive-gap math ([computeSuggestion]/[adaptWateringInterval]'s `now`), so none of the
+     * three can drift from each other or silently fall back to the real wall-clock time.
      */
-    suspend fun quickWaterWithReason(plant: Plant, reason: WateringReason?): QuickLogOutcome {
-        if (hasLoggedToday(plant.id, CareType.WATER)) {
+    suspend fun quickWaterWithReason(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome {
+        if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
         val feedback = reason?.toWateringFeedback()
-        val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
                 plantId = plant.id,
                 careType = CareType.WATER,
-                loggedAt = now,
+                loggedAt = loggedAt,
                 wateringFeedback = feedback
             )
         )
         val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
-        val suggestion = computeSuggestion(freshPlant, feedback)
+        val suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
         return QuickLogOutcome(
             message = application.getString(R.string.quick_log_watered, plant.name),
             logged = true,
@@ -213,24 +221,31 @@ class QuickLogUseCase(
      * Logs a paired FERTILIZE + WATER entry for liquid-fertilizer plants, mirroring
      * [quickWaterWithReason] — the paired watering is a watering like any other, so the same #586
      * reason prompt governs it. Returns [QuickLogOutcome.logged] = false without inserting
-     * anything if [plant] already has a FERTILIZE log today. If [plant] was already watered today,
-     * the paired WATER insert is suppressed (checked before the FERTILIZE insert so it can't race
-     * against a WATER row inserted earlier in this same call) but the FERTILIZE log still proceeds
-     * (#509).
+     * anything if [plant] already has a FERTILIZE log on the calendar day containing [loggedAt]. If
+     * [plant] was already watered that same day, the paired WATER insert is suppressed (checked before
+     * the FERTILIZE insert so it can't race against a WATER row inserted earlier in this same call)
+     * but the FERTILIZE log still proceeds (#509).
+     *
+     * [loggedAt] mirrors [quickWaterWithReason]'s parameter of the same name (#654) — the same value
+     * drives both duplicate-day checks, both [CareLog] writes, and the paired watering's adaptive-gap
+     * math.
      */
-    suspend fun quickLiquidFertilizeWithReason(plant: Plant, reason: WateringReason?): QuickLogOutcome {
-        if (hasLoggedToday(plant.id, CareType.FERTILIZE)) {
+    suspend fun quickLiquidFertilizeWithReason(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome {
+        if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
         }
         val feedback = reason?.toWateringFeedback()
-        val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER)
+        val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
-        val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
                 plantId = plant.id,
                 careType = CareType.FERTILIZE,
-                loggedAt = now,
+                loggedAt = loggedAt,
                 wateringFeedback = null,
                 fertilizerType = FertilizerType.LIQUID
             )
@@ -247,7 +262,7 @@ class QuickLogUseCase(
                 CareLog(
                     plantId = plant.id,
                     careType = CareType.WATER,
-                    loggedAt = now,
+                    loggedAt = loggedAt,
                     wateringFeedback = feedback
                 )
             )
@@ -256,7 +271,7 @@ class QuickLogUseCase(
                 message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
                 logged = true,
                 waterPaired = true,
-                suggestion = computeSuggestion(freshPlant, feedback)
+                suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
             )
         }
     }
@@ -537,8 +552,16 @@ class QuickLogUseCase(
     private fun isDuplicateGuarded(careType: CareType) =
         careType == CareType.WATER || careType == CareType.FERTILIZE || careType == CareType.CHECK
 
-    private suspend fun hasLoggedToday(plantId: Long, careType: CareType): Boolean =
-        careLogRepository.hasLogOfTypeOnDay(plantId, careType, System.currentTimeMillis())
+    /**
+     * [dayTimestampMs] defaults to "now" but a caller backdating a log (#654) passes the chosen date
+     * instead, so the duplicate-day guard keys off the *logged* day, not the wall-clock day the check
+     * happens to run on.
+     */
+    private suspend fun hasLoggedToday(
+        plantId: Long,
+        careType: CareType,
+        dayTimestampMs: Long = System.currentTimeMillis()
+    ): Boolean = careLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs)
 
     private fun alreadyLoggedMessage(plant: Plant, careType: CareType): String = when (careType) {
         CareType.WATER -> application.getString(R.string.quick_log_already_watered, plant.name)
@@ -558,14 +581,18 @@ class QuickLogUseCase(
      * #620 fixed for the Plant Detail dialog specifically). This is the single choke point all three
      * quick-log surfaces share, so none of them can independently regress this comparison again.
      */
-    private suspend fun computeSuggestion(plant: Plant, feedback: WateringFeedback?): QuickWaterSuggestion? {
+    private suspend fun computeSuggestion(
+        plant: Plant,
+        feedback: WateringFeedback?,
+        now: Long = System.currentTimeMillis()
+    ): QuickWaterSuggestion? {
         val lastTwo = careLogRepository.getLastTwoWaterings(plant.id)
         if (lastTwo.size < 2) return null
         val current = plant.wateringIntervalDays ?: return null
         val actual = CareSchedule.daysBetween(lastTwo[1].loggedAt, lastTwo[0].loggedAt)
         if (actual <= 0) return null
         val suggestion = if (isAdaptiveWateringEnabled()) {
-            adaptWateringInterval(plant, feedback, actual, current)
+            adaptWateringInterval(plant, feedback, actual, current, now)
         } else {
             feedback?.let { CareSchedule.computeSuggestedInterval(it, actual, current) } ?: return null
         }
@@ -604,14 +631,20 @@ class QuickLogUseCase(
      * already silently committed the new interval, so this returns [currentInterval] unchanged
      * (suppressing the ADR-0006 suggestion dialog for this observation) rather than also running the
      * incremental per-step correction on top of a value the model just cold-started.
+     *
+     * [now] defaults to the real wall-clock time but [computeSuggestion] threads through the caller's
+     * chosen [loggedAt][quickWaterWithReason] instead when backdating (#654) — the same value that
+     * decided the duplicate-day check and the [CareLog] write also decides the freeze-window check and
+     * the [WateringAdjustment.triggeredAt] this records, so a backdated observation can't be evaluated
+     * against "today" while claiming to have happened on an earlier day.
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
         feedback: WateringFeedback?,
         actualIntervalDays: Int,
-        currentInterval: Int
+        currentInterval: Int,
+        now: Long = System.currentTimeMillis()
     ): Int {
-        val now = System.currentTimeMillis()
         if (maybeApplyHistoryBootstrap(plant, feedback, now)) return currentInterval
 
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)

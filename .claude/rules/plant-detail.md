@@ -160,6 +160,27 @@ and unchanged.
   off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
   `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.
 
+**Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
+on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
+the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s
+liquid-fert path) first opens `LogWateringDatePickerDialog` (`WateringDueActions.kt`, not-future-only
+via `SelectableDates`, pre-selected to today, distinct from `RescheduleWateringDialog`'s custom date —
+that one sets `wateringDueDateOverride` on the *next due date*, this one backdates the *logged event*
+itself). Confirming with today selected reproduces the old instant-log fast path in one extra confirm
+tap; picking an earlier date backfills a forgotten watering. `requestWater`/`requestLiquidFertilize`
+now take the picked `loggedAt` and re-evaluate on/off-schedule against **that** date (`CareSchedule
+.isWateringOnScheduleAt`/`isWateringGapLongAt`, public wrappers around the same `wateringOnScheduleNow`/
+`wateringGapRanLong` comparisons `PlantCareStatus.isWateringOnSchedule`/`isWateringGapLong` already use
+against real "now") rather than the plant's precomputed `careStatus`, which is always "now"-relative —
+picking today reproduces `careStatus`'s own result exactly, since the underlying gap comparison is
+calendar-day granular. `quickWater()`/`quickLiquidFertilize()` and `QuickLogUseCase
+.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()` all gained an explicit `loggedAt: Long =
+System.currentTimeMillis()` parameter threading through the duplicate-day guard, the `CareLog` write,
+and the adaptive-gap math consistently — see `.claude/rules/watering-transparency.md` for why that one
+value can't be allowed to drift across those three. Plain (non-liquid) `quickFertilize()` is unchanged
+— no date picker, since fertilizing alone has no adaptive-interval/reason-prompt concept for a chosen
+date to feed into.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

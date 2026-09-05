@@ -91,9 +91,11 @@ import com.yapt.planttracker.domain.insights.CareInsights
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.RescheduleReason
+import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
@@ -109,6 +111,7 @@ import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.toLocalDate
 import kotlin.math.roundToInt
 
 /** Test tag on the Plant Detail scrolling `LazyColumn`, so instrumented tests can scroll it to a
@@ -145,8 +148,13 @@ fun PlantDetailScreen(
     var showWateringExplanationSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var showWaterSheet by remember { mutableStateOf(false) }
-    var showLiquidFertilizeSheet by remember { mutableStateOf(false) }
+    // #654: a plain tap always opens the "Log watering" date picker first; the sheets below carry the
+    // chosen loggedAt (null = hidden) through to the reason prompt and the final quickWater(Liquid) call,
+    // rather than recomputing "now" a second time once a reason is picked.
+    var showWaterDatePicker by remember { mutableStateOf(false) }
+    var showLiquidFertilizeDatePicker by remember { mutableStateOf(false) }
+    var showWaterSheet by remember { mutableStateOf<Long?>(null) }
+    var showLiquidFertilizeSheet by remember { mutableStateOf<Long?>(null) }
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         viewModel.saveReminderPhoto(uri)
         viewModel.dismissPhotoReminder()
@@ -439,30 +447,65 @@ fun PlantDetailScreen(
         )
     }
 
-    if (showWaterSheet) {
+    if (showWaterDatePicker) {
+        LogWateringDatePickerDialog(
+            onDismiss = { showWaterDatePicker = false },
+            onConfirm = { loggedAt ->
+                showWaterDatePicker = false
+                val p = plant
+                val status = careStatus
+                if (p != null && status != null) {
+                    requestWater(QuickWaterGateContext(p, status, seasonalAmplitudeValue, viewModel), loggedAt) {
+                        showWaterSheet = it
+                    }
+                }
+            }
+        )
+    }
+
+    if (showLiquidFertilizeDatePicker) {
+        LogWateringDatePickerDialog(
+            onDismiss = { showLiquidFertilizeDatePicker = false },
+            onConfirm = { loggedAt ->
+                showLiquidFertilizeDatePicker = false
+                val p = plant
+                val status = careStatus
+                if (p != null && status != null) {
+                    requestLiquidFertilize(
+                        QuickWaterGateContext(p, status, seasonalAmplitudeValue, viewModel),
+                        loggedAt
+                    ) {
+                        showLiquidFertilizeSheet = it
+                    }
+                }
+            }
+        )
+    }
+
+    showWaterSheet?.let { loggedAt ->
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
-                gapRanLong = careStatus?.isWateringGapLong == true,
-                onDismiss = { showWaterSheet = false },
+                gapRanLong = isChosenDateGapLong(p, careStatus?.lastWateredAt, loggedAt, seasonalAmplitudeValue),
+                onDismiss = { showWaterSheet = null },
                 onLog = { reason ->
-                    viewModel.quickWater(reason)
-                    showWaterSheet = false
+                    viewModel.quickWater(reason, loggedAt)
+                    showWaterSheet = null
                 }
             )
         }
     }
 
-    if (showLiquidFertilizeSheet) {
+    showLiquidFertilizeSheet?.let { loggedAt ->
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
-                gapRanLong = careStatus?.isWateringGapLong == true,
+                gapRanLong = isChosenDateGapLong(p, careStatus?.lastWateredAt, loggedAt, seasonalAmplitudeValue),
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
-                onDismiss = { showLiquidFertilizeSheet = false },
+                onDismiss = { showLiquidFertilizeSheet = null },
                 onLog = { reason ->
-                    viewModel.quickLiquidFertilize(reason)
-                    showLiquidFertilizeSheet = false
+                    viewModel.quickLiquidFertilize(reason, loggedAt)
+                    showLiquidFertilizeSheet = null
                 }
             )
         }
@@ -569,12 +612,10 @@ fun PlantDetailScreen(
                             item {
                                 StatsRow(
                                     status = status,
-                                    onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
+                                    onWaterClick = { showWaterDatePicker = true },
                                     onFertilizeClick = {
                                         if (plant?.useLiquidFertilizer == true) {
-                                            requestLiquidFertilize(status, viewModel) {
-                                                showLiquidFertilizeSheet = true
-                                            }
+                                            showLiquidFertilizeDatePicker = true
                                         } else {
                                             viewModel.quickFertilize()
                                         }
@@ -593,7 +634,7 @@ fun PlantDetailScreen(
                                         Spacer(Modifier.height(8.dp))
                                     }
                                     WateringDueActionsRow(
-                                        onWaterClick = { requestWater(status, viewModel) { showWaterSheet = true } },
+                                        onWaterClick = { showWaterDatePicker = true },
                                         onRescheduleClick = { viewModel.requestReschedule() }
                                     )
                                     Spacer(Modifier.height(16.dp))
@@ -689,19 +730,13 @@ fun PlantDetailScreen(
                                                 Spacer(Modifier.height(8.dp))
                                             }
                                             WateringDueActionsRow(
-                                                onWaterClick = {
-                                                    requestWater(status, viewModel) { showWaterSheet = true }
-                                                },
+                                                onWaterClick = { showWaterDatePicker = true },
                                                 onRescheduleClick = { viewModel.requestReschedule() }
                                             )
                                             if (plant?.useLiquidFertilizer == true) {
                                                 Spacer(Modifier.height(8.dp))
                                                 CombinedWaterFertilizeActionRow(
-                                                    onClick = {
-                                                        requestLiquidFertilize(status, viewModel) {
-                                                            showLiquidFertilizeSheet = true
-                                                        }
-                                                    }
+                                                    onClick = { showLiquidFertilizeDatePicker = true }
                                                 )
                                             }
                                             Spacer(Modifier.height(16.dp))
@@ -802,16 +837,14 @@ fun PlantDetailScreen(
                             }
 
                             PlantDetailTab.FERTILIZE -> {
-                                careStatus?.let { status ->
+                                careStatus?.let {
                                     if (plant?.fertilizingIntervalDays != null) {
                                         item {
                                             FertilizeDueActionRow(
                                                 useLiquidFertilizer = plant?.useLiquidFertilizer == true,
                                                 onFertilizeClick = {
                                                     if (plant?.useLiquidFertilizer == true) {
-                                                        requestLiquidFertilize(status, viewModel) {
-                                                            showLiquidFertilizeSheet = true
-                                                        }
+                                                        showLiquidFertilizeDatePicker = true
                                                     } else {
                                                         viewModel.quickFertilize()
                                                     }
@@ -1392,24 +1425,89 @@ private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifie
 }
 
 /**
- * The #586 fast path (product ADR-0030): an on-schedule watering is logged straight away — no sheet,
- * no question — and only an off-schedule one opens [WateringReasonBottomSheet] via [showReasonSheet].
- * Shared by the watering `StatChip` and the watering-due actions row so the two surfaces can never
- * disagree about when the question is worth asking.
+ * Bundles [requestWater]/[requestLiquidFertilize]'s per-plant inputs (#654) to stay under Detekt's
+ * `LongParameterList` threshold — mirrors `CustomReminderActions`'s existing bundling precedent
+ * (`.claude/rules/plant-detail.md`).
+ */
+private data class QuickWaterGateContext(
+    val plant: Plant,
+    val status: PlantCareStatus,
+    val seasonalAmplitude: Double,
+    val viewModel: PlantDetailViewModel
+)
+
+/**
+ * The #586 fast path (product ADR-0030): a watering on-schedule *for [loggedAt]* is logged straight
+ * away — no sheet, no question — and only an off-schedule one opens [WateringReasonBottomSheet] via
+ * [showReasonSheet]. Shared by the watering `StatChip` and the watering-due actions row so the two
+ * surfaces can never disagree about when the question is worth asking.
+ *
+ * [loggedAt] is the date the user picked in [LogWateringDatePickerDialog] (#654) — not necessarily
+ * "now" — so the on-schedule gate is re-evaluated against it via [isChosenDateOnSchedule] rather than
+ * reusing [QuickWaterGateContext.status]'s own [PlantCareStatus.isWateringOnSchedule], which is always
+ * computed against real wall-clock "now". Picking today reproduces the exact same result
+ * `status.isWateringOnSchedule` would have given, since [CareSchedule.daysBetween] is calendar-day
+ * granular.
  */
 private fun requestWater(
-    status: PlantCareStatus,
-    viewModel: PlantDetailViewModel,
-    showReasonSheet: () -> Unit
+    context: QuickWaterGateContext,
+    loggedAt: Long,
+    showReasonSheet: (Long) -> Unit
 ) {
-    if (status.isWateringOnSchedule) viewModel.quickWater(reason = null) else showReasonSheet()
+    if (isChosenDateOnSchedule(context.plant, context.status.lastWateredAt, loggedAt, context.seasonalAmplitude)) {
+        context.viewModel.quickWater(reason = null, loggedAt = loggedAt)
+    } else {
+        showReasonSheet(loggedAt)
+    }
 }
 
 /** [requestWater]'s counterpart for a liquid-fertilizer plant, whose paired WATER log follows the same rule. */
 private fun requestLiquidFertilize(
-    status: PlantCareStatus,
-    viewModel: PlantDetailViewModel,
-    showReasonSheet: () -> Unit
+    context: QuickWaterGateContext,
+    loggedAt: Long,
+    showReasonSheet: (Long) -> Unit
 ) {
-    if (status.isWateringOnSchedule) viewModel.quickLiquidFertilize(reason = null) else showReasonSheet()
+    if (isChosenDateOnSchedule(context.plant, context.status.lastWateredAt, loggedAt, context.seasonalAmplitude)) {
+        context.viewModel.quickLiquidFertilize(reason = null, loggedAt = loggedAt)
+    } else {
+        showReasonSheet(loggedAt)
+    }
+}
+
+/**
+ * Re-evaluates [PlantCareStatus.isWateringOnSchedule]'s exact gap-vs-effective-interval comparison
+ * against [chosenDate] instead of "now" (#654) — reuses [CareSchedule.effectiveWateringIntervalDaysForDisplay]
+ * (the same wrapper the "Why this date?" sheet and every other quick-log surface already share) and
+ * [CareSchedule.isWateringOnScheduleAt], so there is no second notion of "close enough"
+ * (`CareSchedule.GAP_AGREEMENT_TOLERANCE` stays the only tolerance constant).
+ */
+private fun isChosenDateOnSchedule(
+    plant: Plant,
+    lastWateredAt: Long?,
+    chosenDate: Long,
+    seasonalAmplitude: Double
+): Boolean {
+    val effectiveIntervalDays = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+        plant = plant,
+        nowDate = chosenDate.toLocalDate(),
+        seasonalAmplitude = seasonalAmplitude,
+        hemisphere = SeasonalWatering.currentHemisphere()
+    )
+    return CareSchedule.isWateringOnScheduleAt(lastWateredAt, effectiveIntervalDays, chosenDate)
+}
+
+/** [isChosenDateOnSchedule]'s counterpart for [PlantCareStatus.isWateringGapLong] (#654). */
+private fun isChosenDateGapLong(
+    plant: Plant,
+    lastWateredAt: Long?,
+    chosenDate: Long,
+    seasonalAmplitude: Double
+): Boolean {
+    val effectiveIntervalDays = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+        plant = plant,
+        nowDate = chosenDate.toLocalDate(),
+        seasonalAmplitude = seasonalAmplitude,
+        hemisphere = SeasonalWatering.currentHemisphere()
+    )
+    return CareSchedule.isWateringGapLongAt(lastWateredAt, effectiveIntervalDays, chosenDate)
 }

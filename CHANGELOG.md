@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **A plain tap on the Water button (and its liquid-fertilizer counterpart) now always opens a "Log watering" date picker first, instead of logging "now" instantly** — every quick-water entry point on Plant Detail (`WateringDueActionsRow`'s Water button in both layouts, the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s liquid-fertilizer path) opens this picker pre-selected to today; confirming with today selected reproduces the old instant-log behavior in one extra confirm tap, or an earlier (never future) date can be picked to backfill a forgotten watering. The picked date, not "now", now drives the same-day duplicate guard, the `CareLog.loggedAt` write, and the adaptive-interval gap math (`QuickLogUseCase.quickWaterWithReason`/`quickLiquidFertilizeWithReason` gained an explicit `loggedAt: Long` parameter threading through all three so they can't drift from each other), and the off-schedule reason prompt (`WateringReasonBottomSheet`) is now evaluated against the picked date via new `CareSchedule.isWateringOnScheduleAt`/`isWateringGapLongAt` wrappers, reusing the existing `GAP_AGREEMENT_TOLERANCE`. Plain (non-liquid) `quickFertilize()`, `AddCareLogScreen`'s existing manual date picker, and the Plant List/Calendar quick-water surfaces are unchanged (#654)
+
 ---
 
 ## [0.27.1] - 2026-09-05
