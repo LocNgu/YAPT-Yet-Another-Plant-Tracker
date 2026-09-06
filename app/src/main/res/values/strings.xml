@@ -157,8 +157,8 @@
     <string name="quick_log_fertilized">Fertilized %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
-    <string name="quick_log_already_watered">Already watered %s today</string>
-    <string name="quick_log_already_fertilized">Already fertilized %s today</string>
+    <string name="quick_log_already_watered">Already watered %s that day</string>
+    <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
     <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
     <string name="quick_log_already_checked">Already checked %s today</string>
     <string name="care_history_show_less">Show less</string>
@@ -307,9 +307,6 @@
     <!-- Feature flag: Plant Detail per-action tabs (#436) -->
     <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
     <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
-    <!-- Feature flag: adaptive watering interval (#568) -->
-    <string name="feature_flag_adaptive_watering_title">Adaptive watering interval</string>
-    <string name="feature_flag_adaptive_watering_description">Suggest watering intervals using a multiplicative correction whose step size shrinks as the schedule proves itself, instead of a fixed ±1 day nudge. Off keeps today\'s behavior.</string>
     <!-- Feature flag: computed seasonal watering factor (#569) -->
     <string name="feature_flag_seasonal_watering_title">Seasonal watering</string>
     <string name="feature_flag_seasonal_watering_description">Stretch watering intervals in winter and compress them in summer using a computed curve, instead of a fixed interval year-round. Off keeps today\'s behavior.</string>

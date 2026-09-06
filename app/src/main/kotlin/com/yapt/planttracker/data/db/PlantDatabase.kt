@@ -157,8 +157,7 @@ abstract class PlantDatabase : RoomDatabase() {
         }
 
         // #568: wateringConfidence backs the multiplicative + confidence-weighted adaptive watering
-        // model (technical ADR-0021). Ships unconditionally regardless of `adaptive_watering` flag
-        // state, so flipping the flag off/on never loses learned state.
+        // model (technical ADR-0021), tracked and read unconditionally.
         @Suppress("MagicNumber")
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -203,9 +202,7 @@ abstract class PlantDatabase : RoomDatabase() {
 
         // #572: watering_adjustments backs the "Why this date?" sheet's "Recent adjustments" list — a
         // dedicated table (not a CareLog replay, product ADR-0028) since a dialog dismissal or manual
-        // interval edit changes wateringConfidence/base without ever writing a CareLog row. Ships
-        // unconditionally regardless of `adaptive_watering` flag state, mirroring wateringConfidence's
-        // precedent — rows are only ever written while the flag is on, but the table itself always exists.
+        // interval edit changes wateringConfidence/base without ever writing a CareLog row.
         @Suppress("MagicNumber")
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -228,8 +225,7 @@ abstract class PlantDatabase : RoomDatabase() {
         // #571: wateringResetAt/wateringFreezeUntil back the REPOT/room-change confidence-reset
         // lifecycle events — plain columns written once as a side effect at reset time (never derived
         // live from querying REPOT log history), so editing/deleting a past REPOT log can't spuriously
-        // re-trigger a reset. Ship unconditionally regardless of `adaptive_watering` flag state,
-        // mirroring wateringConfidence's precedent.
+        // re-trigger a reset.
         @Suppress("MagicNumber")
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {

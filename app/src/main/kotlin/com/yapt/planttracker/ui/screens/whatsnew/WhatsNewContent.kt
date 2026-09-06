@@ -18,6 +18,23 @@ object WhatsNewContent {
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 440,
+            versionName = "0.28.0",
+            changed = listOf(
+                "Tapping the Water button (or its liquid-fertilizer counterpart) on Plant Detail now always opens " +
+                    "a \"Log watering\" date picker first, pre-selected to today — confirm it as-is for the old " +
+                    "instant-log behavior, or pick an earlier date to backfill a watering you forgot to log",
+                "The confidence-weighted adaptive watering model (interval suggestions that adjust based on your " +
+                    "watering feedback and get calmer once the schedule proves itself) is now always on — no more " +
+                    "developer-mode flag to turn it on"
+            ),
+            fixed = listOf(
+                "With seasonal watering on, a plant's \"currently every N days\" figure could briefly show a " +
+                    "stale number right after adaptive watering cold-started its estimate from that plant's " +
+                    "own watering history — it's now converted the same way a suggested-interval apply already was"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 430,
             versionName = "0.27.1",
             fixed = listOf(

@@ -4,14 +4,11 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -86,7 +83,7 @@ class CalendarViewModelTest {
     fun `quickLog water routes through quickWater and emits its snackbar message`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
@@ -100,14 +97,14 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
     fun `quickWater emits the QuickWaterSuggestion returned by the use case`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -210,7 +207,7 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -232,7 +229,7 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -246,7 +243,9 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery {
+            quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any())
+        } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -325,34 +324,16 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun `dismissSuggestedInterval raises confidence when flag enabled`() = runTest {
-        val enabledDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
+    fun `dismissSuggestedInterval raises confidence`() = runTest {
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         coEvery { plantRepo.updatePlant(any()) } just runs
-        vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, enabledDataStore, quickLogUseCase)
-
-        vm.dismissSuggestedInterval(1L)
-        advanceUntilIdle()
-
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
-    }
-
-    @Test
-    fun `dismissSuggestedInterval does nothing when flag disabled`() = runTest {
-        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.dismissSuggestedInterval(1L)
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
     }
 }

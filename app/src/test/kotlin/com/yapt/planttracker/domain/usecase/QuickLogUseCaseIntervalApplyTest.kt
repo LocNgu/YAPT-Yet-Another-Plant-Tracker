@@ -114,11 +114,11 @@ class QuickLogUseCaseIntervalApplyTest {
     @Test
     fun `applyWateringIntervalSuggestion with SEASONAL_WATERING off leaves wateringBaseIntervalDays untouched`() =
         runTest {
-            // #584 review round 2, still true post-#644: ADAPTIVE_WATERING/SEASONAL_WATERING are
-            // independent flags. With season off, newInterval is a literal value (base == effective) —
-            // writing it straight into wateringBaseIntervalDays would clobber a real prior base (6.0,
-            // established while season was previously on) with the literal 8.
-            val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+            // #584 review round 2, still true post-#644: with season off, newInterval is a literal
+            // value (base == effective) — writing it straight into wateringBaseIntervalDays would
+            // clobber a real prior base (6.0, established while season was previously on) with the
+            // literal 8.
+            val useCase = useCase()
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
 
             useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 8)
@@ -148,10 +148,7 @@ class QuickLogUseCaseIntervalApplyTest {
             // literal, wateringBaseIntervalDays=6.0 true base) — a WATER_*-triggered row and this
             // DIALOG_EDIT-triggered row must both log beforeIntervalDays=6, never the stale literal 10,
             // so "Recent adjustments" never mixes units for the same underlying change.
-            val useCase = useCase(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
+            val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
 
             useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 9)
@@ -167,10 +164,7 @@ class QuickLogUseCaseIntervalApplyTest {
             // #644: afterIntervalDays deliberately stays base-space (the model's own accounting) — it
             // must now be *derived* from the effective newInterval rather than passed straight through,
             // since newInterval itself is effective-space post-#644.
-            val useCase = useCase(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
+            val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
             val expectedAfterBaseSpace = SeasonalWatering.deseasonalize(
                 9.0,
@@ -185,16 +179,6 @@ class QuickLogUseCaseIntervalApplyTest {
                 wateringAdjustmentRepo.addAdjustment(match { it.afterIntervalDays == expectedAfterBaseSpace })
             }
         }
-
-    @Test
-    fun `applyWateringIntervalSuggestion with ADAPTIVE_WATERING off writes no adjustment row`() = runTest {
-        val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-        val monstera = plant().copy(wateringIntervalDays = 7)
-
-        useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 9)
-
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-    }
 
     @Test
     fun `applyWateringIntervalSuggestion returns prior interval and base, and echoes newInterval back`() =
@@ -215,7 +199,7 @@ class QuickLogUseCaseIntervalApplyTest {
     fun `applyWateringIntervalSuggestion with a retyped interval outside tolerance lowers confidence`() = runTest {
         // SEASONAL_WATERING stays off (amplitude 0) here, so effective == base-space and this exercises
         // the tolerance check's basic behavior without needing the #644 conversion step.
-        val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+        val useCase = useCase()
         val monstera = plant().copy(wateringIntervalDays = 7).copy(wateringConfidence = 3)
         val expectedConfidence = CareSchedule.confidenceAfterDialogEdit(
             confidence = 3,
@@ -234,10 +218,7 @@ class QuickLogUseCaseIntervalApplyTest {
             // #644: originalSuggestion is base-space but newInterval is now effective-space — comparing
             // them directly would misclassify an untouched apply (the dialog's unedited pre-filled value)
             // as a large edit whenever the seasonal multiplier isn't 1.0, wrongly lowering confidence.
-            val useCase = useCase(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
+            val useCase = useCase(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
             val monstera = plant().copy(
                 wateringIntervalDays = 7,
                 wateringBaseIntervalDays = 10.0,

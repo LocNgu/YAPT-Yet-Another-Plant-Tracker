@@ -11,8 +11,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
@@ -244,7 +242,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -258,7 +256,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -861,7 +859,7 @@ class PlantListViewModelTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -875,7 +873,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -883,7 +881,7 @@ class PlantListViewModelTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -913,7 +911,7 @@ class PlantListViewModelTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -943,7 +941,7 @@ class PlantListViewModelTest {
             )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -961,7 +959,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -977,7 +975,7 @@ class PlantListViewModelTest {
             )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -1399,10 +1397,10 @@ class PlantListViewModelTest {
         }
 
     @Test
-    fun `dismissSuggestedIntervalFromList raises confidence when flag enabled`() = runTest {
+    fun `dismissSuggestedIntervalFromList raises confidence`() = runTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
+                preferencesOf()
             )
         }
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
@@ -1424,28 +1422,6 @@ class PlantListViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
-    }
-
-    @Test
-    fun `dismissSuggestedIntervalFromList does nothing when flag disabled`() = runTest {
-        val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        vm = PlantListViewModel(
-            application,
-            plantRepo,
-            careLogRepo,
-            plantPhotoRepo,
-            dataStore,
-            quickLogUseCase,
-            plantIssueRepo
-        )
-
-        vm.dismissSuggestedIntervalFromList(1L)
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 }
 

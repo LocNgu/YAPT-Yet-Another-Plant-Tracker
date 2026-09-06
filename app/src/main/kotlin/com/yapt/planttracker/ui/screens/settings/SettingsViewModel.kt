@@ -98,7 +98,7 @@ class SettingsViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeasonalAmplitude.STANDARD)
 
-    /** "Ask before changing intervals" (#572) — visible only while `adaptive_watering` is on. */
+    /** "Ask before changing intervals" (#572). */
     val askBeforeChangingIntervals: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)

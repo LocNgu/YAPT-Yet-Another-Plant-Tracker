@@ -13,8 +13,6 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -43,10 +41,10 @@ class AddCareLogViewModel(
     private val plantId: Long,
     private val careLogId: Long = 0L,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
-    // updating; null is treated the same as the `adaptive_watering` flag being off (#568).
+    // updating; null is treated the same as SEASONAL_WATERING being off (#569).
     private val dataStore: DataStore<Preferences>? = null,
-    // Nullable + defaulted for the same reason as [dataStore] — never read when [dataStore] is null
-    // since adjustment rows are only ever written on the adaptive branch (#572).
+    // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
+    // safe no-ops for tests that don't pass one (#572).
     private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
 ) : ViewModel() {
 
@@ -120,7 +118,7 @@ class AddCareLogViewModel(
 
             careLogRepository.addLog(buildLogFromState())
 
-            if (!isEditMode && selectedCareType == CareType.REPOT && isAdaptiveWateringEnabled()) {
+            if (!isEditMode && selectedCareType == CareType.REPOT) {
                 plantRepository.getPlantById(plantId).first()?.let { plant ->
                     WateringLifecycleReset.applyRepotReset(
                         plant,
@@ -205,32 +203,29 @@ class AddCareLogViewModel(
     }
 
     /**
-     * [selectedFeedback] is no longer required to be non-null (#570, product ADR-0027) — with the
-     * chip collapse, `null` is the dominant case, and the legacy (flag-off) branch below is the only
-     * one that still needs an explicit feedback value to produce a suggestion; the adaptive branch
-     * accepts `null` directly (feeds `CareSchedule.NEUTRAL_TARGET_MULTIPLIER` at a capped gain).
+     * [selectedFeedback] may be `null` (#570, product ADR-0027) — with the chip collapse, `null` is
+     * the dominant case; the adaptive model accepts it directly (feeds
+     * `CareSchedule.NEUTRAL_TARGET_MULTIPLIER` at a capped gain). No suggestion is produced when
+     * [Plant.wateringIntervalDays] was never configured — there is no established base to correct —
+     * mirroring [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]'s identical guard.
      */
     private suspend fun computeSuggestedInterval(): Int? {
         if (selectedCareType != CareType.WATER) return null
         val feedback = selectedFeedback
 
         val plant = plantRepository.getPlantById(plantId).first() ?: return null
-        val currentInterval = plant.wateringIntervalDays
+        val currentInterval = plant.wateringIntervalDays ?: return null
 
         val lastTwoWaterings = careLogRepository.getLastTwoWaterings(plantId)
         val actualIntervalDays = if (lastTwoWaterings.size >= 2) {
             CareSchedule.daysBetween(lastTwoWaterings[1].loggedAt, lastTwoWaterings[0].loggedAt)
         } else {
-            currentInterval ?: return null
+            currentInterval
         }
 
         if (actualIntervalDays <= 0) return null
 
-        val suggested = if (currentInterval != null && isAdaptiveWateringEnabled()) {
-            adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
-        } else {
-            feedback?.let { CareSchedule.computeSuggestedInterval(it, actualIntervalDays, currentInterval) } ?: return null
-        }
+        val suggested = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
         val effectiveSuggested = effectiveIntervalForDisplay(plant, suggested)
         return if (effectiveSuggested != currentInterval) suggested else null
     }
@@ -342,12 +337,6 @@ class AddCareLogViewModel(
         feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
         feedback == WateringFeedback.JUST_RIGHT -> WateringAdjustmentTrigger.WATER_JUST_RIGHT
         else -> WateringAdjustmentTrigger.WATER_NEUTRAL
-    }
-
-    private suspend fun isAdaptiveWateringEnabled(): Boolean {
-        val store = dataStore ?: return false
-        return store.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-            ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
     }
 
     /**

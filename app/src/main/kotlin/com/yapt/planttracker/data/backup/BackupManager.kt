@@ -27,8 +27,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 // Schema 14 (#571): wateringResetAt and wateringFreezeUntil added to BackupPlant — round-trip the
-// REPOT/room-change lifecycle-reset anchor and the REPOT-only freeze-window marker unconditionally,
-// since backup is not gated by the `adaptive_watering` flag (same posture as wateringConfidence).
+// REPOT/room-change lifecycle-reset anchor and the REPOT-only freeze-window marker unconditionally
+// (same posture as wateringConfidence).
 // Schema 13 (#572): wateringAdjustments: List<BackupWateringAdjustment> round-trips the
 // watering_adjustments table (the "Recent adjustments" source for the "Why this date?" sheet), and
 // askBeforeChangingIntervals added to BackupSettings.
@@ -36,7 +36,7 @@ import java.util.zip.ZipOutputStream
 // the computed-seasonal-watering reference interval and per-plant opt-out unconditionally, since
 // backup is not gated by the `seasonal_watering` flag.
 // Schema 11 (#568): wateringConfidence added to BackupPlant — round-trips the adaptive-watering
-// confidence counter unconditionally, since backup is not gated by the `adaptive_watering` flag.
+// confidence counter unconditionally.
 // Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing
 // pest/disease/health status, distinct from the recurring custom_reminders table).
 // Schema 9 (#232): customReminders: List<BackupCustomReminder> round-trips the custom_reminders

@@ -9,8 +9,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -48,7 +46,6 @@ class QuickLogUseCaseOverrideRevertTest {
 
     private val now = System.currentTimeMillis()
     private val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
-    private val fourteenDaysAgo = now - TimeUnit.DAYS.toMillis(14)
     private val override = now + TimeUnit.DAYS.toMillis(2)
 
     @Before
@@ -60,19 +57,15 @@ class QuickLogUseCaseOverrideRevertTest {
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
         // Observed gap (7 days) agrees with the stored interval (7 days), so the adaptive model
         // raises confidence from 2 to 3 — the write these tests need to exercise the bug.
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns recentWaterings()
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns previousWatering()
     }
 
-    private fun recentWaterings(): List<CareLog> {
-        val first = CareLog(
-            plantId = 1L,
-            careType = CareType.WATER,
-            loggedAt = sevenDaysAgo,
-            wateringFeedback = WateringFeedback.JUST_RIGHT
-        )
-        val second = first.copy(loggedAt = fourteenDaysAgo)
-        return listOf(first, second)
-    }
+    private fun previousWatering(): CareLog = CareLog(
+        plantId = 1L,
+        careType = CareType.WATER,
+        loggedAt = sevenDaysAgo,
+        wateringFeedback = WateringFeedback.JUST_RIGHT
+    )
 
     private fun plant(
         useLiquidFertilizer: Boolean = false,
@@ -87,19 +80,17 @@ class QuickLogUseCaseOverrideRevertTest {
         updatedAt = 0L
     )
 
-    /** ADAPTIVE_WATERING on, so an observation can move [Plant.wateringConfidence]. */
+    /** The adaptive watering model is unconditional, so an observation can move [Plant.wateringConfidence]. */
     private fun adaptiveUseCase(): QuickLogUseCase {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
+        val emptyDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(preferencesOf())
         }
         return QuickLogUseCase(
             application,
             plantRepo,
             careLogRepo,
             plantPhotoRepo,
-            adaptiveDataStore,
+            emptyDataStore,
             database,
             wateringAdjustmentRepo
         )

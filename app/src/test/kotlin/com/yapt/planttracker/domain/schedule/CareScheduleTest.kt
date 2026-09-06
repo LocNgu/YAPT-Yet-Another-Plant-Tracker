@@ -2,7 +2,6 @@ package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
-import com.yapt.planttracker.domain.model.WateringFeedback
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -403,32 +402,6 @@ class CareScheduleTest {
     }
 
     @Test
-    fun `TOO_LATE decreases interval by 1`() {
-        assertEquals(6, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 7))
-    }
-
-    @Test
-    fun `JUST_RIGHT keeps interval unchanged`() {
-        assertEquals(7, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 7))
-    }
-
-    @Test
-    fun `TOO_SOON increases interval by 1`() {
-        assertEquals(8, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7))
-    }
-
-    @Test
-    fun `TOO_LATE with actual=1 clamps to 1`() {
-        assertEquals(1, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 1))
-    }
-
-    @Test
-    fun `JUST_RIGHT with same-day waterings clamps to 1`() {
-        // actualIntervalDays=0 when two waterings land on the same calendar day
-        assertEquals(1, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 0))
-    }
-
-    @Test
     fun `daysBetween exactly one day`() {
         val earlier = now
         val later = now + TimeUnit.DAYS.toMillis(1)
@@ -453,65 +426,6 @@ class CareScheduleTest {
         val earlier = now
         val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
         assertEquals(7, CareSchedule.daysBetween(earlier, later))
-    }
-
-    @Test
-    fun `JUST_RIGHT on due day produces no suggestion`() {
-        // Watering on the due calendar day: actual == currentInterval → suggested == currentInterval,
-        // so ViewModel suppresses the dialog.
-        val earlier = now
-        val later = now + TimeUnit.DAYS.toMillis(7) - TimeUnit.HOURS.toMillis(13)
-        val actual = CareSchedule.daysBetween(earlier, later)
-        val suggested = CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, actual, 7)
-        assertEquals(7, actual)
-        assertEquals(7, suggested)
-    }
-
-    @Test
-    fun `TOO_SOON with early watering extends beyond stored interval`() {
-        // actual=7, stored=14 → user watered early; interval should grow past 14
-        assertEquals(15, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, 14))
-    }
-
-    @Test
-    fun `TOO_SOON with on-schedule or late watering uses actual interval`() {
-        // actual=9, stored=7 → user watered late; base is actual
-        assertEquals(10, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 9, 7))
-    }
-
-    @Test
-    fun `TOO_SOON with no current interval uses actual interval`() {
-        assertEquals(8, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_SOON, 7, null))
-    }
-
-    @Test
-    fun `JUST_RIGHT with early watering returns actual interval`() {
-        // actual=7, stored=14 → suggestion is 7 (ViewModel will surface this as a change)
-        assertEquals(7, CareSchedule.computeSuggestedInterval(WateringFeedback.JUST_RIGHT, 7, 14))
-    }
-
-    @Test
-    fun `TOO_LATE with actual greater than stored uses stored as base`() {
-        // stored=14, actual=20 → user watered late; clamp base to stored so interval shrinks from 14
-        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 20, 14))
-    }
-
-    @Test
-    fun `TOO_LATE with actual equal to stored decreases stored by 1`() {
-        // stored=14, actual=14 → base is actual (== stored); result is 13
-        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, 14))
-    }
-
-    @Test
-    fun `TOO_LATE with actual less than stored uses actual as base`() {
-        // stored=14, actual=7 → user watered early but still too late; base is actual
-        assertEquals(6, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 7, 14))
-    }
-
-    @Test
-    fun `TOO_LATE with no current interval falls back to actual minus 1`() {
-        // currentIntervalDays=null → base is actualIntervalDays
-        assertEquals(13, CareSchedule.computeSuggestedInterval(WateringFeedback.TOO_LATE, 14, null))
     }
 
     @Test
@@ -872,5 +786,47 @@ class CareScheduleTest {
             now = now
         )
         assertFalse(status.isWateringOnSchedule)
+    }
+
+    // --- isWateringOnScheduleAt / isWateringGapLongAt (#654) ---
+    // Public wrappers for a backdated quick-water's chosen-date gate: same comparison as
+    // isWateringOnSchedule/isWateringGapLong above, generalized to a caller-supplied date instead of
+    // always "now".
+
+    @Test
+    fun `isWateringOnScheduleAt with today reproduces isWateringOnSchedule's own result`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(12)
+        val effectiveIntervalDays = 7
+
+        assertEquals(
+            onScheduleFor(daysSinceWatering = 12),
+            CareSchedule.isWateringOnScheduleAt(lastWateredAt, effectiveIntervalDays, chosenDate = now)
+        )
+    }
+
+    @Test
+    fun `isWateringOnScheduleAt treats an earlier chosen date as on schedule when the gap agrees there`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(20)
+        // Backdating the log to 7 days after the last watering (a 7-day plant) is on schedule for that
+        // day, even though "today" (20 days later) would be well off schedule.
+        val chosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt, 7, chosenDate))
+    }
+
+    @Test
+    fun `isWateringOnScheduleAt is true with no interval or no prior watering, same as the now variant`() {
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt = null, effectiveIntervalDays = 7, now))
+        assertTrue(CareSchedule.isWateringOnScheduleAt(lastWateredAt = now, effectiveIntervalDays = null, now))
+    }
+
+    @Test
+    fun `isWateringGapLongAt reports the direction for a chosen date, not now`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(20)
+        val onScheduleChosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val lateChosenDate = lastWateredAt + TimeUnit.DAYS.toMillis(15)
+
+        assertFalse(CareSchedule.isWateringGapLongAt(lastWateredAt, 7, onScheduleChosenDate))
+        assertTrue(CareSchedule.isWateringGapLongAt(lastWateredAt, 7, lateChosenDate))
     }
 }

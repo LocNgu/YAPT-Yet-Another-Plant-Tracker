@@ -130,20 +130,7 @@ class PlantDetailScreenTest {
         )
     }
 
-    /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] and [FeatureFlagRegistry.ADAPTIVE_WATERING] on, for the
-     * "Why this date?" sheet tests (#572).
-     */
-    private val mockDataStoreWithAdaptive: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true
-            )
-        )
-    }
-
-    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — `adaptive_watering` stays off (#572 degrade). */
+    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout without the seasonal curve preview. */
     private val mockDataStoreTabsOnly: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(
             mutablePreferencesOf(
@@ -167,6 +154,20 @@ class PlantDetailScreenTest {
      */
     private fun str(id: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
+    /**
+     * #654: every Water/Water+Fertilize quick-log entry point now opens the "Log watering" date
+     * picker first, pre-selected to today. Confirming it with "OK" (no date change) reproduces the
+     * old instant-tap behaviour, so most existing quick-log tests just need this one extra step
+     * inserted between the button tap and whatever they assert next.
+     */
+    private fun confirmLogWateringDatePickerWithToday() {
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+    }
 
     private fun offScheduleWaterLog(plantId: Long) = CareLog(
         id = 99L,
@@ -938,6 +939,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        confirmLogWateringDatePickerWithToday()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water Fern?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -959,7 +961,7 @@ class PlantDetailScreenTest {
             loggedAt = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
         )
         coEvery {
-            mockQuickLogUseCase.quickWaterWithReason(plant, null)
+            mockQuickLogUseCase.quickWaterWithReason(plant, null, any())
         } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
         val viewModel = makeViewModel(plant, listOf(onScheduleLog))
 
@@ -978,13 +980,57 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        confirmLogWateringDatePickerWithToday()
         composeTestRule.waitForIdle()
 
         assertTrue(
             composeTestRule.onAllNodesWithText("Why now?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
-        coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, null) }
+        coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, null, any()) }
+    }
+
+    /**
+     * #654: a plain tap on the Water button always opens the "Log watering" date picker first —
+     * there is no more instant "log now" fast path on tap — regardless of on/off-schedule status.
+     * Dismissing the picker (Cancel) logs nothing at all.
+     */
+    @Test
+    fun waterButton_tap_alwaysOpensLogWateringDatePickerBeforeLoggingAnything() {
+        val plant = Plant(id = 26L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val onScheduleLog = CareLog(
+            id = 100L,
+            plantId = plant.id,
+            careType = CareType.WATER,
+            loggedAt = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
+        )
+        val viewModel = makeViewModel(plant, listOf(onScheduleLog))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickWaterWithReason(any(), any(), any()) }
+
+        composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickWaterWithReason(any(), any(), any()) }
     }
 
     /**
@@ -1023,6 +1069,7 @@ class PlantDetailScreenTest {
         // Regression guard: the plain Water button is still present, not removed or repurposed.
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG).performClick()
+        confirmLogWateringDatePickerWithToday()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -1052,6 +1099,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        confirmLogWateringDatePickerWithToday()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water Fern?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -1101,6 +1149,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG) and hasText("Water + Fertilize"))
             .assertIsDisplayed()
         composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
+        confirmLogWateringDatePickerWithToday()
         composeTestRule.waitUntil(timeoutMillis = 5000) {
             composeTestRule.onAllNodesWithText("Water & fertilize Ivy?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
@@ -2251,7 +2300,7 @@ class PlantDetailScreenTest {
             wateringIntervalDays = 7,
             wateringConfidence = 4
         )
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithAdaptive)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -2271,35 +2320,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(
             InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
         ).assertIsDisplayed()
-    }
-
-    /** ADAPTIVE_WATERING off (#572): the sheet shows only the plain interval — no invented rows. */
-    @Test
-    fun wateringExplanationSheet_degradesToPlainInterval_whenAdaptiveWateringOff() {
-        val plant = Plant(id = 81L, name = "Snake Plant", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 9)
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("why_this_date_button"))
-        composeTestRule.onNodeWithTag("why_this_date_button").performClick()
-
-        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_base_interval)
-        ).assertDoesNotExist()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_explanation_confidence)
-        ).assertDoesNotExist()
     }
 
     /**

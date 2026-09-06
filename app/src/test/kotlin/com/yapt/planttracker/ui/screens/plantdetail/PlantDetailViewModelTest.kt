@@ -14,8 +14,6 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -57,6 +55,7 @@ class PlantDetailViewModelTest {
     private val plantIssueRepo: PlantIssueRepository = mockk()
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
+        coEvery { addAdjustment(any()) } returns 1L
     }
 
     // Only reportIssue() touches withTransaction, and no test in this file exercises it
@@ -273,7 +272,7 @@ class PlantDetailViewModelTest {
     fun `quickWater logs watering, emits message, and applies returned suggestion`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -293,20 +292,17 @@ class PlantDetailViewModelTest {
         }
 
         assertEquals(9, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
-    fun `quickWater with ADAPTIVE_WATERING on and askBeforeChangingIntervals off applies the suggestion silently`() = runTest {
+    fun `quickWater with askBeforeChangingIntervals off applies the suggestion silently`() = runTest {
         every { dataStore.data } returns flowOf(
-            preferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true,
-                SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false
-            )
+            preferencesOf(SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false)
         )
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -411,7 +407,7 @@ class PlantDetailViewModelTest {
             wateringIntervalDays = 7
         )
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -430,7 +426,7 @@ class PlantDetailViewModelTest {
         }
 
         assertNull(vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
     }
 
     @Test

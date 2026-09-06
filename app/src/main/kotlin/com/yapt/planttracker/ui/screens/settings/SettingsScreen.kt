@@ -128,8 +128,6 @@ fun SettingsScreen(
     val seasonalWateringEnabled = featureFlagStates[FeatureFlagRegistry.SEASONAL_WATERING.key]
         ?: FeatureFlagRegistry.SEASONAL_WATERING.default
     val askBeforeChangingIntervals by viewModel.askBeforeChangingIntervals.collectAsStateWithLifecycle()
-    val adaptiveWateringEnabled = featureFlagStates[FeatureFlagRegistry.ADAPTIVE_WATERING.key]
-        ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -564,20 +562,18 @@ fun SettingsScreen(
                 )
             }
 
-            if (adaptiveWateringEnabled) {
-                SettingsItemRow(
-                    icon = Icons.Filled.AutoAwesome,
-                    title = stringResource(R.string.ask_before_changing_intervals_title),
-                    subtitle = stringResource(R.string.ask_before_changing_intervals_subtitle),
-                    trailingContent = {
-                        Switch(
-                            modifier = Modifier.testTag("ask_before_changing_intervals_switch"),
-                            checked = askBeforeChangingIntervals,
-                            onCheckedChange = { viewModel.setAskBeforeChangingIntervals(it) }
-                        )
-                    }
-                )
-            }
+            SettingsItemRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = stringResource(R.string.ask_before_changing_intervals_title),
+                subtitle = stringResource(R.string.ask_before_changing_intervals_subtitle),
+                trailingContent = {
+                    Switch(
+                        modifier = Modifier.testTag("ask_before_changing_intervals_switch"),
+                        checked = askBeforeChangingIntervals,
+                        onCheckedChange = { viewModel.setAskBeforeChangingIntervals(it) }
+                    )
+                }
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 

@@ -12,8 +12,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -99,9 +97,18 @@ class QuickLogUseCaseTest {
         PhotoReminderPolicy.shownThisSession.clear()
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         // #571: below the 3-gap bootstrap threshold by default, so existing adaptive-model tests keep
         // exercising the plain per-observation path — tests exercising the bootstrap itself override this.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
+        // Now unconditional (no more ADAPTIVE_WATERING flag gate) — every quickWaterWithReason/
+        // quickLiquidFertilizeWithReason call with 2+ prior waterings reaches this; individual tests
+        // override with a real correction-streak window where that matters.
+        coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
+        // recordStillMoistCheck's confidence-observation half is now unconditional too — no prior
+        // watering by default means recordStillMoistAdaptiveObservation() no-ops; tests exercising the
+        // observation itself override this.
+        coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         // Default: plant has no log of any type today; individual tests override to true to
         // exercise the duplicate-rejection paths (#509).
@@ -197,15 +204,7 @@ class QuickLogUseCaseTest {
     // #571: quickLog's REPOT path is reached from BulkActionBar's bulk-repot action.
 
     @Test
-    fun `quickLog REPOT resets confidence and starts the freeze window when adaptive_watering is on`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
-        useCase = QuickLogUseCase(
-            application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-        )
+    fun `quickLog REPOT resets confidence and starts the freeze window`() = runTest {
         every { application.getString(R.string.care_type_repotted) } returns "Repotted"
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 3)
 
@@ -217,16 +216,6 @@ class QuickLogUseCaseTest {
             )
         }
         coVerify { wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.REPOT_RESET }) }
-    }
-
-    @Test
-    fun `quickLog REPOT does not reset confidence when adaptive_watering is off`() = runTest {
-        every { application.getString(R.string.care_type_repotted) } returns "Repotted"
-        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 3)
-
-        useCase.quickLog(monstera, CareType.REPOT)
-
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -322,19 +311,17 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason PLANT_NEEDED_IT with a different interval returns a suggestion`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
         assertNotNull(outcome.suggestion)
         assertEquals(1L, outcome.suggestion!!.plantId)
-        assertEquals(4, outcome.suggestion!!.suggestedInterval)
+        // TOO_LATE: target = 5 * 0.82 = 4.1; confidence-0 gain 0.60: 7 + 0.60*(4.1-7) = 5.26 -> 5.
+        assertEquals(5, outcome.suggestion!!.suggestedInterval)
     }
 
     // #571: the first-ever adaptive observation cold-starts from existing watering history when
@@ -342,21 +329,11 @@ class QuickLogUseCaseTest {
     @Test
     fun `quickWaterWithReason bootstraps from history on the first adaptive observation when enough gaps exist`() =
         runTest {
-            val adaptiveDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-                )
-            }
-            useCase = QuickLogUseCase(
-                application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-            )
             val now = System.currentTimeMillis()
             val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(7)),
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(14))
-            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(7))
             // 5 timestamps, 7 days apart -> 4 gaps, clears MIN_BOOTSTRAP_GAPS (3).
             coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns (0..4).map {
                 now - TimeUnit.DAYS.toMillis((28 - it * 7).toLong())
@@ -386,13 +363,10 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason with no reason and same actual-as-stored interval returns null`() = runTest {
         val now = System.currentTimeMillis()
         val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
-        val fourteenDaysAgo = now - TimeUnit.DAYS.toMillis(14)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fourteenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = sevenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, null)
 
@@ -425,13 +399,10 @@ class QuickLogUseCaseTest {
     fun `quickWaterWithReason with no reason returns no suggestion even when one would otherwise fire`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickWaterWithReason(monstera, null)
 
@@ -463,6 +434,10 @@ class QuickLogUseCaseTest {
         assertTrue(outcome.logged)
         coVerify(exactly = 1) { careLogRepo.addLog(any()) }
     }
+
+    // #654 loggedAt-threading coverage (duplicate guard/CareLog write/adaptive-gap math all keyed
+    // off a backdated date, not "now") now lives in QuickLogUseCaseBackdateTest, split out to stay
+    // under Detekt's LargeClass threshold — mirrors QuickLogUseCaseSeasonalTest's precedent.
 
     // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #572 follow-up)
     // now lives in QuickLogUseCaseSeasonalTest, split out to stay under Detekt's LargeClass threshold.
@@ -508,20 +483,17 @@ class QuickLogUseCaseTest {
     fun `quickLiquidFertilizeWithReason PLANT_NEEDED_IT with a lower actual interval returns a suggestion`() = runTest {
         val now = System.currentTimeMillis()
         val fiveDaysAgo = now - TimeUnit.DAYS.toMillis(5)
-        val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(useLiquidFertilizer = true, wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo, wateringFeedback = WateringFeedback.JUST_RIGHT)
 
         val outcome = useCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
         assertNotNull(outcome.suggestion)
         assertEquals(1L, outcome.suggestion!!.plantId)
-        // PLANT_NEEDED_IT -> TOO_LATE, which clamps to min(actual=5, stored=7) and steps down: 5-1=4.
-        assertEquals(4, outcome.suggestion!!.suggestedInterval)
+        // TOO_LATE: target = 5 * 0.82 = 4.1; confidence-0 gain 0.60: 7 + 0.60*(4.1-7) = 5.26 -> 5.
+        assertEquals(5, outcome.suggestion!!.suggestedInterval)
     }
 
     @Test
@@ -623,11 +595,6 @@ class QuickLogUseCaseTest {
     // "soil still moist" reschedules of wildly different lengths must produce identical model input.
     @Test
     fun `recordStillMoistCheck deferral length does not change the adaptive observation`() = runTest {
-        val adaptiveDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-            )
-        }
         val tenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
@@ -637,9 +604,6 @@ class QuickLogUseCaseTest {
         coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns 1L
 
         for (deferralMs in listOf(TimeUnit.DAYS.toMillis(1), TimeUnit.DAYS.toMillis(30))) {
-            useCase = QuickLogUseCase(
-                application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo
-            )
             useCase.recordStillMoistCheck(
                 plant(wateringIntervalDays = 7).copy(wateringConfidence = 2),
                 System.currentTimeMillis() + deferralMs
@@ -651,31 +615,12 @@ class QuickLogUseCaseTest {
         assertEquals(WateringAdjustmentTrigger.CHECK_STILL_MOIST, captured[0].trigger)
     }
 
-    // #612 regression: the override write and adaptive watering's off-state must land in the same
-    // single updatePlant call — a stale-object clobber previously reverted the override.
-    @Test
-    fun `recordStillMoistCheck does not touch wateringConfidence when adaptive_watering is off`() = runTest {
-        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
-
-        useCase.recordStillMoistCheck(monstera, newDueAt)
-
-        coVerify(exactly = 1) {
-            plantRepo.updatePlant(match { it.wateringDueDateOverride == newDueAt && it.wateringConfidence == 2 })
-        }
-    }
-
     // #612 regression: recordStillMoistAdaptiveObservation used to write wateringConfidence off a
     // stale pre-override plant snapshot in a second updatePlant call, silently reverting the override
     // written moments earlier. The fix folds both into one updatePlant call built off the same state.
     @Test
-    fun `recordStillMoistCheck feeds computeAdaptiveInterval and updates confidence when adaptive_watering is on`() =
+    fun `recordStillMoistCheck feeds computeAdaptiveInterval and updates confidence`() =
         runTest {
-            val adaptiveDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-                )
-            }
-            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo)
             val fifteenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(15)
             val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
             coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
@@ -694,12 +639,6 @@ class QuickLogUseCaseTest {
     @Test
     fun `recordStillMoistCheck does not call computeAdaptiveInterval when the plant has never been watered`() =
         runTest {
-            val adaptiveDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING) to true)
-                )
-            }
-            useCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, adaptiveDataStore, database, wateringAdjustmentRepo)
             val monstera = plant(wateringIntervalDays = 7)
             coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns null
 

@@ -2,8 +2,6 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -27,52 +25,40 @@ fun PlantDetailViewModel.clearSuggestedInterval() {
 /**
  * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
  * outside it). A genuine dismissal raises [com.yapt.planttracker.domain.model.Plant.wateringConfidence]
- * up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] when [FeatureFlagRegistry.ADAPTIVE_WATERING] is on
- * (#568) — the user is saying the current schedule is fine.
+ * up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] (#568) — the user is saying the current schedule
+ * is fine.
  */
 fun PlantDetailViewModel.dismissSuggestedInterval() {
     viewModelScope.launch {
-        if (isAdaptiveWateringEnabled()) {
-            plant.value?.let { p ->
-                plantRepository.updatePlant(
-                    p.copy(
-                        wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                        updatedAt = System.currentTimeMillis()
+        plant.value?.let { p ->
+            plantRepository.updatePlant(
+                p.copy(
+                    wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            p.wateringIntervalDays?.let { current ->
+                // #584 review: log the base-space reference, not the literal effective
+                // value, so this row's units match the WATER_*/CHECK_STILL_MOIST rows when
+                // season is on and the plant isn't pinned.
+                val currentBase = currentBaseIntervalDaysOrLiteral(p, current)
+                wateringAdjustmentRepository.addAdjustment(
+                    WateringAdjustment(
+                        plantId = p.id,
+                        trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
+                        beforeIntervalDays = currentBase,
+                        afterIntervalDays = currentBase
                     )
                 )
-                p.wateringIntervalDays?.let { current ->
-                    // #584 review: log the base-space reference, not the literal effective
-                    // value, so this row's units match the WATER_*/CHECK_STILL_MOIST rows when
-                    // season is on and the plant isn't pinned.
-                    val currentBase = currentBaseIntervalDaysOrLiteral(p, current)
-                    wateringAdjustmentRepository.addAdjustment(
-                        WateringAdjustment(
-                            plantId = p.id,
-                            trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
-                            beforeIntervalDays = currentBase,
-                            afterIntervalDays = currentBase
-                        )
-                    )
-                }
             }
         }
         suggestedWateringInterval.value = null
     }
 }
 
-internal suspend fun PlantDetailViewModel.isAdaptiveWateringEnabled(): Boolean =
-    dataStore.data.first()[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.ADAPTIVE_WATERING)]
-        ?: FeatureFlagRegistry.ADAPTIVE_WATERING.default
-
-/**
- * "Ask before changing intervals" (#572) — the ADR-0006 dialog is skipped only when
- * `adaptive_watering` is on **and** the setting is off; the toggle is inert while the flag is off
- * (today's dialog-always behavior).
- */
-private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean {
-    if (!isAdaptiveWateringEnabled()) return true
-    return dataStore.data.first()[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
-}
+/** "Ask before changing intervals" (#572) — the ADR-0006 dialog is skipped only when the setting is off. */
+private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
+    dataStore.data.first()[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
 
 /**
  * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
@@ -148,17 +134,15 @@ fun PlantDetailViewModel.undoSilentIntervalApply(beforeIntervalDays: Int, before
                     updatedAt = now
                 )
             )
-            if (isAdaptiveWateringEnabled()) {
-                wateringAdjustmentRepository.addAdjustment(
-                    WateringAdjustment(
-                        plantId = p.id,
-                        triggeredAt = now,
-                        trigger = WateringAdjustmentTrigger.SILENT_APPLY_UNDONE,
-                        beforeIntervalDays = silentlyAppliedInterval,
-                        afterIntervalDays = beforeIntervalDays
-                    )
+            wateringAdjustmentRepository.addAdjustment(
+                WateringAdjustment(
+                    plantId = p.id,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.SILENT_APPLY_UNDONE,
+                    beforeIntervalDays = silentlyAppliedInterval,
+                    afterIntervalDays = beforeIntervalDays
                 )
-            }
+            )
         }
     }
 }

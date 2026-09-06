@@ -32,6 +32,13 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
         careLogDao.getLastTwoLogsOfType(plantId, CareType.WATER.name).map { it.toDomain() }
 
     /**
+     * The WATER log immediately preceding [beforeMillis] chronologically (strictly earlier
+     * `loggedAt`), for [plantId] — see [com.yapt.planttracker.data.db.CareLogDao.getLastLogOfTypeBefore].
+     */
+    suspend fun getLastWateringBefore(plantId: Long, beforeMillis: Long): CareLog? =
+        careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis)?.toDomain()
+
+    /**
      * The most recent [limit] WATER logs for [plantId], newest first (default 3 — see technical
      * ADR-0021's `correctionStreak` window). Feed `.map { it.wateringFeedback }` to
      * [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak].
