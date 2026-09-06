@@ -76,7 +76,12 @@ git fetch origin develop && git checkout -b claude/<kebab-desc> origin/develop
 ```
 PR targets `develop`. Return to an up-to-date `develop` before starting anything new. `gh` is not installed — use `mcp__github__*` tools.
 
-## Permissions (hard rules enforced by `settings.local.json`)
+## Permissions (shared baseline enforced by `.claude/settings.json`)
+
+Keep machine-specific paths and personal overrides in the untracked `.claude/settings.local.json`.
+Repository-wide allow/deny rules belong in `.claude/settings.json`; GitHub CLI allowances there must be
+limited to read-only subcommands so external writes continue to require explicit authorization.
+
 | Action | Permission |
 |---|---|
 | Read files · read-only git · `add`/`commit`/`stash`/`cherry-pick` · checkout/push `claude/*` · `./gradlew *` | Allowed, no prompt |
