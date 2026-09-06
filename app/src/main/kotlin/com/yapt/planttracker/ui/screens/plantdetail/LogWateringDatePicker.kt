@@ -73,6 +73,12 @@ internal fun localTodayAsUtcMidnightMillis(
  * only the date changes, never the time. Not called at all if the user confirms with no date selected
  * (shouldn't happen once a day is pre-selected, but mirrors `RescheduleDatePickerDialog`'s existing
  * null-safety for the same picker API).
+ *
+ * Uses `DatePicker`'s default `title` (no override), matching `AddCareLogScreen`'s own picker exactly
+ * (#654 UI feedback): a custom `title` slot replaces Material3's own title composable entirely, losing
+ * the padding that composable applies internally — with a bare `Text`, that meant "Log watering" sat
+ * flush against the dialog's rounded top corner, partly clipped. `AddCareLogScreen` never had this bug
+ * because it never overrides `title`.
  */
 @Composable
 internal fun LogWateringDatePickerDialog(
@@ -100,10 +106,7 @@ internal fun LogWateringDatePickerDialog(
         },
         modifier = Modifier.testTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
     ) {
-        DatePicker(
-            state = datePickerState,
-            title = { Text(stringResource(R.string.log_watering_date_picker_title)) }
-        )
+        DatePicker(state = datePickerState)
     }
 }
 

@@ -214,6 +214,16 @@ switching `computeSuggestion()` to look up the log strictly preceding its own `n
 `AddCareLogViewModel`'s independent `getLastTwoWaterings()` call site is untouched — out of scope for
 this fix, a pre-existing, separately-reported concern.
 
+**UI feedback fix (#654 PR #671, post-merge-conflict-resolution):** `LogWateringDatePickerDialog`'s
+custom `title` slot (`Text(stringResource(R.string.log_watering_date_picker_title))`) replaced
+Material3's own default title composable entirely — which normally applies its own internal padding —
+so the bare `Text` sat flush against the dialog's rounded top corner, partly clipped. Fixed by dropping
+the override and letting `DatePicker` render its default title, exactly matching `AddCareLogScreen`'s
+own picker (which never overrides `title` either, and never had this bug). The now-orphaned
+`log_watering_date_picker_title` string resource was removed; tests that waited on/asserted that title
+text now use the existing `LOG_WATERING_DATE_PICKER_TEST_TAG` instead, which already existed
+specifically to locate this dialog in Compose UI tests.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

@@ -163,7 +163,7 @@ class PlantDetailScreenTest {
      */
     private fun confirmLogWateringDatePickerWithToday() {
         composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText(str(R.string.log_watering_date_picker_title))
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
@@ -1021,10 +1021,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText(str(R.string.log_watering_date_picker_title))
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        composeTestRule.onNodeWithText(str(R.string.log_watering_date_picker_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
         coVerify(exactly = 0) { mockQuickLogUseCase.quickWaterWithReason(any(), any(), any()) }
 
         composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
