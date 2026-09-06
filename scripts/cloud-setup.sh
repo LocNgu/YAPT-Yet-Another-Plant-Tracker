@@ -18,14 +18,40 @@
 # Idempotent: safe to re-run when the environment cache is rebuilt.
 set -euo pipefail
 
-ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
+case "$(uname -s)" in
+  Darwin)
+    DEFAULT_ANDROID_HOME="$HOME/Library/Android/sdk"
+    case "$(uname -m)" in
+      arm64 | aarch64) CMDLINE_TOOLS_PLATFORM="mac_arm64" ;;
+      x86_64 | amd64) CMDLINE_TOOLS_PLATFORM="mac_x86_64" ;;
+      *)
+        echo "!!! unsupported macOS architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  Linux)
+    CMDLINE_TOOLS_PLATFORM="linux"
+    if [ -w /opt/android-sdk ] || { [ ! -e /opt/android-sdk ] && [ -w /opt ]; }; then
+      DEFAULT_ANDROID_HOME="/opt/android-sdk"
+    else
+      DEFAULT_ANDROID_HOME="$HOME/Android/Sdk"
+    fi
+    ;;
+  *)
+    echo "!!! unsupported platform: $(uname -s)" >&2
+    exit 1
+    ;;
+esac
+ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_ANDROID_HOME}}"
 # Bootstrap build of the command-line tools. sdkmanager only sees packages that
 # existed when it was built, so a stale pin silently hides new platforms (a 2023
 # build can't find `platforms;android-37.0`, released June 2026 — #544). This pin
 # therefore only bootstraps: it installs the SDK-managed `cmdline-tools;latest`,
 # and that copy installs everything else. Bumping it is optional, not load-bearing.
 CMDLINE_TOOLS_BUILD="15859902"
-CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip"
+CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-${CMDLINE_TOOLS_PLATFORM}-\
+${CMDLINE_TOOLS_BUILD}_latest.zip"
 # The platform package is derived from compileSdk below so it can't drift from the
 # build; only build-tools is pinned, to the AGP-required revision (AGP 9.3.1 -> 35.0.0).
 BUILD_TOOLS_VERSION="35.0.0"
@@ -58,7 +84,8 @@ BASE_PACKAGES=("platform-tools" "build-tools;${BUILD_TOOLS_VERSION}")
 # Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
 # which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
 # so cached environments re-provision instead of reusing 2023 tools forever.
-if [ -d "$ANDROID_HOME/cmdline-tools/latest" ] && [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
+if [ "$ANDROID_HOME" = "/opt/android-sdk" ] && [ -d "$ANDROID_HOME/cmdline-tools/latest" ] &&
+  [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
   echo "    removing unmanaged cmdline-tools/latest from an earlier setup run"
   rm -rf "$ANDROID_HOME/cmdline-tools/latest"
 fi

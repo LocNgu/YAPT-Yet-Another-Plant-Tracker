@@ -43,8 +43,10 @@ stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target
 workers and Room DAOs (both reached via reflection) from being stripped/renamed.
 
 ## Cloud / in-session builds (#419, #544, #548)
-Enablement is environment config, not repo: allowlist `dl.google.com`, set `ANDROID_HOME=/opt/android-sdk`, run
-`scripts/cloud-setup.sh` as setup. It installs the SDK and seeds the wrapper dist from the pre-installed Gradle.
+Enablement is environment config, not repo: allowlist `dl.google.com` and run `scripts/cloud-setup.sh` as setup.
+It uses `/opt/android-sdk` when writable on Linux, otherwise the platform's user SDK directory; an explicit
+`ANDROID_HOME` or `ANDROID_SDK_ROOT` overrides that default. It installs the SDK and seeds the wrapper dist from
+the pre-installed Gradle.
 The script derives the `compileSdk` *major* from `app/build.gradle.kts` and resolves the real platform package id
 from it — don't hardcode a platform in it.
 `CMDLINE_TOOLS_BUILD` only bootstraps: those tools install SDK-managed `cmdline-tools;latest`, which installs

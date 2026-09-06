@@ -123,7 +123,7 @@ fun PlantListScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel.quickLogEvent) {
         viewModel.quickLogEvent.collect { message ->
             snackbarHostState.showSnackbar(message)
         }
