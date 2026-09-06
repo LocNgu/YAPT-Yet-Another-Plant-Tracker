@@ -137,6 +137,32 @@ class CareLogRepositoryTest {
         assertEquals(200L, result[1].loggedAt)
     }
 
+    /**
+     * #654 round-2 review fix — backing [com.yapt.planttracker.domain.usecase.QuickLogUseCase
+     * .computeSuggestion]'s replacement of [getLastTwoWaterings] with a query keyed off the
+     * newly-inserted log's own `loggedAt`, so backdating a log before an existing one still finds
+     * the correct chronological predecessor.
+     */
+    @Test
+    fun `getLastWateringBefore returns the log immediately preceding the given timestamp`() = runTest {
+        init()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 100L))
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 300L))
+
+        // A log backdated to 200L should find 100L as its predecessor, not the later 300L.
+        val result = repo.getLastWateringBefore(plantId, beforeMillis = 200L)
+        assertEquals(100L, result?.loggedAt)
+    }
+
+    @Test
+    fun `getLastWateringBefore returns null when no earlier watering exists`() = runTest {
+        init()
+        repo.addLog(careLog(plantId = plantId, careType = CareType.WATER, loggedAt = 300L))
+
+        val result = repo.getLastWateringBefore(plantId, beforeMillis = 100L)
+        assertNull(result)
+    }
+
     @Test
     fun `getRecentWaterings returns up to limit most recent water logs newest first`() = runTest {
         init()

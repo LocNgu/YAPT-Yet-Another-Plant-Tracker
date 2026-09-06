@@ -14,6 +14,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
+            "Tapping the Water button (or its liquid-fertilizer counterpart) on Plant Detail now always opens " +
+                "a \"Log watering\" date picker first, pre-selected to today — confirm it as-is for the old " +
+                "instant-log behavior, or pick an earlier date to backfill a watering you forgot to log",
             "The confidence-weighted adaptive watering model (interval suggestions that adjust based on your " +
                 "watering feedback and get calmer once the schedule proves itself) is now always on — no more " +
                 "developer-mode flag to turn it on"

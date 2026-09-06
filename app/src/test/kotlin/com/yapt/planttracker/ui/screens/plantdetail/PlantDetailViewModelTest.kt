@@ -272,7 +272,7 @@ class PlantDetailViewModelTest {
     fun `quickWater logs watering, emits message, and applies returned suggestion`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -292,7 +292,7 @@ class PlantDetailViewModelTest {
         }
 
         assertEquals(9, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -302,7 +302,7 @@ class PlantDetailViewModelTest {
         )
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -407,7 +407,7 @@ class PlantDetailViewModelTest {
             wateringIntervalDays = 7
         )
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -426,7 +426,7 @@ class PlantDetailViewModelTest {
         }
 
         assertNull(vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
     }
 
     @Test

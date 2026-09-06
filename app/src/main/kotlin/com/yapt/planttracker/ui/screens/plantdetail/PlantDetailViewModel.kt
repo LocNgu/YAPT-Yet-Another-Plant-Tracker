@@ -313,15 +313,18 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Quick-logs a watering with [reason] from the tappable watering stat chip (`null` when the
-     * watering was on schedule and no reason prompt appeared, #586). Reuses the shared
-     * [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any adaptive
-     * interval suggestion feeds the existing interval-suggestion dialog via [suggestedWateringInterval].
+     * Quick-logs a watering with [reason] from the "Log watering" date picker (#654; previously the
+     * tappable watering stat chip's instant fast path, `null` when the watering was on schedule and no
+     * reason prompt appeared, #586). [loggedAt] defaults to "now" but the date picker always passes the
+     * date the user picked (today reproduces the old instant-log behaviour byte-for-byte). Reuses the
+     * shared [QuickLogUseCase] so behaviour matches the PlantList/Calendar quick-water paths; any
+     * adaptive interval suggestion feeds the existing interval-suggestion dialog via
+     * [suggestedWateringInterval].
      */
-    fun quickWater(reason: WateringReason?) {
+    fun quickWater(reason: WateringReason?, loggedAt: Long = System.currentTimeMillis()) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            val outcome = quickLogUseCase.quickWaterWithReason(p, reason)
+            val outcome = quickLogUseCase.quickWaterWithReason(p, reason, loggedAt)
             if (!outcome.logged) {
                 _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
                 return@launch
@@ -357,13 +360,14 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Quick-logs a paired fertilize + watering for liquid-fertilizer plants from the fertilizing stat
-     * chip, mirroring the combined water+fertilize path on PlantCard (ADR-0008/ADR-0017).
+     * Quick-logs a paired fertilize + watering for liquid-fertilizer plants, reached from the same
+     * "Log watering" date picker (#654) as [quickWater] — [loggedAt] mirrors that function's parameter
+     * of the same name.
      */
-    fun quickLiquidFertilize(reason: WateringReason?) {
+    fun quickLiquidFertilize(reason: WateringReason?, loggedAt: Long = System.currentTimeMillis()) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(p, reason)
+            val outcome = quickLogUseCase.quickLiquidFertilizeWithReason(p, reason, loggedAt)
             if (!outcome.logged) {
                 _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
                 return@launch

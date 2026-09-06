@@ -29,6 +29,19 @@ interface CareLogDao {
     suspend fun getLastTwoLogsOfType(plantId: Long, careType: String): List<CareLogEntity>
 
     /**
+     * The single most recent [careType] log for [plantId] strictly before [beforeMillis] —
+     * [beforeMillis] is chronological (the log's `loggedAt`), not insertion order, so a caller
+     * backdating a log finds *that log's own* preceding neighbor rather than "whichever two rows
+     * happen to be newest by `loggedAt` overall" (#654 round-2 review fix; see
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]).
+     */
+    @Query(
+        "SELECT * FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
+            "AND loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1"
+    )
+    suspend fun getLastLogOfTypeBefore(plantId: Long, careType: String, beforeMillis: Long): CareLogEntity?
+
+    /**
      * The most recent [limit] logs of [careType] for [plantId], newest first — used to derive
      * [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak] over a bounded window
      * (#568) rather than caching a "last correction direction" that could go stale across an edit or

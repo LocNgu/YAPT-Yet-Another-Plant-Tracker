@@ -46,7 +46,6 @@ class QuickLogUseCaseOverrideRevertTest {
 
     private val now = System.currentTimeMillis()
     private val sevenDaysAgo = now - TimeUnit.DAYS.toMillis(7)
-    private val fourteenDaysAgo = now - TimeUnit.DAYS.toMillis(14)
     private val override = now + TimeUnit.DAYS.toMillis(2)
 
     @Before
@@ -58,19 +57,15 @@ class QuickLogUseCaseOverrideRevertTest {
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
         // Observed gap (7 days) agrees with the stored interval (7 days), so the adaptive model
         // raises confidence from 2 to 3 — the write these tests need to exercise the bug.
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns recentWaterings()
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns previousWatering()
     }
 
-    private fun recentWaterings(): List<CareLog> {
-        val first = CareLog(
-            plantId = 1L,
-            careType = CareType.WATER,
-            loggedAt = sevenDaysAgo,
-            wateringFeedback = WateringFeedback.JUST_RIGHT
-        )
-        val second = first.copy(loggedAt = fourteenDaysAgo)
-        return listOf(first, second)
-    }
+    private fun previousWatering(): CareLog = CareLog(
+        plantId = 1L,
+        careType = CareType.WATER,
+        loggedAt = sevenDaysAgo,
+        wateringFeedback = WateringFeedback.JUST_RIGHT
+    )
 
     private fun plant(
         useLiquidFertilizer: Boolean = false,

@@ -157,8 +157,8 @@
     <string name="quick_log_fertilized">Fertilized %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
-    <string name="quick_log_already_watered">Already watered %s today</string>
-    <string name="quick_log_already_fertilized">Already fertilized %s today</string>
+    <string name="quick_log_already_watered">Already watered %s that day</string>
+    <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
     <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
     <string name="quick_log_already_checked">Already checked %s today</string>
     <string name="care_history_show_less">Show less</string>

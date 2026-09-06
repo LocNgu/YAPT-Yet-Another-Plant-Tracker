@@ -83,7 +83,7 @@ class CalendarViewModelTest {
     fun `quickLog water routes through quickWater and emits its snackbar message`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
@@ -97,14 +97,14 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
     }
 
     @Test
     fun `quickWater emits the QuickWaterSuggestion returned by the use case`() = runTest {
         val monstera = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
@@ -207,7 +207,7 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) } returns
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,
@@ -229,7 +229,7 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null) }
+        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
     }
 
     @Test
@@ -243,7 +243,9 @@ class CalendarViewModelTest {
             updatedAt = 0L
         )
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT) } returns
+        coEvery {
+            quickLogUseCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT, any())
+        } returns
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered and fertilized Monstera",
                 logged = true,

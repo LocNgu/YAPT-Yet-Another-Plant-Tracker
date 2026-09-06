@@ -57,6 +57,7 @@ class QuickLogUseCaseWateringReasonTest {
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
@@ -116,10 +117,8 @@ class QuickLogUseCaseWateringReasonTest {
         val tenDaysAgo = now - TimeUnit.DAYS.toMillis(10)
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo - TimeUnit.DAYS.toMillis(7))
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
         coEvery { careLogRepo.getRecentWaterings(1L, limit = any()) } returns emptyList()
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST)
@@ -146,10 +145,8 @@ class QuickLogUseCaseWateringReasonTest {
         val now = System.currentTimeMillis()
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(3)),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(6))
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(3))
         // 5 timestamps, 3 days apart -> 4 gaps (median 3), clears MIN_BOOTSTRAP_GAPS (3).
         coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns (0..4).map {
             now - TimeUnit.DAYS.toMillis((12 - it * 3).toLong())

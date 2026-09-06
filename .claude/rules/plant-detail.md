@@ -160,6 +160,70 @@ and unchanged.
   off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
   `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.
 
+**Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
+on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
+the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s
+liquid-fert path) first opens `LogWateringDatePickerDialog` (`LogWateringDatePicker.kt`, not-future-only
+via `SelectableDates`, pre-selected to today, distinct from `RescheduleWateringDialog`'s custom date —
+that one sets `wateringDueDateOverride` on the *next due date*, this one backdates the *logged event*
+itself). Confirming with today selected reproduces the old instant-log fast path in one extra confirm
+tap; picking an earlier date backfills a forgotten watering. `requestWater`/`requestLiquidFertilize`
+now take the picked `loggedAt` and re-evaluate on/off-schedule against **that** date (`CareSchedule
+.isWateringOnScheduleAt`/`isWateringGapLongAt`, public wrappers around the same `wateringOnScheduleNow`/
+`wateringGapRanLong` comparisons `PlantCareStatus.isWateringOnSchedule`/`isWateringGapLong` already use
+against real "now") rather than the plant's precomputed `careStatus`, which is always "now"-relative —
+picking today reproduces `careStatus`'s own result exactly, since the underlying gap comparison is
+calendar-day granular. `quickWater()`/`quickLiquidFertilize()` and `QuickLogUseCase
+.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()` all gained an explicit `loggedAt: Long =
+System.currentTimeMillis()` parameter threading through the duplicate-day guard, the `CareLog` write,
+and the adaptive-gap math consistently — see `.claude/rules/watering-transparency.md` for why that one
+value can't be allowed to drift across those three. Plain (non-liquid) `quickFertilize()` is unchanged
+— no date picker, since fertilizing alone has no adaptive-interval/reason-prompt concept for a chosen
+date to feed into.
+
+**Review round 1 fix (#654 PR #671):** `loggedAt` threading missed one spot — `QuickLogUseCase
+.adaptWateringInterval()`'s call to its private `deseasonalizedObservedIntervalDays()` helper still
+evaluated the season at `nowProvider()` (real wall-clock "now") instead of the caller's backdated
+`loggedAt`, so a backdated quick-water with `SEASONAL_WATERING` on de-seasonalized the observed gap
+using *today's* season factor, not the logged day's. Fixed by adding an explicit `atDate: LocalDate`
+parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s two
+callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now passes
+`now.toLocalDate()` into. `effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion
+dialog's "different from current" check) had the identical bug and got the same fix via an explicit
+`now` parameter threaded from `computeSuggestion()`. `QuickLogUseCaseSeasonalTest`'s pre-existing
+adaptive-path calls to `quickWaterWithReason()` had to start passing `loggedAt = peakDay` explicitly to
+keep matching their pinned `nowProvider` — they previously relied on the pre-fix code silently reading
+`nowProvider()` for season while `loggedAt` (unpassed, defaulting to the real device clock) drove
+everything else, which the fix correctly stopped tolerating.
+
+**Review round 2 fixes (#654 PR #671, external bot findings):** two more. (1) `LogWateringDatePickerDialog`'s
+`initialSelectedDateMillis` passed `System.currentTimeMillis()` — a raw UTC instant — directly into
+Material3's `DatePicker`, which interprets that parameter as a UTC-midnight-encoded calendar date, not
+an instant; in timezones where local calendar day differs from UTC's (e.g. early morning in UTC+14, late
+evening in UTC−8) the picker could preselect the wrong day. Fixed via a new
+`localTodayAsUtcMidnightMillis()` helper (`LogWateringDatePicker.kt`, mirroring `isOnOrBeforeLocalToday`'s
+own local-day ↔ UTC-midnight conversion in the opposite direction) that encodes local today as UTC
+midnight before handing it to the picker. (2) `QuickLogUseCase.computeSuggestion()` computed the
+adaptive-gap observation from `CareLogRepository.getLastTwoWaterings()` — "the two globally newest
+waterings by `loggedAt`" — rather than the newly-inserted (possibly backdated) log's own chronological
+predecessor. Backdating a new WATER log to a date *before* an already-existing one silently paired the
+new log with that later, unrelated log instead of its real neighbor, feeding the adaptive model a wrong
+gap. Fixed by adding `CareLogRepository.getLastWateringBefore(plantId, beforeMillis)` (`CareLogDao
+.getLastLogOfTypeBefore`, `... WHERE loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1`) and
+switching `computeSuggestion()` to look up the log strictly preceding its own `now`/`loggedAt` argument.
+`AddCareLogViewModel`'s independent `getLastTwoWaterings()` call site is untouched — out of scope for
+this fix, a pre-existing, separately-reported concern.
+
+**UI feedback fix (#654 PR #671, post-merge-conflict-resolution):** `LogWateringDatePickerDialog`'s
+custom `title` slot (`Text(stringResource(R.string.log_watering_date_picker_title))`) replaced
+Material3's own default title composable entirely — which normally applies its own internal padding —
+so the bare `Text` sat flush against the dialog's rounded top corner, partly clipped. Fixed by dropping
+the override and letting `DatePicker` render its default title, exactly matching `AddCareLogScreen`'s
+own picker (which never overrides `title` either, and never had this bug). The now-orphaned
+`log_watering_date_picker_title` string resource was removed; tests that waited on/asserted that title
+text now use the existing `LOG_WATERING_DATE_PICKER_TEST_TAG` instead, which already existed
+specifically to locate this dialog in Compose UI tests.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

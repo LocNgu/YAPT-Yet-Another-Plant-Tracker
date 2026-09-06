@@ -157,6 +157,37 @@ class CareLogDaoTest {
     }
 
     @Test
+    fun `getLastLogOfTypeBefore returns the log immediately preceding beforeMillis`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 300L))
+
+        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 200L)
+        assertNotNull(result)
+        assertEquals(100L, result?.loggedAt)
+    }
+
+    @Test
+    fun `getLastLogOfTypeBefore excludes a log at exactly beforeMillis`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 200L))
+
+        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 200L)
+        assertNotNull(result)
+        assertEquals(100L, result?.loggedAt)
+    }
+
+    @Test
+    fun `getLastLogOfTypeBefore returns null when no earlier log of that type exists`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 300L))
+
+        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 100L)
+        assertNull(result)
+    }
+
+    @Test
     fun `deleteLog removes log from plant's logs`() = runTest {
         val plantId = insertParentPlant()
         val id = careLogDao.insertLog(log(plantId, careType = CareType.PRUNE.name))
