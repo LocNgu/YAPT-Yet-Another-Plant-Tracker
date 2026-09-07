@@ -22,8 +22,10 @@ Four allowlist entries admit more than their intended read-only or low-risk use:
 
 - `Bash(git branch*)` also matches `-d`/`-D`/`-m`/`-M` (branch deletion and rename).
 - `Bash(git stash*)` also matches `drop`/`clear` (stash loss).
-- `Bash(find *)` also matches `-exec`/`-execdir`/`-ok`/`-okdir`/`-delete`/`-fprintf`/`-fls` (arbitrary
-  command execution or file deletion via `find`'s action primaries).
+- `Bash(find *)` also matches `-exec`/`-execdir`/`-ok`/`-okdir`/`-delete`/`-fprint`/`-fprint0`/
+  `-fprintf`/`-fls` (arbitrary command execution, file deletion, or file overwriting via `find`'s
+  action primaries) — and, because GNU `find` treats the path argument as optional, in a no-path form
+  (`find -delete`) as well as the usual `find . -delete`.
 - `Bash(cat*)` also matches any path outside the repository, including plaintext credential files.
 
 Two deny-list gaps were also found: `git push --force-with-lease` against `main`/`develop` is
@@ -45,6 +47,13 @@ denied; `find`'s non-action flag combinations vary too much for a narrower allow
 that fires on routine searches gets worked around, which is worse than a documented accepted risk. For
 `cat*`, narrowing to a path allowlist is not practical — arbitrary repository files must remain
 readable — so the lever here is a deny list of specific known-secret paths instead, addressed below.
+
+Each `find` action primary is denied in **two** forms — `find * -delete*` and `find -delete*` — because
+GNU `find` makes the path argument optional and defaults to the current directory. `find -delete` is
+therefore a valid, destructive command that matches the broad `find *` allow but *not* a deny pattern
+requiring an intervening path token. The pattern is also `-fprint*` rather than `-fprintf*`, so that it
+covers `-fprint` and `-fprint0` (both write files) alongside `-fprintf`. A deny entry that never matches
+is worse than no entry, because it reads as protection while providing none.
 
 **Deny is the preferred lever throughout**, not just for these two cases: a deny entry beats an allow
 entry, and it survives a personal `settings.local.json` re-widening the corresponding allow rule.
@@ -71,8 +80,8 @@ underlying hole. `grep*` remains fully allowed and reaches the exact same bytes 
 block — `grep '' ~/.config/gh/hosts.yml` or `grep -r . ~/.ssh/` dump the same secrets a `cat` deny
 would refuse. Only the `gh hosts.yml` path gets a `grep` twin, and only its most common invocation
 shape (`grep <pattern> <path>`); `grep`'s argument order varies too much (`-r`, `-f`, interleaved
-flags) for a literal pattern to cover the general case. Beyond `grep`, other allowed readers reach the
-same bytes by different means — `find * -fprintf`, `jar tf`, and `ls`/`git ls-tree` for names — and a
+flags) for a literal pattern to cover the general case. Beyond `grep`, other allowed commands still
+disclose by different means — `jar tf` for archive contents, `ls` and `git ls-tree` for names — and a
 path denylist is incomplete by construction, since the set of paths a credential could live at is
 infinite. This audit narrows the easy, careless path to disclosure; it does not, and cannot, eliminate
 disclosure as a category.
