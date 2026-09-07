@@ -65,6 +65,17 @@ Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant 
 
 **Auto-review on green CI:** after opening the PR, `subscribe_pr_activity`; whenever new commits land **and** that PR's CI is green, auto-launch the next reviewer round (still capped at 2). If CI is red, diagnose and re-kick rather than reviewing.
 
+**Resuming the implementer across fix rounds (#684, technical ADR-0025):** when the reviewer requests a fix-round on a PR
+already in flight, resume the *same* implementer agent instance (send a follow-up message to its
+agent name/id from the earlier `Agent` call) rather than launching a fresh `Agent` call. A fresh dispatch
+re-reads CLAUDE.md, the relevant rules docs, and every touched source file from scratch — that's most of
+the token cost on a multi-round PR, and the resumed agent already has all of it in context from round 1.
+Caveat: this only works within the same orchestrator session, since a resumed agent needs the
+orchestrator's own tool-call history to reference back to — if the orchestrator session itself gets
+restarted or compacted, a fresh dispatch is unavoidable and that's fine. This is about resuming the
+*implementer* only — the reviewer's "each round is a fresh, standalone review" posture (step 3) is
+unchanged; a resumed implementer does not mean a resumed reviewer.
+
 **Comment cadence** — one comment per phase, in order: spec→issue (`add_issue_comment`); each review round→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR; summary→PR.
 
 Full release-cutting steps: `.claude/rules/release.md`.

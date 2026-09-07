@@ -38,6 +38,33 @@ paths:
 `testReleaseUnitTest` + `lintRelease`. Instrumented tests run on PRs via path filter; concurrency group cancels
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
+## Diagnosing a failed CI check (#684)
+Don't pull the full raw job log as the first move — it's routinely 50K+ characters and most of it is
+noise. Check the failing check run's conclusion/annotations first (the GitHub API's check-run details,
+e.g. `get_check_run`/`get_job_logs` annotations) for the specific failing test name and line; annotations
+usually localize a normal assertion failure or compile error in one or two lines, which is enough to go
+fix it without ever touching the raw log.
+Only fall back to the raw job log when annotations don't localize the failure — this happens for a
+genuinely hung job with no clean per-test failure line, e.g. #679/#682's instrumented-test job: a bad
+blanket MockK stub left a call path unmatched, the test hung on `waitUntil` until the whole job timed
+out, and no annotation pointed at a specific assertion. In that case, save the log to a file rather than
+reading it inline (it will blow past the tool's token cap), then `grep` the file for failure markers
+(`FAILED`, `Exception`, `AssertionError`, `waitUntil`, `Timed out`) instead of reading the whole thing —
+the grep hits are usually enough to locate the offending test class/stub without ever loading the bulk
+of the log into context.
+
+## Scoping local build verification across a PR's lifecycle (#684)
+The full suite (`compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`,
+`testDebugUnitTest`, `detekt`, `lintDebug`) is mandatory once, locally, before the *initial* push that
+opens a PR — that's the only local run with no CI result yet to lean on.
+Once a PR is open and CI has run at least once, a fix-round push (round 2+, addressing specific
+reviewer findings) only needs to verify the classes it actually touched: run
+`./gradlew testDebugUnitTest --tests "com.example.SpecificClassTest"` scoped to the affected test
+class(es), or just `compileDebugKotlin` alone for a compile-only fix (e.g. a rename, a signature tweak
+with no behavior change). Don't re-run the entire `testDebugUnitTest`/`detekt`/`lintDebug` suite locally
+on every fix-round push — CI already re-verifies everything on push, so a full local re-run at that point
+is redundant with CI, not an extra safety net.
+
 ## Release build (#4)
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
 workers and Room DAOs (both reached via reflection) from being stripped/renamed.
