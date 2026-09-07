@@ -240,6 +240,22 @@ unconditionally on every WATER insert, discarding an unrelated reschedule when b
 watering from before it was made — see `.claude/rules/watering-transparency.md`'s #679 follow-ups for
 that fix and the matching cold-start-bootstrap `displayNow` fix.
 
+**Test coverage follow-up (#679 review round 1):** `isChosenDateOnSchedule`/`isChosenDateGapLong` (the
+functions backing the gate above) went from `private` to `internal` specifically so `PlantDetailScreenGateTest`
+(a plain JVM unit test, `app/src/test/.../ui/screens/plantdetail/`) can exercise the exact "backdate
+before an already-existing later watering" scenario directly — passing the real predecessor produces the
+correct off-schedule/late result, while passing a reference chronologically *after* the chosen date (the
+old, buggy stand-in for `PlantCareStatus.lastWateredAt`) reproduces the wrong-direction ("early") answer
+the fix prevents. An instrumented Compose test driving Material3's `DatePicker` day grid to a specific
+backdated day had no precedent in this suite and was judged too fragile (no existing test picks a
+non-today date; day-of-month arithmetic would depend on when CI happens to run) to be worth adding for
+this. `PlantDetailViewModel.previousWateringBefore()` itself has a plain delegation unit test in
+`PlantDetailViewModelTest`. Every `mockk<CareLogRepository>()` fixture in `PlantDetailScreenTest.kt`
+(instrumented) now also stubs `getLastWateringBefore(any(), any())` (default `null`) — added after CI
+caught a `MockKException` on `wateringChip_onSchedule_tapLogsDirectlyWithoutTheReasonPrompt`, since every
+"Log watering" date-picker confirm now calls `previousWateringBefore()` regardless of which test triggers
+it.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

@@ -1514,8 +1514,14 @@ private fun requestLiquidFertilize(
  * (the same wrapper the "Why this date?" sheet and every other quick-log surface already share) and
  * [CareSchedule.isWateringOnScheduleAt], so there is no second notion of "close enough"
  * (`CareSchedule.GAP_AGREEMENT_TOLERANCE` stays the only tolerance constant).
+ *
+ * `internal` rather than `private` (#679 review round 1) so `PlantDetailScreenGateTest` (JVM unit
+ * test) can exercise the exact [lastWateredAt]-vs-real-predecessor scenario the bug fixed — an
+ * instrumented test would need to drive Material3's `DatePicker` day grid to a specific backdated
+ * day, which has no existing precedent in this suite and is fragile across the run date's position
+ * within its calendar month.
  */
-private fun isChosenDateOnSchedule(
+internal fun isChosenDateOnSchedule(
     plant: Plant,
     lastWateredAt: Long?,
     chosenDate: Long,
@@ -1530,8 +1536,8 @@ private fun isChosenDateOnSchedule(
     return CareSchedule.isWateringOnScheduleAt(lastWateredAt, effectiveIntervalDays, chosenDate)
 }
 
-/** [isChosenDateOnSchedule]'s counterpart for [PlantCareStatus.isWateringGapLong] (#654). */
-private fun isChosenDateGapLong(
+/** [isChosenDateOnSchedule]'s counterpart for [PlantCareStatus.isWateringGapLong] (#654). Also `internal` for the same reason. */
+internal fun isChosenDateGapLong(
     plant: Plant,
     lastWateredAt: Long?,
     chosenDate: Long,
