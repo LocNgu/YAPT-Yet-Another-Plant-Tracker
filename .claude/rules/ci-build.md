@@ -46,11 +46,12 @@ workers and Room DAOs (both reached via reflection) from being stripped/renamed.
 Enablement is environment config, not repo: allowlist `dl.google.com` and run `scripts/cloud-setup.sh` as setup.
 It uses `/opt/android-sdk` when writable on Linux, otherwise the platform's user SDK directory; an explicit
 `ANDROID_HOME` or `ANDROID_SDK_ROOT` overrides that default. It installs the SDK and seeds the wrapper dist from
-the pre-installed Gradle on Linux; macOS uses the wrapper normally.
+the pre-installed Gradle in Linux cloud environments; macOS local environments use the wrapper normally.
 The script derives the `compileSdk` *major* from `app/build.gradle.kts` and resolves the real platform package id
 from it — don't hardcode a platform in it.
-`CMDLINE_TOOLS_BUILD` only bootstraps: those tools install SDK-managed `cmdline-tools;latest`, which installs
-everything else, so the pin can't hide a newly released platform (a 2023 pin couldn't see API 37 — #544).
+`CMDLINE_TOOLS_BUILD` bootstraps the managed SDK and is the safe fallback while an older user-owned
+`cmdline-tools;latest` is preserved in place. The bootstrap must remain current enough to see the project's
+compileSdk platform (a 2023 pin couldn't see API 37 — #544).
 **The platform package id isn't always the bare major.** Starting at API 37, Google stopped publishing a bare
 `platforms;android-<major>` package — only major.minor ids exist (`android-37.0`, `android-37.1`, ...); older
 majors (35, 36) still ship the bare id alongside minors. `platforms;android-37` fails identically on *every*

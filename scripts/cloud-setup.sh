@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# YAPT — Claude Code cloud-session setup script (issue #419)
+# YAPT — Android build environment setup script (issue #419)
 #
-# Makes Android Gradle builds work in a cloud session:
+# Makes Android Gradle builds work in Linux cloud sessions and macOS local worktrees:
 #   1. Installs the Android SDK (cmdline-tools + the compileSdk platform +
 #      build-tools + platform-tools)
 #      — needs dl.google.com, which must be allowlisted in the environment's
 #        Network access -> Custom -> Allowed domains.
 #   2. Points Gradle at that SDK.
-#   3. Seeds the Gradle wrapper's dist cache from the pre-installed Gradle so
-#      `./gradlew` can start (the pinned wrapper version is fetched from a
-#      GitHub release asset that the session's proxy blocks).
+#   3. On Linux, seeds the Gradle wrapper's dist cache from the pre-installed
+#      Gradle so `./gradlew` can start (the pinned wrapper version is fetched
+#      from a GitHub release asset that the cloud-session proxy blocks).
 #
 # Dependency artifacts (AGP, androidx) still resolve over the network from
 # maven.google.com / Maven Central, which are reachable — so builds run online,
@@ -49,8 +49,8 @@ ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_ANDROID_HOME}}"
 # Bootstrap build of the command-line tools. sdkmanager only sees packages that
 # existed when it was built, so a stale pin silently hides new platforms (a 2023
 # build can't find `platforms;android-37.0`, released June 2026 — #544). This pin
-# therefore only bootstraps: it installs the SDK-managed `cmdline-tools;latest`,
-# and that copy installs everything else. Bumping it is optional, not load-bearing.
+# therefore bootstraps the managed SDK and remains the safe fallback while an
+# older user-owned `cmdline-tools;latest` is preserved in place.
 CMDLINE_TOOLS_BUILD="15859902"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-${CMDLINE_TOOLS_PLATFORM}-\
 ${CMDLINE_TOOLS_BUILD}_latest.zip"
@@ -121,20 +121,31 @@ sdkmanager_major() {
   "$1" --version 2>/dev/null | sed -nE 's/^([0-9]+).*/\1/p' | head -1 || true
 }
 
-echo "==> Updating to the SDK-managed cmdline-tools;latest"
-accept_licenses
-if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
-  echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
-fi
 LATEST_SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+BOOTSTRAP_MAJOR="$(sdkmanager_major "$SDKMANAGER")"
+LATEST_MAJOR=""
 if [ -x "$LATEST_SDKMANAGER" ]; then
-  BOOTSTRAP_MAJOR="$(sdkmanager_major "$SDKMANAGER")"
   LATEST_MAJOR="$(sdkmanager_major "$LATEST_SDKMANAGER")"
-  if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
-    [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
-    SDKMANAGER="$LATEST_SDKMANAGER"
-  else
-    echo "    cmdline-tools;latest is older or unreadable — continuing with the bootstrap tools"
+fi
+
+if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
+  [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
+  SDKMANAGER="$LATEST_SDKMANAGER"
+elif [ -x "$LATEST_SDKMANAGER" ] && [ "$ANDROID_HOME" != "/opt/android-sdk" ]; then
+  echo "==> Preserving older user-installed cmdline-tools;latest; using the bootstrap tools"
+else
+  echo "==> Updating to the SDK-managed cmdline-tools;latest"
+  accept_licenses
+  if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
+    echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
+  elif [ -x "$LATEST_SDKMANAGER" ]; then
+    LATEST_MAJOR="$(sdkmanager_major "$LATEST_SDKMANAGER")"
+    if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
+      [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
+      SDKMANAGER="$LATEST_SDKMANAGER"
+    else
+      echo "    cmdline-tools;latest is older or unreadable — continuing with the bootstrap tools"
+    fi
   fi
 fi
 
@@ -272,4 +283,4 @@ echo "==> Verifying: ./gradlew compileDebugKotlin"
 # Online build: dependency artifacts (AGP, androidx) resolve from
 # maven.google.com / Maven Central. Do NOT use --offline here — on a cold
 # dependency cache it blocks AGP resolution and fails.
-./gradlew compileDebugKotlin -q >/dev/null && echo "OK — cloud build works"
+./gradlew compileDebugKotlin -q >/dev/null && echo "OK — Android build works"
