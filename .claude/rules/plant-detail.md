@@ -224,6 +224,22 @@ own picker (which never overrides `title` either, and never had this bug). The n
 text now use the existing `LOG_WATERING_DATE_PICKER_TEST_TAG` instead, which already existed
 specifically to locate this dialog in Compose UI tests.
 
+**Follow-up (#679):** `requestWater`/`requestLiquidFertilize`'s on/off-schedule gate had the same class
+of bug round 2's fix (2) above fixed for `computeSuggestion()` — it compared the picked date against
+`PlantCareStatus.lastWateredAt` (the plant's globally newest watering, always "now"-relative) instead of
+that date's own chronological predecessor, and the subsequent `WateringReasonBottomSheet`'s gap-length
+wording repeated the same wrong reference point. Fixed via a new `PlantDetailViewModel
+.previousWateringBefore(before): Long?` suspend wrapper around the same `CareLogRepository
+.getLastWateringBefore()` lookup, called from `rememberCoroutineScope().launch {}` inside both
+`LogWateringDatePickerDialog.onConfirm` callbacks; the fetched value is bundled with `loggedAt` into a
+`PendingReasonPrompt` so `showWaterSheet`/`showLiquidFertilizeSheet`'s later `isChosenDateGapLong` call
+uses the exact same predecessor `requestWater`/`requestLiquidFertilize` already gated on, rather than
+re-deriving (or mis-deriving) it a second time. Also fixed in the same issue: `QuickLogUseCase
+.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()` cleared an active `wateringDueDateOverride`
+unconditionally on every WATER insert, discarding an unrelated reschedule when backfilling an old
+watering from before it was made — see `.claude/rules/watering-transparency.md`'s #679 follow-ups for
+that fix and the matching cold-start-bootstrap `displayNow` fix.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 

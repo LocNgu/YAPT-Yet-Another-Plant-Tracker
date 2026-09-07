@@ -48,7 +48,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "TooManyFunctions")
 class PlantDetailViewModel(
     internal val plantRepository: PlantRepository,
     internal val careLogRepository: CareLogRepository,
@@ -382,6 +382,18 @@ class PlantDetailViewModel(
             maybeTriggerPhotoReminder(p.id)
         }
     }
+
+    /**
+     * The chosen [LogWateringDatePickerDialog] date's actual chronological predecessor (#679) —
+     * `careLogRepository.getLastWateringBefore()`, the same lookup [QuickLogUseCase.computeSuggestion]
+     * already uses (#654 PR #671 review round 2) — rather than [careStatus]'s always-"now"-relative
+     * [PlantCareStatus.lastWateredAt]. `PlantDetailScreen` calls this from a `rememberCoroutineScope()`
+     * launch before gating on [PlantCareStatus.isWateringOnSchedule]/`isWateringGapLong`, so a backdated
+     * "Log watering" entry is compared against the watering it actually follows, not the plant's globally
+     * newest one.
+     */
+    suspend fun previousWateringBefore(before: Long): Long? =
+        careLogRepository.getLastWateringBefore(plantId, before)?.loggedAt
 
     private suspend fun maybeTriggerPhotoReminder(plantId: Long) {
         quickLogUseCase.maybeBuildPhotoReminderRequest(plantId)?.let { request ->

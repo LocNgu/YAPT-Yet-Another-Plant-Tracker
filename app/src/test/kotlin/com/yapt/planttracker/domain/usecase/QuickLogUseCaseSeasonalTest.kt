@@ -60,6 +60,7 @@ class QuickLogUseCaseSeasonalTest {
     fun setUp() {
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
