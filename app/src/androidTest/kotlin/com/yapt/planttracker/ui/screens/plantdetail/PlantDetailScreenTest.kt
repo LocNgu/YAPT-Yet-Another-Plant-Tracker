@@ -183,6 +183,19 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        // #679: PlantDetailViewModel.previousWateringBefore() calls this from the "Log watering"
+        // date picker's onConfirm. A blanket `returns null` here made every scenario using this
+        // shared helper look like "no prior watering" to the on/off-schedule gate regardless of
+        // what `careLogs` actually set up — e.g. offScheduleWaterLog()'s 14-day-old WATER log was
+        // invisible to the gate, which then always took the trivial "no predecessor -> on schedule"
+        // branch (CareSchedule.wateringOnScheduleNow's `lastWateredAt == null` early return) instead
+        // of opening the reason prompt those tests assert on. Mirror the real DAO's "newest WATER
+        // log strictly before `beforeMillis`" query against this fixture's own `careLogs` instead.
+        coEvery { careLogRepo.getLastWateringBefore(plant.id, any()) } answers {
+            val before = it.invocation.args[1] as Long
+            careLogs.filter { log -> log.careType == CareType.WATER && log.loggedAt < before }
+                .maxByOrNull { log -> log.loggedAt }
+        }
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         return PlantDetailViewModel(
             plantRepo,
@@ -268,6 +281,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo3.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo3, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
@@ -313,6 +327,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo5.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo5, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
@@ -351,6 +366,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo4.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel = PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo4, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
 
@@ -380,6 +396,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo6.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 6L, uri = "content://fake/photo", capturedAt = 0L)
         ))
@@ -408,6 +425,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo8.getPhotosForPlant(plant.id) } returns flowOf(listOf(
             PlantPhoto(id = 1L, plantId = 8L, uri = "content://fake/photo", capturedAt = 0L)
         ))
@@ -710,6 +728,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel = PlantDetailViewModel(
             plantRepo,
@@ -1423,6 +1442,7 @@ class PlantDetailScreenTest {
             )
         )
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
             PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, mockDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
@@ -1459,6 +1479,7 @@ class PlantDetailScreenTest {
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
         val viewModel =
             PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
@@ -1833,6 +1854,7 @@ class PlantDetailScreenTest {
         val careLogRepo = mockk<CareLogRepository>().also {
             every { it.getLogsForPlant(plant.id) } returns flowOf(emptyList())
             every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+            coEvery { it.getLastWateringBefore(any(), any()) } returns null
         }
         val plantPhotoRepo = mockk<PlantPhotoRepository>().also {
             every { it.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
@@ -1858,6 +1880,7 @@ class PlantDetailScreenTest {
             every { it.getLogsForPlant(plant.id) } returns flowOf(emptyList())
             every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
             coEvery { it.addLog(any()) } returns 1L
+            coEvery { it.getLastWateringBefore(any(), any()) } returns null
         },
         plantIssueRepo: PlantIssueRepository = mockPlantIssueRepo
     ): PlantDetailViewModel {
@@ -2040,6 +2063,7 @@ class PlantDetailScreenTest {
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         val viewModel = makeViewModelWithReminderRepo(plant, customReminderRepo, careLogRepo)
 
         composeTestRule.setContent {

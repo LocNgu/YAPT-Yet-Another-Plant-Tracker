@@ -188,6 +188,14 @@ class QuickLogUseCase(
      * backdated timestamp instead — the same value drives the duplicate-day check, the [CareLog] write,
      * and the adaptive-gap math ([computeSuggestion]/[adaptWateringInterval]'s `now`), so none of the
      * three can drift from each other or silently fall back to the real wall-clock time.
+     *
+     * The active [Plant.wateringDueDateOverride] is cleared only when this WATER log actually becomes
+     * the plant's newest one (#679) — `>=` the previous newest WATER's `loggedAt`, queried *before* this
+     * insert via [CareLogRepository.getLastTwoWaterings]. Backfilling an old, forgotten watering from
+     * before an active reschedule was made would otherwise silently discard that unrelated reschedule
+     * even though the backfilled entry has no bearing on the current due date. No prior WATER log at all
+     * (`null`) is treated as `Long.MIN_VALUE`, so the plant's first-ever WATER log always clears an
+     * active override, matching the unconditional-clear behavior this replaces for that case.
      */
     suspend fun quickWaterWithReason(
         plant: Plant,
@@ -198,6 +206,7 @@ class QuickLogUseCase(
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
         val feedback = reason?.toWateringFeedback()
+        val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
                 plantId = plant.id,
@@ -206,7 +215,11 @@ class QuickLogUseCase(
                 wateringFeedback = feedback
             )
         )
-        val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
+        val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
+            clearWateringOverrideIfActive(plant.id) ?: plant
+        } else {
+            plant
+        }
         val suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
         return QuickLogOutcome(
             message = application.getString(R.string.quick_log_watered, plant.name),
@@ -226,7 +239,7 @@ class QuickLogUseCase(
      *
      * [loggedAt] mirrors [quickWaterWithReason]'s parameter of the same name (#654) — the same value
      * drives both duplicate-day checks, both [CareLog] writes, and the paired watering's adaptive-gap
-     * math.
+     * math. The paired WATER insert's override-clear gate mirrors [quickWaterWithReason]'s own (#679).
      */
     suspend fun quickLiquidFertilizeWithReason(
         plant: Plant,
@@ -256,6 +269,7 @@ class QuickLogUseCase(
                 waterPaired = false
             )
         } else {
+            val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
             careLogRepository.addLog(
                 CareLog(
                     plantId = plant.id,
@@ -264,7 +278,11 @@ class QuickLogUseCase(
                     wateringFeedback = feedback
                 )
             )
-            val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
+            val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
+                clearWateringOverrideIfActive(plant.id) ?: plant
+            } else {
+                plant
+            }
             QuickLogOutcome(
                 message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
                 logged = true,
@@ -637,7 +655,8 @@ class QuickLogUseCase(
      * chosen [loggedAt][quickWaterWithReason] instead when backdating (#654) — the same value that
      * decided the duplicate-day check and the [CareLog] write also decides the freeze-window check and
      * the [WateringAdjustment.triggeredAt] this records, so a backdated observation can't be evaluated
-     * against "today" while claiming to have happened on an earlier day.
+     * against "today" while claiming to have happened on an earlier day. [maybeApplyHistoryBootstrap] is
+     * passed a separate, always-real-wall-clock `displayNow` (#679) — see its doc for why.
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
@@ -701,6 +720,11 @@ class QuickLogUseCase(
      * triggered by a late "Soil was still moist" observation ([WateringFeedback.TOO_SOON]) can't
      * undercut ADR-0033's "a late watering never shortens the interval" guarantee — see that
      * function's doc for why the median-of-history estimate needs this floor (#649 follow-up).
+     *
+     * [now] may be a backdated `loggedAt` (#654); [WateringLifecycleReset.maybeBootstrap] additionally
+     * takes a separate, always-real-wall-clock `displayNow` (#679, `System.currentTimeMillis()` here,
+     * not [nowProvider] — the bootstrap's `wateringIntervalDays` write must reflect *today's* season
+     * regardless of how [nowProvider] is pinned for a backdated observation's own gap math).
      */
     private suspend fun maybeApplyHistoryBootstrap(plant: Plant, feedback: WateringFeedback?, now: Long): Boolean {
         val boundaryMs = when {
@@ -715,7 +739,13 @@ class QuickLogUseCase(
             seasonFn = seasonFnFor(plant),
             feedback = feedback
         )
-        return WateringLifecycleReset.maybeBootstrap(request, plantRepository, wateringAdjustmentRepository, now)
+        return WateringLifecycleReset.maybeBootstrap(
+            request,
+            plantRepository,
+            wateringAdjustmentRepository,
+            now,
+            displayNow = System.currentTimeMillis()
+        )
     }
 
     /**

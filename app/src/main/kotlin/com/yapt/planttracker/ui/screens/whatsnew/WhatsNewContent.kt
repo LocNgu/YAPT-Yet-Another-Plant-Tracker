@@ -12,7 +12,14 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        fixed = listOf(
+            "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
+                "later watering: backfilling an old watering no longer discards an unrelated active " +
+                "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
+                "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
+                "entry no longer shows a briefly stale \"currently every N days\" figure"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.

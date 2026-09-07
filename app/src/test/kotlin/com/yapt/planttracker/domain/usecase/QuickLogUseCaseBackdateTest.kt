@@ -176,9 +176,9 @@ class QuickLogUseCaseBackdateTest {
                     match { it.triggeredAt == fiveDaysAgo && it.afterIntervalDays == expected.intervalDays }
                 )
             }
-            // threeDaysAgo (the existing, later log) must never even be consulted for this gap — the
-            // pre-fix code's only source of "the last two waterings" is gone from the production path.
-            coVerify(exactly = 0) { careLogRepo.getLastTwoWaterings(any()) }
+            // getLastTwoWaterings is still consulted (#679's override-clear gate, a different purpose
+            // from the adaptive-gap computation this test targets) but its result must never feed the
+            // gap math above — the assertions on afterIntervalDays already pin that down.
         }
 
     /**

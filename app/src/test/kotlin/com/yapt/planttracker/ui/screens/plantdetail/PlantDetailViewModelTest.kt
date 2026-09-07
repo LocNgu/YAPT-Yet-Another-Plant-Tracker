@@ -229,6 +229,44 @@ class PlantDetailViewModelTest {
         }
     }
 
+    // #679 review round 1: previousWateringBefore() itself was untested — it's a thin suspend wrapper
+    // around CareLogRepository.getLastWateringBefore(), but PlantDetailScreen's date-picker onConfirm
+    // callbacks rely on it (not PlantCareStatus.lastWateredAt) to find the chosen date's real
+    // chronological predecessor.
+    @Test
+    fun `previousWateringBefore delegates to careLogRepository getLastWateringBefore`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val before = 5_000L
+        val predecessor = CareLog(
+            id = 42L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = 1_000L
+        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, before) } returns predecessor
+        val vm = makeVm()
+
+        val result = vm.previousWateringBefore(before)
+
+        assertEquals(1_000L, result)
+        coVerify { careLogRepo.getLastWateringBefore(1L, before) }
+    }
+
+    @Test
+    fun `previousWateringBefore returns null when no earlier watering exists`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        val before = 5_000L
+        coEvery { careLogRepo.getLastWateringBefore(1L, before) } returns null
+        val vm = makeVm()
+
+        val result = vm.previousWateringBefore(before)
+
+        assertNull(result)
+        coVerify { careLogRepo.getLastWateringBefore(1L, before) }
+    }
+
     @Test
     fun `plant with watering interval and no logs has no overdue status`() = runTest {
         val plantWithInterval = Plant(
