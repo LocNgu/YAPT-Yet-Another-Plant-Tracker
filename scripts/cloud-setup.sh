@@ -18,14 +18,16 @@
 # Idempotent: safe to re-run when the environment cache is rebuilt.
 set -euo pipefail
 
-case "$(uname -s)" in
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+case "$HOST_OS" in
   Darwin)
     DEFAULT_ANDROID_HOME="$HOME/Library/Android/sdk"
-    case "$(uname -m)" in
+    case "$HOST_ARCH" in
       arm64 | aarch64) CMDLINE_TOOLS_PLATFORM="mac_arm64" ;;
       x86_64 | amd64) CMDLINE_TOOLS_PLATFORM="mac_x86_64" ;;
       *)
-        echo "!!! unsupported macOS architecture: $(uname -m)" >&2
+        echo "!!! unsupported macOS architecture: $HOST_ARCH" >&2
         exit 1
         ;;
     esac
@@ -39,7 +41,7 @@ case "$(uname -s)" in
     fi
     ;;
   *)
-    echo "!!! unsupported platform: $(uname -s)" >&2
+    echo "!!! unsupported platform: $HOST_OS" >&2
     exit 1
     ;;
 esac
@@ -81,9 +83,10 @@ if [ -z "$COMPILE_SDK" ]; then
 fi
 BASE_PACKAGES=("platform-tools" "build-tools;${BUILD_TOOLS_VERSION}")
 
-# Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
-# which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
-# so cached environments re-provision instead of reusing 2023 tools forever.
+# Older revisions of this script unzipped the tools straight into the managed
+# /opt cache's cmdline-tools/latest, leaving no package.xml for sdkmanager to
+# upgrade. Only that repo-owned cache is safe to clear automatically: valid
+# user-installed SDK tools can also lack package.xml.
 if [ "$ANDROID_HOME" = "/opt/android-sdk" ] && [ -d "$ANDROID_HOME/cmdline-tools/latest" ] &&
   [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
   echo "    removing unmanaged cmdline-tools/latest from an earlier setup run"
@@ -114,14 +117,25 @@ done
 
 SDKMANAGER="$BOOTSTRAP_DIR/bin/sdkmanager"
 accept_licenses() { yes 2>/dev/null | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; }
+sdkmanager_major() {
+  "$1" --version 2>/dev/null | sed -nE 's/^([0-9]+).*/\1/p' | head -1 || true
+}
 
 echo "==> Updating to the SDK-managed cmdline-tools;latest"
 accept_licenses
 if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
   echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
 fi
-if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-  SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+LATEST_SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+if [ -x "$LATEST_SDKMANAGER" ]; then
+  BOOTSTRAP_MAJOR="$(sdkmanager_major "$SDKMANAGER")"
+  LATEST_MAJOR="$(sdkmanager_major "$LATEST_SDKMANAGER")"
+  if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
+    [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
+    SDKMANAGER="$LATEST_SDKMANAGER"
+  else
+    echo "    cmdline-tools;latest is older or unreadable — continuing with the bootstrap tools"
+  fi
 fi
 
 echo "==> Accepting licenses and installing SDK packages"
@@ -211,7 +225,7 @@ fi
 
 echo "==> Seeding Gradle wrapper dist so ./gradlew can start (its dist download is proxy-blocked)"
 WRAPPER_PROPS="gradle/wrapper/gradle-wrapper.properties"
-if [ -f "$WRAPPER_PROPS" ]; then
+if [ "$HOST_OS" = "Linux" ] && [ -f "$WRAPPER_PROPS" ]; then
   WRAPPER_VER="$(sed -nE 's#.*gradle-([0-9.]+)-(bin|all)\.zip.*#\1#p' "$WRAPPER_PROPS" | head -1)"
   PRE_GRADLE="$(command -v gradle || true)"
   [ -n "$PRE_GRADLE" ] && PRE_GRADLE_HOME="$(dirname "$(dirname "$(readlink -f "$PRE_GRADLE")")")"
@@ -250,6 +264,8 @@ if [ -f "$WRAPPER_PROPS" ]; then
   else
     echo "    skipped (no pinned wrapper version or no pre-installed gradle found)"
   fi
+elif [ "$HOST_OS" != "Linux" ]; then
+  echo "    skipped (the pre-installed Gradle cache workaround is Linux-only)"
 fi
 
 echo "==> Verifying: ./gradlew compileDebugKotlin"
