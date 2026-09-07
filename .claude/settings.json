@@ -159,7 +159,9 @@
       "Bash(cat ~/.git-credentials*)",
       "Bash(cat */.git-credentials*)",
       "Bash(cat *.env)",
+      "Bash(cat *.env.*)",
       "Bash(cat */.env)",
+      "Bash(cat */.env.*)",
       "Bash(grep * ~/.config/gh/hosts.yml*)",
       "Bash(grep * */.config/gh/hosts.yml*)"
     ],

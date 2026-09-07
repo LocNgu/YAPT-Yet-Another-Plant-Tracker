@@ -63,8 +63,11 @@ a widened local override can't reach.
 **Deny-list gaps closed**: `git push --force-with-lease origin main|develop` is added, mirroring the
 existing `--force`/`-f` pairs' exact shape (bare and `<space>*` forms for the plain command, bare-only
 for the `-C *` form). `git switch main` is added, mirroring `checkout main`'s exact scope (bare and
-`<space>*` forms, plus the `-C *` twins). `git switch -c newbranch main` stays allowed — it is
-analogous to the already-allowed `checkout -b`, not to `checkout main`.
+`<space>*` forms, plus the `-C *` twins). `git switch -c newbranch main` is deliberately *not* denied,
+being analogous to `checkout -b` rather than to `checkout main`. Note this leaves it at a prompt, not
+auto-approved: there is no `git switch` allow entry at all, so every other `switch` invocation already
+required confirmation before this change and still does. Only the protected-branch form is now
+mechanically blocked rather than merely prompted.
 
 **Secret-path deny for `cat`**, plus `grep` twins for the one path checked most often
 (`~/.config/gh/hosts.yml`, which stores the `gh` CLI's OAuth token in plaintext — the same secret #666
