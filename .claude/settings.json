@@ -56,7 +56,7 @@
       "Bash(gh run view*)",
       "Bash(gh run watch*)",
       "Bash(gh search *)",
-      "Bash(gh auth status*)",
+      "Bash(gh auth status)",
       "Bash(./gradlew*)",
       "Bash(java -version)",
       "Bash(find *)",

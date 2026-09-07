@@ -35,8 +35,18 @@ APK installation, archive extraction, and machine-specific executable or directo
 of the shared allowlist. When needed, those actions continue through the normal permission prompt or a
 purpose-built integration with explicit authorization.
 
+A trailing `*` is omitted wherever it would admit a credential-printing flag rather than only extra
+read-only arguments. `gh auth status` is allowed as an exact literal, because
+`gh auth status --show-token` prints the live OAuth/PAT token. Token retrieval — that flag, or the
+separate `gh auth token` subcommand — is deliberately left to the permission prompt. Read-only rules
+may keep a trailing wildcard only when every flag the subcommand accepts is also read-only.
+
 The existing Git deny list is copied without modification. It remains the mechanical backstop for the
 protected branches and destructive reset operations described in `.claude/CLAUDE.md`.
+
+`.gitignore` lists `.claude/settings.local.json`, so the tracked/untracked split is mechanically
+enforced rather than only documented: a broad `git add` cannot silently promote a personal override
+into repository policy.
 
 ## Consequences
 
@@ -47,3 +57,7 @@ protected branches and destructive reset operations described in `.claude/CLAUDE
   macOS, Linux, and cloud sessions.
 - Personal settings can add local conveniences, but they are not treated as repository policy or
   included in pull requests.
+- Auth-token retrieval is never silently approved; inspecting *whether* a session is authenticated
+  still is.
+- Widening the baseline is a reviewable diff, so a future entry that trades a prompt for a
+  credential-printing or write-capable flag has to be argued for in a pull request.

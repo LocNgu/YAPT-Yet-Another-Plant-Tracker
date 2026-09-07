@@ -81,9 +81,12 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 
 ## Permissions (shared baseline enforced by `.claude/settings.json`)
 
-Keep machine-specific paths and personal overrides in the untracked `.claude/settings.local.json`.
-Repository-wide allow/deny rules belong in `.claude/settings.json`; GitHub CLI allowances there must be
-limited to read-only subcommands so external writes continue to require explicit authorization.
+Keep machine-specific paths and personal overrides in the untracked (git-ignored)
+`.claude/settings.local.json`. Repository-wide allow/deny rules belong in `.claude/settings.json`;
+GitHub CLI allowances there must be limited to read-only subcommands so external writes continue to
+require explicit authorization, and a trailing `*` is only safe where every flag the subcommand accepts
+is *also* read-only — `gh auth status` is an exact literal because `--show-token` prints the live token
+(technical ADR-0024).
 
 | Action | Permission |
 |---|---|
