@@ -53,17 +53,20 @@ reading it inline (it will blow past the tool's token cap), then `grep` the file
 the grep hits are usually enough to locate the offending test class/stub without ever loading the bulk
 of the log into context.
 
-## Scoping local build verification across a PR's lifecycle (#684)
-The full suite (`compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`,
-`testDebugUnitTest`, `detekt`, `lintDebug`) is mandatory once, locally, before the *initial* push that
-opens a PR — that's the only local run with no CI result yet to lean on.
-Once a PR is open and CI has run at least once, a fix-round push (round 2+, addressing specific
-reviewer findings) only needs to verify the classes it actually touched: run
-`./gradlew testDebugUnitTest --tests "com.example.SpecificClassTest"` scoped to the affected test
-class(es), or just `compileDebugKotlin` alone for a compile-only fix (e.g. a rename, a signature tweak
-with no behavior change). Don't re-run the entire `testDebugUnitTest`/`detekt`/`lintDebug` suite locally
-on every fix-round push — CI already re-verifies everything on push, so a full local re-run at that point
-is redundant with CI, not an extra safety net.
+## Iterating fast without skipping the mandatory full suite (#684)
+`./gradlew detekt lintDebug compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`
+must succeed **before every push that opens or updates a PR** — round 2+ fix-round pushes are not an
+exception. This matches `AGENTS.md`'s "Before opening or updating a pull request" gate verbatim (both
+docs point agents at this shared file precisely so the two can't drift apart on this); nothing below
+proposes a per-agent or per-round carve-out from it.
+The token/time savings on a fix round come from *how* you run checks while iterating, not from skipping
+any of them before the push:
+- While chasing one specific reviewer finding, first reproduce/confirm it with a targeted run
+  (`./gradlew testDebugUnitTest --tests "com.example.SpecificClassTest"` or `compileDebugKotlin` alone
+  for a compile-only fix) for a fast fail/pass signal — this is a debugging aid to iterate faster, not a
+  substitute for the full mandatory suite above, which must still run once before the push.
+- Pipe every run through `-q`/`--console=plain` and grep the output for `FAILED`/`error:`/`Exception`
+  instead of reading full verbose console output — this is where the actual context savings come from.
 
 ## Release build (#4)
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
