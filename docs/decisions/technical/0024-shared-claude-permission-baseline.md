@@ -38,8 +38,10 @@ purpose-built integration with explicit authorization.
 A trailing `*` is omitted wherever it would admit a credential-printing flag rather than only extra
 read-only arguments. `gh auth status` is allowed as an exact literal, because
 `gh auth status --show-token` prints the live OAuth/PAT token. Token retrieval — that flag, or the
-separate `gh auth token` subcommand — is deliberately left to the permission prompt. Read-only rules
-may keep a trailing wildcard only when every flag the subcommand accepts is also read-only.
+separate `gh auth token` subcommand — is deliberately left to the permission prompt. Note that the
+hazard here is disclosure, not mutation: `--show-token` changes no state, so "read-only" is too weak a
+test. A rule may keep a trailing wildcard only when every flag the subcommand accepts both leaves state
+unchanged *and* discloses no stored credentials.
 
 The existing Git deny list is copied without modification. It remains the mechanical backstop for the
 protected branches and destructive reset operations described in `.claude/CLAUDE.md`.
