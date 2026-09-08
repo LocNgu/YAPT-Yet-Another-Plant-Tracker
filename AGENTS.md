@@ -14,9 +14,14 @@ or tool instructions into Codex workflows.
 
 ## Git workflow
 
-- Make each change on its own `codex/<kebab-description>` branch.
+- Before editing, create or switch to a dedicated
+  `codex/<kebab-style-feature-name>` branch. Never implement a change on
+  `main`, `master`, `develop`, or a detached `HEAD`.
 - Start from a freshly fetched `origin/develop`; target `develop` in any pull
   request.
+- When a push is authorized, push the current branch only to the same-named
+  remote branch and establish upstream tracking with `git push -u origin HEAD`.
+  Never push feature commits directly to `main`, `master`, or `develop`.
 - Do not mix unrelated changes in one branch or pull request.
 - Never merge a pull request. A human performs merges.
 - Preserve existing user changes and untracked files unless the user explicitly
