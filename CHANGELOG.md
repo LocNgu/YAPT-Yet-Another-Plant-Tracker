@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- **The computed seasonal watering curve and amplitude picker are now always on** — `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`) has graduated out of developer mode: the amplitude picker on the main Settings screen and the seasonal-curve preview chart are always visible, and `CareSchedule` always multiplies an unpinned plant's `wateringBaseIntervalDays` by the seasonal curve for due-date math, with no flag to toggle it off. Existing unpinned plants without an explicit amplitude choice now default to Standard seasonal adjustment (previously equivalent to Off) — use Settings, or a plant's own "Pin interval" switch, to opt back out. No DB migration — `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` and the `.yapt` backup fields already shipped unconditionally before the flag was removed (#656)
 - **The "Check {plant}" watering reminder reframe (Watered/Still moist/Not now actions) is now always on** — `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`) has graduated out of developer mode: a watering-due reminder always shows the "Check {plant}" title with the three fixed actions, with no flag to toggle it off. No behavior change for anyone who already had the flag on. No DB migration — `CareType.CHECK` already reused the existing care-log pipeline before the flag was removed (#657)
 
 ### Fixed

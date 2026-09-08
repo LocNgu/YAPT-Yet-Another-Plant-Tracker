@@ -2,14 +2,12 @@ package com.yapt.planttracker.ui.screens.addcarelog
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.preferencesOf
+import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -598,14 +596,12 @@ class AddCareLogViewModelTest {
     // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #578 follow-up)
 
     @Test
-    fun `save WATER log de-seasonalizes the observed gap for a non-pinned plant when SEASONAL_WATERING is on`() = runTest {
+    fun `save WATER log de-seasonalizes the observed gap for a non-pinned plant`() = runTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 10))
         coEvery { careLogRepo.addLog(any()) } returns 1L
@@ -647,14 +643,12 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `save WATER log skips de-seasonalization for a pinned plant even when SEASONAL_WATERING is on`() = runTest {
+    fun `save WATER log skips de-seasonalization for a pinned plant`() = runTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         val pinnedPlant = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(pinnedPlant)
@@ -698,9 +692,7 @@ class AddCareLogViewModelTest {
             val peakDay = localDateUtcMillis(2023, 1, 5)
             val fiveDaysBeforePeak = peakDay - 5L * 24 * 60 * 60 * 1000
             val seasonalDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-                )
+                every { data } returns flowOf(emptyPreferences())
             }
             // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the
             // observed 5-day gap de-seasonalizes to round(5 / 1.35) = 4 before the adaptive model sees
@@ -736,9 +728,7 @@ class AddCareLogViewModelTest {
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val oneDayBeforePeak = peakDay - 1L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         // The observed 1-day gap de-seasonalizes to round(1 / 1.35) = 1; the model's confidence-0 gain
         // (0.60) pulls the base from 7 toward target=1 down to 3.4, clamped at the ±40% floor

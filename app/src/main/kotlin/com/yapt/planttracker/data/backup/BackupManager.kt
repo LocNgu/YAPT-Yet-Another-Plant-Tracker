@@ -33,8 +33,8 @@ import java.util.zip.ZipOutputStream
 // watering_adjustments table (the "Recent adjustments" source for the "Why this date?" sheet), and
 // askBeforeChangingIntervals added to BackupSettings.
 // Schema 12 (#569): wateringBaseIntervalDays and pinIntervalToBase added to BackupPlant — round-trips
-// the computed-seasonal-watering reference interval and per-plant opt-out unconditionally, since
-// backup is not gated by the `seasonal_watering` flag.
+// the computed-seasonal-watering reference interval and per-plant opt-out unconditionally (the
+// seasonal watering curve itself ships unconditionally too, graduated #656).
 // Schema 11 (#568): wateringConfidence added to BackupPlant — round-trips the adaptive-watering
 // confidence counter unconditionally.
 // Schema 10 (#564): plantIssues: List<BackupPlantIssue> round-trips the plant_issues table (ongoing

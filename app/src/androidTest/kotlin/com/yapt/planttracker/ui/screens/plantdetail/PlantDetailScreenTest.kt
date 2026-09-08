@@ -117,21 +117,11 @@ class PlantDetailScreenTest {
     }
 
     /**
-     * Both [FeatureFlagRegistry.PLANT_DETAIL_TABS] and [FeatureFlagRegistry.SEASONAL_WATERING] on,
-     * for the seasonal-curve preview chart tests (#579) — the chart only renders in the tabbed Water
-     * layout, alongside the "Pin interval" switch from #578.
+     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout, where the seasonal-curve
+     * preview chart (#579) and "Pin interval" switch (#578) always render (seasonal watering
+     * graduated, #656) alongside the "Why this date?" sheet entry point.
      */
     private val mockDataStoreWithSeasonal: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-            )
-        )
-    }
-
-    /** Only [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout without the seasonal curve preview. */
-    private val mockDataStoreTabsOnly: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(
             mutablePreferencesOf(
                 FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
@@ -2244,13 +2234,13 @@ class PlantDetailScreenTest {
 
     /**
      * The seasonal-curve preview chart (#579) renders in the Water tab's inline settings card
-     * alongside the "Pin interval" switch, only while [FeatureFlagRegistry.SEASONAL_WATERING] is on.
+     * alongside the "Pin interval" switch, unconditionally (seasonal watering graduated, #656).
      * On Plant Detail the caption is in whole days (#622), not the raw multiplier — asserts the
      * visible "Today" caption text, computed the same way the chart itself does — never chart
      * canvas/tree structure, per #420.
      */
     @Test
-    fun seasonalCurveChart_todayCaption_isDisplayed_whenSeasonalWateringEnabled() {
+    fun seasonalCurveChart_todayCaption_isDisplayed() {
         val plant = Plant(id = 70L, name = "Aloe", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 7)
         val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
 
@@ -2324,7 +2314,7 @@ class PlantDetailScreenTest {
             wateringIntervalDays = 7,
             wateringConfidence = 4
         )
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithSeasonal)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -2361,7 +2351,7 @@ class PlantDetailScreenTest {
             wateringIntervalDays = 7,
             wateringDueDateOverride = System.currentTimeMillis() + (3 * dayInMs)
         )
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithSeasonal)
 
         composeTestRule.setContent {
             PlantDetailScreen(
@@ -2386,7 +2376,7 @@ class PlantDetailScreenTest {
     @Test
     fun wateringExplanationSheet_hidesRescheduleDeltaRow_whenNoOverride() {
         val plant = Plant(id = 83L, name = "Snake Plant", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 9)
-        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreTabsOnly)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithSeasonal)
 
         composeTestRule.setContent {
             PlantDetailScreen(

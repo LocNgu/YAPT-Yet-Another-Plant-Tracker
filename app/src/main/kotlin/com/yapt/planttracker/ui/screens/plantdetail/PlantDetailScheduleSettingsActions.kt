@@ -20,7 +20,7 @@ fun PlantDetailViewModel.setWateringInterval(days: Int?) {
     viewModelScope.launch {
         plant.value?.let { p ->
             // De-seasonalize the newly set value to today (#569), mirroring AddEditPlant's
-            // manual-edit handling — unchanged when SEASONAL_WATERING is off, the plant is
+            // manual-edit handling — unchanged when amplitude is Off, the plant is
             // pinned, or the schedule was just switched off (`days == null`); the prior base
             // (if any) is preserved rather than cleared.
             val deseasonalizedDays = if (days != null && !p.pinIntervalToBase) {
@@ -65,7 +65,7 @@ fun PlantDetailViewModel.setWateringInterval(days: Int?) {
     }
 }
 
-/** "Pin interval" switch on the inline Water tab settings card (#569) — see `seasonalWateringEnabled`. */
+/** "Pin interval" switch on the inline Water tab settings card (#569), always visible (#656). */
 fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
     viewModelScope.launch {
         plant.value?.let {
@@ -88,7 +88,7 @@ private suspend fun PlantDetailViewModel.deseasonalizedBaseOrNull(intervalDays: 
 /**
  * [plant]'s current base-space reference for [WateringAdjustment] row units (#584 review) —
  * mirrors `QuickLogUseCase`'s `currentAdaptiveBaseIntervalDays()` fallback. Collapses to [literal]
- * itself when the plant is pinned or SEASONAL_WATERING is off, matching every other read of
+ * itself when the plant is pinned or amplitude is Off, matching every other read of
  * `Plant.wateringBaseIntervalDays`.
  */
 @Suppress("ReturnCount")

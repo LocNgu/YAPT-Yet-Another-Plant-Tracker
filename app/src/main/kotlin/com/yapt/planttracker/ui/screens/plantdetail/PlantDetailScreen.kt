@@ -144,7 +144,6 @@ fun PlantDetailScreen(
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
-    val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
     val seasonalAmplitudeValue by viewModel.seasonalAmplitudeValue.collectAsStateWithLifecycle()
     val wateringExplanation by viewModel.wateringExplanation.collectAsStateWithLifecycle()
     var showWateringExplanationSheet by remember { mutableStateOf(false) }
@@ -777,7 +776,7 @@ fun PlantDetailScreen(
                                         ),
                                         onIntervalChange = { viewModel.setWateringInterval(it) }
                                     ) {
-                                        if (seasonalWateringEnabled && plant?.wateringIntervalDays != null) {
+                                        if (plant?.wateringIntervalDays != null) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,

@@ -336,10 +336,10 @@ class QuickLogUseCase(
         newInterval: Int
     ): IntervalApplyResult {
         val now = System.currentTimeMillis()
-        // SEASONAL_WATERING is an independent flag — when amplitude is 0 or the plant is pinned,
-        // newInterval is a *literal* value, not base-space-convertible, so it's used as-is for the
-        // confidence check and the base is left untouched below rather than clobbered with a
-        // never-seasonally-converted value (#584 review round 2, still applies post-#644).
+        // When amplitude is 0 (SeasonalAmplitude.OFF) or the plant is pinned, newInterval is a
+        // *literal* value, not base-space-convertible, so it's used as-is for the confidence check
+        // and the base is left untouched below rather than clobbered with a never-seasonally-converted
+        // value (#584 review round 2, still applies post-#644).
         val amplitude = dataStore.seasonalAmplitudeOnce()
         val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
         val newIntervalBaseSpace = if (seasonAdjustable) {
@@ -751,8 +751,8 @@ class QuickLogUseCase(
     /**
      * The season function [WateringLifecycleReset.maybeBootstrap]/[CareSchedule.bootstrapBaseInterval]
      * de-seasonalize each historical gap with — `{ 1.0 }` (a no-op) when [Plant.pinIntervalToBase] is
-     * set or `SEASONAL_WATERING` is off, mirroring every other de-seasonalization call site in this
-     * file ([deseasonalizedObservedIntervalDays]/[currentAdaptiveBaseIntervalDays]).
+     * set or amplitude is Off, mirroring every other de-seasonalization call site
+     * in this file ([deseasonalizedObservedIntervalDays]/[currentAdaptiveBaseIntervalDays]).
      */
     @Suppress("ReturnCount")
     private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
@@ -779,7 +779,7 @@ class QuickLogUseCase(
     /**
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * seasonal correction isn't baked into [Plant.wateringConfidence] as a permanent thirst change.
-     * A no-op when SEASONAL_WATERING is off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
+     * A no-op when amplitude is Off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
      * math never applies the seasonal curve for a pinned plant, so its observed gaps are already
      * flat and must not be seasonally corrected.
      *
@@ -809,7 +809,7 @@ class QuickLogUseCase(
     /**
      * The watering-model input for `currentBaseIntervalDays` (#572, amending technical ADR-0021):
      * season-neutral, reading [Plant.wateringBaseIntervalDays] instead of the raw (possibly seasonally
-     * stale) [configuredIntervalDays] whenever `SEASONAL_WATERING` is on and the plant isn't pinned.
+     * stale) [configuredIntervalDays] whenever amplitude isn't Off and the plant isn't pinned.
      * Prior to this fix every call site fed the model a value that only ever changed on a manual
      * edit, silently diverging from what [CareSchedule.computeStatus] actually used for the due date.
      */
