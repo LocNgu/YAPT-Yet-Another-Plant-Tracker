@@ -17,6 +17,9 @@ object WhatsNewContent {
             "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
                 "check plant saucers and pour away standing water. The reminder is on by default and can be " +
                 "turned off in Settings → Reminders"
+        changed = listOf(
+            "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
+                "always on — no more developer-mode flag to turn it on"
         ),
         fixed = listOf(
             "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
