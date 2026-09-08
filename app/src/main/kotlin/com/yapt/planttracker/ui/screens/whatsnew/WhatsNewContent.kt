@@ -18,6 +18,10 @@ object WhatsNewContent {
                 "check plant saucers and pour away standing water. The reminder is on by default and can be " +
                 "turned off in Settings → Reminders"
         ),
+        changed = listOf(
+            "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
+                "always on — no more developer-mode flag to turn it on"
+        ),
         fixed = listOf(
             "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
                 "later watering: backfilling an old watering no longer discards an unrelated active " +

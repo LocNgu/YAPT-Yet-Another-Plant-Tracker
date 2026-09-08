@@ -37,8 +37,8 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   See technical ADR-0019 (#232).
 
 ## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
-`SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" in the
-`check_reminders` branch since #586); guards on `intent.action`
+`SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" since
+#586's `check_reminders` reframe, now the only watering-due label since that flag graduated, #657); guards on `intent.action`
 (#178). Its actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside
 `goAsync()` for direct testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a
 learning signal (#570, product ADR-0027, reaffirmed by ADR-0029) — it only ever touches `wateringDueDateOverride`,
@@ -48,20 +48,18 @@ so it can't be wired up later by accident. The action's label string (`reschedul
 one rename covers both surfaces. The now-unregistered duplicate under `worker/SkipWateringReceiver.kt` (which
 mutated `wateringIntervalDays` directly, contradicting ADR-0007/ADR-0029) was deleted in #508.
 
-## Check reminders (#570, product ADR-0027)
-`FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off) reframes the watering-due reminder from an
-instruction to a check-in prompt. Gated in `ReminderWorker.postPlantNotification()` on `isWateringDue
-(= status.isOverdue || status.isDueSoon)` **and** the flag — a fertilizing/repotting-only reminder never reframes,
-even with the flag on, since there's no "check the soil" action to offer it.
-- **Flag off** (or not watering-due): byte-for-byte identical to today — title = plant name, single "Reschedule
-  watering" action.
-- **Flag on, watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the single
-  "Reschedule watering" action is replaced by **three, fixed regardless of how overdue the plant is** (#586,
-  product ADR-0030): **Watered** (reuses the same deep-link `PendingIntent` as tapping the notification body — a
-  discoverability affordance, not a new code path), **Still moist** (`StillMoistReceiver`), and **Not now**
-  (`SkipWateringReceiver`, the same +1-day override write as the flag-off action, relabelled). Varying the action
-  set by overdue-ness was rejected: unpredictable buttons between firings cost more than the one attribution the
-  fixed set gives up. A reminder fires at or after the due date, so a notification watering is never *early* —
+## Check reminders (#570, product ADR-0027; `CHECK_REMINDERS` graduated #657)
+The watering-due reminder is always a check-in prompt, not an instruction. Gated in
+`ReminderWorker.postPlantNotification()` on `isWateringDue (= status.isOverdue || status.isDueSoon)` only — a
+fertilizing/repotting-only reminder never reframes, since there's no "check the soil" action to offer it.
+- **Not watering-due**: title = plant name, no action row.
+- **Watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the action row is
+  **three, fixed regardless of how overdue the plant is** (#586, product ADR-0030): **Watered** (reuses the same
+  deep-link `PendingIntent` as tapping the notification body — a discoverability affordance, not a new code
+  path), **Still moist** (`StillMoistReceiver`), and **Not now** (`SkipWateringReceiver`, the same +1-day
+  override write the pre-#570 "Reschedule watering" action used, relabelled). Varying the action set by
+  overdue-ness was rejected: unpredictable buttons between firings cost more than the one attribution the fixed
+  set gives up. A reminder fires at or after the due date, so a notification watering is never *early* —
   **Watered** therefore writes no reason at all, which is correct on schedule and the safe exclusion when late
   (see `.claude/rules/schedule.md`). The "I watered late *because* it was dry" attribution stays available in-app.
   Since #508/#586, Still moist is also reachable from Plant Detail as the Reschedule prompt's "Soil still moist"

@@ -212,7 +212,8 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `edit mode save emits Saved with null interval skipping suggest`() = runTest {
+    fun `edit mode WATER save skips suggestion and post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
         val existingLog = CareLog(
             id = 99L,
             plantId = 1L,
@@ -222,7 +223,13 @@ class AddCareLogViewModelTest {
         )
         coEvery { careLogRepo.getLogById(99L) } returns existingLog
         coEvery { careLogRepo.addLog(any()) } returns 99L
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 99L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         advanceUntilIdle()
 
         vm.events.test {
@@ -231,6 +238,8 @@ class AddCareLogViewModelTest {
             assertNull(event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
+
+        assertTrue(scheduled.isEmpty())
     }
 
     @Test
@@ -484,10 +493,16 @@ class AddCareLogViewModelTest {
     // Same-day duplicate rejection (#509)
 
     @Test
-    fun `save WATER log already logged today shows inline error and does not save`() = runTest {
+    fun `duplicate WATER log shows inline error without saving or scheduling reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         vm.selectedCareType = CareType.WATER
 
         vm.events.test {
@@ -497,6 +512,7 @@ class AddCareLogViewModelTest {
 
         assertEquals(R.string.care_log_error_already_watered, vm.duplicateLogError)
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+        assertTrue(scheduled.isEmpty())
     }
 
     @Test
