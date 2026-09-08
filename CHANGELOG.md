@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **The Repot and Photo tabs on Plant Detail now have always-visible quick actions, matching Water and Fertilize** — Repot logs immediately through the shared quick-log path (including the existing adaptive-watering confidence reset and freeze window), while Add photo opens the existing care-log screen with Photo already selected, skipping the generic care-type picker without duplicating its image, date, notes, or cover-photo handling. The classic layout is unchanged, and the existing Custom Reminders/Issues add controls remain as-is (#658)
+
 ### Changed
 - **The "Check {plant}" watering reminder reframe (Watered/Still moist/Not now actions) is now always on** — `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`) has graduated out of developer mode: a watering-due reminder always shows the "Check {plant}" title with the three fixed actions, with no flag to toggle it off. No behavior change for anyone who already had the flag on. No DB migration — `CareType.CHECK` already reused the existing care-log pipeline before the flag was removed (#657)
 

@@ -63,6 +63,7 @@ class AddCareLogViewModel(
     var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
     private var customReminderId: Long? = null
+    private var initialCareTypeApplied = false
 
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
@@ -104,6 +105,15 @@ class AddCareLogViewModel(
     /** Clears a previously-shown duplicate error, e.g. once the user edits the date or care type. */
     fun clearDuplicateLogError() {
         duplicateLogError = null
+    }
+
+    /**
+     * Applies a navigation-requested care type once when creating a new log (#658). The one-shot
+     * guard preserves a user's later chip selection if the screen composition is recreated.
+     */
+    fun preselectCareType(careType: CareType) {
+        if (!isEditMode && !initialCareTypeApplied) selectedCareType = careType
+        initialCareTypeApplied = true
     }
 
     fun saveLog() {

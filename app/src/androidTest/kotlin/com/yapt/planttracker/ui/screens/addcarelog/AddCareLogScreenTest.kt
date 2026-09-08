@@ -50,14 +50,19 @@ class AddCareLogScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun makeViewModel(): AddCareLogViewModel {
+    private fun makeViewModel(initialCareType: CareType = CareType.WATER): AddCareLogViewModel {
         val careLogRepo = mockk<CareLogRepository>()
         val plantRepo = mockk<PlantRepository>()
         val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant)
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
-        return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 0L)
+        return AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 0L
+        ).also { it.preselectCareType(initialCareType) }
     }
 
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
@@ -96,6 +101,26 @@ class AddCareLogScreenTest {
         composeTestRule
             .onNode(hasText(waterLabel) and isSelected())
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun photoCareType_canBePreselected() {
+        val viewModel = makeViewModel(initialCareType = CareType.PHOTO)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(
+                viewModel = viewModel,
+                onNavigateBack = {}
+            )
+        }
+
+        val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(CareType.PHOTO.labelRes())
+
+        composeTestRule
+            .onNode(hasText(photoLabel) and isSelected())
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Add photo").assertIsDisplayed()
     }
 
     @Test

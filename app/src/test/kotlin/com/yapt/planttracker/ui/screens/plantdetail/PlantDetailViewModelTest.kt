@@ -438,6 +438,28 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun `quickRepot delegates to shared use case and emits message`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.REPOT) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Repotted Monstera", logged = true)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickLogMessage.test {
+                vm.quickRepot()
+                assertEquals(PlantDetailViewModel.QuickLogMessage.Repotted("Monstera"), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.REPOT) }
+    }
+
+    @Test
     fun `quickLiquidFertilize logs paired care and emits combined message`() = runTest {
         val monstera = plant().copy(
             useLiquidFertilizer = true,

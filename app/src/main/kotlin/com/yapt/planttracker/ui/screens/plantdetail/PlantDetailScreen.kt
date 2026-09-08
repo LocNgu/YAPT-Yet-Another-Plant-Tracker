@@ -249,6 +249,7 @@ fun PlantDetailScreen(
     // plant name from the event is substituted when the message fires.
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
+    val repottedTemplate = stringResource(R.string.quick_log_repotted)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -261,6 +262,8 @@ fun PlantDetailScreen(
                     String.format(wateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Fertilized ->
                     String.format(fertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Repotted ->
+                    String.format(repottedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
@@ -941,6 +944,15 @@ fun PlantDetailScreen(
 
                             PlantDetailTab.REPOT -> {
                                 item {
+                                    PlantDetailTabActionRow(
+                                        labelRes = R.string.bulk_action_repot,
+                                        icon = Icons.Filled.LocalFlorist,
+                                        testTag = REPOT_TAB_ACTION_BUTTON_TEST_TAG,
+                                        onClick = { viewModel.quickRepot() }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                item {
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.REPOT),
                                         countLabel = stringResource(R.string.insight_repottings),
@@ -974,6 +986,18 @@ fun PlantDetailScreen(
                             }
 
                             PlantDetailTab.PHOTO -> {
+                                item {
+                                    PlantDetailTabActionRow(
+                                        labelRes = R.string.plant_detail_action_add_photo,
+                                        icon = Icons.Filled.PhotoLibrary,
+                                        testTag = PHOTO_TAB_ACTION_BUTTON_TEST_TAG,
+                                        onClick = {
+                                            viewModel.prepareNewLog(CareType.PHOTO)
+                                            onNavigateToAddLog()
+                                        }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
                                 item {
                                     val summary = CareInsights.summarizePhotos(galleryPhotos)
                                     if (summary.count > 0) {
@@ -1161,7 +1185,10 @@ fun PlantDetailScreen(
             }
 
             FloatingActionButton(
-                onClick = onNavigateToAddLog,
+                onClick = {
+                    viewModel.prepareNewLog()
+                    onNavigateToAddLog()
+                },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
