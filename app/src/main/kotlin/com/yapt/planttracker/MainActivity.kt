@@ -20,9 +20,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.ui.navigation.Screen
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.theme.YaptTheme
+import com.yapt.planttracker.worker.PostWateringReminderWorker
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +50,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         if (savedInstanceState == null) {
-            initialPlantId = intent.getLongExtra(ReminderWorker.EXTRA_PLANT_ID, 0L).takeIf { it != 0L }
+            initialPlantId = deepLinkPlantId(intent)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -100,8 +102,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        initialPlantId = intent.getLongExtra(ReminderWorker.EXTRA_PLANT_ID, 0L).takeIf { it != 0L }
+        initialPlantId = deepLinkPlantId(intent)
     }
+
+    private fun deepLinkPlantId(intent: Intent): Long? =
+        if (intent.getBooleanExtra(PostWateringReminderWorker.EXTRA_SHOW_CARED_TODAY, false)) {
+            Screen.PlantList.CARED_TODAY_DEEP_LINK_ID
+        } else {
+            intent.getLongExtra(ReminderWorker.EXTRA_PLANT_ID, 0L).takeIf { it != 0L }
+        }
 
     private fun scheduleReminderFromPrefs() {
         lifecycleScope.launch(Dispatchers.IO) {

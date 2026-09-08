@@ -1,6 +1,6 @@
 # ADR-0007: Unique notification IDs per plant with cancelAll before re-posting
 
-**Status**: accepted (supersedes the original single-ID approach tracked in issue #7)
+**Status**: superseded by [ADR-0025](0025-selective-daily-notification-cleanup.md)
 
 **Date**: 2024-01-01
 

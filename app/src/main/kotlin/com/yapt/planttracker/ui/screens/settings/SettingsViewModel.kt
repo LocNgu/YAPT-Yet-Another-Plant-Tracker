@@ -23,6 +23,7 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.ui.theme.ThemeMode
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,6 +75,10 @@ class SettingsViewModel(
 
     val fertilizingNotificationsEnabled: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val postWateringReminderEnabled: StateFlow<Boolean> = dataStore.data
+        .map { it[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val reminderHour: StateFlow<Int> = dataStore.data
@@ -172,6 +177,13 @@ class SettingsViewModel(
         }
     }
 
+    fun setPostWateringReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = enabled }
+            if (!enabled) PostWateringReminderScheduler.cancel(context)
+        }
+    }
+
     fun setDeveloperModeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
@@ -238,6 +250,7 @@ class SettingsViewModel(
                 ReminderScheduler.schedule(context, hour, minute)
             } else {
                 ReminderScheduler.cancel(context)
+                PostWateringReminderScheduler.cancel(context)
             }
         }
     }

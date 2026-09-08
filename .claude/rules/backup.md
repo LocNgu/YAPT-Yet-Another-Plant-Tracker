@@ -39,6 +39,7 @@ paths:
 | v12 | `BackupPlant.wateringBaseIntervalDays: Double?` + `BackupPlant.pinIntervalToBase: Boolean` | `null` / `false` (#569) |
 | v13 | `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` + `BackupSettings.askBeforeChangingIntervals: Boolean` | `emptyList()` / `true` (#572) |
 | v14 | `BackupPlant.wateringResetAt: Long?` + `BackupPlant.wateringFreezeUntil: Long?` | `null` / `null` (#571) |
+| v15 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
 
 `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null
 field so future nullable additions are caught by the round-trip test (#288). Instrumented `BackupManager` tests: 9

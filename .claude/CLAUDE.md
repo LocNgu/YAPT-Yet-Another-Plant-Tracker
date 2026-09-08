@@ -40,6 +40,9 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).
 - **Room migrations are mandatory** — explicit `Migration`s only, hard-crash if one is missing (`fallbackToDestructiveMigration` is never used). Any schema change ships with a `Migration` and a committed schema JSON in `app/schemas/` (technical ADR-0002).
 - **All UI strings in `strings.xml`** — no hardcoded strings in Compose. `cd_back` is the canonical back-button description.
+- **Post-watering reminders** — every successful current-day WATER insert debounces one WorkManager alert to 30 minutes
+  after the latest watering; backdated/edited/duplicate-suppressed logs do not schedule. Notification ID `-2` is preserved
+  by daily-reminder cleanup; tap applies `CARED_FOR_TODAY` only in memory (product ADR-0035, technical ADR-0025, #519).
 - **Room schema** exported to `app/schemas/` via KSP — commit schema JSON when bumping DB version. `PlantDatabase.DB_VERSION` is the single source (also feeds `@Database(version=…)`), so the two can't drift.
 - **Compose UI tests assert user-visible semantics** (contentDescription/stateDescription/text/actionable), **never** tree structure (child counts, testTag topology). A testTag never merges past a clickable/merged ancestor. If a fix is about announcements, assert the announcement — not the topology (#420).
 - **Two-strikes rule** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or a minimal repro), and reconsider whether the test asserts the wrong thing (structure vs. contract) (#420).

@@ -2,6 +2,8 @@ package com.yapt.planttracker.ui.navigation
 
 sealed class Screen(val route: String) {
     object PlantList : Screen("plant_list?restoreMessage={restoreMessage}") {
+        const val CARED_TODAY_DEEP_LINK_ID = -2L
+
         fun createRoute(restoreMessage: String? = null) =
             if (restoreMessage != null) {
                 "plant_list?restoreMessage=$restoreMessage"

@@ -11,8 +11,9 @@ paths:
 # Notifications & Reminders rules
 
 ## ReminderWorker (WorkManager, REPLACE policy — technical ADR-0010)
-Daily at the user-configured time; **always `cancelAll()` first** (self-heals if the user switched modes), then
-posts. One notification per overdue/due-soon plant (ID = `plant.id.toInt()`); body = care items joined with `" · "`.
+Daily at the user-configured time; cancels every active YAPT notification except the independent post-watering
+notification (`-2`) before posting (self-heals if the user switched modes; technical ADR-0025). One notification
+per overdue/due-soon plant (ID = `plant.id.toInt()`); body = care items joined with `" · "`.
 No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `plantId` extra → PlantDetail (#7).
 - Default reminder time (hour 9, minute 0) is written to DataStore on first launch so `?: 9` fallbacks never
   silently re-anchor the schedule (#356). Lives in `SettingsDefaults.REMINDER_HOUR`/`MINUTE`, not magic numbers.
@@ -88,7 +89,20 @@ even with the flag on, since there's no "check the soil" action to offer it.
 with no photos), on PlantDetail open and after each quick-log on PlantList (#233/#407/#410/#416). Shared
 `PhotoReminderDialog` in `ui/components/`; suppressed while an interval-suggestion dialog is showing.
 
+## Post-watering standing-water reminder (#519, product ADR-0035)
+Every successfully inserted current-day WATER log schedules one unique `OneTimeWorkRequest` for 30 minutes later.
+`ExistingWorkPolicy.REPLACE` debounces a watering round to the latest WATER; bulk logging waits until its Room
+transaction commits and schedules once. Full Add Care Log, quick-water, bulk, and liquid-fertilizer paired-WATER
+paths all route through the same callback. Backdated logs, edits, and rejected duplicates never schedule.
+- Settings key `post_watering_reminder_enabled`, default `true`, is gated by master notifications and round-trips
+  through backup schema v15. Turning either switch off cancels pending work; the worker rechecks both switches.
+- Generic notification ID `-2`, same plant-care channel, no actions. Tap opens PlantList with an in-memory
+  `CARED_FOR_TODAY` sort that never overwrites the stored sort preference.
+- Pure eligibility/resource composition lives in `domain/notification/PostWateringReminderNotificationComposer`.
+- Daily reminder cleanup explicitly preserves ID `-2` (technical ADR-0025, superseding ADR-0007's `cancelAll()`).
+
 ## Tests
 `ReminderNotificationComposerTest` (both toggle branches), `ReminderWorkerTest` (Robolectric — denied/ due/ not-due
 + fertilizing-only suppression), `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`,
-`PhotoReminderTest`.
+`PhotoReminderTest`, `PostWateringReminderNotificationComposerTest`, `PostWateringReminderSchedulerTest`, and
+`PostWateringReminderWorkerTest`.

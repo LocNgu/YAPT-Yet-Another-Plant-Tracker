@@ -18,6 +18,7 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,8 +58,13 @@ class YaptApplication : Application() {
             plantPhotoRepository,
             settingsDataStore,
             database,
-            wateringAdjustmentRepository
+            wateringAdjustmentRepository,
+            onWaterLogged = ::schedulePostWateringReminder
         )
+    }
+
+    suspend fun schedulePostWateringReminder(loggedAt: Long) {
+        PostWateringReminderScheduler.scheduleIfEnabled(this, settingsDataStore, loggedAt)
     }
 
     override fun onCreate() {

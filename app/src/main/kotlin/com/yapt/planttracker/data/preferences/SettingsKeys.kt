@@ -15,6 +15,7 @@ object SettingsKeys {
     val PHOTO_REMINDER_ENABLED = booleanPreferencesKey("photo_reminder_enabled")
     val COMBINE_NOTIFICATIONS = booleanPreferencesKey("combine_notifications")
     val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
+    val POST_WATERING_REMINDER_ENABLED = booleanPreferencesKey("post_watering_reminder_enabled")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
     val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")

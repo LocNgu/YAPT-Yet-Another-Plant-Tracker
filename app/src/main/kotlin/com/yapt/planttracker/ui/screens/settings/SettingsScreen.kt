@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -118,6 +119,7 @@ fun SettingsScreen(
     val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
     val combineNotifications by viewModel.combineNotifications.collectAsStateWithLifecycle()
     val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
+    val postWateringReminderEnabled by viewModel.postWateringReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -495,6 +497,19 @@ fun SettingsScreen(
                             modifier = Modifier.testTag("combine_notifications_switch"),
                             checked = combineNotifications,
                             onCheckedChange = { viewModel.setCombineNotifications(it) }
+                        )
+                    }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.WaterDrop,
+                    title = stringResource(R.string.post_watering_reminder_title),
+                    subtitle = stringResource(R.string.post_watering_reminder_subtitle),
+                    trailingContent = {
+                        Switch(
+                            modifier = Modifier.testTag("post_watering_reminder_switch"),
+                            checked = postWateringReminderEnabled,
+                            onCheckedChange = { viewModel.setPostWateringReminderEnabled(it) }
                         )
                     }
                 )

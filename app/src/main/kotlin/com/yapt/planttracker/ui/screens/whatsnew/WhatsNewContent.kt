@@ -13,6 +13,11 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
+                "check plant saucers and pour away standing water. The reminder is on by default and can be " +
+                "turned off in Settings → Reminders"
+        ),
         fixed = listOf(
             "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
                 "later watering: backfilling an old watering no longer discards an unrelated active " +

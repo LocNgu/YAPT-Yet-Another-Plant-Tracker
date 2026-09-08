@@ -327,6 +327,23 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun postWateringReminderSwitch_startsOn_andCanBeTurnedOff() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag("post_watering_reminder_switch").performScrollTo().assertIsOn()
+        composeTestRule.onNodeWithTag("post_watering_reminder_switch").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("post_watering_reminder_switch").assertIsOff()
+    }
+
+    @Test
     fun photoReminderRow_isDisplayed() {
         composeTestRule.setContent {
             SettingsScreen(

@@ -45,9 +45,12 @@ class ReminderWorker(
         val now = System.currentTimeMillis()
         val notificationManager = context.getSystemService(NotificationManager::class.java)
 
-        // Cancel all existing notifications (covers deleted plants whose IDs are no longer in `plants`,
-        // and self-heals if the user switched combine-notifications mode since the last run)
-        notificationManager.cancelAll()
+        // Rebuild every daily reminder while preserving the independent post-watering alert (#519).
+        // This retains the deleted-plant/combine-mode self-healing of ADR-0025 without allowing the
+        // daily job to erase a standing-water reminder that has not been acted on yet.
+        notificationManager.activeNotifications
+            .filter { it.id != PostWateringReminderWorker.NOTIFICATION_ID }
+            .forEach { notificationManager.cancel(it.id) }
 
         val seasonalAmplitude = context.settingsDataStore.seasonalAmplitudeOnce()
         val hemisphere = SeasonalWatering.currentHemisphere()

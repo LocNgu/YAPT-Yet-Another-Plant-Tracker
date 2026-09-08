@@ -168,6 +168,30 @@ class AddCareLogViewModelTest {
     }
 
     @Test
+    fun `saving a new WATER log schedules the post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = null))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
+        vm.selectedCareType = CareType.WATER
+        vm.loggedAt = now
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(listOf(now), scheduled)
+    }
+
+    @Test
     fun `edit mode loads existing log fields and isEditMode is true`() = runTest {
         val existingLog = CareLog(
             id = 99L,
@@ -211,9 +235,15 @@ class AddCareLogViewModelTest {
 
     @Test
     fun `FERTILIZE with LIQUID type auto-creates paired WATER log`() = runTest {
+        val scheduled = mutableListOf<Long>()
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(useLiquidFertilizer = true))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         vm.selectedCareType = CareType.FERTILIZE
         vm.selectedFertilizerType = FertilizerType.LIQUID
 
@@ -229,6 +259,7 @@ class AddCareLogViewModelTest {
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
         }
+        assertEquals(1, scheduled.size)
     }
 
     @Test

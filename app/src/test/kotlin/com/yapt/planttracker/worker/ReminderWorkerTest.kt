@@ -301,4 +301,20 @@ class ReminderWorkerTest {
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(0, shadowOf(notificationManager).size())
     }
+
+    @Test
+    fun `daily cleanup preserves the independent post-watering notification`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        TestListenableWorkerBuilder<PostWateringReminderWorker>(app).build().doWork()
+        app.plantRepository.addPlant(
+            Plant(name = "Cactus", wateringIntervalDays = null, createdAt = 0L, updatedAt = 0L)
+        )
+
+        runWorker()
+
+        assertEquals(
+            listOf(PostWateringReminderWorker.NOTIFICATION_ID),
+            notificationManager.activeNotifications.map { it.id }
+        )
+    }
 }

@@ -20,6 +20,7 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import io.mockk.Runs
@@ -40,6 +41,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -66,6 +68,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
         every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
         every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
@@ -315,6 +318,34 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `postWateringReminderEnabled defaults to true when key is absent`() = runTest {
+        vm = buildVm()
+
+        vm.postWateringReminderEnabled.test {
+            assertTrue(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `disabling post-watering reminders persists and cancels pending work`() = runTest {
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        mockkObject(PostWateringReminderScheduler)
+        every { PostWateringReminderScheduler.cancel(mockContext) } just Runs
+        vm = buildVm()
+
+        try {
+            vm.setPostWateringReminderEnabled(false)
+            advanceUntilIdle()
+
+            coVerify { mockDataStore.updateData(any()) }
+            verify { PostWateringReminderScheduler.cancel(mockContext) }
+        } finally {
+            unmockkObject(PostWateringReminderScheduler)
+        }
     }
 
     @Test

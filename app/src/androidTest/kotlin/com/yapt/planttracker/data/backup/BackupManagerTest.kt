@@ -271,6 +271,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = true
             prefs[SettingsKeys.THEME_MODE] = "DARK"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = false
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = false
         }
 
         val exportFile = tmpFolder.newFile("settings_backup.yapt")
@@ -284,6 +285,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = false
             prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = true
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -304,6 +306,10 @@ class BackupManagerTest {
         assertFalse(
             "askBeforeChangingIntervals should be restored to false",
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
+        )
+        assertFalse(
+            "postWateringReminderEnabled should be restored to false",
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true
         )
     }
 

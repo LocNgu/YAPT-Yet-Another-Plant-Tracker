@@ -65,6 +65,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
+    <string name="post_watering_reminder_title">Drain-water reminder</string>
+    <string name="post_watering_reminder_subtitle">Remind me 30 minutes after watering to empty plant saucers</string>
     <!-- Seasonal watering amplitude setting (#569); shown only while the seasonal_watering flag is on -->
     <string name="settings_section_seasonal_watering">Seasonal watering</string>
     <string name="seasonal_amplitude_subtitle">How much watering intervals stretch in winter and compress in summer</string>
@@ -148,6 +150,8 @@
     <string name="notification_action_watered">Watered</string>
     <string name="notification_action_still_moist">Still moist</string>
     <string name="notification_action_not_now">Not now</string>
+    <string name="post_watering_notification_title">Check for standing water</string>
+    <string name="post_watering_notification_body">Pour away any excess water collected in your plant saucers.</string>
     <string name="water_feedback_sheet_title">Water %s?</string>
     <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>

@@ -76,7 +76,8 @@ class BackupSerializerTest {
         photoReminderEnabled = true,
         themeMode = "DARK",
         fertilizingNotificationsEnabled = false,
-        askBeforeChangingIntervals = false
+        askBeforeChangingIntervals = false,
+        postWateringReminderEnabled = false
     )
 
     private val defaultPlantPhoto = BackupPlantPhoto(
@@ -488,5 +489,25 @@ class BackupSerializerTest {
             backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
         )
         assertEquals(false, decoded.settings.askBeforeChangingIntervals)
+    }
+
+    @Test
+    fun `settings without postWateringReminderEnabled defaults to true`() {
+        val json = """
+            {"schemaVersion":14,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals(true, decoded.settings.postWateringReminderEnabled)
+    }
+
+    @Test
+    fun `settings postWateringReminderEnabled round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(false, decoded.settings.postWateringReminderEnabled)
     }
 }
