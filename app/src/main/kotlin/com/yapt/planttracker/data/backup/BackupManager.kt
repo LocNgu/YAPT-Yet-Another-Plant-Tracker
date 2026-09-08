@@ -26,6 +26,11 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 15 (#656 review): seasonalAmplitude added to BackupSettings — round-trips the user's
+// Off/Mild/Standard/Strong choice for the (now-unconditional, graduated #656) seasonal watering
+// curve. Old backups deserialize to "STANDARD", matching seasonalAmplitudeFlow()'s own default for
+// an unset preference, so a restore never silently un-defaults a plant that was actually adjusting
+// seasonally pre-backup.
 // Schema 14 (#571): wateringResetAt and wateringFreezeUntil added to BackupPlant — round-trip the
 // REPOT/room-change lifecycle-reset anchor and the REPOT-only freeze-window marker unconditionally
 // (same posture as wateringConfidence).
@@ -49,7 +54,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 14
+const val CURRENT_SCHEMA_VERSION = 15
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -109,6 +114,7 @@ class BackupManager(
             val themeMode = prefs[SettingsKeys.THEME_MODE] ?: "SYSTEM"
             val fertilizingNotificationsEnabled = prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true
             val askBeforeChangingIntervals = prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
+            val seasonalAmplitude = prefs[SettingsKeys.SEASONAL_AMPLITUDE] ?: "STANDARD"
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -235,7 +241,8 @@ class BackupManager(
                     photoReminderEnabled = photoReminderEnabled,
                     themeMode = themeMode,
                     fertilizingNotificationsEnabled = fertilizingNotificationsEnabled,
-                    askBeforeChangingIntervals = askBeforeChangingIntervals
+                    askBeforeChangingIntervals = askBeforeChangingIntervals,
+                    seasonalAmplitude = seasonalAmplitude
                 )
             )
 
@@ -475,6 +482,7 @@ class BackupManager(
                 prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] =
                     backup.settings.fertilizingNotificationsEnabled
                 prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = backup.settings.askBeforeChangingIntervals
+                prefs[SettingsKeys.SEASONAL_AMPLITUDE] = backup.settings.seasonalAmplitude
             }
 
             if (backup.settings.notificationsEnabled) {
