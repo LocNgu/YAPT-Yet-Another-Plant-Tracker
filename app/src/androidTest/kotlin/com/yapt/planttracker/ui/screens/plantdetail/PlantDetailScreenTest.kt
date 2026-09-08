@@ -34,6 +34,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -117,6 +118,21 @@ class PlantDetailScreenTest {
     }
 
     /**
+     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on, amplitude explicitly Off — for tests whose exact
+     * on/off-schedule boundary math must stay flag/date-independent (an unset amplitude now defaults
+     * to Standard since seasonal watering graduated, #656, which would otherwise shift the effective
+     * interval and make the boundary flaky by date).
+     */
+    private val mockDataStoreAmplitudeOff: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
+        every { it.data } returns flowOf(
+            mutablePreferencesOf(
+                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
+                SettingsKeys.SEASONAL_AMPLITUDE to "OFF"
+            )
+        )
+    }
+
+    /**
      * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout, where the seasonal-curve
      * preview chart (#579) and "Pin interval" switch (#578) always render (seasonal watering
      * graduated, #656) alongside the "Why this date?" sheet entry point.
@@ -166,7 +182,11 @@ class PlantDetailScreenTest {
         loggedAt = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L)
     )
 
-    private fun makeViewModel(plant: Plant, careLogs: List<CareLog> = emptyList()): PlantDetailViewModel {
+    private fun makeViewModel(
+        plant: Plant,
+        careLogs: List<CareLog> = emptyList(),
+        dataStore: DataStore<Preferences> = mockDataStore
+    ): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
@@ -192,7 +212,7 @@ class PlantDetailScreenTest {
             careLogRepo,
             plantPhotoRepo,
             plant.id,
-            mockDataStore,
+            dataStore,
             mockQuickLogUseCase,
             mockCustomReminderRepo,
             mockPlantIssueRepo,
@@ -972,7 +992,7 @@ class PlantDetailScreenTest {
         coEvery {
             mockQuickLogUseCase.quickWaterWithReason(plant, null, any())
         } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
-        val viewModel = makeViewModel(plant, listOf(onScheduleLog))
+        val viewModel = makeViewModel(plant, listOf(onScheduleLog), dataStore = mockDataStoreAmplitudeOff)
 
         composeTestRule.setContent {
             PlantDetailScreen(
