@@ -119,8 +119,11 @@ class AddCareLogScreenTest {
 
         composeTestRule
             .onNode(hasText(photoLabel) and isSelected())
+            .performScrollTo()
             .assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Add photo").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Add photo")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
