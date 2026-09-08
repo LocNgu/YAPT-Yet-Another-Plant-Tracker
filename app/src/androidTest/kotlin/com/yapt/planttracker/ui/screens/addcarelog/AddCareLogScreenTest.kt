@@ -17,9 +17,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
@@ -117,11 +119,10 @@ class AddCareLogScreenTest {
         val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(CareType.PHOTO.labelRes())
 
-        composeTestRule
-            .onNode(hasText(photoLabel) and isSelected())
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Add photo")
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(photoLabel) and isSelected())
+        composeTestRule.onNode(hasText(photoLabel) and isSelected()).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Take photo")
             .performScrollTo()
             .assertIsDisplayed()
     }
