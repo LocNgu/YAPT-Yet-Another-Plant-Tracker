@@ -11,8 +11,6 @@ import com.yapt.planttracker.MainActivity
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.isFeatureEnabled
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
@@ -67,13 +65,12 @@ class ReminderWorker(
 
         if (dueReminders.isNotEmpty()) {
             val combineNotifications = prefs[SettingsKeys.COMBINE_NOTIFICATIONS] ?: false
-            val checkRemindersEnabled = context.settingsDataStore.isFeatureEnabled(FeatureFlagRegistry.CHECK_REMINDERS)
 
             if (combineNotifications) {
                 postCombinedNotification(notificationManager, dueReminders.size)
             } else {
                 for (reminder in dueReminders) {
-                    postPlantNotification(notificationManager, reminder, checkRemindersEnabled)
+                    postPlantNotification(notificationManager, reminder)
                 }
             }
         }
@@ -145,16 +142,14 @@ class ReminderWorker(
 
     private fun postPlantNotification(
         notificationManager: NotificationManager,
-        reminder: DuePlantReminder,
-        checkRemindersEnabled: Boolean
+        reminder: DuePlantReminder
     ) {
         val status = reminder.status
         val plant = status.plant
         val body = buildCareBody(reminder.items)
-        val isWateringDue = status.isOverdue || status.isDueSoon
         // Reframing only ever applies to a watering-due plant — a fertilizing/repotting-only
         // reminder has no "check the soil" action to offer, so it keeps the plain plant-name title.
-        val showCheckReframing = isWateringDue && checkRemindersEnabled
+        val isWateringDue = status.isOverdue || status.isDueSoon
 
         val deepLinkIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -170,7 +165,7 @@ class ReminderWorker(
         val notificationBuilder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_plant_placeholder)
             .setContentTitle(
-                if (showCheckReframing) context.getString(R.string.notification_check_title, plant.name) else plant.name
+                if (isWateringDue) context.getString(R.string.notification_check_title, plant.name) else plant.name
             )
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -178,38 +173,30 @@ class ReminderWorker(
             .setAutoCancel(true)
 
         if (isWateringDue) {
-            if (showCheckReframing) {
-                // Watered · Still moist · Not now — a **fixed** action set (#586, product ADR-0030),
-                // never varied by how overdue the plant is: unpredictable buttons between firings
-                // cost more than the one attribution this loses. A reminder fires at or after the due
-                // date, so a notification-initiated watering is never *early*; splitting "Watered"
-                // into its two reason variants would push out Still moist or Not now, and Android
-                // affords roughly three slots. "Watered" therefore writes no reason at all — correct
-                // when on schedule, and the safe exclusion when late (see
-                // `CareSchedule.computeAdaptiveInterval`). The "I watered late *because* it was dry"
-                // attribution stays available in-app for anyone who wants to give it.
-                //
-                // "Watered" reuses the same deep-link as tapping the notification body (opens
-                // the app to this plant, where the existing quick-water flow lives) — this action
-                // is a discoverability affordance, not a new code path (#570).
-                notificationBuilder.addAction(0, context.getString(R.string.notification_action_watered), pendingIntent)
-                notificationBuilder.addAction(
-                    0,
-                    context.getString(R.string.notification_action_still_moist),
-                    stillMoistPendingIntent(plant.id)
-                )
-                notificationBuilder.addAction(
-                    0,
-                    context.getString(R.string.notification_action_not_now),
-                    skipPendingIntent(plant.id)
-                )
-            } else {
-                notificationBuilder.addAction(
-                    0,
-                    context.getString(R.string.reschedule_watering_title),
-                    skipPendingIntent(plant.id)
-                )
-            }
+            // Watered · Still moist · Not now — a **fixed** action set (#586, product ADR-0030),
+            // never varied by how overdue the plant is: unpredictable buttons between firings
+            // cost more than the one attribution this loses. A reminder fires at or after the due
+            // date, so a notification-initiated watering is never *early*; splitting "Watered"
+            // into its two reason variants would push out Still moist or Not now, and Android
+            // affords roughly three slots. "Watered" therefore writes no reason at all — correct
+            // when on schedule, and the safe exclusion when late (see
+            // `CareSchedule.computeAdaptiveInterval`). The "I watered late *because* it was dry"
+            // attribution stays available in-app for anyone who wants to give it.
+            //
+            // "Watered" reuses the same deep-link as tapping the notification body (opens
+            // the app to this plant, where the existing quick-water flow lives) — this action
+            // is a discoverability affordance, not a new code path (#570).
+            notificationBuilder.addAction(0, context.getString(R.string.notification_action_watered), pendingIntent)
+            notificationBuilder.addAction(
+                0,
+                context.getString(R.string.notification_action_still_moist),
+                stillMoistPendingIntent(plant.id)
+            )
+            notificationBuilder.addAction(
+                0,
+                context.getString(R.string.notification_action_not_now),
+                skipPendingIntent(plant.id)
+            )
         }
 
         notificationManager.notify(plant.id.toInt(), notificationBuilder.build())
