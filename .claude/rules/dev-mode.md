@@ -41,11 +41,11 @@ no schema bump).
   unconditionally regardless of this flag's state. The amplitude picker itself lives on the main Settings screen
   (not the Developer section), visible only while this flag is on — only the flag's on/off `Switch` appears in
   the generic Developer-section flags list.
-- `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off, #570) reframes the watering reminder
-  notification from "Water {plant}" to "Check {plant}" with Watered/Still-moist actions — see
-  `.claude/rules/notifications.md`. This one touches `ReminderWorker`, the notification composer, and a new
-  `StillMoistReceiver`; the Still-moist action always feeds the (now-unconditional) adaptive watering model.
-  No new columns/backup fields — `CareType.CHECK` reuses the existing care-log pipeline entirely.
+- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title with
+  Watered/Still-moist/Not now actions (#570) now ships unconditionally; there is no registry entry or flag row
+  for it anymore. See `.claude/rules/notifications.md`. `ReminderWorker`, the notification composer, and
+  `StillMoistReceiver` are unaffected otherwise — no new columns/backup fields, `CareType.CHECK` still reuses
+  the existing care-log pipeline entirely.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,

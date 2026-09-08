@@ -13,6 +13,10 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
+                "always on — no more developer-mode flag to turn it on"
+        ),
         fixed = listOf(
             "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
                 "later watering: backfilling an old watering no longer discards an unrelated active " +

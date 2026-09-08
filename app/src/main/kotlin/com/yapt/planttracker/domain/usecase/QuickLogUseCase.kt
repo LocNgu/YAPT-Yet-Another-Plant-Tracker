@@ -404,8 +404,8 @@ class QuickLogUseCase(
      * Records a "Soil still moist" observation: a [CareType.CHECK] log (`wateringFeedback = TOO_SOON`
      * — the plant was checked and not watered) and a [Plant.wateringDueDateOverride] set to
      * [newDueAtMillis]. Reached from the Reschedule reason prompt in the app (#586, product ADR-0030)
-     * and from the check-reminders notification's Still-moist action (#570, `check_reminders` feature
-     * flag, `StillMoistReceiver`) — one call site, so the two paths cannot drift.
+     * and from the check-reminders notification's Still-moist action (#570, `StillMoistReceiver`) —
+     * one call site, so the two paths cannot drift.
      *
      * [newDueAtMillis] replaces #570's flat `+1 day` constant, which could not clear "due" for a plant
      * overdue by two or more days while the same-day guard blocked a second tap. In the app the user

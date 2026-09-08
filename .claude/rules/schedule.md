@@ -121,8 +121,8 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
   `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),
   and only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
-  silently applied. Unconditional (`ADAPTIVE_WATERING` graduated, #655) — `check_reminders` being on is orthogonal
-  (see `.claude/rules/notifications.md`). The **length** of the deferral is never a model input (#586): the reason
+  silently applied. Unconditional (`ADAPTIVE_WATERING` graduated, #655; `CHECK_REMINDERS` graduated, #657) — see
+  `.claude/rules/notifications.md`. The **length** of the deferral is never a model input (#586): the reason
   already decided what is learned, and `suggestedStillMoistDeferralDays()` (`newBase - observedGap`, floored at
   `DEFAULT_STILL_MOIST_DEFERRAL_DAYS` = 1) only *suggests* a date — it shares `computeStillMoistAdaptiveInterval()`
   with the real write so the two can't drift. A reschedule the user attributed to themselves ("I can't right now")
