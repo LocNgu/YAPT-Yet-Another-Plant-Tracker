@@ -10,7 +10,7 @@ package com.yapt.planttracker.domain.model
  * ADR-0006 suggestion dialog's body text, its "should this even show" gate, and (as of #644) its
  * editable field and the value it submits to Apply all use this value instead, so nothing compares a
  * base-space number against an already seasonally-adjusted "current" (#620/#644). Equal to
- * [suggestedInterval] whenever the plant is pinned or `SEASONAL_WATERING` is off.
+ * [suggestedInterval] whenever the plant is pinned or amplitude is Off.
  */
 data class QuickWaterSuggestion(
     val plantId: Long,

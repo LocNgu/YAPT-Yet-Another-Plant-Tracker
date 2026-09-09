@@ -80,18 +80,10 @@ class PlantDetailViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    /** Gates the "Pin interval" switch on the inline Water tab settings card — mirrors [tabsEnabled]'s pattern. */
-    val seasonalWateringEnabled: StateFlow<Boolean> = dataStore.data
-        .map { prefs ->
-            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
-                ?: FeatureFlagRegistry.SEASONAL_WATERING.default
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     /**
-     * Raw global amplitude value (0.0 when the flag is off) for the seasonal-curve preview chart
-     * (#579) shown alongside the "Pin interval" switch — reuses the same choke point [careStatus]
-     * reads, rather than re-deriving amplitude at this call site.
+     * Raw global amplitude value for the seasonal-curve preview chart (#579) shown alongside the
+     * "Pin interval" switch — reuses the same choke point [careStatus] reads, rather than
+     * re-deriving amplitude at this call site.
      */
     val seasonalAmplitudeValue: StateFlow<Double> = dataStore.seasonalAmplitudeFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)

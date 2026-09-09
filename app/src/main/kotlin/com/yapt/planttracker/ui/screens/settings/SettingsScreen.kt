@@ -85,7 +85,6 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.domain.devmode.DeveloperModeTapOutcome
 import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
@@ -125,8 +124,6 @@ fun SettingsScreen(
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
     val featureFlagStates by viewModel.featureFlagStates.collectAsStateWithLifecycle()
     val seasonalAmplitude by viewModel.seasonalAmplitude.collectAsStateWithLifecycle()
-    val seasonalWateringEnabled = featureFlagStates[FeatureFlagRegistry.SEASONAL_WATERING.key]
-        ?: FeatureFlagRegistry.SEASONAL_WATERING.default
     val askBeforeChangingIntervals by viewModel.askBeforeChangingIntervals.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
@@ -513,54 +510,52 @@ fun SettingsScreen(
                 }
             )
 
-            if (seasonalWateringEnabled) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                Text(
-                    text = stringResource(R.string.settings_section_seasonal_watering),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+            Text(
+                text = stringResource(R.string.settings_section_seasonal_watering),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
 
-                Text(
-                    text = stringResource(R.string.seasonal_amplitude_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
+            Text(
+                text = stringResource(R.string.seasonal_amplitude_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
 
-                val amplitudeOptions = listOf(
-                    SeasonalAmplitude.OFF,
-                    SeasonalAmplitude.MILD,
-                    SeasonalAmplitude.STANDARD,
-                    SeasonalAmplitude.STRONG
-                )
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    amplitudeOptions.forEachIndexed { index, amplitude ->
-                        SegmentedButton(
-                            selected = amplitude == seasonalAmplitude,
-                            onClick = { viewModel.setSeasonalAmplitude(amplitude) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = amplitudeOptions.size),
-                            modifier = Modifier.testTag("seasonal_amplitude_option_${amplitude.name}")
-                        ) {
-                            Text(stringResource(amplitude.labelRes()))
-                        }
+            val amplitudeOptions = listOf(
+                SeasonalAmplitude.OFF,
+                SeasonalAmplitude.MILD,
+                SeasonalAmplitude.STANDARD,
+                SeasonalAmplitude.STRONG
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                amplitudeOptions.forEachIndexed { index, amplitude ->
+                    SegmentedButton(
+                        selected = amplitude == seasonalAmplitude,
+                        onClick = { viewModel.setSeasonalAmplitude(amplitude) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = amplitudeOptions.size),
+                        modifier = Modifier.testTag("seasonal_amplitude_option_${amplitude.name}")
+                    ) {
+                        Text(stringResource(amplitude.labelRes()))
                     }
                 }
-
-                val hemisphere = remember { SeasonalWatering.currentHemisphere() }
-                SeasonalWateringCurveChart(
-                    amplitude = seasonalAmplitude.value,
-                    hemisphere = hemisphere,
-                    showHemisphereCaption = true,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
             }
+
+            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+            SeasonalWateringCurveChart(
+                amplitude = seasonalAmplitude.value,
+                hemisphere = hemisphere,
+                showHemisphereCaption = true,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
             SettingsItemRow(
                 icon = Icons.Filled.AutoAwesome,

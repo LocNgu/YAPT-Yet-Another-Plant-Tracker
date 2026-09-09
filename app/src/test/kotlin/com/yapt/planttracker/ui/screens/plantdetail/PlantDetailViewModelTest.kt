@@ -336,7 +336,10 @@ class PlantDetailViewModelTest {
     @Test
     fun `quickWater with askBeforeChangingIntervals off applies the suggestion silently`() = runTest {
         every { dataStore.data } returns flowOf(
-            preferencesOf(SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false)
+            preferencesOf(
+                SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false,
+                SettingsKeys.SEASONAL_AMPLITUDE to "OFF"
+            )
         )
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

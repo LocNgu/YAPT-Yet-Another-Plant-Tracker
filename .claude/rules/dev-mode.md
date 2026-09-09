@@ -35,12 +35,11 @@ no schema bump).
   (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
   no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
   already shipped unconditionally before the flag was removed, are unaffected.
-- `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`, default off, #569) gates the computed seasonal
-  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture the graduated `ADAPTIVE_WATERING` flag
-  had: the backing `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship
-  unconditionally regardless of this flag's state. The amplitude picker itself lives on the main Settings screen
-  (not the Developer section), visible only while this flag is on — only the flag's on/off `Switch` appears in
-  the generic Developer-section flags list.
+- `SEASONAL_WATERING` graduated (#656) — the computed seasonal watering curve (see
+  `.claude/rules/seasonal-watering.md`) and the amplitude picker on the main Settings screen now ship
+  unconditionally; there is no registry entry or flag row for it anymore. The backing
+  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields, which already
+  shipped unconditionally before the flag was removed, are unaffected.
 - `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title with
   Watered/Still-moist/Not now actions (#570) now ships unconditionally; there is no registry entry or flag row
   for it anymore. See `.claude/rules/notifications.md`. `ReminderWorker`, the notification composer, and

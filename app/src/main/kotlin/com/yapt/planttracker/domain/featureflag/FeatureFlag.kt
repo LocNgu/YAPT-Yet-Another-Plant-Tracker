@@ -39,21 +39,5 @@ object FeatureFlagRegistry {
         default = false
     )
 
-    /**
-     * Computed (not learned) seasonal watering factor (#569, product ADR-0026). Off: due dates read
-     * `Plant.wateringIntervalDays` exactly as today, and the season factor is never applied. On: the
-     * amplitude setting appears on the main Settings screen and `CareSchedule` multiplies each
-     * unpinned plant's `Plant.wateringBaseIntervalDays` by the seasonal curve for due-date math (and
-     * de-seasonalizes the observed gap before the adaptive watering model learns from it). The
-     * `wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship
-     * unconditionally regardless of this flag's state.
-     */
-    val SEASONAL_WATERING = FeatureFlag(
-        key = "seasonal_watering",
-        titleRes = R.string.feature_flag_seasonal_watering_title,
-        descriptionRes = R.string.feature_flag_seasonal_watering_description,
-        default = false
-    )
-
-    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS, SEASONAL_WATERING)
+    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS)
 }

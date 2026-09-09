@@ -8,8 +8,9 @@ paths:
 
 # Seasonal watering rules (#569, product ADR-0026)
 
-Computed, not learned — see ADR-0026 for the full rationale (data sparsity + shared-shape argument
-against per-month learning). This file is the mechanical reference.
+`SEASONAL_WATERING` graduated (#656) — the curve and the amplitude picker ship unconditionally; no
+registry entry. Computed, not learned — see ADR-0026 for the full rationale (data sparsity +
+shared-shape argument against per-month learning). This file is the mechanical reference.
 
 ## The curve
 `domain/schedule/SeasonalWatering.kt` is the single pure-logic home:
@@ -29,27 +30,27 @@ against per-month learning). This file is the mechanical reference.
   permission, no network. Unmatched/equatorial zones default northern (low-stakes: seasonality is weak
   near the equator anyway).
 - `seasonalAmplitudeFlow()`/`seasonalAmplitudeOnce()` (`DataStore<Preferences>` extensions, same file)
-  are the single choke point every call site reads: 0.0 whenever `FeatureFlagRegistry.SEASONAL_WATERING`
-  itself is off, so "flag off" and "amplitude Off" collapse to the identical no-op path.
+  are the single choke point every call site reads: the user's `SettingsKeys.SEASONAL_AMPLITUDE`
+  preference, defaulting to `SeasonalAmplitude.STANDARD` when unset.
 
 ## Wiring into CareSchedule
 `CareSchedule.computeStatus(...)` takes `seasonalAmplitude: Double = 0.0` and
 `hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()` — defaults preserve today's behavior
 for any caller that doesn't pass them (JVM tests, etc.). `effectiveWateringIntervalDays()` (private)
-is the single point that decides: `wateringIntervalDays` unchanged when `seasonalAmplitude == 0.0` or
-`Plant.pinIntervalToBase`; otherwise `SeasonalWatering.effectiveInterval()` applied to
-`Plant.wateringBaseIntervalDays` (falling back to the literal `wateringIntervalDays` as the base when
-none was ever recorded — e.g. a plant created while the flag was off). Only watering is seasonal;
-fertilizing/repotting/custom reminders are untouched. Every due-date consumer (`ReminderWorker`,
-`PlantListViewModel`, `CalendarViewModel`, `PlantDetailViewModel.careStatus`) reads
+is the single point that decides: `wateringIntervalDays` unchanged when `seasonalAmplitude == 0.0` (i.e.
+`SeasonalAmplitude.OFF`) or `Plant.pinIntervalToBase`; otherwise `SeasonalWatering.effectiveInterval()`
+applied to `Plant.wateringBaseIntervalDays` (falling back to the literal `wateringIntervalDays` as the
+base when none was ever recorded — e.g. a plant created before the seasonal curve shipped). Only
+watering is seasonal; fertilizing/repotting/custom reminders are untouched. Every due-date consumer
+(`ReminderWorker`, `PlantListViewModel`, `CalendarViewModel`, `PlantDetailViewModel.careStatus`) reads
 `dataStore.seasonalAmplitudeFlow()`/`.seasonalAmplitudeOnce()` and passes it through — never
 re-derive the season math at a call site.
 
 ## Data model
 `Plant.wateringBaseIntervalDays: Double?` (season-neutral reference, `REAL` — deliberately not rounded
 at rest, since only the *effective* interval is rounded) and `Plant.pinIntervalToBase: Boolean` (default
-`false`) ship unconditionally regardless of the flag's state (`MIGRATION_10_11`, DB v11, `.yapt` backup
-schema v12) — same posture as `wateringConfidence` in #568: toggling the flag off/on never loses state.
+`false`) ship unconditionally (`MIGRATION_10_11`, DB v11, `.yapt` backup schema v12) — same posture as
+`wateringConfidence` in #568.
 
 ## Migration (`MIGRATION_10_11`, `data/db/PlantDatabase.kt`)
 Not a pure `ALTER` — after adding both columns, every plant with a non-null `wateringIntervalDays` gets
@@ -62,12 +63,11 @@ in — asserted by `MigrationTest10To11`. `pinIntervalToBase` defaults `false` f
 
 ## Manual edits reset the base, mirroring Part 1's confidence-reset precedent
 Both `AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterval()` de-seasonalize a
-newly typed/dragged interval to *today* (`base = editedValue / season(now)`) when `SEASONAL_WATERING` is
-on and the plant isn't pinned — an unprompted edit is the user asserting a new baseline. When the flag
-is off (amplitude reads 0.0), the prior base is preserved rather than cleared, so re-enabling the flag
-later doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab, gated behind
-`PLANT_DETAIL_TABS`) both surface a "Pin interval" `Switch` bound to `pinIntervalToBase`, gated behind
-`SEASONAL_WATERING` being on.
+newly typed/dragged interval to *today* (`base = editedValue / season(now)`) when amplitude isn't Off
+and the plant isn't pinned — an unprompted edit is the user asserting a new baseline. When amplitude
+reads Off, the prior base is preserved rather than cleared, so choosing a non-Off amplitude later
+doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab, gated behind
+`PLANT_DETAIL_TABS`) both surface a "Pin interval" `Switch` bound to `pinIntervalToBase`, always visible.
 
 ## Interaction with Part 1's adaptive model (#568, amended #572)
 `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into
@@ -79,19 +79,18 @@ Part 1's own precedent of leaving that path alone).
 `currentBaseIntervalDays` no longer stays `Plant.wateringIntervalDays` unconditionally (that was a bug,
 fixed in #572/product ADR-0028): each of `QuickLogUseCase`/`AddCareLogViewModel`'s private
 `currentAdaptiveBaseIntervalDays(plant, configuredIntervalDays)` helper reads season-neutral
-`Plant.wateringBaseIntervalDays` instead, whenever `SEASONAL_WATERING` is on and the plant isn't
-pinned — otherwise (flag off, amplitude `Off`, or pinned) it's unchanged, `configuredIntervalDays`
+`Plant.wateringBaseIntervalDays` instead, whenever amplitude isn't Off and the plant isn't
+pinned — otherwise (amplitude Off, or pinned) it's unchanged, `configuredIntervalDays`
 verbatim. Prior to this fix every call site fed the model a value that only ever updated on a manual
 edit, silently diverging from what `CareSchedule.computeStatus()` was actually using for the due date
-once season was on. See `.claude/rules/watering-transparency.md` for the write-side half of the same
-fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug fix feeds.
+whenever amplitude wasn't Off. See `.claude/rules/watering-transparency.md` for the write-side half of
+the same fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug
+fix feeds.
 
 ## Settings UI
-Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, visible only while
-`FeatureFlagRegistry.SEASONAL_WATERING` is on (`SettingsViewModel.seasonalAmplitude` StateFlow +
-`setSeasonalAmplitude()`), takes effect immediately (StateFlow-driven, no relaunch). The flag itself
-appears automatically in the Developer section's generic flag list (registry entry only, no extra UI
-code needed per the `FeatureFlagRegistry` pattern).
+Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, always visible
+(`SettingsViewModel.seasonalAmplitude` StateFlow + `setSeasonalAmplitude()`), takes effect immediately
+(StateFlow-driven, no relaunch).
 
 ## Preview chart (#579)
 `SeasonalWateringCurveChart` (`ui/components/`, see `.claude/rules/chart.md` for the Vico internals) renders

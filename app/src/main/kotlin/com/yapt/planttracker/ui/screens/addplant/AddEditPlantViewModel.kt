@@ -13,8 +13,6 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringAdjustment
@@ -27,7 +25,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -43,7 +40,7 @@ class AddEditPlantViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val plantId: Long?,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
-    // updating; null is treated the same as SEASONAL_WATERING being off (#569).
+    // updating; null is treated the same as amplitude being Off (#569).
     private val dataStore: DataStore<Preferences>? = null,
     // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
     // safe no-ops for tests that don't pass one (#572).
@@ -72,21 +69,8 @@ class AddEditPlantViewModel(
     var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
     var repottingIntervalEnabled by mutableStateOf(false)
 
-    /** Per-plant opt-out from the seasonal curve (#569) — surfaced only while [seasonalWateringEnabled]. */
+    /** Per-plant opt-out from the seasonal curve (#569) — always surfaced now that seasonal watering ships unconditionally (#656). */
     var pinIntervalToBase by mutableStateOf(false)
-
-    /**
-     * Whether the amplitude picker / "Pin interval" switch should render at all — mirrors
-     * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.tabsEnabled]'s pattern of
-     * reading the flag straight off [dataStore] rather than taking a `FeatureFlags` constructor
-     * param, to stay under Detekt's `LongParameterList` threshold.
-     */
-    val seasonalWateringEnabled: StateFlow<Boolean> = (dataStore?.data ?: emptyFlow())
-        .map { prefs ->
-            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
-                ?: FeatureFlagRegistry.SEASONAL_WATERING.default
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
@@ -183,7 +167,7 @@ class AddEditPlantViewModel(
     /**
      * Mirrors the confidence reset in [saveEdit]: de-seasonalize a newly typed interval to today
      * (#569) so the effective interval doesn't jump on the next due-date computation. Unchanged when
-     * `SEASONAL_WATERING` is off, the plant is pinned, or the interval wasn't touched — the prior base
+     * amplitude is Off, the plant is pinned, or the interval wasn't touched — the prior base
      * (if any) is preserved rather than cleared. Extracted out of [saveEdit] to stay under Detekt's
      * `CyclomaticComplexMethod` threshold.
      */
@@ -297,8 +281,7 @@ class AddEditPlantViewModel(
     }
 
     /**
-     * `null` when SEASONAL_WATERING is off ([dataStore] is null or the flag reads off) — see
-     * [seasonalWateringEnabled].
+     * `null` when [dataStore] is null (test-convenience seam) or amplitude reads Off.
      */
     private suspend fun deseasonalizedBaseOrNull(intervalDays: Int, now: Long): Double? {
         val store = dataStore ?: return null
@@ -319,7 +302,7 @@ class AddEditPlantViewModel(
      * The pre-edit base-space reference for [WateringAdjustment] row units (#584 review) — mirrors
      * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel]'s
      * `currentBaseIntervalDaysOrLiteral()`. Collapses to [literal] itself when [pinned] or
-     * SEASONAL_WATERING is off, matching every other read of [Plant.wateringBaseIntervalDays].
+     * amplitude is Off, matching every other read of [Plant.wateringBaseIntervalDays].
      */
     @Suppress("ReturnCount")
     private suspend fun currentBaseIntervalDaysOrLiteral(pinned: Boolean, storedBase: Double?, literal: Int): Int {

@@ -65,7 +65,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
   scenario 3b is a known-unreachable bound from the originating issue thread, not a bug in this implementation.
 - `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the observed gap before calling
-  `computeAdaptiveInterval()` when `SEASONAL_WATERING` is on (`observedBase = observedGap / season(dateOfGap)`,
+  `computeAdaptiveInterval()` when amplitude isn't Off (`observedBase = observedGap / season(dateOfGap)`,
   #569, product ADR-0026) — `computeAdaptiveInterval()` itself is unaware of seasonality; only its
   `observedIntervalDays` input is patched at the call site. See `.claude/rules/seasonal-watering.md`.
 - **`feedback: WateringFeedback?`** — widened to nullable (#570, product ADR-0027): the WATER-log feedback chip
