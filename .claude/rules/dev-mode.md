@@ -69,15 +69,17 @@ null`, so the next WATER log against a plant with enough history (Monstera, Snak
 Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants (Aloe Vera, Cactus, Calathea)
 correctly keep their typed interval.
 
-## Debug actions (#522)
-Two non-destructive rows below the flags list; neither touches the DB or confirms.
+## Debug actions (#522, #519)
+Three non-destructive rows below the flags list; none touches the DB or confirms.
 - **Reset What's New seen state** — `resetWhatsNewSeenState()` removes `LAST_SEEN_VERSION_CODE` so the auto-show
   fires next launch (absent key reads as 0).
 - **Run reminder check now** — `runReminderCheckNow()` checks POST_NOTIFICATIONS **itself** (before enqueueing, so
   the Snackbar is accurate) via the shared `NotificationPermission.isGranted(context)` helper (also used by
   `ReminderWorker.doWork()` so the two can't drift); only then calls `ReminderScheduler.runNow(context)` —
   `enqueueUniqueWork(RUN_NOW_WORK_NAME, REPLACE, …)` so rapid taps coalesce.
-- Both emit via `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
+- **Show drain-water reminder now** — `showPostWateringReminderNow()` writes the transient pending-modal token directly,
+  bypassing the 30-minute WorkManager delay and POST_NOTIFICATIONS permission for deterministic manual UI testing.
+- All three emit via `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
 
 ## Snackbar unification — do NOT re-add `dismiss()` (the instructive bug)
 `SettingsScreen` routes **every** snackbar source (debug actions, backup export result, unlock countdown, dev-mode

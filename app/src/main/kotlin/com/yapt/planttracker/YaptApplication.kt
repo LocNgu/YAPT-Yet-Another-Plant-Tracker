@@ -41,6 +41,10 @@ class YaptApplication : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Volatile
+    internal var isAppForeground: Boolean = false
+        private set
+
     val database by lazy { PlantDatabase.getInstance(this) }
 
     val plantRepository by lazy { PlantRepository(database.plantDao()) }
@@ -65,6 +69,10 @@ class YaptApplication : Application() {
 
     suspend fun schedulePostWateringReminder(loggedAt: Long) {
         PostWateringReminderScheduler.scheduleIfEnabled(this, settingsDataStore, loggedAt)
+    }
+
+    internal fun setAppForeground(foreground: Boolean) {
+        isAppForeground = foreground
     }
 
     override fun onCreate() {

@@ -1,6 +1,6 @@
 # Product ADR-0035: Debounced post-watering standing-water reminder
 
-**Status**: accepted
+**Status**: superseded by [ADR-0036](0036-post-watering-foreground-presentation.md)
 
 **Date**: 2026-09-08
 

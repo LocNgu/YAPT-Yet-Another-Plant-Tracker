@@ -1,4 +1,4 @@
-# Technical ADR-0025: Selective daily-notification cleanup preserves independent alerts
+# Technical ADR-0026: Selective daily-notification cleanup preserves independent alerts
 
 **Status**: accepted
 

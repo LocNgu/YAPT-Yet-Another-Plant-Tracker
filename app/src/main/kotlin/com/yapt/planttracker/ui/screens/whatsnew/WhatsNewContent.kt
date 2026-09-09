@@ -15,8 +15,8 @@ object WhatsNewContent {
         versionName = "Unreleased",
         added = listOf(
             "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
-                "check plant saucers and pour away standing water. The reminder is on by default and can be " +
-                "turned off in Settings → Reminders"
+                "check plant saucers and pour away standing water. It appears in the app while YAPT is open " +
+                "or as a notification in the background, and can be turned off in Settings → Reminders"
         ),
         changed = listOf(
             "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +

@@ -719,6 +719,23 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Run reminder check now").performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun showDrainWaterReminderRow_isDisplayed_afterUnlock() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("Show drain-water reminder now").performScrollTo().assertIsDisplayed()
+    }
+
     // The click-through outcome of "Run reminder check now" is deliberately not asserted here,
     // for two reasons. First, its two branches depend on the POST_NOTIFICATIONS grant state,
     // which this suite does not control, so the only assertion possible on-device was "one of

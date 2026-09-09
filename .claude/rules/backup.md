@@ -41,6 +41,9 @@ paths:
 | v14 | `BackupPlant.wateringResetAt: Long?` + `BackupPlant.wateringFreezeUntil: Long?` | `null` / `null` (#571) |
 | v15 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
 
+The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
+excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.
+
 `BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null
 field so future nullable additions are caught by the round-trip test (#288). Instrumented `BackupManager` tests: 9
 cases (round-trips ±photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings,

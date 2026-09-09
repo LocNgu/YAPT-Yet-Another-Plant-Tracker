@@ -9,10 +9,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.yapt.planttracker.MainActivity
 import com.yapt.planttracker.R
+import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.notification.PostWateringReminderNotificationComposer
 import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.NotificationPermission
+import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.settingsDataStore
 import kotlinx.coroutines.flow.first
 
@@ -22,7 +24,15 @@ class PostWateringReminderWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        if (NotificationPermission.isGranted(context) && reminderIsEnabled()) postNotification()
+        if (!reminderIsEnabled()) return Result.success()
+
+        val appIsForeground = (context.applicationContext as? YaptApplication)?.isAppForeground == true
+        if (appIsForeground) {
+            PostWateringReminderPresentation.showInApp(context, context.settingsDataStore)
+        } else {
+            PostWateringReminderPresentation.clearPendingPrompt(context.settingsDataStore)
+            if (NotificationPermission.isGranted(context)) postNotification()
+        }
         return Result.success()
     }
 
@@ -59,7 +69,7 @@ class PostWateringReminderWorker(
     }
 
     companion object {
-        const val EXTRA_SHOW_CARED_TODAY = "showCaredToday"
-        const val NOTIFICATION_ID = -2
+        const val EXTRA_SHOW_CARED_TODAY = PostWateringReminderPresentation.EXTRA_SHOW_CARED_TODAY
+        const val NOTIFICATION_ID = PostWateringReminderPresentation.SYSTEM_NOTIFICATION_ID
     }
 }

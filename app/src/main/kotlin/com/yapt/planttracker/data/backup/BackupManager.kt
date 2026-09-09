@@ -16,6 +16,7 @@ import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
@@ -491,6 +492,7 @@ class BackupManager(
             // A pending reminder belongs to the pre-import care history, which was just replaced.
             // Restoring historical WATER rows must never manufacture or retain an event-relative alert.
             PostWateringReminderScheduler.cancel(context)
+            PostWateringReminderPresentation.clear(context, dataStore)
 
             BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
         } catch (e: Exception) {

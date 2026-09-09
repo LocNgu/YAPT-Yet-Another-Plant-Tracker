@@ -22,6 +22,7 @@ import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.notification.NotificationPermission
+import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
@@ -180,7 +181,10 @@ class SettingsViewModel(
     fun setPostWateringReminderEnabled(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = enabled }
-            if (!enabled) PostWateringReminderScheduler.cancel(context)
+            if (!enabled) {
+                PostWateringReminderScheduler.cancel(context)
+                PostWateringReminderPresentation.clear(context, dataStore)
+            }
         }
     }
 
@@ -219,6 +223,13 @@ class SettingsViewModel(
         }
     }
 
+    fun showPostWateringReminderNow() {
+        viewModelScope.launch {
+            PostWateringReminderPresentation.showInApp(context, dataStore)
+            _debugActionEvent.emit(context.getString(R.string.dev_mode_show_drain_water_reminder_snackbar))
+        }
+    }
+
     fun seedDemoPlants() {
         viewModelScope.launch {
             val count = demoDataSeeder.seed()
@@ -251,6 +262,7 @@ class SettingsViewModel(
             } else {
                 ReminderScheduler.cancel(context)
                 PostWateringReminderScheduler.cancel(context)
+                PostWateringReminderPresentation.clear(context, dataStore)
             }
         }
     }

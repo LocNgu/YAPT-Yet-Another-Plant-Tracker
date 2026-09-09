@@ -286,6 +286,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = true
             prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
+            prefs[SettingsKeys.POST_WATERING_REMINDER_PENDING_AT] = 123L
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -310,6 +311,10 @@ class BackupManagerTest {
         assertFalse(
             "postWateringReminderEnabled should be restored to false",
             prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true
+        )
+        assertNull(
+            "postWateringReminderPendingAt should be cleared rather than restored",
+            prefs[SettingsKeys.POST_WATERING_REMINDER_PENDING_AT]
         )
     }
 

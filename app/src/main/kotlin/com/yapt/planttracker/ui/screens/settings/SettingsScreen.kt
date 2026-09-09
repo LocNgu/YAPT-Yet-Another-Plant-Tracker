@@ -820,6 +820,14 @@ fun SettingsScreen(
                 )
 
                 SettingsItemRow(
+                    icon = Icons.Filled.WaterDrop,
+                    title = stringResource(R.string.dev_mode_action_show_drain_water_reminder_title),
+                    subtitle = stringResource(R.string.dev_mode_action_show_drain_water_reminder_subtitle),
+                    modifier = Modifier.testTag("dev_mode_show_drain_water_reminder_row"),
+                    onClick = { viewModel.showPostWateringReminderNow() }
+                )
+
+                SettingsItemRow(
                     icon = Icons.Filled.Eco,
                     title = stringResource(R.string.dev_mode_action_seed_demo_title),
                     subtitle = stringResource(R.string.dev_mode_action_seed_demo_subtitle),
