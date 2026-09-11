@@ -13,6 +13,10 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "The Repot and Photo tabs on Plant Detail now have their own quick actions — Repot logs " +
+                "immediately, while Add photo opens the existing log screen with Photo already selected"
+        ),
         changed = listOf(
             "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +
                 "picker in Settings are now always on — no more developer-mode flag to turn it on. Existing " +

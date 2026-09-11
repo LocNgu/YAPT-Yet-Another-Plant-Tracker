@@ -81,6 +81,24 @@ class AddCareLogViewModelTest {
     }
 
     @Test
+    fun `new log can start with a preselected care type`() {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L
+        )
+        vm.preselectCareType(CareType.PHOTO)
+
+        assertEquals(CareType.PHOTO, vm.selectedCareType)
+
+        vm.selectedCareType = CareType.NOTE
+        vm.preselectCareType(CareType.PHOTO)
+        assertEquals(CareType.NOTE, vm.selectedCareType)
+    }
+
+    @Test
     fun `save WATER log with JUST_RIGHT feedback emits Saved with null interval when gap matches stored`() = runTest {
         val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))

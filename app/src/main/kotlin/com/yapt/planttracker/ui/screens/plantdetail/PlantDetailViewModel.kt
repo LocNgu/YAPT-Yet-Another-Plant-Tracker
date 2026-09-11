@@ -255,6 +255,8 @@ class PlantDetailViewModel(
     private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
     val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
 
+    private var pendingNewLogCareType = CareType.WATER
+
     /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_events] itself. */
     internal suspend fun emitEvent(event: Event) = _events.emit(event)
 
@@ -285,6 +287,18 @@ class PlantDetailViewModel(
 
     fun dismissPhotoReminder() {
         _showPhotoReminderDialog.value = false
+    }
+
+    /**
+     * Carries the selected tab's requested care type through Plant Detail's existing add-log
+     * navigation callback (#658). Consuming resets the next generic FAB navigation to WATER.
+     */
+    fun prepareNewLog(careType: CareType = CareType.WATER) {
+        pendingNewLogCareType = careType
+    }
+
+    fun consumeNewLogCareType(): CareType = pendingNewLogCareType.also {
+        pendingNewLogCareType = CareType.WATER
     }
 
     fun saveReminderPhoto(uri: Uri) {
@@ -347,6 +361,23 @@ class PlantDetailViewModel(
                 QuickLogMessage.Fertilized(p.name)
             }
             _quickLogMessage.emit(message)
+            maybeTriggerPhotoReminder(p.id)
+        }
+    }
+
+    /**
+     * Quick-logs a repot from the Repot tab (#658). [QuickLogUseCase.quickLog] is intentionally the
+     * entry point: its REPOT path also applies
+     * [com.yapt.planttracker.domain.usecase.WateringLifecycleReset], so this shortcut cannot bypass
+     * the same confidence reset and freeze window as manual logging. REPOT is not same-day duplicate
+     * guarded, matching every existing quick-log surface.
+     */
+    fun quickRepot() {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            val outcome = quickLogUseCase.quickLog(p, CareType.REPOT)
+            if (!outcome.logged) return@launch
+            _quickLogMessage.emit(QuickLogMessage.Repotted(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
     }
@@ -456,6 +487,7 @@ class PlantDetailViewModel(
     sealed class QuickLogMessage {
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
+        data class Repotted(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()

@@ -59,6 +59,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -1481,6 +1482,67 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun repotTab_actionQuickLogsRepot() {
+        val plant = Plant(id = 42L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Repotted Yucca", logged = true)
+        coEvery { mockQuickLogUseCase.maybeBuildPhotoReminderRequest(plant.id) } returns null
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
+        composeTestRule.onNodeWithText("Repot").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+
+        coVerify(timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) }
+    }
+
+    @Test
+    fun photoTab_actionNavigatesToPhotoLog() {
+        val plant = Plant(id = 43L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+        var navigationRequested = false
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = { navigationRequested = true },
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Photo"))
+        composeTestRule.onNodeWithText("Photo").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+
+        assertTrue(navigationRequested)
+        assertEquals(CareType.PHOTO, viewModel.consumeNewLogCareType())
+    }
+
+    @Test
     fun tabsFlagOff_showsClassicLayoutWithoutTabs() {
         val plant = Plant(id = 41L, name = "Basil", createdAt = 0L, updatedAt = 0L)
         val plantRepo = mockk<PlantRepository>()
@@ -1510,6 +1572,14 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithText("Repot")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }
