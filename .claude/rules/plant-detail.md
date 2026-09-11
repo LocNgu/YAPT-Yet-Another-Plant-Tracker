@@ -267,6 +267,24 @@ caught a `MockKException` on `wateringChip_onSchedule_tapLogsDirectlyWithoutTheR
 "Log watering" date-picker confirm now calls `previousWateringBefore()` regardless of which test triggers
 it.
 
+**Follow-up (#675):** `LogWateringDatePickerDialog` moved from a centered Material3 `DatePickerDialog`
+to a `ModalBottomSheet` wrapping the same stock `DatePicker` composable, matching the bottom-sheet
+convention `WateringReasonBottomSheet`/`RescheduleReasonBottomSheet` (`ReasonBottomSheets.kt`) and
+`WateringExplanationSheet` already use elsewhere on this screen — pure UI-consistency, no behavior
+change. `rememberModalBottomSheetState(skipPartiallyExpanded = true)` is load-bearing: the default
+(`false`) lets a tall sheet — a full calendar grid plus a button row — open only partially expanded on
+smaller devices, pushing the OK/Cancel row below the fold with no scroll in the instrumented test that
+clicks it. The OK/Cancel `TextButton` row (Cancel leading, OK trailing, end-aligned) sits below the
+`DatePicker` inside the sheet's own `Column`, reusing `R.string.ok`/`R.string.cancel` unchanged, and
+dismissal still routes through the plain `onDismiss` lambda (no `sheetState.hide()` await), matching
+every other sheet's convention. `LOG_WATERING_DATE_PICKER_TEST_TAG` moved onto the `ModalBottomSheet`'s
+`modifier`; `TodayOrEarlierSelectableDates`/`localTodayAsUtcMidnightMillis()`/
+`utcMidnightMsToLoggedAtMillis()` and the public `LogWateringDatePickerDialog(onDismiss, onConfirm)`
+signature are all unchanged, so `PlantDetailScreen.kt`'s two call sites needed no edits. Product
+ADR-0034's passing description of this picker as "a plain Material3 `DatePickerDialog`" is now stale —
+its substantive decision (no instant-log fast path, not-future-only range, picked-date-drives-everything)
+is untouched, so the ADR itself was not edited.
+
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
 
