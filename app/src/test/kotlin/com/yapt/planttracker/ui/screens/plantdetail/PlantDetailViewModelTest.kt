@@ -149,6 +149,27 @@ class PlantDetailViewModelTest {
         coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14) }
     }
 
+    // Math-correctness coverage for recordWateringSuggestionDismissal's confidence bump and
+    // WateringAdjustment row shape now lives in QuickLogUseCaseDismissalTest, against
+    // QuickLogUseCase.recordWateringSuggestionDismissal() directly (#674) — this is a thin
+    // delegation/smoke test, mirroring applySuggestedInterval's above.
+    @Test
+    fun `dismissSuggestedInterval delegates to QuickLogUseCase with the resolved plant`() = runTest {
+        val monstera = plant().copy(wateringConfidence = 1)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.recordWateringSuggestionDismissal(monstera) } returns
+            monstera.copy(wateringConfidence = 2)
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.dismissSuggestedInterval()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.recordWateringSuggestionDismissal(monstera) }
+    }
+
     @Test
     fun `setWateringInterval persists the new interval via repo`() = runTest {
         val monstera = plant()
