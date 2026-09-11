@@ -70,7 +70,7 @@ coupled to `CareLog` markers/zoom/range-chips. Built from the same primitives (`
   constant frame rather than rescaling the axis each redraw — the point is to make "how much" legible at a glance.
 - **"today" marker**: a small `Decoration` (`TodayMarkerDecoration`, mirrors `CareEventDecoration`'s coordinate math)
   draws a dashed vertical guideline + a dot at the current day-of-year's position — not a Vico persistent marker API.
-- Rendered in two places, both gated behind `FeatureFlagRegistry.SEASONAL_WATERING`: directly under the Settings
+- Rendered in two places, both always visible (`SEASONAL_WATERING` graduated, #656): directly under the Settings
   amplitude picker (`showHemisphereCaption = true`, since hemisphere is otherwise inferred with no UI surfacing it
   anywhere else), and in the Plant Detail Water tab's inline settings card next to the "Pin interval" switch
   (`plantContext = SeasonalCurvePlantContext(isPinned = plant.pinIntervalToBase, baseIntervalDays = ...)`, which

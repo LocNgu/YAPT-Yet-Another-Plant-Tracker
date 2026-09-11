@@ -77,6 +77,7 @@ class BackupSerializerTest {
         themeMode = "DARK",
         fertilizingNotificationsEnabled = false,
         askBeforeChangingIntervals = false,
+        seasonalAmplitude = "MILD",
         postWateringReminderEnabled = false
     )
 
@@ -492,9 +493,29 @@ class BackupSerializerTest {
     }
 
     @Test
-    fun `settings without postWateringReminderEnabled defaults to true`() {
+    fun `settings without seasonalAmplitude defaults to STANDARD`() {
         val json = """
             {"schemaVersion":14,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[],"careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+        assertEquals("STANDARD", decoded.settings.seasonalAmplitude)
+    }
+
+    @Test
+    fun `settings seasonalAmplitude round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals("MILD", decoded.settings.seasonalAmplitude)
+    }
+
+    @Test
+    fun `settings without postWateringReminderEnabled defaults to true`() {
+        val json = """
+            {"schemaVersion":15,"exportedAt":1700000000000,"appVersion":"1.0",
              "plants":[],"careLogs":[],
              "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
         """.trimIndent()

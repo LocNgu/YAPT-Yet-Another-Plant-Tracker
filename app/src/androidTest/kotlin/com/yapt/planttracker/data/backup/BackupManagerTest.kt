@@ -271,6 +271,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = true
             prefs[SettingsKeys.THEME_MODE] = "DARK"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = false
+            prefs[SettingsKeys.SEASONAL_AMPLITUDE] = "STRONG"
             prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = false
         }
 
@@ -285,6 +286,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] = false
             prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = true
+            prefs[SettingsKeys.SEASONAL_AMPLITUDE] = "STANDARD"
             prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
             prefs[SettingsKeys.POST_WATERING_REMINDER_PENDING_AT] = 123L
         }
@@ -307,6 +309,11 @@ class BackupManagerTest {
         assertFalse(
             "askBeforeChangingIntervals should be restored to false",
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
+        )
+        assertEquals(
+            "seasonalAmplitude should be restored to STRONG",
+            "STRONG",
+            prefs[SettingsKeys.SEASONAL_AMPLITUDE]
         )
         assertFalse(
             "postWateringReminderEnabled should be restored to false",

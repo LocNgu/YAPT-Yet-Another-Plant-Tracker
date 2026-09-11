@@ -29,7 +29,6 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -154,17 +153,12 @@ class SettingsScreenTest {
     }
 
     /**
-     * The seasonal-curve preview chart (#579) sits directly under the amplitude picker, gated by
-     * the same [FeatureFlagRegistry.SEASONAL_WATERING] flag. Asserts the visible "range" caption
-     * text changes when tapping between amplitude options — never chart canvas/tree structure,
-     * per #420.
+     * The seasonal-curve preview chart (#579) sits directly under the amplitude picker, always
+     * visible (seasonal watering graduated, #656). Asserts the visible "range" caption text changes
+     * when tapping between amplitude options — never chart canvas/tree structure, per #420.
      */
     @Test
     fun seasonalCurveChart_rangeCaption_changesWhenAmplitudeChanges() {
-        runBlocking {
-            dataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)] = true }
-        }
-
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
@@ -194,10 +188,6 @@ class SettingsScreenTest {
     /** The hemisphere caption (#579) is only shown here, not on the Plant Detail variant. */
     @Test
     fun seasonalCurveChart_hemisphereCaption_isDisplayed() {
-        runBlocking {
-            dataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)] = true }
-        }
-
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,

@@ -93,7 +93,7 @@ Every successfully inserted current-day WATER log schedules one unique `OneTimeW
 transaction commits and schedules once. Full Add Care Log, quick-water, bulk, and liquid-fertilizer paired-WATER
 paths all route through the same callback. Backdated logs, edits, and rejected duplicates never schedule.
 - Settings key `post_watering_reminder_enabled`, default `true`, is gated by master notifications and round-trips
-  through backup schema v15. Turning either switch off cancels pending work and clears both presentations; the worker
+  through backup schema v16. Turning either switch off cancels pending work and clears both presentations; the worker
   rechecks both switches.
 - At fire time, a foreground app writes the device-local `post_watering_reminder_pending_at` DataStore token and shows
   one global dismissible modal. A background app clears stale modal state and posts generic notification ID `-2` on the

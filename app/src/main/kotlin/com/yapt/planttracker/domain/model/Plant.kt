@@ -24,7 +24,7 @@ data class Plant(
      * Season-neutral reference interval (#569, product ADR-0026): `REAL`, not rounded at rest, since
      * it's multiplied by [com.yapt.planttracker.domain.schedule.SeasonalWatering.season] to derive
      * the *effective* interval — only that result is rounded. `null` means this plant has never had a
-     * base recorded (created while `SEASONAL_WATERING` was off); due-date computation then falls back
+     * base recorded (created before the seasonal curve shipped); due-date computation then falls back
      * to [wateringIntervalDays] directly as the base.
      */
     val wateringBaseIntervalDays: Double? = null,

@@ -19,6 +19,10 @@ object WhatsNewContent {
                 "or as a notification in the background, and can be turned off in Settings → Reminders"
         ),
         changed = listOf(
+            "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +
+                "picker in Settings are now always on — no more developer-mode flag to turn it on. Existing " +
+                "unpinned plants without an explicit amplitude choice now default to Standard seasonal " +
+                "adjustment; use Settings, or a plant's own \"Pin interval\" switch, to opt back out",
             "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
                 "always on — no more developer-mode flag to turn it on"
         ),

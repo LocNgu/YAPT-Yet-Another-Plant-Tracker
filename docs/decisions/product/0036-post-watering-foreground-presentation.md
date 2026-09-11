@@ -34,7 +34,7 @@ eligibility exclusions, settings and backup behavior. Change only how a due remi
   modal immediately so the presentation can be tested without waiting 30 minutes.
 
 The pending token is device-local operational state. It is not added to `.yapt` backups and does not
-change backup schema v15.
+change backup schema v16.
 
 ## Consequences
 

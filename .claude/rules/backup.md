@@ -39,7 +39,8 @@ paths:
 | v12 | `BackupPlant.wateringBaseIntervalDays: Double?` + `BackupPlant.pinIntervalToBase: Boolean` | `null` / `false` (#569) |
 | v13 | `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` + `BackupSettings.askBeforeChangingIntervals: Boolean` | `emptyList()` / `true` (#572) |
 | v14 | `BackupPlant.wateringResetAt: Long?` + `BackupPlant.wateringFreezeUntil: Long?` | `null` / `null` (#571) |
-| v15 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
+| v15 | `BackupSettings.seasonalAmplitude: String` | `"STANDARD"` (#656) |
+| v16 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.

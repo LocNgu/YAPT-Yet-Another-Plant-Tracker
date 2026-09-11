@@ -35,7 +35,7 @@ day does not schedule or debounce the reminder.
 Settings → Reminders includes a **Drain-water reminder** toggle, default on, shown only while master
 notifications are enabled. The delay is fixed at 30 minutes. Turning either switch off cancels any
 pending request; the worker also rechecks both settings and notification permission before posting.
-The setting round-trips through backup schema v15 and defaults on for older backups.
+The setting round-trips through backup schema v16 and defaults on for older backups.
 
 The reminder uses the existing plant-care notification channel and reserved notification ID `-2`,
 distinct from per-plant positive IDs and the combined daily reminder's `-1`. WorkManager persists the

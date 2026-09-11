@@ -41,7 +41,7 @@ class AddCareLogViewModel(
     private val plantId: Long,
     private val careLogId: Long = 0L,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
-    // updating; null is treated the same as SEASONAL_WATERING being off (#569).
+    // updating; null is treated the same as amplitude being Off (#569).
     private val dataStore: DataStore<Preferences>? = null,
     // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
     // safe no-ops for tests that don't pass one (#572).
@@ -364,7 +364,7 @@ class AddCareLogViewModel(
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * July correction isn't baked into [Plant.wateringConfidence] as "this plant is permanently
      * thirsty" once the seasonal curve is accounted for. A no-op ([actualIntervalDays] unchanged)
-     * when [dataStore] is null, SEASONAL_WATERING is off, or [pinIntervalToBase] is set — [CareSchedule]'s
+     * when [dataStore] is null, amplitude is Off, or [pinIntervalToBase] is set — [CareSchedule]'s
      * due-date math never applies the seasonal curve for a pinned plant, so its observed gaps are
      * already flat and must not be seasonally corrected.
      */
