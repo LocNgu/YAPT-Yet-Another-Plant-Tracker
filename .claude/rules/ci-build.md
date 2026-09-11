@@ -38,6 +38,36 @@ paths:
 `testReleaseUnitTest` + `lintRelease`. Instrumented tests run on PRs via path filter; concurrency group cancels
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
+## Diagnosing a failed CI check (#684)
+Don't pull the full raw job log as the first move — it's routinely 50K+ characters and most of it is
+noise. Check the failing check run's conclusion/annotations first (the GitHub API's check-run details,
+e.g. `get_check_run`/`get_job_logs` annotations) for the specific failing test name and line; annotations
+usually localize a normal assertion failure or compile error in one or two lines, which is enough to go
+fix it without ever touching the raw log.
+Only fall back to the raw job log when annotations don't localize the failure — this happens for a
+genuinely hung job with no clean per-test failure line, e.g. #679/#682's instrumented-test job: a bad
+blanket MockK stub left a call path unmatched, the test hung on `waitUntil` until the whole job timed
+out, and no annotation pointed at a specific assertion. In that case, save the log to a file rather than
+reading it inline (it will blow past the tool's token cap), then `grep` the file for failure markers
+(`FAILED`, `Exception`, `AssertionError`, `waitUntil`, `Timed out`) instead of reading the whole thing —
+the grep hits are usually enough to locate the offending test class/stub without ever loading the bulk
+of the log into context.
+
+## Iterating fast without skipping the mandatory full suite (#684)
+`./gradlew detekt lintDebug compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`
+must succeed **before every push that opens or updates a PR** — round 2+ fix-round pushes are not an
+exception. This matches `AGENTS.md`'s "Before opening or updating a pull request" gate verbatim (both
+docs point agents at this shared file precisely so the two can't drift apart on this); nothing below
+proposes a per-agent or per-round carve-out from it.
+The token/time savings on a fix round come from *how* you run checks while iterating, not from skipping
+any of them before the push:
+- While chasing one specific reviewer finding, first reproduce/confirm it with a targeted run
+  (`./gradlew testDebugUnitTest --tests "com.example.SpecificClassTest"` or `compileDebugKotlin` alone
+  for a compile-only fix) for a fast fail/pass signal — this is a debugging aid to iterate faster, not a
+  substitute for the full mandatory suite above, which must still run once before the push.
+- Pipe every run through `-q`/`--console=plain` and grep the output for `FAILED`/`error:`/`Exception`
+  instead of reading full verbose console output — this is where the actual context savings come from.
+
 ## Release build (#4)
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
 workers and Room DAOs (both reached via reflection) from being stripped/renamed.
