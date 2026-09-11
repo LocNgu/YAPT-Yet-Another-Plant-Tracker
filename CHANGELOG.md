@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Drain-water reminder after watering** — recording a watering now schedules one standing-water reminder 30 minutes after the latest plant in the watering round, including bulk watering and liquid-fertilizer paired waterings. It appears as a dismissible modal while YAPT is foregrounded or as a system notification while backgrounded; Developer mode can show the modal immediately for testing. The reminder is generic, opens Plants filtered to "Cared for today" from the background notification without changing the saved sort, skips backdated/edited/duplicate-suppressed logs, and has a default-on Settings → Reminders toggle that round-trips through backup schema v16 (#519)
 - **The Repot and Photo tabs on Plant Detail now have always-visible quick actions, matching Water and Fertilize** — Repot logs immediately through the shared quick-log path (including the existing adaptive-watering confidence reset and freeze window), while Add photo opens the existing care-log screen with Photo already selected, skipping the generic care-type picker without duplicating its image, date, notes, or cover-photo handling. The classic layout is unchanged, and the existing Custom Reminders/Issues add controls remain as-is (#658)
 
 ### Changed

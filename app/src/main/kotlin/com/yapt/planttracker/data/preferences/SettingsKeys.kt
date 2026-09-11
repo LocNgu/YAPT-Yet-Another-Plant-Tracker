@@ -2,6 +2,7 @@ package com.yapt.planttracker.data.preferences
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
 object SettingsKeys {
@@ -15,6 +16,8 @@ object SettingsKeys {
     val PHOTO_REMINDER_ENABLED = booleanPreferencesKey("photo_reminder_enabled")
     val COMBINE_NOTIFICATIONS = booleanPreferencesKey("combine_notifications")
     val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
+    val POST_WATERING_REMINDER_ENABLED = booleanPreferencesKey("post_watering_reminder_enabled")
+    val POST_WATERING_REMINDER_PENDING_AT = longPreferencesKey("post_watering_reminder_pending_at")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
     val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")

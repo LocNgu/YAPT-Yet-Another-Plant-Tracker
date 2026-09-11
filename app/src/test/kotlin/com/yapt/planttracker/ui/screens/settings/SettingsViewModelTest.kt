@@ -18,8 +18,10 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.writeDefaultReminderTimeIfAbsent
 import io.mockk.Runs
@@ -40,6 +42,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -66,6 +69,7 @@ class SettingsViewModelTest {
         every { mockPrefs[SettingsKeys.KEEP_SCREEN_ON] } returns null
         every { mockPrefs[SettingsKeys.COMBINE_NOTIFICATIONS] } returns null
         every { mockPrefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] } returns null
+        every { mockPrefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.DEVELOPER_MODE_ENABLED] } returns null
         every { mockPlantRepository.getArchivedCount() } returns flowOf(0)
     }
@@ -315,6 +319,63 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { mockDataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `postWateringReminderEnabled defaults to true when key is absent`() = runTest {
+        vm = buildVm()
+
+        vm.postWateringReminderEnabled.test {
+            assertTrue(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `disabling post-watering reminders persists and cancels pending work`() = runTest {
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        mockkObject(PostWateringReminderScheduler)
+        mockkObject(PostWateringReminderPresentation)
+        every { PostWateringReminderScheduler.cancel(mockContext) } just Runs
+        coEvery { PostWateringReminderPresentation.clear(mockContext, mockDataStore) } just Runs
+        vm = buildVm()
+
+        try {
+            vm.setPostWateringReminderEnabled(false)
+            advanceUntilIdle()
+
+            coVerify { mockDataStore.updateData(any()) }
+            verify { PostWateringReminderScheduler.cancel(mockContext) }
+            coVerify { PostWateringReminderPresentation.clear(mockContext, mockDataStore) }
+        } finally {
+            unmockkObject(PostWateringReminderPresentation)
+            unmockkObject(PostWateringReminderScheduler)
+        }
+    }
+
+    @Test
+    fun `disabling master reminders clears every post-watering presentation`() = runTest {
+        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        mockkObject(ReminderScheduler)
+        mockkObject(PostWateringReminderScheduler)
+        mockkObject(PostWateringReminderPresentation)
+        every { ReminderScheduler.cancel(mockContext) } just Runs
+        every { PostWateringReminderScheduler.cancel(mockContext) } just Runs
+        coEvery { PostWateringReminderPresentation.clear(mockContext, mockDataStore) } just Runs
+        vm = buildVm()
+
+        try {
+            vm.setNotificationsEnabled(false)
+            advanceUntilIdle()
+
+            verify { ReminderScheduler.cancel(mockContext) }
+            verify { PostWateringReminderScheduler.cancel(mockContext) }
+            coVerify { PostWateringReminderPresentation.clear(mockContext, mockDataStore) }
+        } finally {
+            unmockkObject(PostWateringReminderPresentation)
+            unmockkObject(PostWateringReminderScheduler)
+            unmockkObject(ReminderScheduler)
+        }
     }
 
     @Test
@@ -659,6 +720,30 @@ class SettingsViewModelTest {
         } finally {
             unmockkObject(ReminderScheduler)
             unmockkStatic(ContextCompat::class)
+        }
+    }
+
+    @Test
+    fun `showPostWateringReminderNow raises modal state and emits confirmation`() = runTest {
+        every {
+            mockContext.getString(R.string.dev_mode_show_drain_water_reminder_snackbar)
+        } returns "Drain-water reminder shown"
+        mockkObject(PostWateringReminderPresentation)
+        coEvery {
+            PostWateringReminderPresentation.showInApp(mockContext, mockDataStore, any())
+        } just Runs
+        vm = buildVm()
+
+        try {
+            vm.debugActionEvent.test {
+                vm.showPostWateringReminderNow()
+                assertEquals("Drain-water reminder shown", awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify { PostWateringReminderPresentation.showInApp(mockContext, mockDataStore, any()) }
+        } finally {
+            unmockkObject(PostWateringReminderPresentation)
         }
     }
 }

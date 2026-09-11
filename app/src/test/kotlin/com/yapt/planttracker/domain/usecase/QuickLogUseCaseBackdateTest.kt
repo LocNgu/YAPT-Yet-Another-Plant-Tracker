@@ -103,6 +103,50 @@ class QuickLogUseCaseBackdateTest {
     }
 
     @Test
+    fun `successful quick watering schedules the post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        val loggedAt = System.currentTimeMillis()
+        val monstera = plant().copy(wateringIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        useCase = QuickLogUseCase(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            database,
+            wateringAdjustmentRepo,
+            onWaterLogged = { scheduled.add(it) }
+        )
+
+        useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
+
+        assertEquals(listOf(loggedAt), scheduled)
+    }
+
+    @Test
+    fun `successful liquid-fertilizer quick log schedules one post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        val loggedAt = System.currentTimeMillis()
+        val monstera = plant(useLiquidFertilizer = true).copy(wateringIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        useCase = QuickLogUseCase(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            database,
+            wateringAdjustmentRepo,
+            onWaterLogged = { scheduled.add(it) }
+        )
+
+        useCase.quickLiquidFertilizeWithReason(monstera, null, loggedAt = loggedAt)
+
+        assertEquals(listOf(loggedAt), scheduled)
+    }
+
+    @Test
     fun `quickWaterWithReason checks the duplicate guard against the backdated day, not today`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

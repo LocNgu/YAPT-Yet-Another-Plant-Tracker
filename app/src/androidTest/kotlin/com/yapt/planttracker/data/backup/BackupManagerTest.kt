@@ -272,6 +272,7 @@ class BackupManagerTest {
             prefs[SettingsKeys.THEME_MODE] = "DARK"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = false
             prefs[SettingsKeys.SEASONAL_AMPLITUDE] = "STRONG"
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = false
         }
 
         val exportFile = tmpFolder.newFile("settings_backup.yapt")
@@ -286,6 +287,8 @@ class BackupManagerTest {
             prefs[SettingsKeys.THEME_MODE] = "SYSTEM"
             prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = true
             prefs[SettingsKeys.SEASONAL_AMPLITUDE] = "STANDARD"
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
+            prefs[SettingsKeys.POST_WATERING_REMINDER_PENDING_AT] = 123L
         }
 
         val result = backupManager.importBackup(exportUri)
@@ -311,6 +314,14 @@ class BackupManagerTest {
             "seasonalAmplitude should be restored to STRONG",
             "STRONG",
             prefs[SettingsKeys.SEASONAL_AMPLITUDE]
+        )
+        assertFalse(
+            "postWateringReminderEnabled should be restored to false",
+            prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true
+        )
+        assertNull(
+            "postWateringReminderPendingAt should be cleared rather than restored",
+            prefs[SettingsKeys.POST_WATERING_REMINDER_PENDING_AT]
         )
     }
 

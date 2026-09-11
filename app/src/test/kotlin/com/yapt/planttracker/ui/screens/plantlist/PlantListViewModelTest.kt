@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -27,6 +28,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -428,6 +430,59 @@ class PlantListViewModelTest {
     }
 
     // toggleSort direction tests
+
+    @Test
+    fun `cared-today deep link changes the in-memory sort without persisting it`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            quickLogUseCase,
+            plantIssueRepo
+        )
+        advanceUntilIdle()
+
+        vm.showCaredForTodayTransiently()
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+        coVerify(exactly = 0) { dataStore.updateData(any()) }
+    }
+
+    @Test
+    fun `cared-today deep link wins if stored sort finishes loading later`() = runTest {
+        val delayedPrefs = MutableSharedFlow<Preferences>()
+        val delayedDataStore: DataStore<Preferences> = mockk {
+            every { data } returns delayedPrefs
+        }
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            delayedDataStore,
+            quickLogUseCase,
+            plantIssueRepo
+        )
+
+        vm.showCaredForTodayTransiently()
+        delayedPrefs.emit(
+            preferencesOf(
+                SettingsKeys.SORT_OPTION to SortOption.WATERING_DUE.name,
+                SettingsKeys.SORT_ASCENDING to true
+            )
+        )
+        advanceUntilIdle()
+
+        assertEquals(SortOption.CARED_FOR_TODAY, vm.sortOrder.value.option)
+        assertEquals(SortDirection.DESC, vm.sortOrder.value.direction)
+    }
 
     @Test
     fun `toggleSort ALPHABETICAL first tap sets ASC direction`() = runTest {
