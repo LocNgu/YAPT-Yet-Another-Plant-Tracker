@@ -16,7 +16,9 @@ object WhatsNewContent {
         added = listOf(
             "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
                 "check plant saucers and pour away standing water. It appears in the app while YAPT is open " +
-                "or as a notification in the background, and can be turned off in Settings → Reminders"
+                "or as a notification in the background, and can be turned off in Settings → Reminders",
+            "The Repot and Photo tabs on Plant Detail now have their own quick actions — Repot logs " +
+                "immediately, while Add photo opens the existing log screen with Photo already selected"
         ),
         changed = listOf(
             "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +

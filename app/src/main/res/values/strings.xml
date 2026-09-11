@@ -159,6 +159,7 @@
     <string name="quick_log_fertilize_cd">Quick fertilize</string>
     <string name="quick_log_watered">Watered %s</string>
     <string name="quick_log_fertilized">Fertilized %s</string>
+    <string name="quick_log_repotted">Repotted %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
@@ -319,6 +320,7 @@
     <string name="plant_detail_tab_fertilize">Fertilize</string>
     <string name="plant_detail_tab_repot">Repot</string>
     <string name="plant_detail_tab_photo">Photo</string>
+    <string name="plant_detail_action_add_photo">Add photo</string>
     <string name="plant_detail_misting_section">Recent misting</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>

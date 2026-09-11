@@ -1,5 +1,7 @@
 package com.yapt.planttracker.ui.navigation
 
+import com.yapt.planttracker.domain.model.CareType
+
 sealed class Screen(val route: String) {
     object PlantList : Screen("plant_list?restoreMessage={restoreMessage}") {
         const val CARED_TODAY_DEEP_LINK_ID = -2L
@@ -22,9 +24,12 @@ sealed class Screen(val route: String) {
         fun createRoute(plantId: Long) = "plant_detail/$plantId"
     }
 
-    object AddCareLog : Screen("add_care_log/{plantId}?careLogId={careLogId}") {
-        fun createRoute(plantId: Long, careLogId: Long = 0L) =
-            "add_care_log/$plantId?careLogId=$careLogId"
+    object AddCareLog : Screen("add_care_log/{plantId}?careLogId={careLogId}&careType={careType}") {
+        fun createRoute(
+            plantId: Long,
+            careLogId: Long = 0L,
+            careType: CareType = CareType.WATER
+        ) = "add_care_log/$plantId?careLogId=$careLogId&careType=${careType.name}"
     }
 
     object Graveyard : Screen("graveyard")

@@ -70,6 +70,17 @@ editor for name/species/room/notes/cover.
 `summarizePhotos(galleryPhotos)` → `PhotoSummary`. JVM-tested (`CareInsightsTest`). Shared `TabInsightsCard` +
 `careTypeInsightItems(...)` live in `PlantDetailScreen.kt`.
 
+## Repot and Photo tab quick actions (#658)
+
+With `PLANT_DETAIL_TABS` on, Repot and Photo each start with an always-visible filled action button,
+using a leading tab-matching icon and the same 16dp horizontal padding as Water's primary action.
+Repot delegates to `PlantDetailViewModel.quickRepot()` → `QuickLogUseCase.quickLog(REPOT)`, preserving
+the shared repot confidence-reset/freeze side effect and the existing rule that REPOT is not guarded
+against same-day duplicates. Photo navigates to `AddCareLogScreen` with `CareType.PHOTO` preselected,
+removing the care-type selection step while keeping image picking, date, notes, and cover-photo updates
+in the canonical add-log flow. Neither action renders in the classic flag-off layout. Custom Reminders
+and Issues retain their existing add/report controls; no extra duplicate actions are added there.
+
 ## Tappable stat chips (#434) — classic layout only (#603)
 Watering/Fertilizing `StatChip`s (in `StatsRow`) take optional `onWaterClick`/`onFertilizeClick` (with
 `clickable(onClickLabel=…)` for a11y). Water logs directly when on schedule, else opens
