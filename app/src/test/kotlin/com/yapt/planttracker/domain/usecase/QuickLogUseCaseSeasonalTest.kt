@@ -3,14 +3,12 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.preferencesOf
+import androidx.datastore.preferences.core.emptyPreferences
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -60,6 +58,7 @@ class QuickLogUseCaseSeasonalTest {
     fun setUp() {
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
@@ -73,12 +72,10 @@ class QuickLogUseCaseSeasonalTest {
         updatedAt = 0L
     )
 
-    /** SEASONAL_WATERING on, with [nowProvider] pinned to [peakDay]. */
+    /** Amplitude defaults to STANDARD (graduated, #656), with [nowProvider] pinned to [peakDay]. */
     private fun useCaseWithSeasonOn(peakDay: Long): QuickLogUseCase {
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         return QuickLogUseCase(
             application,
@@ -93,7 +90,7 @@ class QuickLogUseCaseSeasonalTest {
     }
 
     @Test
-    fun `quickWaterWithReason de-seasonalizes the gap for a non-pinned plant when SEASONAL_WATERING is on`() =
+    fun `quickWaterWithReason de-seasonalizes the gap for a non-pinned plant`() =
         runTest {
             val peakDay = localDateUtcMillis(2023, 1, 5)
             val useCase = useCaseWithSeasonOn(peakDay)
@@ -134,7 +131,7 @@ class QuickLogUseCaseSeasonalTest {
     fun `quickWaterWithReason adapts against wateringBaseIntervalDays, not stale wateringIntervalDays`() =
         runTest {
             // #572 regression: currentBaseIntervalDays must be season-neutral (wateringBaseIntervalDays)
-            // once SEASONAL_WATERING is on and the plant isn't pinned — feeding it the raw
+            // once amplitude isn't Off and the plant isn't pinned — feeding it the raw
             // wateringIntervalDays (10, stale once season is on) instead of wateringBaseIntervalDays
             // (6.0, the live season-neutral value) is exactly the bug this issue fixes.
             val peakDay = localDateUtcMillis(2023, 1, 5)
@@ -189,7 +186,7 @@ class QuickLogUseCaseSeasonalTest {
         }
 
     @Test
-    fun `quickWaterWithReason skips de-seasonalization for a pinned plant when SEASONAL_WATERING is on`() = runTest {
+    fun `quickWaterWithReason skips de-seasonalization for a pinned plant`() = runTest {
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val useCase = useCaseWithSeasonOn(peakDay)
         val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)

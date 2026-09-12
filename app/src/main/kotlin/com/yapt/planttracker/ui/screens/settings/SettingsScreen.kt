@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -85,7 +86,6 @@ import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.domain.devmode.DeveloperModeTapOutcome
 import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
@@ -118,6 +118,7 @@ fun SettingsScreen(
     val photoReminderEnabled by viewModel.photoReminderEnabled.collectAsStateWithLifecycle()
     val combineNotifications by viewModel.combineNotifications.collectAsStateWithLifecycle()
     val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
+    val postWateringReminderEnabled by viewModel.postWateringReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -125,8 +126,6 @@ fun SettingsScreen(
     val developerModeEnabled by viewModel.developerModeEnabled.collectAsStateWithLifecycle()
     val featureFlagStates by viewModel.featureFlagStates.collectAsStateWithLifecycle()
     val seasonalAmplitude by viewModel.seasonalAmplitude.collectAsStateWithLifecycle()
-    val seasonalWateringEnabled = featureFlagStates[FeatureFlagRegistry.SEASONAL_WATERING.key]
-        ?: FeatureFlagRegistry.SEASONAL_WATERING.default
     val askBeforeChangingIntervals by viewModel.askBeforeChangingIntervals.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
@@ -498,6 +497,19 @@ fun SettingsScreen(
                         )
                     }
                 )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.WaterDrop,
+                    title = stringResource(R.string.post_watering_reminder_title),
+                    subtitle = stringResource(R.string.post_watering_reminder_subtitle),
+                    trailingContent = {
+                        Switch(
+                            modifier = Modifier.testTag("post_watering_reminder_switch"),
+                            checked = postWateringReminderEnabled,
+                            onCheckedChange = { viewModel.setPostWateringReminderEnabled(it) }
+                        )
+                    }
+                )
             }
 
             SettingsItemRow(
@@ -513,54 +525,52 @@ fun SettingsScreen(
                 }
             )
 
-            if (seasonalWateringEnabled) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                Text(
-                    text = stringResource(R.string.settings_section_seasonal_watering),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+            Text(
+                text = stringResource(R.string.settings_section_seasonal_watering),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
 
-                Text(
-                    text = stringResource(R.string.seasonal_amplitude_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
+            Text(
+                text = stringResource(R.string.seasonal_amplitude_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
 
-                val amplitudeOptions = listOf(
-                    SeasonalAmplitude.OFF,
-                    SeasonalAmplitude.MILD,
-                    SeasonalAmplitude.STANDARD,
-                    SeasonalAmplitude.STRONG
-                )
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    amplitudeOptions.forEachIndexed { index, amplitude ->
-                        SegmentedButton(
-                            selected = amplitude == seasonalAmplitude,
-                            onClick = { viewModel.setSeasonalAmplitude(amplitude) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = amplitudeOptions.size),
-                            modifier = Modifier.testTag("seasonal_amplitude_option_${amplitude.name}")
-                        ) {
-                            Text(stringResource(amplitude.labelRes()))
-                        }
+            val amplitudeOptions = listOf(
+                SeasonalAmplitude.OFF,
+                SeasonalAmplitude.MILD,
+                SeasonalAmplitude.STANDARD,
+                SeasonalAmplitude.STRONG
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                amplitudeOptions.forEachIndexed { index, amplitude ->
+                    SegmentedButton(
+                        selected = amplitude == seasonalAmplitude,
+                        onClick = { viewModel.setSeasonalAmplitude(amplitude) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = amplitudeOptions.size),
+                        modifier = Modifier.testTag("seasonal_amplitude_option_${amplitude.name}")
+                    ) {
+                        Text(stringResource(amplitude.labelRes()))
                     }
                 }
-
-                val hemisphere = remember { SeasonalWatering.currentHemisphere() }
-                SeasonalWateringCurveChart(
-                    amplitude = seasonalAmplitude.value,
-                    hemisphere = hemisphere,
-                    showHemisphereCaption = true,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
             }
+
+            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+            SeasonalWateringCurveChart(
+                amplitude = seasonalAmplitude.value,
+                hemisphere = hemisphere,
+                showHemisphereCaption = true,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
             SettingsItemRow(
                 icon = Icons.Filled.AutoAwesome,
@@ -802,6 +812,14 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.dev_mode_action_run_reminder_check_subtitle),
                     modifier = Modifier.testTag("dev_mode_run_reminder_check_row"),
                     onClick = { viewModel.runReminderCheckNow() }
+                )
+
+                SettingsItemRow(
+                    icon = Icons.Filled.WaterDrop,
+                    title = stringResource(R.string.dev_mode_action_show_drain_water_reminder_title),
+                    subtitle = stringResource(R.string.dev_mode_action_show_drain_water_reminder_subtitle),
+                    modifier = Modifier.testTag("dev_mode_show_drain_water_reminder_row"),
+                    onClick = { viewModel.showPostWateringReminderNow() }
                 )
 
                 SettingsItemRow(

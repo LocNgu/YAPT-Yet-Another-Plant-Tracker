@@ -36,6 +36,7 @@ import com.yapt.planttracker.BuildConfig
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
@@ -72,6 +73,39 @@ internal fun NavController.popBackStackOnce(
     return if (route != null) popBackStack(route, inclusive) else popBackStack()
 }
 
+private fun NavController.navigateInitialDestination(
+    initialPlantId: Long?,
+    onShowCaredToday: () -> Unit,
+    onConsumed: () -> Unit
+) {
+    if (initialPlantId == null) return
+    if (initialPlantId == Screen.PlantList.CARED_TODAY_DEEP_LINK_ID) {
+        onShowCaredToday()
+        navigate(Screen.PlantList.createRoute()) {
+            popUpTo(graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    } else {
+        navigate(Screen.PlantDetail.createRoute(initialPlantId))
+    }
+    onConsumed()
+}
+
+@Composable
+private fun ApplyCaredTodayDeepLink(
+    pending: Boolean,
+    viewModel: PlantListViewModel,
+    onApplied: () -> Unit
+) {
+    LaunchedEffect(pending) {
+        if (pending) {
+            viewModel.showCaredForTodayTransiently()
+            onApplied()
+        }
+    }
+}
+
 @Composable
 fun YaptNavGraph(
     app: YaptApplication,
@@ -82,6 +116,7 @@ fun YaptNavGraph(
     val scope = rememberCoroutineScope()
     var showWhatsNew by remember { mutableStateOf(false) }
     var updateStoreOnWhatsNewDismiss by remember { mutableStateOf(false) }
+    var pendingCaredTodayDeepLink by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val lastSeen = app.settingsDataStore.data.first()[SettingsKeys.LAST_SEEN_VERSION_CODE] ?: 0
@@ -92,10 +127,11 @@ fun YaptNavGraph(
     }
 
     LaunchedEffect(initialPlantId) {
-        if (initialPlantId != null) {
-            navController.navigate(Screen.PlantDetail.createRoute(initialPlantId))
-            onDeepLinkConsumed()
-        }
+        navController.navigateInitialDestination(
+            initialPlantId = initialPlantId,
+            onShowCaredToday = { pendingCaredTodayDeepLink = true },
+            onConsumed = onDeepLinkConsumed
+        )
     }
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -169,6 +205,11 @@ fun YaptNavGraph(
                         app.quickLogUseCase,
                         app.plantIssueRepository
                     )
+                )
+                ApplyCaredTodayDeepLink(
+                    pending = pendingCaredTodayDeepLink,
+                    viewModel = vm,
+                    onApplied = { pendingCaredTodayDeepLink = false }
                 )
                 LaunchedEffect(vm) {
                     backStackEntry.savedStateHandle.getStateFlow<Long?>("archivedPlantId", null)
@@ -275,7 +316,12 @@ fun YaptNavGraph(
                         navController.navigate(Screen.EditPlant.createRoute(plantId))
                     },
                     onNavigateToAddLog = {
-                        navController.navigate(Screen.AddCareLog.createRoute(plantId))
+                        navController.navigate(
+                            Screen.AddCareLog.createRoute(
+                                plantId,
+                                careType = vm.consumeNewLogCareType()
+                            )
+                        )
                     },
                     onNavigateToEditLog = { careLogId ->
                         navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
@@ -290,11 +336,18 @@ fun YaptNavGraph(
                     navArgument("careLogId") {
                         type = NavType.LongType
                         defaultValue = 0L
+                    },
+                    navArgument("careType") {
+                        type = NavType.StringType
+                        defaultValue = CareType.WATER.name
                     }
                 )
             ) { backStackEntry ->
                 val plantId = backStackEntry.arguments!!.getLong("plantId")
                 val careLogId = backStackEntry.arguments!!.getLong("careLogId")
+                val initialCareType = runCatching {
+                    CareType.valueOf(backStackEntry.arguments!!.getString("careType")!!)
+                }.getOrDefault(CareType.WATER)
                 val vm: AddCareLogViewModel = viewModel(
                     factory = AddCareLogViewModel.Factory(
                         app.careLogRepository,
@@ -302,9 +355,13 @@ fun YaptNavGraph(
                         plantId,
                         careLogId,
                         app.settingsDataStore,
-                        app.wateringAdjustmentRepository
+                        app.wateringAdjustmentRepository,
+                        app::schedulePostWateringReminder
                     )
                 )
+                LaunchedEffect(initialCareType) {
+                    vm.preselectCareType(initialCareType)
+                }
                 AddCareLogScreen(
                     viewModel = vm,
                     onNavigateBack = { suggestedInterval ->

@@ -65,7 +65,9 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
-    <!-- Seasonal watering amplitude setting (#569); shown only while the seasonal_watering flag is on -->
+    <string name="post_watering_reminder_title">Drain-water reminder</string>
+    <string name="post_watering_reminder_subtitle">Remind me 30 minutes after watering to empty plant saucers</string>
+    <!-- Seasonal watering amplitude setting (#569); always visible (#656) -->
     <string name="settings_section_seasonal_watering">Seasonal watering</string>
     <string name="seasonal_amplitude_subtitle">How much watering intervals stretch in winter and compress in summer</string>
     <string name="seasonal_amplitude_off">Off</string>
@@ -148,6 +150,8 @@
     <string name="notification_action_watered">Watered</string>
     <string name="notification_action_still_moist">Still moist</string>
     <string name="notification_action_not_now">Not now</string>
+    <string name="post_watering_notification_title">Check for standing water</string>
+    <string name="post_watering_notification_body">Pour away any excess water collected in your plant saucers.</string>
     <string name="water_feedback_sheet_title">Water %s?</string>
     <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>
@@ -155,6 +159,7 @@
     <string name="quick_log_fertilize_cd">Quick fertilize</string>
     <string name="quick_log_watered">Watered %s</string>
     <string name="quick_log_fertilized">Fertilized %s</string>
+    <string name="quick_log_repotted">Repotted %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
@@ -307,12 +312,6 @@
     <!-- Feature flag: Plant Detail per-action tabs (#436) -->
     <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
     <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
-    <!-- Feature flag: computed seasonal watering factor (#569) -->
-    <string name="feature_flag_seasonal_watering_title">Seasonal watering</string>
-    <string name="feature_flag_seasonal_watering_description">Stretch watering intervals in winter and compress them in summer using a computed curve, instead of a fixed interval year-round. Off keeps today\'s behavior.</string>
-    <!-- Feature flag: check reminders (#570) -->
-    <string name="feature_flag_check_reminders_title">Check reminders</string>
-    <string name="feature_flag_check_reminders_description">Reframe the watering reminder as a check-in with Watered and Still moist actions, instead of an instruction to water. Off keeps today\'s behavior.</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
@@ -321,6 +320,7 @@
     <string name="plant_detail_tab_fertilize">Fertilize</string>
     <string name="plant_detail_tab_repot">Repot</string>
     <string name="plant_detail_tab_photo">Photo</string>
+    <string name="plant_detail_action_add_photo">Add photo</string>
     <string name="plant_detail_misting_section">Recent misting</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
@@ -499,6 +499,9 @@
     <string name="dev_mode_action_run_reminder_check_subtitle">Posts real notifications for any plant that\'s due</string>
     <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
     <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
+    <string name="dev_mode_action_show_drain_water_reminder_title">Show drain-water reminder now</string>
+    <string name="dev_mode_action_show_drain_water_reminder_subtitle">Displays the foreground reminder modal immediately</string>
+    <string name="dev_mode_show_drain_water_reminder_snackbar">Drain-water reminder shown</string>
     <string name="dev_mode_action_seed_demo_title">Seed demo plants</string>
     <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 10-plant dataset</string>
     <string name="dev_mode_seed_demo_confirm_title">Seed demo plants?</string>
@@ -558,6 +561,7 @@
     <string name="adjustment_trigger_room_change_reset">moved rooms — relearning</string>
     <string name="adjustment_trigger_frozen_post_repot">still settling in after repotting</string>
     <string name="adjustment_trigger_history_bootstrap">estimated from your watering history</string>
+    <string name="adjustment_trigger_seasonal_graduation_fixup">re-synced after an app update</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

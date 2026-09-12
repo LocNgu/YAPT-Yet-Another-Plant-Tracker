@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# YAPT — Claude Code cloud-session setup script (issue #419)
+# YAPT — Android build environment setup script (issue #419)
 #
-# Makes Android Gradle builds work in a cloud session:
+# Makes Android Gradle builds work in Linux cloud sessions and macOS local worktrees:
 #   1. Installs the Android SDK (cmdline-tools + the compileSdk platform +
 #      build-tools + platform-tools)
 #      — needs dl.google.com, which must be allowlisted in the environment's
 #        Network access -> Custom -> Allowed domains.
 #   2. Points Gradle at that SDK.
-#   3. Seeds the Gradle wrapper's dist cache from the pre-installed Gradle so
-#      `./gradlew` can start (the pinned wrapper version is fetched from a
-#      GitHub release asset that the session's proxy blocks).
+#   3. On Linux, seeds the Gradle wrapper's dist cache from the pre-installed
+#      Gradle so `./gradlew` can start (the pinned wrapper version is fetched
+#      from a GitHub release asset that the cloud-session proxy blocks).
 #
 # Dependency artifacts (AGP, androidx) still resolve over the network from
 # maven.google.com / Maven Central, which are reachable — so builds run online,
@@ -18,14 +18,42 @@
 # Idempotent: safe to re-run when the environment cache is rebuilt.
 set -euo pipefail
 
-ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
+HOST_OS="$(uname -s)"
+HOST_ARCH="$(uname -m)"
+case "$HOST_OS" in
+  Darwin)
+    DEFAULT_ANDROID_HOME="$HOME/Library/Android/sdk"
+    case "$HOST_ARCH" in
+      arm64 | aarch64) CMDLINE_TOOLS_PLATFORM="mac_arm64" ;;
+      x86_64 | amd64) CMDLINE_TOOLS_PLATFORM="mac_x86_64" ;;
+      *)
+        echo "!!! unsupported macOS architecture: $HOST_ARCH" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  Linux)
+    CMDLINE_TOOLS_PLATFORM="linux"
+    if [ -w /opt/android-sdk ] || { [ ! -e /opt/android-sdk ] && [ -w /opt ]; }; then
+      DEFAULT_ANDROID_HOME="/opt/android-sdk"
+    else
+      DEFAULT_ANDROID_HOME="$HOME/Android/Sdk"
+    fi
+    ;;
+  *)
+    echo "!!! unsupported platform: $HOST_OS" >&2
+    exit 1
+    ;;
+esac
+ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_ANDROID_HOME}}"
 # Bootstrap build of the command-line tools. sdkmanager only sees packages that
 # existed when it was built, so a stale pin silently hides new platforms (a 2023
 # build can't find `platforms;android-37.0`, released June 2026 — #544). This pin
-# therefore only bootstraps: it installs the SDK-managed `cmdline-tools;latest`,
-# and that copy installs everything else. Bumping it is optional, not load-bearing.
+# therefore bootstraps the managed SDK and remains the safe fallback while an
+# older user-owned `cmdline-tools;latest` is preserved in place.
 CMDLINE_TOOLS_BUILD="15859902"
-CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip"
+CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-${CMDLINE_TOOLS_PLATFORM}-\
+${CMDLINE_TOOLS_BUILD}_latest.zip"
 # The platform package is derived from compileSdk below so it can't drift from the
 # build; only build-tools is pinned, to the AGP-required revision (AGP 9.3.1 -> 35.0.0).
 BUILD_TOOLS_VERSION="35.0.0"
@@ -55,10 +83,12 @@ if [ -z "$COMPILE_SDK" ]; then
 fi
 BASE_PACKAGES=("platform-tools" "build-tools;${BUILD_TOOLS_VERSION}")
 
-# Older revisions of this script unzipped the tools straight into cmdline-tools/latest,
-# which leaves an unmanaged copy (no package.xml) that sdkmanager won't upgrade. Drop it
-# so cached environments re-provision instead of reusing 2023 tools forever.
-if [ -d "$ANDROID_HOME/cmdline-tools/latest" ] && [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
+# Older revisions of this script unzipped the tools straight into the managed
+# /opt cache's cmdline-tools/latest, leaving no package.xml for sdkmanager to
+# upgrade. Only that repo-owned cache is safe to clear automatically: valid
+# user-installed SDK tools can also lack package.xml.
+if [ "$ANDROID_HOME" = "/opt/android-sdk" ] && [ -d "$ANDROID_HOME/cmdline-tools/latest" ] &&
+  [ ! -f "$ANDROID_HOME/cmdline-tools/latest/package.xml" ]; then
   echo "    removing unmanaged cmdline-tools/latest from an earlier setup run"
   rm -rf "$ANDROID_HOME/cmdline-tools/latest"
 fi
@@ -87,14 +117,36 @@ done
 
 SDKMANAGER="$BOOTSTRAP_DIR/bin/sdkmanager"
 accept_licenses() { yes 2>/dev/null | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; }
+sdkmanager_major() {
+  "$1" --version 2>/dev/null | sed -nE 's/^([0-9]+).*/\1/p' | head -1 || true
+}
 
-echo "==> Updating to the SDK-managed cmdline-tools;latest"
-accept_licenses
-if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
-  echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
+LATEST_SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+BOOTSTRAP_MAJOR="$(sdkmanager_major "$SDKMANAGER")"
+LATEST_MAJOR=""
+if [ -x "$LATEST_SDKMANAGER" ]; then
+  LATEST_MAJOR="$(sdkmanager_major "$LATEST_SDKMANAGER")"
 fi
-if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-  SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
+if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
+  [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
+  SDKMANAGER="$LATEST_SDKMANAGER"
+elif [ -x "$LATEST_SDKMANAGER" ] && [ "$ANDROID_HOME" != "/opt/android-sdk" ]; then
+  echo "==> Preserving older user-installed cmdline-tools;latest; using the bootstrap tools"
+else
+  echo "==> Updating to the SDK-managed cmdline-tools;latest"
+  accept_licenses
+  if ! "$SDKMANAGER" "cmdline-tools;latest" >/dev/null 2>&1; then
+    echo "    could not install cmdline-tools;latest — continuing with the bootstrap tools"
+  elif [ -x "$LATEST_SDKMANAGER" ]; then
+    LATEST_MAJOR="$(sdkmanager_major "$LATEST_SDKMANAGER")"
+    if [ -n "$BOOTSTRAP_MAJOR" ] && [ -n "$LATEST_MAJOR" ] &&
+      [ "$LATEST_MAJOR" -ge "$BOOTSTRAP_MAJOR" ]; then
+      SDKMANAGER="$LATEST_SDKMANAGER"
+    else
+      echo "    cmdline-tools;latest is older or unreadable — continuing with the bootstrap tools"
+    fi
+  fi
 fi
 
 echo "==> Accepting licenses and installing SDK packages"
@@ -184,7 +236,7 @@ fi
 
 echo "==> Seeding Gradle wrapper dist so ./gradlew can start (its dist download is proxy-blocked)"
 WRAPPER_PROPS="gradle/wrapper/gradle-wrapper.properties"
-if [ -f "$WRAPPER_PROPS" ]; then
+if [ "$HOST_OS" = "Linux" ] && [ -f "$WRAPPER_PROPS" ]; then
   WRAPPER_VER="$(sed -nE 's#.*gradle-([0-9.]+)-(bin|all)\.zip.*#\1#p' "$WRAPPER_PROPS" | head -1)"
   PRE_GRADLE="$(command -v gradle || true)"
   [ -n "$PRE_GRADLE" ] && PRE_GRADLE_HOME="$(dirname "$(dirname "$(readlink -f "$PRE_GRADLE")")")"
@@ -223,10 +275,12 @@ if [ -f "$WRAPPER_PROPS" ]; then
   else
     echo "    skipped (no pinned wrapper version or no pre-installed gradle found)"
   fi
+elif [ "$HOST_OS" != "Linux" ]; then
+  echo "    skipped (the pre-installed Gradle cache workaround is Linux-only)"
 fi
 
 echo "==> Verifying: ./gradlew compileDebugKotlin"
 # Online build: dependency artifacts (AGP, androidx) resolve from
 # maven.google.com / Maven Central. Do NOT use --offline here — on a cold
 # dependency cache it blocks AGP resolution and fails.
-./gradlew compileDebugKotlin -q >/dev/null && echo "OK — cloud build works"
+./gradlew compileDebugKotlin -q >/dev/null && echo "OK — Android build works"

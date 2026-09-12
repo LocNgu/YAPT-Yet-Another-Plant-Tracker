@@ -15,8 +15,10 @@ import androidx.compose.ui.test.performClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.preferencesOf
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -47,12 +49,15 @@ class CalendarScreenTest {
 
     private lateinit var careLogRepo: CareLogRepository
 
-    private fun makeViewModel(plants: List<Plant> = emptyList()): CalendarViewModel {
+    private fun makeViewModel(
+        plants: List<Plant> = emptyList(),
+        preferences: Preferences = emptyPreferences()
+    ): CalendarViewModel {
         val plantRepo = mockk<PlantRepository>()
         careLogRepo = mockk()
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
         val dataStore = mockk<DataStore<Preferences>> {
-            every { data } returns flowOf(emptyPreferences())
+            every { data } returns flowOf(preferences)
         }
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { careLogRepo.logCount } returns flowOf(0)
@@ -157,8 +162,12 @@ class CalendarScreenTest {
 
     @Test
     fun todayBadge_isGreen_whenDueButNotOverdue() {
+        // Amplitude explicitly Off: this test's exact-boundary math (watered exactly
+        // wateringIntervalDays ago) is about the plain due/overdue split, not the seasonal
+        // curve — an unset amplitude now defaults to Standard (seasonal watering graduated,
+        // #656), which would shift the effective interval and make this boundary flaky by date.
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(listOf(plant))
+        val viewModel = makeViewModel(listOf(plant), preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)

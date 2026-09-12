@@ -16,8 +16,12 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +44,10 @@ class YaptApplication : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Volatile
+    internal var isAppForeground: Boolean = false
+        private set
+
     val database by lazy { PlantDatabase.getInstance(this) }
 
     val plantRepository by lazy { PlantRepository(database.plantDao()) }
@@ -57,8 +65,39 @@ class YaptApplication : Application() {
             plantPhotoRepository,
             settingsDataStore,
             database,
-            wateringAdjustmentRepository
+            wateringAdjustmentRepository,
+            onWaterLogged = ::schedulePostWateringReminder
         )
+    }
+
+    suspend fun schedulePostWateringReminder(loggedAt: Long) {
+        PostWateringReminderScheduler.scheduleIfEnabled(this, settingsDataStore, loggedAt)
+    }
+
+    /**
+     * #702 one-time backfill — see [SeasonalGraduationFixup]. `runCatching`-wrapped so a bug in this
+     * reconciliation can never crash app start; a failure simply leaves the one-time flag unset,
+     * retrying on the next launch.
+     */
+    private suspend fun runSeasonalGraduationFixupIfNeeded() {
+        runCatching {
+            val plants = plantRepository.getAllPlants().first() + plantRepository.getArchivedPlants().first()
+            val request = SeasonalGraduationFixup.FixupRequest(
+                plants = plants,
+                amplitude = settingsDataStore.seasonalAmplitudeOnce(),
+                hemisphere = SeasonalWatering.currentHemisphere()
+            )
+            SeasonalGraduationFixup.maybeRun(
+                request = request,
+                plantRepository = plantRepository,
+                wateringAdjustmentRepository = wateringAdjustmentRepository,
+                dataStore = settingsDataStore
+            )
+        }
+    }
+
+    internal fun setAppForeground(foreground: Boolean) {
+        isAppForeground = foreground
     }
 
     override fun onCreate() {
@@ -66,6 +105,7 @@ class YaptApplication : Application() {
         NotificationHelper.createChannel(this)
         applicationScope.launch {
             writeDefaultReminderTimeIfAbsent(settingsDataStore)
+            runSeasonalGraduationFixupIfNeeded()
         }
     }
 }

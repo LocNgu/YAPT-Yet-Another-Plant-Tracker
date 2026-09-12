@@ -38,17 +38,50 @@ paths:
 `testReleaseUnitTest` + `lintRelease`. Instrumented tests run on PRs via path filter; concurrency group cancels
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
+## Diagnosing a failed CI check (#684)
+Don't pull the full raw job log as the first move — it's routinely 50K+ characters and most of it is
+noise. Check the failing check run's conclusion/annotations first (the GitHub API's check-run details,
+e.g. `get_check_run`/`get_job_logs` annotations) for the specific failing test name and line; annotations
+usually localize a normal assertion failure or compile error in one or two lines, which is enough to go
+fix it without ever touching the raw log.
+Only fall back to the raw job log when annotations don't localize the failure — this happens for a
+genuinely hung job with no clean per-test failure line, e.g. #679/#682's instrumented-test job: a bad
+blanket MockK stub left a call path unmatched, the test hung on `waitUntil` until the whole job timed
+out, and no annotation pointed at a specific assertion. In that case, save the log to a file rather than
+reading it inline (it will blow past the tool's token cap), then `grep` the file for failure markers
+(`FAILED`, `Exception`, `AssertionError`, `waitUntil`, `Timed out`) instead of reading the whole thing —
+the grep hits are usually enough to locate the offending test class/stub without ever loading the bulk
+of the log into context.
+
+## Iterating fast without skipping the mandatory full suite (#684)
+`./gradlew detekt lintDebug compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin`
+must succeed **before every push that opens or updates a PR** — round 2+ fix-round pushes are not an
+exception. This matches `AGENTS.md`'s "Before opening or updating a pull request" gate verbatim (both
+docs point agents at this shared file precisely so the two can't drift apart on this); nothing below
+proposes a per-agent or per-round carve-out from it.
+The token/time savings on a fix round come from *how* you run checks while iterating, not from skipping
+any of them before the push:
+- While chasing one specific reviewer finding, first reproduce/confirm it with a targeted run
+  (`./gradlew testDebugUnitTest --tests "com.example.SpecificClassTest"` or `compileDebugKotlin` alone
+  for a compile-only fix) for a fast fail/pass signal — this is a debugging aid to iterate faster, not a
+  substitute for the full mandatory suite above, which must still run once before the push.
+- Pipe every run through `-q`/`--console=plain` and grep the output for `FAILED`/`error:`/`Exception`
+  instead of reading full verbose console output — this is where the actual context savings come from.
+
 ## Release build (#4)
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
 workers and Room DAOs (both reached via reflection) from being stripped/renamed.
 
 ## Cloud / in-session builds (#419, #544, #548)
-Enablement is environment config, not repo: allowlist `dl.google.com`, set `ANDROID_HOME=/opt/android-sdk`, run
-`scripts/cloud-setup.sh` as setup. It installs the SDK and seeds the wrapper dist from the pre-installed Gradle.
+Enablement is environment config, not repo: allowlist `dl.google.com` and run `scripts/cloud-setup.sh` as setup.
+It uses `/opt/android-sdk` when writable on Linux, otherwise the platform's user SDK directory; an explicit
+`ANDROID_HOME` or `ANDROID_SDK_ROOT` overrides that default. It installs the SDK and seeds the wrapper dist from
+the pre-installed Gradle in Linux cloud environments; macOS local environments use the wrapper normally.
 The script derives the `compileSdk` *major* from `app/build.gradle.kts` and resolves the real platform package id
 from it — don't hardcode a platform in it.
-`CMDLINE_TOOLS_BUILD` only bootstraps: those tools install SDK-managed `cmdline-tools;latest`, which installs
-everything else, so the pin can't hide a newly released platform (a 2023 pin couldn't see API 37 — #544).
+`CMDLINE_TOOLS_BUILD` bootstraps the managed SDK and is the safe fallback while an older user-owned
+`cmdline-tools;latest` is preserved in place. The bootstrap must remain current enough to see the project's
+compileSdk platform (a 2023 pin couldn't see API 37 — #544).
 **The platform package id isn't always the bare major.** Starting at API 37, Google stopped publishing a bare
 `platforms;android-<major>` package — only major.minor ids exist (`android-37.0`, `android-37.1`, ...); older
 majors (35, 36) still ship the bare id alongside minors. `platforms;android-37` fails identically on *every*

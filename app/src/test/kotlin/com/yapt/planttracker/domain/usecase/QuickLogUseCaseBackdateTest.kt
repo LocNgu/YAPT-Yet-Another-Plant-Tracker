@@ -4,15 +4,12 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -106,6 +103,50 @@ class QuickLogUseCaseBackdateTest {
     }
 
     @Test
+    fun `successful quick watering schedules the post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        val loggedAt = System.currentTimeMillis()
+        val monstera = plant().copy(wateringIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        useCase = QuickLogUseCase(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            database,
+            wateringAdjustmentRepo,
+            onWaterLogged = { scheduled.add(it) }
+        )
+
+        useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
+
+        assertEquals(listOf(loggedAt), scheduled)
+    }
+
+    @Test
+    fun `successful liquid-fertilizer quick log schedules one post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        val loggedAt = System.currentTimeMillis()
+        val monstera = plant(useLiquidFertilizer = true).copy(wateringIntervalDays = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        useCase = QuickLogUseCase(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            database,
+            wateringAdjustmentRepo,
+            onWaterLogged = { scheduled.add(it) }
+        )
+
+        useCase.quickLiquidFertilizeWithReason(monstera, null, loggedAt = loggedAt)
+
+        assertEquals(listOf(loggedAt), scheduled)
+    }
+
+    @Test
     fun `quickWaterWithReason checks the duplicate guard against the backdated day, not today`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
@@ -176,29 +217,27 @@ class QuickLogUseCaseBackdateTest {
                     match { it.triggeredAt == fiveDaysAgo && it.afterIntervalDays == expected.intervalDays }
                 )
             }
-            // threeDaysAgo (the existing, later log) must never even be consulted for this gap — the
-            // pre-fix code's only source of "the last two waterings" is gone from the production path.
-            coVerify(exactly = 0) { careLogRepo.getLastTwoWaterings(any()) }
+            // getLastTwoWaterings is still consulted (#679's override-clear gate, a different purpose
+            // from the adaptive-gap computation this test targets) but its result must never feed the
+            // gap math above — the assertions on afterIntervalDays already pin that down.
         }
 
     /**
      * BLOCKING review fix (#654 round 1): [QuickLogUseCase.adaptWateringInterval]'s call to its private
      * de-seasonalization helper used to evaluate the season at [QuickLogUseCase]'s `nowProvider()`
      * (real wall-clock "now") rather than the caller's backdated `loggedAt` — neither
-     * [QuickLogUseCaseSeasonalTest] (never backdates) nor the rest of this file (never enables
-     * `SEASONAL_WATERING`) combined both dimensions to catch it. `nowProvider` is pinned to a summer
+     * [QuickLogUseCaseSeasonalTest] (never backdates) nor the rest of this file (never exercises a
+     * non-Off amplitude) combined both dimensions to catch it. `nowProvider` is pinned to a summer
      * day while `loggedAt` is a winter day so the two seasons' de-seasonalized values provably differ;
      * asserting against the winter (loggedAt) value fails if the helper reverts to nowProvider().
      */
     @Test
-    fun `quickWaterWithReason with SEASONAL_WATERING on de-seasonalizes using the backdated loggedAt's season`() =
+    fun `quickWaterWithReason de-seasonalizes using the backdated loggedAt's season, not nowProvider's`() =
         runTest {
             val nowProviderDay = localDateUtcMillis(2023, 7, 5) // northern summer — real "now"
             val loggedAtDay = localDateUtcMillis(2023, 1, 5) // northern winter — the backdated pick
             val seasonalDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-                )
+                every { data } returns flowOf(emptyPreferences())
             }
             useCase = QuickLogUseCase(
                 application, plantRepo, careLogRepo, plantPhotoRepo, seasonalDataStore, database,

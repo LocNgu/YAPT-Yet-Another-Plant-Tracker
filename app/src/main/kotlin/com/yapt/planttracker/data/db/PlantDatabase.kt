@@ -166,7 +166,7 @@ abstract class PlantDatabase : RoomDatabase() {
         }
 
         // #569 (product ADR-0026): wateringBaseIntervalDays is a season-neutral reference used only
-        // when SEASONAL_WATERING is on and the plant isn't pinned. Not a pure ALTER — every existing
+        // when amplitude isn't Off and the plant isn't pinned. Not a pure ALTER — every existing
         // plant's base is de-seasonalized to *migration day* (`wateringIntervalDays / season(today)`)
         // so its effective interval on migration day is unchanged, regardless of what month the
         // migration happens to run in. Always uses SeasonalAmplitude.STANDARD (a Room migration can't

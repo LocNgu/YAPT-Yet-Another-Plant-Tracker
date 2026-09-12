@@ -3,8 +3,9 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -37,8 +38,11 @@ class QuickLogUseCaseWateringReasonTest {
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
     private val plantPhotoRepo: PlantPhotoRepository = mockk()
+
+    // Amplitude Off by default (graduated, #656 — STANDARD is now the real default, but this test
+    // class exercises flat, non-seasonal interval math throughout).
     private val dataStore: DataStore<Preferences> = mockk {
-        every { data } returns flowOf(emptyPreferences())
+        every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
     }
     private val database: PlantDatabase = mockk()
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)

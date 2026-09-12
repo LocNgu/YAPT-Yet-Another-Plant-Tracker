@@ -3,7 +3,6 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
@@ -61,8 +60,12 @@ class QuickLogUseCaseTest {
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
     private val plantPhotoRepo: PlantPhotoRepository = mockk()
+
+    // Amplitude Off by default (graduated, #656 — STANDARD is now the real default, but this test
+    // class overwhelmingly exercises flat, non-seasonal interval math) — tests exercising the
+    // seasonal path use their own `enabledDataStore` fixture below instead.
     private val dataStore: DataStore<Preferences> = mockk {
-        every { data } returns flowOf(emptyPreferences())
+        every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
     }
 
     // Unused by these single-log tests (only bulkLog opens a transaction); bulkLog's atomic

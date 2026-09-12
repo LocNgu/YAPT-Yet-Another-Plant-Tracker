@@ -35,17 +35,16 @@ no schema bump).
   (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
   no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
   already shipped unconditionally before the flag was removed, are unaffected.
-- `FeatureFlagRegistry.SEASONAL_WATERING` (`seasonal_watering`, default off, #569) gates the computed seasonal
-  watering curve — see `.claude/rules/seasonal-watering.md`. Same posture the graduated `ADAPTIVE_WATERING` flag
-  had: the backing `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship
-  unconditionally regardless of this flag's state. The amplitude picker itself lives on the main Settings screen
-  (not the Developer section), visible only while this flag is on — only the flag's on/off `Switch` appears in
-  the generic Developer-section flags list.
-- `FeatureFlagRegistry.CHECK_REMINDERS` (`check_reminders`, default off, #570) reframes the watering reminder
-  notification from "Water {plant}" to "Check {plant}" with Watered/Still-moist actions — see
-  `.claude/rules/notifications.md`. This one touches `ReminderWorker`, the notification composer, and a new
-  `StillMoistReceiver`; the Still-moist action always feeds the (now-unconditional) adaptive watering model.
-  No new columns/backup fields — `CareType.CHECK` reuses the existing care-log pipeline entirely.
+- `SEASONAL_WATERING` graduated (#656) — the computed seasonal watering curve (see
+  `.claude/rules/seasonal-watering.md`) and the amplitude picker on the main Settings screen now ship
+  unconditionally; there is no registry entry or flag row for it anymore. The backing
+  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields, which already
+  shipped unconditionally before the flag was removed, are unaffected.
+- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title with
+  Watered/Still-moist/Not now actions (#570) now ships unconditionally; there is no registry entry or flag row
+  for it anymore. See `.claude/rules/notifications.md`. `ReminderWorker`, the notification composer, and
+  `StillMoistReceiver` are unaffected otherwise — no new columns/backup fields, `CareType.CHECK` still reuses
+  the existing care-log pipeline entirely.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,
@@ -69,15 +68,17 @@ null`, so the next WATER log against a plant with enough history (Monstera, Snak
 Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants (Aloe Vera, Cactus, Calathea)
 correctly keep their typed interval.
 
-## Debug actions (#522)
-Two non-destructive rows below the flags list; neither touches the DB or confirms.
+## Debug actions (#522, #519)
+Three non-destructive rows below the flags list; none touches the DB or confirms.
 - **Reset What's New seen state** — `resetWhatsNewSeenState()` removes `LAST_SEEN_VERSION_CODE` so the auto-show
   fires next launch (absent key reads as 0).
 - **Run reminder check now** — `runReminderCheckNow()` checks POST_NOTIFICATIONS **itself** (before enqueueing, so
   the Snackbar is accurate) via the shared `NotificationPermission.isGranted(context)` helper (also used by
   `ReminderWorker.doWork()` so the two can't drift); only then calls `ReminderScheduler.runNow(context)` —
   `enqueueUniqueWork(RUN_NOW_WORK_NAME, REPLACE, …)` so rapid taps coalesce.
-- Both emit via `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
+- **Show drain-water reminder now** — `showPostWateringReminderNow()` writes the transient pending-modal token directly,
+  bypassing the 30-minute WorkManager delay and POST_NOTIFICATIONS permission for deterministic manual UI testing.
+- All three emit via `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
 
 ## Snackbar unification — do NOT re-add `dismiss()` (the instructive bug)
 `SettingsScreen` routes **every** snackbar source (debug actions, backup export result, unlock countdown, dev-mode

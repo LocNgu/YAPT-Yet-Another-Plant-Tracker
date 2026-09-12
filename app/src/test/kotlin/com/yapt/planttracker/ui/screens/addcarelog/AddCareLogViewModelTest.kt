@@ -2,14 +2,12 @@ package com.yapt.planttracker.ui.screens.addcarelog
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.preferencesOf
+import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -80,6 +78,24 @@ class AddCareLogViewModelTest {
         // configured interval and 2+ prior waterings reaches this; individual tests override with a
         // real correction-streak window where that matters.
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
+    }
+
+    @Test
+    fun `new log can start with a preselected care type`() {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L
+        )
+        vm.preselectCareType(CareType.PHOTO)
+
+        assertEquals(CareType.PHOTO, vm.selectedCareType)
+
+        vm.selectedCareType = CareType.NOTE
+        vm.preselectCareType(CareType.PHOTO)
+        assertEquals(CareType.NOTE, vm.selectedCareType)
     }
 
     @Test
@@ -168,6 +184,30 @@ class AddCareLogViewModelTest {
     }
 
     @Test
+    fun `saving a new WATER log schedules the post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = null))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
+        vm.selectedCareType = CareType.WATER
+        vm.loggedAt = now
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(listOf(now), scheduled)
+    }
+
+    @Test
     fun `edit mode loads existing log fields and isEditMode is true`() = runTest {
         val existingLog = CareLog(
             id = 99L,
@@ -188,7 +228,8 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `edit mode save emits Saved with null interval skipping suggest`() = runTest {
+    fun `edit mode WATER save skips suggestion and post-watering reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
         val existingLog = CareLog(
             id = 99L,
             plantId = 1L,
@@ -198,7 +239,13 @@ class AddCareLogViewModelTest {
         )
         coEvery { careLogRepo.getLogById(99L) } returns existingLog
         coEvery { careLogRepo.addLog(any()) } returns 99L
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 99L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         advanceUntilIdle()
 
         vm.events.test {
@@ -207,13 +254,21 @@ class AddCareLogViewModelTest {
             assertNull(event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
+
+        assertTrue(scheduled.isEmpty())
     }
 
     @Test
     fun `FERTILIZE with LIQUID type auto-creates paired WATER log`() = runTest {
+        val scheduled = mutableListOf<Long>()
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(useLiquidFertilizer = true))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         vm.selectedCareType = CareType.FERTILIZE
         vm.selectedFertilizerType = FertilizerType.LIQUID
 
@@ -229,6 +284,7 @@ class AddCareLogViewModelTest {
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
         }
+        assertEquals(1, scheduled.size)
     }
 
     @Test
@@ -453,10 +509,16 @@ class AddCareLogViewModelTest {
     // Same-day duplicate rejection (#509)
 
     @Test
-    fun `save WATER log already logged today shows inline error and does not save`() = runTest {
+    fun `duplicate WATER log shows inline error without saving or scheduling reminder`() = runTest {
+        val scheduled = mutableListOf<Long>()
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.WATER, any(), null) } returns true
-        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            onWaterLogged = { scheduled.add(it) }
+        )
         vm.selectedCareType = CareType.WATER
 
         vm.events.test {
@@ -466,6 +528,7 @@ class AddCareLogViewModelTest {
 
         assertEquals(R.string.care_log_error_already_watered, vm.duplicateLogError)
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+        assertTrue(scheduled.isEmpty())
     }
 
     @Test
@@ -598,14 +661,12 @@ class AddCareLogViewModelTest {
     // Seasonal de-seasonalization of the observed gap (#569, product ADR-0026, #578 follow-up)
 
     @Test
-    fun `save WATER log de-seasonalizes the observed gap for a non-pinned plant when SEASONAL_WATERING is on`() = runTest {
+    fun `save WATER log de-seasonalizes the observed gap for a non-pinned plant`() = runTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 10))
         coEvery { careLogRepo.addLog(any()) } returns 1L
@@ -647,14 +708,12 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `save WATER log skips de-seasonalization for a pinned plant even when SEASONAL_WATERING is on`() = runTest {
+    fun `save WATER log skips de-seasonalization for a pinned plant`() = runTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val twentyDaysBeforePeak = peakDay - 20L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         val pinnedPlant = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(pinnedPlant)
@@ -698,9 +757,7 @@ class AddCareLogViewModelTest {
             val peakDay = localDateUtcMillis(2023, 1, 5)
             val fiveDaysBeforePeak = peakDay - 5L * 24 * 60 * 60 * 1000
             val seasonalDataStore: DataStore<Preferences> = mockk {
-                every { data } returns flowOf(
-                    preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-                )
+                every { data } returns flowOf(emptyPreferences())
             }
             // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the
             // observed 5-day gap de-seasonalizes to round(5 / 1.35) = 4 before the adaptive model sees
@@ -736,9 +793,7 @@ class AddCareLogViewModelTest {
         val peakDay = localDateUtcMillis(2023, 1, 5)
         val oneDayBeforePeak = peakDay - 1L * 24 * 60 * 60 * 1000
         val seasonalDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true)
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         // The observed 1-day gap de-seasonalizes to round(1 / 1.35) = 1; the model's confidence-0 gain
         // (0.60) pulls the base from 7 toward target=1 down to 3.4, clamped at the ±40% floor

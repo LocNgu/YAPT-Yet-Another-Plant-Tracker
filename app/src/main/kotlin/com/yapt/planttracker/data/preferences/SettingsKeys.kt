@@ -2,6 +2,7 @@ package com.yapt.planttracker.data.preferences
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
 object SettingsKeys {
@@ -15,6 +16,8 @@ object SettingsKeys {
     val PHOTO_REMINDER_ENABLED = booleanPreferencesKey("photo_reminder_enabled")
     val COMBINE_NOTIFICATIONS = booleanPreferencesKey("combine_notifications")
     val FERTILIZING_NOTIFICATIONS_ENABLED = booleanPreferencesKey("fertilizing_notifications_enabled")
+    val POST_WATERING_REMINDER_ENABLED = booleanPreferencesKey("post_watering_reminder_enabled")
+    val POST_WATERING_REMINDER_PENDING_AT = longPreferencesKey("post_watering_reminder_pending_at")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
     val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")
@@ -25,6 +28,16 @@ object SettingsKeys {
      * Default `true` reproduces today's ADR-0006 dialog behavior exactly.
      */
     val ASK_BEFORE_CHANGING_INTERVALS = booleanPreferencesKey("ask_before_changing_intervals")
+
+    /**
+     * One-time-run marker for [com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup] (#702):
+     * `SEASONAL_WATERING` graduating (#656) started reading the real `SEASONAL_AMPLITUDE` preference
+     * unconditionally, exposing every plant's `wateringBaseIntervalDays` frozen since `MIGRATION_10_11`
+     * while the flag was off. Device-local implementation state, not a user preference — deliberately
+     * excluded from `.yapt` backup export/import, mirroring [DEVELOPER_MODE_ENABLED]'s precedent (not
+     * [ASK_BEFORE_CHANGING_INTERVALS]'s, which does round-trip through backup).
+     */
+    val SEASONAL_BASE_GRADUATION_FIXUP_DONE = booleanPreferencesKey("seasonal_base_graduation_fixup_done")
 }
 
 /**

@@ -40,6 +40,10 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).
 - **Room migrations are mandatory** — explicit `Migration`s only, hard-crash if one is missing (`fallbackToDestructiveMigration` is never used). Any schema change ships with a `Migration` and a committed schema JSON in `app/schemas/` (technical ADR-0002).
 - **All UI strings in `strings.xml`** — no hardcoded strings in Compose. `cd_back` is the canonical back-button description.
+- **Post-watering reminders** — every successful current-day WATER insert debounces one WorkManager alert to 30 minutes
+  after the latest watering; backdated/edited/duplicate-suppressed logs do not schedule. A foreground firing shows a
+  persisted dismissible modal; a background firing uses notification ID `-2`, preserved by daily-reminder cleanup, whose
+  tap applies `CARED_FOR_TODAY` only in memory (product ADR-0036, technical ADR-0026, #519).
 - **Room schema** exported to `app/schemas/` via KSP — commit schema JSON when bumping DB version. `PlantDatabase.DB_VERSION` is the single source (also feeds `@Database(version=…)`), so the two can't drift.
 - **Compose UI tests assert user-visible semantics** (contentDescription/stateDescription/text/actionable), **never** tree structure (child counts, testTag topology). A testTag never merges past a clickable/merged ancestor. If a fix is about announcements, assert the announcement — not the topology (#420).
 - **Two-strikes rule** — after two failed fix attempts on the same test, stop pushing variants. Re-derive the mechanism from framework source/docs (or a minimal repro), and reconsider whether the test asserts the wrong thing (structure vs. contract) (#420).
@@ -65,6 +69,17 @@ Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant 
 
 **Auto-review on green CI:** after opening the PR, `subscribe_pr_activity`; whenever new commits land **and** that PR's CI is green, auto-launch the next reviewer round (still capped at 2). If CI is red, diagnose and re-kick rather than reviewing.
 
+**Resuming the implementer across fix rounds (#684, technical ADR-0025):** when the reviewer requests a fix-round on a PR
+already in flight, resume the *same* implementer agent instance (send a follow-up message to its
+agent name/id from the earlier `Agent` call) rather than launching a fresh `Agent` call. A fresh dispatch
+re-reads CLAUDE.md, the relevant rules docs, and every touched source file from scratch — that's most of
+the token cost on a multi-round PR, and the resumed agent already has all of it in context from round 1.
+Caveat: this only works within the same orchestrator session, since a resumed agent needs the
+orchestrator's own tool-call history to reference back to — if the orchestrator session itself gets
+restarted or compacted, a fresh dispatch is unavoidable and that's fine. This is about resuming the
+*implementer* only — the reviewer's "each round is a fresh, standalone review" posture (step 3) is
+unchanged; a resumed implementer does not mean a resumed reviewer.
+
 **Comment cadence** — one comment per phase, in order: spec→issue (`add_issue_comment`); each review round→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR; summary→PR.
 
 Full release-cutting steps: `.claude/rules/release.md`.
@@ -76,13 +91,26 @@ git fetch origin develop && git checkout -b claude/<kebab-desc> origin/develop
 ```
 PR targets `develop`. Return to an up-to-date `develop` before starting anything new. `gh` is not installed — use `mcp__github__*` tools.
 
-## Permissions (hard rules enforced by `settings.local.json`)
+## Permissions (shared baseline enforced by `.claude/settings.json`)
+
+Keep machine-specific paths and personal overrides in the untracked (git-ignored)
+`.claude/settings.local.json`. Repository-wide allow/deny rules belong in `.claude/settings.json`;
+GitHub CLI allowances there must be limited to read-only subcommands so external writes continue to
+require explicit authorization, and a trailing `*` is only safe where every flag the subcommand accepts
+both leaves state unchanged *and* discloses no credentials — `gh auth status` is an exact literal
+because `--show-token` writes nothing yet prints the live token (technical ADR-0024). A #683 audit of
+the baseline's remaining wildcards narrowed `git branch*` to its read-only listing forms and added deny
+entries for branch mutation, `git stash drop`/`clear`, `find`'s action primaries, `git push
+--force-with-lease` and `git switch` against `main`/`develop`, and known secret-file paths for
+`cat`/`grep` — none of the latter is a security boundary, only a guard against accidental disclosure
+via the commands people actually reach for (technical ADR-0025).
+
 | Action | Permission |
 |---|---|
-| Read files · read-only git · `add`/`commit`/`stash`/`cherry-pick` · checkout/push `claude/*` · `./gradlew *` | Allowed, no prompt |
+| Read files · read-only git (branch listing narrowed to its named forms, #683) · `add`/`commit`/`stash` (excl. `drop`/`clear`)/`cherry-pick` · checkout/push `claude/*` · `./gradlew *` | Allowed, no prompt |
 | `mcp__github__*` **writes** (issue/PR/review/comment/create_pr) | **Orchestrator only** — subagents return text, orchestrator posts |
 | `git checkout develop` · `git push origin develop` · `git push --force origin claude/*` | Prompts — approve when appropriate |
-| `git checkout main` · `git push origin main` · force-push main/develop · `git reset --hard` | **Forbidden** — blocked mechanically |
+| `git checkout main` · `git push origin main` · force-push (`--force`/`-f`/`--force-with-lease`) main/develop · `git switch main` · `git branch -d`/`-D`/`-m`/`-M`/`--delete`/`--move` · `git stash drop`/`clear` · `find`'s action primaries (`-exec`/`-delete`/etc.) · `git reset --hard` · `cat`/`grep` of known secret paths (`~/.ssh`, `~/.aws`, `gh` token file, `.env`, etc., non-exhaustive) | **Forbidden** — blocked mechanically |
 | Merging PRs by any means | **Forbidden** — human only |
 
 ## Pointers (load on demand — path-scoped rules load only when you touch matching files)
