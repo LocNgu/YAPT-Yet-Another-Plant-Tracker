@@ -271,31 +271,11 @@ class PlantDetailViewModelSeasonalTest {
     }
 
     // "applySuggestedInterval on a pinned plant leaves wateringBaseIntervalDays untouched" moved to
-    // QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above.
-
-    @Test
-    fun `dismissSuggestedInterval logs the DIALOG_DISMISSAL row's before-after in base-space, not the stale literal`() =
-        runTest {
-            // #584 review: mirrors the DIALOG_EDIT/MANUAL_EDIT fixes — the row must use the true base
-            // (6, from wateringBaseIntervalDays) rather than the stale literal wateringIntervalDays (10).
-            val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
-            coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
-            val vm = makeVm()
-
-            vm.plant.test {
-                assertEquals(monstera, awaitItem())
-                vm.dismissSuggestedInterval()
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            coVerify {
-                wateringAdjustmentRepo.addAdjustment(
-                    match { it.beforeIntervalDays == 6 && it.afterIntervalDays == 6 }
-                )
-            }
-        }
+    // QuickLogUseCaseIntervalApplyTest (#631), same reasoning as above. "dismissSuggestedInterval logs
+    // the DIALOG_DISMISSAL row's before-after in base-space, not the stale literal" moved to
+    // QuickLogUseCaseDismissalTest (#674) — dismissSuggestedInterval() is a thin delegation to
+    // QuickLogUseCase.recordWateringSuggestionDismissal() now, which no longer touches plantRepo/
+    // wateringAdjustmentRepo through this ViewModel's own mocks.
 
     @Test
     fun `pendingWateringSuggestion converts base-space suggestion to effective space`() =

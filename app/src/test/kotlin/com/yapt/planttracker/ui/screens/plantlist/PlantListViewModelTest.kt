@@ -1415,12 +1415,11 @@ class PlantListViewModelTest {
         assertNull(vm.photoReminderRequest.value)
     }
 
-    // dismissSuggestedIntervalFromList mirrors PlantDetailViewModel's equivalent (#568 comment 5) so
-    // the ADR-0006 dialog has the same confidence effect regardless of which of the three screens it
-    // was shown from. applySuggestedIntervalFromList's write-path math-correctness coverage (base
-    // dual-write, effective-space conversion, confidence math, WateringAdjustment row shape) now lives
-    // in QuickLogUseCaseIntervalApplyTest, against QuickLogUseCase.applyWateringIntervalSuggestion()
-    // directly (#631) — applySuggestedIntervalFromList() is a thin delegation to that shared function.
+    // dismissSuggestedIntervalFromList/applySuggestedIntervalFromList are thin delegations to
+    // QuickLogUseCase's shared functions so the ADR-0006 dialog has the same confidence effect (and,
+    // for dismissal, the same WateringAdjustment row, #674) regardless of which of the three screens it
+    // was shown from. Write-path math-correctness coverage lives in QuickLogUseCaseIntervalApplyTest
+    // (#631) and QuickLogUseCaseDismissalTest (#674), directly against QuickLogUseCase.
 
     @Test
     fun `applySuggestedIntervalFromList delegates to QuickLogUseCase with the resolved plant`() =
@@ -1452,7 +1451,7 @@ class PlantListViewModelTest {
         }
 
     @Test
-    fun `dismissSuggestedIntervalFromList raises confidence`() = runTest {
+    fun `dismissSuggestedIntervalFromList delegates to QuickLogUseCase with the resolved plant`() = runTest {
         val enabledDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
                 preferencesOf()
@@ -1462,7 +1461,8 @@ class PlantListViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.recordWateringSuggestionDismissal(monstera) } returns
+            monstera.copy(wateringConfidence = 2)
         vm = PlantListViewModel(
             application,
             plantRepo,
@@ -1476,7 +1476,7 @@ class PlantListViewModelTest {
         vm.dismissSuggestedIntervalFromList(1L)
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
+        coVerify { quickLogUseCase.recordWateringSuggestionDismissal(monstera) }
     }
 }
 

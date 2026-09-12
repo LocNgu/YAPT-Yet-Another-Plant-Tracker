@@ -175,6 +175,21 @@ backdated) `now`; `AddCareLogViewModel`'s own copy of this helper has no backdat
 is already always real wall-clock time), so it's unaffected and keeps calling `maybeBootstrap()` without
 a `displayNow` argument.
 
+**Follow-up (#674):** `CalendarViewModel.dismissSuggestedInterval()` and `PlantListViewModel
+.dismissSuggestedIntervalFromList()` both raised `Plant.wateringConfidence` via `CareSchedule
+.confidenceAfterDismissal()` on a dialog dismissal but neither ever wrote the matching
+`DIALOG_DISMISSAL` row — only Plant Detail's own copy of this logic did, so dismissing from Calendar
+or Plant List silently changed confidence with nothing appearing in "Recent adjustments". Fixed by
+extracting the confidence bump + row write into a new shared `QuickLogUseCase
+.recordWateringSuggestionDismissal(plant): Plant`, mirroring the #631 consolidation of
+`applyWateringIntervalSuggestion()` for the sibling "apply" action on the same dialog — the same
+base-space row shape (`beforeIntervalDays == afterIntervalDays`, via `currentAdaptiveBaseIntervalDays()`,
+guarded on `plant.wateringIntervalDays != null`). All three dismiss-suggestion call sites
+(`PlantDetailIntervalActions.dismissSuggestedInterval()`, `CalendarViewModel
+.dismissSuggestedInterval()`, `PlantListViewModel.dismissSuggestedIntervalFromList()`) now delegate to
+this one function; Plant Detail's own wrapper keeps only its ViewModel-scoped bits (reading the current
+`plant`, clearing `suggestedWateringInterval`).
+
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default
 `emptyList()`) + `BackupSettings.askBeforeChangingIntervals: Boolean` (default `true`) — see

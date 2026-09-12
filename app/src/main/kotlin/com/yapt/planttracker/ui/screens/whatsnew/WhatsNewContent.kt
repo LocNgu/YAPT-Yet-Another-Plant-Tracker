@@ -18,6 +18,13 @@ object WhatsNewContent {
                 "centered dialog, matching the style of the other prompts on Plant Detail"
         ),
         fixed = listOf(
+            "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
+                "later watering: backfilling an old watering no longer discards an unrelated active " +
+                "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
+                "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
+                "entry no longer shows a briefly stale \"currently every N days\" figure",
+            "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
+                "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail",
             "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
                 "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
                 "automatically to re-sync affected plants' intervals"

@@ -26,32 +26,15 @@ fun PlantDetailViewModel.clearSuggestedInterval() {
  * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
  * outside it). A genuine dismissal raises [com.yapt.planttracker.domain.model.Plant.wateringConfidence]
  * up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] (#568) — the user is saying the current schedule
- * is fine.
+ * is fine. Delegates to [com.yapt.planttracker.domain.usecase.QuickLogUseCase
+ * .recordWateringSuggestionDismissal] (#674) — the same choke point the Calendar/Plant List dismiss
+ * actions now share — so the confidence bump and the matching
+ * [WateringAdjustmentTrigger.DIALOG_DISMISSAL] row can't drift between screens; this wrapper only
+ * handles the ViewModel-scoped bits (reading the current [plant], clearing the pending suggestion).
  */
 fun PlantDetailViewModel.dismissSuggestedInterval() {
     viewModelScope.launch {
-        plant.value?.let { p ->
-            plantRepository.updatePlant(
-                p.copy(
-                    wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                    updatedAt = System.currentTimeMillis()
-                )
-            )
-            p.wateringIntervalDays?.let { current ->
-                // #584 review: log the base-space reference, not the literal effective
-                // value, so this row's units match the WATER_*/CHECK_STILL_MOIST rows when
-                // season is on and the plant isn't pinned.
-                val currentBase = currentBaseIntervalDaysOrLiteral(p, current)
-                wateringAdjustmentRepository.addAdjustment(
-                    WateringAdjustment(
-                        plantId = p.id,
-                        trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
-                        beforeIntervalDays = currentBase,
-                        afterIntervalDays = currentBase
-                    )
-                )
-            }
-        }
+        plant.value?.let { p -> quickLogUseCase.recordWateringSuggestionDismissal(p) }
         suggestedWateringInterval.value = null
     }
 }
