@@ -561,6 +561,7 @@
     <string name="adjustment_trigger_room_change_reset">moved rooms — relearning</string>
     <string name="adjustment_trigger_frozen_post_repot">still settling in after repotting</string>
     <string name="adjustment_trigger_history_bootstrap">estimated from your watering history</string>
+    <string name="adjustment_trigger_seasonal_graduation_fixup">re-synced after an app update</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

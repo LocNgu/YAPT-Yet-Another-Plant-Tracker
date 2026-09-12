@@ -87,6 +87,24 @@ whenever amplitude wasn't Off. See `.claude/rules/watering-transparency.md` for 
 the same fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug
 fix feeds.
 
+## App-start reconciliation fixup (#702)
+Graduating `SEASONAL_WATERING` (#656) removed the flag check from `seasonalAmplitudeFlow()`/
+`seasonalAmplitudeOnce()`, which used to hard-return `0.0` while the dev-mode flag was off (the default
+for every install). Every write path above that dual-writes `wateringBaseIntervalDays` only does so when
+`amplitude != 0.0`, so on any install that never enabled the flag, `wateringBaseIntervalDays` stayed
+frozen at whatever `MIGRATION_10_11` set it to while the literal `wateringIntervalDays` kept moving on
+every subsequent edit/suggestion-apply — `CareSchedule` started multiplying that stale, frozen base by
+the seasonal curve for real due-date math once amplitude started reading the real preference.
+`domain/usecase/SeasonalGraduationFixup.kt` is a one-time app-start backfill (triggered from
+`YaptApplication.onCreate()`, gated on `SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE` — a
+device-local flag excluded from `.yapt` backup, mirroring `DEVELOPER_MODE_ENABLED`'s precedent, not
+`ASK_BEFORE_CHANGING_INTERVALS`'s) that re-anchors every unpinned plant's `wateringBaseIntervalDays` to
+today, exactly like `MIGRATION_10_11` anchored migration day — a no-op for a pinned plant, a plant with
+no `wateringIntervalDays`, amplitude Off, or a plant whose base is already in sync. Logs
+`WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP` per actually-changed plant — a distinct trigger
+from `HISTORY_BOOTSTRAP` since the two reconcile from different sources (a stale column vs. replayed
+watering-log history). Not a schema change — no new column, no migration/DB version bump.
+
 ## Settings UI
 Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, always visible
 (`SettingsViewModel.seasonalAmplitude` StateFlow + `setSeasonalAmplitude()`), takes effect immediately

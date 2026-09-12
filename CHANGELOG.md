@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Graduating `SEASONAL_WATERING` out of developer mode (#656) could silently revert a plant's watering interval to a stale value** — before graduation, `seasonalAmplitudeFlow()`/`seasonalAmplitudeOnce()` always returned `0.0` while the dev-mode flag was off (the default for every install), so every write path that dual-writes `Plant.wateringBaseIntervalDays` alongside a manual interval edit or an accepted suggestion silently skipped its `amplitude != 0.0` gate — `wateringBaseIntervalDays` stayed frozen at whatever `MIGRATION_10_11` (#569) set it to, while the visible literal interval kept moving on every subsequent edit. Now that amplitude ships unconditionally, `CareSchedule` was multiplying that stale, frozen base by the seasonal curve for real due-date math instead of the plant's actual current interval. A one-time app-start backfill (`SeasonalGraduationFixup`, gated on a new device-local one-time-run flag so it fires exactly once ever) now re-anchors every unpinned plant's `wateringBaseIntervalDays` to today, logging each affected plant's before/after via a new `WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP` row visible on the "Why this date?" sheet. Pinned plants, plants with no configured interval, and installs with seasonal amplitude set to Off are untouched (#702)
+
 ## [0.29.0] - 2026-09-12
 
 ### Added
