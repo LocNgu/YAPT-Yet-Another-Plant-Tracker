@@ -273,10 +273,16 @@ convention `WateringReasonBottomSheet`/`RescheduleReasonBottomSheet` (`ReasonBot
 `WateringExplanationSheet` already use elsewhere on this screen — pure UI-consistency, no behavior
 change. `rememberModalBottomSheetState(skipPartiallyExpanded = true)` is load-bearing: the default
 (`false`) lets a tall sheet — a full calendar grid plus a button row — open only partially expanded on
-smaller devices, pushing the OK/Cancel row below the fold with no scroll in the instrumented test that
-clicks it. The OK/Cancel `TextButton` row (Cancel leading, OK trailing, end-aligned) sits below the
-`DatePicker` inside the sheet's own `Column`, reusing `R.string.ok`/`R.string.cancel` unchanged, and
-dismissal still routes through the plain `onDismiss` lambda (no `sheetState.hide()` await), matching
+smaller devices. But `skipPartiallyExpanded` only removes that partial-expansion anchor — it does not
+shrink oversized content to fit the viewport, so on its own it does not guarantee the OK/Cancel row is
+reachable. What actually guarantees that (external review on PR #696) is that the `DatePicker` sits in
+its own inner scrollable `Column` (`Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())`)
+below the sheet's outer `Column`, with the OK/Cancel `TextButton` row (Cancel leading, OK trailing,
+end-aligned) always rendered last, outside that inner scroll — the calendar scrolls internally on a
+viewport shorter than its own ~568dp (landscape, a resized multi-window), while the buttons stay pinned
+and visible; `weight(1f, fill = false)` also means the sheet does not stretch to full height on a normal
+portrait phone where the calendar comfortably fits. Reusing `R.string.ok`/`R.string.cancel` unchanged,
+and dismissal still routes through the plain `onDismiss` lambda (no `sheetState.hide()` await), matching
 every other sheet's convention. `LOG_WATERING_DATE_PICKER_TEST_TAG` moved onto the `ModalBottomSheet`'s
 `modifier`; `TodayOrEarlierSelectableDates`/`localTodayAsUtcMidnightMillis()`/
 `utcMidnightMsToLoggedAtMillis()` and the public `LogWateringDatePickerDialog(onDismiss, onConfirm)`

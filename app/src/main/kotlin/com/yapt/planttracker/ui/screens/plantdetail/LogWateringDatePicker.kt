@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -93,6 +95,15 @@ internal fun localTodayAsUtcMidnightMillis(
  * bare `Text` sat flush against the dialog's rounded top corner), which no longer applies now that
  * `DatePicker` sits directly inside a sheet `Column` rather than a `DatePickerDialog`, but the default-title
  * choice itself is unchanged and still matches `AddCareLogScreen`'s own picker.
+ *
+ * The `DatePicker` sits in its own inner `Column` (`Modifier.weight(1f, fill = false).verticalScroll(...)`),
+ * not the outer sheet `Column` directly (external review, PR #696): `skipPartiallyExpanded = true` alone
+ * only removes the sheet's partial-expansion anchor, it does not shrink oversized content to fit, so a
+ * viewport shorter than the full ~568dp `DatePicker` (landscape, a resized multi-window) would otherwise
+ * clip the Cancel/OK row below the visible sheet with no way to confirm or cancel. `weight(1f, fill =
+ * false)` caps the inner `Column` at whatever height remains after the always-visible button row is
+ * measured — letting the calendar scroll internally when it doesn't fit — without forcing the sheet to
+ * full height when the calendar comfortably fits on a normal portrait phone.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +121,13 @@ internal fun LogWateringDatePickerDialog(
         modifier = Modifier.testTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            DatePicker(state = datePickerState)
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                DatePicker(state = datePickerState)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

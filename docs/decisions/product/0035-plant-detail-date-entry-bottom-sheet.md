@@ -40,14 +40,22 @@ only the container.
 
 `rememberModalBottomSheetState(skipPartiallyExpanded = true)` is required, not incidental: the
 default (`false`) lets a sheet this tall — a full calendar grid plus a button row — open only
-partially expanded on smaller devices, pushing the OK/Cancel row below the fold with no scroll
-affordance exercised anywhere else in this flow. Because `ModalBottomSheet` has no confirm/dismiss
-button slots of its own (unlike `DatePickerDialog`), the sheet supplies its own OK/Cancel `TextButton`
-row below the `DatePicker`, reusing the existing `R.string.ok`/`R.string.cancel` strings so the
-instrumented test that clicks OK needed no changes. Dismissal (Cancel, scrim tap, system back) routes
-through the same plain `onDismiss` lambda every other sheet on this screen uses, rather than awaiting
-`sheetState.hide()` — consistency with the existing convention outweighs the animate-then-dismiss
-nicety for one surface.
+partially expanded on smaller devices. On its own, though, `skipPartiallyExpanded` only removes that
+partial-expansion anchor — it does not shrink oversized content to fit, so a viewport shorter than the
+full `DatePicker` (landscape, a resized multi-window) can still clip the OK/Cancel row below the visible
+sheet with no scroll affordance to reach it (caught by external review after this ADR's initial draft).
+What actually guarantees the buttons stay reachable is pinning them outside the scrollable area: the
+`DatePicker` sits in its own inner `Column` (`Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())`),
+and the OK/Cancel `TextButton` row renders after it, in the outer sheet `Column`, never inside the
+scrolling region. `weight(1f, fill = false)` caps the inner column at whatever space remains once the
+always-visible button row is measured, so the calendar scrolls internally when it doesn't fit, without
+forcing the sheet to full height when it comfortably fits on a normal portrait phone. Because
+`ModalBottomSheet` has no confirm/dismiss button slots of its own (unlike `DatePickerDialog`), the sheet
+supplies its own OK/Cancel `TextButton` row, reusing the existing `R.string.ok`/`R.string.cancel`
+strings so the instrumented test that clicks OK needed no changes. Dismissal (Cancel, scrim tap, system
+back) routes through the same plain `onDismiss` lambda every other sheet on this screen uses, rather
+than awaiting `sheetState.hide()` — consistency with the existing convention outweighs the
+animate-then-dismiss nicety for one surface.
 
 ADR-0034's substantive decision — no instant-log fast path, a not-future-only range, the picked date
 driving the duplicate guard/off-schedule gate/adaptive math — is entirely untouched. Only its Decision
@@ -65,5 +73,9 @@ that ADR is not amended or superseded, since nothing it actually decided has cha
   dialogs. This is a deliberate scope boundary, not an oversight — nothing here commits the app to
   converting every date picker to a bottom sheet, and a future inconsistency complaint about either of
   those two surfaces would need its own issue.
-- `skipPartiallyExpanded = true` is the one detail future edits to this sheet must preserve; removing
-  it reintroduces a real regression (OK/Cancel below the fold) rather than a cosmetic one.
+- Two details future edits to this sheet must preserve, not one: `skipPartiallyExpanded = true`, and
+  keeping the OK/Cancel row pinned outside the `DatePicker`'s scrollable inner `Column`. Either one
+  alone is insufficient — `skipPartiallyExpanded` prevents a *partial-expansion* clip, but only the
+  pinned-row-plus-scrollable-calendar structure prevents an *oversized-content* clip on a short
+  viewport (landscape, resized multi-window). Removing either reintroduces a real regression, not a
+  cosmetic one.
