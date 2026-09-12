@@ -43,3 +43,4 @@ google-services.json
 # Codex agent runtime state (environment/session config, not project source)
 .codex/
 
+.DS_Store
