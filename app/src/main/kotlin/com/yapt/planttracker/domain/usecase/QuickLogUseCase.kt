@@ -52,7 +52,8 @@ class QuickLogUseCase(
     private val dataStore: DataStore<Preferences>,
     private val database: PlantDatabase,
     private val wateringAdjustmentRepository: WateringAdjustmentRepository,
-    private val nowProvider: () -> Long = System::currentTimeMillis
+    private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val onWaterLogged: suspend (Long) -> Unit = {}
 ) {
 
     /**
@@ -66,7 +67,8 @@ class QuickLogUseCase(
         val message: String,
         val logged: Boolean,
         val waterPaired: Boolean = false,
-        val suggestion: QuickWaterSuggestion? = null
+        val suggestion: QuickWaterSuggestion? = null,
+        val waterLoggedAt: Long? = null
     )
 
     /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */
@@ -103,16 +105,24 @@ class QuickLogUseCase(
      */
     suspend fun bulkLog(plants: List<Plant>, careType: CareType): BulkLogResult {
         var loggedCount = 0
+        var latestWaterLoggedAt: Long? = null
         database.withTransaction {
             for (plant in plants) {
                 val outcome = if (careType == CareType.WATER) {
-                    quickWaterWithReason(plant, reason = null)
+                    quickWaterWithReasonInternal(
+                        plant,
+                        reason = null,
+                        loggedAt = System.currentTimeMillis(),
+                        schedulePostWateringReminder = false
+                    )
                 } else {
-                    quickLog(plant, careType)
+                    quickLogInternal(plant, careType, schedulePostWateringReminder = false)
                 }
                 if (outcome.logged) loggedCount++
+                outcome.waterLoggedAt?.let { latestWaterLoggedAt = it }
             }
         }
+        latestWaterLoggedAt?.let { onWaterLogged(it) }
         return BulkLogResult(
             loggedCount = loggedCount,
             skippedCount = plants.size - loggedCount,
@@ -126,7 +136,14 @@ class QuickLogUseCase(
      * liquid-fertilizer plant, the "already watered today" check runs before the FERTILIZE insert
      * so the paired WATER insert can be suppressed without racing against itself.
      */
-    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome {
+    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome =
+        quickLogInternal(plant, careType, schedulePostWateringReminder = true)
+
+    private suspend fun quickLogInternal(
+        plant: Plant,
+        careType: CareType,
+        schedulePostWateringReminder: Boolean
+    ): QuickLogOutcome {
         if (isDuplicateGuarded(careType) && hasLoggedToday(plant.id, careType)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, careType), logged = false)
         }
@@ -170,7 +187,29 @@ class QuickLogUseCase(
                 plant.name
             )
         }
-        return QuickLogOutcome(message = message, logged = true, waterPaired = waterPaired)
+        val waterLoggedAt = notifyWaterLoggedIfNeeded(
+            careType,
+            waterPaired,
+            now,
+            schedulePostWateringReminder
+        )
+        return QuickLogOutcome(
+            message = message,
+            logged = true,
+            waterPaired = waterPaired,
+            waterLoggedAt = waterLoggedAt
+        )
+    }
+
+    private suspend fun notifyWaterLoggedIfNeeded(
+        careType: CareType,
+        waterPaired: Boolean,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
+    ): Long? {
+        if (careType != CareType.WATER && !waterPaired) return null
+        if (schedulePostWateringReminder) onWaterLogged(loggedAt)
+        return loggedAt
     }
 
     /**
@@ -201,6 +240,18 @@ class QuickLogUseCase(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome = quickWaterWithReasonInternal(
+        plant,
+        reason,
+        loggedAt,
+        schedulePostWateringReminder = true
+    )
+
+    private suspend fun quickWaterWithReasonInternal(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
     ): QuickLogOutcome {
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
@@ -221,10 +272,12 @@ class QuickLogUseCase(
             plant
         }
         val suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
+        if (schedulePostWateringReminder) onWaterLogged(loggedAt)
         return QuickLogOutcome(
             message = application.getString(R.string.quick_log_watered, plant.name),
             logged = true,
-            suggestion = suggestion
+            suggestion = suggestion,
+            waterLoggedAt = loggedAt
         )
     }
 
@@ -245,6 +298,18 @@ class QuickLogUseCase(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome = quickLiquidFertilizeWithReasonInternal(
+        plant,
+        reason,
+        loggedAt,
+        schedulePostWateringReminder = true
+    )
+
+    private suspend fun quickLiquidFertilizeWithReasonInternal(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
     ): QuickLogOutcome {
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
@@ -283,11 +348,13 @@ class QuickLogUseCase(
             } else {
                 plant
             }
+            if (schedulePostWateringReminder) onWaterLogged(loggedAt)
             QuickLogOutcome(
                 message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
                 logged = true,
                 waterPaired = true,
-                suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
+                suggestion = computeSuggestion(freshPlant, feedback, loggedAt),
+                waterLoggedAt = loggedAt
             )
         }
     }
