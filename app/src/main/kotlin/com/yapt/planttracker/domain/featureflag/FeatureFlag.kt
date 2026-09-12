@@ -39,37 +39,5 @@ object FeatureFlagRegistry {
         default = false
     )
 
-    /**
-     * Computed (not learned) seasonal watering factor (#569, product ADR-0026). Off: due dates read
-     * `Plant.wateringIntervalDays` exactly as today, and the season factor is never applied. On: the
-     * amplitude setting appears on the main Settings screen and `CareSchedule` multiplies each
-     * unpinned plant's `Plant.wateringBaseIntervalDays` by the seasonal curve for due-date math (and
-     * de-seasonalizes the observed gap before the adaptive watering model learns from it). The
-     * `wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields ship
-     * unconditionally regardless of this flag's state.
-     */
-    val SEASONAL_WATERING = FeatureFlag(
-        key = "seasonal_watering",
-        titleRes = R.string.feature_flag_seasonal_watering_title,
-        descriptionRes = R.string.feature_flag_seasonal_watering_description,
-        default = false
-    )
-
-    /**
-     * Reframes the watering reminder notification from an instruction ("Water {plant}") to a
-     * prompt ("Check {plant}") with **Watered** and **Still moist** actions (#570, product ADR-0027).
-     * Off: the notification is byte-for-byte identical to today (title = plant name, "Reschedule
-     * watering" action). On, for a watering-due plant only: title becomes "Check {plant}", and the single
-     * "Reschedule watering" action is replaced by "Watered" (same deep-link as tapping the notification) and
-     * "Still moist" (`StillMoistReceiver` — writes a `CareType.CHECK` log and defers the due date, no
-     * screen shown; also feeds the adaptive watering model's update rule).
-     */
-    val CHECK_REMINDERS = FeatureFlag(
-        key = "check_reminders",
-        titleRes = R.string.feature_flag_check_reminders_title,
-        descriptionRes = R.string.feature_flag_check_reminders_description,
-        default = false
-    )
-
-    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS, SEASONAL_WATERING, CHECK_REMINDERS)
+    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS)
 }

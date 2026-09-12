@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 /**
- * Handles the "Still moist" notification action (#570, `check_reminders` feature flag) — a
+ * Handles the "Still moist" notification action (#570) — a
  * no-dialog, single-tap action mirroring [SkipWateringReceiver]'s shape. All of the actual
  * observation/scheduling logic (the `CareType.CHECK` log, the `wateringDueDateOverride` write,
  * and the conditional adaptive-model feed) lives in [com.yapt.planttracker.domain.usecase

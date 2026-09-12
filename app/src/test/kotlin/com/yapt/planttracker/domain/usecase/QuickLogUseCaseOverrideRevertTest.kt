@@ -52,6 +52,7 @@ class QuickLogUseCaseOverrideRevertTest {
     fun setUp() {
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
@@ -128,4 +129,71 @@ class QuickLogUseCaseOverrideRevertTest {
             )
         }
     }
+
+    // --- #679: clearWateringOverrideIfActive only fires when the new WATER log becomes the newest ---
+
+    /**
+     * #679: backfilling an old, forgotten watering from before an already-existing later WATER log
+     * must not clear an active reschedule — the backfilled entry has no bearing on the current due
+     * date. `getLastTwoWaterings` (queried before the insert) reports a newer existing watering than
+     * the backdated [loggedAt] being logged now, so the override-clear gate must not fire at all.
+     */
+    @Test
+    fun `quickWaterWithReason backdated before the current newest watering does not clear an active override`() =
+        runTest {
+            val useCase = adaptiveUseCase()
+            val existingNewest = now - TimeUnit.DAYS.toMillis(1)
+            val loggedAt = now - TimeUnit.DAYS.toMillis(10)
+            val monstera = plant(wateringDueDateOverride = override).copy(wateringConfidence = 2)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
+            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+
+            useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
+
+            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        }
+
+    /** The paired-WATER insert in [QuickLogUseCase.quickLiquidFertilizeWithReason] mirrors the same gate (#679). */
+    @Test
+    fun `quickLiquidFertilizeWithReason backdated before the newest watering does not clear an active override`() =
+        runTest {
+            val useCase = adaptiveUseCase()
+            val existingNewest = now - TimeUnit.DAYS.toMillis(1)
+            val loggedAt = now - TimeUnit.DAYS.toMillis(10)
+            val monstera = plant(useLiquidFertilizer = true, wateringDueDateOverride = override)
+                .copy(wateringConfidence = 2)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
+            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+
+            useCase.quickLiquidFertilizeWithReason(monstera, null, loggedAt = loggedAt)
+
+            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        }
+
+    /**
+     * #679 edge case: a backdated WATER log landing on the exact same `loggedAt` as the current newest
+     * is treated as "becomes newest" (`>=`) — override still clears.
+     */
+    @Test
+    fun `quickWaterWithReason backdated to the same instant as the current newest still clears an active override`() =
+        runTest {
+            val useCase = adaptiveUseCase()
+            val loggedAt = now - TimeUnit.DAYS.toMillis(1)
+            val monstera = plant(wateringDueDateOverride = override).copy(wateringConfidence = 2)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAt)
+            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+
+            useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
+
+            coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+        }
 }

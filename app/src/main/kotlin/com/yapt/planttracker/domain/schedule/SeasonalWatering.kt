@@ -3,8 +3,6 @@ package com.yapt.planttracker.domain.schedule
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -120,20 +118,15 @@ object SeasonalWatering {
 
 /**
  * The effective seasonal amplitude for [CareSchedule]'s due-date computation and
- * [CareSchedule.computeAdaptiveInterval]'s de-seasonalization step: 0.0 (same as
- * [SeasonalAmplitude.OFF]) whenever [FeatureFlagRegistry.SEASONAL_WATERING] itself is off, so every
- * call site reads one flow rather than re-deriving "flag off => no seasonal effect" each time (#569).
+ * [CareSchedule.computeAdaptiveInterval]'s de-seasonalization step: the user's chosen
+ * [SettingsKeys.SEASONAL_AMPLITUDE] preference, defaulting to [SeasonalAmplitude.STANDARD] when unset
+ * (`SEASONAL_WATERING` graduated, #656 — ships unconditionally, no flag check). Every call site reads
+ * this one flow rather than re-reading the preference independently.
  */
 fun DataStore<Preferences>.seasonalAmplitudeFlow(): Flow<Double> = data.map { prefs ->
-    val flagOn = prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING)]
-        ?: FeatureFlagRegistry.SEASONAL_WATERING.default
-    if (!flagOn) {
-        SeasonalAmplitude.OFF.value
-    } else {
-        runCatching { SeasonalAmplitude.valueOf(prefs[SettingsKeys.SEASONAL_AMPLITUDE] ?: "") }
-            .getOrDefault(SeasonalAmplitude.STANDARD)
-            .value
-    }
+    runCatching { SeasonalAmplitude.valueOf(prefs[SettingsKeys.SEASONAL_AMPLITUDE] ?: "") }
+        .getOrDefault(SeasonalAmplitude.STANDARD)
+        .value
 }
 
 /** One-shot read of [seasonalAmplitudeFlow], for call sites outside a `combine {}`/StateFlow. */

@@ -52,7 +52,8 @@ class QuickLogUseCase(
     private val dataStore: DataStore<Preferences>,
     private val database: PlantDatabase,
     private val wateringAdjustmentRepository: WateringAdjustmentRepository,
-    private val nowProvider: () -> Long = System::currentTimeMillis
+    private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val onWaterLogged: suspend (Long) -> Unit = {}
 ) {
 
     /**
@@ -66,7 +67,8 @@ class QuickLogUseCase(
         val message: String,
         val logged: Boolean,
         val waterPaired: Boolean = false,
-        val suggestion: QuickWaterSuggestion? = null
+        val suggestion: QuickWaterSuggestion? = null,
+        val waterLoggedAt: Long? = null
     )
 
     /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */
@@ -103,16 +105,24 @@ class QuickLogUseCase(
      */
     suspend fun bulkLog(plants: List<Plant>, careType: CareType): BulkLogResult {
         var loggedCount = 0
+        var latestWaterLoggedAt: Long? = null
         database.withTransaction {
             for (plant in plants) {
                 val outcome = if (careType == CareType.WATER) {
-                    quickWaterWithReason(plant, reason = null)
+                    quickWaterWithReasonInternal(
+                        plant,
+                        reason = null,
+                        loggedAt = System.currentTimeMillis(),
+                        schedulePostWateringReminder = false
+                    )
                 } else {
-                    quickLog(plant, careType)
+                    quickLogInternal(plant, careType, schedulePostWateringReminder = false)
                 }
                 if (outcome.logged) loggedCount++
+                outcome.waterLoggedAt?.let { latestWaterLoggedAt = it }
             }
         }
+        latestWaterLoggedAt?.let { onWaterLogged(it) }
         return BulkLogResult(
             loggedCount = loggedCount,
             skippedCount = plants.size - loggedCount,
@@ -126,7 +136,14 @@ class QuickLogUseCase(
      * liquid-fertilizer plant, the "already watered today" check runs before the FERTILIZE insert
      * so the paired WATER insert can be suppressed without racing against itself.
      */
-    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome {
+    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome =
+        quickLogInternal(plant, careType, schedulePostWateringReminder = true)
+
+    private suspend fun quickLogInternal(
+        plant: Plant,
+        careType: CareType,
+        schedulePostWateringReminder: Boolean
+    ): QuickLogOutcome {
         if (isDuplicateGuarded(careType) && hasLoggedToday(plant.id, careType)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, careType), logged = false)
         }
@@ -170,7 +187,29 @@ class QuickLogUseCase(
                 plant.name
             )
         }
-        return QuickLogOutcome(message = message, logged = true, waterPaired = waterPaired)
+        val waterLoggedAt = notifyWaterLoggedIfNeeded(
+            careType,
+            waterPaired,
+            now,
+            schedulePostWateringReminder
+        )
+        return QuickLogOutcome(
+            message = message,
+            logged = true,
+            waterPaired = waterPaired,
+            waterLoggedAt = waterLoggedAt
+        )
+    }
+
+    private suspend fun notifyWaterLoggedIfNeeded(
+        careType: CareType,
+        waterPaired: Boolean,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
+    ): Long? {
+        if (careType != CareType.WATER && !waterPaired) return null
+        if (schedulePostWateringReminder) onWaterLogged(loggedAt)
+        return loggedAt
     }
 
     /**
@@ -188,16 +227,37 @@ class QuickLogUseCase(
      * backdated timestamp instead — the same value drives the duplicate-day check, the [CareLog] write,
      * and the adaptive-gap math ([computeSuggestion]/[adaptWateringInterval]'s `now`), so none of the
      * three can drift from each other or silently fall back to the real wall-clock time.
+     *
+     * The active [Plant.wateringDueDateOverride] is cleared only when this WATER log actually becomes
+     * the plant's newest one (#679) — `>=` the previous newest WATER's `loggedAt`, queried *before* this
+     * insert via [CareLogRepository.getLastTwoWaterings]. Backfilling an old, forgotten watering from
+     * before an active reschedule was made would otherwise silently discard that unrelated reschedule
+     * even though the backfilled entry has no bearing on the current due date. No prior WATER log at all
+     * (`null`) is treated as `Long.MIN_VALUE`, so the plant's first-ever WATER log always clears an
+     * active override, matching the unconditional-clear behavior this replaces for that case.
      */
     suspend fun quickWaterWithReason(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome = quickWaterWithReasonInternal(
+        plant,
+        reason,
+        loggedAt,
+        schedulePostWateringReminder = true
+    )
+
+    private suspend fun quickWaterWithReasonInternal(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
     ): QuickLogOutcome {
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
         val feedback = reason?.toWateringFeedback()
+        val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
                 plantId = plant.id,
@@ -206,12 +266,18 @@ class QuickLogUseCase(
                 wateringFeedback = feedback
             )
         )
-        val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
+        val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
+            clearWateringOverrideIfActive(plant.id) ?: plant
+        } else {
+            plant
+        }
         val suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
+        if (schedulePostWateringReminder) onWaterLogged(loggedAt)
         return QuickLogOutcome(
             message = application.getString(R.string.quick_log_watered, plant.name),
             logged = true,
-            suggestion = suggestion
+            suggestion = suggestion,
+            waterLoggedAt = loggedAt
         )
     }
 
@@ -226,12 +292,24 @@ class QuickLogUseCase(
      *
      * [loggedAt] mirrors [quickWaterWithReason]'s parameter of the same name (#654) — the same value
      * drives both duplicate-day checks, both [CareLog] writes, and the paired watering's adaptive-gap
-     * math.
+     * math. The paired WATER insert's override-clear gate mirrors [quickWaterWithReason]'s own (#679).
      */
     suspend fun quickLiquidFertilizeWithReason(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome = quickLiquidFertilizeWithReasonInternal(
+        plant,
+        reason,
+        loggedAt,
+        schedulePostWateringReminder = true
+    )
+
+    private suspend fun quickLiquidFertilizeWithReasonInternal(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long,
+        schedulePostWateringReminder: Boolean
     ): QuickLogOutcome {
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
@@ -256,6 +334,7 @@ class QuickLogUseCase(
                 waterPaired = false
             )
         } else {
+            val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
             careLogRepository.addLog(
                 CareLog(
                     plantId = plant.id,
@@ -264,12 +343,18 @@ class QuickLogUseCase(
                     wateringFeedback = feedback
                 )
             )
-            val freshPlant = clearWateringOverrideIfActive(plant.id) ?: plant
+            val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
+                clearWateringOverrideIfActive(plant.id) ?: plant
+            } else {
+                plant
+            }
+            if (schedulePostWateringReminder) onWaterLogged(loggedAt)
             QuickLogOutcome(
                 message = application.getString(R.string.quick_log_watered_and_fertilized, plant.name),
                 logged = true,
                 waterPaired = true,
-                suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
+                suggestion = computeSuggestion(freshPlant, feedback, loggedAt),
+                waterLoggedAt = loggedAt
             )
         }
     }
@@ -318,10 +403,10 @@ class QuickLogUseCase(
         newInterval: Int
     ): IntervalApplyResult {
         val now = System.currentTimeMillis()
-        // SEASONAL_WATERING is an independent flag — when amplitude is 0 or the plant is pinned,
-        // newInterval is a *literal* value, not base-space-convertible, so it's used as-is for the
-        // confidence check and the base is left untouched below rather than clobbered with a
-        // never-seasonally-converted value (#584 review round 2, still applies post-#644).
+        // When amplitude is 0 (SeasonalAmplitude.OFF) or the plant is pinned, newInterval is a
+        // *literal* value, not base-space-convertible, so it's used as-is for the confidence check
+        // and the base is left untouched below rather than clobbered with a never-seasonally-converted
+        // value (#584 review round 2, still applies post-#644).
         val amplitude = dataStore.seasonalAmplitudeOnce()
         val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
         val newIntervalBaseSpace = if (seasonAdjustable) {
@@ -386,8 +471,8 @@ class QuickLogUseCase(
      * Records a "Soil still moist" observation: a [CareType.CHECK] log (`wateringFeedback = TOO_SOON`
      * — the plant was checked and not watered) and a [Plant.wateringDueDateOverride] set to
      * [newDueAtMillis]. Reached from the Reschedule reason prompt in the app (#586, product ADR-0030)
-     * and from the check-reminders notification's Still-moist action (#570, `check_reminders` feature
-     * flag, `StillMoistReceiver`) — one call site, so the two paths cannot drift.
+     * and from the check-reminders notification's Still-moist action (#570, `StillMoistReceiver`) —
+     * one call site, so the two paths cannot drift.
      *
      * [newDueAtMillis] replaces #570's flat `+1 day` constant, which could not clear "due" for a plant
      * overdue by two or more days while the same-day guard blocked a second tap. In the app the user
@@ -637,7 +722,8 @@ class QuickLogUseCase(
      * chosen [loggedAt][quickWaterWithReason] instead when backdating (#654) — the same value that
      * decided the duplicate-day check and the [CareLog] write also decides the freeze-window check and
      * the [WateringAdjustment.triggeredAt] this records, so a backdated observation can't be evaluated
-     * against "today" while claiming to have happened on an earlier day.
+     * against "today" while claiming to have happened on an earlier day. [maybeApplyHistoryBootstrap] is
+     * passed a separate, always-real-wall-clock `displayNow` (#679) — see its doc for why.
      */
     private suspend fun adaptWateringInterval(
         plant: Plant,
@@ -701,6 +787,11 @@ class QuickLogUseCase(
      * triggered by a late "Soil was still moist" observation ([WateringFeedback.TOO_SOON]) can't
      * undercut ADR-0033's "a late watering never shortens the interval" guarantee — see that
      * function's doc for why the median-of-history estimate needs this floor (#649 follow-up).
+     *
+     * [now] may be a backdated `loggedAt` (#654); [WateringLifecycleReset.maybeBootstrap] additionally
+     * takes a separate, always-real-wall-clock `displayNow` (#679, `System.currentTimeMillis()` here,
+     * not [nowProvider] — the bootstrap's `wateringIntervalDays` write must reflect *today's* season
+     * regardless of how [nowProvider] is pinned for a backdated observation's own gap math).
      */
     private suspend fun maybeApplyHistoryBootstrap(plant: Plant, feedback: WateringFeedback?, now: Long): Boolean {
         val boundaryMs = when {
@@ -715,14 +806,20 @@ class QuickLogUseCase(
             seasonFn = seasonFnFor(plant),
             feedback = feedback
         )
-        return WateringLifecycleReset.maybeBootstrap(request, plantRepository, wateringAdjustmentRepository, now)
+        return WateringLifecycleReset.maybeBootstrap(
+            request,
+            plantRepository,
+            wateringAdjustmentRepository,
+            now,
+            displayNow = System.currentTimeMillis()
+        )
     }
 
     /**
      * The season function [WateringLifecycleReset.maybeBootstrap]/[CareSchedule.bootstrapBaseInterval]
      * de-seasonalize each historical gap with — `{ 1.0 }` (a no-op) when [Plant.pinIntervalToBase] is
-     * set or `SEASONAL_WATERING` is off, mirroring every other de-seasonalization call site in this
-     * file ([deseasonalizedObservedIntervalDays]/[currentAdaptiveBaseIntervalDays]).
+     * set or amplitude is Off, mirroring every other de-seasonalization call site
+     * in this file ([deseasonalizedObservedIntervalDays]/[currentAdaptiveBaseIntervalDays]).
      */
     @Suppress("ReturnCount")
     private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
@@ -749,7 +846,7 @@ class QuickLogUseCase(
     /**
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * seasonal correction isn't baked into [Plant.wateringConfidence] as a permanent thirst change.
-     * A no-op when SEASONAL_WATERING is off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
+     * A no-op when amplitude is Off or [pinIntervalToBase] is set — [CareSchedule]'s due-date
      * math never applies the seasonal curve for a pinned plant, so its observed gaps are already
      * flat and must not be seasonally corrected.
      *
@@ -779,7 +876,7 @@ class QuickLogUseCase(
     /**
      * The watering-model input for `currentBaseIntervalDays` (#572, amending technical ADR-0021):
      * season-neutral, reading [Plant.wateringBaseIntervalDays] instead of the raw (possibly seasonally
-     * stale) [configuredIntervalDays] whenever `SEASONAL_WATERING` is on and the plant isn't pinned.
+     * stale) [configuredIntervalDays] whenever amplitude isn't Off and the plant isn't pinned.
      * Prior to this fix every call site fed the model a value that only ever changed on a manual
      * edit, silently diverging from what [CareSchedule.computeStatus] actually used for the due date.
      */

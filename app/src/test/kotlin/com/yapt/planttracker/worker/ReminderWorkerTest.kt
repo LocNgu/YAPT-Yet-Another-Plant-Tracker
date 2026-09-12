@@ -10,8 +10,6 @@ import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -51,17 +49,12 @@ class ReminderWorkerTest {
         runBlocking {
             app.settingsDataStore.edit {
                 it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED)
-                it.remove(FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.CHECK_REMINDERS))
             }
         }
     }
 
     private fun setFertilizingNotificationsEnabled(enabled: Boolean) = runBlocking {
         app.settingsDataStore.edit { it[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] = enabled }
-    }
-
-    private fun setCheckRemindersEnabled(enabled: Boolean) = runBlocking {
-        app.settingsDataStore.edit { it[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.CHECK_REMINDERS)] = enabled }
     }
 
     // Room's synchronous clearAllTables() would run on Robolectric's main thread and throw;
@@ -207,25 +200,9 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork keeps the plain title and Reschedule watering action when check_reminders is off`() = runBlocking {
-        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        app.plantRepository.addPlant(
-            Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        )
-
-        runWorker()
-
-        val notification = notificationManager.activeNotifications.first().notification
-        assertEquals("Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
-        val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-        assertEquals(listOf("Reschedule watering"), actionTitles)
-    }
-
-    @Test
-    fun `doWork reframes to a Check title with Watered, Still moist and Not now when check_reminders is on`() =
+    fun `doWork reframes to a Check title with Watered, Still moist and Not now when the plant is watering-due`() =
         runBlocking {
             shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-            setCheckRemindersEnabled(true)
             app.plantRepository.addPlant(
                 Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
             )
@@ -246,7 +223,6 @@ class ReminderWorkerTest {
     @Test
     fun `doWork offers the same three actions however overdue the plant is`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        setCheckRemindersEnabled(true)
         val plantId = app.plantRepository.addPlant(
             Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
         )
@@ -266,11 +242,10 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork does not reframe a repotting-only reminder even when check_reminders is on`() = runBlocking {
+    fun `doWork does not reframe a repotting-only reminder`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        setCheckRemindersEnabled(true)
-        // No watering interval -> not watering-due, so the check reframing must not apply even
-        // though the flag is on; this reminder is repotting-only.
+        // No watering interval -> not watering-due, so the check reframing must not apply;
+        // this reminder is repotting-only.
         app.plantRepository.addPlant(
             Plant(
                 name = "Bonsai",
@@ -300,5 +275,21 @@ class ReminderWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `daily cleanup preserves the independent post-watering notification`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        TestListenableWorkerBuilder<PostWateringReminderWorker>(app).build().doWork()
+        app.plantRepository.addPlant(
+            Plant(name = "Cactus", wateringIntervalDays = null, createdAt = 0L, updatedAt = 0L)
+        )
+
+        runWorker()
+
+        assertEquals(
+            listOf(PostWateringReminderWorker.NOTIFICATION_ID),
+            notificationManager.activeNotifications.map { it.id }
+        )
     }
 }

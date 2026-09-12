@@ -43,6 +43,20 @@ interface PlantDao {
     @Query("UPDATE plants SET archivedAt = NULL WHERE id = :id")
     suspend fun restorePlant(id: Long)
 
+    /**
+     * Column-specific update touching only `wateringBaseIntervalDays`/`updatedAt` (#703 review round
+     * 3) — [SeasonalGraduationFixup][com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup]
+     * runs concurrently with UI edits on a background dispatcher; a full-row `@Update` built from a
+     * plant object fetched moments earlier could race a concurrent edit to any *other* column and
+     * silently revert it. This statement can't touch a column it doesn't name, eliminating that race
+     * entirely rather than just narrowing its window.
+     */
+    @Query(
+        "UPDATE plants SET wateringBaseIntervalDays = :wateringBaseIntervalDays, updatedAt = :updatedAt " +
+            "WHERE id = :id"
+    )
+    suspend fun updateWateringBaseInterval(id: Long, wateringBaseIntervalDays: Double, updatedAt: Long)
+
     // Single-statement batch variants so bulk archive/restore apply atomically — a killed
     // process can't leave some of the selected plants archived and others not (#448).
     @Query("UPDATE plants SET archivedAt = :timestamp WHERE id IN (:ids)")

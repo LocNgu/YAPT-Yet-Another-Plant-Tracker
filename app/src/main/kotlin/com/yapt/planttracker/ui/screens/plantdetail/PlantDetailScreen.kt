@@ -70,6 +70,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -112,6 +113,7 @@ import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.toLocalDate
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** Test tag on the Plant Detail scrolling `LazyColumn`, so instrumented tests can scroll it to a
@@ -142,7 +144,6 @@ fun PlantDetailScreen(
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
-    val seasonalWateringEnabled by viewModel.seasonalWateringEnabled.collectAsStateWithLifecycle()
     val seasonalAmplitudeValue by viewModel.seasonalAmplitudeValue.collectAsStateWithLifecycle()
     val wateringExplanation by viewModel.wateringExplanation.collectAsStateWithLifecycle()
     var showWateringExplanationSheet by remember { mutableStateOf(false) }
@@ -153,8 +154,9 @@ fun PlantDetailScreen(
     // rather than recomputing "now" a second time once a reason is picked.
     var showWaterDatePicker by remember { mutableStateOf(false) }
     var showLiquidFertilizeDatePicker by remember { mutableStateOf(false) }
-    var showWaterSheet by remember { mutableStateOf<Long?>(null) }
-    var showLiquidFertilizeSheet by remember { mutableStateOf<Long?>(null) }
+    var showWaterSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
+    var showLiquidFertilizeSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         viewModel.saveReminderPhoto(uri)
         viewModel.dismissPhotoReminder()
@@ -246,6 +248,7 @@ fun PlantDetailScreen(
     // plant name from the event is substituted when the message fires.
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
+    val repottedTemplate = stringResource(R.string.quick_log_repotted)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -258,6 +261,8 @@ fun PlantDetailScreen(
                     String.format(wateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Fertilized ->
                     String.format(fertilizedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Repotted ->
+                    String.format(repottedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
@@ -453,10 +458,16 @@ fun PlantDetailScreen(
             onConfirm = { loggedAt ->
                 showWaterDatePicker = false
                 val p = plant
-                val status = careStatus
-                if (p != null && status != null) {
-                    requestWater(QuickWaterGateContext(p, status, seasonalAmplitudeValue, viewModel), loggedAt) {
-                        showWaterSheet = it
+                if (p != null) {
+                    coroutineScope.launch {
+                        val previousWateringAt = viewModel.previousWateringBefore(loggedAt)
+                        requestWater(
+                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel),
+                            loggedAt,
+                            previousWateringAt
+                        ) {
+                            showWaterSheet = PendingReasonPrompt(loggedAt, previousWateringAt)
+                        }
                     }
                 }
             }
@@ -469,42 +480,55 @@ fun PlantDetailScreen(
             onConfirm = { loggedAt ->
                 showLiquidFertilizeDatePicker = false
                 val p = plant
-                val status = careStatus
-                if (p != null && status != null) {
-                    requestLiquidFertilize(
-                        QuickWaterGateContext(p, status, seasonalAmplitudeValue, viewModel),
-                        loggedAt
-                    ) {
-                        showLiquidFertilizeSheet = it
+                if (p != null) {
+                    coroutineScope.launch {
+                        val previousWateringAt = viewModel.previousWateringBefore(loggedAt)
+                        requestLiquidFertilize(
+                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel),
+                            loggedAt,
+                            previousWateringAt
+                        ) {
+                            showLiquidFertilizeSheet = PendingReasonPrompt(loggedAt, previousWateringAt)
+                        }
                     }
                 }
             }
         )
     }
 
-    showWaterSheet?.let { loggedAt ->
+    showWaterSheet?.let { pending ->
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
-                gapRanLong = isChosenDateGapLong(p, careStatus?.lastWateredAt, loggedAt, seasonalAmplitudeValue),
+                gapRanLong = isChosenDateGapLong(
+                    p,
+                    pending.previousWateringAt,
+                    pending.loggedAt,
+                    seasonalAmplitudeValue
+                ),
                 onDismiss = { showWaterSheet = null },
                 onLog = { reason ->
-                    viewModel.quickWater(reason, loggedAt)
+                    viewModel.quickWater(reason, pending.loggedAt)
                     showWaterSheet = null
                 }
             )
         }
     }
 
-    showLiquidFertilizeSheet?.let { loggedAt ->
+    showLiquidFertilizeSheet?.let { pending ->
         plant?.let { p ->
             WateringReasonBottomSheet(
                 plantName = p.name,
-                gapRanLong = isChosenDateGapLong(p, careStatus?.lastWateredAt, loggedAt, seasonalAmplitudeValue),
+                gapRanLong = isChosenDateGapLong(
+                    p,
+                    pending.previousWateringAt,
+                    pending.loggedAt,
+                    seasonalAmplitudeValue
+                ),
                 title = stringResource(R.string.water_fertilize_feedback_sheet_title, p.name),
                 onDismiss = { showLiquidFertilizeSheet = null },
                 onLog = { reason ->
-                    viewModel.quickLiquidFertilize(reason, loggedAt)
+                    viewModel.quickLiquidFertilize(reason, pending.loggedAt)
                     showLiquidFertilizeSheet = null
                 }
             )
@@ -755,7 +779,7 @@ fun PlantDetailScreen(
                                         ),
                                         onIntervalChange = { viewModel.setWateringInterval(it) }
                                     ) {
-                                        if (seasonalWateringEnabled && plant?.wateringIntervalDays != null) {
+                                        if (plant?.wateringIntervalDays != null) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -919,6 +943,15 @@ fun PlantDetailScreen(
 
                             PlantDetailTab.REPOT -> {
                                 item {
+                                    PlantDetailTabActionRow(
+                                        labelRes = R.string.bulk_action_repot,
+                                        icon = Icons.Filled.LocalFlorist,
+                                        testTag = REPOT_TAB_ACTION_BUTTON_TEST_TAG,
+                                        onClick = { viewModel.quickRepot() }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                item {
                                     val insights = careTypeInsightItems(
                                         summary = CareInsights.summarize(careLogs, CareType.REPOT),
                                         countLabel = stringResource(R.string.insight_repottings),
@@ -952,6 +985,18 @@ fun PlantDetailScreen(
                             }
 
                             PlantDetailTab.PHOTO -> {
+                                item {
+                                    PlantDetailTabActionRow(
+                                        labelRes = R.string.plant_detail_action_add_photo,
+                                        icon = Icons.Filled.PhotoLibrary,
+                                        testTag = PHOTO_TAB_ACTION_BUTTON_TEST_TAG,
+                                        onClick = {
+                                            viewModel.prepareNewLog(CareType.PHOTO)
+                                            onNavigateToAddLog()
+                                        }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
                                 item {
                                     val summary = CareInsights.summarizePhotos(galleryPhotos)
                                     if (summary.count > 0) {
@@ -1139,7 +1184,10 @@ fun PlantDetailScreen(
             }
 
             FloatingActionButton(
-                onClick = onNavigateToAddLog,
+                onClick = {
+                    viewModel.prepareNewLog()
+                    onNavigateToAddLog()
+                },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
@@ -1431,10 +1479,18 @@ private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifie
  */
 private data class QuickWaterGateContext(
     val plant: Plant,
-    val status: PlantCareStatus,
     val seasonalAmplitude: Double,
     val viewModel: PlantDetailViewModel
 )
+
+/**
+ * The chosen [LogWateringDatePickerDialog] date plus the watering it actually follows (#679) —
+ * [PlantDetailViewModel.previousWateringBefore], fetched once in the `onConfirm` callback and reused
+ * for both the on/off-schedule gate ([requestWater]/[requestLiquidFertilize]) and the
+ * [WateringReasonBottomSheet]'s own gap-length wording ([isChosenDateGapLong]) — so the two can't
+ * disagree about which prior watering [loggedAt] is being compared against.
+ */
+private data class PendingReasonPrompt(val loggedAt: Long, val previousWateringAt: Long?)
 
 /**
  * The #586 fast path (product ADR-0030): a watering on-schedule *for [loggedAt]* is logged straight
@@ -1444,20 +1500,23 @@ private data class QuickWaterGateContext(
  *
  * [loggedAt] is the date the user picked in [LogWateringDatePickerDialog] (#654) — not necessarily
  * "now" — so the on-schedule gate is re-evaluated against it via [isChosenDateOnSchedule] rather than
- * reusing [QuickWaterGateContext.status]'s own [PlantCareStatus.isWateringOnSchedule], which is always
- * computed against real wall-clock "now". Picking today reproduces the exact same result
- * `status.isWateringOnSchedule` would have given, since [CareSchedule.daysBetween] is calendar-day
- * granular.
+ * reusing [PlantCareStatus.isWateringOnSchedule], which is always computed against real wall-clock
+ * "now". [previousWateringAt] is [loggedAt]'s own chronological predecessor
+ * ([PlantDetailViewModel.previousWateringBefore], #679) rather than the plant's globally newest
+ * watering — the two disagree once [loggedAt] backdates before an already-existing later watering.
+ * Picking today reproduces the exact same result `status.isWateringOnSchedule` would have given,
+ * since [CareSchedule.daysBetween] is calendar-day granular.
  */
 private fun requestWater(
     context: QuickWaterGateContext,
     loggedAt: Long,
-    showReasonSheet: (Long) -> Unit
+    previousWateringAt: Long?,
+    showReasonSheet: () -> Unit
 ) {
-    if (isChosenDateOnSchedule(context.plant, context.status.lastWateredAt, loggedAt, context.seasonalAmplitude)) {
+    if (isChosenDateOnSchedule(context.plant, previousWateringAt, loggedAt, context.seasonalAmplitude)) {
         context.viewModel.quickWater(reason = null, loggedAt = loggedAt)
     } else {
-        showReasonSheet(loggedAt)
+        showReasonSheet()
     }
 }
 
@@ -1465,12 +1524,13 @@ private fun requestWater(
 private fun requestLiquidFertilize(
     context: QuickWaterGateContext,
     loggedAt: Long,
-    showReasonSheet: (Long) -> Unit
+    previousWateringAt: Long?,
+    showReasonSheet: () -> Unit
 ) {
-    if (isChosenDateOnSchedule(context.plant, context.status.lastWateredAt, loggedAt, context.seasonalAmplitude)) {
+    if (isChosenDateOnSchedule(context.plant, previousWateringAt, loggedAt, context.seasonalAmplitude)) {
         context.viewModel.quickLiquidFertilize(reason = null, loggedAt = loggedAt)
     } else {
-        showReasonSheet(loggedAt)
+        showReasonSheet()
     }
 }
 
@@ -1480,8 +1540,14 @@ private fun requestLiquidFertilize(
  * (the same wrapper the "Why this date?" sheet and every other quick-log surface already share) and
  * [CareSchedule.isWateringOnScheduleAt], so there is no second notion of "close enough"
  * (`CareSchedule.GAP_AGREEMENT_TOLERANCE` stays the only tolerance constant).
+ *
+ * `internal` rather than `private` (#679 review round 1) so `PlantDetailScreenGateTest` (JVM unit
+ * test) can exercise the exact [lastWateredAt]-vs-real-predecessor scenario the bug fixed — an
+ * instrumented test would need to drive Material3's `DatePicker` day grid to a specific backdated
+ * day, which has no existing precedent in this suite and is fragile across the run date's position
+ * within its calendar month.
  */
-private fun isChosenDateOnSchedule(
+internal fun isChosenDateOnSchedule(
     plant: Plant,
     lastWateredAt: Long?,
     chosenDate: Long,
@@ -1496,8 +1562,8 @@ private fun isChosenDateOnSchedule(
     return CareSchedule.isWateringOnScheduleAt(lastWateredAt, effectiveIntervalDays, chosenDate)
 }
 
-/** [isChosenDateOnSchedule]'s counterpart for [PlantCareStatus.isWateringGapLong] (#654). */
-private fun isChosenDateGapLong(
+/** [isChosenDateOnSchedule]'s counterpart for [PlantCareStatus.isWateringGapLong] (#654). Also `internal` for the same reason. */
+internal fun isChosenDateGapLong(
     plant: Plant,
     lastWateredAt: Long?,
     chosenDate: Long,

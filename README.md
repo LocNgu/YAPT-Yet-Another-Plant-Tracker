@@ -9,6 +9,9 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Adaptive watering intervals** — A confidence-weighted model learns your watering interval from your own feedback, adjusting faster early on and settling down as its confidence grows
 - **Care history timeline** — Full chronological log per plant with photos
 - **Care reminders** — Daily local notifications for overdue or due-today plants; an optional "Combine reminders" toggle collapses them into a single daily digest ("3 plants need care") instead of one notification per plant. A "Notify for fertilizing" toggle suppresses reminders for plants whose only due care is fertilizing
+- **Check-in reminders** — A watering-due reminder is titled "Check {plant}" with three actions: **Watered**, **Still moist** (logs a check observation, not a watering, and feeds the adaptive model as too-soon), and **Not now** (pushes the due date back a day)
+- **Drain-water reminder** — After watering, YAPT reminds you 30 minutes later to check plant saucers and pour away standing water — a dismissible in-app modal while YAPT is open, or a background notification otherwise. Off in Settings → Reminders
+- **Seasonal watering** — Watering intervals automatically stretch in winter and compress in summer based on your device's timezone/hemisphere, with a Mild/Standard/Strong amplitude picker (and an Off setting) in Settings; pin any plant's interval to opt it out individually
 - **Repotting reminder** — Give a plant its own repotting interval in months (3–36); a due or overdue repotting joins the daily care notification, and logging a Repot resets the schedule
 - **Custom reminders** — Add any number of free-text recurring reminders to a plant (e.g. "apply neem oil every 7 days") for care no built-in type covers; mark one done to write a journal entry and start its next interval. Overdue or due-today custom reminders join the daily care notification
 - **Plant issues** — Report an ongoing pest/disease/health problem on a plant from a dedicated "Active issues" card; tracks how long each issue has been ongoing and shows a purple badge on the plant list card. Optionally set up a linked treatment reminder in the same step; mark an issue resolved with an optional note
@@ -34,7 +37,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **Photo gallery** — Per-plant gallery of all plant and care-log photos, sorted by date; tap any photo to open a full-screen swipe viewer that shows each photo's date; add photos via the gallery picker or by taking a new photo with the in-app camera; long-press or use the trash icon in the viewer to delete individual photos
 - **Plant Graveyard** — Deleted plants move to an archive in Settings; restore them or remove them permanently
 - **Backup & restore** — Export and import a `.yapt` ZIP file via the system file picker, with optional photo inclusion
-- **Developer mode** — Tap the Settings → About version row five times to unlock a hidden Developer section: build info, a feature-flag registry for opt-in experimental features (tabbed Plant Detail layout, seasonal watering, Check reminders), and debug actions (reset the What's New sheet, run the reminder check now, seed/remove demo plants). Off by default and excluded from backup
+- **Developer mode** — Tap the Settings → About version row five times to unlock a hidden Developer section: build info, a feature-flag registry for opt-in experimental features (tabbed Plant Detail layout), and debug actions (reset the What's New sheet, run the reminder check now, seed/remove demo plants). Off by default and excluded from backup
 - **Offline-first** — No account, no cloud, no network calls. All data stays on device
 
 ## Screenshots

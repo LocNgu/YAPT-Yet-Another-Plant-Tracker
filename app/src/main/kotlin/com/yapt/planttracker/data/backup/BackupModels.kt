@@ -79,7 +79,9 @@ data class BackupSettings(
     val photoReminderEnabled: Boolean = false,
     val themeMode: String = "SYSTEM",
     val fertilizingNotificationsEnabled: Boolean = true,
-    val askBeforeChangingIntervals: Boolean = true
+    val askBeforeChangingIntervals: Boolean = true,
+    val seasonalAmplitude: String = "STANDARD",
+    val postWateringReminderEnabled: Boolean = true
 )
 
 @Serializable

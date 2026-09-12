@@ -42,9 +42,11 @@ class QuickLogUseCaseBulkLogTest {
     private lateinit var plantRepo: PlantRepository
     private lateinit var careLogRepo: CareLogRepository
     private lateinit var useCase: QuickLogUseCase
+    private val scheduledWaterings = mutableListOf<Long>()
 
     @Before
     fun setUp() {
+        scheduledWaterings.clear()
         db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             PlantDatabase::class.java
@@ -60,7 +62,8 @@ class QuickLogUseCaseBulkLogTest {
             PlantPhotoRepository(db.plantPhotoDao()),
             dataStore,
             db,
-            WateringAdjustmentRepository(db.wateringAdjustmentDao())
+            WateringAdjustmentRepository(db.wateringAdjustmentDao()),
+            onWaterLogged = { scheduledWaterings.add(it) }
         )
     }
 
@@ -84,6 +87,7 @@ class QuickLogUseCaseBulkLogTest {
         assertEquals(2, logs.size)
         assertEquals(setOf(id1, id2), logs.map { it.plantId }.toSet())
         assertTrue(logs.all { it.careType == CareType.WATER.name })
+        assertEquals(1, scheduledWaterings.size)
     }
 
     @Test
@@ -104,6 +108,7 @@ class QuickLogUseCaseBulkLogTest {
         assertEquals(4, logs.size)
         assertEquals(2, logs.count { it.careType == CareType.FERTILIZE.name })
         assertEquals(2, logs.count { it.careType == CareType.WATER.name })
+        assertEquals(1, scheduledWaterings.size)
     }
 
     @Test

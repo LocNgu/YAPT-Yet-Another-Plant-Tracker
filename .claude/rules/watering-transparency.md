@@ -96,6 +96,23 @@ passes `now.toLocalDate()` into, mirroring this section's own `loggedAt`-threadi
 current" check) had the identical bug and got the same fix via an explicit `now` parameter threaded from
 `computeSuggestion()`.
 
+**Follow-up (#679):** three more edge cases, all only reachable when backdating to before an
+already-existing later watering. (1) `QuickLogUseCase.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()`
+called `clearWateringOverrideIfActive()` unconditionally after every WATER insert — backfilling an old,
+forgotten watering from before an active reschedule silently discarded that unrelated reschedule. Both
+functions now query `CareLogRepository.getLastTwoWaterings(plantId)` *before* the insert and only clear
+the override when the new `loggedAt` is at or after the previous newest watering's `loggedAt` (`null` —
+no prior WATER log — is treated as `Long.MIN_VALUE`, so a plant's first-ever WATER log still always
+clears, matching the old unconditional behavior for that case). (2) `PlantDetailScreen`'s on/off-schedule
+gate for the "Log watering" picker compared the chosen date against `PlantCareStatus.lastWateredAt`
+(always "now"-relative) rather than that date's own chronological predecessor — the same class of bug
+`computeSuggestion()` had already been fixed for above. A new `PlantDetailViewModel.previousWateringBefore(before)`
+suspend wrapper around `CareLogRepository.getLastWateringBefore()` now feeds both `requestWater`/
+`requestLiquidFertilize`'s gate and the subsequent `WateringReasonBottomSheet`'s gap-length wording,
+fetched once per date-picker confirm via `rememberCoroutineScope().launch {}` and threaded through a
+`PendingReasonPrompt(loggedAt, previousWateringAt)` so the two can't disagree. (3) See
+`WateringLifecycleReset.maybeBootstrap()`'s `displayNow` fix below.
+
 ## `watering_adjustments` table (`data/entity/WateringAdjustmentEntity.kt`, `data/db/WateringAdjustmentDao.kt`,
 `data/repository/WateringAdjustmentRepository.kt`)
 A dedicated table, not a `CareLog` replay (product ADR-0028) — a dialog dismissal, a manual edit, or a
@@ -120,7 +137,9 @@ button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDI
 itself), `FROZEN_POST_REPOT` (a WATER/CHECK observation excluded from base-learning by the REPOT freeze
 window — distinct from `WATER_NOT_ATTRIBUTED` so the sheet doesn't misrepresent an automatic freeze as
 a declined attribution), and `HISTORY_BOOTSTRAP` (the one-time cold-start from watering history,
-`WateringLifecycleReset.maybeBootstrap()`). A row is written **every time one of these is evaluated**,
+`WateringLifecycleReset.maybeBootstrap()` — its `seasonFn()` conversion uses a separate `displayNow`
+parameter, not the (possibly backdated) `now` used for `triggeredAt`, see the #679 follow-up below). A
+row is written **every time one of these is evaluated**,
 including a no-op observation (`before == after`) — that's still evidence the model considered.
 Unconditional now that `ADAPTIVE_WATERING` graduated (#655), matching where `wateringConfidence`
 itself is written.
@@ -143,6 +162,18 @@ was widened from an implicit `System.currentTimeMillis()` to an explicit `dayTim
 the same reason. Every other call site of these two functions (`PlantListViewModel`, `CalendarViewModel`,
 `QuickLogUseCase.bulkLog()`) is unaffected — they never pass `loggedAt`, so they keep using real "now" by
 default.
+
+**Follow-up (#679):** a backdated quick-water can trigger the #571/#662 cold-start history bootstrap
+with `now` being the historical `loggedAt` rather than real wall-clock time — reintroducing #662's exact
+staleness bug for that one path, since `Plant.wateringIntervalDays` is read everywhere else as a
+*today*-effective value. `WateringLifecycleReset.maybeBootstrap()` gained a `displayNow: Long =
+System.currentTimeMillis()` parameter used **only** for the `seasonFn()` conversion producing the
+written `wateringIntervalDays`; `WateringAdjustment.triggeredAt`/`Plant.updatedAt` are unchanged, still
+the historical `now`. `QuickLogUseCase.adaptWateringInterval()`/`maybeApplyHistoryBootstrap()` thread a
+real `System.currentTimeMillis()` value down as `displayNow` alongside their existing (possibly
+backdated) `now`; `AddCareLogViewModel`'s own copy of this helper has no backdating concept (its `now`
+is already always real wall-clock time), so it's unaffected and keeps calling `maybeBootstrap()` without
+a `displayNow` argument.
 
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default

@@ -34,18 +34,19 @@ import kotlin.math.roundToInt
 
 // #568 added two small adaptive-watering helpers to this VM's one cohesive save flow; splitting
 // them out would scatter that flow across files for no readability gain.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
     private val plantId: Long,
     private val careLogId: Long = 0L,
     // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
-    // updating; null is treated the same as SEASONAL_WATERING being off (#569).
+    // updating; null is treated the same as amplitude being Off (#569).
     private val dataStore: DataStore<Preferences>? = null,
     // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
     // safe no-ops for tests that don't pass one (#572).
-    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+    private val onWaterLogged: suspend (Long) -> Unit = {}
 ) : ViewModel() {
 
     val isEditMode = careLogId != 0L
@@ -63,6 +64,7 @@ class AddCareLogViewModel(
     var selectedFeedback by mutableStateOf<WateringFeedback?>(null)
     var selectedFertilizerType by mutableStateOf(FertilizerType.UNSPECIFIED)
     private var customReminderId: Long? = null
+    private var initialCareTypeApplied = false
 
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
@@ -106,6 +108,15 @@ class AddCareLogViewModel(
         duplicateLogError = null
     }
 
+    /**
+     * Applies a navigation-requested care type once when creating a new log (#658). The one-shot
+     * guard preserves a user's later chip selection if the screen composition is recreated.
+     */
+    fun preselectCareType(careType: CareType) {
+        if (!isEditMode && !initialCareTypeApplied) selectedCareType = careType
+        initialCareTypeApplied = true
+    }
+
     fun saveLog() {
         if (selectedCareType == CareType.PHOTO && photoUri == null) return
         viewModelScope.launch {
@@ -133,7 +144,14 @@ class AddCareLogViewModel(
             if (selectedCareType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
 
             val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
+            schedulePostWateringReminderIfNeeded(willPairWater)
             _events.emit(Event.Saved(suggestedInterval))
+        }
+    }
+
+    private suspend fun schedulePostWateringReminderIfNeeded(willPairWater: Boolean) {
+        if (!isEditMode && (selectedCareType == CareType.WATER || willPairWater)) {
+            onWaterLogged(loggedAt)
         }
     }
 
@@ -356,7 +374,7 @@ class AddCareLogViewModel(
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * July correction isn't baked into [Plant.wateringConfidence] as "this plant is permanently
      * thirsty" once the seasonal curve is accounted for. A no-op ([actualIntervalDays] unchanged)
-     * when [dataStore] is null, SEASONAL_WATERING is off, or [pinIntervalToBase] is set — [CareSchedule]'s
+     * when [dataStore] is null, amplitude is Off, or [pinIntervalToBase] is set — [CareSchedule]'s
      * due-date math never applies the seasonal curve for a pinned plant, so its observed gaps are
      * already flat and must not be seasonally corrected.
      */
@@ -382,13 +400,15 @@ class AddCareLogViewModel(
         data object NavigateBack : Event()
     }
 
+    @Suppress("LongParameterList")
     class Factory(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
         private val plantId: Long,
         private val careLogId: Long = 0L,
         private val dataStore: DataStore<Preferences>? = null,
-        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+        private val onWaterLogged: suspend (Long) -> Unit = {}
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -398,7 +418,8 @@ class AddCareLogViewModel(
                 plantId,
                 careLogId,
                 dataStore,
-                wateringAdjustmentRepository
+                wateringAdjustmentRepository,
+                onWaterLogged
             ) as T
     }
 

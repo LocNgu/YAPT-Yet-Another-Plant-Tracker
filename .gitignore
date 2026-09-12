@@ -36,6 +36,10 @@ google-services.json
 # Claude Code agent worktrees (runtime artifact)
 .claude/worktrees/
 
+# Personal Claude permission overrides (machine-specific paths); the shared
+# baseline is the tracked .claude/settings.json — technical ADR-0024
+.claude/settings.local.json
+
 # Codex agent runtime state (environment/session config, not project source)
 .codex/
 

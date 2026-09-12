@@ -530,8 +530,8 @@ object CareSchedule {
      * [waterLogTimestampsMs] may be in any order and represents one plant's WATER log timestamps (a
      * caller evaluating the post-reset opportunity pre-filters to timestamps at/after the freeze
      * boundary — #571 spec: "a gap that isn't trusted for live per-observation learning isn't trusted
-     * for the one-time cold-start estimate either"). [seasonFn] is `{ 1.0 }` when `SEASONAL_WATERING`
-     * is off or the plant is pinned, matching every other de-seasonalization call site in this file.
+     * for the one-time cold-start estimate either"). [seasonFn] is `{ 1.0 }` when amplitude is Off
+     * or the plant is pinned, matching every other de-seasonalization call site.
      *
      * Returns `null` when there are fewer than 2 timestamps (zero gaps — "no estimate", per the spec's
      * empty-history edge case). A single gap (2 timestamps) still returns a real, testable result with

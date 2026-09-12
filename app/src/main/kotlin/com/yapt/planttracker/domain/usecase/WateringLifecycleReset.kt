@@ -122,12 +122,21 @@ object WateringLifecycleReset {
      * is floored at the plant's pre-bootstrap interval so this path can't undercut it either — the
      * *confidence* the bootstrap computes is still applied as-is (it reflects how much history exists,
      * not which direction it should have moved the interval).
+     *
+     * [displayNow] (#679) is a separate, always-real-wall-clock timestamp used **only** for the
+     * `seasonFn()` conversion producing [effectiveIntervalDays] — [now] can be backdated (a #654 "Log
+     * watering" backdated entry that happens to trigger this bootstrap), but [Plant.wateringIntervalDays]
+     * is read everywhere else as a *today*-effective value, exactly the mismatch #662 fixed for the
+     * non-backdated path. Every non-backdating caller defaults both parameters to real wall-clock time,
+     * so this is a no-op change for them. [now] itself is unchanged for [WateringAdjustment.triggeredAt]
+     * and [Plant.updatedAt] — those should reflect when the observation actually happened.
      */
     suspend fun maybeBootstrap(
         request: BootstrapRequest,
         plantRepository: PlantRepository,
         wateringAdjustmentRepository: WateringAdjustmentRepository?,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        displayNow: Long = System.currentTimeMillis()
     ): Boolean {
         val result = eligibleBootstrapResult(request) ?: return false
 
@@ -142,8 +151,9 @@ object WateringLifecycleReset {
         // raw accounting, not the display value (mirrors DIALOG_EDIT's established convention).
         val after = baseIntervalDays.roundToInt()
         // wateringIntervalDays is the effective (seasonally-adjusted) value, mirroring
-        // applyWateringIntervalSuggestion()'s base->effective conversion (#626/#644, #662).
-        val effectiveIntervalDays = (baseIntervalDays * request.seasonFn(now.toLocalDate()))
+        // applyWateringIntervalSuggestion()'s base->effective conversion (#626/#644, #662). Uses
+        // displayNow, not now, so a backdated observation's bootstrap still reflects today's season (#679).
+        val effectiveIntervalDays = (baseIntervalDays * request.seasonFn(displayNow.toLocalDate()))
             .roundToInt()
             .coerceIn(SeasonalWatering.MIN_EFFECTIVE_INTERVAL_DAYS, SeasonalWatering.MAX_EFFECTIVE_INTERVAL_DAYS)
         // Intentionally overwrites any incremental confidence/base learned per-observation between

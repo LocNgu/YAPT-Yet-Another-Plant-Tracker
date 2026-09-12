@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
@@ -74,6 +75,8 @@ import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
+
+internal const val CARE_TYPE_PICKER_TEST_TAG = "care_type_picker"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -265,6 +268,7 @@ fun AddCareLogScreen(
             )
 
             LazyRow(
+                modifier = Modifier.testTag(CARE_TYPE_PICKER_TEST_TAG),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {

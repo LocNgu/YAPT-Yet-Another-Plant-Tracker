@@ -17,9 +17,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
@@ -50,14 +52,19 @@ class AddCareLogScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun makeViewModel(): AddCareLogViewModel {
+    private fun makeViewModel(initialCareType: CareType = CareType.WATER): AddCareLogViewModel {
         val careLogRepo = mockk<CareLogRepository>()
         val plantRepo = mockk<PlantRepository>()
         val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant)
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
-        return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 0L)
+        return AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 0L
+        ).also { it.preselectCareType(initialCareType) }
     }
 
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
@@ -95,6 +102,28 @@ class AddCareLogScreenTest {
 
         composeTestRule
             .onNode(hasText(waterLabel) and isSelected())
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun photoCareType_canBePreselected() {
+        val viewModel = makeViewModel(initialCareType = CareType.PHOTO)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(
+                viewModel = viewModel,
+                onNavigateBack = {}
+            )
+        }
+
+        val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(CareType.PHOTO.labelRes())
+
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(photoLabel) and isSelected())
+        composeTestRule.onNode(hasText(photoLabel) and isSelected()).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Take photo")
+            .performScrollTo()
             .assertIsDisplayed()
     }
 

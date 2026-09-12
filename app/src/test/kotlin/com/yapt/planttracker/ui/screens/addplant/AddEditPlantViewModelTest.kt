@@ -2,14 +2,13 @@ package com.yapt.planttracker.ui.screens.addplant
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
@@ -326,15 +325,12 @@ class AddEditPlantViewModelTest {
     ): DataStore<Preferences> =
         mockk {
             every { data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true,
-                    SettingsKeys.SEASONAL_AMPLITUDE to amplitude.name
-                )
+                preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to amplitude.name)
             )
         }
 
     @Test
-    fun `wateringBaseIntervalDays stays null when dataStore is absent (SEASONAL_WATERING unreachable)`() = runTest {
+    fun `wateringBaseIntervalDays stays null when dataStore is absent (test-convenience seam)`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Monstera"
@@ -348,7 +344,7 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `new plant with SEASONAL_WATERING on de-seasonalizes the typed interval to today`() = runTest {
+    fun `new plant de-seasonalizes the typed interval to today`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
         vm.name = "Monstera"
@@ -366,7 +362,7 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `pinIntervalToBase true keeps wateringBaseIntervalDays null even with SEASONAL_WATERING on`() = runTest {
+    fun `pinIntervalToBase true keeps wateringBaseIntervalDays null`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
         vm.name = "Monstera"
@@ -431,11 +427,7 @@ class AddEditPlantViewModelTest {
         val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk()
         coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
         val dataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(
-                preferencesOf(
-                    FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.SEASONAL_WATERING) to true
-                )
-            )
+            every { data } returns flowOf(emptyPreferences())
         }
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
         advanceUntilIdle()

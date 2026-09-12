@@ -67,6 +67,7 @@ class PlantListViewModel(
 
     private val _sortOrder = MutableStateFlow(DEFAULT_SORT)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+    private var sortWasChangedInMemory = false
 
     init {
         viewModelScope.launch {
@@ -75,10 +76,12 @@ class PlantListViewModel(
                     SortOption.valueOf(prefs[SettingsKeys.SORT_OPTION]!!)
                 }.getOrNull() ?: DEFAULT_SORT.option
                 val ascending = prefs[SettingsKeys.SORT_ASCENDING] ?: (DEFAULT_SORT.direction == SortDirection.ASC)
-                _sortOrder.value = SortOrder(
-                    option = option,
-                    direction = if (ascending) SortDirection.ASC else SortDirection.DESC
-                )
+                if (!sortWasChangedInMemory) {
+                    _sortOrder.value = SortOrder(
+                        option = option,
+                        direction = if (ascending) SortDirection.ASC else SortDirection.DESC
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -339,7 +342,14 @@ class PlantListViewModel(
         selectedRoom.value = room
     }
 
+    /** Applies the notification destination without overwriting the user's saved sort preference (#519). */
+    fun showCaredForTodayTransiently() {
+        sortWasChangedInMemory = true
+        _sortOrder.value = SortOrder(SortOption.CARED_FOR_TODAY, SortDirection.DESC)
+    }
+
     fun toggleSort(option: SortOption) {
+        sortWasChangedInMemory = true
         val current = _sortOrder.value
         val newOrder = if (option == current.option) {
             when (option) {

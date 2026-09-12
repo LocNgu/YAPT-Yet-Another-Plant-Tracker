@@ -117,7 +117,8 @@ class WateringLifecycleResetTest {
                 request,
                 plantRepository,
                 wateringAdjustmentRepository,
-                now = julyFifthMidYearMs
+                now = julyFifthMidYearMs,
+                displayNow = julyFifthMidYearMs
             )
 
             assertTrue(applied)
@@ -176,5 +177,74 @@ class WateringLifecycleResetTest {
             val plantAfter = updatedPlant.captured
             assertEquals(7, plantAfter.wateringIntervalDays)
             assertEquals(7.0, requireNotNull(plantAfter.wateringBaseIntervalDays), 0.0)
+        }
+
+    /**
+     * #679: a backdated (#654) quick-water can trigger this bootstrap with `now` being the historical,
+     * possibly-backdated `loggedAt` rather than real wall-clock time. `wateringIntervalDays` is read
+     * everywhere else as a *today*-effective value (exactly the mismatch #662 fixed for the
+     * non-backdated path) — the `seasonFn()` conversion must use `displayNow` (real "now"), not `now`,
+     * while `WateringAdjustment.triggeredAt`/`Plant.updatedAt` must keep using the historical `now`.
+     */
+    @Test
+    fun `maybeBootstrap converts wateringIntervalDays using displayNow's season, not the historical now's`() =
+        runTest {
+            val plantRepository: PlantRepository = mockk(relaxed = true)
+            val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+            coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+            val amplitude = 0.5
+            val hemisphere = Hemisphere.NORTHERN
+            val seasonFn: (LocalDate) -> Double = { date -> SeasonalWatering.season(date, amplitude, hemisphere) }
+            // A backdated observation (`now`) landing in northern winter, while the real device clock
+            // (`displayNow`) is at the northern mid-year peak — the two seasons must provably differ.
+            val backdatedWinterNow =
+                LocalDate.of(2024, 1, 5).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+            val realDisplayNow = julyFifthMidYearMs
+            // 5 timestamps, 7 days apart -> 4 gaps, clears MIN_BOOTSTRAP_GAPS (3).
+            val waterLogTimestampsMs = (0..4).map {
+                backdatedWinterNow - TimeUnit.DAYS.toMillis((28 - it * 7).toLong())
+            }
+            val request = WateringLifecycleReset.BootstrapRequest(
+                plant = plant(wateringIntervalDays = 7),
+                waterLogTimestampsMs = waterLogTimestampsMs,
+                boundaryMs = Long.MIN_VALUE,
+                seasonFn = seasonFn
+            )
+
+            val applied = WateringLifecycleReset.maybeBootstrap(
+                request,
+                plantRepository,
+                wateringAdjustmentRepository,
+                now = backdatedWinterNow,
+                displayNow = realDisplayNow
+            )
+
+            assertTrue(applied)
+            val updatedPlant = slot<Plant>()
+            coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
+            val plantAfter = updatedPlant.captured
+            val rawBase = requireNotNull(plantAfter.wateringBaseIntervalDays)
+            val expectedEffectiveFromDisplayNow = SeasonalWatering.effectiveInterval(
+                rawBase,
+                LocalDate.of(2024, 7, 5),
+                amplitude,
+                hemisphere
+            )
+            val wouldBeEffectiveFromHistoricalNow = SeasonalWatering.effectiveInterval(
+                rawBase,
+                LocalDate.of(2024, 1, 5),
+                amplitude,
+                hemisphere
+            )
+            assertNotEquals(wouldBeEffectiveFromHistoricalNow, expectedEffectiveFromDisplayNow)
+            assertEquals(expectedEffectiveFromDisplayNow, plantAfter.wateringIntervalDays)
+            // triggeredAt/updatedAt stay the historical now — only the seasonFn conversion uses displayNow.
+            assertEquals(backdatedWinterNow, plantAfter.updatedAt)
+            coVerify {
+                wateringAdjustmentRepository.addAdjustment(
+                    match { it.triggeredAt == backdatedWinterNow }
+                )
+            }
         }
 }
