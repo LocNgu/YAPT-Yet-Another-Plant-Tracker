@@ -1757,11 +1757,21 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
-        // Selecting a tab doesn't auto-scroll its content into view (mirrors
-        // fertilizeTab_showsEmptyState_onlyAfterSelected/resolvingIssue_removesItFromActiveList).
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(customRemindersSectionLabel()))
-        composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
+        // Confirms we're genuinely on the now-hidden tab via its own selected-state semantics
+        // (mirrors careTabs_selectingTabMarksItSelectedAndDeselectsOthers) rather than scrolling
+        // down to its section content first. The tab strip (including the toggle below it) is one
+        // single LazyColumn item (PlantDetailScreen.kt), but CustomRemindersCard is a separate,
+        // later item — scrolling all the way down to it and then all the way back up to
+        // `plant_detail_tabs_toggle` decomposes the toggle's item, forcing performScrollToNode's
+        // expensive "not found: reset to index 0, then rescan forward one viewport at a time"
+        // recovery path (androidx.compose.ui.test's documented behavior for a not-yet-composed
+        // target) on a second, otherwise-avoidable lookup — the single heaviest scroll pattern in
+        // this file and the root cause of #592's 100%-reproducible CI timeout. Every other tab test
+        // in this suite (including fertilizeTab_showsEmptyState_onlyAfterSelected and
+        // resolvingIssue_removesItFromActiveList, this test's own cited precedent) only ever scrolls
+        // forward once per state transition; asserting selection here keeps this test on that same
+        // budget instead of round-tripping past the toggle.
+        composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsSelected()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
