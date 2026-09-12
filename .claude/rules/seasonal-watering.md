@@ -87,6 +87,88 @@ whenever amplitude wasn't Off. See `.claude/rules/watering-transparency.md` for 
 the same fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug
 fix feeds.
 
+## App-start reconciliation fixup (#702)
+Graduating `SEASONAL_WATERING` (#656) removed the flag check from `seasonalAmplitudeFlow()`/
+`seasonalAmplitudeOnce()`, which used to hard-return `0.0` while the dev-mode flag was off (the default
+for every install). Every write path above that dual-writes `wateringBaseIntervalDays` only does so when
+`amplitude != 0.0`, so on any install that never enabled the flag, `wateringBaseIntervalDays` stayed
+frozen at whatever `MIGRATION_10_11` set it to while the literal `wateringIntervalDays` kept moving on
+every subsequent edit/suggestion-apply — `CareSchedule` started multiplying that stale, frozen base by
+the seasonal curve for real due-date math once amplitude started reading the real preference.
+`domain/usecase/SeasonalGraduationFixup.kt` is a one-time app-start backfill (triggered from
+`YaptApplication.onCreate()`, gated on `SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE` — a
+device-local flag excluded from `.yapt` backup, mirroring `DEVELOPER_MODE_ENABLED`'s precedent, not
+`ASK_BEFORE_CHANGING_INTERVALS`'s) that re-anchors every unpinned plant's `wateringBaseIntervalDays` to
+today, exactly like `MIGRATION_10_11` anchored migration day — a no-op for a pinned plant, a plant with
+no `wateringIntervalDays`, amplitude Off, or a plant whose base is already in sync. Logs
+`WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP` per actually-changed plant — a distinct trigger
+from `HISTORY_BOOTSTRAP` since the two reconcile from different sources (a stale column vs. replayed
+watering-log history). Not a schema change — no new column, no migration/DB version bump.
+
+**Hardening follow-up (#703 review, same PR):** four gaps found on the initial version:
+- **`maybeRun()`'s `DONE` flag is only set when `request.amplitude != 0.0 && request.plants.isNotEmpty()`**
+  — not unconditionally after every call. A brand-new install has an empty plant list (nothing to
+  iterate yet, not "verified correct"), and amplitude Off has nothing to de-seasonalize; marking done in
+  either case would permanently block a later `.yapt` restore (which can import pre-graduation, stale
+  bases) or a later switch to a non-Off amplitude from ever being reconciled. The flag only latches once
+  a real pass over a non-empty, amplitude-on install has actually happened.
+- **`run()` re-fetches each plant fresh via `PlantRepository.getPlantById(id).first()`** immediately
+  before evaluating eligibility, rather than trusting the `FixupRequest.plants` snapshot the caller
+  took — this runs asynchronously from `onCreate()` on a background dispatcher while the UI can
+  concurrently edit/archive/quick-log the same plants, so eligibility (`pinIntervalToBase`,
+  `wateringIntervalDays`, the current base) must reflect the plant's *current* state, not a possibly-
+  stale snapshot. `AddEditPlantViewModel.saveEdit()`'s `getPlantById(...).first()` is the precedent
+  mirrored here. A plant deleted since the snapshot (fetch returns `null`) is skipped.
+- **The no-op/skip check compares raw, unrounded `Double`s (`beforeBase == newBase`), not rounded ints**
+  — two bases that round to the same day count (e.g. `7.0` vs `7.4`) can still diverge meaningfully once
+  multiplied by the seasonal curve, so rounding before comparing could mask a real, permanently-missed
+  correction (the `DONE` flag never gives it a second chance). `beforeIntervalDays`/`afterIntervalDays`
+  on the logged `WateringAdjustment` row stay rounded ints — only the skip *decision* uses raw values.
+- **(Round 3, #703) The write itself is `PlantDao.updateWateringBaseInterval(id, base, updatedAt)`** —
+  a column-specific `UPDATE` naming only `wateringBaseIntervalDays`/`updatedAt`, exposed through
+  `PlantRepository`, not `plantRepository.updatePlant(freshPlant.copy(...))`. Round 2's re-fetch above
+  only *narrowed* the race window between reading and writing; it was still two separate suspending
+  calls with no transaction, so a concurrent UI edit landing in that gap could still be silently
+  reverted by a full-row `.copy()` write racing it — the same bug class as `QuickLogUseCase`'s
+  `clearWateringOverrideIfActive()` fix (`.claude/rules/watering-transparency.md`'s "#612/#613/#614"
+  note). A statement that can't name a column can't overwrite it, so this removes the race structurally
+  instead of narrowing it further. The fresh-fetch-for-eligibility step above is unchanged and still
+  needed — only the *write* changed.
+- **A legacy `feature_flag_seasonal_watering` DataStore boolean (the pre-#656 `SEASONAL_WATERING` flag's
+  key, never deleted by removing it from `FeatureFlagRegistry` — DataStore doesn't garbage-collect keys
+  code stops referencing) having ever been `true` skips the entire fixup for every plant on that install**,
+  read via a private literal key lookup local to this fixup (not reintroduced into the registry). If that
+  flag was ever on, the pre-graduation write paths were already correctly dual-writing
+  `wateringBaseIntervalDays` for whatever plants were touched while it was, and this fixup has no way to
+  tell a genuinely-stale base apart from one already correctly anchored to some other, unrecorded edit
+  day. This is a deliberate, permanent "can't safely auto-fix this install" decision (the `DONE` flag is
+  still marked, subject to the same non-empty/amplitude-on gating above) — an affected user self-corrects
+  a genuinely-stale plant by making one real edit to its interval, which now dual-writes correctly.
+
+**Known, accepted limitations (#703 review round 3)** — raised by a third Codex review round, confirmed
+against the code, and explicitly accepted by the human as documented trade-offs rather than fixed
+further: neither applies to this install (confirmed with the human), both would need a schema change to
+fix properly, and this codebase currently serves a single install (no cloud/accounts/sync, product
+ADR-0022). Naming the exact failure mode here so a future reader — especially anyone reusing this code
+for a multi-install scenario — understands the real risk, not a softened version of it:
+- **The legacy-flag check in the item above only sees the flag's *current* value, not an ever-true
+  history.** If a plant's base was correctly established while the old dev-mode flag was on (the
+  pre-#656 write paths dual-writing it correctly), and the user *later* used the pre-graduation Settings
+  UI to turn that flag back off before it was ever removed from the registry, `LEGACY_SEASONAL_WATERING_FLAG_KEY`
+  now reads `false` — indistinguishable from "never enabled." `maybeRun()` would then proceed with the
+  fixup and blindly overwrite that plant's already-correctly-anchored base with a same-day recompute,
+  discarding its true (different, unrecorded) anchor day. There is no persisted "was this flag ever
+  enabled" record to check instead; only the flag's last-written value exists.
+- **A `.yapt` backup restore performed *after* the fixup has already run once (`DONE` already `true`) is
+  never reconciled.** The empty-plants/amplitude-Off gating above only defers marking `DONE` for the
+  *narrower* "fresh install, then immediate restore" ordering; it does nothing once `DONE` is genuinely
+  set from a real prior pass. A subsequent import of an old, pre-graduation backup — whose
+  `wateringBaseIntervalDays` values are exactly the stale ones this fixup exists to correct — is silently
+  skipped, since `maybeRun()` short-circuits on the `DONE` flag before ever looking at the restored
+  plants. Fixing this properly would require the restore path to clear
+  `SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE` when importing a backup schema old enough to predate
+  #656 (`.claude/rules/backup.md`'s schema-version machinery could carry this, but doesn't yet).
+
 ## Settings UI
 Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, always visible
 (`SettingsViewModel.seasonalAmplitude` StateFlow + `setSeasonalAmplitude()`), takes effect immediately

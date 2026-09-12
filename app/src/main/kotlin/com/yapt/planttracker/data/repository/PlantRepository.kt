@@ -35,6 +35,10 @@ class PlantRepository(private val plantDao: PlantDao) {
 
     suspend fun restorePlant(id: Long) = plantDao.restorePlant(id)
 
+    /** Column-specific update — see [PlantDao.updateWateringBaseInterval]'s doc for why this exists. */
+    suspend fun updateWateringBaseInterval(id: Long, wateringBaseIntervalDays: Double, updatedAt: Long) =
+        plantDao.updateWateringBaseInterval(id, wateringBaseIntervalDays, updatedAt)
+
     /** Archives every id in a single atomic statement (bulk graveyard action, #448). */
     suspend fun archivePlants(ids: List<Long>, timestamp: Long = System.currentTimeMillis()) =
         plantDao.archivePlants(ids, timestamp)
