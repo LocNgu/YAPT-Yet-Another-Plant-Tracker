@@ -33,6 +33,31 @@ import kotlin.math.roundToInt
  * a [WateringAdjustment] row per affected plant), but is a one-time, app-wide reconciliation rather
  * than a per-plant lifecycle event — see [WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP]'s KDoc
  * for why it's a distinct trigger from [WateringAdjustmentTrigger.HISTORY_BOOTSTRAP].
+ *
+ * **Known, accepted limitations (#703 review round 3)** — both confirmed with the human to not apply
+ * to this install; deliberately left as documented trade-offs rather than fixed, since neither is
+ * fixable without a schema change and this codebase currently serves a single install (product
+ * ADR-0022's "no cloud, no accounts" posture; see #702's own scope note):
+ * - **A plant's base can be blindly overwritten if the legacy dev-mode flag was ever toggled on *and
+ *   later back off*.** [maybeRun] treats [LEGACY_SEASONAL_WATERING_FLAG_KEY] reading `false` as "never
+ *   enabled" and proceeds with the fixup — but `false` is also what the key reads if a user turned the
+ *   old `SEASONAL_WATERING` flag on (correctly dual-writing `wateringBaseIntervalDays` for whatever was
+ *   edited while it was), then used the pre-graduation Settings UI to turn it back off before it was
+ *   ever removed from the registry. A plain DataStore boolean only ever holds its *last-written* value,
+ *   not an ever-true history, so this function cannot tell that sequence apart from "never touched" and
+ *   would recompute (and potentially discard) an already-correctly-anchored base. There is no persisted
+ *   "was this flag ever enabled" record to check instead. Reusing this code for a future multi-install
+ *   scenario (sync, multi-device) would need to actually solve this, not just document it.
+ * - **A `.yapt` backup restore performed *after* this fixup has already run once is never reconciled.**
+ *   [maybeRun]'s `DONE` flag, once set by a real pass over a non-empty, amplitude-on install, short-
+ *   circuits every later call before it ever looks at `request.plants` again — including a call
+ *   triggered by importing an old, pre-graduation backup whose `wateringBaseIntervalDays` values are
+ *   exactly the stale ones this fixup exists to correct. This is a coarser version of the "fresh empty
+ *   install, then immediate restore" case the `DONE`-flag gating already handles (see [maybeRun]'s doc)
+ *   — that gating only defers marking `DONE` until a non-empty pass happens *before* any restore; it
+ *   does nothing for a restore that happens *after*. Fixing this properly would need the restore path
+ *   itself to clear [SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE] when importing a backup schema
+ *   old enough to predate #656, which is out of scope for this PR.
  */
 object SeasonalGraduationFixup {
 
@@ -43,7 +68,7 @@ object SeasonalGraduationFixup {
      * preference from any install that had ever touched it, since DataStore doesn't garbage-collect
      * keys just because code stops referencing them. Read directly by its literal name here (not
      * reintroduced into the registry) purely to detect "was this ever turned on" — see [maybeRun]'s
-     * doc for why that matters.
+     * doc for why that matters, and this class's own KDoc for the on-then-off case this can't catch.
      */
     private val LEGACY_SEASONAL_WATERING_FLAG_KEY = booleanPreferencesKey("feature_flag_seasonal_watering")
 
@@ -62,9 +87,12 @@ object SeasonalGraduationFixup {
         val today: LocalDate = LocalDate.now()
     )
 
-    private data class RecomputedBase(val beforeIntervalDays: Int, val afterIntervalDays: Int, val newBase: Double)
-
-    private data class PlantUpdate(val plant: Plant, val recomputed: RecomputedBase)
+    private data class RecomputedBase(
+        val plantId: Long,
+        val beforeIntervalDays: Int,
+        val afterIntervalDays: Int,
+        val newBase: Double
+    )
 
     /**
      * Recomputes [Plant.wateringBaseIntervalDays] for every unpinned plant in [FixupRequest.plants]
@@ -83,12 +111,16 @@ object SeasonalGraduationFixup {
      * Each plant in [FixupRequest.plants] is treated as a mere id lookup, not authoritative data: this
      * runs asynchronously from [YaptApplication.onCreate] on a background dispatcher while the UI can
      * be concurrently editing/archiving/quick-logging against the same plants, so [FixupRequest.plants]
-     * (snapshotted once by the caller) can go stale between snapshot and write. Both the eligibility
-     * check and the write re-fetch the plant fresh via [PlantRepository.getPlantById] immediately
-     * before acting on it (mirroring `AddEditPlantViewModel.saveEdit()`'s `getPlantById(...).first()`
-     * precedent) — the same bug class already fixed elsewhere for a full-row `.copy()` racing a
-     * concurrent edit (see `.claude/rules/watering-transparency.md`'s "#612/#613/#614" note). A plant
-     * deleted since the snapshot was taken (fetch returns `null`) is silently skipped.
+     * (snapshotted once by the caller) can go stale between snapshot and write. Eligibility is
+     * evaluated against a fresh re-fetch via [PlantRepository.getPlantById] immediately before acting
+     * (mirroring `AddEditPlantViewModel.saveEdit()`'s `getPlantById(...).first()` precedent), and the
+     * write itself goes through [PlantRepository.updateWateringBaseInterval] — a column-specific
+     * `UPDATE` naming only `wateringBaseIntervalDays`/`updatedAt` — rather than a full-row
+     * `updatePlant(freshPlant.copy(...))`. A narrowed re-fetch-then-write window (round 2 of #703) is
+     * still two separate suspending calls with no transaction; a full-row write in that window could
+     * still silently revert a concurrent edit to some *other* column, so round 3 removes that risk
+     * structurally instead of narrowing it further — the statement can't touch a column it doesn't
+     * name. A plant deleted since the snapshot was taken (fetch returns `null`) is silently skipped.
      *
      * Returns the count of plants actually changed. Pure aside from the repository calls — no
      * DataStore access — so this is unit-testable without any Android framework dependency; see
@@ -104,17 +136,15 @@ object SeasonalGraduationFixup {
 
         var changedCount = 0
         for (snapshotPlant in request.plants) {
-            val update = computeUpdate(snapshotPlant, request, plantRepository) ?: continue
-            plantRepository.updatePlant(
-                update.plant.copy(wateringBaseIntervalDays = update.recomputed.newBase, updatedAt = now)
-            )
+            val recomputed = computeUpdate(snapshotPlant, request, plantRepository) ?: continue
+            plantRepository.updateWateringBaseInterval(recomputed.plantId, recomputed.newBase, now)
             wateringAdjustmentRepository.addAdjustment(
                 WateringAdjustment(
-                    plantId = update.plant.id,
+                    plantId = recomputed.plantId,
                     triggeredAt = now,
                     trigger = WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP,
-                    beforeIntervalDays = update.recomputed.beforeIntervalDays,
-                    afterIntervalDays = update.recomputed.afterIntervalDays
+                    beforeIntervalDays = recomputed.beforeIntervalDays,
+                    afterIntervalDays = recomputed.afterIntervalDays
                 )
             )
             changedCount++
@@ -123,20 +153,20 @@ object SeasonalGraduationFixup {
     }
 
     /**
-     * Re-fetches [snapshotPlant] by id and, if it still exists and still needs fixing up, bundles the
-     * fresh plant with its [RecomputedBase]. `null` when the plant was deleted since the snapshot was
-     * taken, or [recomputeIfNeeded] finds nothing to do for its *current* state.
+     * Re-fetches [snapshotPlant] by id and, if it still exists and still needs fixing up, returns its
+     * [RecomputedBase]. `null` when the plant was deleted since the snapshot was taken, or
+     * [recomputeIfNeeded] finds nothing to do for its *current* state.
      */
     private suspend fun computeUpdate(
         snapshotPlant: Plant,
         request: FixupRequest,
         plantRepository: PlantRepository
-    ): PlantUpdate? {
+    ): RecomputedBase? {
         val currentPlant = plantRepository.getPlantById(snapshotPlant.id).first()
         return if (currentPlant == null) {
             null
         } else {
-            recomputeIfNeeded(currentPlant, request)?.let { PlantUpdate(currentPlant, it) }
+            recomputeIfNeeded(currentPlant, request)
         }
     }
 
@@ -157,6 +187,7 @@ object SeasonalGraduationFixup {
                 null
             } else {
                 RecomputedBase(
+                    plantId = plant.id,
                     beforeIntervalDays = beforeBase?.roundToInt() ?: literalInterval,
                     afterIntervalDays = newBase.roundToInt(),
                     newBase = newBase
@@ -172,7 +203,8 @@ object SeasonalGraduationFixup {
      * — running [run] a second time on a later calendar day would otherwise treat the literal
      * `wateringIntervalDays` as ground truth and re-derive a *different* base purely because "today"
      * moved, even though the currently-stored base is already correct. Returns `0` without touching
-     * the flag or any plant when the marker is already set.
+     * the flag or any plant when the marker is already set. See this class's own KDoc for the one
+     * scenario this gating still doesn't cover (a backup restore performed *after* `DONE` is set).
      *
      * Two more conditions gate whether this actually *marks* the DONE flag (#703 review), independent
      * of whether [run] itself found anything to change:
@@ -193,7 +225,8 @@ object SeasonalGraduationFixup {
      *   "can't safely auto-fix this install" decision — the flag is still marked done afterward (gated
      *   by the same non-empty/amplitude-on condition above), not a deferred retry. A user on such an
      *   install can self-correct any genuinely-stale plant by making one real edit to its interval,
-     *   which dual-writes correctly via the post-graduation code.
+     *   which dual-writes correctly via the post-graduation code. This check only sees the flag's
+     *   *current* value — see this class's own KDoc for the on-then-off case it can't catch.
      */
     suspend fun maybeRun(
         request: FixupRequest,

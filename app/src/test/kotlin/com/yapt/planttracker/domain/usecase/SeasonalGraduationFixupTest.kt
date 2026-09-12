@@ -74,7 +74,7 @@ class SeasonalGraduationFixupTest {
     fun `a plant with a stale base gets recomputed and logs an adjustment`() = runTest {
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         // Literal interval moved to 14 while the base stayed frozen at 7 (the #702 bug).
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
@@ -96,11 +96,17 @@ class SeasonalGraduationFixupTest {
         assertEquals(1, changedCount)
         val expectedBase = SeasonalWatering.deseasonalize(14.0, midYear, amplitude, hemisphere)
 
-        val updatedPlant = slot<Plant>()
-        coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-        assertEquals(expectedBase, updatedPlant.captured.wateringBaseIntervalDays!!, 0.0001)
-        assertEquals(14, updatedPlant.captured.wateringIntervalDays)
-        assertEquals(5_000L, updatedPlant.captured.updatedAt)
+        val idSlot = slot<Long>()
+        val baseSlot = slot<Double>()
+        val updatedAtSlot = slot<Long>()
+        coVerify(exactly = 1) {
+            plantRepository.updateWateringBaseInterval(capture(idSlot), capture(baseSlot), capture(updatedAtSlot))
+        }
+        assertEquals(stalePlant.id, idSlot.captured)
+        assertEquals(expectedBase, baseSlot.captured, 0.0001)
+        assertEquals(5_000L, updatedAtSlot.captured)
+        // The column-specific update is used instead of a full-row write (#703 review round 3).
+        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
 
         coVerify(exactly = 1) {
             wateringAdjustmentRepository.addAdjustment(
@@ -130,7 +136,7 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(0, changedCount)
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
@@ -152,7 +158,7 @@ class SeasonalGraduationFixupTest {
         assertEquals(0, changedCount)
         // amplitude == 0.0 short-circuits before ever touching the repository, so no fresh-fetch stub needed.
         coVerify(exactly = 0) { plantRepository.getPlantById(any()) }
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
@@ -173,7 +179,7 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(0, changedCount)
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
@@ -196,7 +202,7 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(0, changedCount)
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
@@ -208,7 +214,7 @@ class SeasonalGraduationFixupTest {
     fun `a base that rounds the same as the recompute but differs in raw value is still corrected`() = runTest {
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         val literalInterval = 14
         val expectedNewBase = SeasonalWatering.deseasonalize(
@@ -236,9 +242,9 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(1, changedCount)
-        val updatedPlant = slot<Plant>()
-        coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-        assertEquals(expectedNewBase, updatedPlant.captured.wateringBaseIntervalDays!!, 0.0001)
+        val baseSlot = slot<Double>()
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), capture(baseSlot), any()) }
+        assertEquals(expectedNewBase, baseSlot.captured, 0.0001)
     }
 
     @Test
@@ -258,22 +264,21 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(0, changedCount)
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
+    // #703 review round 3: eligibility must reflect a plant's *current* state, not the possibly-stale
+    // snapshot the caller passed in - this plant looks eligible in the snapshot but a concurrent edit
+    // (visible only via the fresh fetch) has since pinned it.
     @Test
-    fun `run writes based on the freshly-fetched plant, not the stale snapshot`() = runTest {
+    fun `eligibility is evaluated against the freshly-fetched plant, not the stale snapshot`() = runTest {
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
 
-        // The snapshot is stale: it still shows the old room, while a concurrent edit (reflected only
-        // in the fresh fetch) has since renamed it. The write must carry the fresh room forward, not
-        // silently revert it by copying from the stale snapshot object.
-        val staleSnapshot = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0).copy(room = "Living room")
-        val freshPlant = staleSnapshot.copy(room = "Bedroom")
-        every { plantRepository.getPlantById(staleSnapshot.id) } returns flowOf(freshPlant)
+        val staleSnapshot = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        val nowPinnedPlant = staleSnapshot.copy(pinIntervalToBase = true)
+        every { plantRepository.getPlantById(staleSnapshot.id) } returns flowOf(nowPinnedPlant)
         val request = SeasonalGraduationFixup.FixupRequest(
             plants = listOf(staleSnapshot),
             amplitude = amplitude,
@@ -283,10 +288,33 @@ class SeasonalGraduationFixupTest {
 
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
-        assertEquals(1, changedCount)
-        val updatedPlant = slot<Plant>()
-        coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-        assertEquals("Bedroom", updatedPlant.captured.room)
+        assertEquals(0, changedCount)
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
+    }
+
+    // #703 review round 3: the write must be the column-specific update, never a full-row write that
+    // could race and revert a concurrent edit to some other column - this asserts updatePlant() is
+    // never called by this code path at all, regardless of what other tests already show indirectly.
+    @Test
+    fun `run never issues a full-row updatePlant write`() = runTest {
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
+        val request = SeasonalGraduationFixup.FixupRequest(
+            plants = listOf(stalePlant),
+            amplitude = amplitude,
+            hemisphere = hemisphere,
+            today = midYear
+        )
+
+        SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
+
+        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
     }
 
     @Test
@@ -294,7 +322,7 @@ class SeasonalGraduationFixupTest {
         val dataStore = tempDataStore()
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         // The same stale plant instance is (deliberately) reused across both calls: if the flag didn't
         // gate the second call, run() would recompute against a different "today" and register another
@@ -314,7 +342,7 @@ class SeasonalGraduationFixupTest {
             dataStore
         )
         assertEquals(1, firstRunChanged)
-        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
 
         val secondRunChanged = SeasonalGraduationFixup.maybeRun(
             SeasonalGraduationFixup.FixupRequest(
@@ -329,7 +357,7 @@ class SeasonalGraduationFixupTest {
         )
         assertEquals(0, secondRunChanged)
         // Still exactly once, total - the second call never re-touched the plant.
-        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 1) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
@@ -411,7 +439,7 @@ class SeasonalGraduationFixupTest {
         val dataStore = tempDataStore()
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
         plantRepository.stubFreshFetch(stalePlant)
@@ -457,7 +485,7 @@ class SeasonalGraduationFixupTest {
 
         assertEquals(0, changedCount)
         coVerify(exactly = 0) { plantRepository.getPlantById(any()) }
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
         val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
         assertEquals(true, doneFlag)
@@ -468,7 +496,7 @@ class SeasonalGraduationFixupTest {
         val dataStore = tempDataStore()
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
         plantRepository.stubFreshFetch(stalePlant)
@@ -486,7 +514,7 @@ class SeasonalGraduationFixupTest {
         )
 
         assertEquals(1, changedCount)
-        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
     }
 
     @Test
@@ -495,7 +523,7 @@ class SeasonalGraduationFixupTest {
         dataStore.edit { it[legacyFlagKey] = false }
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { plantRepository.updateWateringBaseInterval(any(), any(), any()) } returns Unit
 
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
         plantRepository.stubFreshFetch(stalePlant)
@@ -513,6 +541,6 @@ class SeasonalGraduationFixupTest {
         )
 
         assertEquals(1, changedCount)
-        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
     }
 }
