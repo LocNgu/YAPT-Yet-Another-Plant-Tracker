@@ -78,5 +78,20 @@ enum class WateringAdjustmentTrigger {
      * the adaptive model is first evaluated for a plant with enough existing history, or once enough
      * post-reset history accumulates after a [REPOT_RESET]/[ROOM_CHANGE_RESET].
      */
-    HISTORY_BOOTSTRAP
+    HISTORY_BOOTSTRAP,
+
+    /**
+     * The one-time app-start backfill correcting the fallout of graduating `SEASONAL_WATERING` out of
+     * developer mode (#702) — [com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup]. Before
+     * graduation (#656), `seasonalAmplitudeFlow()` always returned `0.0` while the dev-mode flag was
+     * off (the default for every install), so every write path that dual-writes
+     * [Plant.wateringBaseIntervalDays] alongside a [Plant.wateringIntervalDays] edit or suggestion-apply
+     * silently skipped its `amplitude != 0.0` gate — leaving `wateringBaseIntervalDays` frozen at
+     * whatever `MIGRATION_10_11` (#569) set it to while the visible literal interval kept moving on
+     * every subsequent edit. This fixup re-anchors `wateringBaseIntervalDays` to today so the effective
+     * interval immediately after it runs equals the plant's current (correct) literal interval, exactly
+     * once, distinct from [HISTORY_BOOTSTRAP] (which reconstructs a base from watering-log history, not
+     * from reconciling a stale column against the literal interval).
+     */
+    SEASONAL_GRADUATION_FIXUP
 }
