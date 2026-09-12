@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
 
 // #568 added two small adaptive-watering helpers to this VM's one cohesive save flow; splitting
 // them out would scatter that flow across files for no readability gain.
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
@@ -45,7 +45,8 @@ class AddCareLogViewModel(
     private val dataStore: DataStore<Preferences>? = null,
     // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
     // safe no-ops for tests that don't pass one (#572).
-    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+    private val onWaterLogged: suspend (Long) -> Unit = {}
 ) : ViewModel() {
 
     val isEditMode = careLogId != 0L
@@ -143,7 +144,14 @@ class AddCareLogViewModel(
             if (selectedCareType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
 
             val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
+            schedulePostWateringReminderIfNeeded(willPairWater)
             _events.emit(Event.Saved(suggestedInterval))
+        }
+    }
+
+    private suspend fun schedulePostWateringReminderIfNeeded(willPairWater: Boolean) {
+        if (!isEditMode && (selectedCareType == CareType.WATER || willPairWater)) {
+            onWaterLogged(loggedAt)
         }
     }
 
@@ -392,13 +400,15 @@ class AddCareLogViewModel(
         data object NavigateBack : Event()
     }
 
+    @Suppress("LongParameterList")
     class Factory(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
         private val plantId: Long,
         private val careLogId: Long = 0L,
         private val dataStore: DataStore<Preferences>? = null,
-        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+        private val onWaterLogged: suspend (Long) -> Unit = {}
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -408,7 +418,8 @@ class AddCareLogViewModel(
                 plantId,
                 careLogId,
                 dataStore,
-                wateringAdjustmentRepository
+                wateringAdjustmentRepository,
+                onWaterLogged
             ) as T
     }
 

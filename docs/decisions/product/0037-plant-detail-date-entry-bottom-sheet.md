@@ -1,4 +1,4 @@
-# ADR-0035: "Log watering" date entry moves into a bottom sheet
+# Product ADR-0037: "Log watering" date entry moves into a bottom sheet
 
 **Status**: accepted
 

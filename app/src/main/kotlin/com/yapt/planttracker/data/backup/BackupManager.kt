@@ -16,6 +16,8 @@ import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.notification.PostWateringReminderPresentation
+import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -26,6 +28,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 16 (#519): postWateringReminderEnabled added to BackupSettings.
 // Schema 15 (#656 review): seasonalAmplitude added to BackupSettings — round-trips the user's
 // Off/Mild/Standard/Strong choice for the (now-unconditional, graduated #656) seasonal watering
 // curve. Old backups deserialize to "STANDARD", matching seasonalAmplitudeFlow()'s own default for
@@ -54,7 +57,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 15
+const val CURRENT_SCHEMA_VERSION = 16
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -115,6 +118,7 @@ class BackupManager(
             val fertilizingNotificationsEnabled = prefs[SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED] ?: true
             val askBeforeChangingIntervals = prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
             val seasonalAmplitude = prefs[SettingsKeys.SEASONAL_AMPLITUDE] ?: "STANDARD"
+            val postWateringReminderEnabled = prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true
 
             val photoMapping = mutableMapOf<String, String>()
             if (includePhotos) {
@@ -242,7 +246,8 @@ class BackupManager(
                     themeMode = themeMode,
                     fertilizingNotificationsEnabled = fertilizingNotificationsEnabled,
                     askBeforeChangingIntervals = askBeforeChangingIntervals,
-                    seasonalAmplitude = seasonalAmplitude
+                    seasonalAmplitude = seasonalAmplitude,
+                    postWateringReminderEnabled = postWateringReminderEnabled
                 )
             )
 
@@ -483,6 +488,8 @@ class BackupManager(
                     backup.settings.fertilizingNotificationsEnabled
                 prefs[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] = backup.settings.askBeforeChangingIntervals
                 prefs[SettingsKeys.SEASONAL_AMPLITUDE] = backup.settings.seasonalAmplitude
+                prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] =
+                    backup.settings.postWateringReminderEnabled
             }
 
             if (backup.settings.notificationsEnabled) {
@@ -490,6 +497,10 @@ class BackupManager(
             } else {
                 ReminderScheduler.cancel(context)
             }
+            // A pending reminder belongs to the pre-import care history, which was just replaced.
+            // Restoring historical WATER rows must never manufacture or retain an event-relative alert.
+            PostWateringReminderScheduler.cancel(context)
+            PostWateringReminderPresentation.clear(context, dataStore)
 
             BackupResult.ImportSuccess(backup.plants.size, backup.careLogs.size)
         } catch (e: Exception) {

@@ -65,6 +65,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_notifications_subtitle">Get notified when plants need care</string>
+    <string name="post_watering_reminder_title">Drain-water reminder</string>
+    <string name="post_watering_reminder_subtitle">Remind me 30 minutes after watering to empty plant saucers</string>
     <!-- Seasonal watering amplitude setting (#569); always visible (#656) -->
     <string name="settings_section_seasonal_watering">Seasonal watering</string>
     <string name="seasonal_amplitude_subtitle">How much watering intervals stretch in winter and compress in summer</string>
@@ -148,6 +150,8 @@
     <string name="notification_action_watered">Watered</string>
     <string name="notification_action_still_moist">Still moist</string>
     <string name="notification_action_not_now">Not now</string>
+    <string name="post_watering_notification_title">Check for standing water</string>
+    <string name="post_watering_notification_body">Pour away any excess water collected in your plant saucers.</string>
     <string name="water_feedback_sheet_title">Water %s?</string>
     <string name="water_fertilize_feedback_sheet_title">Water &amp; fertilize %s?</string>
     <string name="quick_water_log">Log</string>
@@ -495,6 +499,9 @@
     <string name="dev_mode_action_run_reminder_check_subtitle">Posts real notifications for any plant that\'s due</string>
     <string name="dev_mode_run_reminder_check_snackbar">Reminder check enqueued</string>
     <string name="dev_mode_run_reminder_check_denied_snackbar">Notifications are disabled for this app, so no reminder was posted</string>
+    <string name="dev_mode_action_show_drain_water_reminder_title">Show drain-water reminder now</string>
+    <string name="dev_mode_action_show_drain_water_reminder_subtitle">Displays the foreground reminder modal immediately</string>
+    <string name="dev_mode_show_drain_water_reminder_snackbar">Drain-water reminder shown</string>
     <string name="dev_mode_action_seed_demo_title">Seed demo plants</string>
     <string name="dev_mode_action_seed_demo_subtitle">Replaces any existing demo plants with a fresh 10-plant dataset</string>
     <string name="dev_mode_seed_demo_confirm_title">Seed demo plants?</string>

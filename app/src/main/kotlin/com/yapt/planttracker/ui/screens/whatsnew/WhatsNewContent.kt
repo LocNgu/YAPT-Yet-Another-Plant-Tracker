@@ -13,31 +13,40 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
-        added = listOf(
-            "The Repot and Photo tabs on Plant Detail now have their own quick actions — Repot logs " +
-                "immediately, while Add photo opens the existing log screen with Photo already selected"
-        ),
         changed = listOf(
-            "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +
-                "picker in Settings are now always on — no more developer-mode flag to turn it on. Existing " +
-                "unpinned plants without an explicit amplitude choice now default to Standard seasonal " +
-                "adjustment; use Settings, or a plant's own \"Pin interval\" switch, to opt back out",
-            "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
-                "always on — no more developer-mode flag to turn it on",
             "The \"Log watering\" date picker now slides up as a bottom sheet instead of popping up as a " +
                 "centered dialog, matching the style of the other prompts on Plant Detail"
-        ),
-        fixed = listOf(
-            "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
-                "later watering: backfilling an old watering no longer discards an unrelated active " +
-                "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
-                "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
-                "entry no longer shows a briefly stale \"currently every N days\" figure"
         )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 450,
+            versionName = "0.29.0",
+            added = listOf(
+                "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
+                    "check plant saucers and pour away standing water. It appears in the app while YAPT is open " +
+                    "or as a notification in the background, and can be turned off in Settings → Reminders",
+                "The Repot and Photo tabs on Plant Detail now have their own quick actions — Repot logs " +
+                    "immediately, while Add photo opens the existing log screen with Photo already selected"
+            ),
+            changed = listOf(
+                "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +
+                    "picker in Settings are now always on — no more developer-mode flag to turn it on. Existing " +
+                    "unpinned plants without an explicit amplitude choice now default to Standard seasonal " +
+                    "adjustment; use Settings, or a plant's own \"Pin interval\" switch, to opt back out",
+                "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
+                    "always on — no more developer-mode flag to turn it on"
+            ),
+            fixed = listOf(
+                "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
+                    "later watering: backfilling an old watering no longer discards an unrelated active " +
+                    "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
+                    "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
+                    "entry no longer shows a briefly stale \"currently every N days\" figure"
+            )
+        ),
         ReleaseNotes(
             versionCode = 440,
             versionName = "0.28.0",
