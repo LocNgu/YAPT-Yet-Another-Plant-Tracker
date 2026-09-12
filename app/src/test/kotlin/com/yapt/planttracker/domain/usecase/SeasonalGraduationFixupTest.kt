@@ -1,6 +1,9 @@
 package com.yapt.planttracker.domain.usecase
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
@@ -9,10 +12,13 @@ import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -21,9 +27,9 @@ import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
- * Pure-JVM tests for [SeasonalGraduationFixup] (#702) — the one-time backfill correcting
- * [Plant.wateringBaseIntervalDays] left stale by `SEASONAL_WATERING` graduating (#656) out of
- * developer mode. See technical/product ADR references in the class KDoc.
+ * Pure-JVM tests for [SeasonalGraduationFixup] (#702, hardened #703) — the one-time backfill
+ * correcting [Plant.wateringBaseIntervalDays] left stale by `SEASONAL_WATERING` graduating (#656) out
+ * of developer mode. See technical/product ADR references in the class KDoc.
  */
 class SeasonalGraduationFixupTest {
 
@@ -31,13 +37,15 @@ class SeasonalGraduationFixupTest {
     private val midYear = LocalDate.of(2024, 7, 5)
     private val amplitude = 0.5
     private val hemisphere = Hemisphere.NORTHERN
+    private val legacyFlagKey = booleanPreferencesKey("feature_flag_seasonal_watering")
 
     private fun plant(
+        id: Long = 1L,
         wateringIntervalDays: Int?,
         wateringBaseIntervalDays: Double? = null,
         pinIntervalToBase: Boolean = false
     ) = Plant(
-        id = 1L,
+        id = id,
         name = "Monstera",
         wateringIntervalDays = wateringIntervalDays,
         wateringBaseIntervalDays = wateringBaseIntervalDays,
@@ -45,6 +53,22 @@ class SeasonalGraduationFixupTest {
         createdAt = 0L,
         updatedAt = 0L
     )
+
+    /** [run]/[computeUpdate] re-fetch every plant by id before acting on it (#703) - every test stubs this. */
+    private fun PlantRepository.stubFreshFetch(vararg plants: Plant) {
+        for (plant in plants) {
+            every { getPlantById(plant.id) } returns flowOf(plant)
+        }
+    }
+
+    private fun tempDataStore() = run {
+        val dataStoreFile = File.createTempFile("seasonal_graduation_fixup_test_", ".preferences_pb")
+        dataStoreFile.deleteOnExit()
+        PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            produceFile = { dataStoreFile }
+        )
+    }
 
     @Test
     fun `a plant with a stale base gets recomputed and logs an adjustment`() = runTest {
@@ -54,6 +78,7 @@ class SeasonalGraduationFixupTest {
 
         // Literal interval moved to 14 while the base stayed frozen at 7 (the #702 bug).
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
         val request = SeasonalGraduationFixup.FixupRequest(
             plants = listOf(stalePlant),
             amplitude = amplitude,
@@ -94,6 +119,7 @@ class SeasonalGraduationFixupTest {
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
 
         val pinnedPlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0, pinIntervalToBase = true)
+        plantRepository.stubFreshFetch(pinnedPlant)
         val request = SeasonalGraduationFixup.FixupRequest(
             plants = listOf(pinnedPlant),
             amplitude = amplitude,
@@ -124,6 +150,8 @@ class SeasonalGraduationFixupTest {
         val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
 
         assertEquals(0, changedCount)
+        // amplitude == 0.0 short-circuits before ever touching the repository, so no fresh-fetch stub needed.
+        coVerify(exactly = 0) { plantRepository.getPlantById(any()) }
         coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
@@ -134,6 +162,7 @@ class SeasonalGraduationFixupTest {
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
 
         val neverConfiguredPlant = plant(wateringIntervalDays = null, wateringBaseIntervalDays = null)
+        plantRepository.stubFreshFetch(neverConfiguredPlant)
         val request = SeasonalGraduationFixup.FixupRequest(
             plants = listOf(neverConfiguredPlant),
             amplitude = amplitude,
@@ -156,6 +185,7 @@ class SeasonalGraduationFixupTest {
         // The base already matches what re-anchoring to today would produce - nothing to fix.
         val expectedBase = SeasonalWatering.deseasonalize(14.0, midYear, amplitude, hemisphere)
         val alreadyCorrectPlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = expectedBase)
+        plantRepository.stubFreshFetch(alreadyCorrectPlant)
         val request = SeasonalGraduationFixup.FixupRequest(
             plants = listOf(alreadyCorrectPlant),
             amplitude = amplitude,
@@ -170,14 +200,98 @@ class SeasonalGraduationFixupTest {
         coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
     }
 
+    // #703 review: comparing rounded ints could mask a base that rounds the same as the recomputed
+    // value but is a genuinely different raw Double - which can diverge meaningfully once multiplied
+    // by the seasonal curve. This plant's stored base and the freshly-recomputed base round to the
+    // same day count but are not equal, so the fixup must still correct it.
+    @Test
+    fun `a base that rounds the same as the recompute but differs in raw value is still corrected`() = runTest {
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+        val literalInterval = 14
+        val expectedNewBase = SeasonalWatering.deseasonalize(
+            literalInterval.toDouble(),
+            midYear,
+            amplitude,
+            hemisphere
+        )
+        val nudgedBeforeBase = expectedNewBase + 0.3
+        // Sanity-check the fixture: same rounded day count, genuinely different raw values.
+        assertEquals(expectedNewBase.roundToInt(), nudgedBeforeBase.roundToInt())
+
+        val plantWithNudgedBase = plant(
+            wateringIntervalDays = literalInterval,
+            wateringBaseIntervalDays = nudgedBeforeBase
+        )
+        plantRepository.stubFreshFetch(plantWithNudgedBase)
+        val request = SeasonalGraduationFixup.FixupRequest(
+            plants = listOf(plantWithNudgedBase),
+            amplitude = amplitude,
+            hemisphere = hemisphere,
+            today = midYear
+        )
+
+        val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
+
+        assertEquals(1, changedCount)
+        val updatedPlant = slot<Plant>()
+        coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
+        assertEquals(expectedNewBase, updatedPlant.captured.wateringBaseIntervalDays!!, 0.0001)
+    }
+
+    @Test
+    fun `a plant deleted since the snapshot was taken is skipped`() = runTest {
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+
+        val deletedPlant = plant(id = 42L, wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        every { plantRepository.getPlantById(42L) } returns flowOf(null)
+        val request = SeasonalGraduationFixup.FixupRequest(
+            plants = listOf(deletedPlant),
+            amplitude = amplitude,
+            hemisphere = hemisphere,
+            today = midYear
+        )
+
+        val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
+
+        assertEquals(0, changedCount)
+        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
+    }
+
+    @Test
+    fun `run writes based on the freshly-fetched plant, not the stale snapshot`() = runTest {
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+        // The snapshot is stale: it still shows the old room, while a concurrent edit (reflected only
+        // in the fresh fetch) has since renamed it. The write must carry the fresh room forward, not
+        // silently revert it by copying from the stale snapshot object.
+        val staleSnapshot = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0).copy(room = "Living room")
+        val freshPlant = staleSnapshot.copy(room = "Bedroom")
+        every { plantRepository.getPlantById(staleSnapshot.id) } returns flowOf(freshPlant)
+        val request = SeasonalGraduationFixup.FixupRequest(
+            plants = listOf(staleSnapshot),
+            amplitude = amplitude,
+            hemisphere = hemisphere,
+            today = midYear
+        )
+
+        val changedCount = SeasonalGraduationFixup.run(request, plantRepository, wateringAdjustmentRepository)
+
+        assertEquals(1, changedCount)
+        val updatedPlant = slot<Plant>()
+        coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
+        assertEquals("Bedroom", updatedPlant.captured.room)
+    }
+
     @Test
     fun `maybeRun's flag prevents a second run from re-touching an already-fixed-up plant`() = runTest {
-        val dataStoreFile = File.createTempFile("seasonal_graduation_fixup_test_", ".preferences_pb")
-        dataStoreFile.deleteOnExit()
-        val dataStore = PreferenceDataStoreFactory.create(
-            scope = CoroutineScope(Dispatchers.Unconfined),
-            produceFile = { dataStoreFile }
-        )
+        val dataStore = tempDataStore()
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
         coEvery { plantRepository.updatePlant(any()) } returns Unit
@@ -186,6 +300,7 @@ class SeasonalGraduationFixupTest {
         // gate the second call, run() would recompute against a different "today" and register another
         // change, since the object passed in never reflects the first call's write.
         val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
 
         val firstRunChanged = SeasonalGraduationFixup.maybeRun(
             SeasonalGraduationFixup.FixupRequest(
@@ -216,5 +331,188 @@ class SeasonalGraduationFixupTest {
         // Still exactly once, total - the second call never re-touched the plant.
         coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
         coVerify(exactly = 1) { wateringAdjustmentRepository.addAdjustment(any()) }
+    }
+
+    // --- #703 review: done-flag gating on empty plants / amplitude Off ---
+
+    @Test
+    fun `maybeRun does not mark done on a fresh install with an empty plant list`() = runTest {
+        val dataStore = tempDataStore()
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = emptyList(),
+                amplitude = amplitude,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(0, changedCount)
+        val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
+        assertEquals(null, doneFlag)
+    }
+
+    @Test
+    fun `maybeRun does not mark done while amplitude is Off`() = runTest {
+        val dataStore = tempDataStore()
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(stalePlant),
+                amplitude = 0.0,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(0, changedCount)
+        val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
+        assertEquals(null, doneFlag)
+    }
+
+    @Test
+    fun `maybeRun does not mark done when both plants are empty and amplitude is Off`() = runTest {
+        val dataStore = tempDataStore()
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = emptyList(),
+                amplitude = 0.0,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(0, changedCount)
+        val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
+        assertEquals(null, doneFlag)
+    }
+
+    @Test
+    fun `maybeRun marks done on a normal non-empty, amplitude-on run`() = runTest {
+        val dataStore = tempDataStore()
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
+
+        SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(stalePlant),
+                amplitude = amplitude,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
+        assertEquals(true, doneFlag)
+    }
+
+    // --- #703 review: legacy dev-mode flag skip ---
+
+    @Test
+    fun `maybeRun skips every plant but still marks done when the legacy flag was ever on`() = runTest {
+        val dataStore = tempDataStore()
+        dataStore.edit { it[legacyFlagKey] = true }
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(stalePlant),
+                amplitude = amplitude,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(0, changedCount)
+        coVerify(exactly = 0) { plantRepository.getPlantById(any()) }
+        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepository.addAdjustment(any()) }
+        val doneFlag = dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE]
+        assertEquals(true, doneFlag)
+    }
+
+    @Test
+    fun `maybeRun proceeds normally when the legacy flag was never set`() = runTest {
+        val dataStore = tempDataStore()
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(stalePlant),
+                amplitude = amplitude,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(1, changedCount)
+        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+    }
+
+    @Test
+    fun `maybeRun proceeds normally when the legacy flag was explicitly set to false`() = runTest {
+        val dataStore = tempDataStore()
+        dataStore.edit { it[legacyFlagKey] = false }
+        val plantRepository: PlantRepository = mockk(relaxed = true)
+        val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+        coEvery { plantRepository.updatePlant(any()) } returns Unit
+
+        val stalePlant = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+        plantRepository.stubFreshFetch(stalePlant)
+
+        val changedCount = SeasonalGraduationFixup.maybeRun(
+            SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(stalePlant),
+                amplitude = amplitude,
+                hemisphere = hemisphere,
+                today = midYear
+            ),
+            plantRepository,
+            wateringAdjustmentRepository,
+            dataStore
+        )
+
+        assertEquals(1, changedCount)
+        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
     }
 }

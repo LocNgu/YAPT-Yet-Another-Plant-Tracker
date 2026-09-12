@@ -105,6 +105,37 @@ no `wateringIntervalDays`, amplitude Off, or a plant whose base is already in sy
 from `HISTORY_BOOTSTRAP` since the two reconcile from different sources (a stale column vs. replayed
 watering-log history). Not a schema change — no new column, no migration/DB version bump.
 
+**Hardening follow-up (#703 review, same PR):** four gaps found on the initial version:
+- **`maybeRun()`'s `DONE` flag is only set when `request.amplitude != 0.0 && request.plants.isNotEmpty()`**
+  — not unconditionally after every call. A brand-new install has an empty plant list (nothing to
+  iterate yet, not "verified correct"), and amplitude Off has nothing to de-seasonalize; marking done in
+  either case would permanently block a later `.yapt` restore (which can import pre-graduation, stale
+  bases) or a later switch to a non-Off amplitude from ever being reconciled. The flag only latches once
+  a real pass over a non-empty, amplitude-on install has actually happened.
+- **`run()` re-fetches each plant fresh via `PlantRepository.getPlantById(id).first()`** immediately
+  before evaluating eligibility and writing, rather than trusting the `FixupRequest.plants` snapshot
+  the caller took — this runs asynchronously from `onCreate()` on a background dispatcher while the UI
+  can concurrently edit/archive/quick-log the same plants, so a stale-snapshot `.copy()` could silently
+  revert an unrelated concurrent write. Same bug class as `QuickLogUseCase`'s `clearWateringOverrideIfActive()`
+  fix (`.claude/rules/watering-transparency.md`'s "#612/#613/#614" note) and `AddEditPlantViewModel
+  .saveEdit()`'s `getPlantById(...).first()` precedent. A plant deleted since the snapshot (fetch
+  returns `null`) is skipped.
+- **The no-op/skip check compares raw, unrounded `Double`s (`beforeBase == newBase`), not rounded ints**
+  — two bases that round to the same day count (e.g. `7.0` vs `7.4`) can still diverge meaningfully once
+  multiplied by the seasonal curve, so rounding before comparing could mask a real, permanently-missed
+  correction (the `DONE` flag never gives it a second chance). `beforeIntervalDays`/`afterIntervalDays`
+  on the logged `WateringAdjustment` row stay rounded ints — only the skip *decision* uses raw values.
+- **A legacy `feature_flag_seasonal_watering` DataStore boolean (the pre-#656 `SEASONAL_WATERING` flag's
+  key, never deleted by removing it from `FeatureFlagRegistry` — DataStore doesn't garbage-collect keys
+  code stops referencing) having ever been `true` skips the entire fixup for every plant on that install**,
+  read via a private literal key lookup local to this fixup (not reintroduced into the registry). If that
+  flag was ever on, the pre-graduation write paths were already correctly dual-writing
+  `wateringBaseIntervalDays` for whatever plants were touched while it was, and this fixup has no way to
+  tell a genuinely-stale base apart from one already correctly anchored to some other, unrecorded edit
+  day. This is a deliberate, permanent "can't safely auto-fix this install" decision (the `DONE` flag is
+  still marked, subject to the same non-empty/amplitude-on gating above) — an affected user self-corrects
+  a genuinely-stale plant by making one real edit to its interval, which now dual-writes correctly.
+
 ## Settings UI
 Amplitude picker is a normal (non-Developer-section) `SettingsScreen` row, always visible
 (`SettingsViewModel.seasonalAmplitude` StateFlow + `setSeasonalAmplitude()`), takes effect immediately
