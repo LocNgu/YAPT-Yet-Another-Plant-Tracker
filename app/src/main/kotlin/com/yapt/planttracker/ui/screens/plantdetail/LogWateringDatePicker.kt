@@ -1,15 +1,27 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import java.time.Instant
 import java.time.LocalDate
@@ -25,7 +37,7 @@ import java.util.TimeZone
  * `.claude/rules/plant-detail.md`).
  */
 
-/** Locates [LogWateringDatePickerDialog]'s `DatePickerDialog` in Compose UI tests. */
+/** Locates [LogWateringDatePickerDialog]'s `ModalBottomSheet` in Compose UI tests. */
 internal const val LOG_WATERING_DATE_PICKER_TEST_TAG = "log_watering_date_picker_dialog"
 
 /**
@@ -74,12 +86,26 @@ internal fun localTodayAsUtcMidnightMillis(
  * (shouldn't happen once a day is pre-selected, but mirrors `RescheduleDatePickerDialog`'s existing
  * null-safety for the same picker API).
  *
- * Uses `DatePicker`'s default `title` (no override), matching `AddCareLogScreen`'s own picker exactly
- * (#654 UI feedback): a custom `title` slot replaces Material3's own title composable entirely, losing
- * the padding that composable applies internally — with a bare `Text`, that meant "Log watering" sat
- * flush against the dialog's rounded top corner, partly clipped. `AddCareLogScreen` never had this bug
- * because it never overrides `title`.
+ * Presented in a `ModalBottomSheet` (#675) rather than a centered `DatePickerDialog`, matching the
+ * bottom-sheet convention the rest of Plant Detail's action prompts use (`WateringReasonBottomSheet`,
+ * `RescheduleReasonBottomSheet`, `WateringExplanationSheet`) — see `.claude/rules/plant-detail.md`'s
+ * `Follow-up (#675)` note. Uses `DatePicker`'s default `title` (no override): the earlier `DatePickerDialog`
+ * container had a custom-`title`-slot clipping bug (#654 UI feedback — a custom `title` slot replaces
+ * Material3's own title composable entirely, losing the padding that composable applies internally, so a
+ * bare `Text` sat flush against the dialog's rounded top corner), which no longer applies now that
+ * `DatePicker` sits directly inside a sheet `Column` rather than a `DatePickerDialog`, but the default-title
+ * choice itself is unchanged and still matches `AddCareLogScreen`'s own picker.
+ *
+ * The `DatePicker` sits in its own inner `Column` (`Modifier.weight(1f, fill = false).verticalScroll(...)`),
+ * not the outer sheet `Column` directly (external review, PR #696): `skipPartiallyExpanded = true` alone
+ * only removes the sheet's partial-expansion anchor, it does not shrink oversized content to fit, so a
+ * viewport shorter than the full ~568dp `DatePicker` (landscape, a resized multi-window) would otherwise
+ * clip the Cancel/OK row below the visible sheet with no way to confirm or cancel. `weight(1f, fill =
+ * false)` caps the inner `Column` at whatever height remains after the always-visible button row is
+ * measured — letting the calendar scroll internally when it doesn't fit — without forcing the sheet to
+ * full height when the calendar comfortably fits on a normal portrait phone.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LogWateringDatePickerDialog(
     onDismiss: () -> Unit,
@@ -89,24 +115,37 @@ internal fun LogWateringDatePickerDialog(
         initialSelectedDateMillis = localTodayAsUtcMidnightMillis(),
         selectableDates = TodayOrEarlierSelectableDates
     )
-    DatePickerDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    datePickerState.selectedDateMillis?.let { utcMidnightMs ->
-                        onConfirm(utcMidnightMsToLoggedAtMillis(utcMidnightMs))
-                    }
-                    onDismiss()
-                }
-            ) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
     ) {
-        DatePicker(state = datePickerState)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                DatePicker(state = datePickerState)
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { utcMidnightMs ->
+                            onConfirm(utcMidnightMsToLoggedAtMillis(utcMidnightMs))
+                        }
+                        onDismiss()
+                    }
+                ) { Text(stringResource(R.string.ok)) }
+            }
+        }
     }
 }
 

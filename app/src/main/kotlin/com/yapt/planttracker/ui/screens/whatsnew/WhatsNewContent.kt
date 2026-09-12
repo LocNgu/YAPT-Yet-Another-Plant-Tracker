@@ -13,6 +13,10 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "The \"Log watering\" date picker now slides up as a bottom sheet instead of popping up as a " +
+                "centered dialog, matching the style of the other prompts on Plant Detail"
+        ),
         fixed = listOf(
             "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
                 "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
