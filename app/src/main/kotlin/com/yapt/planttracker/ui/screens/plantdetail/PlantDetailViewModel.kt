@@ -319,6 +319,31 @@ class PlantDetailViewModel(
     }
 
     /**
+     * The Photo tab's Add-photo sheet (#694) writes its PHOTO [CareLog] directly here rather than
+     * navigating to `AddCareLogScreen` — see the issue's spec-clarification comment (in place, not a
+     * navigation). Modelled on [saveReminderPhoto] but deliberately diverges on two points: [loggedAt]
+     * is the date picked in the sheet (not always "now"), and there is **no**
+     * [plantPhotoRepository.addPhoto] call — the unified `PhotoGallery` already merges `plant_photos`
+     * with care-log photos (technical ADR-0015), so writing both would list the same image twice in the
+     * Photo tab. [Plant.updatedAt] stays real wall-clock time even for a backdated photo, matching
+     * every other cover-photo write on this screen.
+     */
+    fun savePhotoLog(uri: Uri, loggedAt: Long) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = p.id,
+                    careType = CareType.PHOTO,
+                    loggedAt = loggedAt,
+                    photoUri = uri.toString()
+                )
+            )
+            plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = System.currentTimeMillis()))
+        }
+    }
+
+    /**
      * Quick-logs a watering with [reason] from the "Log watering" date picker (#654; previously the
      * tappable watering stat chip's instant fast path, `null` when the watering was on schedule and no
      * reason prompt appeared, #586). [loggedAt] defaults to "now" but the date picker always passes the
@@ -366,16 +391,19 @@ class PlantDetailViewModel(
     }
 
     /**
-     * Quick-logs a repot from the Repot tab (#658). [QuickLogUseCase.quickLog] is intentionally the
-     * entry point: its REPOT path also applies
+     * Quick-logs a repot from the Repot tab's date picker (#658, #694). [QuickLogUseCase.quickLog] is
+     * intentionally the entry point: its REPOT path also applies
      * [com.yapt.planttracker.domain.usecase.WateringLifecycleReset], so this shortcut cannot bypass
      * the same confidence reset and freeze window as manual logging. REPOT is not same-day duplicate
-     * guarded, matching every existing quick-log surface.
+     * guarded, matching every existing quick-log surface. [loggedAt] defaults to "now" but the Repot
+     * tab's date picker always passes the date the user picked — that same value anchors the
+     * watering-lifecycle reset's `wateringResetAt`/`wateringFreezeUntil`, mirroring [quickWater]'s
+     * [loggedAt] threading.
      */
-    fun quickRepot() {
+    fun quickRepot(loggedAt: Long = System.currentTimeMillis()) {
         viewModelScope.launch {
             val p = plant.value ?: return@launch
-            val outcome = quickLogUseCase.quickLog(p, CareType.REPOT)
+            val outcome = quickLogUseCase.quickLog(p, CareType.REPOT, loggedAt)
             if (!outcome.logged) return@launch
             _quickLogMessage.emit(QuickLogMessage.Repotted(p.name))
             maybeTriggerPhotoReminder(p.id)

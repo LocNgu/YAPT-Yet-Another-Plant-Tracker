@@ -397,7 +397,7 @@ class PlantDetailViewModelTest {
     fun `quickFertilize logs fertilize via use case and emits message`() = runTest {
         val monstera = plant().copy(fertilizingIntervalDays = 30)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true, waterPaired = false)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -412,14 +412,14 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) }
     }
 
     @Test
     fun `quickFertilize on a liquid-fertilizer plant emits the combined message`() = runTest {
         val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -437,14 +437,14 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) }
     }
 
     @Test
     fun `quickRepot delegates to shared use case and emits message`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.REPOT) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.REPOT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Repotted Monstera", logged = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -459,7 +459,32 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.REPOT) }
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.REPOT, any()) }
+    }
+
+    // #694: the Repot tab's date picker forwards its picked date straight through to the shared
+    // use case, mirroring quickWater/quickLiquidFertilize's existing loggedAt threading.
+    @Test
+    fun `quickRepot forwards the picked loggedAt to the shared use case`() = runTest {
+        val monstera = plant()
+        val pickedLoggedAt = 123_456_789L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.REPOT, pickedLoggedAt) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Repotted Monstera", logged = true)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickLogMessage.test {
+                vm.quickRepot(pickedLoggedAt)
+                assertEquals(PlantDetailViewModel.QuickLogMessage.Repotted("Monstera"), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.REPOT, pickedLoggedAt) }
     }
 
     @Test
@@ -640,6 +665,44 @@ class PlantDetailViewModelTest {
             plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
         }
     }
+
+    // #694: the Photo tab's Add-photo sheet logs in place rather than navigating to
+    // AddCareLogScreen — see product ADR-0038. Unlike saveReminderPhoto, this never writes a
+    // plant_photos row (the unified PhotoGallery already merges care-log photos, ADR-0015) and
+    // carries the sheet's own picked loggedAt rather than always "now".
+    @Test
+    fun `savePhotoLog adds a PHOTO care log at the picked date and updates cover, without touching plantPhotoRepository`() =
+        runTest {
+            val monstera = plant()
+            val pickedLoggedAt = 111_222_333L
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.addLog(any()) } returns 1L
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = makeVm()
+            val uri: Uri = mockk()
+            every { uri.toString() } returns "content://add-photo.jpg"
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.savePhotoLog(uri, pickedLoggedAt)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                careLogRepo.addLog(
+                    match {
+                        it.careType == CareType.PHOTO &&
+                            it.photoUri == "content://add-photo.jpg" &&
+                            it.plantId == 1L &&
+                            it.loggedAt == pickedLoggedAt
+                    }
+                )
+            }
+            coVerify {
+                plantRepo.updatePlant(match { it.coverPhotoUri == "content://add-photo.jpg" })
+            }
+            coVerify(exactly = 0) { plantPhotoRepo.addPhoto(any()) }
+        }
 
     @Test
     fun `deletePhoto care log photo nulls out photoUri via updateLog`() = runTest {

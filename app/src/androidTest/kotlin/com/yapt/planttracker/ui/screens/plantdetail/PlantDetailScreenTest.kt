@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -1202,7 +1203,7 @@ class PlantDetailScreenTest {
         // relaxed mocking fills unstubbed Booleans with false, which would read as "already logged
         // today" here. Stub the outcome explicitly so this test exercises the logged-successfully path.
         coEvery {
-            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE)
+            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE, any())
         } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
 
         composeTestRule.setContent {
@@ -1484,7 +1485,7 @@ class PlantDetailScreenTest {
     @Test
     fun repotTab_actionQuickLogsRepot() {
         val plant = Plant(id = 42L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
-        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) } returns
+        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.REPOT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Repotted Yucca", logged = true)
         coEvery { mockQuickLogUseCase.maybeBuildPhotoReminderRequest(plant.id) } returns null
         val viewModel = makeViewModel(plant)
@@ -1509,11 +1510,53 @@ class PlantDetailScreenTest {
             .assertHasClickAction()
             .performClick()
 
-        coVerify(timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) }
+        // #694: the date picker opens first — nothing is logged yet.
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(REPOT_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.REPOT, any()) }
+
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+
+        coVerify(timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.REPOT, any()) }
     }
 
     @Test
-    fun photoTab_actionNavigatesToPhotoLog() {
+    fun repotTab_dismissingDatePicker_doesNotLog() {
+        val plant = Plant(id = 42L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
+        composeTestRule.onNodeWithText("Repot").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.REPOT, any()) }
+    }
+
+    @Test
+    fun photoTab_actionOpensAddPhotoSheet() {
         val plant = Plant(id = 43L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
         var navigationRequested = false
@@ -1538,8 +1581,16 @@ class PlantDetailScreenTest {
             .assertHasClickAction()
             .performClick()
 
-        assertTrue(navigationRequested)
-        assertEquals(CareType.PHOTO, viewModel.consumeNewLogCareType())
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(ADD_PHOTO_SHEET_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(ADD_PHOTO_SHEET_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(ADD_PHOTO_DATE_ROW_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.photo_source_take_photo)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.photo_source_choose_gallery)).assertIsDisplayed()
+
+        assertFalse(navigationRequested)
     }
 
     @Test
