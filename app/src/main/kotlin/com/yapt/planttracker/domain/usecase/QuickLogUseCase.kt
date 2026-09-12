@@ -468,6 +468,46 @@ class QuickLogUseCase(
     }
 
     /**
+     * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
+     * outside it) — the single write path shared by the Plant Detail, Calendar, and Plant List
+     * dismiss actions (#674). Before this fix each of the three screens carried its own copy of the
+     * confidence bump, but only Plant Detail's also wrote the matching
+     * [WateringAdjustmentTrigger.DIALOG_DISMISSAL] row — Calendar and Plant List silently changed
+     * confidence with no entry ever surfacing in the "Why this date?" sheet's "Recent adjustments"
+     * list. Now there is exactly one implementation.
+     *
+     * A genuine dismissal raises [Plant.wateringConfidence] up to
+     * [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] (#568) — the user is saying the current schedule is
+     * fine — and, only when [Plant.wateringIntervalDays] is configured, writes a no-op
+     * [WateringAdjustment] row (`beforeIntervalDays == afterIntervalDays`, the base-space reference via
+     * [currentAdaptiveBaseIntervalDays], mirroring [applyWateringIntervalSuggestion]'s own row) so
+     * "Recent adjustments" reflects the dismissal even though nothing about the interval itself moved.
+     * Returns the freshly-persisted [Plant] so each caller can update its own ViewModel-scoped state
+     * off the same value rather than re-fetching.
+     */
+    suspend fun recordWateringSuggestionDismissal(plant: Plant): Plant {
+        val now = System.currentTimeMillis()
+        val updated = plant.copy(
+            wateringConfidence = CareSchedule.confidenceAfterDismissal(plant.wateringConfidence),
+            updatedAt = now
+        )
+        plantRepository.updatePlant(updated)
+        plant.wateringIntervalDays?.let { current ->
+            val currentBase = currentAdaptiveBaseIntervalDays(plant, current)
+            wateringAdjustmentRepository.addAdjustment(
+                WateringAdjustment(
+                    plantId = plant.id,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
+                    beforeIntervalDays = currentBase,
+                    afterIntervalDays = currentBase
+                )
+            )
+        }
+        return updated
+    }
+
+    /**
      * Records a "Soil still moist" observation: a [CareType.CHECK] log (`wateringFeedback = TOO_SOON`
      * — the plant was checked and not watered) and a [Plant.wateringDueDateOverride] set to
      * [newDueAtMillis]. Reached from the Reschedule reason prompt in the app (#586, product ADR-0030)

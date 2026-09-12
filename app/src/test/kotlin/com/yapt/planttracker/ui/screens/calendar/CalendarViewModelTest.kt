@@ -20,9 +20,7 @@ import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -297,12 +295,11 @@ class CalendarViewModelTest {
         assertEquals(month, vm.visibleMonth.value)
     }
 
-    // dismissSuggestedInterval mirrors PlantDetailViewModel's equivalent (#568 comment 5) so the
-    // ADR-0006 dialog has the same confidence effect regardless of which of the three screens it was
-    // shown from. applySuggestedInterval's write-path math-correctness coverage (base dual-write,
-    // effective-space conversion, confidence math, WateringAdjustment row shape) now lives in
-    // QuickLogUseCaseIntervalApplyTest, against QuickLogUseCase.applyWateringIntervalSuggestion()
-    // directly (#631) — applySuggestedInterval() is a thin delegation to that shared function now.
+    // dismissSuggestedInterval/applySuggestedInterval are thin delegations to QuickLogUseCase's shared
+    // functions so the ADR-0006 dialog has the same confidence effect (and, for dismissal, the same
+    // WateringAdjustment row, #674) regardless of which of the three screens it was shown from.
+    // Write-path math-correctness coverage lives in QuickLogUseCaseIntervalApplyTest (#631) and
+    // QuickLogUseCaseDismissalTest (#674), directly against QuickLogUseCase.
 
     @Test
     fun `applySuggestedInterval delegates to QuickLogUseCase with the resolved plant`() = runTest {
@@ -324,16 +321,17 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun `dismissSuggestedInterval raises confidence`() = runTest {
+    fun `dismissSuggestedInterval delegates to QuickLogUseCase with the resolved plant`() = runTest {
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 1)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.recordWateringSuggestionDismissal(monstera) } returns
+            monstera.copy(wateringConfidence = 2)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
         vm.dismissSuggestedInterval(1L)
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
+        coVerify { quickLogUseCase.recordWateringSuggestionDismissal(monstera) }
     }
 }

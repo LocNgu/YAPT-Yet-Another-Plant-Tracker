@@ -182,20 +182,18 @@ class CalendarViewModel(
     }
 
     /**
-     * Dismissing the ADR-0006 suggestion dialog without applying — mirrors
+     * Dismissing the ADR-0006 suggestion dialog without applying. Delegates to
+     * [QuickLogUseCase.recordWateringSuggestionDismissal] (#674) — the same choke point
      * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
-     * so the confidence effect is the same regardless of which screen the dialog was shown from
-     * (#568 comment 5).
+     * uses — so the confidence bump and the matching [com.yapt.planttracker.domain.model
+     * .WateringAdjustmentTrigger.DIALOG_DISMISSAL] row are identical regardless of which screen the
+     * dialog was shown from, rather than this screen carrying its own copy of the confidence-only
+     * logic that never wrote the adjustment row.
      */
     fun dismissSuggestedInterval(plantId: Long) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
-                plantRepository.updatePlant(
-                    p.copy(
-                        wateringConfidence = CareSchedule.confidenceAfterDismissal(p.wateringConfidence),
-                        updatedAt = System.currentTimeMillis()
-                    )
-                )
+                quickLogUseCase.recordWateringSuggestionDismissal(p)
             }
         }
     }
