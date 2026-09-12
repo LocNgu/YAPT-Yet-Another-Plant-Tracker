@@ -30,6 +30,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
@@ -1591,6 +1592,64 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(str(R.string.photo_source_choose_gallery)).assertIsDisplayed()
 
         assertFalse(navigationRequested)
+    }
+
+    // #694 acceptance criterion: "Cancelling the dialog or image selection creates no PHOTO log."
+    // The Add-photo sheet's default state has no visible Cancel affordance (unlike the Repot date
+    // picker) — the system back button is the sheet's only dismissal path here, same as every other
+    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet, RescheduleReasonBottomSheet).
+    @Test
+    fun photoTab_dismissingSheet_doesNotLog() {
+        val plant = Plant(id = 44L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database,
+            wateringAdjustmentRepo
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Photo"))
+        composeTestRule.onNodeWithText("Photo").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(ADD_PHOTO_SHEET_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(ADD_PHOTO_SHEET_TEST_TAG).assertIsDisplayed()
+
+        Espresso.pressBack()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
