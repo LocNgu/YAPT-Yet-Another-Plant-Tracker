@@ -20,8 +20,11 @@ paths:
 - **AGP 9 provides Kotlin compilation itself** — the standalone `org.jetbrains.kotlin.android` plugin is NOT applied
   and AGP 9 errors if it is present. Do not re-add it. Compose/serialization/KSP plugins stay, pinned to 2.3.10.
 - `kotlinOptions { jvmTarget }` was migrated to top-level `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
-- `gradle-wrapper.properties` distribution **and** the four `gradle-version` pins in `android.yml` must match
-  (`setup-gradle` overrides the wrapper).
+- **`gradle-wrapper.properties` is the single source for the Gradle version** (#726). `setup-gradle` in
+  `android.yml` uses `gradle-version: wrapper`, so all four jobs resolve it from the wrapper — bump the wrapper
+  alone and CI follows. Never hardcode a version there: an explicit `gradle-version` overrides the wrapper, which
+  is how CI silently sat on 9.6.1 while the wrapper moved to 9.7.1. Note Dependabot's gradle ecosystem does not
+  update the wrapper, so that bump stays manual.
 - `android.onlyEnableUnitTestForTheTestedBuildType=false` in `gradle.properties` restores pre-AGP-9 behaviour so
   `testReleaseUnitTest` exists for the release job. It's global, so `./gradlew test` runs both debug + release
   suites (#496).

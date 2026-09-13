@@ -66,10 +66,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 9.6.1
+      - name: Setup Gradle (wrapper version)
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.6.1'
+          gradle-version: wrapper
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
@@ -129,10 +129,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 9.6.1
+      - name: Setup Gradle (wrapper version)
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.6.1'
+          gradle-version: wrapper
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
@@ -188,10 +188,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 9.6.1
+      - name: Setup Gradle (wrapper version)
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.6.1'
+          gradle-version: wrapper
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
@@ -255,10 +255,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 9.6.1
+      - name: Setup Gradle (wrapper version)
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.6.1'
+          gradle-version: wrapper
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses 2>/dev/null || true
