@@ -18,10 +18,25 @@ starting any of them.
 GitHub already knows what is closed, and a second copy would rot. What this file carries is the part
 that does *not* change when an issue closes — the model, the invariants, and the traps.
 
-**Everything below was derived from source plus arithmetic. Nothing was reproduced on-device, and a
-`@codex` second opinion was still outstanding when the cluster was filed.** Verify before implementing;
-treat each issue as a strong hypothesis, not a spec. #717 in particular may be intended behaviour with
-overstated docs rather than a bug.
+**Derived from source plus arithmetic; still not reproduced on-device.** A `@codex` second opinion
+was requested on #716–#720 and answered on all five (see each issue's comments — they are worth reading
+in full before implementing). It confirmed every claim in substance and corrected four of them; the
+corrections are folded in below. Codex reported committing fixes for #719 and #720, but **no such
+branches or PRs exist on the remote** — treat those as unwritten.
+
+Where codex corrected me:
+
+- **#717's threshold was wrong.** The dead zone is bases **≤ 26 days**, not "under ~23". `0.15 × |O − B| ≥ 0.5`
+  needs an *integer* gap difference of 4, not 3.34, and `4 ≤ 0.15 × B` gives `B ≥ 27`. First movable base
+  is 27 (verified independently).
+- **#717 is not documentation-only.** ADR-0027 specifies a capped *nonzero* neutral gain and ADR-0030
+  says passive learning "refines within the tolerance band". The docs describe the intent correctly; the
+  implementation fails to realise it. Do not close this as a docs fix.
+- **#718's ratchet framing was too broad.** The rounding residual is a sawtooth, not one sign per season.
+  The ratchet is systematic only for the upward seasonal-threshold crossings that trigger these dialogs —
+  which is the actual case, but state it that way.
+- **#716's drift is stepped, not continuous** as the user sees it, and the curve's steepest points are
+  ~Apr 6 / ~Oct 6 (a quarter-year from the day-5 peak), not the equinoxes.
 
 ## Three structural facts behind all seven
 
@@ -65,13 +80,35 @@ clamp, not this round-trip.
 
 | Issue | One line | Interaction to watch |
 |---|---|---|
-| #719 | Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor | Correct target can fall before the due date, where #720's `maxOf()` discards it. Fixable alone; #720 completes it. |
-| #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. |
+| #719 | Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor | Correct target can fall before the due date, where #720's `maxOf()` discards it. **Conflicts with #720's option A** — see below. |
+| #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. Preserving a precise base while prefilling the field from the *rounded* one creates an immediate display/schedule mismatch — derive both from the same value. |
 | #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches ADR-0026/0028, needs a spec pass. Fix choice interacts with #717's outcome. |
 | #714 | Second same-day still-moist reschedule silently drops the date | Same function as #715. One PR is cheaper. |
 | #720 | Reschedule to a date before the due date is silently ignored | Option A makes #719's target unreachable; option C unblocks it. Decide this with #719 in view. |
-| #717 | Unattributed observations can't move any base under ~23 days | May be docs-only. Decide that first — it changes whether #716's fix has anything to show. |
+| #717 | Unattributed observations can't move any base ≤ 26 days | **Not docs-only** (see above). #718's fix A needs the `Double` model result this issue would add — do them together or duplicate the API change. |
 | #715 | "Recent adjustments" can show an interval change that was never applied | Pairs with #714. |
+
+## Two things the second opinion added that the issues understate
+
+**The suggestion gate exists in three places, not one.** `QuickLogUseCase.computeSuggestion()`,
+`AddCareLogViewModel`, and `PlantDetailViewModel.pendingWateringSuggestion` each independently compare an
+effective-space suggestion against the stored literal. #716's fix must cover all three or introduce one
+shared "did the model change base?" predicate — fixing only `QuickLogUseCase` leaves two live copies.
+This is the same class of bug #631 and #674 already fixed twice by consolidating duplicated write paths.
+
+**Dismissing a calendar-only dialog is not inert.** A dismissal raises `wateringConfidence` and writes a
+`DIALOG_DISMISSAL` row, so seasonal drift produces both a misleading modal *and* bookkeeping that reads
+the dismissal as confirmation the schedule is right. Higher confidence means a lower gain, so the
+spurious dialogs actively slow real learning. "Just dismiss them" is not a safe workaround.
+
+## Known conflict between two proposed fixes
+
+#719 wants the still-moist suggestion to be able to land **before** the current due date (the model can
+legitimately conclude "come back sooner"). #720's option A **forbids** dates on or before the due date.
+Both cannot be right. Codex answered the question #720 asks: the forward-only `maxOf()` **is**
+load-bearing — relative rescheduling, notification postponement, and reschedule-delta/revert semantics
+all depend on it — so option C is a real product change, not a one-liner. Decide #719 and #720 together,
+or #719's fix will be reverted by #720's.
 
 ## Maintenance
 
