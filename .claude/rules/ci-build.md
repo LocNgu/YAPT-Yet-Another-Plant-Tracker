@@ -12,13 +12,19 @@ paths:
 
 # CI / Build rules
 
-## Toolchain (AGP 9.3.1 / Gradle 9.7.0 / Kotlin plugins 2.4.10 / KSP 2.3.11)
-- Compose BOM 2026.06.01 · compileSdk 37 · targetSdk 35 · minSdk 26.
-- **Kotlin + KSP move together** — KSP2 uses Kotlin-aligned versioning (KSP `2.3.10` = Kotlin `2.3.10`).
-  Kotlin 2.4.x is not adoptable until KSP ships a 2.4 release (why a grouped Kotlin-2.4 + KSP-2.3 Dependabot PR
-  can never go green).
+## Toolchain (AGP 9.4.0 / Gradle 9.7.1 / Kotlin plugins 2.4.10 / KSP 2.3.11)
+- Compose BOM 2026.08.00 · compileSdk 37 · targetSdk 35 · minSdk 26.
+- **Kotlin and KSP version numbers need not match** — KSP publishes on its own independent release line; the
+  old `<kotlin>-<ksp>` scheme (e.g. `2.0.21-1.0.28`) is legacy. A KSP `2.3.x` number is therefore *not* a claim
+  about a Kotlin `2.3.x` compiler: Kotlin's own KSP quickstart pairs Kotlin 2.4.20 with KSP 2.3.x, and this repo
+  builds green on Kotlin plugins 2.4.10 + KSP 2.3.11. So a grouped Dependabot PR whose Kotlin and KSP numbers
+  disagree is **not** self-evidently a red-CI PR — there is no numeric alignment to enforce, and no point hunting
+  for a KSP release whose number matches Kotlin's. Validate the pairing through CI instead. The stdlib coupling
+  `.github/dependabot.yml` documents (KotlinX libs + MockK against the Kotlin stdlib) is a separate, real
+  constraint and still holds.
 - **AGP 9 provides Kotlin compilation itself** — the standalone `org.jetbrains.kotlin.android` plugin is NOT applied
-  and AGP 9 errors if it is present. Do not re-add it. Compose/serialization/KSP plugins stay, pinned to 2.3.10.
+  and AGP 9 errors if it is present. Do not re-add it. Compose/serialization plugins stay, pinned to 2.4.10;
+  KSP to 2.3.11.
 - `kotlinOptions { jvmTarget }` was migrated to top-level `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
 - `gradle-wrapper.properties` distribution **and** the four `gradle-version` pins in `android.yml` must match
   (`setup-gradle` overrides the wrapper).
