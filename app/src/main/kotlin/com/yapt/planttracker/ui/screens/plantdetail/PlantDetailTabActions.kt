@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 internal const val REPOT_TAB_ACTION_BUTTON_TEST_TAG = "repot_tab_action_button"
 internal const val PHOTO_TAB_ACTION_BUTTON_TEST_TAG = "photo_tab_action_button"
 
+/** Locates the Repot tab's date-picker sheet ([CareDatePickerBottomSheet], #694) in Compose UI tests. */
+internal const val REPOT_DATE_PICKER_TEST_TAG = "repot_date_picker_dialog"
+
 /**
  * Primary, always-visible action for a Plant Detail tab (#658). Repot and Photo use the same filled
  * button, leading-icon, and 16dp horizontal-padding treatment as the Water tab's primary action.

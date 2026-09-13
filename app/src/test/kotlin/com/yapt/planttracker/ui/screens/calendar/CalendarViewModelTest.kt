@@ -136,7 +136,7 @@ class CalendarViewModelTest {
     fun `quickLog emits a PhotoReminderRequest when the use case returns one`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
             PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
@@ -160,7 +160,7 @@ class CalendarViewModelTest {
         PhotoReminderPolicy.shownThisSession.add(1L)
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         // Default @Before stub already returns null for maybeBuildPhotoReminderRequest; this test
         // documents that the gating (session suppression) lives in QuickLogUseCase, not the VM.
@@ -180,7 +180,7 @@ class CalendarViewModelTest {
     fun `quickLog does not emit photo reminder when the use case returns null`() = runTest {
         val monstera = plant(1L, "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 

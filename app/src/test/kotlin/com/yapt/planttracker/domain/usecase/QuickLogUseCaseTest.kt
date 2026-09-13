@@ -221,6 +221,32 @@ class QuickLogUseCaseTest {
         coVerify { wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.REPOT_RESET }) }
     }
 
+    // #694: a backdated Repot tab date picker anchors the reset to the picked date, not "now" —
+    // mirroring #654's identical loggedAt-threading fix for quickWaterWithReason.
+    @Test
+    fun `quickLog REPOT with a backdated loggedAt anchors the reset to that date`() = runTest {
+        every { application.getString(R.string.care_type_repotted) } returns "Repotted"
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 3)
+        val backdatedLoggedAt = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
+
+        useCase.quickLog(monstera, CareType.REPOT, backdatedLoggedAt)
+
+        coVerify(exactly = 1) {
+            careLogRepo.addLog(
+                match { it.careType == CareType.REPOT && it.loggedAt == backdatedLoggedAt }
+            )
+        }
+        coVerify(exactly = 1) {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringResetAt == backdatedLoggedAt &&
+                        it.wateringFreezeUntil == backdatedLoggedAt + TimeUnit.DAYS.toMillis(28)
+                }
+            )
+        }
+        coVerify { wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.REPOT_RESET }) }
+    }
+
     @Test
     fun `quickLog FERTILIZE already logged today is rejected without inserting`() = runTest {
         val monstera = plant()

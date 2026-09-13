@@ -18,7 +18,7 @@ import java.util.TimeZone
  * that function, the candidate is always interpreted in UTC; only `today`'s *default* consults `zoneId`,
  * so every test here pins `today` explicitly rather than relying on a device zone/clock at test time.
  */
-class LogWateringDatePickerTest {
+class CareDatePickerTest {
 
     private val tokyo = ZoneId.of("Asia/Tokyo")
 
@@ -141,5 +141,41 @@ class LogWateringDatePickerTest {
         assertEquals(Calendar.JANUARY, resultCal.get(Calendar.MONTH))
         assertEquals(10, resultCal.get(Calendar.DAY_OF_MONTH))
         assertEquals(9, resultCal.get(Calendar.HOUR_OF_DAY))
+    }
+
+    // #694: the inverse of `localTodayAsUtcMidnightMillis`, fed an arbitrary `loggedAt` instant
+    // instead of "today" — re-opening a picker on a previously chosen date (Add-photo's date-edit
+    // state) must preselect that same local calendar day, not the UTC-shifted one.
+    @Test
+    fun `localDayToUtcMidnightMillis encodes an instant's local calendar day as UTC midnight`() {
+        val loggedAt = LocalDate.of(2026, 1, 15).atStartOfDay(tokyo).toInstant().toEpochMilli()
+
+        val result = localDayToUtcMidnightMillis(loggedAt, tokyo)
+
+        val resultDate = java.time.Instant.ofEpochMilli(result).atZone(ZoneOffset.UTC).toLocalDate()
+        assertEquals(LocalDate.of(2026, 1, 15), resultDate)
+    }
+
+    @Test
+    fun `localDayToUtcMidnightMillis is selectable by isOnOrBeforeLocalToday for the same local today`() {
+        val today = LocalDate.of(2026, 1, 15)
+        val loggedAt = today.atStartOfDay(tokyo).toInstant().toEpochMilli()
+
+        val result = localDayToUtcMidnightMillis(loggedAt, tokyo)
+
+        assertTrue(isOnOrBeforeLocalToday(result, tokyo, today = today))
+    }
+
+    @Test
+    fun `localDayToUtcMidnightMillis reinterprets an instant from a different zone as its own local day`() {
+        // Late evening Jan 15 in Los Angeles is already Jan 16 UTC — the function must read the
+        // *local* (LA) calendar day, not UTC's.
+        val losAngeles = ZoneId.of("America/Los_Angeles")
+        val loggedAt = java.time.LocalDateTime.of(2026, 1, 15, 23, 0).atZone(losAngeles).toInstant().toEpochMilli()
+
+        val result = localDayToUtcMidnightMillis(loggedAt, losAngeles)
+
+        val resultDate = java.time.Instant.ofEpochMilli(result).atZone(ZoneOffset.UTC).toLocalDate()
+        assertEquals(LocalDate.of(2026, 1, 15), resultDate)
     }
 }

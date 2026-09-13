@@ -116,7 +116,12 @@ class QuickLogUseCase(
                         schedulePostWateringReminder = false
                     )
                 } else {
-                    quickLogInternal(plant, careType, schedulePostWateringReminder = false)
+                    quickLogInternal(
+                        plant,
+                        careType,
+                        loggedAt = System.currentTimeMillis(),
+                        schedulePostWateringReminder = false
+                    )
                 }
                 if (outcome.logged) loggedCount++
                 outcome.waterLoggedAt?.let { latestWaterLoggedAt = it }
@@ -135,32 +140,44 @@ class QuickLogUseCase(
      * anything if [plant] already has a [careType] log today (WATER/FERTILIZE only, #509). For a
      * liquid-fertilizer plant, the "already watered today" check runs before the FERTILIZE insert
      * so the paired WATER insert can be suppressed without racing against itself.
+     *
+     * [loggedAt] defaults to "now" but Plant Detail's Repot tab action (#694) can pass a backdated
+     * timestamp instead, mirroring [quickWaterWithReason]'s parameter of the same name (#654) — the
+     * same value drives the duplicate-day check (WATER/FERTILIZE only; REPOT is never guarded), the
+     * [CareLog] write, the paired liquid-fertilizer WATER insert, the post-watering reminder debounce,
+     * and [maybeApplyRepotReset]'s reset anchor, so none of them can drift from each other or silently
+     * fall back to the real wall-clock time. Only [quickRepot][com.yapt.planttracker.ui.screens
+     * .plantdetail.PlantDetailViewModel.quickRepot] passes a non-default value; every other caller
+     * (`bulkLog`, Plant List, Calendar, plain `quickFertilize`) keeps using real "now".
      */
-    suspend fun quickLog(plant: Plant, careType: CareType): QuickLogOutcome =
-        quickLogInternal(plant, careType, schedulePostWateringReminder = true)
+    suspend fun quickLog(
+        plant: Plant,
+        careType: CareType,
+        loggedAt: Long = System.currentTimeMillis()
+    ): QuickLogOutcome = quickLogInternal(plant, careType, loggedAt, schedulePostWateringReminder = true)
 
     private suspend fun quickLogInternal(
         plant: Plant,
         careType: CareType,
+        loggedAt: Long,
         schedulePostWateringReminder: Boolean
     ): QuickLogOutcome {
-        if (isDuplicateGuarded(careType) && hasLoggedToday(plant.id, careType)) {
+        if (isDuplicateGuarded(careType) && hasLoggedToday(plant.id, careType, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, careType), logged = false)
         }
         val alreadyWateredToday = careType == CareType.FERTILIZE &&
             plant.useLiquidFertilizer &&
-            hasLoggedToday(plant.id, CareType.WATER)
+            hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
-        val now = System.currentTimeMillis()
         val log = CareLog(
             plantId = plant.id,
             careType = careType,
-            loggedAt = now,
+            loggedAt = loggedAt,
             wateringFeedback = null,
             fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
         )
         careLogRepository.addLog(log)
-        maybeApplyRepotReset(plant, careType, now)
+        maybeApplyRepotReset(plant, careType, loggedAt)
         val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
         if (waterPaired) {
             // No reason: the user fertilized, and the watering came along with it (ADR-0008) — they
@@ -169,7 +186,7 @@ class QuickLogUseCase(
                 CareLog(
                     plantId = plant.id,
                     careType = CareType.WATER,
-                    loggedAt = now,
+                    loggedAt = loggedAt,
                     wateringFeedback = null
                 )
             )
@@ -190,7 +207,7 @@ class QuickLogUseCase(
         val waterLoggedAt = notifyWaterLoggedIfNeeded(
             careType,
             waterPaired,
-            now,
+            loggedAt,
             schedulePostWateringReminder
         )
         return QuickLogOutcome(

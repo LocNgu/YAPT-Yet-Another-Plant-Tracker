@@ -1,13 +1,10 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
-import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.preferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
-import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -22,7 +19,6 @@ import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -327,191 +323,9 @@ class PlantDetailViewModelTest {
     // requestReschedule/chooseRescheduleReason/confirmReschedule* coverage lives in
     // PlantDetailViewModelRescheduleTest (#508/#586), to keep this file under Detekt's LargeClass threshold.
 
-    @Test
-    fun `quickWater logs watering, emits message, and applies returned suggestion`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
-            QuickLogUseCase.QuickLogOutcome(
-                message = "Watered Monstera",
-                logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
-            )
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.quickLogMessage.test {
-                vm.quickWater(reason = null)
-                assertEquals(PlantDetailViewModel.QuickLogMessage.Watered("Monstera"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        assertEquals(9, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
-    }
-
-    @Test
-    fun `quickWater with askBeforeChangingIntervals off applies the suggestion silently`() = runTest {
-        every { dataStore.data } returns flowOf(
-            preferencesOf(
-                SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false,
-                SettingsKeys.SEASONAL_AMPLITUDE to "OFF"
-            )
-        )
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
-            QuickLogUseCase.QuickLogOutcome(
-                message = "Watered Monstera",
-                logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
-            )
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) } returns
-            QuickLogUseCase.IntervalApplyResult(
-                previousEffectiveIntervalDays = 7,
-                previousBaseIntervalDays = null,
-                newEffectiveIntervalDays = 9
-            )
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.events.test {
-                vm.quickWater(reason = null)
-                val event = awaitItem()
-                assertEquals(PlantDetailViewModel.Event.SilentIntervalApplied(7, null, 9), event)
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        // Never shows the dialog.
-        assertEquals(null, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) }
-    }
-
-    @Test
-    fun `undoSilentIntervalApply reverts wateringIntervalDays to the given value`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 9)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.undoSilentIntervalApply(7, null)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 7 }) }
-    }
-
-    // undoSilentIntervalApply's SILENT_APPLY_UNDONE adjustment-row coverage lives in
-    // PlantDetailViewModelSeasonalTest, to keep this file under Detekt's LargeClass threshold.
-
-    @Test
-    fun `quickFertilize logs fertilize via use case and emits message`() = runTest {
-        val monstera = plant().copy(fertilizingIntervalDays = 30)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true, waterPaired = false)
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.quickLogMessage.test {
-                vm.quickFertilize()
-                assertEquals(PlantDetailViewModel.QuickLogMessage.Fertilized("Monstera"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
-    }
-
-    @Test
-    fun `quickFertilize on a liquid-fertilizer plant emits the combined message`() = runTest {
-        val monstera = plant().copy(useLiquidFertilizer = true, fertilizingIntervalDays = 30)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.quickLogMessage.test {
-                vm.quickFertilize()
-                assertEquals(
-                    PlantDetailViewModel.QuickLogMessage.WateredAndFertilized("Monstera"),
-                    awaitItem()
-                )
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
-    }
-
-    @Test
-    fun `quickRepot delegates to shared use case and emits message`() = runTest {
-        val monstera = plant()
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.REPOT) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Repotted Monstera", logged = true)
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.quickLogMessage.test {
-                vm.quickRepot()
-                assertEquals(PlantDetailViewModel.QuickLogMessage.Repotted("Monstera"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.REPOT) }
-    }
-
-    @Test
-    fun `quickLiquidFertilize logs paired care and emits combined message`() = runTest {
-        val monstera = plant().copy(
-            useLiquidFertilizer = true,
-            fertilizingIntervalDays = 30,
-            wateringIntervalDays = 7
-        )
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
-        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.quickLogMessage.test {
-                vm.quickLiquidFertilize(reason = null)
-                assertEquals(
-                    PlantDetailViewModel.QuickLogMessage.WateredAndFertilized("Monstera"),
-                    awaitItem()
-                )
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        assertNull(vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) }
-    }
+    // quickWater/quickFertilize/quickRepot/quickLiquidFertilize coverage lives in
+    // PlantDetailViewModelQuickActionsTest (#586/#658/#694), to keep this file under Detekt's
+    // LargeClass threshold.
 
     @Test
     fun `galleryPhotos merges plant photos and care log photos sorted by timestamp desc`() = runTest {
@@ -630,37 +444,8 @@ class PlantDetailViewModelTest {
         coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == null }) }
     }
 
-    @Test
-    fun `saveReminderPhoto adds a PHOTO care log, plant_photos row, and updates cover`() = runTest {
-        val monstera = plant()
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-        val uri: Uri = mockk()
-        every { uri.toString() } returns "content://reminder.jpg"
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.saveReminderPhoto(uri)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify {
-            plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
-        }
-        coVerify {
-            careLogRepo.addLog(
-                match {
-                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-                }
-            )
-        }
-        coVerify {
-            plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
-        }
-    }
+    // saveReminderPhoto/savePhotoLog coverage lives in PlantDetailViewModelQuickActionsTest
+    // (#694), to keep this file under Detekt's LargeClass threshold.
 
     @Test
     fun `deletePhoto care log photo nulls out photoUri via updateLog`() = runTest {

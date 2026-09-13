@@ -266,7 +266,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -286,7 +286,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
             PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
@@ -309,7 +309,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         // Default @Before stub already returns null for maybeBuildPhotoReminderRequest.
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
@@ -329,7 +329,7 @@ class PlantListViewModelTest {
         val monstera = Plant(id = 1L, name = "Monstera", useLiquidFertilizer = true, createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -343,7 +343,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE) }
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) }
     }
 
     @Test
@@ -351,7 +351,7 @@ class PlantListViewModelTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        coEvery { quickLogUseCase.quickLog(monstera, CareType.PRUNE) } returns
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.PRUNE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Pruned Monstera", logged = true)
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -365,7 +365,7 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.quickLog(monstera, CareType.PRUNE) }
+        coVerify { quickLogUseCase.quickLog(monstera, CareType.PRUNE, any()) }
     }
 
     @Test
