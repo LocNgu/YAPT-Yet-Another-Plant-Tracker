@@ -1867,20 +1867,12 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
-        // Confirms we're genuinely on the now-hidden tab via its own selected-state semantics
-        // (mirrors careTabs_selectingTabMarksItSelectedAndDeselectsOthers) rather than scrolling
-        // down to its section content first. The tab strip (including the toggle below it) is one
-        // single LazyColumn item (PlantDetailScreen.kt), but CustomRemindersCard is a separate,
-        // later item — scrolling all the way down to it and then all the way back up to
-        // `plant_detail_tabs_toggle` decomposes the toggle's item, forcing performScrollToNode's
-        // expensive "not found: reset to index 0, then rescan forward one viewport at a time"
-        // recovery path (androidx.compose.ui.test's documented behavior for a not-yet-composed
-        // target) on a second, otherwise-avoidable lookup — the single heaviest scroll pattern in
-        // this file and the root cause of #592's 100%-reproducible CI timeout. Every other tab test
-        // in this suite (including fertilizeTab_showsEmptyState_onlyAfterSelected and
-        // resolvingIssue_removesItFromActiveList, this test's own cited precedent) only ever scrolls
-        // forward once per state transition; asserting selection here keeps this test on that same
-        // budget instead of round-tripping past the toggle.
+        // Asserts selection via the tab's own semantics instead of scrolling down to its section
+        // content: the tab strip (toggle included) is one LazyColumn item, CustomRemindersCard a
+        // separate later one, so scrolling down there and back up to `plant_detail_tabs_toggle`
+        // decomposes the toggle's item and forces performScrollToNode's expensive "reset to index 0,
+        // rescan forward a viewport at a time" recovery path — the root cause of #592's CI timeout.
+        // Don't reintroduce that round-trip; keep this check scroll-free.
         composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsSelected()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
@@ -1990,10 +1982,12 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
-        // 10s, not the usual 5s: tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater timed out here
-        // twice in CI with "Failed to find ColorBuffer" emulator-rendering warnings logged immediately
-        // before it in both runs — consistent with transient emulator rendering slowness at that point in
-        // the suite, not app/test logic (every other selectPlantDetailTab() call reliably clears 5s).
+        // 10s, not the usual 5s: kept from an earlier attempt at #592, when
+        // tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater timed out here twice in CI and the
+        // "Failed to find ColorBuffer" warnings alongside it were read as emulator rendering slowness.
+        // That diagnosis was wrong — #592's real cause was a redundant scroll round-trip in that test
+        // (see its own comment), fixed there. The wider timeout is retained only as harmless headroom;
+        // it is not load-bearing, and no test should be written to depend on it.
         composeTestRule.waitUntil(timeoutMillis = 10000) {
             composeTestRule.onAllNodesWithText(tabLabel)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
