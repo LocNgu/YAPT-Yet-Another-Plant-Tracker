@@ -374,9 +374,10 @@ class PlantDetailViewModelRescheduleTest {
         val before = System.currentTimeMillis()
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            // careStatus needs an active collector for its StateFlow.value to be populated at call
-            // time (it's WhileSubscribed, same as on the real screen, which always observes it) —
-            // confirmRescheduleSuggestedDays reads careStatus.value synchronously.
+            // careStatus needs an active collector for the assertFalse(isOverdue) assertion below:
+            // it's WhileSubscribed, so .value stays null without a subscriber. The collector is for
+            // that assertion only — confirmRescheduleSuggestedDays never reads careStatus itself,
+            // unlike confirmRescheduleRelativeDays, which is precisely the #719 distinction.
             vm.careStatus.test {
                 assertFalse(awaitItem()!!.isOverdue)
                 vm.requestReschedule()
