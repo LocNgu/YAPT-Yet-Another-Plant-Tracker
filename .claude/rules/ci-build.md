@@ -13,7 +13,7 @@ paths:
 # CI / Build rules
 
 ## Toolchain (AGP 9.4.0 / Gradle 9.7.1 / Kotlin plugins 2.4.10 / KSP 2.3.11)
-- Compose BOM 2026.08.00 · compileSdk 37 · targetSdk 35 · minSdk 26.
+- Compose BOM 2026.09.00 · compileSdk 37 · targetSdk 35 · minSdk 26.
 - **Kotlin and KSP version numbers need not match** — KSP publishes on its own independent release line; the
   old `<kotlin>-<ksp>` scheme (e.g. `2.0.21-1.0.28`) is legacy. A KSP `2.3.x` number is therefore *not* a claim
   about a Kotlin `2.3.x` compiler: Kotlin's own KSP quickstart pairs Kotlin 2.4.20 with KSP 2.3.x, and this repo
