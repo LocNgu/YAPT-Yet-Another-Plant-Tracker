@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **The "(suggested)" reschedule option, after answering "Soil still moist," overshot the intended date for a plant that isn't yet due** — `suggestedStillMoistDeferralDays()` computes a from-today offset ("come back when the freshly-lengthened interval says it is due"), but the dialog applied it to the current due date instead, an error that grew the earlier you checked. The option now gets its own `now`-anchored handler, matching the notification's identical "Still moist" action, which was already correct. The ordinary Today/+1/+2/+3/Custom date options are unchanged (#719)
+
 ## [0.30.0] - 2026-09-14
 
 ### Changed

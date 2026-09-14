@@ -282,6 +282,82 @@ class PlantDetailViewModelRescheduleTest {
         }
     }
 
+    // ---- Reschedule "(suggested)" option, now-anchored not due-date-anchored (#719) ----
+
+    /**
+     * Not-yet-due, holding/lengthening subset — the issue's 7-day/day-6 worked example.
+     * `suggestedStillMoistDeferralDays()` is a from-today figure (its own KDoc: "come back when the
+     * freshly-lengthened interval says it is due"), so `confirmRescheduleSuggestedDays` must land on
+     * `now + suggestedDays` — the date the "(suggested)" label promises — not `due + suggestedDays`,
+     * which is what `confirmRescheduleRelativeDays`'s due-date anchor would produce for the same
+     * plant and overshoots by exactly `daysUntilDue`.
+     */
+    @Test
+    fun `confirmRescheduleSuggestedDays anchors to now, not the due date, for a not-yet-due plant`() = runTest {
+        val now = System.currentTimeMillis()
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        val recentLog = CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(6))
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm(careLogs = listOf(recentLog))
+
+        val before = System.currentTimeMillis()
+        vm.careStatus.test {
+            assertFalse(awaitItem()!!.isOverdue)
+            vm.confirmRescheduleSuggestedDays(1)
+            cancelAndIgnoreRemainingEvents()
+        }
+        val after = System.currentTimeMillis()
+
+        val oneDayMs = TimeUnit.DAYS.toMillis(1)
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    val override = it.wateringDueDateOverride
+                    override != null && override in (before + oneDayMs)..(after + oneDayMs)
+                }
+            )
+        }
+    }
+
+    /**
+     * Shortening subset — the issue's 14-day/day-8 worked example (`1.25 × observedGap < base`,
+     * confidence 3, `target = 10`, model base `14 + 0.28 × (10 − 14) = 12.88 → 13`, `suggested =
+     * 13 − 8 = 5`). This test only pins what `confirmRescheduleSuggestedDays` itself writes —
+     * `now + suggestedDays`, the corrected, earlier value — using a mocked `PlantRepository` that
+     * never runs `CareSchedule.computeWateringDue()`. It deliberately does **not** assert the
+     * resulting *effective* due date: `computeWateringDue()`'s `maxOf(computedNextDueAt, override)`
+     * clamp means this earlier override is provisionally inert (the visible due date does not move)
+     * until #720 decides whether an override may pull a due date earlier at all — see
+     * `.claude/rules/adaptive-watering-cluster.md`. That downstream behaviour belongs to #720's own
+     * test coverage, not this one.
+     */
+    @Test
+    fun `confirmRescheduleSuggestedDays writes now plus suggestedDays even in the shortening subset`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 14)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        val before = System.currentTimeMillis()
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.confirmRescheduleSuggestedDays(5)
+            cancelAndIgnoreRemainingEvents()
+        }
+        val after = System.currentTimeMillis()
+
+        val fiveDaysMs = TimeUnit.DAYS.toMillis(5)
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    val override = it.wateringDueDateOverride
+                    override != null && override in (before + fiveDaysMs)..(after + fiveDaysMs)
+                }
+            )
+        }
+    }
+
     @Test
     fun `reschedule options never touch wateringBaseIntervalDays, wateringConfidence, or watering_adjustments`() =
         runTest {

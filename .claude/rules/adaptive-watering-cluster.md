@@ -80,7 +80,7 @@ clamp, not this round-trip.
 
 | Issue | One line | Interaction to watch |
 |---|---|---|
-| #719 | Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor | Correct target can fall before the due date, where #720's `maxOf()` discards it. **Conflicts with #720's option A** — see below. |
+| #719 | ~~Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor~~ **Fixed** — `RescheduleWateringDialog`'s "(suggested)" row now calls a dedicated `now`-anchored `PlantDetailViewModel.confirmRescheduleSuggestedDays()`, distinct from the due-date-anchored `confirmRescheduleRelativeDays()` the +1/+2/+3 options still use. In the shortening subset the corrected, earlier target is provisionally inert against `CareSchedule.computeWateringDue()`'s `maxOf()` clamp — that's #720's decision space, not reverted or re-broken by this fix. |
 | #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. Preserving a precise base while prefilling the field from the *rounded* one creates an immediate display/schedule mismatch — derive both from the same value. |
 | #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches ADR-0026/0028, needs a spec pass. Fix choice interacts with #717's outcome. |
 | #714 | Second same-day still-moist reschedule silently drops the date | Same function as #715. One PR is cheaper. |
@@ -101,14 +101,20 @@ This is the same class of bug #631 and #674 already fixed twice by consolidating
 the dismissal as confirmation the schedule is right. Higher confidence means a lower gain, so the
 spurious dialogs actively slow real learning. "Just dismiss them" is not a safe workaround.
 
-## Known conflict between two proposed fixes
+## #719 shipped; how it interacts with #720
 
-#719 wants the still-moist suggestion to be able to land **before** the current due date (the model can
-legitimately conclude "come back sooner"). #720's option A **forbids** dates on or before the due date.
-Both cannot be right. Codex answered the question #720 asks: the forward-only `maxOf()` **is**
-load-bearing — relative rescheduling, notification postponement, and reschedule-delta/revert semantics
-all depend on it — so option C is a real product change, not a one-liner. Decide #719 and #720 together,
-or #719's fix will be reverted by #720's.
+#719's fix (now merged) lands on **A** from its own candidate list: the "(suggested)" row calls a
+dedicated `now`-anchored handler, leaving +1/+2/+3 on the existing due-date anchor. This is not a
+conflict with #720 the way an earlier draft of this doc framed it — nothing #719 wrote gets reverted by
+whichever option #720 picks. What #720 actually decides is narrower: `CareSchedule.computeWateringDue()`'s
+`maxOf(computedNextDueAt, override)` clamp still forbids an override from pulling a due date **earlier**
+than the schedule-computed one, so in the subset where the model *shortens* the interval
+(`1.25 × observedGap < base`), #719's corrected target (now genuinely earlier than the current due date)
+is written to `wateringDueDateOverride` but has no visible effect — the clamp keeps the old, later due
+date until #720 decides whether an override should ever be allowed to win that comparison, and how (option
+A forbids it outright, option C allows it). Until #720 lands, that subset is strictly closer to correct
+than the pre-#719 overshoot (the earlier value is provisionally inert, not actively wrong), so #719 was
+safe to ship first, exactly as the issue's own corrected preamble argued.
 
 ## Maintenance
 
