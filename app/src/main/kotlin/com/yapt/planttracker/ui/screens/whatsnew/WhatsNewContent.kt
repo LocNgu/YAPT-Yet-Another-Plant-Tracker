@@ -12,7 +12,11 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        changed = listOf(
+            "Photos taken inside YAPT now use substantially less app storage, while photos selected from your " +
+                "gallery remain untouched"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
