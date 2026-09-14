@@ -17,6 +17,10 @@ object WhatsNewContent {
             "Fixed the Reschedule dialog's \"(suggested)\" option landing several days later than promised " +
                 "for a plant that isn't due yet, after answering \"Soil still moist\" — it now lands on the " +
                 "date it actually says"
+        ),
+        changed = listOf(
+            "Photos taken inside YAPT now use substantially less app storage, while photos selected from your " +
+                "gallery remain untouched"
         )
     )
 
