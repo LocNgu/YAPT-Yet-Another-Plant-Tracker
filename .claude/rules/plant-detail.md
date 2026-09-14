@@ -70,16 +70,64 @@ editor for name/species/room/notes/cover.
 `summarizePhotos(galleryPhotos)` → `PhotoSummary`. JVM-tested (`CareInsightsTest`). Shared `TabInsightsCard` +
 `careTypeInsightItems(...)` live in `PlantDetailScreen.kt`.
 
-## Repot and Photo tab quick actions (#658)
+## Repot and Photo tab quick actions (#658, date-first per #694)
 
 With `PLANT_DETAIL_TABS` on, Repot and Photo each start with an always-visible filled action button,
 using a leading tab-matching icon and the same 16dp horizontal padding as Water's primary action.
-Repot delegates to `PlantDetailViewModel.quickRepot()` → `QuickLogUseCase.quickLog(REPOT)`, preserving
-the shared repot confidence-reset/freeze side effect and the existing rule that REPOT is not guarded
-against same-day duplicates. Photo navigates to `AddCareLogScreen` with `CareType.PHOTO` preselected,
-removing the care-type selection step while keeping image picking, date, notes, and cover-photo updates
-in the canonical add-log flow. Neither action renders in the classic flag-off layout. Custom Reminders
-and Issues retain their existing add/report controls; no extra duplicate actions are added there.
+Neither action renders in the classic flag-off layout. Custom Reminders and Issues retain their
+existing add/report controls; no extra duplicate actions are added there.
+
+**Repot** opens a date picker first (`CareDatePickerBottomSheet`, `REPOT_DATE_PICKER_TEST_TAG`,
+`showRepotDatePicker` state in `PlantDetailScreen.kt`), defaulting to today. Confirming calls
+`PlantDetailViewModel.quickRepot(loggedAt)` → `QuickLogUseCase.quickLog(plant, CareType.REPOT,
+loggedAt)`, preserving the shared repot confidence-reset/freeze side effect and the existing rule that
+REPOT is not guarded against same-day duplicates — the picked date is also the reset anchor
+(`WateringLifecycleReset.applyRepotReset`'s `resetAnchorMs`), so `wateringResetAt`/`wateringFreezeUntil`
+follow a backdated repot rather than always landing on "now". Cancelling the sheet creates no log and
+applies no reset. `QuickLogUseCase.quickLog()`'s `loggedAt: Long = System.currentTimeMillis()` parameter
+(mirroring #654's identical threading on `quickWaterWithReason`) is what makes this possible — it drives
+the duplicate-day check (WATER/FERTILIZE only; REPOT is never guarded), the `CareLog` write, the paired
+liquid-fertilizer WATER insert, the post-watering reminder debounce, and the reset anchor together, so
+none of them can drift from each other. Only `quickRepot()` passes a non-default value; `bulkLog`, Plant
+List, Calendar, and plain `quickFertilize()` all keep using real "now" — no other quick-log surface
+changed behavior.
+
+**Photo** opens `AddPhotoBottomSheet` (`PlantDetailPhotoCapture.kt`, `ADD_PHOTO_SHEET_TEST_TAG`) — one
+sheet combining a date row (defaulting to today, editable in place) with **Take photo** / **Choose from
+gallery** — rather than navigating to `AddCareLogScreen` (product ADR-0038, replacing the Photo half of
+#658/#693). Whichever source returns an image, `PlantDetailViewModel.savePhotoLog(uri, loggedAt)` writes
+the PHOTO `CareLog` at the picked date and updates the plant's cover photo directly; it deliberately never
+calls `plantPhotoRepository.addPhoto()` (the unified `PhotoGallery` already merges `plant_photos` with
+care-log photos, technical ADR-0015 — writing both would list the same image twice) and `Plant.updatedAt`
+stays real wall-clock time even for a backdated photo. The trade this makes explicit: the quick path has
+**no notes field** — `AddCareLogScreen` remains the untouched canonical full-entry flow (its route,
+`CareType` preselection argument, `consumeNewLogCareType()`, and the `+` FAB all still work exactly as
+before). Cancelling the sheet or abandoning image selection creates no log — `pendingPhotoLoggedAt`
+(`rememberSaveable`, since the camera app can kill this Activity mid-capture) is only consumed by the
+camera/gallery result callbacks, never by the sheet's own dismissal.
+
+### The shared date-picker sheet (`CareDatePicker.kt`, #654/#675/#694)
+
+`LogWateringDatePickerDialog`'s body is split three ways so ADR-0037's two load-bearing structural
+details (`skipPartiallyExpanded = true`; the `DatePicker` in its own `weight(1f, fill = false)
+.verticalScroll(...)` inner `Column` with the Cancel/OK row pinned outside it) live in exactly one place
+rather than being copy-pasted per caller:
+- `CareDatePickerContent(initialSelectedDateMillis, onCancel, onConfirm)` — the actual `DatePicker` +
+  button row, an extension on `ColumnScope` (not a sheet of its own) so a caller that already owns a
+  `ModalBottomSheet` can swap it in as an internal content state without nesting two sheets. The
+  Add-photo sheet does exactly this.
+- `CareDatePickerBottomSheet(testTag, onDismiss, onConfirm, initialSelectedDateMillis =
+  localTodayAsUtcMidnightMillis())` — a `ModalBottomSheet` wrapping the content above; Repot's own
+  picker uses this directly.
+- `LogWateringDatePickerDialog(onDismiss, onConfirm)` — a one-line delegate onto
+  `CareDatePickerBottomSheet` passing `LOG_WATERING_DATE_PICKER_TEST_TAG`. Its function name and that
+  tag's string value (`"log_watering_date_picker_dialog"`) are deliberately unchanged, so every existing
+  water/liquid-fertilize call site and instrumented test needed no edits.
+
+`localDayToUtcMidnightMillis(loggedAt)` (the inverse of `localTodayAsUtcMidnightMillis()`) re-encodes an
+already-picked `loggedAt` instant's local calendar day as UTC midnight, so a picker can be re-opened
+pre-selected on a previously chosen date rather than always defaulting back to today — the Add-photo
+sheet's date-edit state uses this to preselect whatever date the sheet is currently showing.
 
 ## Tappable stat chips (#434) — classic layout only (#603)
 Watering/Fertilizing `StatChip`s (in `StatsRow`) take optional `onWaterClick`/`onFertilizeClick` (with
@@ -266,6 +314,41 @@ this. `PlantDetailViewModel.previousWateringBefore()` itself has a plain delegat
 caught a `MockKException` on `wateringChip_onSchedule_tapLogsDirectlyWithoutTheReasonPrompt`, since every
 "Log watering" date-picker confirm now calls `previousWateringBefore()` regardless of which test triggers
 it.
+
+**Follow-up (#675):** `LogWateringDatePickerDialog` moved from a centered Material3 `DatePickerDialog`
+to a `ModalBottomSheet` wrapping the same stock `DatePicker` composable, matching the bottom-sheet
+convention `WateringReasonBottomSheet`/`RescheduleReasonBottomSheet` (`ReasonBottomSheets.kt`) and
+`WateringExplanationSheet` already use elsewhere on this screen — pure UI-consistency, no behavior
+change. `rememberModalBottomSheetState(skipPartiallyExpanded = true)` is load-bearing: the default
+(`false`) lets a tall sheet — a full calendar grid plus a button row — open only partially expanded on
+smaller devices. But `skipPartiallyExpanded` only removes that partial-expansion anchor — it does not
+shrink oversized content to fit the viewport, so on its own it does not guarantee the OK/Cancel row is
+reachable. What actually guarantees that (external review on PR #696) is that the `DatePicker` sits in
+its own inner scrollable `Column` (`Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())`)
+below the sheet's outer `Column`, with the OK/Cancel `TextButton` row (Cancel leading, OK trailing,
+end-aligned) always rendered last, outside that inner scroll — the calendar scrolls internally on a
+viewport shorter than its own ~568dp (landscape, a resized multi-window), while the buttons stay pinned
+and visible; `weight(1f, fill = false)` also means the sheet does not stretch to full height on a normal
+portrait phone where the calendar comfortably fits. Reusing `R.string.ok`/`R.string.cancel` unchanged,
+and dismissal still routes through the plain `onDismiss` lambda (no `sheetState.hide()` await), matching
+every other sheet's convention. `LOG_WATERING_DATE_PICKER_TEST_TAG` moved onto the `ModalBottomSheet`'s
+`modifier`; `TodayOrEarlierSelectableDates`/`localTodayAsUtcMidnightMillis()`/
+`utcMidnightMsToLoggedAtMillis()` and the public `LogWateringDatePickerDialog(onDismiss, onConfirm)`
+signature are all unchanged, so `PlantDetailScreen.kt`'s two call sites needed no edits. Product
+ADR-0034's passing description of this picker as "a plain Material3 `DatePickerDialog`" is now stale —
+its substantive decision (no instant-log fast path, not-future-only range, picked-date-drives-everything)
+is untouched, so the ADR itself was not edited.
+
+**Follow-up (#694):** `LogWateringDatePicker.kt` was renamed to `CareDatePicker.kt` (and its test file to
+`CareDatePickerTest.kt`) once Repot and the Add-photo sheet needed the same "pick a date, then confirm"
+sheet — see "The shared date-picker sheet" above for the `CareDatePickerContent`/
+`CareDatePickerBottomSheet` split this introduced. `LogWateringDatePickerDialog`'s signature and
+`LOG_WATERING_DATE_PICKER_TEST_TAG`'s string value are deliberately unchanged despite the file move, so
+every existing water/liquid-fertilize call site and instrumented test still compiles and passes
+untouched. This section's two load-bearing details (`skipPartiallyExpanded = true`; the pinned-button-
+row-plus-scrollable-calendar structure) now live in `CareDatePickerContent`/`CareDatePickerBottomSheet`
+rather than directly in `LogWateringDatePickerDialog`'s own body — any future edit to either detail
+belongs there, not in the now-trivial delegate.
 
 **"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
 `QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.

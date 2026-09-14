@@ -30,6 +30,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
@@ -60,6 +61,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -1202,7 +1204,7 @@ class PlantDetailScreenTest {
         // relaxed mocking fills unstubbed Booleans with false, which would read as "already logged
         // today" here. Stub the outcome explicitly so this test exercises the logged-successfully path.
         coEvery {
-            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE)
+            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE, any())
         } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
 
         composeTestRule.setContent {
@@ -1484,7 +1486,7 @@ class PlantDetailScreenTest {
     @Test
     fun repotTab_actionQuickLogsRepot() {
         val plant = Plant(id = 42L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
-        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) } returns
+        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.REPOT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Repotted Yucca", logged = true)
         coEvery { mockQuickLogUseCase.maybeBuildPhotoReminderRequest(plant.id) } returns null
         val viewModel = makeViewModel(plant)
@@ -1509,11 +1511,53 @@ class PlantDetailScreenTest {
             .assertHasClickAction()
             .performClick()
 
-        coVerify(timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.REPOT) }
+        // #694: the date picker opens first — nothing is logged yet.
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(REPOT_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.REPOT, any()) }
+
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+
+        coVerify(timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.REPOT, any()) }
     }
 
     @Test
-    fun photoTab_actionNavigatesToPhotoLog() {
+    fun repotTab_dismissingDatePicker_doesNotLog() {
+        val plant = Plant(id = 42L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
+        composeTestRule.onNodeWithText("Repot").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.REPOT, any()) }
+    }
+
+    @Test
+    fun photoTab_actionOpensAddPhotoSheet() {
         val plant = Plant(id = 43L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
         var navigationRequested = false
@@ -1538,8 +1582,74 @@ class PlantDetailScreenTest {
             .assertHasClickAction()
             .performClick()
 
-        assertTrue(navigationRequested)
-        assertEquals(CareType.PHOTO, viewModel.consumeNewLogCareType())
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(ADD_PHOTO_SHEET_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(ADD_PHOTO_SHEET_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(ADD_PHOTO_DATE_ROW_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.photo_source_take_photo)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.photo_source_choose_gallery)).assertIsDisplayed()
+
+        assertFalse(navigationRequested)
+    }
+
+    // #694 acceptance criterion: "Cancelling the dialog or image selection creates no PHOTO log."
+    // The Add-photo sheet's default state has no visible Cancel affordance (unlike the Repot date
+    // picker) — the system back button is the sheet's only dismissal path here, same as every other
+    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet, RescheduleReasonBottomSheet).
+    @Test
+    fun photoTab_dismissingSheet_doesNotLog() {
+        val plant = Plant(id = 44L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = mockk<PlantRepository>()
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantPhotoRepo = mockk<PlantPhotoRepository>()
+        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
+        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
+        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
+        val viewModel = PlantDetailViewModel(
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            plant.id,
+            mockDataStore,
+            mockQuickLogUseCase,
+            mockCustomReminderRepo,
+            mockPlantIssueRepo,
+            database,
+            wateringAdjustmentRepo
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Photo"))
+        composeTestRule.onNodeWithText("Photo").performClick()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(ADD_PHOTO_SHEET_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(ADD_PHOTO_SHEET_TEST_TAG).assertIsDisplayed()
+
+        Espresso.pressBack()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -1757,11 +1867,13 @@ class PlantDetailScreenTest {
         }
 
         selectPlantDetailTab(customRemindersTabLabel())
-        // Selecting a tab doesn't auto-scroll its content into view (mirrors
-        // fertilizeTab_showsEmptyState_onlyAfterSelected/resolvingIssue_removesItFromActiveList).
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(customRemindersSectionLabel()))
-        composeTestRule.onNodeWithText(customRemindersSectionLabel()).assertIsDisplayed()
+        // Asserts selection via the tab's own semantics instead of scrolling down to its section
+        // content: the tab strip (toggle included) is one LazyColumn item, CustomRemindersCard a
+        // separate later one, so scrolling down there and back up to `plant_detail_tabs_toggle`
+        // decomposes the toggle's item and forces performScrollToNode's expensive "reset to index 0,
+        // rescan forward a viewport at a time" recovery path — the root cause of #592's CI timeout.
+        // Don't reintroduce that round-trip; keep this check scroll-free.
+        composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsSelected()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
@@ -1870,10 +1982,12 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
-        // 10s, not the usual 5s: tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater timed out here
-        // twice in CI with "Failed to find ColorBuffer" emulator-rendering warnings logged immediately
-        // before it in both runs — consistent with transient emulator rendering slowness at that point in
-        // the suite, not app/test logic (every other selectPlantDetailTab() call reliably clears 5s).
+        // 10s, not the usual 5s: kept from an earlier attempt at #592, when
+        // tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater timed out here twice in CI and the
+        // "Failed to find ColorBuffer" warnings alongside it were read as emulator rendering slowness.
+        // That diagnosis was wrong — #592's real cause was a redundant scroll round-trip in that test
+        // (see its own comment), fixed there. The wider timeout is retained only as harmless headroom;
+        // it is not load-bearing, and no test should be written to depend on it.
         composeTestRule.waitUntil(timeoutMillis = 10000) {
             composeTestRule.onAllNodesWithText(tabLabel)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()

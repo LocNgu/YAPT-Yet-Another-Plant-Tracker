@@ -1,5 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -79,6 +83,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -112,6 +117,7 @@ import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -156,10 +162,31 @@ fun PlantDetailScreen(
     var showLiquidFertilizeDatePicker by remember { mutableStateOf(false) }
     var showWaterSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
     var showLiquidFertilizeSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
+    var showRepotDatePicker by remember { mutableStateOf(false) }
+    // #694: null hides the Add-photo sheet; non-null is both "sheet visible" and the currently
+    // picked date. pendingPhotoLoggedAt is rememberSaveable because the camera app can kill this
+    // Activity while a capture is in flight — the picked date has to survive to the result callback.
+    var addPhotoLoggedAt by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pendingPhotoLoggedAt by rememberSaveable { mutableStateOf<Long?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val reminderCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         viewModel.saveReminderPhoto(uri)
         viewModel.dismissPhotoReminder()
+    }
+    val addPhotoCameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
+        pendingPhotoLoggedAt?.let { viewModel.savePhotoLog(uri, it) }
+        pendingPhotoLoggedAt = null
+    }
+    val addPhotoGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let {
+            addPhotoCameraState.onGallerySelected()
+            ImageUtils.takePersistablePermission(context, it)
+            pendingPhotoLoggedAt?.let { loggedAt -> viewModel.savePhotoLog(it, loggedAt) }
+            pendingPhotoLoggedAt = null
+        }
     }
 
     val hasPhoto = plant?.coverPhotoUri != null
@@ -438,6 +465,7 @@ fun PlantDetailScreen(
     }
 
     CameraPhotoDialogs(reminderCameraState)
+    CameraPhotoDialogs(addPhotoCameraState)
 
     // Suppressed while the interval-suggestion dialog is showing so the two never stack
     // (matches PlantListScreen).
@@ -492,6 +520,37 @@ fun PlantDetailScreen(
                         }
                     }
                 }
+            }
+        )
+    }
+
+    if (showRepotDatePicker) {
+        CareDatePickerBottomSheet(
+            testTag = REPOT_DATE_PICKER_TEST_TAG,
+            onDismiss = { showRepotDatePicker = false },
+            onConfirm = { loggedAt ->
+                showRepotDatePicker = false
+                viewModel.quickRepot(loggedAt)
+            }
+        )
+    }
+
+    addPhotoLoggedAt?.let { loggedAt ->
+        AddPhotoBottomSheet(
+            loggedAt = loggedAt,
+            onLoggedAtChange = { addPhotoLoggedAt = it },
+            onDismiss = { addPhotoLoggedAt = null },
+            onTakePhoto = {
+                pendingPhotoLoggedAt = loggedAt
+                addPhotoLoggedAt = null
+                addPhotoCameraState.launch()
+            },
+            onChooseGallery = {
+                pendingPhotoLoggedAt = loggedAt
+                addPhotoLoggedAt = null
+                addPhotoGalleryLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         )
     }
@@ -947,7 +1006,7 @@ fun PlantDetailScreen(
                                         labelRes = R.string.bulk_action_repot,
                                         icon = Icons.Filled.LocalFlorist,
                                         testTag = REPOT_TAB_ACTION_BUTTON_TEST_TAG,
-                                        onClick = { viewModel.quickRepot() }
+                                        onClick = { showRepotDatePicker = true }
                                     )
                                     Spacer(Modifier.height(16.dp))
                                 }
@@ -990,10 +1049,7 @@ fun PlantDetailScreen(
                                         labelRes = R.string.plant_detail_action_add_photo,
                                         icon = Icons.Filled.PhotoLibrary,
                                         testTag = PHOTO_TAB_ACTION_BUTTON_TEST_TAG,
-                                        onClick = {
-                                            viewModel.prepareNewLog(CareType.PHOTO)
-                                            onNavigateToAddLog()
-                                        }
+                                        onClick = { addPhotoLoggedAt = System.currentTimeMillis() }
                                     )
                                     Spacer(Modifier.height(16.dp))
                                 }
