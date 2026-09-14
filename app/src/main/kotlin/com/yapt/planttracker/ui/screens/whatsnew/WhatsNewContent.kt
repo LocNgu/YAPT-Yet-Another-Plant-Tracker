@@ -12,31 +12,28 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased",
-        changed = listOf(
-            "The \"Log watering\" date picker now slides up as a bottom sheet instead of popping up as a " +
-                "centered dialog, matching the style of the other prompts on Plant Detail",
-            "The Repot and Photo tab quick actions on Plant Detail now ask for a date before logging, " +
-                "instead of logging immediately. Add photo now opens a single sheet with a date field and " +
-                "both Take photo and Choose from gallery, right on Plant Detail, rather than opening the " +
-                "full Add Care Log screen (which stays available with its notes field via the + button)"
-        ),
-        fixed = listOf(
-            "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
-                "later watering: backfilling an old watering no longer discards an unrelated active " +
-                "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
-                "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
-                "entry no longer shows a briefly stale \"currently every N days\" figure",
-            "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
-                "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail",
-            "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
-                "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
-                "automatically to re-sync affected plants' intervals"
-        )
+        versionName = "Unreleased"
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 460,
+            versionName = "0.30.0",
+            changed = listOf(
+                "The \"Log watering\" date picker now slides up as a bottom sheet instead of popping up as a " +
+                    "centered dialog, matching the style of the other prompts on Plant Detail",
+                "The Repot and Photo tab quick actions on Plant Detail now ask for a date before logging, " +
+                    "instead of logging immediately. Add photo now opens a single sheet with a date field and " +
+                    "both Take photo and Choose from gallery, right on Plant Detail, rather than opening the " +
+                    "full Add Care Log screen (which stays available with its notes field via the + button)"
+            ),
+            fixed = listOf(
+                "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
+                    "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
+                    "automatically to re-sync affected plants' intervals"
+            )
+        ),
         ReleaseNotes(
             versionCode = 450,
             versionName = "0.29.0",
@@ -60,7 +57,9 @@ object WhatsNewContent {
                     "later watering: backfilling an old watering no longer discards an unrelated active " +
                     "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
                     "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
-                    "entry no longer shows a briefly stale \"currently every N days\" figure"
+                    "entry no longer shows a briefly stale \"currently every N days\" figure",
+                "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
+                    "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail"
             )
         ),
         ReleaseNotes(
