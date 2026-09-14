@@ -12,6 +12,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **A second same-day "Soil still moist" reschedule silently dropped the new due date** — `QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate guard returned early before ever writing `Plant.wateringDueDateOverride`, so re-checking a plant later the same day and picking a different date changed nothing. The duplicate branch now still commits the picked date (in its own single `updatePlant()` call), skipping only the CHECK log/adaptive observation/adjustment row it would otherwise duplicate; the "already checked today" message now says the date still moved. Affects both the Plant Detail reschedule prompt and the notification's Still-moist action (#714)
+- **"Why this date?" could claim an interval change that a still-moist reschedule never actually applied** — a "Soil still moist" observation only ever persists `Plant.wateringConfidence`, but its `WateringAdjustment` row wrote the model's computed (and unapplied) interval as `afterIntervalDays`, so the Recent adjustments list could show e.g. "7 → 8 days" for an interval that was still 7. The row now always writes `afterIntervalDays` equal to the current base, so it renders "unchanged", matching what was actually persisted (#715)
+
 ## [0.30.0] - 2026-09-14
 
 ### Changed

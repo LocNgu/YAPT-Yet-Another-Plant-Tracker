@@ -165,7 +165,7 @@
     <string name="quick_log_already_watered">Already watered %s that day</string>
     <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
     <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
-    <string name="quick_log_already_checked">Already checked %s today</string>
+    <string name="quick_log_already_checked">Already checked %s today — the date still moved</string>
     <string name="care_history_show_less">Show less</string>
     <plurals name="care_history_show_more">
         <item quantity="one">Show 1 more</item>
