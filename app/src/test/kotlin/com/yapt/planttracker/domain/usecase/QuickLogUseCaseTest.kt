@@ -114,6 +114,7 @@ class QuickLogUseCaseTest {
         // observation itself override this.
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } returns Unit
         // Default: plant has no log of any type today; individual tests override to true to
         // exercise the duplicate-rejection paths (#509).
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
@@ -589,7 +590,11 @@ class QuickLogUseCaseTest {
     }
 
     // #714: a second same-day "Soil still moist" reschedule must still move the due date — only the
-    // re-logging (CHECK log / adaptive observation / adjustment row) is skipped.
+    // re-logging (CHECK log / adaptive observation / adjustment row) is skipped. #714 review round 1:
+    // the duplicate branch must use the column-specific updateWateringDueDateOverride, never a
+    // full-row updatePlant() built off a possibly-stale snapshot — two overlapping StillMoistReceiver
+    // deliveries could otherwise interleave and one could revert the other's wateringConfidence (or
+    // any other column) write.
     @Test
     fun `recordStillMoistCheck already checked today still commits the override without re-logging`() = runTest {
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
@@ -600,11 +605,8 @@ class QuickLogUseCaseTest {
         assertFalse(logged)
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-        coVerify(exactly = 1) {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == newDueAt && it.wateringConfidence == 2 }
-            )
-        }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
     }
 
     // #586 replaced #570's flat +1 day with a caller-supplied date: the picker's answer in the app,

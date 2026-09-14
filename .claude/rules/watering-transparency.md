@@ -193,12 +193,23 @@ this one function; Plant Detail's own wrapper keeps only its ViewModel-scoped bi
 **Follow-up (#714):** `QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate
 guard used to return early *before* writing `Plant.wateringDueDateOverride` at all, so a second same-day
 "Soil still moist" reschedule silently discarded the date the user just picked. The duplicate branch now
-writes the override in its own single `updatePlant()` call (the #612 single-combined-write invariant
-applies to both branches), skipping only the CHECK log / adaptive observation / `WateringAdjustment` row
-it would otherwise duplicate. The `Boolean` return is unchanged in shape but not meaning: `false` now
-means "the check was not re-logged" (the override still moved), not "nothing happened" —
+commits the override, skipping only the CHECK log / adaptive observation / `WateringAdjustment` row it
+would otherwise duplicate. The `Boolean` return is unchanged in shape but not meaning: `false` now means
+"the check was not re-logged" (the override still moved), not "nothing happened" —
 `quick_log_already_checked` was reworded in place ("Already checked %s today — the date still moved") to
 match, its only production call site.
+
+**Follow-up (#714 review round 1):** the duplicate branch above does *not* use a full-row
+`updatePlant()` — two overlapping `StillMoistReceiver` deliveries (e.g. a doubled broadcast) can
+interleave, so a duplicate-branch write built off a `plant` snapshot taken before the other delivery's
+own `updatePlant()` call could silently revert that write's `wateringConfidence` (or any other column).
+It instead calls a new column-specific `PlantDao.updateWateringDueDateOverride(id,
+wateringDueDateOverride, updatedAt)` (mirrored by a thin `PlantRepository` wrapper) — same rationale as
+`PlantDao.updateWateringBaseInterval` (#703 review round 3): a statement that can't touch a column it
+doesn't name eliminates the race entirely rather than just narrowing its window. Query-only addition, no
+schema change, no migration, no schema JSON bump. The success path's single combined `updatePlant()`
+call (#612) is unchanged — that invariant still governs only the branch that also writes
+`wateringConfidence`.
 
 **Follow-up (#715):** `recordStillMoistAdaptiveObservation()` used to write the `CHECK_STILL_MOIST` (and
 `FROZEN_POST_REPOT`) row's `afterIntervalDays` as `result.intervalDays` — the value the adaptive model

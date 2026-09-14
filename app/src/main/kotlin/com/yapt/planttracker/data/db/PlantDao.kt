@@ -57,6 +57,21 @@ interface PlantDao {
     )
     suspend fun updateWateringBaseInterval(id: Long, wateringBaseIntervalDays: Double, updatedAt: Long)
 
+    /**
+     * Column-specific update touching only `wateringDueDateOverride`/`updatedAt`, same rationale as
+     * [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch a column it
+     * doesn't name, eliminating the race entirely rather than just narrowing its window. Added for
+     * `QuickLogUseCase.recordStillMoistCheck()`'s same-day duplicate branch (#714 review round 1):
+     * two overlapping `StillMoistReceiver` deliveries could otherwise interleave a stale full-row
+     * `@Update` from a `plant` snapshot fetched before the other delivery's own write, silently
+     * reverting that write's `wateringConfidence`/etc.
+     */
+    @Query(
+        "UPDATE plants SET wateringDueDateOverride = :wateringDueDateOverride, updatedAt = :updatedAt " +
+            "WHERE id = :id"
+    )
+    suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long)
+
     // Single-statement batch variants so bulk archive/restore apply atomically — a killed
     // process can't leave some of the selected plants archived and others not (#448).
     @Query("UPDATE plants SET archivedAt = :timestamp WHERE id IN (:ids)")

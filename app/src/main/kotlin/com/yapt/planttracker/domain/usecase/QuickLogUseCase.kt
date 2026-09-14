@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.room.withTransaction
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
@@ -541,10 +542,10 @@ class QuickLogUseCase(
      * check now" debug action) shouldn't double-log, and a second in-app reschedule the same day
      * shouldn't write a second CHECK log, adaptive observation, or [WateringAdjustment] row. **`false`
      * no longer means "nothing happened" (#714)** — it still commits [newDueAtMillis] to
-     * [Plant.wateringDueDateOverride] in its own single [PlantRepository.updatePlant] call, so a second
-     * same-day "Soil still moist" reschedule still moves the due date the user just picked; only the
-     * re-logging (CHECK log / adaptive observation / adjustment row) is skipped. `false` therefore reads
-     * as "the check was not re-logged", not "the reschedule was discarded".
+     * [Plant.wateringDueDateOverride], so a second same-day "Soil still moist" reschedule still moves
+     * the due date the user just picked; only the re-logging (CHECK log / adaptive observation /
+     * adjustment row) is skipped. `false` therefore reads as "the check was not re-logged", not "the
+     * reschedule was discarded".
      *
      * Feeds the observation into [CareSchedule.computeAdaptiveInterval] and only updates
      * [Plant.wateringConfidence] — it never silently rewrites the stored
@@ -557,14 +558,21 @@ class QuickLogUseCase(
      * The override and (when adaptive watering is on) confidence are written in a single
      * [PlantRepository.updatePlant] call built off this same [plant] snapshot (#612) — two sequential
      * `.copy()`/`updatePlant` calls off the same stale snapshot let the second silently revert the
-     * first's [Plant.wateringDueDateOverride] write. That single-combined-write invariant now applies to
-     * both branches of this function (#714) — the duplicate branch below writes its own single
-     * `updatePlant` call, carrying only the override, since there is no confidence update on that path.
+     * first's [Plant.wateringDueDateOverride] write. **The duplicate branch below does not follow that
+     * shape (#714 review round 1)** — two overlapping `StillMoistReceiver` deliveries can interleave, so
+     * a duplicate-branch full-row `updatePlant()` built off a `plant` snapshot taken before the other
+     * delivery's own write could silently revert that write's `wateringConfidence`/etc. Since there is no
+     * confidence update on this branch anyway, it uses the column-specific
+     * [PlantRepository.updateWateringDueDateOverride] instead — same rationale as
+     * [PlantDao.updateWateringBaseInterval] (#703 review round 3): a statement that can't touch a column
+     * it doesn't name eliminates the race entirely rather than just narrowing its window. The
+     * single-combined-write invariant above still governs the success path's single `updatePlant` call,
+     * unchanged.
      */
     suspend fun recordStillMoistCheck(plant: Plant, newDueAtMillis: Long): Boolean {
         val now = System.currentTimeMillis()
         if (isDuplicateGuarded(CareType.CHECK) && hasLoggedToday(plant.id, CareType.CHECK)) {
-            plantRepository.updatePlant(plant.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = now))
+            plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, now)
             return false
         }
         careLogRepository.addLog(
