@@ -27,11 +27,16 @@ import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.util.findActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class CameraPhotoState {
+    private val processingScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var processingJob: Job? = null
+    private var processingFile: File? = null
     var showPermissionRationale by mutableStateOf(false)
         internal set
     var showPermissionDenied by mutableStateOf(false)
@@ -44,24 +49,36 @@ class CameraPhotoState {
     fun launch() = onLaunch()
 
     fun onGallerySelected() {
+        cancelProcessing()
         pendingCameraFile?.delete()
         pendingCameraFile = null
         pendingCameraUri = null
     }
 
-    internal fun finishCapture(success: Boolean, scope: CoroutineScope, onPhotoTaken: (Uri) -> Unit) {
+    internal fun finishCapture(success: Boolean, onPhotoTaken: (Uri) -> Unit) {
         val file = pendingCameraFile
         val uri = pendingCameraUri
         if (success && file != null && uri != null) {
-            scope.launch {
+            processingFile = file
+            processingJob = processingScope.launch {
                 withContext(Dispatchers.IO) { ImageUtils.compressCameraImage(file) }
                 onPhotoTaken(uri)
+                processingFile = null
+                processingJob = null
             }
         } else if (!success) {
             file?.delete()
         }
         pendingCameraFile = null
         pendingCameraUri = null
+    }
+
+    internal fun cancelProcessing() {
+        val file = processingFile
+        processingJob?.cancel()
+        processingJob?.invokeOnCompletion { file?.delete() }
+        processingJob = null
+        processingFile = null
     }
 }
 
@@ -82,11 +99,12 @@ fun rememberCameraPhotoState(
     val cameraCaptureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        state.finishCapture(success, scope, currentOnPhotoTaken)
+        state.finishCapture(success, currentOnPhotoTaken)
     }
 
     fun launchCamera() {
         try {
+            state.cancelProcessing()
             state.pendingCameraFile?.delete()
             val file = ImageUtils.createCameraImageFile(context)
             state.pendingCameraFile = file

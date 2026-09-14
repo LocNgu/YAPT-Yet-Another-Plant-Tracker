@@ -1,6 +1,8 @@
 package com.yapt.planttracker.data.backup
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +18,7 @@ import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.util.ExistingCameraPhotoCompression
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -158,6 +161,64 @@ class BackupManagerTest {
         val restoredPath = restoredPlants[0].coverPhotoUri!!
         val restoredBytes = File(restoredPath).readBytes()
         assertArrayEquals("Restored photo bytes must match originals", photoBytes, restoredBytes)
+    }
+
+    @Test
+    fun roundTrip_withOptimizedPhotos_reducesDimensionsWithoutChangingSource() = runBlocking {
+        val photoFile = tmpFolder.newFile("large-cover.jpg")
+        Bitmap.createBitmap(2400, 1200, Bitmap.Config.ARGB_8888).also { bitmap ->
+            photoFile.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            bitmap.recycle()
+        }
+        val originalBytes = photoFile.readBytes()
+        db.plantDao().insertPlant(
+            PlantEntity(
+                id = 1L,
+                name = "Large photo",
+                species = null,
+                room = null,
+                coverPhotoUri = Uri.fromFile(photoFile).toString(),
+                notes = null,
+                wateringIntervalDays = null,
+                fertilizingIntervalDays = null,
+                createdAt = 1000L,
+                updatedAt = 1000L
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("optimized.yapt")
+        assertTrue(
+            backupManager.exportBackup(Uri.fromFile(exportFile), includePhotos = true, optimizePhotos = true) is
+                BackupResult.ExportSuccess
+        )
+        assertArrayEquals("Export must not alter the gallery source", originalBytes, photoFile.readBytes())
+
+        db.plantDao().deleteAll()
+        assertTrue(backupManager.importBackup(Uri.fromFile(exportFile)) is BackupResult.ImportSuccess)
+        val restored = File(db.plantDao().getAllPlants().first().single().coverPhotoUri!!)
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(restored.path, bounds)
+        assertEquals(1920, maxOf(bounds.outWidth, bounds.outHeight))
+        assertTrue(restored.length() < originalBytes.size)
+    }
+
+    @Test
+    fun existingCameraPhotos_areCompressedOnlyOnce() = runBlocking {
+        val imagesDir = tmpFolder.newFolder("existing-images")
+        val photoFile = imagesDir.resolve("pre-309-${System.nanoTime()}.jpg")
+        try {
+            Bitmap.createBitmap(2400, 1200, Bitmap.Config.ARGB_8888).also { bitmap ->
+                photoFile.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+                bitmap.recycle()
+            }
+
+            assertEquals(1, ExistingCameraPhotoCompression.runIfNeeded(context, dataStore, imagesDir))
+            val firstRunBytes = photoFile.readBytes()
+            assertEquals(0, ExistingCameraPhotoCompression.runIfNeeded(context, dataStore, imagesDir))
+            assertArrayEquals(firstRunBytes, photoFile.readBytes())
+        } finally {
+            photoFile.delete()
+        }
     }
 
     @Test

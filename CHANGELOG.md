@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
-- **Photos taken inside YAPT now use substantially less app storage** — camera captures are resized to at most 1920 px on their longest side and re-encoded as 80% quality JPEGs before their URI is saved. Processing preserves the photo's EXIF orientation and safely falls back to the original capture if compression fails; photos selected from the system gallery remain untouched (#309)
+- **Photos now take substantially less space in YAPT and its backups** — new camera captures are resized to at most 1920 px on their longest side and re-encoded as 80% quality JPEGs before their URI is saved, and existing in-app camera captures receive the same optimization once after updating. Backup export now offers a default-on "Optimize photos" option that compresses the copies placed in the backup—including gallery photos—without changing the originals in the system gallery. Orientation is preserved and processing safely falls back to the original image if compression fails (#309)
 
 ## [0.30.0] - 2026-09-14
 

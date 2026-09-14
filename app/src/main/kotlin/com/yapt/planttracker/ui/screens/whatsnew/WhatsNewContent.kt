@@ -14,8 +14,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
-            "Photos taken inside YAPT now use substantially less app storage, while photos selected from your " +
-                "gallery remain untouched"
+            "New and existing photos taken inside YAPT now use substantially less app storage. Backup export " +
+                "can also optimize its copies of photos—including gallery photos—without changing your originals"
         )
     )
 
