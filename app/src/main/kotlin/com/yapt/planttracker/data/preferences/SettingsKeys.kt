@@ -38,6 +38,9 @@ object SettingsKeys {
      * [ASK_BEFORE_CHANGING_INTERVALS]'s, which does round-trip through backup).
      */
     val SEASONAL_BASE_GRADUATION_FIXUP_DONE = booleanPreferencesKey("seasonal_base_graduation_fixup_done")
+
+    /** Device-local marker for the #309 one-time compression of pre-existing in-app camera captures. */
+    val CAMERA_PHOTO_COMPRESSION_FIXUP_DONE = booleanPreferencesKey("camera_photo_compression_fixup_done")
 }
 
 /**

@@ -17,6 +17,7 @@ import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
+import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
@@ -73,7 +74,11 @@ sealed class BackupResult {
 }
 
 interface BackupManagerInterface {
-    suspend fun exportBackup(destinationUri: Uri, includePhotos: Boolean): BackupResult
+    suspend fun exportBackup(
+        destinationUri: Uri,
+        includePhotos: Boolean,
+        optimizePhotos: Boolean = false
+    ): BackupResult
     suspend fun importBackup(sourceUri: Uri): BackupResult
 }
 
@@ -83,9 +88,12 @@ class BackupManager(
     private val dataStore: DataStore<Preferences>
 ) : BackupManagerInterface {
 
+    // Existing export orchestration intentionally stays together; the new option only changes photo streaming.
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     override suspend fun exportBackup(
         destinationUri: Uri,
-        includePhotos: Boolean
+        includePhotos: Boolean,
+        optimizePhotos: Boolean
     ): BackupResult = withContext(Dispatchers.IO) {
         runCatching {
             val plantDao = database.plantDao()
@@ -125,20 +133,20 @@ class BackupManager(
                 for (plant in plants) {
                     plant.coverPhotoUri?.let { uri ->
                         if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri)
+                            photoMapping[uri] = buildZipPhotoName(uri, optimizePhotos)
                         }
                     }
                 }
                 for (log in careLogs) {
                     log.photoUri?.let { uri ->
                         if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri)
+                            photoMapping[uri] = buildZipPhotoName(uri, optimizePhotos)
                         }
                     }
                 }
                 for (photo in allPlantPhotos) {
                     if (photo.uri !in photoMapping) {
-                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri)
+                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri, optimizePhotos)
                     }
                 }
             }
@@ -273,7 +281,11 @@ class BackupManager(
                                 }.getOrNull() ?: continue
                                 input.use {
                                     zip.putNextEntry(ZipEntry(zipPath))
-                                    it.copyTo(zip)
+                                    if (optimizePhotos) {
+                                        copyOptimizedPhotoToZip(it, zip)
+                                    } else {
+                                        it.copyTo(zip)
+                                    }
                                     zip.closeEntry()
                                 }
                             }
@@ -509,11 +521,23 @@ class BackupManager(
         }
     }
 
-    private fun buildZipPhotoName(uriString: String): String {
+    private fun copyOptimizedPhotoToZip(input: java.io.InputStream, zip: ZipOutputStream) {
+        val temporary = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
+        try {
+            temporary.outputStream().use { output -> input.copyTo(output) }
+            ImageUtils.compressCameraImage(temporary)
+            temporary.inputStream().use { it.copyTo(zip) }
+        } finally {
+            temporary.delete()
+        }
+    }
+
+    private fun buildZipPhotoName(uriString: String, optimizePhotos: Boolean): String {
         val uri = Uri.parse(uriString)
         val lastSegment = uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast('%')
             ?.let { if (it.contains('.')) it else "$it.jpg" }
             ?: "photo.jpg"
-        return "$PHOTOS_DIR${UUID.randomUUID()}_$lastSegment"
+        val backupName = if (optimizePhotos) lastSegment.substringBeforeLast('.') + ".jpg" else lastSegment
+        return "$PHOTOS_DIR${UUID.randomUUID()}_$backupName"
     }
 }

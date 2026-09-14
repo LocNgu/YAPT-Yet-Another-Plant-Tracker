@@ -48,6 +48,7 @@
     <string name="backup_export_dialog_title">Export backup</string>
     <string name="backup_export_dialog_text">Create a backup of all your plants and care logs.</string>
     <string name="backup_include_photos">Include photos</string>
+    <string name="backup_optimize_photos">Optimize photos for a smaller backup</string>
     <string name="backup_export_confirm_button">Export</string>
     <string name="backup_restore_dialog_title">Restore backup</string>
     <string name="backup_restore_dialog_text">This will replace all current data. This cannot be undone.</string>

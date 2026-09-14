@@ -160,6 +160,7 @@ fun SettingsScreen(
 
     var showExportDialog by remember { mutableStateOf(false) }
     var includePhotos by remember { mutableStateOf(true) }
+    var optimizeBackupPhotos by remember { mutableStateOf(true) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var showFutureSchemaDialog by remember { mutableStateOf(false) }
@@ -189,7 +190,7 @@ fun SettingsScreen(
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
-        uri?.let { viewModel.exportBackup(it, includePhotos) }
+        uri?.let { viewModel.exportBackup(it, includePhotos, optimizeBackupPhotos) }
     }
 
     val openDocumentLauncher = rememberLauncherForActivityResult(
@@ -261,6 +262,23 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.backup_include_photos))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = includePhotos) {
+                                optimizeBackupPhotos = !optimizeBackupPhotos
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = optimizeBackupPhotos,
+                            enabled = includePhotos,
+                            onCheckedChange = { optimizeBackupPhotos = it }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.backup_optimize_photos))
                     }
                 }
             },
