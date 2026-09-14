@@ -22,7 +22,9 @@ that does *not* change when an issue closes — the model, the invariants, and t
 was requested on #716–#720 and answered on all five (see each issue's comments — they are worth reading
 in full before implementing). It confirmed every claim in substance and corrected four of them; the
 corrections are folded in below. Codex reported committing fixes for #719 and #720, but **no such
-branches or PRs exist on the remote** — treat those as unwritten.
+branches or PRs exist on the remote** — treat those as unwritten. (True as of this note's writing.
+#719 has since genuinely landed — see "#719 shipped; how it interacts with #720" below. #720 remains
+unwritten.)
 
 Where codex corrected me:
 
@@ -84,7 +86,7 @@ clamp, not this round-trip.
 | #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. Preserving a precise base while prefilling the field from the *rounded* one creates an immediate display/schedule mismatch — derive both from the same value. |
 | #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches ADR-0026/0028, needs a spec pass. Fix choice interacts with #717's outcome. |
 | #714 | Second same-day still-moist reschedule silently drops the date | Same function as #715. One PR is cheaper. |
-| #720 | Reschedule to a date before the due date is silently ignored | Option A makes #719's target unreachable; option C unblocks it. Decide this with #719 in view. |
+| #720 | Reschedule to a date before the due date is silently ignored | See "#719 shipped; how it interacts with #720" below for the current framing — #719's own target is not at stake, only whether an override may win `maxOf()` against an earlier due date. |
 | #717 | Unattributed observations can't move any base ≤ 26 days | **Not docs-only** (see above). #718's fix A needs the `Double` model result this issue would add — do them together or duplicate the API change. |
 | #715 | "Recent adjustments" can show an interval change that was never applied | Pairs with #714. |
 

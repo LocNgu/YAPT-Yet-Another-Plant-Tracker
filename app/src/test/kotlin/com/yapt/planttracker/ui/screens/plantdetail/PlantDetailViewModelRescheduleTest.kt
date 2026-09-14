@@ -291,31 +291,47 @@ class PlantDetailViewModelRescheduleTest {
      * `now + suggestedDays` — the date the "(suggested)" label promises — not `due + suggestedDays`,
      * which is what `confirmRescheduleRelativeDays`'s due-date anchor would produce for the same
      * plant and overshoots by exactly `daysUntilDue`.
+     *
+     * The "(suggested)" row only renders for `RescheduleReason.SOIL_STILL_MOIST` — routed through
+     * `chooseRescheduleReason()` so `rescheduleReason.value` is genuinely set, exactly as production
+     * reaches this function — so `applyReschedule()`'s `SOIL_STILL_MOIST` branch is what actually
+     * runs, calling `QuickLogUseCase.recordStillMoistCheck()` rather than a plain
+     * `plantRepository.updatePlant()` (round-1 review fix: the earlier version of this test called
+     * `confirmRescheduleSuggestedDays` directly with no reason set, so `applyReschedule()` silently
+     * took its `else` branch instead — a path this function never takes in production).
      */
     @Test
     fun `confirmRescheduleSuggestedDays anchors to now, not the due date, for a not-yet-due plant`() = runTest {
         val now = System.currentTimeMillis()
-        val monstera = plant().copy(wateringIntervalDays = 7)
+        // pinIntervalToBase = true keeps the effective interval a flat 7 days regardless of today's
+        // real-world seasonal amplitude (default STANDARD, nonzero, since #656) — otherwise the due
+        // date this test depends on could drift with whatever day CI happens to run on.
+        val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true)
         val recentLog = CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(6))
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 1
+        coEvery { quickLogUseCase.recordStillMoistCheck(monstera, any()) } returns true
         val vm = makeVm(careLogs = listOf(recentLog))
 
         val before = System.currentTimeMillis()
-        vm.careStatus.test {
-            assertFalse(awaitItem()!!.isOverdue)
-            vm.confirmRescheduleSuggestedDays(1)
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.careStatus.test {
+                assertFalse(awaitItem()!!.isOverdue)
+                vm.requestReschedule()
+                vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
+                vm.confirmRescheduleSuggestedDays(1)
+                cancelAndIgnoreRemainingEvents()
+            }
             cancelAndIgnoreRemainingEvents()
         }
         val after = System.currentTimeMillis()
 
         val oneDayMs = TimeUnit.DAYS.toMillis(1)
         coVerify {
-            plantRepo.updatePlant(
-                match {
-                    val override = it.wateringDueDateOverride
-                    override != null && override in (before + oneDayMs)..(after + oneDayMs)
-                }
+            quickLogUseCase.recordStillMoistCheck(
+                monstera,
+                match { it in (before + oneDayMs)..(after + oneDayMs) }
             )
         }
     }
@@ -324,36 +340,59 @@ class PlantDetailViewModelRescheduleTest {
      * Shortening subset — the issue's 14-day/day-8 worked example (`1.25 × observedGap < base`,
      * confidence 3, `target = 10`, model base `14 + 0.28 × (10 − 14) = 12.88 → 13`, `suggested =
      * 13 − 8 = 5`). This test only pins what `confirmRescheduleSuggestedDays` itself writes —
-     * `now + suggestedDays`, the corrected, earlier value — using a mocked `PlantRepository` that
-     * never runs `CareSchedule.computeWateringDue()`. It deliberately does **not** assert the
-     * resulting *effective* due date: `computeWateringDue()`'s `maxOf(computedNextDueAt, override)`
-     * clamp means this earlier override is provisionally inert (the visible due date does not move)
-     * until #720 decides whether an override may pull a due date earlier at all — see
+     * `now + suggestedDays`, the corrected, earlier value — via the mocked `QuickLogUseCase
+     * .recordStillMoistCheck()` call, which never runs `CareSchedule.computeWateringDue()`. It
+     * deliberately does **not** assert the resulting *effective* due date:
+     * `computeWateringDue()`'s `maxOf(computedNextDueAt, override)` clamp means this earlier
+     * override is provisionally inert (the visible due date does not move) until #720 decides
+     * whether an override may pull a due date earlier at all — see
      * `.claude/rules/adaptive-watering-cluster.md`. That downstream behaviour belongs to #720's own
      * test coverage, not this one.
+     *
+     * Routed through `chooseRescheduleReason(SOIL_STILL_MOIST)` for the same reason as the
+     * lengthening-subset test above — `confirmRescheduleSuggestedDays` only ever runs with that
+     * reason set in production, so the test must exercise `recordStillMoistCheck()`, not a plain
+     * `plantRepository.updatePlant()` (round-1 review fix).
      */
     @Test
     fun `confirmRescheduleSuggestedDays writes now plus suggestedDays even in the shortening subset`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 14)
+        val now = System.currentTimeMillis()
+        // pinIntervalToBase = true, same rationale as the lengthening-subset test above — without it
+        // the due date this test's assertion window depends on (last watered + 14 days) would drift
+        // with today's real-world seasonal amplitude instead of staying a flat 14 days.
+        val monstera = plant().copy(wateringIntervalDays = 14, pinIntervalToBase = true)
+        val eightDaysAgoLog = CareLog(
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = now - TimeUnit.DAYS.toMillis(8)
+        )
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
+        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 5
+        coEvery { quickLogUseCase.recordStillMoistCheck(monstera, any()) } returns true
+        val vm = makeVm(careLogs = listOf(eightDaysAgoLog))
 
         val before = System.currentTimeMillis()
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.confirmRescheduleSuggestedDays(5)
+            // careStatus needs an active collector for its StateFlow.value to be populated at call
+            // time (it's WhileSubscribed, same as on the real screen, which always observes it) —
+            // confirmRescheduleSuggestedDays reads careStatus.value synchronously.
+            vm.careStatus.test {
+                assertFalse(awaitItem()!!.isOverdue)
+                vm.requestReschedule()
+                vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
+                vm.confirmRescheduleSuggestedDays(5)
+                cancelAndIgnoreRemainingEvents()
+            }
             cancelAndIgnoreRemainingEvents()
         }
         val after = System.currentTimeMillis()
 
         val fiveDaysMs = TimeUnit.DAYS.toMillis(5)
         coVerify {
-            plantRepo.updatePlant(
-                match {
-                    val override = it.wateringDueDateOverride
-                    override != null && override in (before + fiveDaysMs)..(after + fiveDaysMs)
-                }
+            quickLogUseCase.recordStillMoistCheck(
+                monstera,
+                match { it in (before + fiveDaysMs)..(after + fiveDaysMs) }
             )
         }
     }
