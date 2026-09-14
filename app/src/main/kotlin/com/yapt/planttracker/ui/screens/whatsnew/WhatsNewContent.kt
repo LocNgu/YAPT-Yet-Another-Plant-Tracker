@@ -31,7 +31,9 @@ object WhatsNewContent {
             fixed = listOf(
                 "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
                     "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
-                    "automatically to re-sync affected plants' intervals"
+                    "automatically to re-sync affected plants' intervals",
+                "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
+                    "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail"
             )
         ),
         ReleaseNotes(
@@ -57,9 +59,7 @@ object WhatsNewContent {
                     "later watering: backfilling an old watering no longer discards an unrelated active " +
                     "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
                     "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
-                    "entry no longer shows a briefly stale \"currently every N days\" figure",
-                "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
-                    "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail"
+                    "entry no longer shows a briefly stale \"currently every N days\" figure"
             )
         ),
         ReleaseNotes(
