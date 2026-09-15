@@ -67,7 +67,8 @@ unchanged by this ADR) rather than of the call site being removed.
 
 "Why put it off?" presupposes deferral. It reads naturally for pushing a date later and
 incoherently for the case where the model's own conclusion is "come back sooner" — exactly the
-situation the (now-superseded) #720 was stuck reasoning about.
+situation #720 is stuck reasoning about (which this decision simplifies but does not
+resolve — see "Interaction with #714/#719/#720/#737" below).
 
 ### Considered and rejected
 
