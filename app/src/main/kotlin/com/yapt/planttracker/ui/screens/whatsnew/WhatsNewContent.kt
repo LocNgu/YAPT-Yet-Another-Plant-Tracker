@@ -12,7 +12,12 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        fixed = listOf(
+            "Fixed the Reschedule dialog's \"(suggested)\" option landing several days later than promised " +
+                "for a plant that isn't due yet, after answering \"Soil still moist\" — it now lands on the " +
+                "date it actually says"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.

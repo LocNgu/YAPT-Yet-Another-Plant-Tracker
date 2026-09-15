@@ -236,11 +236,26 @@ internal fun FertilizeDueActionRow(
 }
 
 /**
+ * Bundles [RescheduleWateringDialog]'s per-option callbacks so the composable itself stays under
+ * Detekt's `LongParameterList` threshold once the "(suggested)" row got its own [onSuggestedDays]
+ * callback distinct from [onRelativeDays] (#719) — six lambda/value params was already at the
+ * default threshold of 6 before that addition. Each field keeps its own distinct anchoring semantics
+ * explicit (due-date-relative vs. now-relative) rather than collapsing them behind one shared shape.
+ */
+internal data class RescheduleDialogActions(
+    val onDismiss: () -> Unit,
+    val onToday: () -> Unit,
+    val onRelativeDays: (Int) -> Unit,
+    val onCustomDate: (Long) -> Unit,
+    val onSuggestedDays: (Int) -> Unit
+)
+
+/**
  * The "Reschedule watering" dialog (#508, product ADR-0029, replaces the 1-7 day stepper): Today /
  * +1 / +2 / +3 days / a Material 3 [DatePicker] for a custom date. [todayEnabled] is `false` while
  * the plant's effective due date is already today (a true no-op there) and `true` while overdue.
- * Every option writes `wateringDueDateOverride` only via [onToday]/[onRelativeDays]/[onCustomDate] —
- * this dialog never fires the ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
+ * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
+ * ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
  * Reached only after the reason prompt since #586 (product ADR-0030). [suggestedDays], non-null only
  * for a "Soil still moist" reschedule, adds one recommended option at the top derived from the
@@ -248,31 +263,33 @@ internal fun FertilizeDueActionRow(
  * `STILL_MOIST_DEFERRAL_DAYS = 1`, which could not clear "due" for a plant overdue by two or more
  * days. **How many days the user then picks is never an input to the model** (#586): the reason
  * already decided what is learned.
+ *
+ * The "(suggested)" row calls [RescheduleDialogActions.onSuggestedDays], not
+ * [RescheduleDialogActions.onRelativeDays] — the two anchor differently (#719): the model's own
+ * suggestion is a from-today figure, while +1/+2/+3 are due-date-relative, and only coincide when the
+ * plant is already overdue.
  */
 @Composable
 internal fun RescheduleWateringDialog(
     todayEnabled: Boolean,
-    onDismiss: () -> Unit,
-    onToday: () -> Unit,
-    onRelativeDays: (Int) -> Unit,
-    onCustomDate: (Long) -> Unit,
+    actions: RescheduleDialogActions,
     suggestedDays: Int? = null
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         RescheduleDatePickerDialog(
-            onDismiss = onDismiss,
+            onDismiss = actions.onDismiss,
             onConfirm = { utcMidnightMs ->
                 showDatePicker = false
-                utcMidnightMs?.let { onCustomDate(utcMidnightMsToLocalStartOfDayMillis(it)) }
+                utcMidnightMs?.let { actions.onCustomDate(utcMidnightMsToLocalStartOfDayMillis(it)) }
             }
         )
         return
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = actions.onDismiss,
         title = { Text(stringResource(R.string.reschedule_watering_title)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -283,18 +300,18 @@ internal fun RescheduleWateringDialog(
                             suggestedDays,
                             suggestedDays
                         ),
-                        onClick = { onRelativeDays(suggestedDays) }
+                        onClick = { actions.onSuggestedDays(suggestedDays) }
                     )
                 }
                 RescheduleOption(
                     label = stringResource(R.string.reschedule_watering_today),
-                    onClick = onToday,
+                    onClick = actions.onToday,
                     enabled = todayEnabled
                 )
                 for (days in RELATIVE_DAY_OPTIONS) {
                     RescheduleOption(
                         label = pluralStringResource(R.plurals.reschedule_watering_plus_days, days, days),
-                        onClick = { onRelativeDays(days) }
+                        onClick = { actions.onRelativeDays(days) }
                     )
                 }
                 RescheduleOption(
@@ -305,7 +322,7 @@ internal fun RescheduleWateringDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = actions.onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

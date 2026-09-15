@@ -345,10 +345,13 @@ fun PlantDetailScreen(
             // Pulling the date to today would contradict "soil still moist", so that option is
             // only ever offered for a deferral the user attributed to themselves (#586).
             todayEnabled = careStatus?.isOverdue == true && rescheduleReason != RescheduleReason.SOIL_STILL_MOIST,
-            onDismiss = { viewModel.dismissRescheduleDialog() },
-            onToday = { viewModel.confirmRescheduleToday() },
-            onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
-            onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) },
+            actions = RescheduleDialogActions(
+                onDismiss = { viewModel.dismissRescheduleDialog() },
+                onToday = { viewModel.confirmRescheduleToday() },
+                onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
+                onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) },
+                onSuggestedDays = { days -> viewModel.confirmRescheduleSuggestedDays(days) }
+            ),
             suggestedDays = rescheduleSuggestedDays
         )
     }

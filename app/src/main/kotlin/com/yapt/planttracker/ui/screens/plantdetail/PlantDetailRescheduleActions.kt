@@ -69,6 +69,26 @@ fun PlantDetailViewModel.confirmRescheduleRelativeDays(days: Int) {
 fun PlantDetailViewModel.confirmRescheduleCustomDate(newDueAtMillis: Long) = applyReschedule(newDueAtMillis)
 
 /**
+ * Reschedule "(suggested)" option (#719) — [days] comes from `QuickLogUseCase
+ * .suggestedStillMoistDeferralDays()`, whose own KDoc frames it as **from today**: "come back when
+ * the freshly-lengthened interval says it is due". Unlike [confirmRescheduleRelativeDays], which
+ * anchors to the due date for its own good reason (+1/+2/+3 read as "N days past due"), this option
+ * anchors to `now`, matching what its label ("In N days (suggested)") actually promises and bringing
+ * this in-app path to parity with `StillMoistReceiver.handleStillMoist()`, which already anchored the
+ * same value to `System.currentTimeMillis()` (#586's "the two paths cannot drift" guarantee — this
+ * was the one path that had drifted from it).
+ *
+ * In the subset where the model *shortens* the interval (`1.25 × observedGap < base`), `now + [days]`
+ * lands **before** the plant's current due date. `CareSchedule.computeWateringDue()`'s
+ * `maxOf(computedNextDueAt, override)` clamp discards an override that loses that comparison, so the
+ * visible due date does not move in that subset even though this function writes the corrected,
+ * earlier value — whether an override should be allowed to pull a due date earlier at all is #720's
+ * decision, not a bug introduced here (see `.claude/rules/adaptive-watering-cluster.md`).
+ */
+fun PlantDetailViewModel.confirmRescheduleSuggestedDays(days: Int) =
+    applyReschedule(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(days.toLong()))
+
+/**
  * The one place a reschedule is committed, whichever date option was tapped. What the answer to
  * the #586 reason prompt decides — never the length of the deferral:
  *
@@ -99,42 +119,6 @@ private fun PlantDetailViewModel.applyReschedule(newDueAtMillis: Long) {
         } else {
             plantRepository.updatePlant(
                 p.copy(wateringDueDateOverride = newDueAtMillis, updatedAt = System.currentTimeMillis())
-            )
-        }
-    }
-}
-
-/**
- * The "Rescheduled +N days" chip's tap-to-revert action (#630) — clears
- * `Plant.wateringDueDateOverride`, restoring the schedule-computed due date immediately. A plain
- * override-only write, same posture [applyReschedule] already keeps for "I can't right now"
- * (ADR-0029/ADR-0030): never touches `wateringIntervalDays`/`wateringBaseIntervalDays`/
- * `wateringConfidence`, never a `WateringAdjustment` row. No confirmation dialog per spec — the
- * Snackbar/Undo pair is the only safety net, mirroring `applySuggestionOrPrompt`'s silent-apply
- * flow. `Event.RescheduleReverted` carries the plant's actual prior override value, captured once
- * here and threaded straight through for [undoRevertReschedule] to restore as-is.
- */
-fun PlantDetailViewModel.revertReschedule() {
-    viewModelScope.launch {
-        val p = plant.value ?: return@launch
-        val previousOverride = p.wateringDueDateOverride ?: return@launch
-        plantRepository.updatePlant(p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis()))
-        emitEvent(PlantDetailViewModel.Event.RescheduleReverted(previousOverride))
-    }
-}
-
-/**
- * Undo action for the `Event.RescheduleReverted` Snackbar (#630) — restores
- * `Plant.wateringDueDateOverride` to [previousOverrideAtMillis] as-is, no recomputation, mirroring
- * `undoSilentIntervalApply`'s posture. If a newer reschedule was written in the meantime, this
- * silently overwrites it with the stale captured value (documented, not solved — same accepted
- * race as the existing interval-undo Snackbar).
- */
-fun PlantDetailViewModel.undoRevertReschedule(previousOverrideAtMillis: Long) {
-    viewModelScope.launch {
-        plant.value?.let {
-            plantRepository.updatePlant(
-                it.copy(wateringDueDateOverride = previousOverrideAtMillis, updatedAt = System.currentTimeMillis())
             )
         }
     }

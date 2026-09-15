@@ -370,6 +370,21 @@ Material 3 `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-U
 what the picker itself displays, not the device's local "today"). **Never fires the ADR-0006
 interval-suggestion dialog** afterward, on either branch; there is no `Event` for a reschedule at all.
 
+**Two different anchors, on purpose (#719).** The "(suggested)" row and +1/+2/+3 look like siblings in
+the same list but commit through two distinct callbacks bundled in `RescheduleDialogActions`
+(`onSuggestedDays` vs. `onRelativeDays`) because `suggestedStillMoistDeferralDays()` is a **from-today**
+figure ("come back when the freshly-lengthened interval says it is due") while +1/+2/+3 are genuinely
+**due-date-relative** ("N days past due"). `PlantDetailViewModel.confirmRescheduleSuggestedDays(days)`
+therefore anchors to `System.currentTimeMillis()`, not `maxOf(nextWateringDueAt, now)` like
+`confirmRescheduleRelativeDays()` — the two anchors coincide only when the plant is already overdue,
+which is why this drift went unnoticed until an explicit not-yet-due worked example caught it. This
+also brings the in-app path to parity with `StillMoistReceiver.handleStillMoist()`, which had always
+anchored the same suggested value to `now` (#586's "the two paths cannot drift" guarantee). In the
+subset where the model *shortens* the interval, the resulting `now + days` target can fall before the
+current due date, where `CareSchedule.computeWateringDue()`'s `maxOf(computedNextDueAt, override)`
+clamp discards it — provisionally inert pending #720's decision on whether an override may ever pull a
+due date earlier at all (`.claude/rules/adaptive-watering-cluster.md`).
+
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
 — non-null only when `plant.wateringDueDateOverride` is the actual `maxOf()` winner over the
