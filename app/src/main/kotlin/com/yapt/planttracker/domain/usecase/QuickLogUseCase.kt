@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.room.withTransaction
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
@@ -534,10 +535,17 @@ class QuickLogUseCase(
      * [newDueAtMillis] replaces #570's flat `+1 day` constant, which could not clear "due" for a plant
      * overdue by two or more days while the same-day guard blocked a second tap. In the app the user
      * picks the date; the notification, which has no picker, passes
-     * [suggestedStillMoistDeferralDays] applied to now. Returns `false` without inserting anything if
-     * [plant] already has a CHECK log today — a notification firing the action twice in one day (e.g.
-     * the "Run reminder check now" debug action) shouldn't double-log (#509-style guard via
-     * [isDuplicateGuarded]).
+     * [suggestedStillMoistDeferralDays] applied to now.
+     *
+     * Returns `false` when [plant] already has a CHECK log today (#509-style guard via
+     * [isDuplicateGuarded]) — a notification firing the action twice in one day (e.g. the "Run reminder
+     * check now" debug action) shouldn't double-log, and a second in-app reschedule the same day
+     * shouldn't write a second CHECK log, adaptive observation, or [WateringAdjustment] row. **`false`
+     * no longer means "nothing happened" (#714)** — it still commits [newDueAtMillis] to
+     * [Plant.wateringDueDateOverride], so a second same-day "Soil still moist" reschedule still moves
+     * the due date the user just picked; only the re-logging (CHECK log / adaptive observation /
+     * adjustment row) is skipped. `false` therefore reads as "the check was not re-logged", not "the
+     * reschedule was discarded".
      *
      * Feeds the observation into [CareSchedule.computeAdaptiveInterval] and only updates
      * [Plant.wateringConfidence] — it never silently rewrites the stored
@@ -550,13 +558,23 @@ class QuickLogUseCase(
      * The override and (when adaptive watering is on) confidence are written in a single
      * [PlantRepository.updatePlant] call built off this same [plant] snapshot (#612) — two sequential
      * `.copy()`/`updatePlant` calls off the same stale snapshot let the second silently revert the
-     * first's [Plant.wateringDueDateOverride] write.
+     * first's [Plant.wateringDueDateOverride] write. **The duplicate branch below does not follow that
+     * shape (#714 review round 1)** — two overlapping `StillMoistReceiver` deliveries can interleave, so
+     * a duplicate-branch full-row `updatePlant()` built off a `plant` snapshot taken before the other
+     * delivery's own write could silently revert that write's `wateringConfidence`/etc. Since there is no
+     * confidence update on this branch anyway, it uses the column-specific
+     * [PlantRepository.updateWateringDueDateOverride] instead — same rationale as
+     * [PlantDao.updateWateringBaseInterval] (#703 review round 3): a statement that can't touch a column
+     * it doesn't name eliminates the race entirely rather than just narrowing its window. The
+     * single-combined-write invariant above still governs the success path's single `updatePlant` call,
+     * unchanged.
      */
     suspend fun recordStillMoistCheck(plant: Plant, newDueAtMillis: Long): Boolean {
+        val now = System.currentTimeMillis()
         if (isDuplicateGuarded(CareType.CHECK) && hasLoggedToday(plant.id, CareType.CHECK)) {
+            plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, now)
             return false
         }
-        val now = System.currentTimeMillis()
         careLogRepository.addLog(
             CareLog(
                 plantId = plant.id,
@@ -615,13 +633,19 @@ class QuickLogUseCase(
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
         val result = computeStillMoistAdaptiveInterval(plant, actualIntervalDays, frozen)
+        // #715: this observation never writes `result.intervalDays` to the plant — only
+        // `result.confidence`, below — so the row must not claim an interval change that never
+        // happened. `afterIntervalDays = currentBase` (Option A) makes the row always render
+        // "unchanged", for both trigger branches uniformly: `FROZEN_POST_REPOT` already produces
+        // `result.intervalDays == currentBase` by construction (frozen forces gain 0), but writing
+        // `currentBase` explicitly stops this row from depending on that implicit identity.
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
                 trigger = if (frozen) WateringAdjustmentTrigger.FROZEN_POST_REPOT else WateringAdjustmentTrigger.CHECK_STILL_MOIST,
                 beforeIntervalDays = currentBase,
-                afterIntervalDays = result.intervalDays
+                afterIntervalDays = currentBase
             )
         )
         return result.confidence.takeIf { it != plant.wateringConfidence }

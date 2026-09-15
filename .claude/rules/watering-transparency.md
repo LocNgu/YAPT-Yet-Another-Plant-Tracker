@@ -190,6 +190,44 @@ guarded on `plant.wateringIntervalDays != null`). All three dismiss-suggestion c
 this one function; Plant Detail's own wrapper keeps only its ViewModel-scoped bits (reading the current
 `plant`, clearing `suggestedWateringInterval`).
 
+**Follow-up (#714):** `QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate
+guard used to return early *before* writing `Plant.wateringDueDateOverride` at all, so a second same-day
+"Soil still moist" reschedule silently discarded the date the user just picked. The duplicate branch now
+commits the override, skipping only the CHECK log / adaptive observation / `WateringAdjustment` row it
+would otherwise duplicate. The `Boolean` return is unchanged in shape but not meaning: `false` now means
+"the check was not re-logged" (the override still moved), not "nothing happened" —
+`quick_log_already_checked` was reworded in place ("Already checked %s today — the date still moved") to
+match, its only production call site.
+
+**Follow-up (#714 review round 1):** the duplicate branch above does *not* use a full-row
+`updatePlant()` — two overlapping `StillMoistReceiver` deliveries (e.g. a doubled broadcast) can
+interleave, so a duplicate-branch write built off a `plant` snapshot taken before the other delivery's
+own `updatePlant()` call could silently revert that write's `wateringConfidence` (or any other column).
+It instead calls a new column-specific `PlantDao.updateWateringDueDateOverride(id,
+wateringDueDateOverride, updatedAt)` (mirrored by a thin `PlantRepository` wrapper) — same rationale as
+`PlantDao.updateWateringBaseInterval` (#703 review round 3): a statement that can't touch a column it
+doesn't name eliminates the race entirely rather than just narrowing its window. Query-only addition, no
+schema change, no migration, no schema JSON bump. The success path's single combined `updatePlant()`
+call (#612) is unchanged — that invariant still governs only the branch that also writes
+`wateringConfidence`.
+
+**Follow-up (#715):** `recordStillMoistAdaptiveObservation()` used to write the `CHECK_STILL_MOIST` (and
+`FROZEN_POST_REPOT`) row's `afterIntervalDays` as `result.intervalDays` — the value the adaptive model
+computed but that this path deliberately never writes to the plant (only `Plant.wateringConfidence` is
+persisted here). Whenever that rounded to something different from `beforeIntervalDays`, the sheet's
+Recent adjustments list claimed an interval change ("7 → 8 days") that was never applied — the numbers
+this sheet exists specifically to keep in sync with the schedule had drifted. Fixed per the chosen
+posture (Option A over a distinct "considered, not applied" wording): `afterIntervalDays` is now always
+written as `currentBase`, so the row renders "unchanged" for both trigger branches uniformly (chosen over
+a distinct "considered, not applied" wording — simpler, and consistent with the existing "a no-op
+observation is still evidence the model considered" posture elsewhere in this table). `FROZEN_POST_REPOT`
+already produced `result.intervalDays == currentBase` by construction (a freeze forces gain 0), but the
+fix stops that row from depending on the implicit identity too. The WATER path
+(`adaptWateringInterval()`'s rows) stays out of scope — those sit behind a real potential apply step
+(`applyWateringIntervalSuggestion()`), unlike this path which has no surfaced suggestion to ever apply.
+`suggestedStillMoistDeferralDays()`'s preview math is untouched, still deriving the deferral from the
+real `result.intervalDays` via the shared `computeStillMoistAdaptiveInterval()` (#586 invariant).
+
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default
 `emptyList()`) + `BackupSettings.askBeforeChangingIntervals: Boolean` (default `true`) — see

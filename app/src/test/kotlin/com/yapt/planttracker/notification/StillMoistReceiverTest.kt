@@ -58,4 +58,34 @@ class StillMoistReceiverTest {
         StillMoistReceiver().handleStillMoist(app, plantId = 999_999L)
         // No exception is the assertion here — mirrors SkipWateringReceiver's existing behavior.
     }
+
+    // #714: the same-day CHECK dedupe guard must not also veto the reschedule. Before the fix, a
+    // second same-day call silently left `wateringDueDateOverride` unchanged.
+    //
+    // Both calls derive their due date from `System.currentTimeMillis() + suggestedStillMoistDeferralDays()`
+    // (no WATER log exists, so the deferral is always the same fallback constant) — comparing "before"
+    // and "after" real-clock-derived timestamps directly is flaky, since two calls in the same test can
+    // land in the same millisecond (#714 review round 1). Instead, a fixed sentinel override — a value
+    // that could never be produced by "now + N days" — is written directly between the two
+    // `handleStillMoist()` calls, so the assertion doesn't depend on the host clock at all.
+    @Test
+    fun `a second same-day handleStillMoist call still moves the due date override`() = runBlocking {
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        )
+
+        StillMoistReceiver().handleStillMoist(app, plantId)
+
+        val sentinelOverride = 1_000L
+        val afterFirst = app.plantRepository.getPlantById(plantId).first()!!
+        app.plantRepository.updatePlant(afterFirst.copy(wateringDueDateOverride = sentinelOverride))
+
+        StillMoistReceiver().handleStillMoist(app, plantId)
+        val overrideAfterSecond = app.plantRepository.getPlantById(plantId).first()!!.wateringDueDateOverride
+
+        assertTrue(overrideAfterSecond != null)
+        assertTrue(overrideAfterSecond != sentinelOverride)
+        // No second CHECK log was written — the dedupe guard still holds.
+        assertEquals(1, app.careLogRepository.getCareLogCount(plantId))
+    }
 }
