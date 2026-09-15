@@ -17,7 +17,10 @@ object WhatsNewContent {
             "A second \"Soil still moist\" reschedule on the same day no longer silently drops the new " +
                 "due date you just picked — only the duplicate check-in log is skipped",
             "The \"Why this date?\" sheet's Recent adjustments list no longer claims a still-moist " +
-                "reschedule changed your watering interval when it never actually did"
+                "reschedule changed your watering interval when it never actually did",
+            "Fixed the Reschedule dialog's \"(suggested)\" option landing several days later than promised " +
+                "for a plant that isn't due yet, after answering \"Soil still moist\" — it now lands on the " +
+                "date it actually says"
         )
     )
 
