@@ -551,7 +551,6 @@ fun PlantDetailScreen(
             onChooseGallery = {
                 pendingPhotoLoggedAt = loggedAt
                 addPhotoLoggedAt = null
-                addPhotoCameraState.onGallerySelected()
                 addPhotoGalleryLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )

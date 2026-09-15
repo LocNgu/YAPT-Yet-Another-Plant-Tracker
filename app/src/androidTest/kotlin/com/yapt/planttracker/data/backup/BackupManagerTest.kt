@@ -214,6 +214,10 @@ class BackupManagerTest {
 
             assertEquals(1, ExistingCameraPhotoCompression.runIfNeeded(context, dataStore, imagesDir))
             val firstRunBytes = photoFile.readBytes()
+            // Simulate process death after the file move but before the final global marker was durable.
+            dataStore.edit { it.remove(SettingsKeys.CAMERA_PHOTO_COMPRESSION_FIXUP_DONE) }
+            assertEquals(1, ExistingCameraPhotoCompression.runIfNeeded(context, dataStore, imagesDir))
+            assertArrayEquals(firstRunBytes, photoFile.readBytes())
             assertEquals(0, ExistingCameraPhotoCompression.runIfNeeded(context, dataStore, imagesDir))
             assertArrayEquals(firstRunBytes, photoFile.readBytes())
         } finally {

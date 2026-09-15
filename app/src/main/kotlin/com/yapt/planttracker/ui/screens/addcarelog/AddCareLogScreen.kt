@@ -188,7 +188,6 @@ fun AddCareLogScreen(
             },
             onChooseGallery = {
                 showPhotoSourceSheet = false
-                cameraState.onGallerySelected()
                 photoPickerLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
@@ -403,7 +402,6 @@ fun AddCareLogScreen(
                             }
                             FilledTonalButton(
                                 onClick = {
-                                    cameraState.onGallerySelected()
                                     photoPickerLauncher.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )

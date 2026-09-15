@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -88,7 +89,7 @@ class BackupManager(
     private val dataStore: DataStore<Preferences>
 ) : BackupManagerInterface {
 
-    // Existing export orchestration intentionally stays together; the new option only changes photo streaming.
+    // Pre-existing export orchestration debt; photo URI opening/optimization/ZIP streaming is extracted below.
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     override suspend fun exportBackup(
         destinationUri: Uri,
@@ -133,20 +134,20 @@ class BackupManager(
                 for (plant in plants) {
                     plant.coverPhotoUri?.let { uri ->
                         if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri, optimizePhotos)
+                            photoMapping[uri] = buildZipPhotoName(uri)
                         }
                     }
                 }
                 for (log in careLogs) {
                     log.photoUri?.let { uri ->
                         if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri, optimizePhotos)
+                            photoMapping[uri] = buildZipPhotoName(uri)
                         }
                     }
                 }
                 for (photo in allPlantPhotos) {
                     if (photo.uri !in photoMapping) {
-                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri, optimizePhotos)
+                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri)
                     }
                 }
             }
@@ -270,25 +271,7 @@ class BackupManager(
                         zip.closeEntry()
 
                         if (includePhotos) {
-                            for ((originalUri, zipPath) in photoMapping) {
-                                val input = runCatching {
-                                    val parsedUri = Uri.parse(originalUri)
-                                    when (parsedUri.scheme) {
-                                        null -> File(originalUri).inputStream()
-                                        "file" -> File(parsedUri.path!!).inputStream()
-                                        else -> context.contentResolver.openInputStream(parsedUri)
-                                    }
-                                }.getOrNull() ?: continue
-                                input.use {
-                                    zip.putNextEntry(ZipEntry(zipPath))
-                                    if (optimizePhotos) {
-                                        copyOptimizedPhotoToZip(it, zip)
-                                    } else {
-                                        it.copyTo(zip)
-                                    }
-                                    zip.closeEntry()
-                                }
-                            }
+                            writePhotosToZip(zip, photoMapping, optimizePhotos)
                         }
                     }
                 }
@@ -521,8 +504,33 @@ class BackupManager(
         }
     }
 
-    private fun copyOptimizedPhotoToZip(input: java.io.InputStream, zip: ZipOutputStream) {
-        val temporary = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
+    private fun writePhotosToZip(
+        zip: ZipOutputStream,
+        photoMapping: Map<String, String>,
+        optimizePhotos: Boolean
+    ) {
+        for ((originalUri, zipPath) in photoMapping) {
+            val input = openPhoto(originalUri) ?: continue
+            input.use {
+                zip.putNextEntry(ZipEntry(zipPath))
+                if (optimizePhotos) copyOptimizedPhotoToZip(it, zip, zipPath) else it.copyTo(zip)
+                zip.closeEntry()
+            }
+        }
+    }
+
+    private fun openPhoto(originalUri: String): InputStream? = runCatching {
+        val parsedUri = Uri.parse(originalUri)
+        when (parsedUri.scheme) {
+            null -> File(originalUri).inputStream()
+            "file" -> File(parsedUri.path!!).inputStream()
+            else -> context.contentResolver.openInputStream(parsedUri)
+        }
+    }.getOrNull()
+
+    private fun copyOptimizedPhotoToZip(input: InputStream, zip: ZipOutputStream, zipPath: String) {
+        val extension = File(zipPath).extension.ifBlank { "jpg" }
+        val temporary = File(context.cacheDir, "${UUID.randomUUID()}.$extension")
         try {
             temporary.outputStream().use { output -> input.copyTo(output) }
             ImageUtils.compressCameraImage(temporary)
@@ -532,12 +540,11 @@ class BackupManager(
         }
     }
 
-    private fun buildZipPhotoName(uriString: String, optimizePhotos: Boolean): String {
+    private fun buildZipPhotoName(uriString: String): String {
         val uri = Uri.parse(uriString)
         val lastSegment = uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast('%')
             ?.let { if (it.contains('.')) it else "$it.jpg" }
             ?: "photo.jpg"
-        val backupName = if (optimizePhotos) lastSegment.substringBeforeLast('.') + ".jpg" else lastSegment
-        return "$PHOTOS_DIR${UUID.randomUUID()}_$backupName"
+        return "$PHOTOS_DIR${UUID.randomUUID()}_$lastSegment"
     }
 }

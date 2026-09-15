@@ -45,10 +45,18 @@ object ImageUtils {
      * The replacement is written beside the source and moved into place only after encoding succeeds, so a
      * processing failure leaves the camera's original file usable. Gallery-picker images are never copied or changed.
      */
-    fun compressCameraImage(file: File): Boolean = runCatching {
+    fun compressCameraImage(file: File, skipIfAlreadyBounded: Boolean = false): Boolean = runCatching {
+        val outputFormat = when (file.extension.lowercase()) {
+            "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
+            "png" -> Bitmap.CompressFormat.PNG
+            else -> error("Unsupported image format")
+        }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Camera image could not be decoded" }
+        if (skipIfAlreadyBounded && maxOf(bounds.outWidth, bounds.outHeight) <= CAMERA_IMAGE_MAX_DIMENSION) {
+            return@runCatching
+        }
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = calculateInSampleSize(
@@ -66,7 +74,7 @@ object ImageUtils {
 
         try {
             temporary.outputStream().buffered().use { output ->
-                check(oriented.compress(Bitmap.CompressFormat.JPEG, CAMERA_IMAGE_JPEG_QUALITY, output)) {
+                check(oriented.compress(outputFormat, CAMERA_IMAGE_JPEG_QUALITY, output)) {
                     "Camera image could not be encoded"
                 }
             }

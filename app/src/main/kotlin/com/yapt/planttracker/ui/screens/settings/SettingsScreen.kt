@@ -160,7 +160,7 @@ fun SettingsScreen(
 
     var showExportDialog by remember { mutableStateOf(false) }
     var includePhotos by remember { mutableStateOf(true) }
-    var optimizeBackupPhotos by remember { mutableStateOf(true) }
+    var optimizeBackupPhotos by remember { mutableStateOf(false) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var showFutureSchemaDialog by remember { mutableStateOf(false) }

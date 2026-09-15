@@ -22,7 +22,7 @@ object ExistingCameraPhotoCompression {
         val images = imagesDir.listFiles()
             ?.filter { it.isFile && it.extension.equals("jpg", ignoreCase = true) }
             .orEmpty()
-        val compressed = images.count(ImageUtils::compressCameraImage)
+        val compressed = images.count { ImageUtils.compressCameraImage(it, skipIfAlreadyBounded = true) }
         dataStore.edit { it[SettingsKeys.CAMERA_PHOTO_COMPRESSION_FIXUP_DONE] = true }
         return compressed
     }
