@@ -28,6 +28,7 @@ import com.yapt.planttracker.ui.navigation.Screen
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.theme.YaptTheme
+import com.yapt.planttracker.worker.ExistingCameraPhotoCompressionWorker
 import com.yapt.planttracker.worker.ReminderScheduler
 import com.yapt.planttracker.worker.ReminderWorker
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ExistingCameraPhotoCompressionWorker.enqueue(this)
 
         if (savedInstanceState == null) {
             initialPlantId = deepLinkPlantId(intent)

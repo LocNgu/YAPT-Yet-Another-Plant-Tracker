@@ -9,7 +9,9 @@ paths:
 
 # Backup / Restore rules
 
-`.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compat warning dialog.
+`.yapt` ZIP export/import via SAF; optional photo inclusion and opt-in-at-export lossy photo optimization; settings
+round-trip; forward-compat warning dialog. Optimization changes only the copies written into the archive, never a
+gallery-owned source image.
 
 ## Mechanics (don't regress these)
 - **Export** assembles the ZIP in a `cacheDir` temp file first, then streams to the SAF destination — prevents
