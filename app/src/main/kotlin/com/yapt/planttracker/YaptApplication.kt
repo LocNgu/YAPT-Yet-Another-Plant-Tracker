@@ -21,7 +21,6 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup
 import com.yapt.planttracker.notification.NotificationHelper
-import com.yapt.planttracker.worker.ExistingCameraPhotoCompressionWorker
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -104,7 +103,6 @@ class YaptApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
-        ExistingCameraPhotoCompressionWorker.enqueue(this)
         applicationScope.launch {
             writeDefaultReminderTimeIfAbsent(settingsDataStore)
             runSeasonalGraduationFixupIfNeeded()
