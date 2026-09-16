@@ -53,9 +53,10 @@ The watering-due reminder is always a check-in prompt, not an instruction. Gated
 `ReminderWorker.postPlantNotification()` on `isWateringDue (= status.isOverdue || status.isDueSoon)` only — a
 fertilizing/repotting-only reminder never reframes, since there's no "check the soil" action to offer it.
 - **Not watering-due**: title = plant name, no action row.
-- **Watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); as of #738
-  (product ADR-0039), the action row is **two, fixed regardless of how overdue the plant is** (#586,
-  product ADR-0030; narrowed from three by #738): **Watered** (reuses the same deep-link
+- **Watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the action
+  row is **fixed regardless of how overdue the plant is** (#586, product ADR-0030). It is three today
+  — Watered / Still moist / Not now — and **narrows to two once #738's follow-up PR lands** (product
+  ADR-0039 decided this; the code removal is pending): **Watered** (reuses the same deep-link
   `PendingIntent` as tapping the notification body — a discoverability affordance, not a new code
   path) and **Not now** (`SkipWateringReceiver`, the same +1-day override write the pre-#570
   "Reschedule watering" action used, relabelled). The **Still moist** action (`StillMoistReceiver`) is
@@ -78,9 +79,10 @@ fertilizing/repotting-only reminder never reframes, since there's no "check the 
   distinct `PendingIntent` request codes for the Still-moist/Skip-watering pair becomes moot once that
   receiver is gone and should be trimmed to match in the same follow-up PR.
 - `CareType.CHECK` entries are explicitly excluded from `WateringHistoryChart`'s data series/marker-color map
-  (`computeCareEventMarkers()`, see `.claude/rules/chart.md`); as of #738 (product ADR-0039) new CHECK
-  logs are no longer written at all (the write path is retired along with the reschedule reason
-  prompt), and existing rows are hidden from Plant Detail's care-history list by a display filter
+  (`computeCareEventMarkers()`, see `.claude/rules/chart.md`). Per product ADR-0039 (#738) the CHECK
+  write path is retired along with the reschedule reason prompt, so **once #738's follow-up PR lands**
+  no new CHECK logs are written at all — until then `QuickLogUseCase.recordStillMoistCheck()` still
+  writes one. Existing rows are hidden from Plant Detail's care-history list by a display filter
   added in #738's follow-up PR — see `.claude/rules/watering-transparency.md` for the
   `watering_adjustments`-side posture, which stays unfiltered.
 
