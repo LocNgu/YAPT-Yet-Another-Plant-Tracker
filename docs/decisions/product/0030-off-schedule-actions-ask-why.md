@@ -1,8 +1,9 @@
 # Product ADR-0030: Off-schedule actions get asked why; the answer decides whether it counts
 
 **Status**: accepted (late-direction mapping superseded by
-[ADR-0033](0033-late-watering-reason-never-shortens.md) — the early-direction mapping and the
-Reschedule-flow mapping below still stand as written)
+[ADR-0033](0033-late-watering-reason-never-shortens.md); Reschedule-flow mapping superseded by
+[ADR-0039](0039-reschedule-returns-to-model-neutral.md) — the early-direction watering mapping
+still stands as written)
 
 **Date**: 2026-08-25
 
