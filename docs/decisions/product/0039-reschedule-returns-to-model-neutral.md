@@ -102,11 +102,22 @@ step is removed, collapsing back to a plain date-move action.
 
 The reminder notification's "Still moist" action (`StillMoistReceiver`) is **dropped, not
 reworked** — rescheduling now requires opening the app and using Plant Detail. This is not a
-regression that needs a replacement snooze rule: the notification's remaining "Not now" action
-(`SkipWateringReceiver`) is already model-neutral and already anchors its `+1 day` write to *now*
-(`(wateringDueDateOverride ?: now) + 1 day`), so it always clears "due" — #570's "a flat +1 day
-can't clear an overdue plant" problem does not resurface. The notification's action set narrows
-from three (Watered / Still moist / Not now) to two (Watered / Not now).
+regression that needs a replacement snooze rule in this ADR: the notification's remaining "Not
+now" action (`SkipWateringReceiver`) is already model-neutral — it writes only
+`wateringDueDateOverride`, per ADR-0007 — so deferring from the notification remains possible
+without any learning side effect. The notification's action set narrows from three (Watered /
+Still moist / Not now) to two (Watered / Not now).
+
+**One caveat, deliberately recorded rather than glossed.** "Not now" computes
+`(wateringDueDateOverride ?: now) + 1 day`, which anchors to the *existing override* when one is
+set, not to now. On a plant carrying a stale override in the past, one tap advances that stale
+date by a day and can leave the plant still overdue — e.g. an override of Sep 11 tapped on Sep 16
+becomes Sep 12. This is a **pre-existing defect in `SkipWateringReceiver`, not introduced by this
+ADR** — it is tracked as [#741](https://github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker/issues/741). It matters here only because dropping "Still moist" makes
+"Not now" the sole notification-level deferral, so that defect should be fixed for the remaining
+action to be a dependable snooze. An earlier draft of this ADR asserted the opposite — that "Not
+now" anchors to now and therefore always clears "due" — which was wrong; the correction is kept
+visible here because the false invariant would otherwise have guided the follow-up work.
 
 ### The "(suggested)" deferral row
 

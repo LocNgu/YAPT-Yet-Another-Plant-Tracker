@@ -60,9 +60,12 @@ fertilizing/repotting-only reminder never reframes, since there's no "check the 
   path) and **Not now** (`SkipWateringReceiver`, the same +1-day override write the pre-#570
   "Reschedule watering" action used, relabelled). The **Still moist** action (`StillMoistReceiver`) is
   dropped, not reworked — rescheduling now requires opening the app and using Plant Detail. This is
-  safe rather than a regression: "Not now" is already model-neutral and already anchors its +1-day
-  write to *now*, so it always clears "due" and #570's "a flat +1 day can't clear an overdue plant"
-  problem does not resurface. Varying the remaining action set by overdue-ness is still rejected, for
+  safe from a *learning* standpoint: "Not now" writes only `wateringDueDateOverride` and never a
+  model field. Note it is **not** an unconditional "clear due" though — it computes
+  `(wateringDueDateOverride ?: now) + 1 day`, anchoring to an existing override rather than to now,
+  so on a plant with a stale past override a tap can advance that date by one day and leave the
+  plant overdue. That is a pre-existing `SkipWateringReceiver` defect, tracked as #741, and it
+  becomes more visible once "Not now" is the only notification-level deferral. Varying the remaining action set by overdue-ness is still rejected, for
   the same reason as before: unpredictable buttons between firings cost more than the one attribution
   the fixed set gives up. A reminder fires at or after the due date, so a notification watering is
   never *early* — **Watered** therefore writes no reason at all, which is correct on schedule and the
