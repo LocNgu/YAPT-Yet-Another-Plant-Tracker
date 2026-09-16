@@ -114,9 +114,8 @@ internal fun RescheduleDeltaChip(
  * never has to work out *why* they are deferring in order to pick a button; the reason is asked
  * afterwards, and only when the action is off-schedule.
  *
- * "Still moist" is gone as a top-level action, not as a behaviour: it is now the "Soil still moist"
- * answer to the Reschedule prompt, writing the same `CareType.CHECK` log through the same
- * `QuickLogUseCase.recordStillMoistCheck()` call site.
+ * "Still moist" is retired entirely (#738, product ADR-0039) — Reschedule asks no reason and
+ * writes only `Plant.wateringDueDateOverride`.
  *
  * Water is a filled primary [Button] (water-drop icon + text, `colorScheme.primary` — resolving to
  * `SageGreen`/`SageGreenLight` in both themes, no hardcoded color); Reschedule is a secondary,
@@ -237,17 +236,14 @@ internal fun FertilizeDueActionRow(
 
 /**
  * Bundles [RescheduleWateringDialog]'s per-option callbacks so the composable itself stays under
- * Detekt's `LongParameterList` threshold once the "(suggested)" row got its own [onSuggestedDays]
- * callback distinct from [onRelativeDays] (#719) — six lambda/value params was already at the
- * default threshold of 6 before that addition. Each field keeps its own distinct anchoring semantics
+ * Detekt's `LongParameterList` threshold. Each field keeps its own distinct anchoring semantics
  * explicit (due-date-relative vs. now-relative) rather than collapsing them behind one shared shape.
  */
 internal data class RescheduleDialogActions(
     val onDismiss: () -> Unit,
     val onToday: () -> Unit,
     val onRelativeDays: (Int) -> Unit,
-    val onCustomDate: (Long) -> Unit,
-    val onSuggestedDays: (Int) -> Unit
+    val onCustomDate: (Long) -> Unit
 )
 
 /**
@@ -257,23 +253,15 @@ internal data class RescheduleDialogActions(
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
  * ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
- * Reached only after the reason prompt since #586 (product ADR-0030). [suggestedDays], non-null only
- * for a "Soil still moist" reschedule, adds one recommended option at the top derived from the
- * interval the model lands on *after* that observation — the replacement for #570's flat
- * `STILL_MOIST_DEFERRAL_DAYS = 1`, which could not clear "due" for a plant overdue by two or more
- * days. **How many days the user then picks is never an input to the model** (#586): the reason
- * already decided what is learned.
- *
- * The "(suggested)" row calls [RescheduleDialogActions.onSuggestedDays], not
- * [RescheduleDialogActions.onRelativeDays] — the two anchor differently (#719): the model's own
- * suggestion is a from-today figure, while +1/+2/+3 are due-date-relative, and only coincide when the
- * plant is already overdue.
+ * Opens directly from a Reschedule tap, with no reason prompt (#738, product ADR-0039 — a
+ * reschedule is model-neutral, so there is nothing left to ask "why" about). **How many days the
+ * user picks has no effect on the adaptive model** — all learning comes from the next actual
+ * watering.
  */
 @Composable
 internal fun RescheduleWateringDialog(
     todayEnabled: Boolean,
-    actions: RescheduleDialogActions,
-    suggestedDays: Int? = null
+    actions: RescheduleDialogActions
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -293,16 +281,6 @@ internal fun RescheduleWateringDialog(
         title = { Text(stringResource(R.string.reschedule_watering_title)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (suggestedDays != null) {
-                    RescheduleOption(
-                        label = pluralStringResource(
-                            R.plurals.reschedule_watering_suggested_days,
-                            suggestedDays,
-                            suggestedDays
-                        ),
-                        onClick = { actions.onSuggestedDays(suggestedDays) }
-                    )
-                }
                 RescheduleOption(
                     label = stringResource(R.string.reschedule_watering_today),
                     onClick = actions.onToday,

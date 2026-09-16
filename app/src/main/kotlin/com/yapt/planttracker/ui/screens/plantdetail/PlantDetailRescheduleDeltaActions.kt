@@ -15,9 +15,9 @@ import kotlinx.coroutines.launch
  * for [undoRevertReschedule] to restore as-is.
  *
  * Split into its own file (#719 review) purely to keep `PlantDetailRescheduleActions.kt` under
- * Detekt's `TooManyFunctions` file threshold once that file gained a fifth date option
- * (`confirmRescheduleSuggestedDays`) — no behaviour change, and these two functions were already
- * documented as the distinct #630 "delta chip + revert" feature in `.claude/rules/plant-detail.md`.
+ * Detekt's `TooManyFunctions` file threshold — no behaviour change, and these two functions were
+ * already documented as the distinct #630 "delta chip + revert" feature in
+ * `.claude/rules/plant-detail.md`.
  */
 fun PlantDetailViewModel.revertReschedule() {
     viewModelScope.launch {

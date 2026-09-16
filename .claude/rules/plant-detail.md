@@ -216,11 +216,10 @@ non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "
 condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
 and unchanged.
 - **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
-  asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly. The removal
-  of `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which, as still shipped on `develop`
-  until that follow-up PR lands, opened first and asked "Why put it off?" → "Soil still moist" / "I
-  can't right now", dismissible to abandon the reschedule entirely) happens in #738's own PR, not
-  here.
+  asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
+  `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put
+  it off?" → "Soil still moist" / "I can't right now", dismissible to abandon the reschedule entirely)
+  are removed.
 
 **Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
 on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
@@ -357,40 +356,33 @@ belongs there, not in the now-trivial delegate.
 at #508/ADR-0029) and, as of ADR-0039, it is no longer an answer either — the reschedule reason
 prompt it lived in as "Soil still moist" is removed entirely, and the notification's own "Still
 moist" action (`StillMoistReceiver`) is dropped rather than reworked. `QuickLogUseCase
-.recordStillMoistCheck()`/`recordStillMoistAdaptiveObservation()` and `StillMoistReceiver` itself are
-deleted in #738's follow-up PR; until that PR lands they are still exactly as documented in the
-paragraphs below, kept here for that reason.
+.recordStillMoistCheck()`, `recordStillMoistAdaptiveObservation()`, `suggestedStillMoistDeferralDays()`,
+and `StillMoistReceiver` itself are all deleted.
 
-`applyReschedule(newDueAtMillis)` is, as still shipped on `develop`, the single commit point for all
-three date options: `SOIL_STILL_MOIST` → `recordStillMoistCheck(plant, newDueAtMillis)` +
-`QuickLogMessage.StillMoistChecked`/`.AlreadyCheckedToday`; anything else → a plain
-`wateringDueDateOverride` write, never `wateringIntervalDays`/`wateringBaseIntervalDays`/
-`wateringConfidence` and never a `watering_adjustments` row (ADR-0029's posture, kept for the half of
-reschedules that really is about the user). **The deferral's length is never a model input** — the
-reason already decided that. Once #738's follow-up PR lands, `applyReschedule` collapses to that one
-remaining branch — a plain `wateringDueDateOverride` write, unconditionally, since there is no longer
-a `SOIL_STILL_MOIST` branch to distinguish it from.
+`applyReschedule(newDueAtMillis)` is the single commit point for every date option, unconditionally —
+a plain `Plant.wateringDueDateOverride` write via `QuickLogUseCase.recordReschedule(plant,
+newDueAtMillis)`, never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and
+never a `watering_adjustments` row, and no `QuickLogMessage` emitted. There is no reason branch left
+to distinguish — every reschedule behaves the way ADR-0029 originally described for the half of
+reschedules that really was about the user. **The deferral's length is never a model input** — there
+is no model input at all.
 
-`RescheduleWateringDialog` options, as still shipped: an optional **"In N days (suggested)"** row at
-the top (`suggestedDays`, non-null only for `SOIL_STILL_MOIST`, from `QuickLogUseCase
-.suggestedStillMoistDeferralDays()`) / **Today** (`confirmRescheduleToday()`, disabled while
-`isDueSoon` *and* while the reason is `SOIL_STILL_MOIST` — pulling the date forward would contradict
-what the user just said) / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to
-`maxOf(nextWateringDueAt, now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a
-Material 3 `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching
-what the picker itself displays, not the device's local "today"). **Never fires the ADR-0006
-interval-suggestion dialog** afterward, on either branch; there is no `Event` for a reschedule at all.
-Per ADR-0039, the "(suggested)" row is removed in #738's follow-up PR along with its source
+`RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled while `isDueSoon`)
+/ **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
+now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
+`SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching what the picker itself
+displays, not the device's local "today"). **Never fires the ADR-0006 interval-suggestion dialog**
+afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
 (`suggestedStillMoistDeferralDays()`) and `PlantDetailViewModel.confirmRescheduleSuggestedDays()`
-(#719's handler) — a reschedule no longer teaches the model anything for that row to preview, leaving
-Today/+1/+2/+3/Custom date as the full option set.
+(#719's handler) are removed — a reschedule no longer teaches the model anything for that row to
+preview, leaving Today/+1/+2/+3/Custom date as the full option set.
 
 **The two-anchor confusion this file used to document under "#719" is resolved by #738, not by
-patching it.** `suggestedStillMoistDeferralDays()`'s from-today anchor and `confirmRescheduleRelativeDays()`'s
-due-date anchor only ever needed reconciling because the "(suggested)" row existed; removing the row
-removes the second anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the
-only one left. See `.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor
-pair and how it interacted with #719/#720.
+patching it.** The removed "(suggested)" row's from-today anchor and `confirmRescheduleRelativeDays()`'s
+due-date anchor only ever needed reconciling because that row existed; removing it removes the second
+anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. See
+`.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor pair and how it
+interacted with #719/#720.
 
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`

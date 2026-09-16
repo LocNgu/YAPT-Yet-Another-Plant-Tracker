@@ -100,7 +100,6 @@ import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -109,7 +108,6 @@ import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
-import com.yapt.planttracker.ui.components.RescheduleReasonBottomSheet
 import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.StatsRow
@@ -144,9 +142,6 @@ fun PlantDetailScreen(
     val pendingWateringSuggestion by viewModel.pendingWateringSuggestion.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
-    val showRescheduleReasonSheet by viewModel.showRescheduleReasonSheet.collectAsStateWithLifecycle()
-    val rescheduleReason by viewModel.rescheduleReason.collectAsStateWithLifecycle()
-    val rescheduleSuggestedDays by viewModel.rescheduleSuggestedDays.collectAsStateWithLifecycle()
     val showPhotoReminderDialog by viewModel.showPhotoReminderDialog.collectAsStateWithLifecycle()
     val photoReminderDaysSince by viewModel.photoReminderDaysSince.collectAsStateWithLifecycle()
     val tabsEnabled by viewModel.tabsEnabled.collectAsStateWithLifecycle()
@@ -279,8 +274,6 @@ fun PlantDetailScreen(
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
-    val stillMoistCheckedTemplate = stringResource(R.string.quick_log_still_moist_checked)
-    val alreadyCheckedTemplate = stringResource(R.string.quick_log_already_checked)
     LaunchedEffect(Unit) {
         viewModel.quickLogMessage.collect { message ->
             val text = when (message) {
@@ -296,10 +289,6 @@ fun PlantDetailScreen(
                     String.format(alreadyWateredTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyFertilizedToday ->
                     String.format(alreadyFertilizedTemplate, message.plantName)
-                is PlantDetailViewModel.QuickLogMessage.StillMoistChecked ->
-                    String.format(stillMoistCheckedTemplate, message.plantName)
-                is PlantDetailViewModel.QuickLogMessage.AlreadyCheckedToday ->
-                    String.format(alreadyCheckedTemplate, message.plantName)
             }
             snackbarHostState.showSnackbar(text)
         }
@@ -333,26 +322,15 @@ fun PlantDetailScreen(
         )
     }
 
-    if (showRescheduleReasonSheet) {
-        RescheduleReasonBottomSheet(
-            onDismiss = { viewModel.dismissRescheduleReasonSheet() },
-            onReasonChosen = { reason -> viewModel.chooseRescheduleReason(reason) }
-        )
-    }
-
     if (showRescheduleDialog) {
         RescheduleWateringDialog(
-            // Pulling the date to today would contradict "soil still moist", so that option is
-            // only ever offered for a deferral the user attributed to themselves (#586).
-            todayEnabled = careStatus?.isOverdue == true && rescheduleReason != RescheduleReason.SOIL_STILL_MOIST,
+            todayEnabled = careStatus?.isOverdue == true,
             actions = RescheduleDialogActions(
                 onDismiss = { viewModel.dismissRescheduleDialog() },
                 onToday = { viewModel.confirmRescheduleToday() },
                 onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
-                onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) },
-                onSuggestedDays = { days -> viewModel.confirmRescheduleSuggestedDays(days) }
-            ),
-            suggestedDays = rescheduleSuggestedDays
+                onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
+            )
         )
     }
 
@@ -1125,6 +1103,12 @@ fun PlantDetailScreen(
                         }
                     }
 
+                    // #738 (product ADR-0039): existing CareType.CHECK rows are kept on disk but
+                    // hidden from this care-history list — a screen-local display filter, not a
+                    // filter on viewModel.careLogs (which also feeds CareSchedule.computeStatus's
+                    // totalLogs and must not change).
+                    val displayedCareLogs = careLogs.filter { it.careType != CareType.CHECK }
+
                     item {
                         Row(
                             modifier = Modifier
@@ -1138,14 +1122,14 @@ fun PlantDetailScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = stringResource(R.string.plant_detail_care_logs_count, careLogs.size),
+                                text = stringResource(R.string.plant_detail_care_logs_count, displayedCareLogs.size),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    if (careLogs.isEmpty()) {
+                    if (displayedCareLogs.isEmpty()) {
                         item {
                             Box(modifier = Modifier.height(200.dp)) {
                                 EmptyStateView(
@@ -1155,7 +1139,7 @@ fun PlantDetailScreen(
                             }
                         }
                     } else {
-                        val visibleLogs = if (isExpanded) careLogs else careLogs.take(5)
+                        val visibleLogs = if (isExpanded) displayedCareLogs else displayedCareLogs.take(5)
                         items(visibleLogs, key = { it.id }) { log ->
                             CareLogItem(
                                 log = log,
@@ -1165,9 +1149,9 @@ fun PlantDetailScreen(
                             )
                         }
 
-                        if (careLogs.size > 5) {
+                        if (displayedCareLogs.size > 5) {
                             item {
-                                val remaining = careLogs.size - 5
+                                val remaining = displayedCareLogs.size - 5
                                 AssistChip(
                                     onClick = { isExpanded = !isExpanded },
                                     label = {

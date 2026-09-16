@@ -92,7 +92,7 @@ internal fun localDayToUtcMidnightMillis(
  *
  * Presented in a `ModalBottomSheet` (#675) rather than a centered `DatePickerDialog`, matching the
  * bottom-sheet convention the rest of Plant Detail's action prompts use (`WateringReasonBottomSheet`,
- * `RescheduleReasonBottomSheet`, `WateringExplanationSheet`) — see `.claude/rules/plant-detail.md`'s
+ * `WateringExplanationSheet`) — see `.claude/rules/plant-detail.md`'s
  * `Follow-up (#675)` note. Uses `DatePicker`'s default `title` (no override): the earlier `DatePickerDialog`
  * container had a custom-`title`-slot clipping bug (#654 UI feedback — a custom `title` slot replaces
  * Material3's own title composable entirely, losing the padding that composable applies internally, so a

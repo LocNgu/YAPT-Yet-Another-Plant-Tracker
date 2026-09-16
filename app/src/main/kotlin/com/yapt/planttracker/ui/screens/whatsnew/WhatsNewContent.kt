@@ -13,6 +13,12 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
+                "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
+                "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
+                "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
+        ),
         fixed = listOf(
             "A second \"Soil still moist\" reschedule on the same day no longer silently drops the new " +
                 "due date you just picked — only the duplicate check-in log is skipped",

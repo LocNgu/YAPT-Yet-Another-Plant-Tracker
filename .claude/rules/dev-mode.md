@@ -40,10 +40,12 @@ no schema bump).
   unconditionally; there is no registry entry or flag row for it anymore. The backing
   `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields, which already
   shipped unconditionally before the flag was removed, are unaffected.
-- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title with
-  Watered/Still-moist/Not now actions (#570) now ships unconditionally; there is no registry entry or flag row
-  for it anymore. See `.claude/rules/notifications.md`. `ReminderWorker`, the notification composer, and
-  `StillMoistReceiver` are unaffected otherwise — no new columns/backup fields, `CareType.CHECK` still reuses
+- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title (#570)
+  now ships unconditionally; there is no registry entry or flag row for it anymore. See
+  `.claude/rules/notifications.md`. The action set itself narrowed from three (Watered/Still-moist/Not
+  now) to two (Watered/Not now) later, by #738 (product ADR-0039) — `StillMoistReceiver` is deleted,
+  unrelated to this graduation. `ReminderWorker` and the notification composer were otherwise
+  unaffected by the graduation itself — no new columns/backup fields, `CareType.CHECK` still reuses
   the existing care-log pipeline entirely.
 
 ## Demo data (#523)

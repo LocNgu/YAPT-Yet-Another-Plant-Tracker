@@ -516,8 +516,8 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasContentDescription("Reschedule watering"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
-        // #586: exactly two actions — "Still moist" is now an answer to the Reschedule prompt, not
-        // a third button.
+        // #586, then #738: exactly two actions — "Still moist" is retired entirely, not a third
+        // button and not an answer to a reason prompt either.
         assertTrue(
             composeTestRule.onAllNodesWithText("Still moist")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -589,7 +589,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun rescheduleButton_promptsForAReasonBeforeShowingTheDatePicker() {
+    fun rescheduleButton_opensTheDatePickerDirectly_withNoReasonPrompt() {
         val plant = Plant(
             id = 12L,
             name = "Pilea",
@@ -620,65 +620,16 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        // #586: the reason prompt comes first — both answers offered, the date options not yet.
-        composeTestRule.onNodeWithText("Why put it off?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Soil still moist").assertIsDisplayed()
-        composeTestRule.onNodeWithText("I can't right now").assertIsDisplayed()
+        // #738 (product ADR-0039): no reason prompt — the date dialog opens directly.
+        composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
         assertTrue(
-            composeTestRule.onAllNodesWithText("Custom date…")
+            composeTestRule.onAllNodesWithText("Why put it off?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }
 
     @Test
-    fun rescheduleReasonPrompt_soilStillMoistRoutesThroughQuickLogUseCase() {
-        val plant = Plant(
-            id = 16L,
-            name = "Pilea",
-            wateringIntervalDays = 7,
-            wateringDueDateOverride = 0L,
-            createdAt = 0L,
-            updatedAt = 0L
-        )
-        coEvery { mockQuickLogUseCase.suggestedStillMoistDeferralDays(plant) } returns 2
-        coEvery { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) } returns true
-        val viewModel = makeViewModel(plant)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasContentDescription("Reschedule watering"))
-        // performScrollToNode's minimal-scroll lands the row flush against the bottom-edge FAB —
-        // scrolling only as far as the interval label right below it isn't enough margin to clear
-        // the FAB's reach. "why_this_date_button" sits further down (past the label + slider), which
-        // is enough real scroll distance to bring Reschedule to rest mid-viewport instead of flush.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("why_this_date_button"))
-        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("Soil still moist").performClick()
-
-        // The picker opens on the derived suggestion rather than #570's flat +1 day.
-        composeTestRule.onNodeWithText("In 2 days (suggested)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("In 2 days (suggested)").performClick()
-
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Checked Pilea — still moist")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        composeTestRule.onNodeWithText("Checked Pilea — still moist").assertIsDisplayed()
-        coVerify { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) }
-    }
-
-    @Test
-    fun rescheduleDialog_showsAllFiveOptions_afterAnsweringTheReasonPrompt() {
+    fun rescheduleDialog_showsAllFiveOptions() {
         val plant = Plant(
             id = 13L,
             name = "Overdue Reschedule",
@@ -708,7 +659,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
@@ -775,7 +725,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsEnabled()
     }
@@ -805,9 +754,51 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
+    }
+
+    // ---- Care history CHECK-row filter (#738, product ADR-0039) ----
+
+    /**
+     * Existing `CareType.CHECK` rows are hidden, not deleted, from Plant Detail's shared
+     * care-history list — a display filter, since new code no longer writes them but old rows
+     * persist on disk. The count text, the visible rows, and the "N more" arithmetic must all agree:
+     * only the WATER row is visible and counted, even though two logs exist.
+     */
+    @Test
+    fun careHistory_hidesCheckRows_fromTheListAndTheCount() {
+        val plant = Plant(id = 25L, name = "Filtered Plant", createdAt = 0L, updatedAt = 0L)
+        val careLogs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.WATER, loggedAt = System.currentTimeMillis()),
+            CareLog(
+                id = 2L,
+                plantId = plant.id,
+                careType = CareType.CHECK,
+                loggedAt = System.currentTimeMillis() - 1000L
+            )
+        )
+        val viewModel = makeViewModel(plant, careLogs)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.care_history)))
+        composeTestRule.onNodeWithText(String.format(str(R.string.plant_detail_care_logs_count), 1))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.care_type_watered)).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(str(R.string.care_type_check))
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     // ---- Reschedule delta chip + revert (#630) ----
@@ -1597,7 +1588,7 @@ class PlantDetailScreenTest {
     // #694 acceptance criterion: "Cancelling the dialog or image selection creates no PHOTO log."
     // The Add-photo sheet's default state has no visible Cancel affordance (unlike the Repot date
     // picker) — the system back button is the sheet's only dismissal path here, same as every other
-    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet, RescheduleReasonBottomSheet).
+    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet).
     @Test
     fun photoTab_dismissingSheet_doesNotLog() {
         val plant = Plant(id = 44L, name = "Basil", createdAt = 0L, updatedAt = 0L)

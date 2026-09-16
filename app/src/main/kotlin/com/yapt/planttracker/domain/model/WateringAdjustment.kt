@@ -35,6 +35,13 @@ enum class WateringAdjustmentTrigger {
      * the model deliberately ignored an observation rather than merely finding nothing to change.
      */
     WATER_NOT_ATTRIBUTED,
+
+    /**
+     * A "Soil still moist" reschedule observation. **Retained for historical data only (#738,
+     * product ADR-0039): no longer written** — a reschedule is model-neutral again and writes only
+     * `Plant.wateringDueDateOverride`. Existing rows stay visible, unfiltered, in "Why this date?" →
+     * Recent adjustments, which is model provenance rather than a user journal.
+     */
     CHECK_STILL_MOIST,
     DIALOG_DISMISSAL,
     DIALOG_EDIT,

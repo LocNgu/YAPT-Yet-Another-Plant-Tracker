@@ -125,11 +125,11 @@ param — `WATER_TOO_SOON` reachable since #649 (product ADR-0033) via the late-
 `AdaptiveInterval.excludedFromBaseLearning`, which wins and selects `WATER_NOT_ATTRIBUTED`: an
 off-schedule watering the user declined to attribute, #586 product ADR-0030, distinct from `WATER_NEUTRAL`'s
 on-schedule "nothing to change" so the sheet can explain a row where nothing moved), `CHECK_STILL_MOIST`
-(**no longer written as of #738, product ADR-0039** — a reschedule is model-neutral again and
-`QuickLogUseCase.recordStillMoistAdaptiveObservation()` is removed in #738's follow-up PR; existing
-`CHECK_STILL_MOIST` rows written before that change stay visible, rendering read-only in "Why this
-date?" → Recent adjustments, since that surface is model provenance rather than a user journal —
-distinct from the `CareType.CHECK` care-history filter, which does hide those rows elsewhere), `DIALOG_DISMISSAL`
+(**no longer written, as of #738, product ADR-0039** — a reschedule is model-neutral again and
+`QuickLogUseCase.recordStillMoistAdaptiveObservation()` is removed; existing `CHECK_STILL_MOIST` rows
+written before that change stay visible, rendering read-only in "Why this date?" → Recent adjustments,
+since that surface is model provenance rather than a user journal — distinct from the `CareType.CHECK`
+care-history filter, which does hide those rows elsewhere), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
 (`QuickLogUseCase.applyWateringIntervalSuggestion()` — shared by the Plant Detail dialog's Apply
 button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDIT`
