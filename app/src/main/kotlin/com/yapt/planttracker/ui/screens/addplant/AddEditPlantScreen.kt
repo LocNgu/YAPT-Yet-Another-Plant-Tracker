@@ -137,6 +137,7 @@ fun AddEditPlantScreen(
             },
             onChooseGallery = {
                 showPhotoSourceSheet = false
+                cameraState.onGallerySelected()
                 photoPickerLauncher.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
