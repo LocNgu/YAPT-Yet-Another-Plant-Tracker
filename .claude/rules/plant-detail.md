@@ -418,6 +418,28 @@ which ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related,
 state where tapping Today would actually pull the due date in) is out of scope here and filed separately —
 see `.claude/rules/adaptive-watering-cluster.md`.
 
+**Review round 1 fix (#720 PR #748):** excluding a date from the day grid isn't the whole picket —
+Material3's `rememberDatePickerState` re-validates its retained state's grid against a fresh
+`SelectableDates` instance on recomposition, but it does **not** clear an already-tapped
+`selectedDateMillis` that a since-moved `computedNextWateringDueAt` would now reject (e.g. a watering
+logged from another surface, such as a notification action, while the dialog sits open). Without a
+second check, OK would still forward that stale selection to `onConfirm`, reproducing the exact
+silent-no-op bug #720 exists to prevent. `RescheduleDatePickerDialog`'s OK `TextButton` now also gates
+`enabled` on `isRescheduleConfirmEnabled(selectedDateMillis, computedNextWateringDueAt)` — a pure
+predicate (`null` selection stays enabled, matching the documented "OK closes the picker either way"
+behavior; a non-null selection is re-validated via `isSelectableRescheduleDate`) — disabling the
+affordance rather than silently discarding the tap, per this codebase's convention: a disabled control
+is visible feedback, a silently-dropped confirm is the exact bug class being fixed. This is not
+redundant with the grid's own `SelectableDates` — do not delete it as apparently so.
+
+`isOnOrAfterLocalToday`, `isSelectableRescheduleDate`, `isRescheduleConfirmEnabled`,
+`TodayOrLaterSelectableDates`, and `utcMidnightMsToLocalStartOfDayMillis` live in a separate file,
+`RescheduleDateSelection.kt` (not `WateringDueActions.kt`), split out in this same round specifically to
+stay under Detekt's per-file `TooManyFunctions` threshold once `isRescheduleConfirmEnabled` was added —
+same reasoning as `CustomRemindersSection.kt`/`PlantIssuesSection.kt` elsewhere in this file.
+`RescheduleDatePickerDialog` itself stays in `WateringDueActions.kt`, calling into the split-out file's
+top-level functions (same package, no import needed).
+
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
 — non-null only when `plant.wateringDueDateOverride` is the actual `maxOf()` winner over the
