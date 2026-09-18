@@ -22,6 +22,11 @@ object WhatsNewContent {
                 "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
                 "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
                 "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
+        ),
+        fixed = listOf(
+            "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
+                "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
+                "least tomorrow on the first tap"
         )
     )
 

@@ -17,6 +17,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - **Adaptive watering no longer loses small neutral corrections or ratchets the seasonal base when a suggestion is applied** — the model now carries its unrounded `Double` base result separately from the whole-day value shown in the UI. Neutral observations can therefore accumulate below one day instead of becoming permanent no-ops for common intervals, and accepting an unchanged seasonal suggestion persists the precise model result instead of deriving a new base from the rounded display value (#717, #718)
+- **The notification's "Not now" action could take several taps to actually clear an overdue plant** — it advanced the existing `wateringDueDateOverride` by one day, but if that override was already in the past (e.g. from ignoring the reminder for several days), one tap only moved the stale date one day closer to now instead of past it. It now anchors to `maxOf(existing override, now) + 1 day`, matching `PlantDetailViewModel.confirmRescheduleRelativeDays()`'s anchoring, so a single tap always moves the due date to at least tomorrow. Still writes only `wateringDueDateOverride` — no change to the model fields (#741)
+
 The three entries below were all fixes to the "Soil still moist" reschedule feature — which was itself
 removed later in this same unreleased cycle by #738/ADR-0039 (see the Changed entry above). None of
 this behavior ever shipped to a user; kept here as the genuine development record rather than deleted,
