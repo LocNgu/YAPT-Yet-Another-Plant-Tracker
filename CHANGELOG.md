@@ -16,6 +16,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - **Rescheduling a watering no longer asks why, and no longer teaches the adaptive model anything** — tapping "Reschedule watering" now opens the date picker directly (Today/+1/+2/+3 days/Custom date), instead of first asking "Why put it off?" The "Soil still moist" answer used to log a `CareType.CHECK` entry and adjust the watering model's confidence; it no longer does either — a reschedule now only ever moves the due date, and all learning comes from the next actual watering, which already asks its own "why" when it's off schedule. The notification's "Still moist" action is removed for the same reason (Watered/Not now remain); existing `CareType.CHECK` history rows are kept but no longer shown in Plant Detail's care history list (#738)
 
 ### Fixed
+- **The notification's "Not now" action could take several taps to actually clear an overdue plant** — it advanced the existing `wateringDueDateOverride` by one day, but if that override was already in the past (e.g. from ignoring the reminder for several days), one tap only moved the stale date one day closer to now instead of past it. It now anchors to `maxOf(existing override, now) + 1 day`, matching `PlantDetailViewModel.confirmRescheduleRelativeDays()`'s anchoring, so a single tap always moves the due date to at least tomorrow. Still writes only `wateringDueDateOverride` — no change to the model fields (#741)
+
 The three entries below were all fixes to the "Soil still moist" reschedule feature — which was itself
 removed later in this same unreleased cycle by #738/ADR-0039 (see the Changed entry above). None of
 this behavior ever shipped to a user; kept here as the genuine development record rather than deleted,

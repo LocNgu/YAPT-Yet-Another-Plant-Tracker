@@ -78,4 +78,36 @@ class SkipWateringReceiverTest {
         val updated = app.plantRepository.getPlantById(plantId).first()!!
         assertEquals(7.0, updated.wateringBaseIntervalDays)
     }
+
+    @Test
+    fun `skipWatering advances a stale past override to at least now plus one day (#741)`() = runBlocking {
+        val now = System.currentTimeMillis()
+        val staleOverride = now - TimeUnit.DAYS.toMillis(6)
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+                .copy(wateringDueDateOverride = staleOverride)
+        )
+
+        SkipWateringReceiver().skipWatering(app, plantId)
+
+        val updated = app.plantRepository.getPlantById(plantId).first()!!
+        val expectedFloor = now + TimeUnit.DAYS.toMillis(1)
+        val override = updated.wateringDueDateOverride
+        assertEquals(true, override != null && override >= expectedFloor)
+    }
+
+    @Test
+    fun `skipWatering advances a future override by exactly one day from that override`() = runBlocking {
+        val futureOverride = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10)
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+                .copy(wateringDueDateOverride = futureOverride)
+        )
+
+        SkipWateringReceiver().skipWatering(app, plantId)
+
+        val updated = app.plantRepository.getPlantById(plantId).first()!!
+        val expected = futureOverride + TimeUnit.DAYS.toMillis(1)
+        assertEquals(expected, updated.wateringDueDateOverride)
+    }
 }
