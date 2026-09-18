@@ -26,7 +26,6 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
@@ -221,23 +220,11 @@ class PlantDetailViewModel(
 
     internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
+    /**
+     * Whether [RescheduleWateringDialog] is showing. Opened directly from a Reschedule tap since
+     * #738 (product ADR-0039) — a reschedule is model-neutral, so there is no reason prompt gating it.
+     */
     val showRescheduleDialog = MutableStateFlow(false)
-
-    /**
-     * The Reschedule reason prompt (#586, product ADR-0030), shown *before*
-     * [showRescheduleDialog] — the reason decides what the model learns, and (for "Soil still moist")
-     * what date the picker opens on, so it has to be answered first.
-     */
-    val showRescheduleReasonSheet = MutableStateFlow(false)
-
-    /** The answer to [showRescheduleReasonSheet], held while the date dialog is up. */
-    val rescheduleReason = MutableStateFlow<RescheduleReason?>(null)
-
-    /**
-     * The recommended deferral shown at the top of [RescheduleWateringDialog], non-null only for a
-     * "Soil still moist" reschedule — see [QuickLogUseCase.suggestedStillMoistDeferralDays].
-     */
-    val rescheduleSuggestedDays = MutableStateFlow<Int?>(null)
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
@@ -519,12 +506,6 @@ class PlantDetailViewModel(
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()
-
-        /** "Still moist" logged successfully (#508). */
-        data class StillMoistChecked(val plantName: String) : QuickLogMessage()
-
-        /** [plant] already has a CHECK log today (#508, mirrors [AlreadyWateredToday]'s dedupe guard). */
-        data class AlreadyCheckedToday(val plantName: String) : QuickLogMessage()
     }
 
     @Suppress("LongParameterList")

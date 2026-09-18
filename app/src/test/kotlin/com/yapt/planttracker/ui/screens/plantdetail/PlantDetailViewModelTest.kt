@@ -320,8 +320,8 @@ class PlantDetailViewModelTest {
         }
     }
 
-    // requestReschedule/chooseRescheduleReason/confirmReschedule* coverage lives in
-    // PlantDetailViewModelRescheduleTest (#508/#586), to keep this file under Detekt's LargeClass threshold.
+    // requestReschedule/confirmReschedule* coverage lives in
+    // PlantDetailViewModelRescheduleTest (#508/#586/#738), to keep this file under Detekt's LargeClass threshold.
 
     // quickWater/quickFertilize/quickRepot/quickLiquidFertilize coverage lives in
     // PlantDetailViewModelQuickActionsTest (#586/#658/#694), to keep this file under Detekt's

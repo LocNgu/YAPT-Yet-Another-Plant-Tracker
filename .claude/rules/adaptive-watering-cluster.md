@@ -21,9 +21,8 @@ that does *not* change when an issue closes — the model, the invariants, and t
 **#738 (product ADR-0039) resolves the reschedule-teaches-the-model half of this cluster** — a
 reschedule writes only `Plant.wateringDueDateOverride` and stops teaching the model at all, which
 retires #719's "(suggested)" row and its `suggestedStillMoistDeferralDays()` source, simplifies
-#714, and substantially narrows #720. The parts below still marked "resolved-by-#738" describe the
-decision as of ADR-0039; the actual code removal ships in #738's follow-up PR, not this one — until
-that PR lands, the code they describe is still exactly as written.
+#714, and substantially narrows #720. The parts below marked "resolved-by-#738" describe the code as
+it now stands, post-removal.
 
 **Derived from source plus arithmetic; still not reproduced on-device.** A `@codex` second opinion
 was requested on #716–#720 and answered on all five (see each issue's comments — they are worth reading
@@ -58,17 +57,14 @@ the season keeps moving and the literal does not. Any code comparing "the interv
 must state which of the two it means.
 
 **2. There are two date anchors, and only one direction of travel.** **Resolved-by-#738** (product
-ADR-0039) as of the decision, code removal pending in #738's follow-up PR: `suggestedStillMoistDeferralDays()`
-and the "(suggested)" row it feeds go away entirely, since a reschedule no longer teaches the model
-anything for that row to preview — leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the
-only anchor for every remaining Reschedule option. The two-anchor confusion this fact describes (and
-#737, which existed because of it) dissolves along with the row. Until that follow-up PR lands, the
-code below is still exactly as described: `suggestedStillMoistDeferralDays()` reasons **from today**
-(`newBase − observedGap`); `confirmRescheduleRelativeDays()` anchors **to the due date**
-(`maxOf(nextWateringDueAt, now)`). These coincide only when the plant is overdue. Separately,
-`computeWateringDue()` resolves `maxOf(computedNextDueAt, override)`, so a reschedule can **only ever
-push a plant later** — an earlier override is silently discarded, and there is currently no way to
-express "come back sooner", even when the model concludes exactly that.
+ADR-0039): `suggestedStillMoistDeferralDays()` and the "(suggested)" row it fed are removed entirely,
+since a reschedule no longer teaches the model anything for that row to preview — leaving
+`confirmRescheduleRelativeDays()`'s due-date anchor as the only anchor for every remaining Reschedule
+option. The two-anchor confusion this fact describes (and #737, which existed because of it) has
+dissolved along with the row. Separately, `computeWateringDue()` still resolves
+`maxOf(computedNextDueAt, override)`, so a reschedule can **only ever push a plant later** — an
+earlier override is silently discarded, and there is still no way to express "come back sooner" (see
+#720).
 
 **3. Rounding happens at three boundaries, and the error is amplified by the season.**
 The `REAL` base is rounded to `Int` going into `computeAdaptiveInterval()`, rounded again by
@@ -85,23 +81,22 @@ clamp, not this round-trip.
   Don't "tidy" it to an `Int`.
 - Pinned plants (`pinIntervalToBase`) and amplitude Off keep `newInterval` as a literal and leave the
   stored base untouched (#584 review round 2).
-- The reason answer, never the deferral length, decides what the model learns (#586, product ADR-0030).
-- `suggestedStillMoistDeferralDays()` and `recordStillMoistAdaptiveObservation()` must keep sharing
-  `computeStillMoistAdaptiveInterval()` so preview and write can't diverge (#586). **Resolved-by-#738**
-  (product ADR-0039): both functions are removed entirely in #738's follow-up PR — a reschedule no
-  longer feeds the model, so there is nothing left to preview or write. Until that PR lands, the
-  invariant above still applies to the still-live code.
+- The reason answer, never the deferral length, decides what the model learns (#586, product ADR-0030)
+  — this now applies to the Water button only; Reschedule asks no reason at all (#738, product ADR-0039).
+- **Resolved-by-#738** (product ADR-0039): `suggestedStillMoistDeferralDays()` and
+  `recordStillMoistAdaptiveObservation()` are both removed — a reschedule no longer feeds the model,
+  so there is nothing left to preview or write.
 - A late gap never shortens the interval (#649, product ADR-0033).
 
 ## The seven, and how they interact
 
 | Issue | One line | Interaction to watch |
 |---|---|---|
-| #719 | ~~Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor~~ **Fixed, then resolved-by-#738** — `RescheduleWateringDialog`'s "(suggested)" row was fixed to call a dedicated `now`-anchored `PlantDetailViewModel.confirmRescheduleSuggestedDays()`, distinct from the due-date-anchored `confirmRescheduleRelativeDays()` the +1/+2/+3 options still use. Superseded, not reverted, by product ADR-0039 (#738): the "(suggested)" row and this handler are removed entirely in #738's follow-up PR, since a reschedule no longer teaches the model anything for the row to preview. #719 stays closed. |
+| #719 | ~~Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor~~ **Fixed, then resolved-by-#738** — `RescheduleWateringDialog`'s "(suggested)" row was fixed to call a dedicated `now`-anchored `PlantDetailViewModel.confirmRescheduleSuggestedDays()`, distinct from the due-date-anchored `confirmRescheduleRelativeDays()` the +1/+2/+3 options still use. Superseded, not reverted, by product ADR-0039 (#738): the "(suggested)" row and this handler are removed entirely, since a reschedule no longer teaches the model anything for the row to preview. #719 stays closed. |
 | #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. Preserving a precise base while prefilling the field from the *rounded* one creates an immediate display/schedule mismatch — derive both from the same value. |
 | #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches ADR-0026/0028, needs a spec pass. Fix choice interacts with #717's outcome. |
-| #714 | Second same-day still-moist reschedule silently drops the date | **Resolved-by-#738**: with no `CareType.CHECK` log written on reschedule (product ADR-0039), `isDuplicateGuarded()` no longer needs to cover this path at all — the guard and its special-cased branch are deleted in #738's follow-up PR rather than fixed further. Its regression test is reframed, not dropped: "a repeated reschedule still commits the date" stays the pinned contract, just reached trivially. #714 stays closed. |
-| #720 | Reschedule to a date before the due date is silently ignored | **Substantially simplified by #738** (product ADR-0039), which should land first: with the "(suggested)" row gone, the only remaining way to pick an ineffective date is the custom-date picker, narrowing this to a straightforward picker-constraint fix (its option A) rather than a product question about whether a model-driven target may win `maxOf()`. See "#719 shipped; how it interacts with #720" below for the pre-#738 framing, kept for history. |
+| #714 | Second same-day still-moist reschedule silently drops the date | **Resolved-by-#738**: with no `CareType.CHECK` log written on reschedule (product ADR-0039), `isDuplicateGuarded()` no longer covers this path at all — the guard and its special-cased branch are deleted rather than fixed further. Its regression test is reframed, not dropped: "a repeated reschedule still commits the date" stays the pinned contract, just reached trivially. #714 stays closed. |
+| #720 | Reschedule to a date before the due date is silently ignored | **Substantially simplified by #738** (product ADR-0039): with the "(suggested)" row gone, the only remaining way to pick an ineffective date is the custom-date picker, narrowing this to a straightforward picker-constraint fix (its option A) rather than a product question about whether a model-driven target may win `maxOf()`. See "#719 shipped; how it interacts with #720" below for the pre-#738 framing, kept for history. |
 | #717 | Unattributed observations can't move any base ≤ 26 days | **Not docs-only** (see above). #718's fix A needs the `Double` model result this issue would add — do them together or duplicate the API change. |
 | #715 | "Recent adjustments" can show an interval change that was never applied | Pairs with #714. |
 
@@ -121,9 +116,9 @@ spurious dialogs actively slow real learning. "Just dismiss them" is not a safe 
 ## #719 shipped; how it interacts with #720 (resolved-by-#738, kept for history)
 
 **Resolved-by-#738** (product ADR-0039): the "(suggested)" row this section is about is removed
-entirely in #738's follow-up PR, so the `maxOf()`-clamp interaction it describes no longer arises
-from that row — #720 narrows to a plain picker constraint, per the table above. This section is
-left in place as a historical record of the reasoning, not as live guidance.
+entirely, so the `maxOf()`-clamp interaction it describes no longer arises from that row — #720
+narrows to a plain picker constraint, per the table above. This section is left in place as a
+historical record of the reasoning, not as live guidance.
 
 #719's fix (now merged) lands on **A** from its own candidate list: the "(suggested)" row calls a
 dedicated `now`-anchored handler, leaving +1/+2/+3 on the existing due-date anchor. This is not a

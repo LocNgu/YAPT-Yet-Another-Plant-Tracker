@@ -200,7 +200,7 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork reframes to a Check title with Watered, Still moist and Not now when the plant is watering-due`() =
+    fun `doWork reframes to a Check title with Watered and Not now when the plant is watering-due`() =
         runBlocking {
             shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
             app.plantRepository.addPlant(
@@ -212,16 +212,17 @@ class ReminderWorkerTest {
             val notification = notificationManager.activeNotifications.first().notification
             assertEquals("Check Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
             val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-            assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
+            assertEquals(listOf("Watered", "Not now"), actionTitles)
         }
 
     /**
      * #586 acceptance criterion: the action set is **fixed**, never varied by how overdue the plant
      * is. Unpredictable buttons between firings would cost more than the one attribution the fixed
-     * set gives up.
+     * set gives up. Narrowed from three to two actions by #738 (product ADR-0039), which drops
+     * "Still moist" entirely.
      */
     @Test
-    fun `doWork offers the same three actions however overdue the plant is`() = runBlocking {
+    fun `doWork offers the same two actions however overdue the plant is`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         val plantId = app.plantRepository.addPlant(
             Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
@@ -238,7 +239,7 @@ class ReminderWorkerTest {
 
         val notification = notificationManager.activeNotifications.first().notification
         val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-        assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
+        assertEquals(listOf("Watered", "Not now"), actionTitles)
     }
 
     @Test

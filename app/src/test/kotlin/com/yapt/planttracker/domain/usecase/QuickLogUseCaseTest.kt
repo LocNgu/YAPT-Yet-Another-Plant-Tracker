@@ -16,12 +16,10 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
-import com.yapt.planttracker.domain.schedule.CareSchedule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -75,7 +73,7 @@ class QuickLogUseCaseTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
     private lateinit var useCase: QuickLogUseCase
 
-    /** An arbitrary caller-supplied due date for `recordStillMoistCheck` — #586 made it a parameter. */
+    /** An arbitrary caller-supplied due date for `recordReschedule` — #586 made it a parameter. */
     private val newDueAt = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(3)
 
     private fun plant(
@@ -109,9 +107,6 @@ class QuickLogUseCaseTest {
         // quickLiquidFertilizeWithReason call with 2+ prior waterings reaches this; individual tests
         // override with a real correction-streak window where that matters.
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
-        // recordStillMoistCheck's confidence-observation half is now unconditional too — no prior
-        // watering by default means recordStillMoistAdaptiveObservation() no-ops; tests exercising the
-        // observation itself override this.
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } returns Unit
@@ -573,172 +568,59 @@ class QuickLogUseCaseTest {
         }
     }
 
-    // recordStillMoistCheck (#570; caller-supplied due date since #586)
+    // recordReschedule (#508/#586, made model-neutral again by #738, product ADR-0039)
 
+    /**
+     * #738: a reschedule writes only `Plant.wateringDueDateOverride` — never a `CareType.CHECK` log,
+     * `wateringConfidence`, `wateringIntervalDays`/`wateringBaseIntervalDays`, or a
+     * `watering_adjustments` row. This is the single surviving contract for the whole reschedule
+     * write path, positively pinning the "writes nothing to the model" behavior that replaced the
+     * old `recordStillMoistCheck()`/`recordStillMoistAdaptiveObservation()` pair.
+     */
     @Test
-    fun `recordStillMoistCheck logs a CHECK entry with TOO_SOON feedback`() = runTest {
-        val monstera = plant(wateringIntervalDays = 7)
-
-        val logged = useCase.recordStillMoistCheck(monstera, newDueAt)
-
-        assertTrue(logged)
-        coVerify {
-            careLogRepo.addLog(
-                match { it.careType == CareType.CHECK && it.wateringFeedback == WateringFeedback.TOO_SOON }
-            )
-        }
-    }
-
-    // #714: a second same-day "Soil still moist" reschedule must still move the due date — only the
-    // re-logging (CHECK log / adaptive observation / adjustment row) is skipped. #714 review round 1:
-    // the duplicate branch must use the column-specific updateWateringDueDateOverride, never a
-    // full-row updatePlant() built off a possibly-stale snapshot — two overlapping StillMoistReceiver
-    // deliveries could otherwise interleave and one could revert the other's wateringConfidence (or
-    // any other column) write.
-    @Test
-    fun `recordStillMoistCheck already checked today still commits the override without re-logging`() = runTest {
+    fun `recordReschedule writes only the due date override, via the column-specific update`() = runTest {
         val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 2)
-        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.CHECK, any(), null) } returns true
 
-        val logged = useCase.recordStillMoistCheck(monstera, newDueAt)
+        useCase.recordReschedule(monstera, newDueAt)
 
-        assertFalse(logged)
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
     }
 
-    // #586 replaced #570's flat +1 day with a caller-supplied date: the picker's answer in the app,
-    // the derived suggestion from the notification. The override is *set*, not advanced, so a plant
-    // overdue by several days can actually be cleared in one go.
+    // #586 replaced #570's flat +1 day with a caller-supplied date: the picker's answer in the app.
+    // The override is *set*, not advanced, so a plant overdue by several days can actually be cleared
+    // in one go.
     @Test
-    fun `recordStillMoistCheck writes the caller-supplied due date as the override`() = runTest {
+    fun `recordReschedule writes the caller-supplied due date as the override`() = runTest {
         val monstera = plant(wateringIntervalDays = 7)
 
-        useCase.recordStillMoistCheck(monstera, newDueAt)
+        useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == newDueAt }) }
+        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
     }
 
     @Test
-    fun `recordStillMoistCheck replaces an existing override rather than stacking on top of it`() = runTest {
+    fun `recordReschedule replaces an existing override rather than stacking on top of it`() = runTest {
         val monstera = plant(wateringIntervalDays = 7, wateringDueDateOverride = 1_000_000L)
 
-        useCase.recordStillMoistCheck(monstera, newDueAt)
+        useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == newDueAt }) }
+        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
     }
 
-    // #586 acceptance criterion: reschedule length never affects what the model learns. Two
-    // "soil still moist" reschedules of wildly different lengths must produce identical model input.
+    // #714, superseded by #738: with no CHECK log written on reschedule, there is no same-day
+    // duplicate to guard against — a repeated reschedule call still commits the date every time,
+    // trivially now.
     @Test
-    fun `recordStillMoistCheck deferral length does not change the adaptive observation`() = runTest {
-        val tenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10)
-        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
-        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
-
-        val captured = mutableListOf<WateringAdjustment>()
-        coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns 1L
-
-        for (deferralMs in listOf(TimeUnit.DAYS.toMillis(1), TimeUnit.DAYS.toMillis(30))) {
-            useCase.recordStillMoistCheck(
-                plant(wateringIntervalDays = 7).copy(wateringConfidence = 2),
-                System.currentTimeMillis() + deferralMs
-            )
-        }
-
-        assertEquals(2, captured.size)
-        assertEquals(captured[0].afterIntervalDays, captured[1].afterIntervalDays)
-        assertEquals(WateringAdjustmentTrigger.CHECK_STILL_MOIST, captured[0].trigger)
-    }
-
-    // #612 regression: recordStillMoistAdaptiveObservation used to write wateringConfidence off a
-    // stale pre-override plant snapshot in a second updatePlant call, silently reverting the override
-    // written moments earlier. The fix folds both into one updatePlant call built off the same state.
-    @Test
-    fun `recordStillMoistCheck feeds computeAdaptiveInterval and updates confidence`() =
-        runTest {
-            val fifteenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(15)
-            val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = null)
-            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fifteenDaysAgo)
-            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
-
-            useCase.recordStillMoistCheck(monstera, newDueAt)
-
-            // Bootstrap (currentConfidence == null) -> confidence becomes 0, which differs from null,
-            // so the confidence update fires — and must land in the same call as the override write.
-            coVerify(exactly = 1) {
-                plantRepo.updatePlant(match { it.wateringConfidence == 0 && it.wateringDueDateOverride == newDueAt })
-            }
-        }
-
-    @Test
-    fun `recordStillMoistCheck does not call computeAdaptiveInterval when the plant has never been watered`() =
-        runTest {
-            val monstera = plant(wateringIntervalDays = 7)
-            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns null
-
-            useCase.recordStillMoistCheck(monstera, newDueAt)
-
-            // Only the due-date-override update should have happened; no confidence write.
-            coVerify(exactly = 1) { plantRepo.updatePlant(any()) }
-        }
-
-    // #715: a "Soil still moist" observation never writes `result.intervalDays` to the plant — only
-    // `Plant.wateringConfidence` — so the `WateringAdjustment` row must not claim an interval change
-    // that never happened (Option A: afterIntervalDays == beforeIntervalDays, always).
-    @Test
-    fun `recordStillMoistCheck CHECK_STILL_MOIST adjustment row always renders unchanged`() = runTest {
-        val tenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10)
-        val monstera = plant(wateringIntervalDays = 7).copy(wateringConfidence = 4)
-        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
-        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
-
-        // Sanity check the scenario really would move the base if it were written (base 7, observed
-        // gap 10 -> target 12.5 -> new base 8) — otherwise this test would pass even with the #715 bug.
-        val modelResult = CareSchedule.computeAdaptiveInterval(
-            feedback = WateringFeedback.TOO_SOON,
-            observedIntervalDays = 10,
-            currentBaseIntervalDays = 7,
-            currentConfidence = 4,
-            recentFeedback = emptyList()
-        )
-        assertEquals(8, modelResult.intervalDays)
-
-        val captured = mutableListOf<WateringAdjustment>()
-        coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns 1L
-
-        useCase.recordStillMoistCheck(monstera, newDueAt)
-
-        assertEquals(1, captured.size)
-        assertEquals(WateringAdjustmentTrigger.CHECK_STILL_MOIST, captured[0].trigger)
-        assertEquals(7, captured[0].beforeIntervalDays)
-        assertEquals(captured[0].beforeIntervalDays, captured[0].afterIntervalDays)
-    }
-
-    @Test
-    fun `recordStillMoistCheck FROZEN_POST_REPOT adjustment row also renders unchanged`() = runTest {
-        val tenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(10)
-        val futureFreeze = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
+    fun `recordReschedule commits the date on a repeated same-day call`() = runTest {
         val monstera = plant(wateringIntervalDays = 7)
-            .copy(wateringConfidence = 4, wateringFreezeUntil = futureFreeze)
-        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = tenDaysAgo)
-        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+        coEvery { careLogRepo.hasLogOfTypeOnDay(1L, CareType.CHECK, any(), null) } returns true
 
-        val captured = mutableListOf<WateringAdjustment>()
-        coEvery { wateringAdjustmentRepo.addAdjustment(capture(captured)) } returns 1L
+        useCase.recordReschedule(monstera, newDueAt)
 
-        useCase.recordStillMoistCheck(monstera, newDueAt)
-
-        assertEquals(1, captured.size)
-        assertEquals(WateringAdjustmentTrigger.FROZEN_POST_REPOT, captured[0].trigger)
-        assertEquals(7, captured[0].beforeIntervalDays)
-        assertEquals(captured[0].beforeIntervalDays, captured[0].afterIntervalDays)
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
     }
 
     // maybeBuildPhotoReminderRequest

@@ -13,14 +13,11 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
-        fixed = listOf(
-            "A second \"Soil still moist\" reschedule on the same day no longer silently drops the new " +
-                "due date you just picked — only the duplicate check-in log is skipped",
-            "The \"Why this date?\" sheet's Recent adjustments list no longer claims a still-moist " +
-                "reschedule changed your watering interval when it never actually did",
-            "Fixed the Reschedule dialog's \"(suggested)\" option landing several days later than promised " +
-                "for a plant that isn't due yet, after answering \"Soil still moist\" — it now lands on the " +
-                "date it actually says"
+        changed = listOf(
+            "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
+                "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
+                "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
+                "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
         )
     )
 

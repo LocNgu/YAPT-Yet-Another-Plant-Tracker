@@ -89,12 +89,14 @@ feeding it into the adaptive model) evaluated the season at `nowProvider()` (rea
 rather than the caller's `loggedAt`, so a backdated quick-water (#654's "Log watering" date picker) with
 `SEASONAL_WATERING` on de-seasonalized using *today's* season, not the logged day's — contradicting the
 "`loggedAt` threads through everywhere" claim documented above. Fixed by giving the helper an explicit
-`atDate: LocalDate` parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s
-two callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now
-passes `now.toLocalDate()` into, mirroring this section's own `loggedAt`-threading pattern.
-`effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion dialog's "different from
-current" check) had the identical bug and got the same fix via an explicit `now` parameter threaded from
-`computeSuggestion()`.
+`atDate: LocalDate` parameter, which `adaptWateringInterval()` passes `now.toLocalDate()` into, mirroring
+this section's own `loggedAt`-threading pattern. (At the time, the default `atDate = nowProvider()
+.toLocalDate()` existed so `computeStillMoistAdaptiveInterval()`'s two still-moist callers — which had
+no backdating concept — could keep using it unchanged; that function is deleted by #738, product
+ADR-0039, leaving `adaptWateringInterval()` as this helper's one caller, always passing `atDate`
+explicitly.) `effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion dialog's
+"different from current" check) had the identical bug and got the same fix via an explicit `now`
+parameter threaded from `computeSuggestion()`.
 
 **Follow-up (#679):** three more edge cases, all only reachable when backdating to before an
 already-existing later watering. (1) `QuickLogUseCase.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()`
@@ -125,11 +127,11 @@ param — `WATER_TOO_SOON` reachable since #649 (product ADR-0033) via the late-
 `AdaptiveInterval.excludedFromBaseLearning`, which wins and selects `WATER_NOT_ATTRIBUTED`: an
 off-schedule watering the user declined to attribute, #586 product ADR-0030, distinct from `WATER_NEUTRAL`'s
 on-schedule "nothing to change" so the sheet can explain a row where nothing moved), `CHECK_STILL_MOIST`
-(**no longer written as of #738, product ADR-0039** — a reschedule is model-neutral again and
-`QuickLogUseCase.recordStillMoistAdaptiveObservation()` is removed in #738's follow-up PR; existing
-`CHECK_STILL_MOIST` rows written before that change stay visible, rendering read-only in "Why this
-date?" → Recent adjustments, since that surface is model provenance rather than a user journal —
-distinct from the `CareType.CHECK` care-history filter, which does hide those rows elsewhere), `DIALOG_DISMISSAL`
+(**no longer written, as of #738, product ADR-0039** — a reschedule is model-neutral again and
+`QuickLogUseCase.recordStillMoistAdaptiveObservation()` is removed; existing `CHECK_STILL_MOIST` rows
+written before that change stay visible, rendering read-only in "Why this date?" → Recent adjustments,
+since that surface is model provenance rather than a user journal — distinct from the `CareType.CHECK`
+care-history filter, which does hide those rows elsewhere), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
 (`QuickLogUseCase.applyWateringIntervalSuggestion()` — shared by the Plant Detail dialog's Apply
 button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDIT`
@@ -193,43 +195,46 @@ guarded on `plant.wateringIntervalDays != null`). All three dismiss-suggestion c
 this one function; Plant Detail's own wrapper keeps only its ViewModel-scoped bits (reading the current
 `plant`, clearing `suggestedWateringInterval`).
 
-**Follow-up (#714):** `QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate
-guard used to return early *before* writing `Plant.wateringDueDateOverride` at all, so a second same-day
-"Soil still moist" reschedule silently discarded the date the user just picked. The duplicate branch now
-commits the override, skipping only the CHECK log / adaptive observation / `WateringAdjustment` row it
-would otherwise duplicate. The `Boolean` return is unchanged in shape but not meaning: `false` now means
-"the check was not re-logged" (the override still moved), not "nothing happened" —
-`quick_log_already_checked` was reworded in place ("Already checked %s today — the date still moved") to
-match, its only production call site.
+**Follow-up (#714), superseded by #738 (product ADR-0039) — kept as history, not current behaviour:**
+`QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate guard used to return
+early *before* writing `Plant.wateringDueDateOverride` at all, so a second same-day "Soil still moist"
+reschedule silently discarded the date the user just picked. The duplicate branch was fixed to commit
+the override, skipping only the CHECK log / adaptive observation / `WateringAdjustment` row it would
+otherwise duplicate. **This entire function, its duplicate guard, and the branch described here are
+deleted by #738** — a reschedule no longer writes a `CareType.CHECK` log at all, so there is nothing
+left to guard against re-logging. `QuickLogUseCase.recordReschedule(plant, newDueAtMillis)` is the
+current write path: an unconditional column write with no duplicate check of any kind. The reworded
+`quick_log_already_checked` string this follow-up introduced is deleted along with it.
 
-**Follow-up (#714 review round 1):** the duplicate branch above does *not* use a full-row
-`updatePlant()` — two overlapping `StillMoistReceiver` deliveries (e.g. a doubled broadcast) can
-interleave, so a duplicate-branch write built off a `plant` snapshot taken before the other delivery's
-own `updatePlant()` call could silently revert that write's `wateringConfidence` (or any other column).
-It instead calls a new column-specific `PlantDao.updateWateringDueDateOverride(id,
-wateringDueDateOverride, updatedAt)` (mirrored by a thin `PlantRepository` wrapper) — same rationale as
-`PlantDao.updateWateringBaseInterval` (#703 review round 3): a statement that can't touch a column it
-doesn't name eliminates the race entirely rather than just narrowing its window. Query-only addition, no
-schema change, no migration, no schema JSON bump. The success path's single combined `updatePlant()`
-call (#612) is unchanged — that invariant still governs only the branch that also writes
-`wateringConfidence`.
+**Follow-up (#714 review round 1) — the DAO method survives, the rationale for *why* it's used has
+changed:** the duplicate branch above did *not* use a full-row `updatePlant()` — two overlapping
+`StillMoistReceiver` deliveries (e.g. a doubled broadcast) could interleave, so a duplicate-branch write
+built off a `plant` snapshot taken before the other delivery's own `updatePlant()` call could silently
+revert that write's `wateringConfidence` (or any other column). It instead called a new column-specific
+`PlantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)` (mirrored by a thin
+`PlantRepository` wrapper) — same rationale as `PlantDao.updateWateringBaseInterval` (#703 review round
+3): a statement that can't touch a column it doesn't name eliminates the race entirely rather than just
+narrowing its window. **That DAO method is not deleted by #738** — `recordReschedule()` still calls it,
+now simply because it's the correct minimal-surface write for a reschedule, not because of a
+duplicate-delivery race that no longer has a guard branch to protect. The success path's single combined
+`updatePlant()` call (#612) is unrelated and unaffected either way — that invariant only ever governed
+the WATER-log adaptive-observation path, which still writes confidence and an override together when
+relevant.
 
-**Follow-up (#715):** `recordStillMoistAdaptiveObservation()` used to write the `CHECK_STILL_MOIST` (and
-`FROZEN_POST_REPOT`) row's `afterIntervalDays` as `result.intervalDays` — the value the adaptive model
-computed but that this path deliberately never writes to the plant (only `Plant.wateringConfidence` is
-persisted here). Whenever that rounded to something different from `beforeIntervalDays`, the sheet's
-Recent adjustments list claimed an interval change ("7 → 8 days") that was never applied — the numbers
-this sheet exists specifically to keep in sync with the schedule had drifted. Fixed per the chosen
-posture (Option A over a distinct "considered, not applied" wording): `afterIntervalDays` is now always
-written as `currentBase`, so the row renders "unchanged" for both trigger branches uniformly (chosen over
-a distinct "considered, not applied" wording — simpler, and consistent with the existing "a no-op
-observation is still evidence the model considered" posture elsewhere in this table). `FROZEN_POST_REPOT`
-already produced `result.intervalDays == currentBase` by construction (a freeze forces gain 0), but the
-fix stops that row from depending on the implicit identity too. The WATER path
-(`adaptWateringInterval()`'s rows) stays out of scope — those sit behind a real potential apply step
-(`applyWateringIntervalSuggestion()`), unlike this path which has no surfaced suggestion to ever apply.
-`suggestedStillMoistDeferralDays()`'s preview math is untouched, still deriving the deferral from the
-real `result.intervalDays` via the shared `computeStillMoistAdaptiveInterval()` (#586 invariant).
+**Follow-up (#715), superseded by #738 (product ADR-0039) — kept as history, not current behaviour:**
+`recordStillMoistAdaptiveObservation()` used to write the `CHECK_STILL_MOIST` (and `FROZEN_POST_REPOT`)
+row's `afterIntervalDays` as `result.intervalDays` — the value the adaptive model computed but that this
+path deliberately never wrote to the plant (only `Plant.wateringConfidence` was persisted there).
+Whenever that rounded to something different from `beforeIntervalDays`, the sheet's Recent adjustments
+list claimed an interval change ("7 → 8 days") that was never applied. Fixed per the chosen posture
+(Option A over a distinct "considered, not applied" wording): `afterIntervalDays` was made to always
+write as `currentBase`, so the row rendered "unchanged" for both trigger branches uniformly.
+**`recordStillMoistAdaptiveObservation()`, `computeStillMoistAdaptiveInterval()`, and
+`suggestedStillMoistDeferralDays()` are all deleted by #738** — a reschedule no longer evaluates the
+adaptive model at all, so there is no `WateringAdjustment` row left for this fix to apply to. Existing
+`CHECK_STILL_MOIST` rows written before #738 keep whatever `afterIntervalDays` this fix gave them
+(read-only history, per the `CHECK_STILL_MOIST` entry above); no new row of that trigger is ever
+written again.
 
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default

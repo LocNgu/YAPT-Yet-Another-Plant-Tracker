@@ -60,11 +60,9 @@ interface PlantDao {
     /**
      * Column-specific update touching only `wateringDueDateOverride`/`updatedAt`, same rationale as
      * [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch a column it
-     * doesn't name, eliminating the race entirely rather than just narrowing its window. Added for
-     * `QuickLogUseCase.recordStillMoistCheck()`'s same-day duplicate branch (#714 review round 1):
-     * two overlapping `StillMoistReceiver` deliveries could otherwise interleave a stale full-row
-     * `@Update` from a `plant` snapshot fetched before the other delivery's own write, silently
-     * reverting that write's `wateringConfidence`/etc.
+     * doesn't name, eliminating the race entirely rather than just narrowing its window. Used by
+     * `QuickLogUseCase.recordReschedule()` (#738, product ADR-0039) so a reschedule can never
+     * silently revert a concurrent write to any other column.
      */
     @Query(
         "UPDATE plants SET wateringDueDateOverride = :wateringDueDateOverride, updatedAt = :updatedAt " +

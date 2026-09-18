@@ -50,8 +50,7 @@ class WateringReasonTest {
      * option list.
      */
     @Test
-    fun `watering reason has exactly three values, reschedule reason at most three`() {
+    fun `watering reason has exactly three values`() {
         assertEquals(3, WateringReason.entries.size)
-        assertEquals(2, RescheduleReason.entries.size)
     }
 }
