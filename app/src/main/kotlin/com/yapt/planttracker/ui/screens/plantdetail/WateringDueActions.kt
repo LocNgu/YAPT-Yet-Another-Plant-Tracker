@@ -257,16 +257,24 @@ internal data class RescheduleDialogActions(
  * reschedule is model-neutral, so there is nothing left to ask "why" about). **How many days the
  * user picks has no effect on the adaptive model** — all learning comes from the next actual
  * watering.
+ *
+ * [computedNextWateringDueAt] (#720) is [com.yapt.planttracker.domain.model.PlantCareStatus
+ * .computedNextWateringDueAt] — the pre-override, schedule-computed due date — threaded down to the
+ * "Custom date…" picker so it can reject any date `CareSchedule.computeWateringDue()`'s `maxOf()`
+ * would silently discard. Today/+1/+2/+3 need no such gate: they anchor to `maxOf(nextWateringDueAt,
+ * now)` and only ever add forward time, so they cannot produce an ineffective date by construction.
  */
 @Composable
 internal fun RescheduleWateringDialog(
     todayEnabled: Boolean,
-    actions: RescheduleDialogActions
+    actions: RescheduleDialogActions,
+    computedNextWateringDueAt: Long? = null
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         RescheduleDatePickerDialog(
+            computedNextWateringDueAt = computedNextWateringDueAt,
             onDismiss = actions.onDismiss,
             onConfirm = { utcMidnightMs ->
                 showDatePicker = false
@@ -320,17 +328,24 @@ private fun RescheduleOption(
 
 /**
  * The "Custom date…" branch of [RescheduleWateringDialog], extracted so the option list stays
- * readable. [TodayOrLaterSelectableDates] already excludes past dates, so the picked value needs no
- * further validation here. [onConfirm] receives the raw `selectedDateMillis`, which is `null` until
+ * readable. [TodayOrLaterSelectableDates] (via [isSelectableRescheduleDate]) already excludes both
+ * past dates and dates the schedule's own `maxOf()` would discard (#720), so the picked value needs
+ * no further validation here. [onConfirm] receives the raw `selectedDateMillis`, which is `null` until
  * the user actually taps a day — OK closes the picker either way, and the caller does the
- * UTC-midnight reinterpretation documented on [utcMidnightMsToLocalStartOfDayMillis].
+ * UTC-midnight reinterpretation documented on [utcMidnightMsToLocalStartOfDayMillis]. The
+ * [SelectableDates] instance is `remember`ed keyed on [computedNextWateringDueAt] so
+ * [rememberDatePickerState] is not handed a fresh instance on every recomposition.
  */
 @Composable
 private fun RescheduleDatePickerDialog(
+    computedNextWateringDueAt: Long?,
     onDismiss: () -> Unit,
     onConfirm: (utcMidnightMs: Long?) -> Unit
 ) {
-    val datePickerState = rememberDatePickerState(selectableDates = TodayOrLaterSelectableDates)
+    val selectableDates = remember(computedNextWateringDueAt) {
+        TodayOrLaterSelectableDates(computedNextWateringDueAt)
+    }
+    val datePickerState = rememberDatePickerState(selectableDates = selectableDates)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -368,8 +383,40 @@ internal fun isOnOrAfterLocalToday(
     return !candidate.isBefore(today)
 }
 
-private object TodayOrLaterSelectableDates : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean = isOnOrAfterLocalToday(utcTimeMillis)
+/**
+ * The custom-date picker's full gate (#720): a candidate must clear **both** [isOnOrAfterLocalToday]
+ * and a new floor against [computedNextWateringDueAt] — the schedule-computed due date *before*
+ * `Plant.wateringDueDateOverride` is applied (`CareSchedule.computeWateringDue()`'s
+ * `maxOf(computedNextDueAt, override)`). An override whose local calendar day is on or before
+ * [computedNextWateringDueAt]'s local calendar day can only tie or lose that `maxOf()` and would be
+ * written to the database only to be silently discarded — see #720. Both floors are independently
+ * load-bearing: a plant overdue since January, with today in September, would have February/March/…
+ * wrongly accepted by the due-date floor alone, and a plant due next month would have "today" wrongly
+ * accepted by the today floor alone.
+ *
+ * [computedNextWateringDueAt] is a real epoch-millis instant (not UTC-encoded like the picker's own
+ * [utcTimeMillis]) and must be converted via [zoneId] — **not** [ZoneOffset.UTC] — to compare local
+ * calendar days consistently with [isOnOrAfterLocalToday]'s own local-day comparison. `null` (no
+ * watering interval configured) makes the due-date floor vacuous, leaving the today floor as the only
+ * constraint.
+ */
+internal fun isSelectableRescheduleDate(
+    utcTimeMillis: Long,
+    computedNextWateringDueAt: Long?,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    today: LocalDate = LocalDate.now(zoneId),
+): Boolean {
+    val clearsDueDateFloor = computedNextWateringDueAt == null || run {
+        val candidate = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        val computedDueDate = Instant.ofEpochMilli(computedNextWateringDueAt).atZone(zoneId).toLocalDate()
+        candidate.isAfter(computedDueDate)
+    }
+    return isOnOrAfterLocalToday(utcTimeMillis, zoneId, today) && clearsDueDateFloor
+}
+
+private class TodayOrLaterSelectableDates(private val computedNextWateringDueAt: Long?) : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+        isSelectableRescheduleDate(utcTimeMillis, computedNextWateringDueAt)
 }
 
 /** Converts a picked UTC-midnight date to local start-of-day, mirroring `AddCareLogScreen`'s date-picker handling. */

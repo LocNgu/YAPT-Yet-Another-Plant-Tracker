@@ -370,8 +370,8 @@ is no model input at all.
 `RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled while `isDueSoon`)
 / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
 now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
-`SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching what the picker itself
-displays, not the device's local "today"). **Never fires the ADR-0006 interval-suggestion dialog**
+`SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
+date, see below). **Never fires the ADR-0006 interval-suggestion dialog**
 afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
 (`suggestedStillMoistDeferralDays()`) and `PlantDetailViewModel.confirmRescheduleSuggestedDays()`
 (#719's handler) are removed — a reschedule no longer teaches the model anything for that row to
@@ -383,6 +383,40 @@ due-date anchor only ever needed reconciling because that row existed; removing 
 anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. See
 `.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor pair and how it
 interacted with #719/#720.
+
+### Custom-date picker's due-date floor (#720)
+`CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an
+override earlier than the schedule-computed date can never win — it would be written to the database
+and then silently discarded, with no chip, snackbar, or error. The "Custom date…" picker's
+`SelectableDates` therefore ANDs two independent floors, never just one:
+`WateringDueActions.isSelectableRescheduleDate(utcTimeMillis, computedNextWateringDueAt, zoneId, today)`
+combines the existing `isOnOrAfterLocalToday` (local-today floor) with a new due-date floor — a candidate
+is only selectable when its local calendar day is **strictly after** `computedNextWateringDueAt`'s local
+calendar day (same-day can only tie or lose the `maxOf()`). Both floors are independently load-bearing: a
+plant overdue since January with today in September needs the today floor to reject a February pick that
+the due-date floor alone would accept, and a plant not yet due needs the due-date floor to reject "today"
+where the today floor alone would accept it. `computedNextWateringDueAt == null` (no interval configured)
+makes the due-date floor vacuous.
+
+`PlantCareStatus.computedNextWateringDueAt: Long?` carries `computeWateringDue()`'s private
+pre-override local out to the UI layer for exactly this comparison — populated once inside `CareSchedule`,
+never re-derived, same posture `rescheduleDeltaDays` already documents. It is a real epoch-millis instant
+(unlike the picker's own `utcTimeMillis`, which Material3 always encodes as UTC midnight regardless of
+device timezone) and must be converted via the caller's `zoneId`, not `ZoneOffset.UTC`, to compare local
+calendar days consistently. `TodayOrLaterSelectableDates` is a class (not the earlier stateless `object`)
+parameterized by `computedNextWateringDueAt`, `remember`ed keyed on that value in
+`RescheduleDatePickerDialog` so `rememberDatePickerState` isn't handed a fresh instance every
+recomposition; `RescheduleWateringDialog` threads the value down from `PlantDetailScreen`'s
+`careStatus?.computedNextWateringDueAt`.
+
+Today/+1/+2/+3 need no such gate — they anchor to `maxOf(nextWateringDueAt, now)` and only ever add
+forward time, so they cannot produce an ineffective date by construction; only the free-form custom date
+can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
+this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
+which ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
+"Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which can be `false` in a
+state where tapping Today would actually pull the due date in) is out of scope here and filed separately —
+see `.claude/rules/adaptive-watering-cluster.md`.
 
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
