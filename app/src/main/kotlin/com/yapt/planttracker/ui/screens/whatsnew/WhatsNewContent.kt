@@ -13,6 +13,10 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        fixed = listOf(
+            "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
+                "rounding nudge the underlying interval when you accept a suggestion"
+        ),
         changed = listOf(
             "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
                 "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +

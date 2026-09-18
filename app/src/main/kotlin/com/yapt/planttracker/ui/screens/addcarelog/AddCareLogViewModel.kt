@@ -243,9 +243,21 @@ class AddCareLogViewModel(
 
         if (actualIntervalDays <= 0) return null
 
-        val suggested = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
-        val effectiveSuggested = effectiveIntervalForDisplay(plant, suggested)
-        return if (effectiveSuggested != currentInterval) suggested else null
+        val result = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval) ?: return null
+        val effectiveSuggested = effectiveIntervalForDisplay(plant, result.intervalDays)
+        val newBase = result.baseIntervalDays.takeIf {
+            effectiveSuggested == currentInterval && !plant.pinIntervalToBase
+        } ?: plant.wateringBaseIntervalDays
+        if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
+            plantRepository.updatePlant(
+                plant.copy(
+                    wateringConfidence = result.confidence,
+                    wateringBaseIntervalDays = newBase,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+        return if (effectiveSuggested != currentInterval) result.intervalDays else null
     }
 
     /**
@@ -283,9 +295,9 @@ class AddCareLogViewModel(
         feedback: WateringFeedback?,
         actualIntervalDays: Int,
         currentInterval: Int
-    ): Int {
+    ): CareSchedule.AdaptiveInterval? {
         val now = System.currentTimeMillis()
-        if (maybeApplyHistoryBootstrap(plant, now)) return currentInterval
+        if (maybeApplyHistoryBootstrap(plant, now)) return null
 
         val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
@@ -299,19 +311,16 @@ class AddCareLogViewModel(
             recentFeedback = recentFeedback,
             frozen = frozen
         )
-        if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
-        }
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
                 trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
-                beforeIntervalDays = currentBase,
+                beforeIntervalDays = currentBase.roundToInt(),
                 afterIntervalDays = result.intervalDays
             )
         )
-        return result.intervalDays
+        return result
     }
 
     /**
@@ -362,12 +371,12 @@ class AddCareLogViewModel(
      * [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s private copy of the same helper.
      */
     @Suppress("ReturnCount")
-    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Int {
-        if (plant.pinIntervalToBase) return configuredIntervalDays
-        val store = dataStore ?: return configuredIntervalDays
+    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double {
+        if (plant.pinIntervalToBase) return configuredIntervalDays.toDouble()
+        val store = dataStore ?: return configuredIntervalDays.toDouble()
         val amplitude = store.seasonalAmplitudeOnce()
-        if (amplitude == 0.0) return configuredIntervalDays
-        return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
+        if (amplitude == 0.0) return configuredIntervalDays.toDouble()
+        return plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
     }
 
     /**
