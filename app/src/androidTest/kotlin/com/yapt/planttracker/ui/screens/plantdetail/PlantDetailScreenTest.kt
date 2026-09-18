@@ -42,8 +42,6 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -103,49 +101,31 @@ class PlantDetailScreenTest {
         WateringAdjustmentRepository(database.wateringAdjustmentDao())
     }
 
-    /**
-     * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
-     * shared DataStore stub reports it ON — these tests exercise the flag-on tabbed UI.
-     * `tabsFlagOff_showsClassicLayoutWithoutTabs` supplies its own flag-off store instead.
-     */
     private val mockDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
-            )
-        )
-    }
-
-    private val flagsOffDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(emptyPreferences())
     }
 
     /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on, amplitude explicitly Off — for tests whose exact
-     * on/off-schedule boundary math must stay flag/date-independent (an unset amplitude now defaults
-     * to Standard since seasonal watering graduated, #656, which would otherwise shift the effective
-     * interval and make the boundary flaky by date).
+     * Amplitude explicitly Off — for tests whose exact on/off-schedule boundary math must stay
+     * date-independent (an unset amplitude now defaults to Standard since seasonal watering
+     * graduated, #656, which would otherwise shift the effective interval and make the boundary
+     * flaky by date).
      */
     private val mockDataStoreAmplitudeOff: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(
             mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
                 SettingsKeys.SEASONAL_AMPLITUDE to "OFF"
             )
         )
     }
 
     /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout, where the seasonal-curve
-     * preview chart (#579) and "Pin interval" switch (#578) always render (seasonal watering
-     * graduated, #656) alongside the "Why this date?" sheet entry point.
+     * The tabbed Water layout, where the seasonal-curve preview chart (#579) and "Pin interval"
+     * switch (#578) always render (seasonal watering graduated, #656) alongside the "Why this date?"
+     * sheet entry point.
      */
     private val mockDataStoreWithSeasonal: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
-            )
-        )
+        every { it.data } returns flowOf(emptyPreferences())
     }
 
     private val mockCustomReminderRepo: CustomReminderRepository = mockk<CustomReminderRepository>().also {
@@ -957,8 +937,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
-        // button in WateringDueActionsRow is the equivalent entry point now.
+        // #603/#704: the watering StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the always-visible Water button in WateringDueActionsRow is the entry point now.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
@@ -998,8 +978,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
-        // button in WateringDueActionsRow is the equivalent entry point now.
+        // #603/#704: the watering StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the always-visible Water button in WateringDueActionsRow is the entry point now.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
@@ -1161,8 +1141,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
-        // lives under the Fertilize tab.
+        // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the equivalent action now lives under the Fertilize tab.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1208,8 +1188,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
-        // lives under the Fertilize tab.
+        // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the equivalent action now lives under the Fertilize tab.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1228,37 +1208,6 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Plant was dry / stressed")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
-    }
-
-    /**
-     * Regression guard for #603 round-2: `StatsRow` (and its watering/fertilizing `StatChip`s) was
-     * removed from the tabs layout entirely, not merely relocated — the `if (!tabsEnabled)` block it
-     * lives in is never composed when the flag is on, so this needs no scrolling to prove absence.
-     */
-    @Test
-    fun statsRowStatChips_areAbsentFromTabsLayout() {
-        val plant = Plant(
-            id = 40L,
-            name = "Pothos",
-            wateringIntervalDays = 7,
-            fertilizingIntervalDays = 30,
-            createdAt = 0L,
-            updatedAt = 0L
-        )
-        val viewModel = makeViewModel(plant)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithText(statLabelWateringText()).assertDoesNotExist()
-        composeTestRule.onNodeWithText(statLabelFertilizingText()).assertDoesNotExist()
     }
 
     @Test
@@ -1643,48 +1592,6 @@ class PlantDetailScreenTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
-    @Test
-    fun tabsFlagOff_showsClassicLayoutWithoutTabs() {
-        val plant = Plant(id = 41L, name = "Basil", createdAt = 0L, updatedAt = 0L)
-        val plantRepo = mockk<PlantRepository>()
-        val careLogRepo = mockk<CareLogRepository>()
-        val plantPhotoRepo = mockk<PlantPhotoRepository>()
-        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
-        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
-        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
-        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        // Classic layout: the watering chart renders inline, and no tab labels are present.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Watering History"))
-        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
-        assertTrue(
-            composeTestRule.onAllNodesWithText("Repot")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
-        assertTrue(
-            composeTestRule.onAllNodesWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
-        assertTrue(
-            composeTestRule.onAllNodesWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
-    }
-
     // ---- Tab row collapse/expand + attention badge (#590, product ADR-0030) ----
 
     @Test
@@ -1947,12 +1854,6 @@ class PlantDetailScreenTest {
 
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
-
-    private fun statLabelWateringText(): String = InstrumentationRegistry.getInstrumentation().targetContext
-        .getString(R.string.stat_label_watering)
-
-    private fun statLabelFertilizingText(): String = InstrumentationRegistry.getInstrumentation().targetContext
-        .getString(R.string.stat_label_fertilizing)
 
     /**
      * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,

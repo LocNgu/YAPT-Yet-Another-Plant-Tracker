@@ -129,11 +129,17 @@ internal fun RescheduleDeltaChip(
  * is now a deliberate, human-confirmed trade-off in exchange for visual consistency (technical
  * ADR-0022) rather than something this row's own margins should compensate for; ADR-0022 addresses
  * the Edit corner by fading that button on scroll instead.
+ *
+ * [onRescheduleClick] is nullable (product ADR-0040, amending ADR-0031): Water renders whenever the
+ * row itself renders (`careStatus != null`, unconditional on `wateringIntervalDays`), since logging a
+ * one-off watering has no dependency on the plant having a configured schedule — but rescheduling a
+ * due date that doesn't exist is meaningless, so Reschedule renders only when the caller passes a
+ * non-null callback (i.e. `wateringIntervalDays != null`).
  */
 @Composable
 internal fun WateringDueActionsRow(
     onWaterClick: () -> Unit,
-    onRescheduleClick: () -> Unit,
+    onRescheduleClick: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -150,11 +156,13 @@ internal fun WateringDueActionsRow(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.watering_due_action_water))
         }
-        OutlinedIconButton(onClick = onRescheduleClick) {
-            Icon(
-                Icons.Filled.MoreTime,
-                contentDescription = stringResource(R.string.reschedule_watering_title)
-            )
+        onRescheduleClick?.let { onClick ->
+            OutlinedIconButton(onClick = onClick) {
+                Icon(
+                    Icons.Filled.MoreTime,
+                    contentDescription = stringResource(R.string.reschedule_watering_title)
+                )
+            }
         }
     }
 }

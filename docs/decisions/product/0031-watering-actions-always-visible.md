@@ -79,3 +79,7 @@ layout, where the row and the chip could appear on screen together:
 - The row's framing/copy ("Water" / "Reschedule watering") is unchanged — the issue asked whether it
   needed adjusting now that the row is no longer due-gated, and the answer (per the spec-clarification
   discussion) is no: both actions read naturally regardless of due status.
+- **Amended by ADR-0040 (Water button visibility)** — when `PLANT_DETAIL_TABS` graduated (#704) and
+  `StatsRow` was deleted, Water's own gate on `wateringIntervalDays != null` was dropped so a plant
+  with no configured schedule keeps a one-tap watering entry point; Reschedule keeps this ADR's
+  original gate unchanged.
