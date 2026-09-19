@@ -54,5 +54,17 @@ data class PlantCareStatus(
      * never re-derived in the UI layer, same "no drift by construction" posture as the rest of this
      * status.
      */
-    val rescheduleDeltaDays: Int? = null
+    val rescheduleDeltaDays: Int? = null,
+    /**
+     * The schedule-computed watering due date **before** [Plant.wateringDueDateOverride] is applied
+     * (#720) — distinct from [nextWateringDueAt], which is the post-`maxOf()` effective date. Exists
+     * so the Reschedule dialog's custom-date picker can tell which candidate dates `maxOf()` will
+     * discard: an override earlier than this value never wins and is silently dropped, so the picker
+     * must reject it rather than let the tap succeed with no visible effect. Computed once inside
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.computeWateringDue] — never re-derived in
+     * the UI layer, same "no drift by construction" posture [rescheduleDeltaDays] already documents.
+     * `null` whenever there is no watering interval configured. Defaulted so a status built by hand in
+     * a test is unaffected.
+     */
+    val computedNextWateringDueAt: Long? = null
 )
