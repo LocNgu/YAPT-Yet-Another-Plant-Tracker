@@ -243,8 +243,11 @@ internal data class RescheduleDialogActions(
 
 /**
  * The "Reschedule watering" dialog (#508, product ADR-0029, replaces the 1-7 day stepper): Today /
- * +1 / +2 / +3 days / a Material 3 [DatePicker] for a custom date. [todayEnabled] is `false` while
- * the plant's effective due date is already today (a true no-op there) and `true` while overdue.
+ * +1 / +2 / +3 days / a Material 3 [DatePicker] for a custom date. [todayEnabled] (#746, via
+ * `isRescheduleTodayEnabled`) is `false` when local today is on or before
+ * `computedNextWateringDueAt`'s local calendar day (a true no-op — tapping Today couldn't move the
+ * effective due date) and `true` whenever it would actually pull the date in, including a winning
+ * *future* override the plant's `isOverdue` status doesn't reflect.
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
  * ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *

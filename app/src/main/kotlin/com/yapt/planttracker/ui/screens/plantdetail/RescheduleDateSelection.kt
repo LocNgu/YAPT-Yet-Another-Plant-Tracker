@@ -78,6 +78,44 @@ internal fun isRescheduleConfirmEnabled(
     selectedDateMillis == null ||
         isSelectableRescheduleDate(selectedDateMillis, computedNextWateringDueAt, zoneId, today)
 
+/**
+ * Backs `RescheduleWateringDialog`'s "Today" option enabled state (#746). "Today" writes a plain
+ * `System.currentTimeMillis()` override directly, never going through the "Custom date…" picker, so —
+ * unlike [isSelectableRescheduleDate]'s [utcTimeMillis] parameter — there is no Material3
+ * UTC-midnight-encoding quirk to undo here: [today] (via [LocalDate.now]) is already the real local
+ * calendar day the write would land on, so [computedNextWateringDueAt] is the only value that needs
+ * converting, and it's converted via [zoneId] for the same reason [isSelectableRescheduleDate] converts
+ * it via [zoneId] rather than [ZoneOffset.UTC].
+ *
+ * This is provably the same decision [isSelectableRescheduleDate] makes for the picker's own "today"
+ * cell: feed a UTC-midnight encoding of local [today] in as that function's `utcTimeMillis`, and
+ * `isOnOrAfterLocalToday` is trivially true (the candidate *is* today), leaving `clearsDueDateFloor` —
+ * which reduces to exactly `today.isAfter(computedDueDate)`, the expression below. The two predicates
+ * can never disagree about whether tapping "Today" would be effective.
+ *
+ * `null` (no watering interval configured) is vacuously enabled, matching
+ * [isSelectableRescheduleDate]'s convention for the same field — unreachable in practice, since both
+ * Reschedule render sites gate the entry point on `plant?.wateringIntervalDays != null`, and a non-null
+ * interval forces `computeWateringDue()` to always produce a non-null `computedNextWateringDueAt`.
+ *
+ * `isOverdue` (the old gate this replaces) implies this predicate but not vice versa — this is a
+ * strict superset, only ever flipping disabled to enabled, never the reverse.
+ *
+ * **Known limitation, out of scope (#746):** a never-watered plant (`lastWateredAt == null`) keeps
+ * [computedNextWateringDueAt] pinned to "now" inside `computeWateringDue()`, so it re-tracks [today]
+ * indefinitely and this predicate never returns `true` there even with a winning future override —
+ * tapping Today would still usefully pull the date in, but this predicate structurally can't detect
+ * it. Not a regression (the old `isOverdue` gate disabled it too) and not a disagreement with the
+ * picker (its own today-cell floor degenerates identically for that plant).
+ */
+internal fun isRescheduleTodayEnabled(
+    computedNextWateringDueAt: Long?,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    today: LocalDate = LocalDate.now(zoneId),
+): Boolean =
+    computedNextWateringDueAt == null ||
+        today.isAfter(Instant.ofEpochMilli(computedNextWateringDueAt).atZone(zoneId).toLocalDate())
+
 internal class TodayOrLaterSelectableDates(private val computedNextWateringDueAt: Long?) : SelectableDates {
     override fun isSelectableDate(utcTimeMillis: Long): Boolean =
         isSelectableRescheduleDate(utcTimeMillis, computedNextWateringDueAt)

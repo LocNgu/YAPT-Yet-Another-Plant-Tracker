@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -226,5 +227,95 @@ class WateringDueActionsTest {
         assertFalse(
             isRescheduleConfirmEnabled(alreadyTapped, advancedDueDate, fixedZone, fixedToday)
         )
+    }
+
+    // ---- isRescheduleTodayEnabled (#746) ----
+
+    @Test
+    fun `today enabled when computed due date's local day is before today (the bug's target window)`() {
+        // Mirrors the reported repro (computed due date Sep 20, today Sep 22, winning future
+        // override Sep 25 leaving isOverdue false) shifted to this file's fixedToday (Sep 18).
+        val computedDueDate = utcMidnightMillisFor(fixedToday.minusDays(3))
+
+        assertTrue(isRescheduleTodayEnabled(computedDueDate, fixedZone, fixedToday))
+    }
+
+    @Test
+    fun `today disabled when computed due date is today (a true no-op)`() {
+        val computedDueDate = utcMidnightMillisFor(fixedToday)
+
+        assertFalse(isRescheduleTodayEnabled(computedDueDate, fixedZone, fixedToday))
+    }
+
+    @Test
+    fun `today disabled when computed due date is in the future`() {
+        val computedDueDate = utcMidnightMillisFor(fixedToday.plusDays(3))
+
+        assertFalse(isRescheduleTodayEnabled(computedDueDate, fixedZone, fixedToday))
+    }
+
+    @Test
+    fun `today enabled when computed due date is null (vacuous)`() {
+        assertTrue(isRescheduleTodayEnabled(null, fixedZone, fixedToday))
+    }
+
+    @Test
+    fun `isOverdue implies isRescheduleTodayEnabled - superset invariant`() {
+        // isOverdue is true whenever the *effective* (post-override) due date is strictly before
+        // today; computedNextDueAt <= effective due date always, so isOverdue implies
+        // computedNextDueAt is also strictly before today, which is exactly this predicate's
+        // condition. Exercise a handful of "isOverdue would be true" computed-due-date values and
+        // confirm the new gate agrees on all of them.
+        val overdueComputedDueDates = listOf(
+            fixedToday.minusDays(1),
+            fixedToday.minusDays(2),
+            fixedToday.minusMonths(8),
+        )
+
+        for (computedDueDate in overdueComputedDueDates) {
+            assertTrue(
+                isRescheduleTodayEnabled(utcMidnightMillisFor(computedDueDate), fixedZone, fixedToday)
+            )
+        }
+    }
+
+    @Test
+    fun `today correctly a no-op in Tokyo once due date is converted via the caller's zone`() {
+        // tokyoReferenceInstant's Tokyo calendar day is 2026-01-16 (already rolled over) while its
+        // UTC calendar day is still 2026-01-15 — see the fixture comment above. Passing today as
+        // 2026-01-16 (Tokyo's own calendar day for this instant) and converting the due date via
+        // the correct (Tokyo) zone puts them on the same day: a true no-op, disabled.
+        val computedNextWateringDueAt = tokyoReferenceInstant.toEpochMilli()
+        val today = LocalDate.of(2026, 1, 16)
+
+        assertFalse(isRescheduleTodayEnabled(computedNextWateringDueAt, tokyo, today = today))
+    }
+
+    @Test
+    fun `same due date would incorrectly enable today if converted via UTC instead of the caller's zone`() {
+        val computedNextWateringDueAt = tokyoReferenceInstant.toEpochMilli()
+        val today = LocalDate.of(2026, 1, 16)
+
+        // Converting via ZoneOffset.UTC instead reads the due date as 2026-01-15 (a day earlier),
+        // wrongly making "today" (still 2026-01-16) look strictly after it.
+        assertTrue(isRescheduleTodayEnabled(computedNextWateringDueAt, ZoneOffset.UTC, today = today))
+    }
+
+    @Test
+    fun `isRescheduleTodayEnabled agrees with isSelectableRescheduleDate for the picker's own today cell`() {
+        val todayAsUtcMidnight = utcMidnightMillisFor(fixedToday)
+        val representativeDueDates = listOf(
+            null,
+            utcMidnightMillisFor(fixedToday.minusDays(5)),
+            utcMidnightMillisFor(fixedToday),
+            utcMidnightMillisFor(fixedToday.plusDays(5)),
+        )
+
+        for (computedDueDate in representativeDueDates) {
+            assertEquals(
+                isSelectableRescheduleDate(todayAsUtcMidnight, computedDueDate, fixedZone, fixedToday),
+                isRescheduleTodayEnabled(computedDueDate, fixedZone, fixedToday),
+            )
+        }
     }
 }
