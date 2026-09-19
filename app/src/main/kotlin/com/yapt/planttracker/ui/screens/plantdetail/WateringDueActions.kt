@@ -72,8 +72,8 @@ internal const val WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG =
 internal const val RESCHEDULE_DELTA_CHIP_TEST_TAG = "reschedule_delta_chip"
 
 /**
- * "Rescheduled +N days" chip (#630), rendered directly above [WateringDueActionsRow] in both the
- * classic layout and the Water tab, whenever [com.yapt.planttracker.domain.model.PlantCareStatus
+ * "Rescheduled +N days" chip (#630), rendered directly above [WateringDueActionsRow] on the Water
+ * tab, whenever [com.yapt.planttracker.domain.model.PlantCareStatus
  * .rescheduleDeltaDays] is non-null — i.e. [com.yapt.planttracker.domain.model.Plant
  * .wateringDueDateOverride] is the actual `maxOf()` winner over the schedule-computed due date.
  * Tapping the chip reverts the reschedule immediately (no confirmation dialog, snackbar-undo instead —
@@ -109,7 +109,7 @@ internal fun RescheduleDeltaChip(
 
 /**
  * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
- * **Water** and **Reschedule watering**, in both the classic layout and the Water tab — see
+ * **Water** and **Reschedule watering**, on the Water tab — see
  * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
  * never has to work out *why* they are deferring in order to pick a button; the reason is asked
  * afterwards, and only when the action is off-schedule.

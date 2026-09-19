@@ -1238,7 +1238,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
         composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
+        composeTestRule.onNode(photoTabMatcher).assertIsDisplayed()
     }
 
     // Standalone Tab()s inside PlantDetailTabStrip's FlowRow draw no indicator of their own
