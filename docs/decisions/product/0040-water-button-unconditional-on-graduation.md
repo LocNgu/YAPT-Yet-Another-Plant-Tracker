@@ -7,8 +7,9 @@
 **Amends**: ADR-0031 ("Watering-due actions are always visible, not gated on due status"). Not
 superseded — ADR-0031's own mechanism (the two-action split, the reason-prompt design, "off-schedule
 actions ask why", `GAP_AGREEMENT_TOLERANCE` as the single "on schedule" definition) is unchanged; only
-the row's outer visibility condition changes again, the same amendment relationship ADR-0031 itself
-recorded against ADR-0029/ADR-0030.
+the row's outer visibility condition changes again. Unlike ADR-0031 itself — which recorded a matching
+"Amended by" back-reference inside ADR-0029/ADR-0030 — ADR-0031 is left byte-for-byte untouched by this
+ADR; see the Consequences section for why.
 
 ## Context
 
@@ -55,5 +56,7 @@ already exists to be overridden.
   nothing to reschedule.
 - `WateringDueActionsRow`'s signature changes (`onRescheduleClick: () -> Unit` →
   `(() -> Unit)?`); every call site updates to pass `null` when `wateringIntervalDays == null`.
-- ADR-0031 remains `accepted`, not superseded — it gains a one-line "Amended by ADR-0040 (Water button
-  visibility)" note under its own Consequences, matching the pattern it used against ADR-0029/ADR-0030.
+- ADR-0031 remains `accepted`, not superseded, and is left untouched — no back-reference note is
+  added to it, per CLAUDE.md's rule that the only permitted edit to a finalized ADR is its Status
+  line. (ADR-0029 and ADR-0030 do carry informal "Amended by ADR-0031" notes from before that rule
+  was consistently enforced; reconciling that inconsistency is out of scope here.)
