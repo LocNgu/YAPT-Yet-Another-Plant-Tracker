@@ -264,7 +264,14 @@ fun CalendarScreen(
                 TextButton(
                     onClick = {
                         parsedInterval?.let {
-                            viewModel.applySuggestedInterval(suggestion.plantId, suggestion.suggestedInterval, it)
+                            viewModel.applySuggestedInterval(
+                                suggestion.plantId,
+                                suggestion.suggestedInterval,
+                                it,
+                                suggestion.suggestedBaseInterval.takeIf { _ ->
+                                    it == suggestion.suggestedIntervalEffective
+                                }
+                            )
                         }
                         pendingIntervalSuggestion = null
                     },
