@@ -449,27 +449,53 @@ override made "Today" disabled even though tapping it (`override = now`) would b
 `computedNextDueAt` in `maxOf()` and genuinely pull the due date in — the opposite failure mode from
 #720 (offered-then-discarded vs. conservatively withheld).
 
-Fixed with a new pure predicate, `isRescheduleTodayEnabled(computedNextWateringDueAt, zoneId, today)`
-(`RescheduleDateSelection.kt`) — `true` whenever local today is strictly after
-`computedNextWateringDueAt`'s local calendar day, `null` treated as vacuously enabled (unreachable in
-practice, same convention as `isSelectableRescheduleDate`'s due-date floor). No UTC round-trip is
-needed here, unlike `isSelectableRescheduleDate`'s `utcTimeMillis` parameter — "Today" never goes
-through the Material3 picker, it writes a plain `System.currentTimeMillis()`, so `LocalDate.now(zoneId)`
-is already the real local day being written. Provably the same decision `isSelectableRescheduleDate`
-makes for the picker's own "today" cell (feed local-today in as its `utcTimeMillis`: `isOnOrAfterLocalToday`
-is trivially true, and `clearsDueDateFloor` reduces to exactly this expression) — the two gates can't
-disagree. `isOverdue` implies this predicate but not vice versa: a strict superset, so this change can
-only flip Today from disabled to enabled, never the reverse.
+Fixed with a new pure predicate, `isRescheduleTodayEnabled(computedNextWateringDueAt,
+effectiveNextWateringDueAt, zoneId, today)` (`RescheduleDateSelection.kt`) — `true` whenever local
+today clears **both** of two independent floors: local today is strictly after
+`computedNextWateringDueAt`'s local calendar day (the schedule-computed floor, mirroring
+`isSelectableRescheduleDate`'s own due-date floor), **and** `effectiveNextWateringDueAt`
+(`PlantCareStatus.nextWateringDueAt`, the post-override date actually in effect) is not already today.
+Both `null` (no interval configured) are treated as vacuously clearing their own floor, matching
+`isSelectableRescheduleDate`'s convention — unreachable in practice, since a non-null interval forces
+`computeWateringDue()` to always populate both fields. No UTC round-trip is needed here, unlike
+`isSelectableRescheduleDate`'s `utcTimeMillis` parameter — "Today" never goes through the Material3
+picker, it writes a plain `System.currentTimeMillis()`, so `LocalDate.now(zoneId)` is already the real
+local day being written. `isOverdue` still implies this predicate (a strict superset — this change can
+only flip Today from disabled to enabled, never the reverse): `isOverdue` means the effective due
+date's local day is strictly before today, which both clears the computed floor
+(`computedNextDueAt <= effective due date` always) and rules out the "already due today" no-op guard.
 
-`PlantDetailScreen.kt` calls it as `careStatus?.let { isRescheduleTodayEnabled(it.computedNextWateringDueAt) }
-== true` rather than `isRescheduleTodayEnabled(careStatus?.computedNextWateringDueAt)` directly — the
-latter would conflate "`careStatus` hasn't loaded yet" with "no computed due date" and, since `null` is
-vacuously enabled, would flip a not-yet-loaded `careStatus` from disabled (today's behaviour) to
-enabled. The two nulls are deliberately not the same case.
+**Review round 1 (#752), a verified Codex finding:** the first (single-parameter) version of this
+predicate only checked the computed-due-date floor, which is the *pre*-override date and stays frozen
+in the past forever once a plant has gone overdue — it never re-tracks a since-applied Today tap or an
+active override. Sequence: overdue plant, no override, tap Today (`override = now`) → effective due
+date becomes today, `isOverdue` correctly flips to `false`, but the old fix's predicate still read the
+same (already-cleared) computed floor and stayed `true` — reopening the dialog offered Today again for
+a tap that would be a genuine no-op. The second `effectiveNextWateringDueAt` parameter (`PlantCareStatus
+.nextWateringDueAt`) closes this: it's the "already due today" check the computed floor alone can't
+express, since the computed floor doesn't move once an override or a same-day Today tap has already
+resolved it.
+
+**This is no longer provably identical to `isSelectableRescheduleDate`'s decision for the picker's own
+"today" cell — only a one-way implication holds.** Whenever `isRescheduleTodayEnabled` is `true`, the
+picker would also accept its own today cell (feeding local-today in as `isSelectableRescheduleDate`'s
+`utcTimeMillis` makes its `isOnOrAfterLocalToday` term trivial and its due-date floor reduce to exactly
+`isRescheduleTodayEnabled`'s own computed-floor term). The reverse can fail: when the plant's effective
+due date is already today, the button's no-op guard disables it while the picker's day grid — which has
+no per-cell "already exactly this value" concept, since it's a many-valued grid rather than one fixed
+target — still offers that same cell as selectable. This is an accepted, low-severity gap distinct from
+#720's: the picker cell's date can still win or tie `computeWateringDue()`'s `maxOf()`, it just doesn't
+*move* anything when it ties, so nothing is silently discarded. Not fixed here.
+
+`PlantDetailScreen.kt` calls it as `careStatus?.let { isRescheduleTodayEnabled(it.computedNextWateringDueAt,
+it.nextWateringDueAt) } == true` rather than unwrapping `careStatus` at the call site directly — the
+latter would conflate "`careStatus` hasn't loaded yet" with "no computed/effective due date" and, since
+both fields' `null` is vacuously enabled, would flip a not-yet-loaded `careStatus` from disabled
+(today's behaviour) to enabled. The two nulls are deliberately not the same case.
 
 **Known limitation, accepted, not fixed:** a never-watered plant (`lastWateredAt == null`) with a
 winning future override keeps Today disabled — `computeWateringDue()` pins `computedNextDueAt = now`
-for that branch, which re-tracks "today" indefinitely, so `today.isAfter(...)` is never true no matter
+for that branch, which re-tracks "today" indefinitely, so the computed floor is never cleared no matter
 how far out the override sits. Not a regression (the old gate disabled it too) and not a disagreement
 with the picker (its own today-cell floor degenerates identically for that plant).
 

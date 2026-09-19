@@ -83,23 +83,48 @@ internal fun isRescheduleConfirmEnabled(
  * `System.currentTimeMillis()` override directly, never going through the "Custom date…" picker, so —
  * unlike [isSelectableRescheduleDate]'s [utcTimeMillis] parameter — there is no Material3
  * UTC-midnight-encoding quirk to undo here: [today] (via [LocalDate.now]) is already the real local
- * calendar day the write would land on, so [computedNextWateringDueAt] is the only value that needs
- * converting, and it's converted via [zoneId] for the same reason [isSelectableRescheduleDate] converts
- * it via [zoneId] rather than [ZoneOffset.UTC].
+ * calendar day the write would land on, so [computedNextWateringDueAt]/[effectiveNextWateringDueAt] are
+ * the only values that need converting, both via [zoneId] for the same reason
+ * [isSelectableRescheduleDate] converts [computedNextWateringDueAt] via [zoneId] rather than
+ * [ZoneOffset.UTC].
  *
- * This is provably the same decision [isSelectableRescheduleDate] makes for the picker's own "today"
- * cell: feed a UTC-midnight encoding of local [today] in as that function's `utcTimeMillis`, and
- * `isOnOrAfterLocalToday` is trivially true (the candidate *is* today), leaving `clearsDueDateFloor` —
- * which reduces to exactly `today.isAfter(computedDueDate)`, the expression below. The two predicates
- * can never disagree about whether tapping "Today" would be effective.
+ * Two independent conditions must both hold, mirroring [isSelectableRescheduleDate]'s own two-floor
+ * shape but for a different second reason:
+ * - [computedNextWateringDueAt] (the *pre*-override, schedule-computed date): local [today] must be
+ *   strictly after its local calendar day, exactly [isSelectableRescheduleDate]'s due-date floor fed
+ *   local-today in as its own candidate (see below) — without this, tapping Today on a plant not yet
+ *   due would only lose `computeWateringDue()`'s `maxOf()`.
+ * - [effectiveNextWateringDueAt] (the *post*-override, actually-effective date, `PlantCareStatus
+ *   .nextWateringDueAt`): tapping Today must not be a same-day no-op against it. Review round 1
+ *   (#752) found the first condition alone isn't sufficient — an overdue plant with **no** override
+ *   whose Today tap was already applied (or an active override that already lands on today) clears
+ *   the [computedNextWateringDueAt] floor forever (it's the *pre*-override date, frozen in the past)
+ *   while a second tap is a genuine no-op against the *current* effective date. Naming this parameter
+ *   for what it is, distinct from [computedNextWateringDueAt], is deliberate — see [PlantCareStatus
+ *   .nextWateringDueAt] vs. [PlantCareStatus.computedNextWateringDueAt].
  *
- * `null` (no watering interval configured) is vacuously enabled, matching
+ * **This is no longer provably identical to [isSelectableRescheduleDate]'s decision for the picker's
+ * own "today" cell** — only a one-way implication holds. Feeding a UTC-midnight encoding of local
+ * [today] into [isSelectableRescheduleDate] as its `utcTimeMillis` makes its `isOnOrAfterLocalToday`
+ * term trivially true and its `clearsDueDateFloor` term reduce to exactly this function's
+ * [computedNextWateringDueAt] condition — so whenever *this* function returns `true`, that reduced
+ * expression is also `true`, and [isSelectableRescheduleDate] agrees the picker's today cell is
+ * selectable. The reverse can fail: when the plant is already effectively due today,
+ * [effectiveNextWateringDueAt]'s no-op guard disables this button while the picker's grid — which has
+ * no equivalent guard, since a many-valued grid has no single "already exactly this" case to special-
+ * case — would still offer that same cell as selectable. That's an accepted, low-severity gap of a
+ * different kind from #720's: the picker cell's date can still win or tie `maxOf()`, it just doesn't
+ * *move* anything when it ties, so nothing is silently discarded the way #720 found. Not fixed here.
+ *
+ * `null` (no watering interval configured) is vacuously enabled for both parameters, matching
  * [isSelectableRescheduleDate]'s convention for the same field — unreachable in practice, since both
  * Reschedule render sites gate the entry point on `plant?.wateringIntervalDays != null`, and a non-null
- * interval forces `computeWateringDue()` to always produce a non-null `computedNextWateringDueAt`.
+ * interval forces `computeWateringDue()` to always produce non-null due dates for both.
  *
- * `isOverdue` (the old gate this replaces) implies this predicate but not vice versa — this is a
- * strict superset, only ever flipping disabled to enabled, never the reverse.
+ * `isOverdue` (the old gate this replaces) still implies this predicate: `isOverdue` means the
+ * *effective* due date's local day is strictly before today, which both clears the
+ * [computedNextWateringDueAt] floor (`computedNextDueAt <= effective due date` always) and rules out
+ * the [effectiveNextWateringDueAt] no-op guard (that date isn't today, it's already in the past).
  *
  * **Known limitation, out of scope (#746):** a never-watered plant (`lastWateredAt == null`) keeps
  * [computedNextWateringDueAt] pinned to "now" inside `computeWateringDue()`, so it re-tracks [today]
@@ -110,11 +135,16 @@ internal fun isRescheduleConfirmEnabled(
  */
 internal fun isRescheduleTodayEnabled(
     computedNextWateringDueAt: Long?,
+    effectiveNextWateringDueAt: Long?,
     zoneId: ZoneId = ZoneId.systemDefault(),
     today: LocalDate = LocalDate.now(zoneId),
-): Boolean =
-    computedNextWateringDueAt == null ||
+): Boolean {
+    val clearsComputedFloor = computedNextWateringDueAt == null ||
         today.isAfter(Instant.ofEpochMilli(computedNextWateringDueAt).atZone(zoneId).toLocalDate())
+    val alreadyDueToday = effectiveNextWateringDueAt != null &&
+        Instant.ofEpochMilli(effectiveNextWateringDueAt).atZone(zoneId).toLocalDate() == today
+    return clearsComputedFloor && !alreadyDueToday
+}
 
 internal class TodayOrLaterSelectableDates(private val computedNextWateringDueAt: Long?) : SelectableDates {
     override fun isSelectableDate(utcTimeMillis: Long): Boolean =
