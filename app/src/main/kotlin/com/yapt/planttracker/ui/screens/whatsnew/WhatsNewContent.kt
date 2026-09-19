@@ -24,7 +24,9 @@ object WhatsNewContent {
                 "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
                 "least tomorrow on the first tap",
             "Rescheduling watering to a custom date on or before the plant's current watering due date no " +
-                "longer silently does nothing — that date is no longer offered in the picker"
+                "longer silently does nothing — that date is no longer offered in the picker",
+            "Rescheduling watering's \"Today\" option is no longer greyed out in cases where tapping it " +
+                "would actually pull the due date in sooner"
         )
     )
 

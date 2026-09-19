@@ -367,7 +367,8 @@ to distinguish — every reschedule behaves the way ADR-0029 originally describe
 reschedules that really was about the user. **The deferral's length is never a model input** — there
 is no model input at all.
 
-`RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled while `isDueSoon`)
+`RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled via
+`isRescheduleTodayEnabled` — see "Today button's own gate" below, #746)
 / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
 now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
 `SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
@@ -414,9 +415,9 @@ forward time, so they cannot produce an ineffective date by construction; only t
 can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
 this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
 which ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
-"Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which can be `false` in a
-state where tapping Today would actually pull the due date in) is out of scope here and filed separately —
-see `.claude/rules/adaptive-watering-cluster.md`.
+"Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which could be `false` in a
+state where tapping Today would actually pull the due date in) was out of scope here and filed
+separately as #746 — now fixed, see "Today button's own gate (#746)" below.
 
 **Review round 1 fix (#720 PR #748):** excluding a date from the day grid isn't the whole picket —
 Material3's `rememberDatePickerState` re-validates its retained state's grid against a fresh
@@ -439,6 +440,64 @@ stay under Detekt's per-file `TooManyFunctions` threshold once `isRescheduleConf
 same reasoning as `CustomRemindersSection.kt`/`PlantIssuesSection.kt` elsewhere in this file.
 `RescheduleDatePickerDialog` itself stays in `WateringDueActions.kt`, calling into the split-out file's
 top-level functions (same package, no import needed).
+
+### Today button's own gate (#746)
+`RescheduleWateringDialog`'s "Today" option used `todayEnabled = careStatus?.isOverdue == true` —
+derived from the **post-override, effective** due date, which is always `>= computedNextDueAt` since
+an override only ever wins `maxOf()` when it's greater. That left a window where a winning *future*
+override made "Today" disabled even though tapping it (`override = now`) would beat
+`computedNextDueAt` in `maxOf()` and genuinely pull the due date in — the opposite failure mode from
+#720 (offered-then-discarded vs. conservatively withheld).
+
+Fixed with a new pure predicate, `isRescheduleTodayEnabled(computedNextWateringDueAt,
+effectiveNextWateringDueAt, zoneId, today)` (`RescheduleDateSelection.kt`) — `true` whenever local
+today clears **both** of two independent floors: local today is strictly after
+`computedNextWateringDueAt`'s local calendar day (the schedule-computed floor, mirroring
+`isSelectableRescheduleDate`'s own due-date floor), **and** `effectiveNextWateringDueAt`
+(`PlantCareStatus.nextWateringDueAt`, the post-override date actually in effect) is not already today.
+Both `null` (no interval configured) are treated as vacuously clearing their own floor, matching
+`isSelectableRescheduleDate`'s convention — unreachable in practice, since a non-null interval forces
+`computeWateringDue()` to always populate both fields. No UTC round-trip is needed here, unlike
+`isSelectableRescheduleDate`'s `utcTimeMillis` parameter — "Today" never goes through the Material3
+picker, it writes a plain `System.currentTimeMillis()`, so `LocalDate.now(zoneId)` is already the real
+local day being written. `isOverdue` still implies this predicate (a strict superset — this change can
+only flip Today from disabled to enabled, never the reverse): `isOverdue` means the effective due
+date's local day is strictly before today, which both clears the computed floor
+(`computedNextDueAt <= effective due date` always) and rules out the "already due today" no-op guard.
+
+**Review round 1 (#752), a verified Codex finding:** the first (single-parameter) version of this
+predicate only checked the computed-due-date floor, which is the *pre*-override date and stays frozen
+in the past forever once a plant has gone overdue — it never re-tracks a since-applied Today tap or an
+active override. Sequence: overdue plant, no override, tap Today (`override = now`) → effective due
+date becomes today, `isOverdue` correctly flips to `false`, but the old fix's predicate still read the
+same (already-cleared) computed floor and stayed `true` — reopening the dialog offered Today again for
+a tap that would be a genuine no-op. The second `effectiveNextWateringDueAt` parameter (`PlantCareStatus
+.nextWateringDueAt`) closes this: it's the "already due today" check the computed floor alone can't
+express, since the computed floor doesn't move once an override or a same-day Today tap has already
+resolved it.
+
+**This is no longer provably identical to `isSelectableRescheduleDate`'s decision for the picker's own
+"today" cell — only a one-way implication holds.** Whenever `isRescheduleTodayEnabled` is `true`, the
+picker would also accept its own today cell (feeding local-today in as `isSelectableRescheduleDate`'s
+`utcTimeMillis` makes its `isOnOrAfterLocalToday` term trivial and its due-date floor reduce to exactly
+`isRescheduleTodayEnabled`'s own computed-floor term). The reverse can fail: when the plant's effective
+due date is already today, the button's no-op guard disables it while the picker's day grid — which has
+no per-cell "already exactly this value" concept, since it's a many-valued grid rather than one fixed
+target — still offers that same cell as selectable. This is an accepted, low-severity gap distinct from
+#720's: the picker cell's date can still win or tie `computeWateringDue()`'s `maxOf()`, it just doesn't
+*move* anything when it ties, so nothing is silently discarded. Not fixed here.
+
+`PlantDetailScreen.kt` calls it as `careStatus?.let { isRescheduleTodayEnabled(it.computedNextWateringDueAt,
+it.nextWateringDueAt) } == true` rather than unwrapping `careStatus` at the call site directly — the
+latter would conflate "`careStatus` hasn't loaded yet" with "no computed/effective due date" and, since
+both fields' `null` is vacuously enabled, would flip a not-yet-loaded `careStatus` from disabled
+(today's behaviour) to enabled. The two nulls are deliberately not the same case.
+
+**Known limitation, accepted, not fixed:** a never-watered plant (`lastWateredAt == null`) with a
+winning future override keeps Today disabled — `computeWateringDue()` pins `computedNextDueAt = now`
+for that branch, which re-tracks "today" indefinitely, so the computed floor is never cleared no matter
+how far out the override sits. Not a regression (the old gate disabled it too) and not a disagreement
+with the picker (its own today-cell floor degenerates identically for that plant).
 
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
