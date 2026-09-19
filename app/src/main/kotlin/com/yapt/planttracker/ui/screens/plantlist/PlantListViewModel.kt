@@ -311,10 +311,20 @@ class PlantListViewModel(
      * screen carrying its own copy of the math. Plant List has no silent-apply/undo equivalent, so the
      * result is intentionally not surfaced further — the dialog itself is dismissed by the caller.
      */
-    fun applySuggestedIntervalFromList(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
+    fun applySuggestedIntervalFromList(
+        plantId: Long,
+        suggestedIntervalDays: Int,
+        newInterval: Int,
+        suggestedBaseInterval: Double? = null
+    ) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
-                quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedIntervalDays, newInterval)
+                quickLogUseCase.applyWateringIntervalSuggestion(
+                    p,
+                    suggestedIntervalDays,
+                    newInterval,
+                    suggestedBaseInterval
+                )
             }
         }
     }

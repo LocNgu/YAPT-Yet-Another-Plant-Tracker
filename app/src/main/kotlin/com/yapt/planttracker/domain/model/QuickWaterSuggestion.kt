@@ -16,5 +16,6 @@ data class QuickWaterSuggestion(
     val plantId: Long,
     val plantName: String,
     val suggestedInterval: Int,
-    val suggestedIntervalEffective: Int
+    val suggestedIntervalEffective: Int,
+    val suggestedBaseInterval: Double = suggestedInterval.toDouble()
 )

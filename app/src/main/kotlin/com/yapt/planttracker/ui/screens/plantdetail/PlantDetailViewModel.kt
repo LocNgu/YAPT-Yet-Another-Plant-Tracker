@@ -174,6 +174,7 @@ class PlantDetailViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
+    internal val suggestedWateringBaseInterval = MutableStateFlow<Double?>(null)
 
     /**
      * The ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
@@ -203,11 +204,15 @@ class PlantDetailViewModel(
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,
         suggestedWateringInterval,
+        suggestedWateringBaseInterval,
         seasonalAmplitudeValue
-    ) { p, suggestion, amplitude ->
+    ) { p, suggestion, preciseSuggestion, amplitude ->
         if (p == null || suggestion == null) return@combine null
         val effective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = p.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            plant = p.copy(
+                wateringBaseIntervalDays = preciseSuggestion ?: suggestion.toDouble(),
+                wateringIntervalDays = suggestion
+            ),
             seasonalAmplitude = amplitude
         ) ?: suggestion
         if (effective == p.wateringIntervalDays) return@combine null
@@ -347,7 +352,9 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
+            outcome.suggestion?.let {
+                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+            }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
@@ -410,7 +417,9 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
+            outcome.suggestion?.let {
+                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+            }
             val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
             } else {

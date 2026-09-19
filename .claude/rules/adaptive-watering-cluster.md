@@ -63,8 +63,12 @@ since a reschedule no longer teaches the model anything for that row to preview 
 option. The two-anchor confusion this fact describes (and #737, which existed because of it) has
 dissolved along with the row. Separately, `computeWateringDue()` still resolves
 `maxOf(computedNextDueAt, override)`, so a reschedule can **only ever push a plant later** — an
-earlier override is silently discarded, and there is still no way to express "come back sooner" (see
-#720).
+earlier override is silently discarded. **#720 (fixed)** made this unreachable from the UI: the
+"Custom date…" picker now also rejects any date on or before `computedNextDueAt`'s local calendar day
+(a new `PlantCareStatus.computedNextWateringDueAt` carries that pre-override value out of
+`CareSchedule` for the picker to compare against), so such a date can no longer be written in the
+first place. There is still no way to express "come back sooner" — that remains a deliberate,
+unchanged invariant, not a gap.
 
 **3. Rounding happens at three boundaries, and the error is amplified by the season.**
 The `REAL` base is rounded to `Int` going into `computeAdaptiveInterval()`, rounded again by
@@ -93,11 +97,11 @@ clamp, not this round-trip.
 | Issue | One line | Interaction to watch |
 |---|---|---|
 | #719 | ~~Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor~~ **Fixed, then resolved-by-#738** — `RescheduleWateringDialog`'s "(suggested)" row was fixed to call a dedicated `now`-anchored `PlantDetailViewModel.confirmRescheduleSuggestedDays()`, distinct from the due-date-anchored `confirmRescheduleRelativeDays()` the +1/+2/+3 options still use. Superseded, not reverted, by product ADR-0039 (#738): the "(suggested)" row and this handler are removed entirely, since a reschedule no longer teaches the model anything for the row to preview. #719 stays closed. |
-| #718 | Applying a suggestion re-derives the base from a rounded display value, ratcheting it up | Don't fix by rounding the base; see invariants. Exposure drops once #716 lands, defect does not. Preserving a precise base while prefilling the field from the *rounded* one creates an immediate display/schedule mismatch — derive both from the same value. |
+| #718 | ~~Applying a suggestion re-derives the base from a rounded display value, ratcheting it up~~ **Fixed with #717** — adaptive results now carry their precise `Double` base beside the rounded display value, and an unchanged apply persists that precise base. |
 | #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches ADR-0026/0028, needs a spec pass. Fix choice interacts with #717's outcome. |
 | #714 | Second same-day still-moist reschedule silently drops the date | **Resolved-by-#738**: with no `CareType.CHECK` log written on reschedule (product ADR-0039), `isDuplicateGuarded()` no longer covers this path at all — the guard and its special-cased branch are deleted rather than fixed further. Its regression test is reframed, not dropped: "a repeated reschedule still commits the date" stays the pinned contract, just reached trivially. #714 stays closed. |
-| #720 | Reschedule to a date before the due date is silently ignored | **Substantially simplified by #738** (product ADR-0039): with the "(suggested)" row gone, the only remaining way to pick an ineffective date is the custom-date picker, narrowing this to a straightforward picker-constraint fix (its option A) rather than a product question about whether a model-driven target may win `maxOf()`. See "#719 shipped; how it interacts with #720" below for the pre-#738 framing, kept for history. |
-| #717 | Unattributed observations can't move any base ≤ 26 days | **Not docs-only** (see above). #718's fix A needs the `Double` model result this issue would add — do them together or duplicate the API change. |
+| #720 | Reschedule to a date before the due date is silently ignored | **Fixed** (option A). With the "(suggested)" row gone (#738), the only remaining way to pick an ineffective date was the custom-date picker; it now rejects any date on or before the schedule-computed due date via a new `PlantCareStatus.computedNextWateringDueAt` threaded through to `isSelectableRescheduleDate()`. `maxOf()` itself is untouched — the fix is purely picker-side. A related, separate bug in the "Today" button's own `isOverdue`-based gate (the opposite failure mode — conservatively withheld rather than offered-then-discarded) was found and filed separately, not folded into this fix. See "#719 shipped; how it interacts with #720" below for the pre-#738 framing, kept for history. |
+| #717 | ~~Unattributed observations can't move any base ≤ 26 days~~ **Fixed with #718** — `AdaptiveInterval` retains the sub-day result, allowing neutral corrections to accumulate even while the displayed whole-day interval is unchanged. |
 | #715 | "Recent adjustments" can show an interval change that was never applied | Pairs with #714. |
 
 ## Two things the second opinion added that the issues understate
@@ -129,9 +133,11 @@ than the schedule-computed one, so in the subset where the model *shortens* the 
 (`1.25 × observedGap < base`), #719's corrected target (now genuinely earlier than the current due date)
 is written to `wateringDueDateOverride` but has no visible effect — the clamp keeps the old, later due
 date until #720 decides whether an override should ever be allowed to win that comparison, and how (option
-A forbids it outright, option C allows it). Until #720 lands, that subset is strictly closer to correct
+A forbids it outright, option C allows it). Until #720 landed, that subset is strictly closer to correct
 than the pre-#719 overshoot (the earlier value is provisionally inert, not actively wrong), so #719 was
-safe to ship first, exactly as the issue's own corrected preamble argued.
+safe to ship first, exactly as the issue's own corrected preamble argued. (#720 landed on option A —
+see the table above — before that whole row was retired anyway, so this interaction never mattered in
+practice.)
 
 ## Maintenance
 
