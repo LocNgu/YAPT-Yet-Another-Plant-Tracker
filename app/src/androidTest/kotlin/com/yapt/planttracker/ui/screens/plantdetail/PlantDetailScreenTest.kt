@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -1229,8 +1230,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Water"))
-        composeTestRule.onNodeWithText("Water").assertIsDisplayed()
+            .performScrollToNode(waterTabMatcher)
+        composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
         composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
         composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
@@ -1255,14 +1256,14 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Water"))
-        composeTestRule.onNodeWithText("Water").assertIsSelected()
+            .performScrollToNode(waterTabMatcher)
+        composeTestRule.onNode(waterTabMatcher).assertIsSelected()
         composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
 
         composeTestRule.onNodeWithText("Fertilize").performClick()
 
         composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
-        composeTestRule.onNodeWithText("Water").assertIsNotSelected()
+        composeTestRule.onNode(waterTabMatcher).assertIsNotSelected()
     }
 
     @Test
@@ -1851,6 +1852,18 @@ class PlantDetailScreenTest {
 
     private fun tabsExpandAttentionCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_expand_attention_cd)
+
+    /**
+     * "Water" is ambiguous on Plant Detail as of #704: the Water tab
+     * ([R.string.plant_detail_tab_water]) and `WateringDueActionsRow`'s Water button
+     * ([R.string.watering_due_action_water]) render that same literal text, and since product
+     * ADR-0040 the button renders for every plant, including one with no configured watering
+     * interval — where previously the whole row was gated behind `wateringIntervalDays != null`
+     * and the tab was the only "Water" on screen. Match the tab by the selected/not-selected
+     * semantics these tests actually assert on rather than by text alone (#420: assert
+     * user-visible semantics, never tree structure).
+     */
+    private val waterTabMatcher = hasText("Water") and isSelectable()
 
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
