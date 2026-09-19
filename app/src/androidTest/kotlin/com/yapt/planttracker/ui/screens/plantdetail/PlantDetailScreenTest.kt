@@ -506,9 +506,11 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun wateringDueActionsRow_isHiddenWhenNoScheduleSet() {
-        // No wateringIntervalDays → row condition fails, row not composed (#603: this is now the
-        // row's only gate — due status no longer matters).
+    fun wateringDueActionsRow_noScheduleSet_hidesRescheduleButShowsWater() {
+        // No wateringIntervalDays → Reschedule has nothing to reschedule and stays absent, but Water
+        // renders regardless (product ADR-0040): a plant with no configured schedule still needs a
+        // one-tap way to log an occasional watering, now that StatsRow's always-on chip fallback for
+        // that case is gone (#704).
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -522,7 +524,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithContentDescription("Reschedule watering")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -1317,8 +1321,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("No photos yet."))
@@ -1514,8 +1518,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
@@ -1574,8 +1578,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG).performClick()
@@ -1864,6 +1868,17 @@ class PlantDetailScreenTest {
      * user-visible semantics, never tree structure).
      */
     private val waterTabMatcher = hasText("Water") and isSelectable()
+
+    /**
+     * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see
+     * [waterTabMatcher]'s KDoc): the Photo tab ([R.string.plant_detail_tab_photo]) and
+     * [R.string.care_type_photo] (rendered as a standalone `Text` by `CareLogItem` for any
+     * `CareType.PHOTO` entry in the always-visible shared care-history list) are both the literal
+     * text "Photo". Not a live bug in the fixtures these tests use today — none carries a PHOTO
+     * log — but preemptive hardening against the same class of collision, matched by the
+     * selected/not-selected semantics rather than by text alone (#420).
+     */
+    private val photoTabMatcher = hasText("Photo") and isSelectable()
 
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
