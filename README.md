@@ -126,7 +126,7 @@ app/src/main/kotlin/com/yapt/planttracker/
 │   └── schedule/    # CareSchedule (status + adaptive interval logic)
 ├── notification/    # NotificationHelper
 ├── ui/
-│   ├── components/  # PlantCard, CareLogItem, PhotoGallery, StatsRow, …
+│   ├── components/  # PlantCard, CareLogItem, PhotoGallery, …
 │   ├── navigation/  # NavGraph, Screen
 │   ├── screens/     # PlantList, AddEditPlant, PlantDetail, AddCareLog, Settings
 │   └── theme/       # Color, Theme, Type

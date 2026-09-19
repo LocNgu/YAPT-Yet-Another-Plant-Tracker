@@ -14,6 +14,12 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
+            "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
+                "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
+                "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
+                "their own tabs — Water still works even for a plant with no set schedule. Custom Reminders " +
+                "and Issues now live behind their own tabs too; tap the expand arrow (it shows a dot when " +
+                "something there needs attention) to see all six tabs at once",
             "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
                 "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
                 "gone for the same reason (Watered and Not now are still there); watering itself still asks " +

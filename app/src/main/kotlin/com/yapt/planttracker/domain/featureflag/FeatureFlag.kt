@@ -1,7 +1,5 @@
 package com.yapt.planttracker.domain.featureflag
 
-import com.yapt.planttracker.R
-
 /**
  * A single runtime-toggleable experimental feature, rendered generically by the Developer
  * section's flag list (title, description, and a Switch — no per-flag UI code required).
@@ -28,16 +26,5 @@ data class FeatureFlag(
  */
 object FeatureFlagRegistry {
 
-    /**
-     * Plant Detail per-action tabs, inline scheduling settings, and per-tab insights (#436).
-     * Off renders the classic single-page Plant Detail (chart, photo gallery, care history).
-     */
-    val PLANT_DETAIL_TABS = FeatureFlag(
-        key = "plant_detail_tabs",
-        titleRes = R.string.feature_flag_plant_detail_tabs_title,
-        descriptionRes = R.string.feature_flag_plant_detail_tabs_description,
-        default = false
-    )
-
-    val all: List<FeatureFlag> = listOf(PLANT_DETAIL_TABS)
+    val all: List<FeatureFlag> = listOf()
 }
