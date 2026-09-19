@@ -356,6 +356,47 @@ class WateringDueActionsTest {
         )
     }
 
+    // The pair above only pins the computedNextWateringDueAt floor's zone conversion — it feeds
+    // effectiveNextWateringDueAt a zone-insensitive distant-past value, so a zone regression on the
+    // *alreadyDueToday* term specifically would slip through undetected. This pair mirrors it for
+    // that term instead: computedNextWateringDueAt is pinned safely in the past (identical under
+    // either zone, since it sits exactly at UTC midnight) so it can't be what drives the result, and
+    // effectiveNextWateringDueAt is the same tokyoReferenceInstant whose UTC/Tokyo calendar days
+    // genuinely differ (#752 review round 2).
+
+    @Test
+    fun `already-due-today guard disables today once effective due date is converted via the caller's zone`() {
+        // tokyoReferenceInstant's Tokyo calendar day is 2026-01-16 (matches tokyoToday) while its UTC
+        // calendar day is still 2026-01-15 (does not) — see the fixture comment above.
+        val effectiveNextWateringDueAt = tokyoReferenceInstant.toEpochMilli()
+
+        assertFalse(
+            isRescheduleTodayEnabled(
+                distantPastEffectiveDueDate,
+                effectiveNextWateringDueAt,
+                tokyo,
+                today = tokyoToday
+            )
+        )
+    }
+
+    @Test
+    fun `same effective due date would incorrectly stay enabled if converted via UTC instead of the caller's zone`() {
+        val effectiveNextWateringDueAt = tokyoReferenceInstant.toEpochMilli()
+
+        // Converting via ZoneOffset.UTC instead reads the effective due date as 2026-01-15 — a day
+        // earlier than tokyoToday (2026-01-16) — so alreadyDueToday wrongly evaluates false and
+        // Today wrongly stays enabled.
+        assertTrue(
+            isRescheduleTodayEnabled(
+                distantPastEffectiveDueDate,
+                effectiveNextWateringDueAt,
+                ZoneOffset.UTC,
+                today = tokyoToday
+            )
+        )
+    }
+
     @Test
     fun `isRescheduleTodayEnabled implies isSelectableRescheduleDate for the picker's own today cell`() {
         // Only a one-way implication holds since review round 1 (#752) — see the function's KDoc.
