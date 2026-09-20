@@ -28,8 +28,8 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:
   List<CustomReminder> = emptyList()` param; each reminder reuses `extendedCareDueAt()` independently, but
   anchored to **the reminder's own `createdAt`**, not the plant's — reminders are commonly added long after
-  plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See
-  technical ADR-0019 (#232).
+  plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
+  ADR-0019 (#232).
 - No interval configured → "Not scheduled".
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)

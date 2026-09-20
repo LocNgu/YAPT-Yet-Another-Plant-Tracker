@@ -1323,8 +1323,8 @@ private data class IntervalSetting(
 )
 
 /**
- * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436,
- * product ADR-0023): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
+ * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436, product
+ * ADR-0023): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
  * changes through [onIntervalChange] — the day count when enabled/committed, or `null` when the
  * schedule is switched off. The drag persists on release (`onValueChangeFinished`), not per frame.
  * [extra] renders additional rows inside the card when enabled (the liquid-fertilizer toggle on the

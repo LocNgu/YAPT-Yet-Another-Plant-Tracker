@@ -121,9 +121,9 @@ internal fun RescheduleDeltaChip(
  * Plain `16dp` horizontal padding, matching every other card on the screen (#610) — this row can
  * still scroll flush against a screen edge and land inside the pinned Back/Edit/FAB overlay buttons'
  * touch targets there (Box overlay, not Scaffold — technical ADR-0018), but that narrow collision risk
- * is now a deliberate, human-confirmed trade-off in exchange for visual consistency
- * (technical ADR-0022) rather than something this row's own margins should compensate for; technical ADR-0022 addresses
- * the Edit corner by fading that button on scroll instead.
+ * is now a deliberate, human-confirmed trade-off in exchange for visual consistency (technical
+ * ADR-0022) rather than something this row's own margins should compensate for; technical
+ * ADR-0022 addresses the Edit corner by fading that button on scroll instead.
  *
  * [onRescheduleClick] is nullable (product ADR-0040, amending ADR-0031): Water renders whenever the
  * row itself renders (`careStatus != null`, unconditional on `wateringIntervalDays`), since logging a
