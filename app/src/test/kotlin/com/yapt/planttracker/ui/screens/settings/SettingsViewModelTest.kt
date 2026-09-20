@@ -76,8 +76,9 @@ class SettingsViewModelTest {
 
     /**
      * A ViewModel with an explicitly **empty** flag list. Pinned here rather than relying on the
-     * default [FeatureFlagRegistry], which ships real flags now (#436) — the "no flags" tests below
-     * assert empty-registry behaviour and must not change meaning as flags come and go.
+     * default [FeatureFlagRegistry] so the "no flags" tests below assert empty-registry behaviour on
+     * purpose and don't silently change meaning if a future flag is added (the registry is expected
+     * to often be empty in practice, product ADR-0022 — see `.claude/rules/dev-mode.md`).
      */
     private fun buildVm() = SettingsViewModel(
         dataStore = mockDataStore,

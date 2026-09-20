@@ -43,7 +43,6 @@
     <ID>LongParameterList:PlantRepositoryTest.kt$PlantRepositoryTest$( name: String = "Monstera", species: String? = "Monstera deliciosa", room: String? = "Living Room", wateringIntervalDays: Int? = 7, fertilizingIntervalDays: Int? = 30, coverPhotoUri: String? = "content://photo/1", notes: String? = "Loves indirect light" )</ID>
     <ID>LongParameterList:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$( id: Long = 1L, name: String = "Monstera", useLiquidFertilizer: Boolean = false, wateringIntervalDays: Int? = null, wateringDueDateOverride: Long? = null, createdAt: Long = 0L )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( icon: ImageVector, title: String, subtitle: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant, trailingContent: (@Composable () -&gt; Unit)? = null )</ID>
-    <ID>LongParameterList:StatsRow.kt$( icon: ImageVector, label: String, nextLine: String?, nextColor: Color?, lastLine: String?, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, onClickLabel: String? = null )</ID>
     <ID>LongParameterList:WateringDueActions.kt$( todayEnabled: Boolean, onDismiss: () -&gt; Unit, onToday: () -&gt; Unit, onRelativeDays: (Int) -&gt; Unit, onCustomDate: (Long) -&gt; Unit, suggestedDays: Int? = null )</ID>
     <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$3</ID>
     <ID>MagicNumber:PlantDatabase.kt$PlantDatabase.Companion.&lt;no name provided&gt;$4</ID>

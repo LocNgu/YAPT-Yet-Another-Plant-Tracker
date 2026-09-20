@@ -14,8 +14,6 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -60,24 +58,6 @@ class PlantDetailViewModel(
     internal val database: PlantDatabase,
     internal val wateringAdjustmentRepository: WateringAdjustmentRepository
 ) : ViewModel() {
-
-    /**
-     * Whether the per-action tabs, inline scheduling settings, and per-tab insights (#436) are
-     * shown. Behind [FeatureFlagRegistry.PLANT_DETAIL_TABS] (developer mode → feature flags, product
-     * ADR-0022); when off the screen renders the classic single-page layout.
-     *
-     * Read straight from [dataStore] via [FeatureFlags.preferenceKeyFor] — the same key derivation
-     * the [FeatureFlags] singleton writes through, so the two can't drift — rather than taking a
-     * `FeatureFlags` constructor parameter, which would push this constructor to 7 params and trip
-     * Detekt's `LongParameterList` (the same constraint #521 hit on `SettingsViewModel`). Mirrors how
-     * [photoReminderEnabled] already reads its own preference here.
-     */
-    val tabsEnabled: StateFlow<Boolean> = dataStore.data
-        .map { prefs ->
-            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS)]
-                ?: FeatureFlagRegistry.PLANT_DETAIL_TABS.default
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**
      * Raw global amplitude value for the seasonal-curve preview chart (#579) shown alongside the

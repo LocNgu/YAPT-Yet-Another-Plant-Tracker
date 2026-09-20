@@ -221,14 +221,6 @@
     <string name="cd_delete_photo">Delete photo</string>
     <string name="fert_label_never_fertilized">Never fertilized</string>
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
-    <string name="stat_label_watering">Watering</string>
-    <string name="stat_label_fertilizing">Fertilizing</string>
-    <string name="cd_quick_log_watering">Log watering</string>
-    <string name="cd_quick_log_fertilizing">Log fertilizing</string>
-    <string name="stat_label_never">never</string>
-    <string name="stat_label_next">next: %1$s</string>
-    <string name="stat_label_last">last: %1$s</string>
-    <string name="stat_label_overdue_prefix">overdue</string>
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
     <string name="watering_interval_label">Water every %1$d days</string>
     <string name="watering_reminder_label">Watering reminder</string>
@@ -298,9 +290,6 @@
         <item quantity="one">1 active issue</item>
         <item quantity="other">%d active issues</item>
     </plurals>
-    <!-- Feature flag: Plant Detail per-action tabs (#436) -->
-    <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
-    <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
