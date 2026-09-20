@@ -147,6 +147,9 @@ class QuickLogUseCaseIntervalApplyTest {
             // wrote round(9 × 0.866) = 8 back through deseasonalize(), landing on ≈9.234 — a ratchet in
             // the opposite direction of what the model actually said.
             val sep13 = localDateUtcMillis(2026, 9, 13)
+            // The precise-base branch below never calls nowProvider() — this pin only matters if a
+            // regression falls through to deseasonalize(), so it fails against a fixed ≈9.234 rather
+            // than whatever season happens to run.
             val useCase = useCase(nowProvider = { sep13 })
             val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 8.718)
             val preciseModelBase = 8.85
@@ -196,7 +199,7 @@ class QuickLogUseCaseIntervalApplyTest {
     fun `applyWateringIntervalSuggestion with amplitude Off ignores a non-null suggestedBaseInterval`() =
         runTest {
             // #718 guard: suggestedBaseInterval must only ever apply on the seasonAdjustable path —
-            // passing a non-null precise base must not resurrect the amplitude-Off/pinned posture's
+            // passing a non-null precise base must not break the amplitude-Off/pinned posture's
             // "leave the stored base untouched" contract (#584 review round 2).
             val useCase = useCase(amplitudeOff = true)
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
