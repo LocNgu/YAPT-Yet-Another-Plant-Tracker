@@ -46,7 +46,7 @@ fun PlantDetailViewModel.confirmRescheduleCustomDate(newDueAtMillis: Long) = app
  * [com.yapt.planttracker.domain.model.Plant.wateringDueDateOverride] only — never
  * `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence`, and never a
  * `WateringAdjustment` row (#738, product ADR-0039 — a reschedule is model-neutral again; all
- * learning comes from the next actual watering). Never fires the ADR-0006 interval-suggestion
+ * learning comes from the next actual watering). Never fires the product ADR-0006 interval-suggestion
  * dialog.
  */
 private fun PlantDetailViewModel.applyReschedule(newDueAtMillis: Long) {

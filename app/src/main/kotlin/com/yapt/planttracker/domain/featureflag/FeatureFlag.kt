@@ -9,7 +9,7 @@ package com.yapt.planttracker.domain.featureflag
  * @param titleRes displayed as the flag row's title.
  * @param descriptionRes displayed as the flag row's subtitle.
  * @param default the value the flag resets to when developer mode is turned off. Must be
- *   `false` for every shipped flag (product ADR-0022) — every feature starts off in both debug
+ *   `false` for every shipped flag (product ADR-0042) — every feature starts off in both debug
  *   and release builds.
  */
 data class FeatureFlag(
@@ -22,7 +22,7 @@ data class FeatureFlag(
 /**
  * The single source of truth for every feature flag in the app. When a feature graduates, its
  * [FeatureFlag] entry and both code paths (flag on / flag off) are deleted from the graduating
- * PR so flags never accumulate (see product ADR-0022, "Extended by #521").
+ * PR so flags never accumulate (see product ADR-0042, "Extended by #521").
  */
 object FeatureFlagRegistry {
 

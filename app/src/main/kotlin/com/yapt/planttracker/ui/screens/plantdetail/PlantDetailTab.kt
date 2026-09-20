@@ -13,9 +13,9 @@ import com.yapt.planttracker.R
 
 /**
  * Per-action tabs on Plant Detail (#436). The tab strip lives inside the Box overlay's scrolling
- * content, below the hero — see technical ADR-0018 (supersedes ADR-0005). Misting is folded into the
+ * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Misting is folded into the
  * Water tab; Prune and Note have no tab and remain in the unified care-history list below the tabs.
- * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0030) fold what used to be the always-visible
+ * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0043) fold what used to be the always-visible
  * `CustomRemindersCard`/`PlantIssuesCard` sections into the tab strip's collapsed-by-default second
  * row — see `PlantDetailScreen.kt`'s `PlantDetailTabStrip`. [ISSUES] reuses `PlantIssuesCard`'s own
  * `Icons.Filled.BugReport` for consistency between the tab icon and the card's own report-issue icon.

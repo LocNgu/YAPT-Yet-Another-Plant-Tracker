@@ -393,7 +393,7 @@ private fun ChartContent(
 
     // Key on waterMarkers, careMarkers, effectiveStartMs, AND now so the transaction
     // re-runs when any of these change. All data written atomically to prevent mismatched
-    // label/data/marker snapshots (ADR-0004).
+    // label/data/marker snapshots (technical ADR-0004).
     LaunchedEffect(intervals, careMarkers, effectiveStartMs, now, waterMarkers) {
         modelProducer.runTransaction {
             lineSeries {

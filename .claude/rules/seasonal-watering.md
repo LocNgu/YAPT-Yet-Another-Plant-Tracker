@@ -9,7 +9,7 @@ paths:
 # Seasonal watering rules (#569, product ADR-0026)
 
 `SEASONAL_WATERING` graduated (#656) — the curve and the amplitude picker ship unconditionally; no
-registry entry. Computed, not learned — see ADR-0026 for the full rationale (data sparsity +
+registry entry. Computed, not learned — see product ADR-0026 for the full rationale (data sparsity +
 shared-shape argument against per-month learning). This file is the mechanical reference.
 
 ## The curve
@@ -71,7 +71,7 @@ doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab) both surfa
 
 ## Interaction with Part 1's adaptive model (#568, amended #572)
 `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into
-`CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per ADR-0026's
+`CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per product ADR-0026's
 "Interaction with Part 1" consequence — so a seasonal swing isn't misread as a permanent change in the
 plant's thirst. The legacy pre-#568 `computeSuggestedInterval()` ±1-day path is untouched (matching
 Part 1's own precedent of leaving that path alone).
@@ -149,7 +149,7 @@ watering-log history). Not a schema change — no new column, no migration/DB ve
 against the code, and explicitly accepted by the human as documented trade-offs rather than fixed
 further: neither applies to this install (confirmed with the human), both would need a schema change to
 fix properly, and this codebase currently serves a single install (no cloud/accounts/sync, product
-ADR-0022). Naming the exact failure mode here so a future reader — especially anyone reusing this code
+ADR-0042). Naming the exact failure mode here so a future reader — especially anyone reusing this code
 for a multi-install scenario — understands the real risk, not a softened version of it:
 - **The legacy-flag check in the item above only sees the flag's *current* value, not an ever-true
   history.** If a plant's base was correctly established while the old dev-mode flag was on (the

@@ -1,4 +1,4 @@
-# ADR-0018: Plant Detail tab strip lives inside the Box overlay, not a Scaffold/TabRow header
+# Technical ADR-0018: Plant Detail tab strip lives inside the Box overlay, not a Scaffold/TabRow header
 
 **Status**: accepted
 

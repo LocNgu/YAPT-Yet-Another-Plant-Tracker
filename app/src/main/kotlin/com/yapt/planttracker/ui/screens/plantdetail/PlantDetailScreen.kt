@@ -675,7 +675,7 @@ fun PlantDetailScreen(
                     }
 
                     // Tab strip inside the Box overlay's scrolling content (technical ADR-0018).
-                    // Collapse/expand + attention badge: product ADR-0030 (#590).
+                    // Collapse/expand + attention badge: product ADR-0043 (#590).
                     item {
                         PlantDetailTabStrip(
                             state = TabStripState(
@@ -1188,7 +1188,7 @@ private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
 
 /**
  * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
- * (product ADR-0030, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
+ * (product ADR-0043, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
  * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
  * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
  * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
@@ -1324,7 +1324,7 @@ private data class IntervalSetting(
 
 /**
  * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436, product
- * ADR-0022): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
+ * ADR-0023): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
  * changes through [onIntervalChange] — the day count when enabled/committed, or `null` when the
  * schedule is switched off. The drag persists on release (`onValueChangeFinished`), not per frame.
  * [extra] renders additional rows inside the card when enabled (the liquid-fertilizer toggle on the

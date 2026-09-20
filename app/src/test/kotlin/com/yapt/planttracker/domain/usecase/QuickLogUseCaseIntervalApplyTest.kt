@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
 /**
  * [QuickLogUseCase.applyWateringIntervalSuggestion] math-correctness coverage (#631, updated #644) —
  * split out of [QuickLogUseCaseTest] to keep that file under Detekt's `LargeClass` threshold, mirroring
- * [QuickLogUseCaseSeasonalTest]'s precedent. This is the single write path the ADR-0006 suggestion
+ * [QuickLogUseCaseSeasonalTest]'s precedent. This is the single write path the product ADR-0006 suggestion
  * dialog's Apply button uses from all three surfaces (Plant Detail, Calendar, Plant List).
  *
  * #644 flipped `newInterval`'s meaning from base-space to *effective*-space (the dialog's editable text

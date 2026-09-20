@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * Inline scheduling edits from the Plant Detail tabs (#436, product ADR-0022). Each persists a
+ * Inline scheduling edits from the Plant Detail tabs (#436, product ADR-0023). Each persists a
  * single field straight through `PlantRepository.updatePlant`; the change flows back via the
  * `plant` StateFlow so the tab insights update immediately. A `null` interval clears the schedule
  * (the "Not scheduled" state), matching the reminder toggle on Add/Edit Plant.

@@ -18,7 +18,7 @@ import kotlin.math.abs
  * Each iteration feeds the previous iteration's [CareSchedule.AdaptiveInterval] back in as the next
  * iteration's `currentBaseIntervalDays`/`currentConfidence` — i.e. it simulates a user who always
  * applies the suggestion, which is the only way "the app's due date" (referenced by the scenario
- * descriptions) can track the learned interval across many observations. The real app's ADR-0006
+ * descriptions) can track the learned interval across many observations. The real app's product ADR-0006
  * dialog still requires an explicit tap; this harness tests the pure convergence properties of the
  * update rule in isolation from that UI gate.
  */

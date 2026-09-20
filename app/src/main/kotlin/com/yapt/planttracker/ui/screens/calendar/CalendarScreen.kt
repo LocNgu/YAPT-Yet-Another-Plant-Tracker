@@ -585,7 +585,7 @@ private fun requestWater(
 
 /**
  * [requestWater]'s counterpart for the fertilize button. Only a liquid-fertilizer plant writes a
- * paired WATER log (ADR-0008), so only that case is ever subject to the reason prompt.
+ * paired WATER log (product ADR-0008), so only that case is ever subject to the reason prompt.
  */
 private fun requestFertilize(
     status: PlantCareStatus,

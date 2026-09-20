@@ -122,8 +122,8 @@ internal fun RescheduleDeltaChip(
  * still scroll flush against a screen edge and land inside the pinned Back/Edit/FAB overlay buttons'
  * touch targets there (Box overlay, not Scaffold — technical ADR-0018), but that narrow collision risk
  * is now a deliberate, human-confirmed trade-off in exchange for visual consistency (technical
- * ADR-0022) rather than something this row's own margins should compensate for; ADR-0022 addresses
- * the Edit corner by fading that button on scroll instead.
+ * ADR-0022) rather than something this row's own margins should compensate for; technical
+ * ADR-0022 addresses the Edit corner by fading that button on scroll instead.
  *
  * [onRescheduleClick] is nullable (product ADR-0040, amending ADR-0031): Water renders whenever the
  * row itself renders (`careStatus != null`, unconditional on `wateringIntervalDays`), since logging a
@@ -259,7 +259,7 @@ internal data class RescheduleDialogActions(
  * Today was already applied — #752 review round 1), and `true` whenever it would actually pull the
  * date in, including a winning *future* override the plant's `isOverdue` status doesn't reflect.
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
- * ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
+ * product ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
  * Opens directly from a Reschedule tap, with no reason prompt (#738, product ADR-0039 — a
  * reschedule is model-neutral, so there is nothing left to ask "why" about). **How many days the

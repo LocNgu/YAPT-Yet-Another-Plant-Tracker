@@ -46,7 +46,7 @@ never `wateringConfidence`/`wateringIntervalDays`/`wateringBaseIntervalDays`; `S
 so it can't be wired up later by accident. The action's label string (`reschedule_watering_title`, was
 `skip_watering_title`) is shared with the Plant Detail Reschedule button/dialog (`.claude/rules/plant-detail.md`) —
 one rename covers both surfaces. The now-unregistered duplicate under `worker/SkipWateringReceiver.kt` (which
-mutated `wateringIntervalDays` directly, contradicting ADR-0007/ADR-0029) was deleted in #508.
+mutated `wateringIntervalDays` directly, contradicting product ADR-0007/ADR-0029) was deleted in #508.
 
 ## Check reminders (#570, product ADR-0027; `CHECK_REMINDERS` graduated #657)
 The watering-due reminder is always a check-in prompt, not an instruction. Gated in
@@ -109,7 +109,7 @@ paths all route through the same callback. Backdated logs, edits, and rejected d
   overwrites the stored sort preference. The pending modal token is transient operational state and never backed up.
 - Developer mode's **Show drain-water reminder now** action writes the modal token directly for no-wait manual testing.
 - Pure eligibility/resource composition lives in `domain/notification/PostWateringReminderNotificationComposer`.
-- Daily reminder cleanup explicitly preserves ID `-2` (technical ADR-0026, superseding ADR-0007's `cancelAll()`).
+- Daily reminder cleanup explicitly preserves ID `-2` (technical ADR-0026, superseding technical ADR-0007's `cancelAll()`).
 
 ## Tests
 `ReminderNotificationComposerTest` (both toggle branches), `ReminderWorkerTest` (Robolectric — denied/ due/ not-due

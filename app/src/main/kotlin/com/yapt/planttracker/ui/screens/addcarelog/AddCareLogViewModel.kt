@@ -189,7 +189,7 @@ class AddCareLogViewModel(
     )
 
     private suspend fun insertPairedWaterLog() {
-        // No reason: the user fertilized, and the watering came along with it (ADR-0008) — they were
+        // No reason: the user fertilized, and the watering came along with it (product ADR-0008) — they were
         // never asked why they watered, so nothing is attributed (#586, product ADR-0030).
         careLogRepository.addLog(
             CareLog(

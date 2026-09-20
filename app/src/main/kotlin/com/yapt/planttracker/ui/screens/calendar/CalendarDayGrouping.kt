@@ -33,7 +33,7 @@ private data class Contribution(val date: LocalDate, val info: PlantDayInfo, val
  * a plant with two different future due dates (water vs. fertilize) can appear on both days.
  *
  * Per issue #423: liquid-fertilizer plants (`plant.useLiquidFertilizer`) fertilize together with
- * watering (ADR-0008/ADR-0017), so their `nextFertilizingDueAt` / `isFertilizingOverdue` are
+ * watering (product ADR-0008/product ADR-0017), so their `nextFertilizingDueAt` / `isFertilizingOverdue` are
  * ignored entirely — they only contribute via watering, and [PlantDayInfo.fertilizeDue] is
  * always false for them.
  */

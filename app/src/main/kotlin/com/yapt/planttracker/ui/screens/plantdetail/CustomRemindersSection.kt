@@ -54,7 +54,7 @@ internal data class CustomReminderActions(
 
 /**
  * "Custom reminders" section (#232) — unbounded, free-text recurring reminders per plant. Rendered
- * only when the Custom Reminders tab is selected (product ADR-0030); see
+ * only when the Custom Reminders tab is selected (product ADR-0043); see
  * `.claude/rules/plant-detail.md`. Lives in its own file (not `PlantDetailScreen.kt`), mirroring
  * `PlantIssuesSection.kt`, to stay under Detekt's per-file `TooManyFunctions` threshold.
  */

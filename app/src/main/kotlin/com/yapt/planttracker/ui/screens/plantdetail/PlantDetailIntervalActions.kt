@@ -24,7 +24,7 @@ fun PlantDetailViewModel.clearSuggestedInterval() {
 }
 
 /**
- * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
+ * Dismissing the product ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
  * outside it). A genuine dismissal raises [com.yapt.planttracker.domain.model.Plant.wateringConfidence]
  * up to [CareSchedule.DISMISSAL_CONFIDENCE_CEILING] (#568) — the user is saying the current schedule
  * is fine. Delegates to [com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -41,12 +41,12 @@ fun PlantDetailViewModel.dismissSuggestedInterval() {
     }
 }
 
-/** "Ask before changing intervals" (#572) — the ADR-0006 dialog is skipped only when the setting is off. */
+/** "Ask before changing intervals" (#572) — the product ADR-0006 dialog is skipped only when the setting is off. */
 private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
     dataStore.data.first()[SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS] ?: true
 
 /**
- * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
+ * Routes a freshly-computed adaptive suggestion to either the product ADR-0006 dialog or a silent apply
  * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
  */
 internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
@@ -90,7 +90,10 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
     )
 }
 
-/** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
+/**
+ * Entry point for the product ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow,
+ * routed back to this screen through `NavGraph`'s `savedStateHandle` (technical ADR-0006).
+ */
 fun PlantDetailViewModel.handleSuggestedWateringInterval(
     suggestedInterval: Int,
     suggestedBaseInterval: Double?

@@ -280,7 +280,7 @@ class AddCareLogViewModelTest {
 
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         // #586: the paired watering carries no reason — the user fertilized and the watering came
-        // along with it (ADR-0008), so they were never asked why they watered.
+        // along with it (product ADR-0008), so they were never asked why they watered.
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
         }
@@ -764,7 +764,7 @@ class AddCareLogViewModelTest {
             // it, and the model (confidence-0, JUST_RIGHT, target = 4) lands the raw base-space
             // suggestion back at round(7 + 0.60*(4-7)) = 5. But at the peak day, season() = 1.35, so
             // round(5 * 1.35) = 7 == current: the entire "5 vs 7" jump is a unit-mismatch artifact, not a
-            // real model change, and must be suppressed exactly like the ADR-0006 dialog gate is.
+            // real model change, and must be suppressed exactly like the product ADR-0006 dialog gate is.
             every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
             coEvery { careLogRepo.addLog(any()) } returns 1L
             coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(

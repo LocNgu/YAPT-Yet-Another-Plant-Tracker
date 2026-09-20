@@ -6,7 +6,7 @@ paths:
 
 # Watering-history chart rules (Vico) — technical ADR-0004
 
-Design chosen: range chips (1M/3M/6M/12M/All), not unified zoom (ADR-0004). Empty state when < 2 logs; a single
+Design chosen: range chips (1M/3M/6M/12M/All), not unified zoom (technical ADR-0004). Empty state when < 2 logs; a single
 point (2 total waterings) renders as a circle. `now` is keyed on `wateringLogs` so a freshly-logged watering
 appears immediately without navigating away.
 
@@ -41,7 +41,7 @@ ticks) — replaces Vico's default, which placed fractional ticks that collapsed
 ## Gotchas
 Label/data sync: use `ExtraStore` inside the transaction so labels + data stay atomically consistent. Auto-scroll:
 `initialScroll` is one-shot — pair with `autoScroll` + a custom `AutoScrollCondition` to re-snap on every model change.
-Completes #125 (12M averaging superseded by per-event points; unified zoom rejected per ADR-0004).
+Completes #125 (12M averaging superseded by per-event points; unified zoom rejected per technical ADR-0004).
 
 **x-step inference breaks on dense, irregular data (#579 follow-up fix).** Without an explicit `getXStep` on
 `rememberCartesianChart(...)`, Vico infers it as the GCD of every consecutive x-delta in the series

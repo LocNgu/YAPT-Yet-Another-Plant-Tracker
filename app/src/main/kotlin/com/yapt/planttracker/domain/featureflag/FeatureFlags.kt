@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
  * Observable, DataStore-backed storage for feature flag values. A [YaptApplication] lazy
  * singleton, mirroring the repositories (technical ADR-0001, manual DI — no Hilt). Each flag's
  * value lives under its own dynamically-derived key so flags never need a schema/migration to
- * add or remove. Deliberately excluded from backup/restore (product ADR-0022) — flags are
+ * add or remove. Deliberately excluded from backup/restore (product ADR-0042) — flags are
  * device-local, transient experiment state.
  *
  * @param flags the flag list this instance manages, injectable so a Compose test can supply a
@@ -39,7 +39,7 @@ class FeatureFlags(
         dataStore.edit { prefs -> prefs[preferenceKeyFor(flag)] = enabled }
     }
 
-    /** Resets every flag in [flags] back to its registry default. See product ADR-0022. */
+    /** Resets every flag in [flags] back to its registry default. See product ADR-0042. */
     suspend fun resetAll() {
         dataStore.edit { prefs ->
             for (flag in flags) {

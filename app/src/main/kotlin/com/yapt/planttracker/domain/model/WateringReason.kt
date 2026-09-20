@@ -5,7 +5,7 @@ package com.yapt.planttracker.domain.model
  * #649 product ADR-0033). The app **asks** rather than infers: the same observable gap carries
  * opposite meanings — watered three days late because the plant was fine and could go longer, or
  * because you were busy and it went thirsty — so timing alone can never tell *the plant's needs*
- * from *the user's availability*, the exact conflation ADR-0007 exists to prevent.
+ * from *the user's availability*, the exact conflation product ADR-0007 exists to prevent.
  *
  * `null` at a call site means no reason was given: either the watering was on schedule (no prompt
  * appears at all) or the user logged without choosing. Both mean the same thing to the model — no

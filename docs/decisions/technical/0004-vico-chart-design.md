@@ -1,4 +1,4 @@
-# ADR-0004: Vico chart — empty months omitted from series, labels in ExtraStore, conditional autoscroll
+# Technical ADR-0004: Vico chart — empty months omitted from series, labels in ExtraStore, conditional autoscroll
 
 **Status**: accepted
 

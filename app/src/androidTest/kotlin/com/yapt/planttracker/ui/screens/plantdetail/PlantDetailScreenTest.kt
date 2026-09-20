@@ -1232,7 +1232,7 @@ class PlantDetailScreenTest {
 
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
-        // tabs (#590, product ADR-0030), so they no longer push this any further.
+        // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(waterTabMatcher)
         composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
@@ -1292,7 +1292,7 @@ class PlantDetailScreenTest {
         )
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
-        // tabs (#590, product ADR-0030), so they no longer push this any further.
+        // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1319,7 +1319,7 @@ class PlantDetailScreenTest {
 
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
-        // tabs (#590, product ADR-0030), so they no longer push this any further.
+        // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(photoTabMatcher)
         composeTestRule.onNode(photoTabMatcher).performClick()
@@ -1371,7 +1371,7 @@ class PlantDetailScreenTest {
 
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
-        // tabs (#590, product ADR-0030), so they no longer push this any further.
+        // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1418,7 +1418,7 @@ class PlantDetailScreenTest {
         // Two repots → the Repot tab's insights card shows the count and an average interval.
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
-        // tabs (#590, product ADR-0030), so they no longer push this any further.
+        // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Repot"))
         composeTestRule.onNodeWithText("Repot").performClick()
@@ -1597,7 +1597,7 @@ class PlantDetailScreenTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
-    // ---- Tab row collapse/expand + attention badge (#590, product ADR-0030) ----
+    // ---- Tab row collapse/expand + attention badge (#590, product ADR-0043) ----
 
     @Test
     fun tabRow_collapsedByDefault_hidesCustomRemindersAndIssuesTabs() {
@@ -1885,7 +1885,7 @@ class PlantDetailScreenTest {
 
     /**
      * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,
-     * product ADR-0030) — hidden behind the collapsed tab row by default. Scrolls to and taps the
+     * product ADR-0043) — hidden behind the collapsed tab row by default. Scrolls to and taps the
      * collapse/expand toggle, then scrolls to and taps [tabLabel] to select that tab.
      *
      * `waitUntil` + `fetchSemanticsNodes` (rather than an `assertIsDisplayed()` on the toggle) confirms

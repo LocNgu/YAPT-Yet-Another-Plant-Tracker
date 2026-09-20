@@ -1,4 +1,4 @@
-# ADR-0022: Developer mode unlock gesture, release-build availability, and defaults policy
+# Product ADR-0042: Developer mode unlock gesture, release-build availability, and defaults policy
 
 **Status**: accepted
 

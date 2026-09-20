@@ -43,7 +43,7 @@ class ReminderWorker(
         val notificationManager = context.getSystemService(NotificationManager::class.java)
 
         // Rebuild every daily reminder while preserving the independent post-watering alert (#519).
-        // This retains the deleted-plant/combine-mode self-healing of ADR-0025 without allowing the
+        // This retains the deleted-plant/combine-mode self-healing of technical ADR-0007 without allowing the
         // daily job to erase a standing-water reminder that has not been acted on yet.
         notificationManager.activeNotifications
             .filter { it.id != PostWateringReminderWorker.NOTIFICATION_ID }

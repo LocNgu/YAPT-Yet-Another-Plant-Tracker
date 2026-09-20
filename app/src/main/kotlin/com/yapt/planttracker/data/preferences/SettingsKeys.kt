@@ -25,7 +25,7 @@ object SettingsKeys {
     /**
      * "Ask before changing intervals" (#572) — a plain user setting, not a [com.yapt.planttracker
      * .domain.featureflag.FeatureFlagRegistry] entry, so it survives disabling developer mode.
-     * Default `true` reproduces today's ADR-0006 dialog behavior exactly.
+     * Default `true` reproduces today's product ADR-0006 dialog behavior exactly.
      */
     val ASK_BEFORE_CHANGING_INTERVALS = booleanPreferencesKey("ask_before_changing_intervals")
 
