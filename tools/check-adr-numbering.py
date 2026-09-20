@@ -48,7 +48,13 @@ BINARY_SNIFF_BYTES = 8192
 # Optional `product`/`technical` qualifier, then ADR-NNNN. The separator may be
 # a space or a hyphen: both read naturally ("product ADR-0007" as a citation,
 # "product-ADR-0007 invariant guard" as a compound adjective).
-CITATION = re.compile(r"(?:\b(product|technical)[-\s]+)?ADR-(\d{4})", re.IGNORECASE)
+CITATION = re.compile(
+    # (?<![-\w]) not \b: with a hyphen allowed as the separator, \b alone would
+    # read the tail of a hyphen-joined word as the qualifier, so "By-product
+    # ADR-0007" would parse as a product citation and escape R5.
+    r"(?:(?<![-\w])(product|technical)[-\s]+)?ADR-(\d{4})",
+    re.IGNORECASE,
+)
 # A citation may also wrap, leaving the qualifier at the end of the previous
 # line: a "See technical" ending one line, with "ADR-XXXX" opening the next.
 DANGLING_QUALIFIER = re.compile(r"\b(product|technical)\s*$", re.IGNORECASE)
@@ -94,6 +100,12 @@ def wrapped_qualifier(line: str, match: re.Match, previous: str) -> str | None:
     Only counts when the number opens the line (allowing comment/list markers),
     so a wrapped citation is recognised while a bare one later on the same line
     is still reported.
+
+    Known limit: this trusts any previous line ending in "product"/"technical",
+    without confirming that word was introducing a citation. A line ending in
+    either word for unrelated reasons, followed by one opening with a bare
+    ADR-NNNN, would be accepted. Every wrap in the tree today is a genuine
+    citation; tighten this if that stops being true.
     """
     prefix_end = CONTINUATION_PREFIX.match(line).end()
     if match.start() != prefix_end:
