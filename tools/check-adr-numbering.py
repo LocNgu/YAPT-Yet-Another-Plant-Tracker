@@ -52,8 +52,9 @@ CITATION = re.compile(r"(?:\b(product|technical)[-\s]+)?ADR-(\d{4})", re.IGNOREC
 # A citation may also wrap, leaving the qualifier at the end of the previous
 # line: a "See technical" ending one line, with "ADR-XXXX" opening the next.
 DANGLING_QUALIFIER = re.compile(r"\b(product|technical)\s*$", re.IGNORECASE)
-# Comment, list and quote markers that open a wrapped continuation line.
-CONTINUATION_PREFIX = re.compile(r"^[\s*>|#-]*")
+# Comment, list and quote markers that open a wrapped continuation line —
+# includes "/" so a Kotlin // comment continuation counts, not just KDoc "*".
+CONTINUATION_PREFIX = re.compile(r"^[\s*/>|#-]*")
 
 FILENAME = re.compile(r"^(\d{4})-.+\.md$")
 HEADING = re.compile(r"^#\s+(?:(Product|Technical)\s+)?ADR-(\d{4})\s*:")
