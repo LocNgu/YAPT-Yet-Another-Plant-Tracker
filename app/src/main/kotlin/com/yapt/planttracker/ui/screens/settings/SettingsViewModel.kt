@@ -280,10 +280,10 @@ class SettingsViewModel(
         }
     }
 
-    fun exportBackup(uri: Uri, includePhotos: Boolean) {
+    fun exportBackup(uri: Uri, includePhotos: Boolean, optimizePhotos: Boolean = false) {
         _isBackupInProgress.value = true
         viewModelScope.launch {
-            val result = backupManager.exportBackup(uri, includePhotos)
+            val result = backupManager.exportBackup(uri, includePhotos, optimizePhotos)
             _backupResult.emit(result)
             _isBackupInProgress.value = false
         }

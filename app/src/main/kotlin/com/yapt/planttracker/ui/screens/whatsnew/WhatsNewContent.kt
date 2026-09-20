@@ -23,7 +23,9 @@ object WhatsNewContent {
             "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
                 "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
                 "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
-                "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
+                "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm",
+            "New and existing photos taken inside YAPT now use substantially less app storage. Backup export " +
+                "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
             "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
