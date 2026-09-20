@@ -393,7 +393,7 @@ footer li { margin-bottom: .25rem; }
   <ul>
     <li><strong>Seasonality should be computed, not learned.</strong> The seasonal swing is the most predictable part of the problem and the most expensive part to learn from data. #285 spends its entire design budget trying to learn it.</li>
     <li><strong>The step size should vary, not the formula.</strong> "Fast to adapt" and "stable under noise" are only in tension if the step size is fixed. Make it respond to whether corrections agree, and you get both.</li>
-    <li><strong>The learning signal is the real bottleneck, not the storage shape.</strong> Today's feedback chip defaults to <em>Just right</em>, and <em>Just right</em> means "never suggest anything" (ADR-0001). The learner is mostly being fed a value that means "the user didn't think about it". No storage layout fixes that.</li>
+    <li><strong>The learning signal is the real bottleneck, not the storage shape.</strong> Today's feedback chip defaults to <em>Just right</em>, and <em>Just right</em> means "never suggest anything" (product ADR-0001). The learner is mostly being fed a value that means "the user didn't think about it". No storage layout fixes that.</li>
   </ul>
 </section>
 
@@ -609,7 +609,7 @@ base         = base + <b>g</b> · (target − base)
   </div>
 
   <div class="callout">
-    <p><strong>Today's learner is fed a value that mostly means "the user didn't think about it."</strong> <em>Just right</em> is pre-selected on the Add Care Log screen and on the quick-water sheet (ADR-0016 / ADR-0024), and ADR-0001 says <em>Just right</em> produces no suggestion at all. So the default answer to "how was the soil?" is also the instruction "change nothing". Whatever you store the interval in — one column, four, or twelve — it will barely move.</p>
+    <p><strong>Today's learner is fed a value that mostly means "the user didn't think about it."</strong> <em>Just right</em> is pre-selected on the Add Care Log screen and on the quick-water sheet (product ADR-0016 / product ADR-0024), and product ADR-0001 says <em>Just right</em> produces no suggestion at all. So the default answer to "how was the soil?" is also the instruction "change nothing". Whatever you store the interval in — one column, four, or twelve — it will barely move.</p>
   </div>
 
   <div class="col">
@@ -617,13 +617,13 @@ base         = base + <b>g</b> · (target − base)
 
     <h3>1. Capture the check that didn't end in a watering</h3>
     <p>A gardener's single most common action is walking over, feeling the soil, and <strong>walking away</strong>. That event carries a clean, unambiguous signal — "not ready yet, lengthen" — and YAPT currently has no way to record it at all. Every one of #285's five approaches learns exclusively from watering events, so all of them are blind to the most frequent observation the user makes.</p>
-    <p>The natural place for it is the reminder itself: reframe the notification from <em>"Water Monstera"</em> to <em>"Check Monstera"</em> with two actions — <strong>Watered</strong> and <strong>Still moist</strong>. This is honest (it matches what the user is being asked to do), it is one tap, and it roughly doubles the number of learning events. It also composes cleanly with the existing skip mechanism (ADR-0007), which is arguably already a weak "still wet" signal being discarded.</p>
+    <p>The natural place for it is the reminder itself: reframe the notification from <em>"Water Monstera"</em> to <em>"Check Monstera"</em> with two actions — <strong>Watered</strong> and <strong>Still moist</strong>. This is honest (it matches what the user is being asked to do), it is one tap, and it roughly doubles the number of learning events. It also composes cleanly with the existing skip mechanism (product ADR-0007), which is arguably already a weak "still wet" signal being discarded.</p>
 
     <h3>2. Learn from observed gaps, not only from chips</h3>
     <p>The timestamps of watering events are always present, never defaulted, and never skipped. If a user consistently waters a plant every 11 days when the app says 8, that is a strong, freely available statement about the plant — and it is currently ignored. Feed it in with a low weight (α ≈ 0.15) so that <em>explicit</em> feedback still dominates when it exists, but the app keeps learning from users who never touch the chips.</p>
 
     <h3>3. Stop treating a defaulted "just right" as a confirmation</h3>
-    <p>Distinguish "the user selected Just right" from "Just right was pre-selected and never touched". The former is real evidence and should raise confidence; the latter is silence. ADR-0024 already made the field nullable — the remaining step is to not pre-select, or to track whether the chip was interacted with.</p>
+    <p>Distinguish "the user selected Just right" from "Just right was pre-selected and never touched". The former is real evidence and should raise confidence; the latter is silence. product ADR-0024 already made the field nullable — the remaining step is to not pre-select, or to track whether the chip was interacted with.</p>
   </div>
 </section>
 
@@ -652,7 +652,7 @@ base         = base + <b>g</b> · (target − base)
 
   <div class="col">
     <p>Following the user's will stays absolute: a manually edited interval writes <code>base</code> directly and zeroes confidence, and a per-plant <strong>Pin</strong> switch turns learning off entirely while keeping the season curve (or turns off both). Nothing silently overrides a number the user typed.</p>
-    <p>On auto-apply versus confirmation — ADR-0006 chose a modal dialog, and #285 correctly flags that its approaches 2 and 4 would supersede it. A middle path preserves both intents: <strong>apply changes under ~15% silently</strong>, with an entry in the adjustments list and an undo; <strong>prompt with the existing dialog for larger changes</strong>. Small corrections stop being interruptions; consequential ones still get consent. This still supersedes ADR-0006 and needs an explicit decision.</p>
+    <p>On auto-apply versus confirmation — product ADR-0006 chose a modal dialog, and #285 correctly flags that its approaches 2 and 4 would supersede it. A middle path preserves both intents: <strong>apply changes under ~15% silently</strong>, with an entry in the adjustments list and an undo; <strong>prompt with the existing dialog for larger changes</strong>. Small corrections stop being interruptions; consequential ones still get consent. This still supersedes product ADR-0006 and needs an explicit decision.</p>
   </div>
 </section>
 
@@ -775,7 +775,7 @@ base         = base + <b>g</b> · (target − base)
     <li><b>#572 — "Why this date?" sheet and the auto-apply toggle.</b> Makes the model legible; also the best debugging tool for it.</li>
   </ol>
   <p>All of the arithmetic is pure and lives in <code>CareSchedule</code>, so it is testable in JVM unit tests. A replay harness runs real or demo watering histories through the model and asserts convergence time, oscillation amplitude, and behaviour when every log is a defaulted <em>Just right</em> — that last case is the one today's system fails silently.</p>
-  <p>ADRs needing superseding decisions: <strong>ADR-0001</strong> (Just right never suggests), <strong>ADR-0006</strong> (always a dialog), <strong>ADR-0016 / ADR-0024</strong> (the chip pre-selection), and <strong>ADR-0007</strong> gains a second writer of the due-date override. Each is named in the issue that touches it.</p>
+  <p>ADRs needing superseding decisions: <strong>product ADR-0001</strong> (Just right never suggests), <strong>product ADR-0006</strong> (always a dialog), <strong>product ADR-0016 / product ADR-0024</strong> (the chip pre-selection), and <strong>product ADR-0007</strong> gains a second writer of the due-date override. Each is named in the issue that touches it.</p>
 </section>
 
 <section>
