@@ -67,6 +67,11 @@ HEADING = re.compile(r"^#\s+(?:(Product|Technical)\s+)?ADR-(\d{4})\s*:")
 # Keep a Changelog: everything from the first released version heading down is
 # frozen history, not rewritten to satisfy a lint rule.
 RELEASED_HEADING = re.compile(r"^##\s+\[\d")
+# This checker's own tests are wall-to-wall deliberately-invalid citations —
+# bare numbers, dangling numbers, qualifiers naming the wrong tree — because
+# that is what they assert on. Contorting fixtures to satisfy the rule they
+# test would make them worse tests, so the fixtures are exempt instead.
+FIXTURE_FILE = re.compile(r"^tools/test_[^/]+\.py$")
 
 
 def tracked_files() -> list[str]:
@@ -169,6 +174,9 @@ def check_citations(violations: list[str], numbers: dict[str, set[str]]) -> None
     for path in tracked_files():
         lines = read_text(path)
         if lines is None:
+            continue
+
+        if FIXTURE_FILE.match(path):
             continue
 
         in_decisions = path.startswith(DECISIONS + "/")

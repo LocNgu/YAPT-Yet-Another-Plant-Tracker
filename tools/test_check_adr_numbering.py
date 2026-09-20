@@ -199,6 +199,12 @@ class TestCitationRules(CheckerFixture):
                    "\n## [1.0.0] - 2026-01-01\n")
         self.assert_rule("R5", self.run_checker())
 
+    def test_this_suites_own_fixtures_are_exempt(self):
+        """The exemption that lets these fixtures hold invalid citations."""
+        self.assertTrue(CHECKER.FIXTURE_FILE.match("tools/test_check_adr_numbering.py"))
+        self.assertFalse(CHECKER.FIXTURE_FILE.match("tools/check-adr-numbering.py"))
+        self.assertFalse(CHECKER.FIXTURE_FILE.match("docs/test_notes.py"))
+
     def test_binary_files_are_skipped(self):
         self.both_namespaces()
         full = os.path.join(self.root, "blob.bin")
