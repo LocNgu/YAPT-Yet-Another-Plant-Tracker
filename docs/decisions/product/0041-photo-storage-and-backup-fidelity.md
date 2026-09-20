@@ -1,4 +1,4 @@
-# ADR-0039: Bound private camera captures and make lossy backup optimization explicit
+# Product ADR-0041: Bound private camera captures and make lossy backup optimization explicit
 
 **Status**: accepted
 
