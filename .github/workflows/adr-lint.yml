@@ -1,0 +1,28 @@
+name: ADR Lint
+
+# Deliberately separate from android.yml. That workflow does not run on pushes
+# to develop by design (#260 — it avoids a double run while a develop → main
+# release PR is open), and adding a develop trigger there would reintroduce it.
+#
+# Both triggers are needed. The pull_request run is where a collision is cheap
+# to fix, before merge. It cannot catch the interleaving case: two PRs each add
+# ADR-0042, each is green against develop at the time it ran, and GitHub does
+# not re-run the second after the first merges unless branch protection
+# requires the branch be up to date. The develop push run closes that gap.
+on:
+  pull_request:
+  push:
+    branches: [ develop ]
+
+jobs:
+  adr:
+    name: ADR numbering & citations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check ADR numbering and citations
+        run: python3 tools/check-adr-numbering.py
