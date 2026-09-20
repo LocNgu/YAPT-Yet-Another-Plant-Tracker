@@ -35,17 +35,23 @@ import subprocess
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DECISIONS = os.path.join("docs", "decisions")
+# git ls-files emits forward slashes on every platform, so compare against
+# a POSIX prefix rather than one built with os.sep.
+DECISIONS = "docs/decisions"
 NAMESPACES = ("product", "technical")
-SCANNED_SUFFIXES = (".kt", ".md", ".kts", ".xml")
+# Every tracked text file is scanned rather than an extension allowlist: an
+# allowlist silently stops enforcing the convention the moment a citation lands
+# in a format nobody thought of (this check first shipped blind to the .html
+# architecture docs and to robolectric.properties).
+BINARY_SNIFF_BYTES = 8192
 
 # Optional `product`/`technical` qualifier, then ADR-NNNN. The separator may be
 # a space or a hyphen: both read naturally ("product ADR-0007" as a citation,
 # "product-ADR-0007 invariant guard" as a compound adjective).
 CITATION = re.compile(r"(?:\b(product|technical)[-\s]+)?ADR-(\d{4})", re.IGNORECASE)
 # A citation may also wrap, leaving the qualifier at the end of the previous
-# line ("See technical\n  ADR-0019").
-DANGLING_QUALIFIER = re.compile(r"\b(?:product|technical)\s*$", re.IGNORECASE)
+# line: a "See technical" ending one line, with "ADR-XXXX" opening the next.
+DANGLING_QUALIFIER = re.compile(r"\b(product|technical)\s*$", re.IGNORECASE)
 # Comment, list and quote markers that open a wrapped continuation line.
 CONTINUATION_PREFIX = re.compile(r"^[\s*>|#-]*")
 
@@ -61,28 +67,45 @@ def tracked_files() -> list[str]:
         ["git", "ls-files", "-z"],
         cwd=REPO_ROOT, capture_output=True, text=True, check=True,
     ).stdout
-    return [p for p in out.split("\0") if p.endswith(SCANNED_SUFFIXES)]
+    return [p for p in out.split("\0") if p]
 
 
-def wrapped_qualifier(line: str, match: re.Match, previous: str) -> bool:
-    """True when a bare ADR-NNNN is the wrapped tail of a qualified citation.
+def read_text(path: str) -> list[str] | None:
+    """Lines of a tracked text file, or None when it looks binary/unreadable."""
+    try:
+        with open(os.path.join(REPO_ROOT, path), "rb") as handle:
+            raw = handle.read()
+    except OSError:
+        return None
+    if b"\0" in raw[:BINARY_SNIFF_BYTES]:
+        return None
+    return raw.decode("utf-8", errors="replace").splitlines(keepends=True)
+
+
+def wrapped_qualifier(line: str, match: re.Match, previous: str) -> str | None:
+    """The namespace of a citation whose qualifier sits on the previous line.
+
+    Returns "product"/"technical" so the caller can validate the number against
+    that namespace exactly as it would an inline qualifier — a wrapped citation
+    naming the wrong tree must still fail R4, not merely escape R5. None when
+    this is a genuinely bare citation.
 
     Only counts when the number opens the line (allowing comment/list markers),
-    so a wrapped `technical ADR-0019` is accepted while a genuinely bare
-    citation later on the same line is still reported.
+    so a wrapped citation is recognised while a bare one later on the same line
+    is still reported.
     """
     prefix_end = CONTINUATION_PREFIX.match(line).end()
-    return (
-        match.start() == prefix_end
-        and DANGLING_QUALIFIER.search(previous.rstrip("\n")) is not None
-    )
+    if match.start() != prefix_end:
+        return None
+    carried = DANGLING_QUALIFIER.search(previous.rstrip("\n"))
+    return carried.group(1).lower() if carried else None
 
 
 def check_files(violations: list[str]) -> dict[str, set[str]]:
     """R1-R3. Returns {namespace: {numbers}} for the citation rules to use."""
     numbers: dict[str, set[str]] = {ns: set() for ns in NAMESPACES}
     for ns in NAMESPACES:
-        directory = os.path.join(REPO_ROOT, DECISIONS, ns)
+        directory = os.path.join(REPO_ROOT, "docs", "decisions", ns)
         by_number: dict[str, list[str]] = {}
         for name in sorted(os.listdir(directory)):
             match = FILENAME.match(name)
@@ -92,7 +115,7 @@ def check_files(violations: list[str]) -> dict[str, set[str]]:
             by_number.setdefault(number, []).append(name)
             numbers[ns].add(number)
 
-            path = os.path.join(DECISIONS, ns, name)
+            path = f"{DECISIONS}/{ns}/{name}"
             with open(os.path.join(REPO_ROOT, path), encoding="utf-8") as handle:
                 heading = handle.readline().rstrip("\n")
             found = HEADING.match(heading)
@@ -126,56 +149,60 @@ def check_files(violations: list[str]) -> dict[str, set[str]]:
 
 
 def check_citations(violations: list[str], numbers: dict[str, set[str]]) -> None:
-    """R4-R5 over every tracked source and doc file."""
+    """R4-R5 over every tracked text file."""
     shared = numbers["product"] & numbers["technical"]
     known = numbers["product"] | numbers["technical"]
 
     for path in tracked_files():
-        in_decisions = path.startswith(DECISIONS + os.sep)
+        lines = read_text(path)
+        if lines is None:
+            continue
+
+        in_decisions = path.startswith(DECISIONS + "/")
         is_changelog = os.path.basename(path) == "CHANGELOG.md"
         frozen = False
         previous = ""
 
-        with open(os.path.join(REPO_ROOT, path), encoding="utf-8",
-                  errors="replace") as handle:
-            for lineno, line in enumerate(handle, 1):
-                if is_changelog and RELEASED_HEADING.match(line):
-                    frozen = True
-                if frozen:
-                    previous = line
+        for lineno, line in enumerate(lines, 1):
+            if is_changelog and RELEASED_HEADING.match(line):
+                frozen = True
+            if frozen:
+                previous = line
+                continue
+
+            for match in CITATION.finditer(line):
+                qualifier, number = match.group(1), match.group(2)
+                namespace = (qualifier or "").lower()
+                if not namespace:
+                    # A qualifier left at the end of the previous line by a
+                    # wrap still names a namespace, and is validated as one:
+                    # a wrapped citation naming the wrong tree fails R4 rather
+                    # than merely escaping R5.
+                    namespace = wrapped_qualifier(line, match, previous) or ""
+
+                if namespace:
+                    if number not in numbers[namespace]:
+                        violations.append(
+                            f"{path}:{lineno}: [R4] cites "
+                            f"'{namespace} ADR-{number}' but no such file "
+                            f"exists in docs/decisions/{namespace}/"
+                        )
                     continue
 
-                for match in CITATION.finditer(line):
-                    qualifier, number = match.group(1), match.group(2)
-                    namespace = (qualifier or "").lower()
+                if number not in known:
+                    violations.append(
+                        f"{path}:{lineno}: [R4] cites ADR-{number}, which "
+                        f"matches no file in docs/decisions/"
+                    )
+                elif number in shared and not in_decisions:
+                    violations.append(
+                        f"{path}:{lineno}: [R5] bare 'ADR-{number}' is "
+                        f"ambiguous — product/ and technical/ both define "
+                        f"{number}; write 'product ADR-{number}' or "
+                        f"'technical ADR-{number}'"
+                    )
 
-                    if namespace:
-                        if number not in numbers[namespace]:
-                            violations.append(
-                                f"{path}:{lineno}: [R4] cites "
-                                f"'{namespace} ADR-{number}' but no such file "
-                                f"exists in docs/decisions/{namespace}/"
-                            )
-                        continue
-
-                    if number not in known:
-                        violations.append(
-                            f"{path}:{lineno}: [R4] cites ADR-{number}, which "
-                            f"matches no file in docs/decisions/"
-                        )
-                    elif (
-                        number in shared
-                        and not in_decisions
-                        and not wrapped_qualifier(line, match, previous)
-                    ):
-                        violations.append(
-                            f"{path}:{lineno}: [R5] bare 'ADR-{number}' is "
-                            f"ambiguous — product/ and technical/ both define "
-                            f"{number}; write 'product ADR-{number}' or "
-                            f"'technical ADR-{number}'"
-                        )
-
-                previous = line
+            previous = line
 
 
 def main() -> int:
