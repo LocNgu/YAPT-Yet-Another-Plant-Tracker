@@ -16,6 +16,8 @@ watering intervals from the user's own feedback.
 ./gradlew testDebugUnitTest        # unit tests (flag also builds the release suite — see rules/ci-build.md)
 ./gradlew lintDebug                # Android lint
 ./gradlew detekt                   # static analysis (add autoCorrect=true locally to auto-fix formatting)
+python3 tools/check-adr-numbering.py   # ADR numbering + citation check (CI-enforced, no JDK needed)
+python3 -m unittest discover -s tools -p 'test_*.py'   # tests for that check
 ```
 Prefer `-q` and grep for failures over dumping full build logs. Cloud/session build setup: `.claude/rules/ci-build.md`.
 
