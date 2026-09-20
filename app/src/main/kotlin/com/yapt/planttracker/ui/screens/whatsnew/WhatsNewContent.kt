@@ -20,6 +20,9 @@ object WhatsNewContent {
                 "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
         ),
         fixed = listOf(
+            "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
+                "rounding nudge the underlying interval when a suggested interval is applied — whether " +
+                "you accept it yourself or YAPT applies it for you",
             "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
                 "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
                 "least tomorrow on the first tap",

@@ -87,7 +87,12 @@ class QuickLogUseCaseIntervalApplyTest {
             val useCase = useCase()
             val monstera = plant().copy(wateringIntervalDays = 18, wateringBaseIntervalDays = 18.0)
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 13)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 13,
+                suggestedBaseInterval = null
+            )
 
             coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 13 }) }
         }
@@ -106,7 +111,12 @@ class QuickLogUseCaseIntervalApplyTest {
                 SeasonalWatering.currentHemisphere()
             )
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 13)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 13,
+                suggestedBaseInterval = null
+            )
 
             coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == expectedBase }) }
         }
@@ -121,7 +131,12 @@ class QuickLogUseCaseIntervalApplyTest {
             val useCase = useCase(amplitudeOff = true)
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 8)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 8,
+                suggestedBaseInterval = null
+            )
 
             coVerify {
                 plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
@@ -133,7 +148,12 @@ class QuickLogUseCaseIntervalApplyTest {
         val useCase = useCase()
         val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
 
-        useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 14)
+        useCase.applyWateringIntervalSuggestion(
+            monstera,
+            originalSuggestion = null,
+            newInterval = 14,
+            suggestedBaseInterval = null
+        )
 
         coVerify {
             plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
@@ -151,7 +171,12 @@ class QuickLogUseCaseIntervalApplyTest {
             val useCase = useCase()
             val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 9)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 9,
+                suggestedBaseInterval = null
+            )
 
             coVerify {
                 wateringAdjustmentRepo.addAdjustment(match { it.beforeIntervalDays == 6 })
@@ -173,7 +198,12 @@ class QuickLogUseCaseIntervalApplyTest {
                 SeasonalWatering.currentHemisphere()
             ).roundToInt()
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 9)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 9,
+                suggestedBaseInterval = null
+            )
 
             coVerify {
                 wateringAdjustmentRepo.addAdjustment(match { it.afterIntervalDays == expectedAfterBaseSpace })
@@ -186,7 +216,12 @@ class QuickLogUseCaseIntervalApplyTest {
             val useCase = useCase()
             val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 5.0)
 
-            val result = useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = null, newInterval = 9)
+            val result = useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 9,
+                suggestedBaseInterval = null
+            )
 
             assertEquals(7, result.previousEffectiveIntervalDays)
             assertEquals(5.0, result.previousBaseIntervalDays)
@@ -207,7 +242,12 @@ class QuickLogUseCaseIntervalApplyTest {
             appliedIntervalDays = 2
         )
 
-        useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = 10, newInterval = 2)
+        useCase.applyWateringIntervalSuggestion(
+            monstera,
+            originalSuggestion = 10,
+            newInterval = 2,
+            suggestedBaseInterval = null
+        )
 
         coVerify { plantRepo.updatePlant(match { it.wateringConfidence == expectedConfidence }) }
     }
@@ -231,7 +271,12 @@ class QuickLogUseCaseIntervalApplyTest {
             // produce — mirrors what the dialog's text field would have been pre-filled with.
             val uneditedEffective = SeasonalWatering.effectiveInterval(10.0, today, amplitude, hemisphere)
 
-            useCase.applyWateringIntervalSuggestion(monstera, originalSuggestion = 10, newInterval = uneditedEffective)
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = 10,
+                newInterval = uneditedEffective,
+                suggestedBaseInterval = null
+            )
 
             // An untouched apply must never lower confidence, regardless of what the seasonal multiplier
             // did to the displayed/applied number.

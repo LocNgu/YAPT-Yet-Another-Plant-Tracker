@@ -110,7 +110,8 @@ class CalendarViewModelTest {
                     plantId = 1L,
                     plantName = "Monstera",
                     suggestedInterval = 4,
-                    suggestedIntervalEffective = 5
+                    suggestedIntervalEffective = 5,
+                    suggestedBaseInterval = 4.0
                 )
             )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
@@ -252,7 +253,8 @@ class CalendarViewModelTest {
                     plantId = 1L,
                     plantName = "Monstera",
                     suggestedInterval = 4,
-                    suggestedIntervalEffective = 4
+                    suggestedIntervalEffective = 4,
+                    suggestedBaseInterval = 4.0
                 )
             )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
@@ -306,7 +308,7 @@ class CalendarViewModelTest {
         val monstera = plant(1L, "Monstera").copy(wateringConfidence = 2)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
-        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) } returns
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) } returns
             QuickLogUseCase.IntervalApplyResult(
                 previousEffectiveIntervalDays = 7,
                 previousBaseIntervalDays = null,
@@ -314,10 +316,10 @@ class CalendarViewModelTest {
             )
         vm = CalendarViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase)
 
-        vm.applySuggestedInterval(1L, suggestedIntervalDays = 10, newInterval = 10)
+        vm.applySuggestedInterval(1L, suggestedIntervalDays = 10, newInterval = 10, suggestedBaseInterval = null)
         advanceUntilIdle()
 
-        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) }
     }
 
     @Test

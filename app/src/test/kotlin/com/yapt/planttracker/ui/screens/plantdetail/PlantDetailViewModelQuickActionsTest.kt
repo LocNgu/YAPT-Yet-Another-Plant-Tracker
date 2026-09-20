@@ -93,7 +93,7 @@ class PlantDetailViewModelQuickActionsTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -126,10 +126,10 @@ class PlantDetailViewModelQuickActionsTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
-        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) } returns
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9, 9.0) } returns
             QuickLogUseCase.IntervalApplyResult(
                 previousEffectiveIntervalDays = 7,
                 previousBaseIntervalDays = null,
@@ -150,7 +150,48 @@ class PlantDetailViewModelQuickActionsTest {
 
         // Never shows the dialog.
         assertEquals(null, vm.suggestedWateringInterval.value)
-        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9, 9.0) }
+    }
+
+    /**
+     * Regression guard for the silent-apply half of #718 (technical ADR-0027). The precise base must
+     * travel into [QuickLogUseCase.applyWateringIntervalSuggestion] even when it happens to be a whole
+     * number: passing `null` there instead makes that function re-derive the base as
+     * `deseasonalize(effectiveInterval)`, and since `effectiveInterval` is already
+     * `round(base x season)`, the round-trip loses the fraction and ratchets the stored base.
+     * Amplitude is left at its graduated STANDARD default so the seasonal conversion is actually live
+     * -- the Off path ignores the base entirely and cannot catch this.
+     */
+    @Test
+    fun `silent apply forwards a whole-number precise base instead of re-deriving it (#718)`() = runTest {
+        every { dataStore.data } returns flowOf(
+            preferencesOf(SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false)
+        )
+        val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 7.0)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
+            QuickLogUseCase.QuickLogOutcome(
+                message = "Watered Monstera",
+                logged = true,
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 7, 8, 7.0)
+            )
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 7, any(), 7.0) } returns
+            QuickLogUseCase.IntervalApplyResult(
+                previousEffectiveIntervalDays = 7,
+                previousBaseIntervalDays = 7.0,
+                newEffectiveIntervalDays = 8
+            )
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickWater(reason = null)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // 7.0, never null -- the effective-space value is deliberately not the source of the base.
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 7, any(), 7.0) }
     }
 
     @Test

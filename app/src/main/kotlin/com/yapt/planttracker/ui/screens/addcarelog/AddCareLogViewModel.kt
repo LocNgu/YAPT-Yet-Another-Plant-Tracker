@@ -143,9 +143,14 @@ class AddCareLogViewModel(
             if (!isEditMode && selectedCareType == CareType.WATER) clearWateringOverrideIfActive()
             if (selectedCareType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
 
-            val suggestedInterval = if (isEditMode) null else computeSuggestedInterval()
+            val suggestion = if (isEditMode) null else computeSuggestedInterval()
             schedulePostWateringReminderIfNeeded(willPairWater)
-            _events.emit(Event.Saved(suggestedInterval))
+            _events.emit(
+                Event.Saved(
+                    suggestedWateringInterval = suggestion?.intervalDays,
+                    suggestedWateringBaseInterval = suggestion?.baseIntervalDays
+                )
+            )
         }
     }
 
@@ -227,7 +232,10 @@ class AddCareLogViewModel(
      * [Plant.wateringIntervalDays] was never configured — there is no established base to correct —
      * mirroring [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]'s identical guard.
      */
-    private suspend fun computeSuggestedInterval(): Int? {
+    private data class SuggestedInterval(val intervalDays: Int, val baseIntervalDays: Double)
+
+    @Suppress("ReturnCount")
+    private suspend fun computeSuggestedInterval(): SuggestedInterval? {
         if (selectedCareType != CareType.WATER) return null
         val feedback = selectedFeedback
 
@@ -243,9 +251,32 @@ class AddCareLogViewModel(
 
         if (actualIntervalDays <= 0) return null
 
-        val suggested = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval)
-        val effectiveSuggested = effectiveIntervalForDisplay(plant, suggested)
-        return if (effectiveSuggested != currentInterval) suggested else null
+        val result = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval) ?: return null
+        val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+        val effectiveSuggested = effectiveIntervalForDisplay(
+            plant,
+            result.baseIntervalDays,
+            result.intervalDays,
+            amplitude
+        )
+        val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
+        val newBase = result.baseIntervalDays.takeIf {
+            effectiveSuggested == currentInterval && seasonAdjustable
+        } ?: plant.wateringBaseIntervalDays
+        if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
+            plantRepository.updatePlant(
+                plant.copy(
+                    wateringConfidence = result.confidence,
+                    wateringBaseIntervalDays = newBase,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+        return if (effectiveSuggested != currentInterval) {
+            SuggestedInterval(result.intervalDays, result.baseIntervalDays)
+        } else {
+            null
+        }
     }
 
     /**
@@ -263,11 +294,16 @@ class AddCareLogViewModel(
      * [deseasonalizedObservedIntervalDays] already anchors this file's other seasonal math to
      * [loggedAt] rather than the wall-clock instant the suspend function happens to run.
      */
-    private suspend fun effectiveIntervalForDisplay(plant: Plant, suggestion: Int): Int =
+    private fun effectiveIntervalForDisplay(
+        plant: Plant,
+        suggestionBase: Double,
+        suggestion: Int,
+        amplitude: Double
+    ): Int =
         CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = plant.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
             nowDate = loggedAt.toLocalDate(),
-            seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+            seasonalAmplitude = amplitude
         ) ?: suggestion
 
     /**
@@ -283,9 +319,9 @@ class AddCareLogViewModel(
         feedback: WateringFeedback?,
         actualIntervalDays: Int,
         currentInterval: Int
-    ): Int {
+    ): CareSchedule.AdaptiveInterval? {
         val now = System.currentTimeMillis()
-        if (maybeApplyHistoryBootstrap(plant, now)) return currentInterval
+        if (maybeApplyHistoryBootstrap(plant, now)) return null
 
         val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
@@ -299,19 +335,16 @@ class AddCareLogViewModel(
             recentFeedback = recentFeedback,
             frozen = frozen
         )
-        if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
-        }
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
                 trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
-                beforeIntervalDays = currentBase,
+                beforeIntervalDays = currentBase.roundToInt(),
                 afterIntervalDays = result.intervalDays
             )
         )
-        return result.intervalDays
+        return result
     }
 
     /**
@@ -362,12 +395,12 @@ class AddCareLogViewModel(
      * [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s private copy of the same helper.
      */
     @Suppress("ReturnCount")
-    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Int {
-        if (plant.pinIntervalToBase) return configuredIntervalDays
-        val store = dataStore ?: return configuredIntervalDays
+    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double {
+        if (plant.pinIntervalToBase) return configuredIntervalDays.toDouble()
+        val store = dataStore ?: return configuredIntervalDays.toDouble()
         val amplitude = store.seasonalAmplitudeOnce()
-        if (amplitude == 0.0) return configuredIntervalDays
-        return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
+        if (amplitude == 0.0) return configuredIntervalDays.toDouble()
+        return plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
     }
 
     /**
@@ -396,7 +429,16 @@ class AddCareLogViewModel(
     }
 
     sealed class Event {
-        data class Saved(val suggestedWateringInterval: Int?) : Event()
+        /**
+         * [suggestedWateringBaseInterval] is the unrounded base-space value behind
+         * [suggestedWateringInterval] (technical ADR-0027); both are null together when the save
+         * produced no suggestion. Not defaulted, so an emit site cannot drop the precise base and
+         * silently fall back to the rounded one (#717/#718).
+         */
+        data class Saved(
+            val suggestedWateringInterval: Int?,
+            val suggestedWateringBaseInterval: Double?
+        ) : Event()
         data object NavigateBack : Event()
     }
 
