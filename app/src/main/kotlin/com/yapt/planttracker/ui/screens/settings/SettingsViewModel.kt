@@ -192,7 +192,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
             // Turning developer mode off resets every flag to its registry default (product
-            // product ADR-0042) so "developer mode off" always means a stock build with no hidden state.
+            // ADR-0042) so "developer mode off" always means a stock build with no hidden state.
             if (!enabled && featureFlags.flags.isNotEmpty()) {
                 featureFlags.resetAll()
             }
