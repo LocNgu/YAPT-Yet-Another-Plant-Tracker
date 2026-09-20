@@ -1,4 +1,4 @@
-# ADR-0011: Enums stored as strings in Room with runCatching deserialization
+# Technical ADR-0011: Enums stored as strings in Room with runCatching deserialization
 
 **Status**: accepted
 

@@ -1,4 +1,4 @@
-# ADR-0006: Suggested watering interval returned to PlantDetailScreen via Navigation savedStateHandle
+# Technical ADR-0006: Suggested watering interval returned to PlantDetailScreen via Navigation savedStateHandle
 
 **Status**: accepted
 

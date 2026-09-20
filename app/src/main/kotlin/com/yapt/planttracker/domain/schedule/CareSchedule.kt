@@ -498,7 +498,7 @@ object CareSchedule {
     }
 
     /**
-     * Confidence effect of dismissing the ADR-0006 suggestion dialog without applying: a dismissal
+     * Confidence effect of dismissing the product ADR-0006 suggestion dialog without applying: a dismissal
      * says "the current schedule is fine", so it raises confidence, but only up to
      * [DISMISSAL_CONFIDENCE_CEILING] — it never lowers an already-higher confidence (#568 comment 3).
      */
@@ -508,7 +508,7 @@ object CareSchedule {
     }
 
     /**
-     * Confidence effect of applying a suggestion the user retyped inside the ADR-0006 dialog before
+     * Confidence effect of applying a suggestion the user retyped inside the product ADR-0006 dialog before
      * tapping Apply. An edit within [GAP_AGREEMENT_TOLERANCE] of [suggestedIntervalDays] is fine-tuning
      * and leaves confidence on normal rules (already applied by [computeAdaptiveInterval] at log time);
      * an edit further off says the suggestion was materially wrong, so confidence falls — but this is

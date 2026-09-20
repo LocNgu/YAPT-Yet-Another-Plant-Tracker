@@ -1,4 +1,4 @@
-# ADR-0022: Edit button fades on scroll; watering/fertilize action rows revert to plain margins
+# Technical ADR-0022: Edit button fades on scroll; watering/fertilize action rows revert to plain margins
 
 **Status**: accepted
 

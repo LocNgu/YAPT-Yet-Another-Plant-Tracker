@@ -181,7 +181,7 @@ class QuickLogUseCase(
         maybeApplyRepotReset(plant, careType, loggedAt)
         val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
         if (waterPaired) {
-            // No reason: the user fertilized, and the watering came along with it (ADR-0008) — they
+            // No reason: the user fertilized, and the watering came along with it (product ADR-0008) — they
             // were never asked why they watered, so nothing is attributed (#586).
             careLogRepository.addLog(
                 CareLog(
@@ -378,7 +378,7 @@ class QuickLogUseCase(
     }
 
     /**
-     * The single write path for committing a new [Plant.wateringIntervalDays] from an ADR-0006
+     * The single write path for committing a new [Plant.wateringIntervalDays] from a product ADR-0006
      * adaptive suggestion (#572) — shared by the Plant Detail dialog's Apply button/silent-apply path,
      * the Calendar suggestion dialog, and the Plant List suggestion dialog (#631). Before this fix each
      * of the three screens carried its own independent copy of this exact math; only Plant Detail's had
@@ -489,7 +489,7 @@ class QuickLogUseCase(
     }
 
     /**
-     * Dismissing the ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
+     * Dismissing the product ADR-0006 suggestion dialog without applying (explicit Dismiss tap, or tapping
      * outside it) — the single write path shared by the Plant Detail, Calendar, and Plant List
      * dismiss actions (#674). Before this fix each of the three screens carried its own copy of the
      * confidence bump, but only Plant Detail's also wrote the matching
@@ -642,7 +642,7 @@ class QuickLogUseCase(
      *
      * [now] mirrors [computeSuggestion]'s own parameter of the same name (#654 review) — the season used
      * to convert [suggestion] must be the day the watering was actually logged (possibly backdated), not
-     * [nowProvider]'s real wall-clock time, or the "different from current" comparison the ADR-0006
+     * [nowProvider]'s real wall-clock time, or the "different from current" comparison the product ADR-0006
      * dialog relies on could be judged against the wrong season.
      */
     private suspend fun effectiveIntervalForDisplay(
@@ -667,7 +667,7 @@ class QuickLogUseCase(
      * unlocks the #571 history bootstrap (either the plant's first-ever adaptive observation, or a
      * pending post-reset opportunity) — see [maybeApplyHistoryBootstrap]. When it fires, the bootstrap
      * already silently committed the new interval, so this returns [currentInterval] unchanged
-     * (suppressing the ADR-0006 suggestion dialog for this observation) rather than also running the
+     * (suppressing the product ADR-0006 suggestion dialog for this observation) rather than also running the
      * incremental per-step correction on top of a value the model just cold-started.
      *
      * [now] defaults to the real wall-clock time but [computeSuggestion] threads through the caller's

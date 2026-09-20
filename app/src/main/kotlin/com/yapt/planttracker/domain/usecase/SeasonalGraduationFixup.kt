@@ -37,7 +37,7 @@ import kotlin.math.roundToInt
  * **Known, accepted limitations (#703 review round 3)** — both confirmed with the human to not apply
  * to this install; deliberately left as documented trade-offs rather than fixed, since neither is
  * fixable without a schema change and this codebase currently serves a single install (product
- * ADR-0022's "no cloud, no accounts" posture; see #702's own scope note):
+ * product ADR-0042's "no cloud, no accounts" posture; see #702's own scope note):
  * - **A plant's base can be blindly overwritten if the legacy dev-mode flag was ever toggled on *and
  *   later back off*.** [maybeRun] treats [LEGACY_SEASONAL_WATERING_FLAG_KEY] reading `false` as "never
  *   enabled" and proceeds with the fixup — but `false` is also what the key reads if a user turned the

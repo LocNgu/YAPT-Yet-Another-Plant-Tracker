@@ -52,7 +52,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - Palette: SageGreen `#6B8F71`, WarmCream `#F5F0E8`, EarthBrown `#795548`; status OkGreen/WarnOrange/OverdueRed in `Color.kt`. `IssuePurple` is a separate axis (plant-health-problem, not care-due) — never reuse the due-status colors for it (technical ADR-0020).
 
 ## Architecture Decision Records
-Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant ADR before working in a covered area; never refactor a pattern a technical ADR describes without a superseding decision.** When a PR records a significant new product/technical decision, write a new ADR from `docs/decisions/template.md` (Status `accepted`, numbered sequentially). If a request contradicts an ADR, name it and its rationale and get human confirmation first; the only permitted edit to a finalized ADR is its Status line → `superseded by [ADR-XXXX](file.md)`.
+Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant ADR before working in a covered area; never refactor a pattern a technical ADR describes without a superseding decision.** When a PR records a significant new product/technical decision, write a new ADR from `docs/decisions/template.md` (Status `accepted`, numbered sequentially). If a request contradicts an ADR, name it and its rationale and get human confirmation first; the only permitted edits to a finalized ADR are its Status line → `superseded by [ADR-XXXX](file.md)`, and **non-substantive corrections** (ADR number, heading format, citation targets) — an ADR's Context/Decision/Consequences prose otherwise stays untouched. `product/` and `technical/` number **independently**, so a number can legitimately exist in both; every heading reads `# Product ADR-NNNN: Title` or `# Technical ADR-NNNN: Title` matching its directory, and prose must cite with the namespace qualifier (`product ADR-NNNN` / `technical ADR-NNNN`) whenever the number exists in both — a bare `ADR-NNNN` is only safe when the number is unique to one namespace. On a same-namespace numbering collision (two files landing on the same `NNNN`), the **later-dated file is renumbered** to the next free number in that namespace; the earlier file keeps its number (#740).
 
 ## Development Workflow
 **Issue-first (always):** on any feature request or bug report, first create a GitHub issue via `mcp__github__issue_write`, share the link, and wait for explicit go-ahead before writing any code, branch, or PR.
@@ -70,7 +70,7 @@ Decisions live in `docs/decisions/{product,technical}/`. **Consult the relevant 
 
 **Auto-review on green CI:** after opening the PR, `subscribe_pr_activity`; whenever new commits land **and** that PR's CI is green, auto-launch the next reviewer round (still capped at 2). If CI is red, diagnose and re-kick rather than reviewing.
 
-**Resuming the implementer across fix rounds (#684, technical ADR-0025):** when the reviewer requests a fix-round on a PR
+**Resuming the implementer across fix rounds (#684, technical ADR-0028):** when the reviewer requests a fix-round on a PR
 already in flight, resume the *same* implementer agent instance (send a follow-up message to its
 agent name/id from the earlier `Agent` call) rather than launching a fresh `Agent` call. A fresh dispatch
 re-reads CLAUDE.md, the relevant rules docs, and every touched source file from scratch — that's most of

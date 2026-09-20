@@ -1,4 +1,4 @@
-# ADR-0002: Hard-crash on missing Room migration instead of destructive fallback
+# Technical ADR-0002: Hard-crash on missing Room migration instead of destructive fallback
 
 **Status**: accepted
 

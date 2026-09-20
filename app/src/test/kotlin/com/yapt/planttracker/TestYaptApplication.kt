@@ -11,7 +11,7 @@ package com.yapt.planttracker
  * database. When [com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup]'s plant snapshot
  * happened to land after a test had inserted its fixture, the fixup recomputed that fixture's
  * `wateringBaseIntervalDays` (7.0 → 7.72 at amplitude 0.35) — the one column
- * `SkipWateringReceiverTest`'s product-ADR-0007 invariant guard asserts is never written. The window
+ * `SkipWateringReceiverTest`'s product ADR-0007 invariant guard asserts is never written. The window
  * opened at most once per fork (the fixup marks itself done after its first non-empty pass), which is
  * why the failure never reproduced on a re-run or in class isolation.
  *

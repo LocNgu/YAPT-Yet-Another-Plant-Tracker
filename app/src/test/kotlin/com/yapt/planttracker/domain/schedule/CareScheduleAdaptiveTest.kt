@@ -385,7 +385,7 @@ class CareScheduleAdaptiveTest {
     /**
      * The specific hole reusing `wateringFeedback` opens: an off-schedule watering the user declined
      * to attribute writes `null`, and under #570's rule alone that `null` would still drag `base`
-     * toward the gap through the passive channel — the conflation ADR-0007 exists to prevent, coming
+     * toward the gap through the passive channel — the conflation product ADR-0007 exists to prevent, coming
      * back in through the side door.
      *
      * This covers the **late** half of ADR-0030's mapping table (watered at day 30 of a 20-day

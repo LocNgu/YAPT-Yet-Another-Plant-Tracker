@@ -1,4 +1,4 @@
-# Technical ADR-0025: Resume the same implementer agent across a PR's fix rounds
+# Technical ADR-0028: Resume the same implementer agent across a PR's fix rounds
 
 **Status**: accepted
 

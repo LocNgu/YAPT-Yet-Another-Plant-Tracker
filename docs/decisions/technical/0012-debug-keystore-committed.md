@@ -1,4 +1,4 @@
-# ADR-0012: Debug keystore committed to the repository
+# Technical ADR-0012: Debug keystore committed to the repository
 
 **Status**: accepted
 

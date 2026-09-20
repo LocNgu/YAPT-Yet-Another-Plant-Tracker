@@ -9,7 +9,7 @@ paths:
 
 # Plant Detail rules
 
-## Layout — Box overlay, NOT Scaffold (technical ADR-0018, supersedes ADR-0005)
+## Layout — Box overlay, NOT Scaffold (technical ADR-0018, supersedes technical ADR-0005)
 280 dp hero photo bleeds behind the status bar; `Box` overlay with overlaid back/edit pill buttons;
 `Surface(colorScheme.background)` root for correct dark-mode text. The outer `Scaffold` in `YaptNavGraph` sets
 `contentWindowInsets = WindowInsets(0)` so it doesn't double-reserve the status-bar inset here (#29). Tapping the
@@ -20,7 +20,7 @@ The whole tabs feature (tab strip + inline settings + per-tab insights) ships un
 `PlantDetailTabStrip` (a `FlowRow` of standalone `Tab`s, not `TabRow`/`PrimaryTabRow` — see below) is a
 `LazyColumn` item inside the Box overlay below the hero, and is the only Plant Detail layout. It used to
 sit behind `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default off, gating a classic
-single-page layout as the flag-off alternative); the flag graduated in #704 per ADR-0022's
+single-page layout as the flag-off alternative); the flag graduated in #704 per product ADR-0042's
 flag-lifecycle rule — the registry entry, `PlantDetailViewModel.tabsEnabled`, and the classic-layout
 branch (chart + gallery + care history on one page, plus the tappable `StatsRow`/`StatChip` quick-log
 chips, #434) were all deleted in that PR. The shared care-history list and `+` FAB are unaffected —
@@ -31,7 +31,7 @@ they always rendered outside either branch.
 - Per-tab filtered log lists use prefixed keys (`"fert-"`/`"repot-"`/`"mist-"` + id) so they never collide with the
   shared list's `it.id` keys. Misting is folded into the Water tab.
 
-### Tab row collapse/expand + attention badge (product ADR-0030, #590)
+### Tab row collapse/expand + attention badge (product ADR-0043, #590)
 Six tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
 horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `Tab` composables
 (`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
@@ -173,9 +173,9 @@ keep the row's clickable bounds clear of the *permanently pinned* Back icon butt
 button (top-right), and "Log care" FAB (bottom-right, all Box-overlay buttons per technical ADR-0018)
 whenever the row (first item under its tab) scrolled flush against a screen edge, but that traded away
 visual consistency with every sibling card for a worst-case-sized buffer paid at every scroll position.
-ADR-0022 instead fades the Edit button out once the user has scrolled substantially past the hero photo
+Technical ADR-0022 instead fades the Edit button out once the user has scrolled substantially past the hero photo
 — see "Edit button scroll fade" below — so the row's own margins could revert to normal. The residual
-collision risk with Back/FAB is a deliberate, accepted trade-off (ADR-0022), not an oversight; do not
+collision risk with Back/FAB is a deliberate, accepted trade-off (technical ADR-0022), not an oversight; do not
 reintroduce a smaller "just in case" inset here without a new decision. `FertilizeDueActionRow` uses the
 same plain `16.dp` padding for the same reason.
 
@@ -189,7 +189,7 @@ animation finishes, so it stops being clickable and disappears from the semantic
 visually. **Back stays exactly as before** — always pinned, never fades, no visibility logic — and so
 does the "Log care" FAB, since persistent visibility across scrolling is the whole point of a FAB. Edit
 becomes unreachable via its icon once scrolled past the hero, with no alternative on-screen entry point
-today — a real, if narrow, functional regression accepted in ADR-0022.
+today — a real, if narrow, functional regression accepted in technical ADR-0022.
 
 **Placement (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the Fertilize tab) renders
 **before** the `InlineIntervalSetting` card on its tab, not after — actions row → interval card →
@@ -250,7 +250,7 @@ evaluated the season at `nowProvider()` (real wall-clock "now") instead of the c
 using *today's* season factor, not the logged day's. Fixed by adding an explicit `atDate: LocalDate`
 parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s two
 callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now passes
-`now.toLocalDate()` into. `effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion
+`now.toLocalDate()` into. `effectiveIntervalForDisplay()` (display-only, feeds the product ADR-0006 suggestion
 dialog's "different from current" check) had the identical bug and got the same fix via an explicit
 `now` parameter threaded from `computeSuggestion()`. `QuickLogUseCaseSeasonalTest`'s pre-existing
 adaptive-path calls to `quickWaterWithReason()` had to start passing `loggedAt = peakDay` explicitly to
@@ -373,7 +373,7 @@ is no model input at all.
 / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
 now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
 `SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
-date, see below). **Never fires the ADR-0006 interval-suggestion dialog**
+date, see below). **Never fires the product ADR-0006 interval-suggestion dialog**
 afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
 (`suggestedStillMoistDeferralDays()`) and `PlantDetailViewModel.confirmRescheduleSuggestedDays()`
 (#719's handler) are removed — a reschedule no longer teaches the model anything for that row to
@@ -536,7 +536,7 @@ Collapses to 5 most recent by default; `AssistChip` with animated chevron expand
 resets on screen open (#253).
 
 ## Custom reminders (technical ADR-0019, #232)
-`CustomRemindersCard`'s **placement** (product ADR-0030, #590): renders only when `selectedTab ==
+`CustomRemindersCard`'s **placement** (product ADR-0043, #590): renders only when `selectedTab ==
 PlantDetailTab.CUSTOM_REMINDERS`, one of the two tabs hidden behind the collapsed tab row by default
 (see "Tab row collapse/expand" above) — it was an always-visible card in the classic layout the tabs
 feature originally sat behind a flag alongside (deleted when `PLANT_DETAIL_TABS` graduated, #704).
@@ -556,7 +556,7 @@ label; pass `null` (or omit it) when the linked reminder has since been deleted 
 `customReminderId`.
 
 ## Plant issues (technical ADR-0020, #564)
-"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0030, #590):
+"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0043, #590):
 rendered only when `selectedTab == PlantDetailTab.ISSUES` — the other tab hidden behind the collapsed
 tab row by default. Composables live in a separate file, `PlantIssuesSection.kt` (not
 `PlantDetailScreen.kt`), to stay under Detekt's
@@ -569,6 +569,6 @@ against the already-loaded `customReminders` list — a "Reminder: {name}" line;
 `CustomReminder` was deleted) just omits that line, same posture as `CareLogItem`'s `customReminderName`.
 "Report an issue" (`ReportIssueDialog`) has an optional "set a treatment reminder" toggle that, when on, creates a
 `CustomReminder` **and** links it via `PlantIssue.linkedReminderId` in one `reportIssue()` ViewModel call — this is
-a one-way, unenforced link (ADR-0019/ADR-0020): resolving or deleting the issue never touches the linked reminder.
+a one-way, unenforced link (technical ADR-0019/technical ADR-0020): resolving or deleting the issue never touches the linked reminder.
 "Mark resolved" (`ResolveIssueDialog`) sets `resolvedAt` + an optional free-text `resolutionNote`; no notification
 or `ReminderWorker` involvement — this is a passive visual status only.

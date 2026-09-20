@@ -15,7 +15,7 @@ paths:
 # "Why this date?" watering transparency sheet (#572, product ADR-0028)
 
 ## Bug fix that gates everything else (also #572)
-`PlantDetailViewModel.applySuggestedInterval()` (the ADR-0006 dialog's Apply button — the only place
+`PlantDetailViewModel.applySuggestedInterval()` (the product ADR-0006 dialog's Apply button — the only place
 #568's adaptive suggestion is ever committed) now dual-writes `wateringBaseIntervalDays` alongside
 `wateringIntervalDays`, mirroring `setWateringInterval()`'s existing manual-edit dual-write — see
 `.claude/rules/seasonal-watering.md`'s "Interaction with Part 1" section for the read-side half
@@ -51,11 +51,11 @@ Detail, Calendar, Plant List) now call, so this class of bug can't recur indepen
 screen again. `PlantDetailViewModel.applyIntervalInternal()` is now a thin delegation to this function;
 its own `Event.SilentIntervalApplied`/`undoSilentIntervalApply()` wrapping (the "ask before changing
 intervals" flow below) stays Plant-Detail-specific, since Calendar/Plant List have no silent-apply/undo
-equivalent and always show the ADR-0006 dialog unconditionally. Math-correctness tests for the write
+equivalent and always show the product ADR-0006 dialog unconditionally. Math-correctness tests for the write
 path itself live in `QuickLogUseCaseIntervalApplyTest`; each ViewModel keeps only a thin
 delegation/smoke test verifying it calls the shared function with the right arguments.
 
-**Follow-up (#644):** the three ADR-0006 dialogs' editable text fields were pre-filled from the raw
+**Follow-up (#644):** the three product ADR-0006 dialogs' editable text fields were pre-filled from the raw
 base-space suggestion (`suggestedWateringInterval`/`QuickWaterSuggestion.suggestedInterval`) while the
 dialog's own "Suggested: N days" sentence showed the *effective* (seasonally-converted) value from the
 same suggestion — two different numbers presented as one "suggestion", and accepting the untouched field
@@ -94,7 +94,7 @@ this section's own `loggedAt`-threading pattern. (At the time, the default `atDa
 .toLocalDate()` existed so `computeStillMoistAdaptiveInterval()`'s two still-moist callers — which had
 no backdating concept — could keep using it unchanged; that function is deleted by #738, product
 ADR-0039, leaving `adaptWateringInterval()` as this helper's one caller, always passing `atDate`
-explicitly.) `effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion dialog's
+explicitly.) `effectiveIntervalForDisplay()` (display-only, feeds the product ADR-0006 suggestion dialog's
 "different from current" check) had the identical bug and got the same fix via an explicit `now`
 parameter threaded from `computeSuggestion()`.
 
@@ -245,7 +245,7 @@ backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdj
 A plain settings key, not a `FeatureFlagRegistry` entry — survives disabling developer mode. Always
 consulted (`PlantDetailViewModel.shouldShowIntervalDialog()`) — `ADAPTIVE_WATERING` graduated (#655),
 so the confidence-weighted model and this toggle are both unconditional now.
-- **On** (default): today's ADR-0006 `AlertDialog`, byte-for-byte unchanged.
+- **On** (default): today's product ADR-0006 `AlertDialog`, byte-for-byte unchanged.
 - **Off**: `applySuggestionOrPrompt()` (an extension on `PlantDetailViewModel` in
   `PlantDetailIntervalActions.kt`, #641) calls `quickLogUseCase.applyWateringIntervalSuggestion()`
   directly (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays,

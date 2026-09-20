@@ -157,7 +157,7 @@ class PlantDetailViewModel(
     internal val suggestedWateringBaseInterval = MutableStateFlow<Double?>(null)
 
     /**
-     * The ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
+     * The product ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
      * updating tuple (#620 round 2) rather than three independently `collectAsStateWithLifecycle()`-
      * collected `StateFlow`s: `suggestedWateringInterval` updates synchronously off the raw
      * `MutableStateFlow`, while a derived value built through an extra `combine()` hop can lag it by a
@@ -344,7 +344,7 @@ class PlantDetailViewModel(
      * Quick-logs a fertilizing from the tappable fertilizing stat chip. The screen only routes
      * regular (non-liquid) plants here, but the snackbar is derived from the plant type so it stays
      * correct even if called for a liquid-fertilizer plant — `QuickLogUseCase.quickLog` already
-     * inserts the paired WATER log in that case (ADR-0008/ADR-0017).
+     * inserts the paired WATER log in that case (product ADR-0008/product ADR-0017).
      */
     fun quickFertilize() {
         viewModelScope.launch {

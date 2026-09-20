@@ -379,7 +379,7 @@ class PlantDetailViewModelQuickActionsTest {
 
     // #694: the Photo tab's Add-photo sheet logs in place rather than navigating to
     // AddCareLogScreen — see product ADR-0038. Unlike saveReminderPhoto, this never writes a
-    // plant_photos row (the unified PhotoGallery already merges care-log photos, ADR-0015) and
+    // plant_photos row (the unified PhotoGallery already merges care-log photos, technical ADR-0015) and
     // carries the sheet's own picked loggedAt rather than always "now".
     @Test
     fun `savePhotoLog logs a PHOTO care log at the picked date, updates cover, and skips plantPhotoRepository`() =

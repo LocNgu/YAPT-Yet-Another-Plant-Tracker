@@ -1,4 +1,4 @@
-# ADR-0009: DataStore delegate declared at file top-level, not inside Application class
+# Technical ADR-0009: DataStore delegate declared at file top-level, not inside Application class
 
 **Status**: accepted
 

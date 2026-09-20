@@ -39,7 +39,7 @@ import com.yapt.planttracker.ui.theme.IssuePurple
 /**
  * "Active issues" section (#564) — currently-unresolved [PlantIssue]s, the ongoing plant-health-status
  * counterpart to [CustomRemindersCard]'s recurring tasks. Rendered only when the Issues tab is
- * selected (product ADR-0030); see `.claude/rules/plant-detail.md`.
+ * selected (product ADR-0043); see `.claude/rules/plant-detail.md`.
  */
 @Composable
 internal fun PlantIssuesCard(

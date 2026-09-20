@@ -65,7 +65,7 @@ the `settingsDataStore` delegate are process-wide singletons shared by every tes
 fire-and-forget `Dispatchers.IO` launch therefore ran against the same database as whatever test was
 executing, and whenever the #702 fixup's plant snapshot landed after a test's fixture insert it
 recomputed that fixture's `wateringBaseIntervalDays` (7.0 → 7.72 at the default 0.35 amplitude) — the
-one column `SkipWateringReceiverTest`'s product-ADR-0007 invariant guard asserts is never written. The
+one column `SkipWateringReceiverTest`'s product ADR-0007 invariant guard asserts is never written. The
 window opened at most once per fork (the fixup marks itself done after its first non-empty pass),
 which is why it never reproduced on a re-run or in class isolation.
 Consequences to keep in mind:

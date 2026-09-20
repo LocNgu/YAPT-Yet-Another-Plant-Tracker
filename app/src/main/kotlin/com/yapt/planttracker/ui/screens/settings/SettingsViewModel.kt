@@ -53,7 +53,7 @@ class SettingsViewModel(
     // Not a constructor parameter: DemoDataSeeder only needs dependencies already available on
     // this class (plantRepository, database), and adding it as a 7th constructor parameter would
     // trip Detekt's LongParameterList.constructorThreshold — the same tradeoff #521 made for the
-    // feature-flag list (see ADR-0022's "Deliberate deviation from #521 AC10" section).
+    // feature-flag list (see product ADR-0042's "Deliberate deviation from #521 AC10" section).
     private val demoDataSeeder: DemoDataSeeder by lazy {
         DemoDataSeeder(plantRepository, CareLogRepository(database.careLogDao()), database)
     }
@@ -192,7 +192,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.DEVELOPER_MODE_ENABLED] = enabled }
             // Turning developer mode off resets every flag to its registry default (product
-            // ADR-0022) so "developer mode off" always means a stock build with no hidden state.
+            // product ADR-0042) so "developer mode off" always means a stock build with no hidden state.
             if (!enabled && featureFlags.flags.isNotEmpty()) {
                 featureFlags.resetAll()
             }

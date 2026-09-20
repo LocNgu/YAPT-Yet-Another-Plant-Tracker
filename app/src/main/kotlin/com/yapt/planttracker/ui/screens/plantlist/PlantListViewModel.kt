@@ -300,7 +300,7 @@ class PlantListViewModel(
     }
 
     /**
-     * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
+     * Applying the product ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
      * originally suggested (before any retyping) — still base-space. [newInterval] is effective-space
      * (#644) — `PlantListScreen`'s editable field is pre-filled from and submits
      * `QuickWaterSuggestion.suggestedIntervalEffective`, matching the dialog's "Suggested: N days"
@@ -330,7 +330,7 @@ class PlantListViewModel(
     }
 
     /**
-     * Dismissing the ADR-0006 suggestion dialog without applying. Delegates to
+     * Dismissing the product ADR-0006 suggestion dialog without applying. Delegates to
      * [QuickLogUseCase.recordWateringSuggestionDismissal] (#674) — the same choke point
      * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
      * uses — so the confidence bump and the matching [com.yapt.planttracker.domain.model

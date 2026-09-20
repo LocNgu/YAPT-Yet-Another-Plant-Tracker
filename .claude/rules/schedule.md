@@ -28,8 +28,8 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:
   List<CustomReminder> = emptyList()` param; each reminder reuses `extendedCareDueAt()` independently, but
   anchored to **the reminder's own `createdAt`**, not the plant's — reminders are commonly added long after
-  plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
-  ADR-0019 (#232).
+  plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See
+  technical ADR-0019 (#232).
 - No interval configured → "Not scheduled".
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
@@ -53,7 +53,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `correctionStreak()` shows `abs(streak) >= 2`. First observation (`wateringConfidence == null`) bootstraps to 0
   without evaluating a transition, but still corrects `base` at the confidence-0 gain.
 - Manual-edit semantics differ by surface: an AddEditPlant interval edit is a full reset (`confidence = 0`,
-  `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
+  `AddEditPlantViewModel.save()`); editing the number inside the product ADR-0006 dialog before Apply reuses
   `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
   .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
   `onDismissRequest`, not `clearSuggestedInterval()`, a plain no-side-effect reset with no production caller since
@@ -119,7 +119,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing `wateringIntervalDays`/
   `wateringBaseIntervalDays` (mirroring `QuickLogUseCase.applyWateringIntervalSuggestion()`'s dual-write fix) plus clearing
   `wateringResetAt` so it fires exactly once. When it fires, `adaptWateringInterval()` returns the
-  pre-bootstrap interval unchanged so the ADR-0006 suggestion dialog never re-surfaces a value the
+  pre-bootstrap interval unchanged so the product ADR-0006 suggestion dialog never re-surfaces a value the
   bootstrap already silently committed.
 - **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027) no longer feeds this function at all
   (#738, product ADR-0039, superseding ADR-0030's Reschedule-flow clause) — a reschedule writes only

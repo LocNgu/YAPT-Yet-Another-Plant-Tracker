@@ -298,7 +298,7 @@ class CalendarViewModelTest {
     }
 
     // dismissSuggestedInterval/applySuggestedInterval are thin delegations to QuickLogUseCase's shared
-    // functions so the ADR-0006 dialog has the same confidence effect (and, for dismissal, the same
+    // functions so the product ADR-0006 dialog has the same confidence effect (and, for dismissal, the same
     // WateringAdjustment row, #674) regardless of which of the three screens it was shown from.
     // Write-path math-correctness coverage lives in QuickLogUseCaseIntervalApplyTest (#631) and
     // QuickLogUseCaseDismissalTest (#674), directly against QuickLogUseCase.

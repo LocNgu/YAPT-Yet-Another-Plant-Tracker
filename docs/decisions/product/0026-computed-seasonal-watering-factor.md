@@ -1,4 +1,4 @@
-# ADR-0026: Computed (not learned) seasonal watering factor
+# Product ADR-0026: Computed (not learned) seasonal watering factor
 
 **Status**: accepted
 

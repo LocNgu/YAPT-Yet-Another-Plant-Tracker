@@ -22,8 +22,8 @@ class CareLogItemTest {
         .getString(R.string.care_type_custom)
 
     /**
-     * Regression test for #232: [CareLog.customReminderId] is a deliberately unenforced FK (technical
-     * ADR-0019) — deleting a [com.yapt.planttracker.domain.model.CustomReminder] leaves any journal
+     * Regression test for #232: [CareLog.customReminderId] is a deliberately unenforced FK
+     * (technical ADR-0019) — deleting a [com.yapt.planttracker.domain.model.CustomReminder] leaves any journal
      * entries with a dangling id. The caller resolves the name lookup and passes `null` when the
      * reminder no longer exists; [CareLogItem] must fall back to the generic label rather than
      * crashing or rendering blank text.

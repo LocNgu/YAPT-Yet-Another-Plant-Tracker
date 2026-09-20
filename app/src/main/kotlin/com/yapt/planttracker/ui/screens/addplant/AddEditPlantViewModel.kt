@@ -74,7 +74,7 @@ class AddEditPlantViewModel(
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
-     * unprompted edit on this screen — as opposed to applying an ADR-0006 suggestion, which never
+     * unprompted edit on this screen — as opposed to applying a product ADR-0006 suggestion, which never
      * routes through this screen. An edit here is a full [Plant.wateringConfidence] reset (#568):
      * the user is asserting a new baseline (moved the plant, repotted, changed pot size), unlike
      * fine-tuning the number inside the suggestion dialog itself.
@@ -190,7 +190,7 @@ class AddEditPlantViewModel(
         val roomChangeResetFires = existing != null &&
             WateringLifecycleReset.roomChangeTriggersReset(existing.room, plant.room)
         // An unprompted edit to the watering interval on this screen is a full confidence
-        // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
+        // reset (#568) — distinct from fine-tuning a number inside the product ADR-0006 suggestion
         // dialog, which never routes through here.
         val wateringConfidence = if (intervalChanged || roomChangeResetFires) 0 else existing?.wateringConfidence
         val (deseasonalizedNewBase, wateringBaseIntervalDays) =

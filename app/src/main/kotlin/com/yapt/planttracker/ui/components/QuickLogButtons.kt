@@ -27,7 +27,7 @@ import com.yapt.planttracker.domain.model.PlantCareStatus
  *
  * For liquid-fertilizer plants (`status.plant.useLiquidFertilizer`) the fertilize button becomes a
  * combined water+fertilize button (💧 + 🌿), since fertilizing rides along with watering
- * (ADR-0008/ADR-0017); the plain water button remains so the user can water without fertilizing.
+ * (product ADR-0008/product ADR-0017); the plain water button remains so the user can water without fertilizing.
  *
  * Keeping this in one place means the two surfaces never drift apart in appearance or behaviour.
  */
