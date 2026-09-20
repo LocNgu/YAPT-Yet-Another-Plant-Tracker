@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -42,8 +43,6 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -103,49 +102,31 @@ class PlantDetailScreenTest {
         WateringAdjustmentRepository(database.wateringAdjustmentDao())
     }
 
-    /**
-     * Tabs (#436) are behind [FeatureFlagRegistry.PLANT_DETAIL_TABS], which defaults to off, so the
-     * shared DataStore stub reports it ON — these tests exercise the flag-on tabbed UI.
-     * `tabsFlagOff_showsClassicLayoutWithoutTabs` supplies its own flag-off store instead.
-     */
     private val mockDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
-            )
-        )
-    }
-
-    private val flagsOffDataStore: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(emptyPreferences())
     }
 
     /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on, amplitude explicitly Off — for tests whose exact
-     * on/off-schedule boundary math must stay flag/date-independent (an unset amplitude now defaults
-     * to Standard since seasonal watering graduated, #656, which would otherwise shift the effective
-     * interval and make the boundary flaky by date).
+     * Amplitude explicitly Off — for tests whose exact on/off-schedule boundary math must stay
+     * date-independent (an unset amplitude now defaults to Standard since seasonal watering
+     * graduated, #656, which would otherwise shift the effective interval and make the boundary
+     * flaky by date).
      */
     private val mockDataStoreAmplitudeOff: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
         every { it.data } returns flowOf(
             mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true,
                 SettingsKeys.SEASONAL_AMPLITUDE to "OFF"
             )
         )
     }
 
     /**
-     * [FeatureFlagRegistry.PLANT_DETAIL_TABS] on — the tabbed Water layout, where the seasonal-curve
-     * preview chart (#579) and "Pin interval" switch (#578) always render (seasonal watering
-     * graduated, #656) alongside the "Why this date?" sheet entry point.
+     * The tabbed Water layout, where the seasonal-curve preview chart (#579) and "Pin interval"
+     * switch (#578) always render (seasonal watering graduated, #656) alongside the "Why this date?"
+     * sheet entry point.
      */
     private val mockDataStoreWithSeasonal: DataStore<Preferences> = mockk<DataStore<Preferences>>().also {
-        every { it.data } returns flowOf(
-            mutablePreferencesOf(
-                FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS) to true
-            )
-        )
+        every { it.data } returns flowOf(emptyPreferences())
     }
 
     private val mockCustomReminderRepo: CustomReminderRepository = mockk<CustomReminderRepository>().also {
@@ -516,8 +497,8 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasContentDescription("Reschedule watering"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").assertIsDisplayed()
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
-        // #586: exactly two actions — "Still moist" is now an answer to the Reschedule prompt, not
-        // a third button.
+        // #586, then #738: exactly two actions — "Still moist" is retired entirely, not a third
+        // button and not an answer to a reason prompt either.
         assertTrue(
             composeTestRule.onAllNodesWithText("Still moist")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -525,9 +506,11 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun wateringDueActionsRow_isHiddenWhenNoScheduleSet() {
-        // No wateringIntervalDays → row condition fails, row not composed (#603: this is now the
-        // row's only gate — due status no longer matters).
+    fun wateringDueActionsRow_noScheduleSet_hidesRescheduleButShowsWater() {
+        // No wateringIntervalDays → Reschedule has nothing to reschedule and stays absent, but Water
+        // renders regardless (product ADR-0040): a plant with no configured schedule still needs a
+        // one-tap way to log an occasional watering, now that StatsRow's always-on chip fallback for
+        // that case is gone (#704).
         val plant = Plant(id = 11L, name = "No Schedule", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -541,7 +524,9 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithContentDescription("Reschedule watering")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -589,7 +574,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun rescheduleButton_promptsForAReasonBeforeShowingTheDatePicker() {
+    fun rescheduleButton_opensTheDatePickerDirectly_withNoReasonPrompt() {
         val plant = Plant(
             id = 12L,
             name = "Pilea",
@@ -620,65 +605,16 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        // #586: the reason prompt comes first — both answers offered, the date options not yet.
-        composeTestRule.onNodeWithText("Why put it off?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Soil still moist").assertIsDisplayed()
-        composeTestRule.onNodeWithText("I can't right now").assertIsDisplayed()
+        // #738 (product ADR-0039): no reason prompt — the date dialog opens directly.
+        composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
         assertTrue(
-            composeTestRule.onAllNodesWithText("Custom date…")
+            composeTestRule.onAllNodesWithText("Why put it off?")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }
 
     @Test
-    fun rescheduleReasonPrompt_soilStillMoistRoutesThroughQuickLogUseCase() {
-        val plant = Plant(
-            id = 16L,
-            name = "Pilea",
-            wateringIntervalDays = 7,
-            wateringDueDateOverride = 0L,
-            createdAt = 0L,
-            updatedAt = 0L
-        )
-        coEvery { mockQuickLogUseCase.suggestedStillMoistDeferralDays(plant) } returns 2
-        coEvery { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) } returns true
-        val viewModel = makeViewModel(plant)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasContentDescription("Reschedule watering"))
-        // performScrollToNode's minimal-scroll lands the row flush against the bottom-edge FAB —
-        // scrolling only as far as the interval label right below it isn't enough margin to clear
-        // the FAB's reach. "why_this_date_button" sits further down (past the label + slider), which
-        // is enough real scroll distance to bring Reschedule to rest mid-viewport instead of flush.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("why_this_date_button"))
-        composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("Soil still moist").performClick()
-
-        // The picker opens on the derived suggestion rather than #570's flat +1 day.
-        composeTestRule.onNodeWithText("In 2 days (suggested)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("In 2 days (suggested)").performClick()
-
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Checked Pilea — still moist")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        composeTestRule.onNodeWithText("Checked Pilea — still moist").assertIsDisplayed()
-        coVerify { mockQuickLogUseCase.recordStillMoistCheck(plant, any()) }
-    }
-
-    @Test
-    fun rescheduleDialog_showsAllFiveOptions_afterAnsweringTheReasonPrompt() {
+    fun rescheduleDialog_showsAllFiveOptions() {
         val plant = Plant(
             id = 13L,
             name = "Overdue Reschedule",
@@ -708,7 +644,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
@@ -775,7 +710,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsEnabled()
     }
@@ -805,9 +739,51 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
-        composeTestRule.onNodeWithText("I can't right now").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
+    }
+
+    // ---- Care history CHECK-row filter (#738, product ADR-0039) ----
+
+    /**
+     * Existing `CareType.CHECK` rows are hidden, not deleted, from Plant Detail's shared
+     * care-history list — a display filter, since new code no longer writes them but old rows
+     * persist on disk. The count text, the visible rows, and the "N more" arithmetic must all agree:
+     * only the WATER row is visible and counted, even though two logs exist.
+     */
+    @Test
+    fun careHistory_hidesCheckRows_fromTheListAndTheCount() {
+        val plant = Plant(id = 25L, name = "Filtered Plant", createdAt = 0L, updatedAt = 0L)
+        val careLogs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.WATER, loggedAt = System.currentTimeMillis()),
+            CareLog(
+                id = 2L,
+                plantId = plant.id,
+                careType = CareType.CHECK,
+                loggedAt = System.currentTimeMillis() - 1000L
+            )
+        )
+        val viewModel = makeViewModel(plant, careLogs)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.care_history)))
+        composeTestRule.onNodeWithText(String.format(str(R.string.plant_detail_care_logs_count), 1))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.care_type_watered)).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(str(R.string.care_type_check))
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     // ---- Reschedule delta chip + revert (#630) ----
@@ -966,8 +942,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
-        // button in WateringDueActionsRow is the equivalent entry point now.
+        // #603/#704: the watering StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the always-visible Water button in WateringDueActionsRow is the entry point now.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
@@ -1007,8 +983,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the watering StatChip is gone from the tabs layout — the always-visible Water
-        // button in WateringDueActionsRow is the equivalent entry point now.
+        // #603/#704: the watering StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the always-visible Water button in WateringDueActionsRow is the entry point now.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
@@ -1170,8 +1146,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
-        // lives under the Fertilize tab.
+        // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the equivalent action now lives under the Fertilize tab.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1217,8 +1193,8 @@ class PlantDetailScreenTest {
             )
         }
 
-        // #603: the fertilizing StatChip is gone from the tabs layout — the equivalent action now
-        // lives under the Fertilize tab.
+        // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
+        // the equivalent action now lives under the Fertilize tab.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilize"))
         composeTestRule.onNodeWithText("Fertilize").performClick()
@@ -1237,37 +1213,6 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText("Plant was dry / stressed")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
-    }
-
-    /**
-     * Regression guard for #603 round-2: `StatsRow` (and its watering/fertilizing `StatChip`s) was
-     * removed from the tabs layout entirely, not merely relocated — the `if (!tabsEnabled)` block it
-     * lives in is never composed when the flag is on, so this needs no scrolling to prove absence.
-     */
-    @Test
-    fun statsRowStatChips_areAbsentFromTabsLayout() {
-        val plant = Plant(
-            id = 40L,
-            name = "Pothos",
-            wateringIntervalDays = 7,
-            fertilizingIntervalDays = 30,
-            createdAt = 0L,
-            updatedAt = 0L
-        )
-        val viewModel = makeViewModel(plant)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        composeTestRule.onNodeWithText(statLabelWateringText()).assertDoesNotExist()
-        composeTestRule.onNodeWithText(statLabelFertilizingText()).assertDoesNotExist()
     }
 
     @Test
@@ -1289,11 +1234,11 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Water"))
-        composeTestRule.onNodeWithText("Water").assertIsDisplayed()
+            .performScrollToNode(waterTabMatcher)
+        composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
         composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Photo").assertIsDisplayed()
+        composeTestRule.onNode(photoTabMatcher).assertIsDisplayed()
     }
 
     // Standalone Tab()s inside PlantDetailTabStrip's FlowRow draw no indicator of their own
@@ -1315,14 +1260,14 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Water"))
-        composeTestRule.onNodeWithText("Water").assertIsSelected()
+            .performScrollToNode(waterTabMatcher)
+        composeTestRule.onNode(waterTabMatcher).assertIsSelected()
         composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
 
         composeTestRule.onNodeWithText("Fertilize").performClick()
 
         composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
-        composeTestRule.onNodeWithText("Water").assertIsNotSelected()
+        composeTestRule.onNode(waterTabMatcher).assertIsNotSelected()
     }
 
     @Test
@@ -1376,8 +1321,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0030), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("No photos yet."))
@@ -1573,8 +1518,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
@@ -1597,7 +1542,7 @@ class PlantDetailScreenTest {
     // #694 acceptance criterion: "Cancelling the dialog or image selection creates no PHOTO log."
     // The Add-photo sheet's default state has no visible Cancel affordance (unlike the Repot date
     // picker) — the system back button is the sheet's only dismissal path here, same as every other
-    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet, RescheduleReasonBottomSheet).
+    // bare ModalBottomSheet on this screen (WateringReasonBottomSheet).
     @Test
     fun photoTab_dismissingSheet_doesNotLog() {
         val plant = Plant(id = 44L, name = "Basil", createdAt = 0L, updatedAt = 0L)
@@ -1633,8 +1578,8 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Photo"))
-        composeTestRule.onNodeWithText("Photo").performClick()
+            .performScrollToNode(photoTabMatcher)
+        composeTestRule.onNode(photoTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG).performClick()
@@ -1650,48 +1595,6 @@ class PlantDetailScreenTest {
 
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
-    @Test
-    fun tabsFlagOff_showsClassicLayoutWithoutTabs() {
-        val plant = Plant(id = 41L, name = "Basil", createdAt = 0L, updatedAt = 0L)
-        val plantRepo = mockk<PlantRepository>()
-        val careLogRepo = mockk<CareLogRepository>()
-        val plantPhotoRepo = mockk<PlantPhotoRepository>()
-        every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
-        every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(emptyList())
-        every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
-        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
-        every { plantPhotoRepo.getPhotosForPlant(plant.id) } returns flowOf(emptyList())
-        val viewModel =
-            PlantDetailViewModel(plantRepo, careLogRepo, plantPhotoRepo, plant.id, flagsOffDataStore, mockQuickLogUseCase, mockCustomReminderRepo, mockPlantIssueRepo, database, wateringAdjustmentRepo)
-
-        composeTestRule.setContent {
-            PlantDetailScreen(
-                viewModel = viewModel,
-                onNavigateBack = {},
-                onNavigateToEdit = {},
-                onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
-            )
-        }
-
-        // Classic layout: the watering chart renders inline, and no tab labels are present.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Watering History"))
-        composeTestRule.onNodeWithText("Watering History").assertIsDisplayed()
-        assertTrue(
-            composeTestRule.onAllNodesWithText("Repot")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
-        assertTrue(
-            composeTestRule.onAllNodesWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
-        assertTrue(
-            composeTestRule.onAllNodesWithTag(PHOTO_TAB_ACTION_BUTTON_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
     }
 
     // ---- Tab row collapse/expand + attention badge (#590, product ADR-0030) ----
@@ -1954,14 +1857,31 @@ class PlantDetailScreenTest {
     private fun tabsExpandAttentionCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_expand_attention_cd)
 
+    /**
+     * "Water" is ambiguous on Plant Detail as of #704: the Water tab
+     * ([R.string.plant_detail_tab_water]) and `WateringDueActionsRow`'s Water button
+     * ([R.string.watering_due_action_water]) render that same literal text, and since product
+     * ADR-0040 the button renders for every plant, including one with no configured watering
+     * interval — where previously the whole row was gated behind `wateringIntervalDays != null`
+     * and the tab was the only "Water" on screen. Match the tab by the selected/not-selected
+     * semantics these tests actually assert on rather than by text alone (#420: assert
+     * user-visible semantics, never tree structure).
+     */
+    private val waterTabMatcher = hasText("Water") and isSelectable()
+
+    /**
+     * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see
+     * [waterTabMatcher]'s KDoc): the Photo tab ([R.string.plant_detail_tab_photo]) and
+     * [R.string.care_type_photo] (rendered as a standalone `Text` by `CareLogItem` for any
+     * `CareType.PHOTO` entry in the always-visible shared care-history list) are both the literal
+     * text "Photo". Not a live bug in the fixtures these tests use today — none carries a PHOTO
+     * log — but preemptive hardening against the same class of collision, matched by the
+     * selected/not-selected semantics rather than by text alone (#420).
+     */
+    private val photoTabMatcher = hasText("Photo") and isSelectable()
+
     private fun tabsCollapseCd(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tabs_collapse_cd)
-
-    private fun statLabelWateringText(): String = InstrumentationRegistry.getInstrumentation().targetContext
-        .getString(R.string.stat_label_watering)
-
-    private fun statLabelFertilizingText(): String = InstrumentationRegistry.getInstrumentation().targetContext
-        .getString(R.string.stat_label_fertilizing)
 
     /**
      * Custom Reminders/Active Issues moved from always-visible cards into their own tabs (#590,

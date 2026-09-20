@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
@@ -48,6 +47,8 @@ fun CareType.labelRes(): Int = when (this) {
     CareType.NOTE -> R.string.care_type_note
     CareType.PHOTO -> R.string.care_type_photo
     CareType.CUSTOM -> R.string.care_type_custom
+    // CareType.CHECK is retained for historical data (#738, product ADR-0039) — no longer written,
+    // but existing rows still need a label to render.
     CareType.CHECK -> R.string.care_type_check
 }
 
@@ -60,6 +61,8 @@ fun CareType.icon(): ImageVector = when (this) {
     CareType.NOTE -> Icons.AutoMirrored.Filled.Notes
     CareType.PHOTO -> Icons.Filled.AutoAwesome
     CareType.CUSTOM -> Icons.Filled.Event
+    // CareType.CHECK is retained for historical data (#738, product ADR-0039) — no longer written,
+    // but existing rows still need an icon to render.
     CareType.CHECK -> Icons.Filled.FactCheck
 }
 
@@ -83,10 +86,7 @@ fun WateringFeedback.emojiRes(): Int = when (this) {
  * [SOIL_STILL_MOIST] is late-only (see [WateringReasonBottomSheet]'s direction-specific option
  * list), so neither actually branches on [gapRanLong] here — only [JUST_MY_TIMING] is offered in
  * both directions and needs the two wordings ("just my timing" implies a deliberate choice that
- * forgetting never involves). [SOIL_STILL_MOIST] is the same underlying observation as
- * [RescheduleReason.SOIL_STILL_MOIST] but gets its own string ("Soil was still moist") rather than
- * reusing that one verbatim — it needs to read as a direct answer to "Why was it late?", a full
- * clause, not a short button label.
+ * forgetting never involves).
  */
 @StringRes
 fun WateringReason.labelRes(gapRanLong: Boolean = false): Int = when (this) {
@@ -94,13 +94,6 @@ fun WateringReason.labelRes(gapRanLong: Boolean = false): Int = when (this) {
     WateringReason.SOIL_STILL_MOIST -> R.string.water_reason_soil_still_moist_late
     WateringReason.JUST_MY_TIMING ->
         if (gapRanLong) R.string.water_reason_just_my_timing_late else R.string.water_reason_just_my_timing
-}
-
-/** Reason-prompt option label for a reschedule (#586, product ADR-0030). */
-@StringRes
-fun RescheduleReason.labelRes(): Int = when (this) {
-    RescheduleReason.SOIL_STILL_MOIST -> R.string.reschedule_reason_soil_still_moist
-    RescheduleReason.CANT_RIGHT_NOW -> R.string.reschedule_reason_cant_right_now
 }
 
 @StringRes
@@ -111,6 +104,8 @@ fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.WATER_JUST_RIGHT -> R.string.adjustment_trigger_water_just_right
     WateringAdjustmentTrigger.WATER_NEUTRAL -> R.string.adjustment_trigger_water_neutral
     WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED -> R.string.adjustment_trigger_water_not_attributed
+    // CHECK_STILL_MOIST is retained for historical data (#738, product ADR-0039) — no longer
+    // written, but existing "Why this date?" rows still need a label to render.
     WateringAdjustmentTrigger.CHECK_STILL_MOIST -> R.string.adjustment_trigger_check_still_moist
     WateringAdjustmentTrigger.DIALOG_DISMISSAL -> R.string.adjustment_trigger_dialog_dismissal
     WateringAdjustmentTrigger.DIALOG_EDIT -> R.string.adjustment_trigger_dialog_edit

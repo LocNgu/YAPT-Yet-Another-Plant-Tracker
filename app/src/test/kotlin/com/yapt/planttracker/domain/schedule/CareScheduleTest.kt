@@ -133,6 +133,36 @@ class CareScheduleTest {
         assertEquals(2, status.rescheduleDeltaDays)
     }
 
+    // ---- computedNextWateringDueAt (#720) ----
+
+    @Test
+    fun `computedNextWateringDueAt is the pre-override value even when an override is winning`() {
+        val lastWateredAt = now - TimeUnit.DAYS.toMillis(3)
+        val computedNextDueAt = lastWateredAt + TimeUnit.DAYS.toMillis(7)
+        val override = computedNextDueAt + TimeUnit.DAYS.toMillis(4)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, wateringDueDateOverride = override),
+            lastWateredAt = lastWateredAt,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertEquals(override, status.nextWateringDueAt)
+        assertEquals(computedNextDueAt, status.computedNextWateringDueAt)
+    }
+
+    @Test
+    fun `computedNextWateringDueAt is null when there is no watering interval`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = null),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        assertNull(status.computedNextWateringDueAt)
+    }
+
     @Test
     fun `no watering history and no interval set stays not scheduled`() {
         val status = CareSchedule.computeStatus(

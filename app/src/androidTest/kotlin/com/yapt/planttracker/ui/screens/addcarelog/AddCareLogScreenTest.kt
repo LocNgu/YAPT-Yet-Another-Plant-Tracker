@@ -93,7 +93,7 @@ class AddCareLogScreenTest {
         composeTestRule.setContent {
             AddCareLogScreen(
                 viewModel = viewModel,
-                onNavigateBack = {}
+                onNavigateBack = { _, _ -> }
             )
         }
 
@@ -112,7 +112,7 @@ class AddCareLogScreenTest {
         composeTestRule.setContent {
             AddCareLogScreen(
                 viewModel = viewModel,
-                onNavigateBack = {}
+                onNavigateBack = { _, _ -> }
             )
         }
 
@@ -136,7 +136,7 @@ class AddCareLogScreenTest {
         composeTestRule.setContent {
             AddCareLogScreen(
                 viewModel = viewModel,
-                onNavigateBack = {}
+                onNavigateBack = { _, _ -> }
             )
         }
 
@@ -153,7 +153,7 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
 
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
@@ -168,7 +168,7 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
 
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         // Default care type (WATER): a photo is optional, so only the compact
@@ -190,7 +190,7 @@ class AddCareLogScreenTest {
     fun inlineTakePhotoButton_tapped_routesThroughCameraPermissionFlow() {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         // Reveal the inline source buttons, then mock (after reveal so composition
@@ -219,7 +219,7 @@ class AddCareLogScreenTest {
     fun openingSheetThenSwitchingToPhoto_closesSheetWithNoOverlap() {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         // Open the source sheet from a non-PHOTO care type (compact icon path).
@@ -242,7 +242,7 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
 
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
@@ -274,7 +274,7 @@ class AddCareLogScreenTest {
                 LocalContext provides noHardwareContext,
                 LocalActivityResultRegistryOwner provides noOpRegistryOwner()
             ) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
             }
         }
 
@@ -289,7 +289,7 @@ class AddCareLogScreenTest {
     fun takePhoto_rationaleNeeded_showsRationaleDialog() {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
         // Open the sheet before mocking so FilterChip composition is unaffected.
@@ -333,7 +333,7 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
             }
         }
 

@@ -66,8 +66,8 @@ Both `AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterva
 newly typed/dragged interval to *today* (`base = editedValue / season(now)`) when amplitude isn't Off
 and the plant isn't pinned — an unprompted edit is the user asserting a new baseline. When amplitude
 reads Off, the prior base is preserved rather than cleared, so choosing a non-Off amplitude later
-doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab, gated behind
-`PLANT_DETAIL_TABS`) both surface a "Pin interval" `Switch` bound to `pinIntervalToBase`, always visible.
+doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab) both surface a "Pin interval"
+`Switch` bound to `pinIntervalToBase`, always visible.
 
 ## Interaction with Part 1's adaptive model (#568, amended #572)
 `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into

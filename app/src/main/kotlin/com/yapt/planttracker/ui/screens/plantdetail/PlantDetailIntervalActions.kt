@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
  */
 fun PlantDetailViewModel.clearSuggestedInterval() {
     suggestedWateringInterval.value = null
+    suggestedWateringBaseInterval.value = null
 }
 
 /**
@@ -36,6 +37,7 @@ fun PlantDetailViewModel.dismissSuggestedInterval() {
     viewModelScope.launch {
         plant.value?.let { p -> quickLogUseCase.recordWateringSuggestionDismissal(p) }
         suggestedWateringInterval.value = null
+        suggestedWateringBaseInterval.value = null
     }
 }
 
@@ -47,9 +49,13 @@ private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
  * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
  * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
  */
-internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInterval: Int) {
+internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
+    suggestedInterval: Int,
+    suggestedBaseInterval: Double
+) {
     if (shouldShowIntervalDialog()) {
         suggestedWateringInterval.value = suggestedInterval
+        suggestedWateringBaseInterval.value = suggestedBaseInterval
         return
     }
     val p = plant.value ?: return
@@ -59,12 +65,22 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInter
     val amplitude = dataStore.seasonalAmplitudeOnce()
     val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
         plant = p.copy(
-            wateringBaseIntervalDays = suggestedInterval.toDouble(),
+            wateringBaseIntervalDays = suggestedBaseInterval,
             wateringIntervalDays = suggestedInterval
         ),
         seasonalAmplitude = amplitude
     ) ?: suggestedInterval
-    val result = quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, effectiveInterval)
+    // Always hand the precise base across, never only when it differs from the rounded value: the
+    // no-base overload re-derives it as deseasonalize(effectiveInterval), and since effectiveInterval
+    // is already round(base x season), that round-trip loses the fraction and ratchets the base --
+    // the very defect this path exists to fix (#718, technical ADR-0027). An exactly-whole base is
+    // still an exact base and must be committed as-is.
+    val result = quickLogUseCase.applyWateringIntervalSuggestion(
+        p,
+        suggestedInterval,
+        effectiveInterval,
+        suggestedBaseInterval
+    )
     emitEvent(
         PlantDetailViewModel.Event.SilentIntervalApplied(
             beforeIntervalDays = result.previousEffectiveIntervalDays,
@@ -75,8 +91,17 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInter
 }
 
 /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
-fun PlantDetailViewModel.handleSuggestedWateringInterval(suggestedInterval: Int) {
-    viewModelScope.launch { applySuggestionOrPrompt(suggestedInterval) }
+fun PlantDetailViewModel.handleSuggestedWateringInterval(
+    suggestedInterval: Int,
+    suggestedBaseInterval: Double?
+) {
+    viewModelScope.launch {
+        // The one place the rounded value may legitimately stand in for the precise base: the base
+        // crosses a process boundary via NavGraph's savedStateHandle, so a restored-from-death entry
+        // can carry the interval without it. Nothing better is recoverable at that point -- but the
+        // parameter stays non-defaulted so this substitution happens here, visibly, and nowhere else.
+        applySuggestionOrPrompt(suggestedInterval, suggestedBaseInterval ?: suggestedInterval.toDouble())
+    }
 }
 
 internal fun PlantDetailViewModel.setTimeRange(range: TimeRange) {
@@ -86,8 +111,18 @@ internal fun PlantDetailViewModel.setTimeRange(range: TimeRange) {
 fun PlantDetailViewModel.applySuggestedInterval(newInterval: Int) {
     viewModelScope.launch {
         val originalSuggestion = suggestedWateringInterval.value
-        plant.value?.let { p -> quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval) }
+        val preciseSuggestion = suggestedWateringBaseInterval.value.takeIf {
+            pendingWateringSuggestion.value?.effectiveIntervalDays == newInterval
+        }
+        plant.value?.let { p ->
+            // preciseSuggestion is deliberately null when the user retyped the field: that number is a
+            // manual effective-space value with no model base behind it, so it must be de-seasonalized
+            // normally (technical ADR-0027). Passed explicitly rather than by omission so the two cases
+            // read as a decision instead of a forgotten argument.
+            quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
+        }
         suggestedWateringInterval.value = null
+        suggestedWateringBaseInterval.value = null
         emitEvent(PlantDetailViewModel.Event.IntervalUpdated)
     }
 }

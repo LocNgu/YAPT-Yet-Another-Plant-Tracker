@@ -15,15 +15,16 @@ paths:
 `contentWindowInsets = WindowInsets(0)` so it doesn't double-reserve the status-bar inset here (#29). Tapping the
 hero opens `FullScreenPhotoViewer`; the no-cover placeholder has no clickable modifier (#307).
 
-## Per-action tabs — behind a feature flag (#436)
-The whole tabs feature (tab strip + inline settings + per-tab insights) sits behind
-`FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default **off**). `PlantDetailViewModel` exposes
-`tabsEnabled: StateFlow<Boolean>`; the screen branches — **on** = `PlantDetailTabStrip` (a `FlowRow` of standalone
-`Tab`s, not `TabRow`/`PrimaryTabRow` — see below) as a `LazyColumn` item inside the Box overlay below the hero;
-**off** = classic single-page layout. The shared care-history list and `+` FAB render in **both** paths; `StatsRow`
-does not — see "Tappable stat chips" below (#603).
-> Per ADR-0022's flag-lifecycle rule: when this graduates, delete the registry entry **and** the flag-off branch in
-> the graduating PR.
+## Per-action tabs (#436, graduated #704)
+The whole tabs feature (tab strip + inline settings + per-tab insights) ships unconditionally —
+`PlantDetailTabStrip` (a `FlowRow` of standalone `Tab`s, not `TabRow`/`PrimaryTabRow` — see below) is a
+`LazyColumn` item inside the Box overlay below the hero, and is the only Plant Detail layout. It used to
+sit behind `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default off, gating a classic
+single-page layout as the flag-off alternative); the flag graduated in #704 per ADR-0022's
+flag-lifecycle rule — the registry entry, `PlantDetailViewModel.tabsEnabled`, and the classic-layout
+branch (chart + gallery + care history on one page, plus the tappable `StatsRow`/`StatChip` quick-log
+chips, #434) were all deleted in that PR. The shared care-history list and `+` FAB are unaffected —
+they always rendered outside either branch.
 
 - `PlantDetailTab` enum (6 entries: `WATER, FERTILIZE, REPOT, PHOTO, CUSTOM_REMINDERS, ISSUES`) = per-tab `labelRes`
   + icon; `selectedTab` is `rememberSaveable` (defaults Water).
@@ -72,10 +73,9 @@ editor for name/species/room/notes/cover.
 
 ## Repot and Photo tab quick actions (#658, date-first per #694)
 
-With `PLANT_DETAIL_TABS` on, Repot and Photo each start with an always-visible filled action button,
-using a leading tab-matching icon and the same 16dp horizontal padding as Water's primary action.
-Neither action renders in the classic flag-off layout. Custom Reminders and Issues retain their
-existing add/report controls; no extra duplicate actions are added there.
+Repot and Photo each start with an always-visible filled action button, using a leading tab-matching
+icon and the same 16dp horizontal padding as Water's primary action. Custom Reminders and Issues retain
+their existing add/report controls; no extra duplicate actions are added there.
 
 **Repot** opens a date picker first (`CareDatePickerBottomSheet`, `REPOT_DATE_PICKER_TEST_TAG`,
 `showRepotDatePicker` state in `PlantDetailScreen.kt`), defaulting to today. Confirming calls
@@ -129,33 +129,35 @@ already-picked `loggedAt` instant's local calendar day as UTC midnight, so a pic
 pre-selected on a previously chosen date rather than always defaulting back to today — the Add-photo
 sheet's date-edit state uses this to preselect whatever date the sheet is currently showing.
 
-## Tappable stat chips (#434) — classic layout only (#603)
-Watering/Fertilizing `StatChip`s (in `StatsRow`) take optional `onWaterClick`/`onFertilizeClick` (with
-`clickable(onClickLabel=…)` for a11y). Water logs directly when on schedule, else opens
-`WateringReasonBottomSheet` → `quickWater(reason)`; Fertilize → `quickFertilize()` (regular) or the same
-reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log follows the same
-rule). All delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into the
-`suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
+## Fertilize tab action (#434, #603; `StatsRow`/`StatChip` deleted #704)
+`FertilizeDueActionRow` (`WateringDueActions.kt`) is a single always-visible `OutlinedButton` rendered
+under the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring
+`WateringDueActionsRow`'s own `wateringIntervalDays` gate) — not on due status. It has no "reschedule"
+counterpart since fertilizing has no equivalent concept. Fertilize logs directly via `quickFertilize()`
+(regular) or a reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log
+follows the same rule); both delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into
+the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
 
-**`StatsRow`'s placement is layout-dependent (#603):** in the **classic layout** it stays exactly as before,
-an always-visible summary above the (absent) tab strip, unchanged. In the **tabs layout** it is removed
-entirely — its watering `StatChip` became a redundant second control once `WateringDueActionsRow`'s Water
-button became always-visible (see below), and its fertilizing `StatChip` is replaced by
-`FertilizeDueActionRow` (`WateringDueActions.kt`), a single always-visible `OutlinedButton` rendered under
-the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring `WateringDueActionsRow`'s
-own `wateringIntervalDays` gate) — not on due status, same as the `StatChip` it replaces. It has no
-"reschedule" counterpart since fertilizing has no equivalent concept. `careTypeInsightItems(...)`'s
-`lastAtLabel` is populated (`R.string.insight_last_watered` / `R.string.insight_last_fertilized`) for
-both Water/Fertilize tabs, restoring the "last done" display `StatsRow` used to show above the tab strip
-(round-2 fix, #603) — it is no longer `null` there.
+This button replaced the classic layout's tappable watering/fertilizing `StatChip`s (in `StatsRow`,
+#434) when the tabs layout dropped `StatsRow` as a redundant second control once `WateringDueActionsRow`'s
+Water button became always-visible (#603). `StatsRow`/`StatChip` themselves — and the classic layout
+they lived in — were deleted from the app entirely when `PLANT_DETAIL_TABS` graduated (#704).
+`careTypeInsightItems(...)`'s `lastAtLabel` is populated (`R.string.insight_last_watered` /
+`R.string.insight_last_fertilized`) for both Water/Fertilize tabs, restoring the "last done" display
+`StatsRow` used to show (#603 round-2 fix) — it is no longer `null` there.
 
 ## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
 `WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** buttons in one row — narrowed
-from #508's three (ADR-0029) — in both the classic layout and the Water tab, gated only on
+from #508's three (ADR-0029) — on the Water tab. Reschedule stays gated on
 `plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
 || status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
-before the plant's due date). "Did water go in, or not?" is a fact, not a judgement; *why* is asked
-afterwards, and only when the action is off schedule.
+before the plant's due date). **Water is unconditional** — it renders whenever the row itself renders
+(`careStatus != null`), independent of `wateringIntervalDays` (product ADR-0040, #704) — a plant with
+no configured watering schedule still needs a one-tap way to log an occasional watering, now that the
+classic layout's always-on `StatChip` fallback for that case no longer exists. `onRescheduleClick` is a
+nullable `(() -> Unit)?` parameter accordingly — non-null only when the caller has a schedule to
+reschedule. "Did water go in, or not?" is a fact, not a judgement; *why* is asked afterwards, and only
+when the action is off schedule.
 
 **Styling (#603 round-3 visual polish):** Water is a filled Material3 `Button` (`colorScheme.primary`,
 no hardcoded color — resolves to `SageGreen`/`SageGreenLight` in `Theme.kt`) with a leading
@@ -189,19 +191,18 @@ does the "Log care" FAB, since persistent visibility across scrolling is the who
 becomes unreachable via its icon once scrolled past the hero, with no alternative on-screen entry point
 today — a real, if narrow, functional regression accepted in ADR-0022.
 
-**Placement in the tabs layout (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the
-Fertilize tab) now renders **before** the `InlineIntervalSetting` card on its tab, not after — actions
-row → interval card → per-tab insights card. Classic layout has no inline interval settings (ADR-0023 is
-tabs-only), so its row position is unchanged.
+**Placement (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the Fertilize tab) renders
+**before** the `InlineIntervalSetting` card on its tab, not after — actions row → interval card →
+per-tab insights card.
 
 - **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
   opens `WateringReasonBottomSheet`, whose two-chip option set is direction-specific (#649, product
   ADR-0033): early ("Why now?" → "The plant needed it" / "Just my timing") vs. late ("Why was it late?"
   → "Soil was still moist" / "Forgot, or no time") — a late gap never offers a shorten attribution. The
   `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
-  branch, shared with the classic layout's tappable `StatChip`s and the tabs layout's
-  `FertilizeDueActionRow` so no surface can disagree. On the Water tab, this "Water" button **always**
-  calls plain `requestWater()`, regardless of `Plant.useLiquidFertilizer` — it never branches (#652).
+  branch, shared with the tabs layout's `FertilizeDueActionRow` so no surface can disagree. On the Water
+  tab, this "Water" button **always** calls plain `requestWater()`, regardless of
+  `Plant.useLiquidFertilizer` — it never branches (#652).
 
 **Combined Water + Fertilize action on the Water tab (#652):** for a liquid-fertilizer plant
 (`plant?.useLiquidFertilizer == true`), a second, visually distinct `OutlinedButton`
@@ -215,9 +216,11 @@ non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "
 (shared string `R.string.water_fertilize_combined_button`) under the same `useLiquidFertilizer`
 condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
 and unchanged.
-- **Reschedule watering** — `requestReschedule()` opens `RescheduleReasonBottomSheet` ("Why put it
-  off?" → "Soil still moist" / "I can't right now") **first**; `chooseRescheduleReason()` then opens
-  `RescheduleWateringDialog`. Dismissing the reason sheet abandons the reschedule entirely.
+- **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
+  asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
+  `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put
+  it off?" → "Soil still moist" / "I can't right now", dismissible to abandon the reschedule entirely)
+  are removed.
 
 **Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
 on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
@@ -350,40 +353,152 @@ row-plus-scrollable-calendar structure) now live in `CareDatePickerContent`/`Car
 rather than directly in `LogWateringDatePickerDialog`'s own body — any future edit to either detail
 belongs there, not in the now-trivial delegate.
 
-**"Still moist" is no longer a button** — it's the "Soil still moist" answer, and still routes through
-`QuickLogUseCase.recordStillMoistCheck()`, the same call site `notification/StillMoistReceiver` uses.
+**"Still moist" is retired (#738, product ADR-0039).** It is no longer a button (that happened back
+at #508/ADR-0029) and, as of ADR-0039, it is no longer an answer either — the reschedule reason
+prompt it lived in as "Soil still moist" is removed entirely, and the notification's own "Still
+moist" action (`StillMoistReceiver`) is dropped rather than reworked. `QuickLogUseCase
+.recordStillMoistCheck()`, `recordStillMoistAdaptiveObservation()`, `suggestedStillMoistDeferralDays()`,
+and `StillMoistReceiver` itself are all deleted.
 
-`applyReschedule(newDueAtMillis)` is the single commit point for all three date options:
-`SOIL_STILL_MOIST` → `recordStillMoistCheck(plant, newDueAtMillis)` + `QuickLogMessage
-.StillMoistChecked`/`.AlreadyCheckedToday`; anything else → a plain `wateringDueDateOverride` write,
-never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and never a
-`watering_adjustments` row (ADR-0029's posture, kept for the half of reschedules that really is about
-the user). **The deferral's length is never a model input** — the reason already decided that.
+`applyReschedule(newDueAtMillis)` is the single commit point for every date option, unconditionally —
+a plain `Plant.wateringDueDateOverride` write via `QuickLogUseCase.recordReschedule(plant,
+newDueAtMillis)`, never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and
+never a `watering_adjustments` row, and no `QuickLogMessage` emitted. There is no reason branch left
+to distinguish — every reschedule behaves the way ADR-0029 originally described for the half of
+reschedules that really was about the user. **The deferral's length is never a model input** — there
+is no model input at all.
 
-`RescheduleWateringDialog` options: an optional **"In N days (suggested)"** row at the top
-(`suggestedDays`, non-null only for `SOIL_STILL_MOIST`, from `QuickLogUseCase
-.suggestedStillMoistDeferralDays()`) / **Today** (`confirmRescheduleToday()`, disabled while
-`isDueSoon` *and* while the reason is `SOIL_STILL_MOIST` — pulling the date forward would contradict
-what the user just said) / **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to
-`maxOf(nextWateringDueAt, now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a
-Material 3 `DatePicker` with `SelectableDates` excluding past dates — UTC-vs-UTC comparison, matching
-what the picker itself displays, not the device's local "today"). **Never fires the ADR-0006
-interval-suggestion dialog** afterward, on either branch; there is no `Event` for a reschedule at all.
+`RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled via
+`isRescheduleTodayEnabled` — see "Today button's own gate" below, #746)
+/ **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
+now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
+`SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
+date, see below). **Never fires the ADR-0006 interval-suggestion dialog**
+afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
+(`suggestedStillMoistDeferralDays()`) and `PlantDetailViewModel.confirmRescheduleSuggestedDays()`
+(#719's handler) are removed — a reschedule no longer teaches the model anything for that row to
+preview, leaving Today/+1/+2/+3/Custom date as the full option set.
 
-**Two different anchors, on purpose (#719).** The "(suggested)" row and +1/+2/+3 look like siblings in
-the same list but commit through two distinct callbacks bundled in `RescheduleDialogActions`
-(`onSuggestedDays` vs. `onRelativeDays`) because `suggestedStillMoistDeferralDays()` is a **from-today**
-figure ("come back when the freshly-lengthened interval says it is due") while +1/+2/+3 are genuinely
-**due-date-relative** ("N days past due"). `PlantDetailViewModel.confirmRescheduleSuggestedDays(days)`
-therefore anchors to `System.currentTimeMillis()`, not `maxOf(nextWateringDueAt, now)` like
-`confirmRescheduleRelativeDays()` — the two anchors coincide only when the plant is already overdue,
-which is why this drift went unnoticed until an explicit not-yet-due worked example caught it. This
-also brings the in-app path to parity with `StillMoistReceiver.handleStillMoist()`, which had always
-anchored the same suggested value to `now` (#586's "the two paths cannot drift" guarantee). In the
-subset where the model *shortens* the interval, the resulting `now + days` target can fall before the
-current due date, where `CareSchedule.computeWateringDue()`'s `maxOf(computedNextDueAt, override)`
-clamp discards it — provisionally inert pending #720's decision on whether an override may ever pull a
-due date earlier at all (`.claude/rules/adaptive-watering-cluster.md`).
+**The two-anchor confusion this file used to document under "#719" is resolved by #738, not by
+patching it.** The removed "(suggested)" row's from-today anchor and `confirmRescheduleRelativeDays()`'s
+due-date anchor only ever needed reconciling because that row existed; removing it removes the second
+anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. See
+`.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor pair and how it
+interacted with #719/#720.
+
+### Custom-date picker's due-date floor (#720)
+`CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an
+override earlier than the schedule-computed date can never win — it would be written to the database
+and then silently discarded, with no chip, snackbar, or error. The "Custom date…" picker's
+`SelectableDates` therefore ANDs two independent floors, never just one:
+`WateringDueActions.isSelectableRescheduleDate(utcTimeMillis, computedNextWateringDueAt, zoneId, today)`
+combines the existing `isOnOrAfterLocalToday` (local-today floor) with a new due-date floor — a candidate
+is only selectable when its local calendar day is **strictly after** `computedNextWateringDueAt`'s local
+calendar day (same-day can only tie or lose the `maxOf()`). Both floors are independently load-bearing: a
+plant overdue since January with today in September needs the today floor to reject a February pick that
+the due-date floor alone would accept, and a plant not yet due needs the due-date floor to reject "today"
+where the today floor alone would accept it. `computedNextWateringDueAt == null` (no interval configured)
+makes the due-date floor vacuous.
+
+`PlantCareStatus.computedNextWateringDueAt: Long?` carries `computeWateringDue()`'s private
+pre-override local out to the UI layer for exactly this comparison — populated once inside `CareSchedule`,
+never re-derived, same posture `rescheduleDeltaDays` already documents. It is a real epoch-millis instant
+(unlike the picker's own `utcTimeMillis`, which Material3 always encodes as UTC midnight regardless of
+device timezone) and must be converted via the caller's `zoneId`, not `ZoneOffset.UTC`, to compare local
+calendar days consistently. `TodayOrLaterSelectableDates` is a class (not the earlier stateless `object`)
+parameterized by `computedNextWateringDueAt`, `remember`ed keyed on that value in
+`RescheduleDatePickerDialog` so `rememberDatePickerState` isn't handed a fresh instance every
+recomposition; `RescheduleWateringDialog` threads the value down from `PlantDetailScreen`'s
+`careStatus?.computedNextWateringDueAt`.
+
+Today/+1/+2/+3 need no such gate — they anchor to `maxOf(nextWateringDueAt, now)` and only ever add
+forward time, so they cannot produce an ineffective date by construction; only the free-form custom date
+can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
+this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
+which ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
+"Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which could be `false` in a
+state where tapping Today would actually pull the due date in) was out of scope here and filed
+separately as #746 — now fixed, see "Today button's own gate (#746)" below.
+
+**Review round 1 fix (#720 PR #748):** excluding a date from the day grid isn't the whole picket —
+Material3's `rememberDatePickerState` re-validates its retained state's grid against a fresh
+`SelectableDates` instance on recomposition, but it does **not** clear an already-tapped
+`selectedDateMillis` that a since-moved `computedNextWateringDueAt` would now reject (e.g. a watering
+logged from another surface, such as a notification action, while the dialog sits open). Without a
+second check, OK would still forward that stale selection to `onConfirm`, reproducing the exact
+silent-no-op bug #720 exists to prevent. `RescheduleDatePickerDialog`'s OK `TextButton` now also gates
+`enabled` on `isRescheduleConfirmEnabled(selectedDateMillis, computedNextWateringDueAt)` — a pure
+predicate (`null` selection stays enabled, matching the documented "OK closes the picker either way"
+behavior; a non-null selection is re-validated via `isSelectableRescheduleDate`) — disabling the
+affordance rather than silently discarding the tap, per this codebase's convention: a disabled control
+is visible feedback, a silently-dropped confirm is the exact bug class being fixed. This is not
+redundant with the grid's own `SelectableDates` — do not delete it as apparently so.
+
+`isOnOrAfterLocalToday`, `isSelectableRescheduleDate`, `isRescheduleConfirmEnabled`,
+`TodayOrLaterSelectableDates`, and `utcMidnightMsToLocalStartOfDayMillis` live in a separate file,
+`RescheduleDateSelection.kt` (not `WateringDueActions.kt`), split out in this same round specifically to
+stay under Detekt's per-file `TooManyFunctions` threshold once `isRescheduleConfirmEnabled` was added —
+same reasoning as `CustomRemindersSection.kt`/`PlantIssuesSection.kt` elsewhere in this file.
+`RescheduleDatePickerDialog` itself stays in `WateringDueActions.kt`, calling into the split-out file's
+top-level functions (same package, no import needed).
+
+### Today button's own gate (#746)
+`RescheduleWateringDialog`'s "Today" option used `todayEnabled = careStatus?.isOverdue == true` —
+derived from the **post-override, effective** due date, which is always `>= computedNextDueAt` since
+an override only ever wins `maxOf()` when it's greater. That left a window where a winning *future*
+override made "Today" disabled even though tapping it (`override = now`) would beat
+`computedNextDueAt` in `maxOf()` and genuinely pull the due date in — the opposite failure mode from
+#720 (offered-then-discarded vs. conservatively withheld).
+
+Fixed with a new pure predicate, `isRescheduleTodayEnabled(computedNextWateringDueAt,
+effectiveNextWateringDueAt, zoneId, today)` (`RescheduleDateSelection.kt`) — `true` whenever local
+today clears **both** of two independent floors: local today is strictly after
+`computedNextWateringDueAt`'s local calendar day (the schedule-computed floor, mirroring
+`isSelectableRescheduleDate`'s own due-date floor), **and** `effectiveNextWateringDueAt`
+(`PlantCareStatus.nextWateringDueAt`, the post-override date actually in effect) is not already today.
+Both `null` (no interval configured) are treated as vacuously clearing their own floor, matching
+`isSelectableRescheduleDate`'s convention — unreachable in practice, since a non-null interval forces
+`computeWateringDue()` to always populate both fields. No UTC round-trip is needed here, unlike
+`isSelectableRescheduleDate`'s `utcTimeMillis` parameter — "Today" never goes through the Material3
+picker, it writes a plain `System.currentTimeMillis()`, so `LocalDate.now(zoneId)` is already the real
+local day being written. `isOverdue` still implies this predicate (a strict superset — this change can
+only flip Today from disabled to enabled, never the reverse): `isOverdue` means the effective due
+date's local day is strictly before today, which both clears the computed floor
+(`computedNextDueAt <= effective due date` always) and rules out the "already due today" no-op guard.
+
+**Review round 1 (#752), a verified Codex finding:** the first (single-parameter) version of this
+predicate only checked the computed-due-date floor, which is the *pre*-override date and stays frozen
+in the past forever once a plant has gone overdue — it never re-tracks a since-applied Today tap or an
+active override. Sequence: overdue plant, no override, tap Today (`override = now`) → effective due
+date becomes today, `isOverdue` correctly flips to `false`, but the old fix's predicate still read the
+same (already-cleared) computed floor and stayed `true` — reopening the dialog offered Today again for
+a tap that would be a genuine no-op. The second `effectiveNextWateringDueAt` parameter (`PlantCareStatus
+.nextWateringDueAt`) closes this: it's the "already due today" check the computed floor alone can't
+express, since the computed floor doesn't move once an override or a same-day Today tap has already
+resolved it.
+
+**This is no longer provably identical to `isSelectableRescheduleDate`'s decision for the picker's own
+"today" cell — only a one-way implication holds.** Whenever `isRescheduleTodayEnabled` is `true`, the
+picker would also accept its own today cell (feeding local-today in as `isSelectableRescheduleDate`'s
+`utcTimeMillis` makes its `isOnOrAfterLocalToday` term trivial and its due-date floor reduce to exactly
+`isRescheduleTodayEnabled`'s own computed-floor term). The reverse can fail: when the plant's effective
+due date is already today, the button's no-op guard disables it while the picker's day grid — which has
+no per-cell "already exactly this value" concept, since it's a many-valued grid rather than one fixed
+target — still offers that same cell as selectable. This is an accepted, low-severity gap distinct from
+#720's: the picker cell's date can still win or tie `computeWateringDue()`'s `maxOf()`, it just doesn't
+*move* anything when it ties, so nothing is silently discarded. Not fixed here.
+
+`PlantDetailScreen.kt` calls it as `careStatus?.let { isRescheduleTodayEnabled(it.computedNextWateringDueAt,
+it.nextWateringDueAt) } == true` rather than unwrapping `careStatus` at the call site directly — the
+latter would conflate "`careStatus` hasn't loaded yet" with "no computed/effective due date" and, since
+both fields' `null` is vacuously enabled, would flip a not-yet-loaded `careStatus` from disabled
+(today's behaviour) to enabled. The two nulls are deliberately not the same case.
+
+**Known limitation, accepted, not fixed:** a never-watered plant (`lastWateredAt == null`) with a
+winning future override keeps Today disabled — `computeWateringDue()` pins `computedNextDueAt = now`
+for that branch, which re-tracks "today" indefinitely, so the computed floor is never cleared no matter
+how far out the override sits. Not a regression (the old gate disabled it too) and not a disagreement
+with the picker (its own today-cell floor degenerates identically for that plant).
 
 ### Reschedule delta chip + revert (#630)
 `PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
@@ -395,8 +510,9 @@ non-winning override reports no delta and the chip self-hides once the schedule 
 `contentDescription = null`, matching this file's convention for a decorative icon inside an
 already-labeled clickable unit, since `AssistChip` merges descendant semantics into one TalkBack
 announcement — so tap-to-revert reads as removable rather than relying on the chip's clickability
-alone) renders directly above `WateringDueActionsRow` in both the classic layout and the Water tab,
-gated on this same field; tapping anywhere on the chip calls
+alone) renders directly above `WateringDueActionsRow` on the Water tab, gated on this same field
+(which itself requires `wateringIntervalDays != null` — see the previous section's Water/Reschedule
+gate split); tapping anywhere on the chip calls
 `PlantDetailViewModel.revertReschedule()` directly — no confirmation dialog. `revertReschedule()`
 clears `wateringDueDateOverride` only (never `wateringIntervalDays`/`wateringBaseIntervalDays`/
 `wateringConfidence`, never a `WateringAdjustment` row — same posture `applyReschedule` already keeps)
@@ -420,13 +536,11 @@ Collapses to 5 most recent by default; `AssistChip` with animated chevron expand
 resets on screen open (#253).
 
 ## Custom reminders (technical ADR-0019, #232)
-`CustomRemindersCard`'s **placement** is layout-dependent (product ADR-0030, #590): in the **classic layout**
-(`PLANT_DETAIL_TABS` off) it stays an always-visible card, unchanged — rendered after the watering-due actions row
-(#508) / `WateringHistoryChart` / photo gallery block, so it doesn't sit between the watering stat chip and the
-actions row (#232 follow-up). In the **tabs layout** it is no longer always-visible — it renders only when
-`selectedTab == PlantDetailTab.CUSTOM_REMINDERS`, one of the two tabs hidden behind the collapsed tab row by
-default (see "Tab row collapse/expand" above). Same composable, same params, same behavior either way. Backed by
-`PlantDetailViewModel.customReminders` (`Flow` from
+`CustomRemindersCard`'s **placement** (product ADR-0030, #590): renders only when `selectedTab ==
+PlantDetailTab.CUSTOM_REMINDERS`, one of the two tabs hidden behind the collapsed tab row by default
+(see "Tab row collapse/expand" above) — it was an always-visible card in the classic layout the tabs
+feature originally sat behind a flag alongside (deleted when `PLANT_DETAIL_TABS` graduated, #704).
+Backed by `PlantDetailViewModel.customReminders` (`Flow` from
 `CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
 now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
 Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a
@@ -442,10 +556,10 @@ label; pass `null` (or omit it) when the linked reminder has since been deleted 
 `customReminderId`.
 
 ## Plant issues (technical ADR-0020, #564)
-"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0030, #590): always-
-visible, right after `CustomRemindersCard`, in the **classic layout**; rendered only when `selectedTab ==
-PlantDetailTab.ISSUES` — the other tab hidden behind the collapsed tab row by default — in the **tabs layout**.
-Composables live in a separate file, `PlantIssuesSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's
+"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0030, #590):
+rendered only when `selectedTab == PlantDetailTab.ISSUES` — the other tab hidden behind the collapsed
+tab row by default. Composables live in a separate file, `PlantIssuesSection.kt` (not
+`PlantDetailScreen.kt`), to stay under Detekt's
 per-file `TooManyFunctions` threshold;
 `PlantIssuesCard` is `internal` so `PlantDetailScreen.kt` can call it. Backed by `PlantDetailViewModel.activeIssues`
 (`Flow<List<PlantIssue>>` from `PlantIssueRepository.getActiveIssuesForPlant`, already filtered to `resolvedAt ==

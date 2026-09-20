@@ -15,6 +15,20 @@ import org.junit.Test
  */
 class CareScheduleAdaptiveTest {
 
+    @Test
+    fun `neutral observation preserves a sub-day base correction`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 8,
+            currentBaseIntervalDays = 7.0,
+            currentConfidence = 5,
+            recentFeedback = listOf(null)
+        )
+
+        assertEquals(7, result.intervalDays)
+        assertEquals(7.15, result.baseIntervalDays, 1e-9)
+    }
+
     // --- correctionStreak() ---
 
     @Test
@@ -509,5 +523,37 @@ class CareScheduleAdaptiveTest {
             recentFeedback = listOf(TOO_LATE)
         )
         assertFalse(result.excludedFromBaseLearning)
+    }
+
+    // --- #738/ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---
+
+    /**
+     * Pins the #738/ADR-0039 defect: a `TOO_SOON` observation taken well *before* the interval has
+     * elapsed still shortens the base, exactly the mirror-image bug ADR-0033 already fixed for the
+     * late direction ("a late gap never shortens"). This was reachable via the "Soil still moist"
+     * Reschedule flow (`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, itself removed in the
+     * PR 2 follow-up to #738) — checking a 14-day plant on day 8 (well before it was due) and
+     * reporting "still moist" fed `feedback = TOO_SOON` into this function with the full observed gap
+     * of 8 days, computing `target = 8 * 1.25 = 10`, which is *below* the current base of 14, so the
+     * model concluded the plant needed water sooner — the opposite of what the user reported.
+     *
+     * This is pinned as a property of this pure function, whose arithmetic is genuinely unchanged by
+     * #738 — only the reschedule call site that could reach an early `TOO_SOON` observation is being
+     * removed. It stays permanently, documenting why that removal was correct, not as a regression
+     * test of a call site that no longer exists.
+     *
+     * Arithmetic: target = 8 * 1.25 = 10; raw = 14 + 0.28 * (10 - 14) = 14 - 1.12 = 12.88;
+     * `clampStep()` rounds to 13.
+     */
+    @Test
+    fun `an early TOO_SOON observation still shortens the base (#738 ADR-0039 pinned defect)`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 8,
+            currentBaseIntervalDays = 14,
+            currentConfidence = 3,
+            recentFeedback = emptyList()
+        )
+        assertEquals(13, result.intervalDays)
     }
 }

@@ -2,17 +2,14 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.ui.theme.YaptTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -184,36 +181,5 @@ class WateringReasonBottomSheetTest {
         composeTestRule.onNodeWithText(logLabel).performClick()
 
         assertNull(logged)
-    }
-
-    @Test
-    fun reschedulePrompt_showsBothReasonsAndReportsTheChosenOne() {
-        var chosen: RescheduleReason? = null
-        composeTestRule.setContent {
-            YaptTheme {
-                RescheduleReasonBottomSheet(onDismiss = {}, onReasonChosen = { chosen = it })
-            }
-        }
-
-        composeTestRule.onNodeWithText(string(R.string.reschedule_reason_question)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.reschedule_reason_cant_right_now)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.reschedule_reason_soil_still_moist)).performClick()
-
-        assertEquals(RescheduleReason.SOIL_STILL_MOIST, chosen)
-    }
-
-    /** No confirm step here: choosing *is* the answer, so a reschedule can't be committed unanswered. */
-    @Test
-    fun reschedulePrompt_hasNoConfirmButton() {
-        composeTestRule.setContent {
-            YaptTheme {
-                RescheduleReasonBottomSheet(onDismiss = {}, onReasonChosen = {})
-            }
-        }
-
-        assertTrue(
-            composeTestRule.onAllNodesWithText(logLabel)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
-        )
     }
 }

@@ -105,10 +105,6 @@
         <item quantity="other">+%d days</item>
     </plurals>
     <string name="reschedule_watering_custom_date">Custom date…</string>
-    <plurals name="reschedule_watering_suggested_days">
-        <item quantity="one">In 1 day (suggested)</item>
-        <item quantity="other">In %d days (suggested)</item>
-    </plurals>
     <!-- Reschedule delta + revert (#630) — the "Rescheduled +N days" chip above WateringDueActionsRow
          and the matching display-only row in the "Why this date?" sheet, mirroring
          reschedule_watering_plus_days's wording/format args. -->
@@ -135,21 +131,16 @@
     <!-- Late variant (PlantCareStatus.isWateringGapLong): "Why now?" reads as an accusation on an
          overdue plant, so this asks "why was it late" instead. The plant-attribution answer here is a
          genuinely different reason — WateringReason.SOIL_STILL_MOIST — since a late gap can never
-         shorten the interval (#649); phrased as its own full clause ("Soil was still moist") rather
-         than reusing reschedule_reason_soil_still_moist's shorter label verbatim, since it needs to
-         read as a direct answer to "Why was it late?", not a button label. Only "just my timing" is
-         shared with the early variant, and even it is reworded: "just my timing" implies a choice
-         that forgetting never involves, so forgetting is named outright instead. -->
+         shorten the interval (#649); phrased as its own full clause ("Soil was still moist") since it
+         needs to read as a direct answer to "Why was it late?", not a button label. Only "just my
+         timing" is shared with the early variant, and even it is reworded: "just my timing" implies a
+         choice that forgetting never involves, so forgetting is named outright instead. -->
     <string name="water_reason_question_late">Why was it late?</string>
     <string name="water_reason_soil_still_moist_late">Soil was still moist</string>
     <string name="water_reason_just_my_timing_late">Forgot, or no time</string>
-    <string name="reschedule_reason_question">Why put it off?</string>
-    <string name="reschedule_reason_soil_still_moist">Soil still moist</string>
-    <string name="reschedule_reason_cant_right_now">I can\'t right now</string>
     <!-- Check reminders (#570): reframed notification title/actions, flag-gated -->
     <string name="notification_check_title">Check %s</string>
     <string name="notification_action_watered">Watered</string>
-    <string name="notification_action_still_moist">Still moist</string>
     <string name="notification_action_not_now">Not now</string>
     <string name="post_watering_notification_title">Check for standing water</string>
     <string name="post_watering_notification_body">Pour away any excess water collected in your plant saucers.</string>
@@ -165,8 +156,6 @@
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
     <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
-    <string name="quick_log_still_moist_checked">Checked %s — still moist</string>
-    <string name="quick_log_already_checked">Already checked %s today</string>
     <string name="care_history_show_less">Show less</string>
     <plurals name="care_history_show_more">
         <item quantity="one">Show 1 more</item>
@@ -233,14 +222,6 @@
     <string name="cd_delete_photo">Delete photo</string>
     <string name="fert_label_never_fertilized">Never fertilized</string>
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
-    <string name="stat_label_watering">Watering</string>
-    <string name="stat_label_fertilizing">Fertilizing</string>
-    <string name="cd_quick_log_watering">Log watering</string>
-    <string name="cd_quick_log_fertilizing">Log fertilizing</string>
-    <string name="stat_label_never">never</string>
-    <string name="stat_label_next">next: %1$s</string>
-    <string name="stat_label_last">last: %1$s</string>
-    <string name="stat_label_overdue_prefix">overdue</string>
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
     <string name="watering_interval_label">Water every %1$d days</string>
     <string name="watering_reminder_label">Watering reminder</string>
@@ -310,9 +291,6 @@
         <item quantity="one">1 active issue</item>
         <item quantity="other">%d active issues</item>
     </plurals>
-    <!-- Feature flag: Plant Detail per-action tabs (#436) -->
-    <string name="feature_flag_plant_detail_tabs_title">Plant Detail tabs</string>
-    <string name="feature_flag_plant_detail_tabs_description">Show per-action tabs (Water, Fertilize, Repot, Photo) on Plant Detail, with inline schedule settings and per-tab insights. Off shows the classic single-page layout.</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>

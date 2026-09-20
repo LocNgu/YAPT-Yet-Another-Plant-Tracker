@@ -14,8 +14,6 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -26,7 +24,6 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
@@ -61,24 +58,6 @@ class PlantDetailViewModel(
     internal val database: PlantDatabase,
     internal val wateringAdjustmentRepository: WateringAdjustmentRepository
 ) : ViewModel() {
-
-    /**
-     * Whether the per-action tabs, inline scheduling settings, and per-tab insights (#436) are
-     * shown. Behind [FeatureFlagRegistry.PLANT_DETAIL_TABS] (developer mode → feature flags, product
-     * ADR-0022); when off the screen renders the classic single-page layout.
-     *
-     * Read straight from [dataStore] via [FeatureFlags.preferenceKeyFor] — the same key derivation
-     * the [FeatureFlags] singleton writes through, so the two can't drift — rather than taking a
-     * `FeatureFlags` constructor parameter, which would push this constructor to 7 params and trip
-     * Detekt's `LongParameterList` (the same constraint #521 hit on `SettingsViewModel`). Mirrors how
-     * [photoReminderEnabled] already reads its own preference here.
-     */
-    val tabsEnabled: StateFlow<Boolean> = dataStore.data
-        .map { prefs ->
-            prefs[FeatureFlags.preferenceKeyFor(FeatureFlagRegistry.PLANT_DETAIL_TABS)]
-                ?: FeatureFlagRegistry.PLANT_DETAIL_TABS.default
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**
      * Raw global amplitude value for the seasonal-curve preview chart (#579) shown alongside the
@@ -175,6 +154,7 @@ class PlantDetailViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val suggestedWateringInterval = MutableStateFlow<Int?>(null)
+    internal val suggestedWateringBaseInterval = MutableStateFlow<Double?>(null)
 
     /**
      * The ADR-0006 dialog's raw+converted+current interval numbers, bundled into one atomically-
@@ -204,11 +184,15 @@ class PlantDetailViewModel(
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,
         suggestedWateringInterval,
+        suggestedWateringBaseInterval,
         seasonalAmplitudeValue
-    ) { p, suggestion, amplitude ->
+    ) { p, suggestion, preciseSuggestion, amplitude ->
         if (p == null || suggestion == null) return@combine null
         val effective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = p.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            plant = p.copy(
+                wateringBaseIntervalDays = preciseSuggestion ?: suggestion.toDouble(),
+                wateringIntervalDays = suggestion
+            ),
             seasonalAmplitude = amplitude
         ) ?: suggestion
         if (effective == p.wateringIntervalDays) return@combine null
@@ -221,23 +205,11 @@ class PlantDetailViewModel(
 
     internal val selectedTimeRange = MutableStateFlow(TimeRange.TWELVE_MONTHS)
 
+    /**
+     * Whether [RescheduleWateringDialog] is showing. Opened directly from a Reschedule tap since
+     * #738 (product ADR-0039) — a reschedule is model-neutral, so there is no reason prompt gating it.
+     */
     val showRescheduleDialog = MutableStateFlow(false)
-
-    /**
-     * The Reschedule reason prompt (#586, product ADR-0030), shown *before*
-     * [showRescheduleDialog] — the reason decides what the model learns, and (for "Soil still moist")
-     * what date the picker opens on, so it has to be answered first.
-     */
-    val showRescheduleReasonSheet = MutableStateFlow(false)
-
-    /** The answer to [showRescheduleReasonSheet], held while the date dialog is up. */
-    val rescheduleReason = MutableStateFlow<RescheduleReason?>(null)
-
-    /**
-     * The recommended deferral shown at the top of [RescheduleWateringDialog], non-null only for a
-     * "Soil still moist" reschedule — see [QuickLogUseCase.suggestedStillMoistDeferralDays].
-     */
-    val rescheduleSuggestedDays = MutableStateFlow<Int?>(null)
 
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
@@ -360,7 +332,9 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyWateredToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
+            outcome.suggestion?.let {
+                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+            }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
         }
@@ -423,7 +397,9 @@ class PlantDetailViewModel(
                 _quickLogMessage.emit(QuickLogMessage.AlreadyFertilizedToday(p.name))
                 return@launch
             }
-            outcome.suggestion?.let { applySuggestionOrPrompt(it.suggestedInterval) }
+            outcome.suggestion?.let {
+                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+            }
             val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
             } else {
@@ -519,12 +495,6 @@ class PlantDetailViewModel(
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()
-
-        /** "Still moist" logged successfully (#508). */
-        data class StillMoistChecked(val plantName: String) : QuickLogMessage()
-
-        /** [plant] already has a CHECK log today (#508, mirrors [AlreadyWateredToday]'s dedupe guard). */
-        data class AlreadyCheckedToday(val plantName: String) : QuickLogMessage()
     }
 
     @Suppress("LongParameterList")

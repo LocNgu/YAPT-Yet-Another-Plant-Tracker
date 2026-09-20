@@ -13,6 +13,18 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
+                "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
+                "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
+                "their own tabs — Water still works even for a plant with no set schedule. Custom Reminders " +
+                "and Issues now live behind their own tabs too; tap the expand arrow (it shows a dot when " +
+                "something there needs attention) to see all six tabs at once",
+            "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
+                "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
+                "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
+                "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
+        ),
         fixed = listOf(
             "Fixed the Reschedule dialog's \"(suggested)\" option landing several days later than promised " +
                 "for a plant that isn't due yet, after answering \"Soil still moist\" — it now lands on the " +
@@ -20,7 +32,17 @@ object WhatsNewContent {
         ),
         changed = listOf(
             "New and existing photos taken inside YAPT now use substantially less app storage. Backup export " +
-                "can also optimize its copies of photos—including gallery photos—without changing your originals"
+                "can also optimize its copies of photos—including gallery photos—without changing your originals",
+            "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
+                "rounding nudge the underlying interval when a suggested interval is applied — whether " +
+                "you accept it yourself or YAPT applies it for you",
+            "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
+                "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
+                "least tomorrow on the first tap",
+            "Rescheduling watering to a custom date on or before the plant's current watering due date no " +
+                "longer silently does nothing — that date is no longer offered in the picker",
+            "Rescheduling watering's \"Today\" option is no longer greyed out in cases where tapping it " +
+                "would actually pull the due date in sooner"
         )
     )
 

@@ -335,7 +335,7 @@ footer a{color:var(--sage-dark);}
     <div class="card">
       <div class="top"><h3>Plant Detail</h3><span class="tag warn">hub</span></div>
       <div class="route">plant_detail/{plantId}</div>
-      <p>The busiest screen: chart, photo gallery, care history, and (behind <code class="mono">PLANT_DETAIL_TABS</code>) six per-action tabs — Water, Fertilize, Repot, Photo, Custom Reminders, Issues.</p>
+      <p>The busiest screen: an always-visible care-history list below six per-action tabs — Water (with the watering chart), Fertilize, Repot, Photo (with the photo gallery), Custom Reminders, Issues.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Add / Edit Plant</h3></div>
@@ -408,7 +408,7 @@ footer a{color:var(--sage-dark);}
   <div class="grid cols-2">
     <div class="card">
       <div class="top"><h3>Notifications</h3><span class="tag water">worker/</span></div>
-      <p><code class="mono">ReminderWorker</code> (WorkManager, daily) scans due plants and posts via <code class="mono">NotificationHelper</code>; <code class="mono">BootReceiver</code> re-schedules after reboot. Notification actions (skip / still-moist) land on <code class="mono">SkipWateringReceiver</code> / <code class="mono">StillMoistReceiver</code>, which both call back into <code class="mono">QuickLogUseCase</code>.</p>
+      <p><code class="mono">ReminderWorker</code> (WorkManager, daily) scans due plants and posts via <code class="mono">NotificationHelper</code>; <code class="mono">BootReceiver</code> re-schedules after reboot. The notification's "Not now" action lands on <code class="mono">SkipWateringReceiver</code>, which calls back into <code class="mono">QuickLogUseCase</code>. The "Still moist" action/<code class="mono">StillMoistReceiver</code> is retired (#738, product ADR-0039) — a watering-due notification now offers only Watered / Not now.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Backup &amp; restore</h3><span class="tag earth">.yapt file</span></div>

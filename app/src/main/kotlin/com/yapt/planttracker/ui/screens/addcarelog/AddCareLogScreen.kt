@@ -79,10 +79,11 @@ import java.util.TimeZone
 internal const val CARE_TYPE_PICKER_TEST_TAG = "care_type_picker"
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun AddCareLogScreen(
     viewModel: AddCareLogViewModel,
-    onNavigateBack: (suggestedInterval: Int?) -> Unit
+    onNavigateBack: (suggestedInterval: Int?, suggestedBaseInterval: Double?) -> Unit
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -119,9 +120,9 @@ fun AddCareLogScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is AddCareLogViewModel.Event.Saved ->
-                    onNavigateBack(event.suggestedWateringInterval)
+                    onNavigateBack(event.suggestedWateringInterval, event.suggestedWateringBaseInterval)
                 is AddCareLogViewModel.Event.NavigateBack ->
-                    onNavigateBack(null)
+                    onNavigateBack(null, null)
             }
         }
     }
@@ -212,7 +213,7 @@ fun AddCareLogScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { onNavigateBack(null) }) {
+                    IconButton(onClick = { onNavigateBack(null, null) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }

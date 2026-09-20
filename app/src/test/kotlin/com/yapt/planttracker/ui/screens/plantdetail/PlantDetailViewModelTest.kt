@@ -122,7 +122,7 @@ class PlantDetailViewModelTest {
     fun `applySuggestedInterval delegates to QuickLogUseCase and emits IntervalUpdated event`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14) } returns
+        coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14, null) } returns
             QuickLogUseCase.IntervalApplyResult(
                 previousEffectiveIntervalDays = 7,
                 previousBaseIntervalDays = null,
@@ -142,7 +142,7 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14) }
+        coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, null, 14, null) }
     }
 
     // Math-correctness coverage for recordWateringSuggestionDismissal's confidence bump and
@@ -320,8 +320,8 @@ class PlantDetailViewModelTest {
         }
     }
 
-    // requestReschedule/chooseRescheduleReason/confirmReschedule* coverage lives in
-    // PlantDetailViewModelRescheduleTest (#508/#586), to keep this file under Detekt's LargeClass threshold.
+    // requestReschedule/confirmReschedule* coverage lives in
+    // PlantDetailViewModelRescheduleTest (#508/#586/#738), to keep this file under Detekt's LargeClass threshold.
 
     // quickWater/quickFertilize/quickRepot/quickLiquidFertilize coverage lives in
     // PlantDetailViewModelQuickActionsTest (#586/#658/#694), to keep this file under Detekt's
