@@ -418,7 +418,8 @@ class QuickLogUseCase(
     suspend fun applyWateringIntervalSuggestion(
         plant: Plant,
         originalSuggestion: Int?,
-        newInterval: Int
+        newInterval: Int,
+        suggestedBaseInterval: Double? = null
     ): IntervalApplyResult {
         val now = System.currentTimeMillis()
         // When amplitude is 0 (SeasonalAmplitude.OFF) or the plant is pinned, newInterval is a
@@ -427,7 +428,9 @@ class QuickLogUseCase(
         // value (#584 review round 2, still applies post-#644).
         val amplitude = dataStore.seasonalAmplitudeOnce()
         val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
-        val newIntervalBaseSpace = if (seasonAdjustable) {
+        val newIntervalBaseSpace = if (seasonAdjustable && suggestedBaseInterval != null) {
+            suggestedBaseInterval
+        } else if (seasonAdjustable) {
             SeasonalWatering.deseasonalize(
                 newInterval.toDouble(),
                 nowProvider().toLocalDate(),
@@ -478,7 +481,7 @@ class QuickLogUseCase(
                 plantId = plant.id,
                 triggeredAt = now,
                 trigger = WateringAdjustmentTrigger.DIALOG_EDIT,
-                beforeIntervalDays = currentAdaptiveBaseIntervalDays(plant, previousEffectiveIntervalDays),
+                beforeIntervalDays = currentAdaptiveBaseIntervalDays(plant, previousEffectiveIntervalDays).roundToInt(),
                 afterIntervalDays = newIntervalBaseSpace.roundToInt()
             )
         )
@@ -517,8 +520,8 @@ class QuickLogUseCase(
                     plantId = plant.id,
                     triggeredAt = now,
                     trigger = WateringAdjustmentTrigger.DIALOG_DISMISSAL,
-                    beforeIntervalDays = currentBase,
-                    afterIntervalDays = currentBase
+                    beforeIntervalDays = currentBase.roundToInt(),
+                    afterIntervalDays = currentBase.roundToInt()
                 )
             )
         }
@@ -618,10 +621,12 @@ class QuickLogUseCase(
         val previousWatering = careLogRepository.getLastWateringBefore(plant.id, now) ?: return null
         val actual = CareSchedule.daysBetween(previousWatering.loggedAt, now)
         if (actual <= 0) return null
-        val suggestion = adaptWateringInterval(plant, feedback, actual, current, now)
-        val effectiveSuggestion = effectiveIntervalForDisplay(plant, suggestion, now)
+        val result = adaptWateringInterval(plant, feedback, actual, current, now) ?: return null
+        val suggestion = result.intervalDays
+        val effectiveSuggestion = effectiveIntervalForDisplay(plant, result.baseIntervalDays, suggestion, now)
+        persistAdaptiveState(plant, result, effectiveSuggestion == current, now)
         return if (effectiveSuggestion != current) {
-            QuickWaterSuggestion(plant.id, plant.name, suggestion, effectiveSuggestion)
+            QuickWaterSuggestion(plant.id, plant.name, suggestion, effectiveSuggestion, result.baseIntervalDays)
         } else {
             null
         }
@@ -642,11 +647,12 @@ class QuickLogUseCase(
      */
     private suspend fun effectiveIntervalForDisplay(
         plant: Plant,
+        suggestionBase: Double,
         suggestion: Int,
         now: Long = System.currentTimeMillis()
     ): Int =
         CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = plant.copy(wateringBaseIntervalDays = suggestion.toDouble(), wateringIntervalDays = suggestion),
+            plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
             nowDate = now.toLocalDate(),
             seasonalAmplitude = dataStore.seasonalAmplitudeOnce()
         ) ?: suggestion
@@ -677,8 +683,8 @@ class QuickLogUseCase(
         actualIntervalDays: Int,
         currentInterval: Int,
         now: Long = System.currentTimeMillis()
-    ): Int {
-        if (maybeApplyHistoryBootstrap(plant, feedback, now)) return currentInterval
+    ): CareSchedule.AdaptiveInterval? {
+        if (maybeApplyHistoryBootstrap(plant, feedback, now)) return null
 
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
@@ -696,19 +702,32 @@ class QuickLogUseCase(
             recentFeedback = recentFeedback,
             frozen = frozen
         )
-        if (result.confidence != plant.wateringConfidence) {
-            plantRepository.updatePlant(plant.copy(wateringConfidence = result.confidence, updatedAt = now))
-        }
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
                 trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
-                beforeIntervalDays = currentBase,
+                beforeIntervalDays = currentBase.roundToInt(),
                 afterIntervalDays = result.intervalDays
             )
         )
-        return result.intervalDays
+        return result
+    }
+
+    private suspend fun persistAdaptiveState(
+        plant: Plant,
+        result: CareSchedule.AdaptiveInterval,
+        persistBase: Boolean,
+        now: Long
+    ) {
+        val seasonAdjustable = !plant.pinIntervalToBase && dataStore.seasonalAmplitudeOnce() != 0.0
+        val newBase = result.baseIntervalDays.takeIf { persistBase && seasonAdjustable }
+            ?: plant.wateringBaseIntervalDays
+        if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
+            plantRepository.updatePlant(
+                plant.copy(wateringConfidence = result.confidence, wateringBaseIntervalDays = newBase, updatedAt = now)
+            )
+        }
     }
 
     /**
@@ -826,11 +845,11 @@ class QuickLogUseCase(
      * edit, silently diverging from what [CareSchedule.computeStatus] actually used for the due date.
      */
     @Suppress("ReturnCount")
-    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Int {
-        if (plant.pinIntervalToBase) return configuredIntervalDays
+    private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double {
+        if (plant.pinIntervalToBase) return configuredIntervalDays.toDouble()
         val amplitude = dataStore.seasonalAmplitudeOnce()
-        if (amplitude == 0.0) return configuredIntervalDays
-        return (plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()).roundToInt()
+        if (amplitude == 0.0) return configuredIntervalDays.toDouble()
+        return plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
     }
 
     /**

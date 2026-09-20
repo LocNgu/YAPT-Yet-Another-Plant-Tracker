@@ -324,13 +324,20 @@ fun PlantDetailScreen(
 
     if (showRescheduleDialog) {
         RescheduleWateringDialog(
-            todayEnabled = careStatus?.isOverdue == true,
+            // careStatus == null (not loaded yet) deliberately stays disabled, matching the old
+            // isOverdue-based gate's behaviour for that case — this is a different "null" than
+            // isRescheduleTodayEnabled's own vacuously-enabled computedNextWateringDueAt/
+            // effectiveNextWateringDueAt == null, and the two must not be conflated.
+            todayEnabled = careStatus?.let {
+                isRescheduleTodayEnabled(it.computedNextWateringDueAt, it.nextWateringDueAt)
+            } == true,
             actions = RescheduleDialogActions(
                 onDismiss = { viewModel.dismissRescheduleDialog() },
                 onToday = { viewModel.confirmRescheduleToday() },
                 onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
                 onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
-            )
+            ),
+            computedNextWateringDueAt = careStatus?.computedNextWateringDueAt
         )
     }
 

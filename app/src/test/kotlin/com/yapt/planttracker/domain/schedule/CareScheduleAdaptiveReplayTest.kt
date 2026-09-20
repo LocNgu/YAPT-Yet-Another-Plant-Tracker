@@ -24,6 +24,27 @@ import kotlin.math.abs
  */
 class CareScheduleAdaptiveReplayTest {
 
+    @Test
+    fun `neutral in-band observations accumulate fractional base movement`() {
+        var base = 9.0
+        var confidence: Int? = 5
+
+        repeat(10) {
+            val result = CareSchedule.computeAdaptiveInterval(
+                feedback = null,
+                observedIntervalDays = 8,
+                currentBaseIntervalDays = base,
+                currentConfidence = confidence,
+                recentFeedback = listOf(null)
+            )
+            base = result.baseIntervalDays
+            confidence = result.confidence
+        }
+
+        assertTrue("fractional corrections should accumulate below the starting base", base < 8.3)
+        assertEquals(8, base.toInt())
+    }
+
     private data class Step(val base: Int, val confidence: Int)
 
     /** Runs [observations] (feedback, observedIntervalDays) starting from [startBase], history-window 3. */

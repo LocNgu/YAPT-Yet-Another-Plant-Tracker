@@ -73,6 +73,10 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
   `NEUTRAL_OBSERVATION_GAIN` (0.15) — a ceiling on the existing gain, not a second learning rate. Confidence still
   updates normally on gap agreement for a null-feedback observation; only the `base` correction is throttled.
+- **Sub-day precision (#717/#718):** `AdaptiveInterval` carries both the rounded whole-day value used by UI and
+  adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
+  therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
+  rather than reverse-converting its rounded effective display value.
 - **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
   **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
   as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`

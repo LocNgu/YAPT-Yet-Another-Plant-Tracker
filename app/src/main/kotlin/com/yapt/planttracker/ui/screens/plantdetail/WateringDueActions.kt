@@ -21,7 +21,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -36,10 +35,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
 
 /**
  * Disambiguates the watering-due row's "Water" button from the `plant_detail_tab_water` tab strip
@@ -248,8 +243,13 @@ internal data class RescheduleDialogActions(
 
 /**
  * The "Reschedule watering" dialog (#508, product ADR-0029, replaces the 1-7 day stepper): Today /
- * +1 / +2 / +3 days / a Material 3 [DatePicker] for a custom date. [todayEnabled] is `false` while
- * the plant's effective due date is already today (a true no-op there) and `true` while overdue.
+ * +1 / +2 / +3 days / a Material 3 [DatePicker] for a custom date. [todayEnabled] (#746, via
+ * `isRescheduleTodayEnabled`) is `false` either when local today is on or before
+ * `computedNextWateringDueAt`'s local calendar day (a true no-op against the schedule-computed floor
+ * — tapping Today couldn't move the effective due date at all) or when the plant's *current effective*
+ * due date is already today (a true no-op against whatever's already there, e.g. a second tap after
+ * Today was already applied — #752 review round 1), and `true` whenever it would actually pull the
+ * date in, including a winning *future* override the plant's `isOverdue` status doesn't reflect.
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
  * ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
@@ -257,16 +257,24 @@ internal data class RescheduleDialogActions(
  * reschedule is model-neutral, so there is nothing left to ask "why" about). **How many days the
  * user picks has no effect on the adaptive model** — all learning comes from the next actual
  * watering.
+ *
+ * [computedNextWateringDueAt] (#720) is [com.yapt.planttracker.domain.model.PlantCareStatus
+ * .computedNextWateringDueAt] — the pre-override, schedule-computed due date — threaded down to the
+ * "Custom date…" picker so it can reject any date `CareSchedule.computeWateringDue()`'s `maxOf()`
+ * would silently discard. Today/+1/+2/+3 need no such gate: they anchor to `maxOf(nextWateringDueAt,
+ * now)` and only ever add forward time, so they cannot produce an ineffective date by construction.
  */
 @Composable
 internal fun RescheduleWateringDialog(
     todayEnabled: Boolean,
-    actions: RescheduleDialogActions
+    actions: RescheduleDialogActions,
+    computedNextWateringDueAt: Long? = null
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         RescheduleDatePickerDialog(
+            computedNextWateringDueAt = computedNextWateringDueAt,
             onDismiss = actions.onDismiss,
             onConfirm = { utcMidnightMs ->
                 showDatePicker = false
@@ -320,22 +328,39 @@ private fun RescheduleOption(
 
 /**
  * The "Custom date…" branch of [RescheduleWateringDialog], extracted so the option list stays
- * readable. [TodayOrLaterSelectableDates] already excludes past dates, so the picked value needs no
- * further validation here. [onConfirm] receives the raw `selectedDateMillis`, which is `null` until
- * the user actually taps a day — OK closes the picker either way, and the caller does the
- * UTC-midnight reinterpretation documented on [utcMidnightMsToLocalStartOfDayMillis].
+ * readable. [TodayOrLaterSelectableDates] (via [isSelectableRescheduleDate]) already excludes both
+ * past dates and dates the schedule's own `maxOf()` would discard (#720) **from the day grid itself**,
+ * but a second check at confirm time is still required (#720 review round 1): Material3's
+ * `rememberDatePickerState` re-validates its retained state's day grid against a fresh
+ * `SelectableDates` instance on recomposition, but it does **not** clear an already-tapped
+ * `selectedDateMillis` that a since-moved [computedNextWateringDueAt] would now reject — e.g. a
+ * watering logged from another surface (a notification action) while this dialog sits open. Without
+ * the [isRescheduleConfirmEnabled] gate below, OK would still forward that stale selection to
+ * [onConfirm], reproducing the exact silent-no-op bug #720 exists to prevent. Do not delete this check
+ * as apparently redundant with the grid's own `SelectableDates` — it is not. [onConfirm] receives the
+ * raw `selectedDateMillis`, which is `null` until the user actually taps a day — OK stays enabled and
+ * closes the picker either way when nothing has been tapped yet, and the caller does the
+ * UTC-midnight reinterpretation documented on [utcMidnightMsToLocalStartOfDayMillis]. The
+ * [SelectableDates] instance is `remember`ed keyed on [computedNextWateringDueAt] so
+ * [rememberDatePickerState] is not handed a fresh instance on every recomposition.
  */
 @Composable
 private fun RescheduleDatePickerDialog(
+    computedNextWateringDueAt: Long?,
     onDismiss: () -> Unit,
     onConfirm: (utcMidnightMs: Long?) -> Unit
 ) {
-    val datePickerState = rememberDatePickerState(selectableDates = TodayOrLaterSelectableDates)
+    val selectableDates = remember(computedNextWateringDueAt) {
+        TodayOrLaterSelectableDates(computedNextWateringDueAt)
+    }
+    val datePickerState = rememberDatePickerState(selectableDates = selectableDates)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
+            val selectedMillis = datePickerState.selectedDateMillis
             TextButton(
-                onClick = { onConfirm(datePickerState.selectedDateMillis) }
+                onClick = { onConfirm(selectedMillis) },
+                enabled = isRescheduleConfirmEnabled(selectedMillis, computedNextWateringDueAt)
             ) { Text(stringResource(R.string.ok)) }
         },
         dismissButton = {
@@ -344,36 +369,4 @@ private fun RescheduleDatePickerDialog(
     ) {
         DatePicker(state = datePickerState)
     }
-}
-
-/**
- * [DatePicker]'s `selectedDateMillis`/`SelectableDates` always operate on UTC midnight, regardless of
- * device timezone (a documented Material3 API quirk, and also how Material3's own `CalendarModel`
- * highlights "today"). The calendar day number is read out of [utcTimeMillis] in [ZoneOffset.UTC] since
- * that's the zone the picker encodes it in — but it's compared against **local** "today"
- * ([zoneId], defaulting to [ZoneId.systemDefault]), not UTC "today": [utcMidnightMsToLocalStartOfDayMillis]
- * always reinterprets the picked day as a local calendar day downstream, matching how
- * `CareSchedule.dueStatusFor`'s `isOverdue`/`isDueSoon` compare via `Long.toLocalDate()` (also
- * [ZoneId.systemDefault]). Comparing against UTC "today" instead would let a user in a timezone ahead
- * of UTC (e.g. UTC+9) tap the picker's own highlighted "today" cell during local hours before the UTC
- * day rolls over and end up with a `wateringDueDateOverride` whose local calendar day is still in the
- * past relative to their actual today.
- */
-internal fun isOnOrAfterLocalToday(
-    utcTimeMillis: Long,
-    zoneId: ZoneId = ZoneId.systemDefault(),
-    today: LocalDate = LocalDate.now(zoneId),
-): Boolean {
-    val candidate = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
-    return !candidate.isBefore(today)
-}
-
-private object TodayOrLaterSelectableDates : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean = isOnOrAfterLocalToday(utcTimeMillis)
-}
-
-/** Converts a picked UTC-midnight date to local start-of-day, mirroring `AddCareLogScreen`'s date-picker handling. */
-private fun utcMidnightMsToLocalStartOfDayMillis(utcMidnightMs: Long): Long {
-    val pickedDate = Instant.ofEpochMilli(utcMidnightMs).atZone(ZoneOffset.UTC).toLocalDate()
-    return pickedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 }

@@ -18,8 +18,8 @@ fun PlantDetailViewModel.dismissRescheduleDialog() {
 
 /**
  * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
- * since the screen disables it while `PlantCareStatus.isDueSoon` (already due today, a true
- * no-op there). See [applyReschedule].
+ * since the screen disables it while [isRescheduleTodayEnabled] (#746, replacing the earlier
+ * `PlantCareStatus.isOverdue`-based gate) says tapping it would be a no-op. See [applyReschedule].
  */
 fun PlantDetailViewModel.confirmRescheduleToday() = applyReschedule(System.currentTimeMillis())
 

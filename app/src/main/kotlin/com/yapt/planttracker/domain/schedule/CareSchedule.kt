@@ -88,7 +88,8 @@ object CareSchedule {
             customReminderStatuses = customReminderStatuses,
             isWateringOnSchedule = onSchedule,
             isWateringGapLong = gapRanLong,
-            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays
+            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
+            computedNextWateringDueAt = wateringDue.computedNextDueAt
         )
     }
 
@@ -146,8 +147,16 @@ object CareSchedule {
     fun isWateringGapLongAt(lastWateredAt: Long?, effectiveIntervalDays: Int?, chosenDate: Long): Boolean =
         wateringGapRanLong(lastWateredAt, effectiveIntervalDays, chosenDate)
 
-    /** [computeWateringDue]'s result: the usual [DueStatus] plus the #630 reschedule delta. */
-    private data class WateringDueStatus(val dueStatus: DueStatus, val rescheduleDeltaDays: Int?)
+    /**
+     * [computeWateringDue]'s result: the usual [DueStatus], the #630 reschedule delta, and (#720)
+     * the pre-override [computedNextDueAt] itself — carried out so [PlantCareStatus
+     * .computedNextWateringDueAt] can be populated without re-deriving it in the UI layer.
+     */
+    private data class WateringDueStatus(
+        val dueStatus: DueStatus,
+        val rescheduleDeltaDays: Int?,
+        val computedNextDueAt: Long?
+    )
 
     @Suppress("LongParameterList")
     private fun computeWateringDue(
@@ -182,7 +191,7 @@ object CareSchedule {
             null
         }
 
-        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays)
+        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays, computedNextDueAt)
     }
 
     /**
@@ -335,6 +344,8 @@ object CareSchedule {
      */
     data class AdaptiveInterval(
         val intervalDays: Int,
+        /** The unrounded base-space result persisted by callers; [intervalDays] is display-only. */
+        val baseIntervalDays: Double,
         val confidence: Int,
         val excludedFromBaseLearning: Boolean = false
     )
@@ -411,6 +422,23 @@ object CareSchedule {
         currentConfidence: Int?,
         recentFeedback: List<WateringFeedback?>,
         frozen: Boolean = false
+    ): AdaptiveInterval = computeAdaptiveInterval(
+        feedback,
+        observedIntervalDays,
+        currentBaseIntervalDays.toDouble(),
+        currentConfidence,
+        recentFeedback,
+        frozen
+    )
+
+    @Suppress("LongParameterList")
+    fun computeAdaptiveInterval(
+        feedback: WateringFeedback?,
+        observedIntervalDays: Int,
+        currentBaseIntervalDays: Double,
+        currentConfidence: Int?,
+        recentFeedback: List<WateringFeedback?>,
+        frozen: Boolean = false
     ): AdaptiveInterval {
         val multiplier = when (feedback) {
             WateringFeedback.TOO_SOON -> TOO_SOON_TARGET_MULTIPLIER
@@ -425,7 +453,8 @@ object CareSchedule {
         if (currentConfidence == null) {
             val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback, excluded)
             val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
-            return AdaptiveInterval(clampStep(currentBaseIntervalDays, rawNewBase), 0, excluded)
+            val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
+            return AdaptiveInterval(newBase.roundToInt(), newBase, 0, excluded)
         }
 
         val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback, excluded)
@@ -440,7 +469,7 @@ object CareSchedule {
                 min(currentConfidence + 1, MAX_CONFIDENCE)
             else -> currentConfidence
         }
-        return AdaptiveInterval(newBase, newConfidence, excluded)
+        return AdaptiveInterval(newBase.roundToInt(), newBase, newConfidence, excluded)
     }
 
     /**
@@ -453,7 +482,7 @@ object CareSchedule {
     private fun isUnattributedOffScheduleObservation(
         feedback: WateringFeedback?,
         observedIntervalDays: Int,
-        currentBaseIntervalDays: Int
+        currentBaseIntervalDays: Double
     ): Boolean = feedback == null && !gapAgrees(observedIntervalDays, currentBaseIntervalDays)
 
     /**
@@ -499,10 +528,13 @@ object CareSchedule {
         }
     }
 
-    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Int): Boolean {
+    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Double): Boolean {
         if (predictedIntervalDays <= 0) return false
         return abs(observedIntervalDays - predictedIntervalDays) <= GAP_AGREEMENT_TOLERANCE * predictedIntervalDays
     }
+
+    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Int): Boolean =
+        gapAgrees(observedIntervalDays, predictedIntervalDays.toDouble())
 
     // --- Cold-start bootstrap from watering history (#571 Part B) ---
 
@@ -565,10 +597,10 @@ object CareSchedule {
         }
     }
 
-    private fun clampStep(oldBaseIntervalDays: Int, rawNewBaseIntervalDays: Double): Int {
+    private fun clampStep(oldBaseIntervalDays: Double, rawNewBaseIntervalDays: Double): Double {
         val minStep = oldBaseIntervalDays * (1 - PER_STEP_CLAMP_FRACTION)
         val maxStep = oldBaseIntervalDays * (1 + PER_STEP_CLAMP_FRACTION)
         val clamped = rawNewBaseIntervalDays.coerceIn(minStep, maxStep)
-        return clamped.roundToInt().coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS, MAX_ADAPTIVE_INTERVAL_DAYS)
+        return clamped.coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS.toDouble(), MAX_ADAPTIVE_INTERVAL_DAYS.toDouble())
     }
 }

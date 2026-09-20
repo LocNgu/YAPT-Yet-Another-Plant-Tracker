@@ -462,7 +462,10 @@ fun PlantListScreen(
                             viewModel.applySuggestedIntervalFromList(
                                 suggestion.plantId,
                                 suggestion.suggestedInterval,
-                                it
+                                it,
+                                suggestion.suggestedBaseInterval.takeIf { _ ->
+                                    it == suggestion.suggestedIntervalEffective
+                                }
                             )
                         }
                         pendingIntervalSuggestion = null

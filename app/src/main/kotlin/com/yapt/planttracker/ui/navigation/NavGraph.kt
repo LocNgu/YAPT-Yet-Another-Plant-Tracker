@@ -304,8 +304,10 @@ fun YaptNavGraph(
                 LaunchedEffect(savedStateHandle) {
                     val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
                     if (suggestedInterval != null) {
-                        vm.handleSuggestedWateringInterval(suggestedInterval)
+                        val suggestedBase = savedStateHandle.get<Double>("suggestedWateringBaseInterval")
+                        vm.handleSuggestedWateringInterval(suggestedInterval, suggestedBase)
                         savedStateHandle.remove<Int>("suggestedWateringInterval")
+                        savedStateHandle.remove<Double>("suggestedWateringBaseInterval")
                     }
                 }
 
@@ -364,11 +366,16 @@ fun YaptNavGraph(
                 }
                 AddCareLogScreen(
                     viewModel = vm,
-                    onNavigateBack = { suggestedInterval ->
+                    onNavigateBack = { suggestedInterval, suggestedBaseInterval ->
                         suggestedInterval?.let { interval ->
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("suggestedWateringInterval", interval)
+                            suggestedBaseInterval?.let { base ->
+                                navController.previousBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set("suggestedWateringBaseInterval", base)
+                            }
                         }
                         navController.popBackStackOnce(backStackEntry)
                     }
