@@ -15,6 +15,20 @@ import org.junit.Test
  */
 class CareScheduleAdaptiveTest {
 
+    @Test
+    fun `neutral observation preserves a sub-day base correction`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 8,
+            currentBaseIntervalDays = 7.0,
+            currentConfidence = 5,
+            recentFeedback = listOf(null)
+        )
+
+        assertEquals(7, result.intervalDays)
+        assertEquals(7.15, result.baseIntervalDays, 1e-9)
+    }
+
     // --- correctionStreak() ---
 
     @Test

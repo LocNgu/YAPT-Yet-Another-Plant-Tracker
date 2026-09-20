@@ -60,12 +60,16 @@ fertilizing/repotting-only reminder never reframes, since there's no "check the 
   +1-day override write the pre-#570 "Reschedule watering" action used, relabelled) — narrowed from
   three by #738 (product ADR-0039), which drops the **Still moist** action entirely rather than
   reworking it: rescheduling now requires opening the app and using Plant Detail. This is safe from a
-  *learning* standpoint: "Not now" writes only `wateringDueDateOverride` and never a model field. Note
-  it is **not** an unconditional "clear due" though — it computes
-  `(wateringDueDateOverride ?: now) + 1 day`, anchoring to an existing override rather than to now,
-  so on a plant with a stale past override a tap can advance that date by one day and leave the
-  plant overdue. That is a pre-existing `SkipWateringReceiver` defect, tracked as #741, and it
-  becomes more visible now that "Not now" is the only notification-level deferral. Varying the
+  *learning* standpoint: "Not now" writes only `wateringDueDateOverride` and never a model field. It
+  computes `maxOf(wateringDueDateOverride ?: now, now) + 1 day` — anchored to whichever is later, the
+  existing override or now — so a tap always moves the due date to at least one day past today,
+  regardless of any stale past override (#741; mirrors `PlantDetailViewModel
+  .confirmRescheduleRelativeDays()`'s anchoring). **History:** before #741's fix, the arithmetic was
+  `(wateringDueDateOverride ?: now) + 1 day`, anchored to the existing override alone — on a plant with
+  a stale past override, a tap advanced that stale date by only one day and could leave the plant still
+  overdue, requiring several taps to clear. An earlier draft of ADR-0039 asserted the opposite (that
+  "Not now" always clears "due"); that claim was corrected before merge and is now true again with this
+  fix. Varying the
   remaining action set by overdue-ness is still rejected, for the same reason as before: unpredictable
   buttons between firings cost more than the one attribution the fixed set gives up. A reminder fires
   at or after the due date, so a notification watering is never *early* — **Watered** therefore writes

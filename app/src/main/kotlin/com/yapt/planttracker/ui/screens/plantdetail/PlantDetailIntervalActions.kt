@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
  */
 fun PlantDetailViewModel.clearSuggestedInterval() {
     suggestedWateringInterval.value = null
+    suggestedWateringBaseInterval.value = null
 }
 
 /**
@@ -36,6 +37,7 @@ fun PlantDetailViewModel.dismissSuggestedInterval() {
     viewModelScope.launch {
         plant.value?.let { p -> quickLogUseCase.recordWateringSuggestionDismissal(p) }
         suggestedWateringInterval.value = null
+        suggestedWateringBaseInterval.value = null
     }
 }
 
@@ -47,9 +49,13 @@ private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
  * Routes a freshly-computed adaptive suggestion to either the ADR-0006 dialog or a silent apply
  * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
  */
-internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInterval: Int) {
+internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
+    suggestedInterval: Int,
+    suggestedBaseInterval: Double = suggestedInterval.toDouble()
+) {
     if (shouldShowIntervalDialog()) {
         suggestedWateringInterval.value = suggestedInterval
+        suggestedWateringBaseInterval.value = suggestedBaseInterval
         return
     }
     val p = plant.value ?: return
@@ -59,12 +65,21 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInter
     val amplitude = dataStore.seasonalAmplitudeOnce()
     val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
         plant = p.copy(
-            wateringBaseIntervalDays = suggestedInterval.toDouble(),
+            wateringBaseIntervalDays = suggestedBaseInterval,
             wateringIntervalDays = suggestedInterval
         ),
         seasonalAmplitude = amplitude
     ) ?: suggestedInterval
-    val result = quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, effectiveInterval)
+    val result = if (suggestedBaseInterval == suggestedInterval.toDouble()) {
+        quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, effectiveInterval)
+    } else {
+        quickLogUseCase.applyWateringIntervalSuggestion(
+            p,
+            suggestedInterval,
+            effectiveInterval,
+            suggestedBaseInterval
+        )
+    }
     emitEvent(
         PlantDetailViewModel.Event.SilentIntervalApplied(
             beforeIntervalDays = result.previousEffectiveIntervalDays,
@@ -75,8 +90,13 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestedInter
 }
 
 /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
-fun PlantDetailViewModel.handleSuggestedWateringInterval(suggestedInterval: Int) {
-    viewModelScope.launch { applySuggestionOrPrompt(suggestedInterval) }
+fun PlantDetailViewModel.handleSuggestedWateringInterval(
+    suggestedInterval: Int,
+    suggestedBaseInterval: Double? = null
+) {
+    viewModelScope.launch {
+        applySuggestionOrPrompt(suggestedInterval, suggestedBaseInterval ?: suggestedInterval.toDouble())
+    }
 }
 
 internal fun PlantDetailViewModel.setTimeRange(range: TimeRange) {
@@ -86,8 +106,18 @@ internal fun PlantDetailViewModel.setTimeRange(range: TimeRange) {
 fun PlantDetailViewModel.applySuggestedInterval(newInterval: Int) {
     viewModelScope.launch {
         val originalSuggestion = suggestedWateringInterval.value
-        plant.value?.let { p -> quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval) }
+        val preciseSuggestion = suggestedWateringBaseInterval.value.takeIf {
+            pendingWateringSuggestion.value?.effectiveIntervalDays == newInterval
+        }
+        plant.value?.let { p ->
+            if (preciseSuggestion == null) {
+                quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval)
+            } else {
+                quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
+            }
+        }
         suggestedWateringInterval.value = null
+        suggestedWateringBaseInterval.value = null
         emitEvent(PlantDetailViewModel.Event.IntervalUpdated)
     }
 }

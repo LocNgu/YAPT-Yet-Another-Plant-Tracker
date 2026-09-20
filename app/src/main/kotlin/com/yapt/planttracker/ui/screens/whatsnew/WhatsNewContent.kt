@@ -18,6 +18,17 @@ object WhatsNewContent {
                 "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
                 "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
                 "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm"
+        ),
+        fixed = listOf(
+            "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
+                "rounding nudge the underlying interval when you accept a suggestion",
+            "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
+                "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
+                "least tomorrow on the first tap",
+            "Rescheduling watering to a custom date on or before the plant's current watering due date no " +
+                "longer silently does nothing — that date is no longer offered in the picker",
+            "Rescheduling watering's \"Today\" option is no longer greyed out in cases where tapping it " +
+                "would actually pull the due date in sooner"
         )
     )
 

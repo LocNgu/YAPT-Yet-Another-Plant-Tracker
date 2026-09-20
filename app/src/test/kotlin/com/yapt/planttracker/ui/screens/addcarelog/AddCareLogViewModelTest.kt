@@ -815,6 +815,7 @@ class AddCareLogViewModelTest {
             vm.saveLog()
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
             assertEquals(4, event.suggestedWateringInterval)
+            assertEquals(4.2, event.suggestedWateringBaseInterval!!, 1e-9)
             cancelAndIgnoreRemainingEvents()
         }
     }
