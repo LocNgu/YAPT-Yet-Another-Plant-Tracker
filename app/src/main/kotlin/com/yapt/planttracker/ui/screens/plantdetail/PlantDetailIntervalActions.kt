@@ -70,16 +70,17 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
         ),
         seasonalAmplitude = amplitude
     ) ?: suggestedInterval
-    val result = if (suggestedBaseInterval == suggestedInterval.toDouble()) {
-        quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedInterval, effectiveInterval)
-    } else {
-        quickLogUseCase.applyWateringIntervalSuggestion(
-            p,
-            suggestedInterval,
-            effectiveInterval,
-            suggestedBaseInterval
-        )
-    }
+    // Always hand the precise base across, never only when it differs from the rounded value: the
+    // no-base overload re-derives it as deseasonalize(effectiveInterval), and since effectiveInterval
+    // is already round(base x season), that round-trip loses the fraction and ratchets the base --
+    // the very defect this path exists to fix (#718, technical ADR-0027). An exactly-whole base is
+    // still an exact base and must be committed as-is.
+    val result = quickLogUseCase.applyWateringIntervalSuggestion(
+        p,
+        suggestedInterval,
+        effectiveInterval,
+        suggestedBaseInterval
+    )
     emitEvent(
         PlantDetailViewModel.Event.SilentIntervalApplied(
             beforeIntervalDays = result.previousEffectiveIntervalDays,
