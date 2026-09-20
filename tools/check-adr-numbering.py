@@ -25,6 +25,9 @@ required to be reflowed to satisfy this check.
 
 Run standalone before pushing:  python3 tools/check-adr-numbering.py
 Exits 0 when clean, 1 with one `file:line: [R#] message` per violation.
+
+Only tracked files are scanned, so `git add` a new file before running or it
+is silently skipped and a local run can pass where CI will not.
 """
 
 from __future__ import annotations
