@@ -88,7 +88,8 @@ object CareSchedule {
             customReminderStatuses = customReminderStatuses,
             isWateringOnSchedule = onSchedule,
             isWateringGapLong = gapRanLong,
-            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays
+            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
+            computedNextWateringDueAt = wateringDue.computedNextDueAt
         )
     }
 
@@ -146,8 +147,16 @@ object CareSchedule {
     fun isWateringGapLongAt(lastWateredAt: Long?, effectiveIntervalDays: Int?, chosenDate: Long): Boolean =
         wateringGapRanLong(lastWateredAt, effectiveIntervalDays, chosenDate)
 
-    /** [computeWateringDue]'s result: the usual [DueStatus] plus the #630 reschedule delta. */
-    private data class WateringDueStatus(val dueStatus: DueStatus, val rescheduleDeltaDays: Int?)
+    /**
+     * [computeWateringDue]'s result: the usual [DueStatus], the #630 reschedule delta, and (#720)
+     * the pre-override [computedNextDueAt] itself — carried out so [PlantCareStatus
+     * .computedNextWateringDueAt] can be populated without re-deriving it in the UI layer.
+     */
+    private data class WateringDueStatus(
+        val dueStatus: DueStatus,
+        val rescheduleDeltaDays: Int?,
+        val computedNextDueAt: Long?
+    )
 
     @Suppress("LongParameterList")
     private fun computeWateringDue(
@@ -182,7 +191,7 @@ object CareSchedule {
             null
         }
 
-        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays)
+        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays, computedNextDueAt)
     }
 
     /**
