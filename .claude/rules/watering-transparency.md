@@ -83,6 +83,31 @@ the same number the dialog would have shown/pre-filled had it appeared. The `DIA
 `afterIntervalDays` still deliberately stays base-space (unchanged posture from #626) — only the value
 it's derived from changed.
 
+**Follow-up (#718):** the #644 write path above was itself lossy. `newInterval` had already been rounded
+to a whole day for display; re-deriving `wateringBaseIntervalDays` from that rounded value via
+`SeasonalWatering.deseasonalize()` divides a `±0.5`-day rounding residual by `season(today)`, amplifying
+it by `1/season` — worst in the growing season (±0.77 days at the July trough), not winter, since a
+factor below 1 magnifies rather than shrinks. The residual is a sawtooth in general (it changes sign as
+`base × season` crosses integer/half-integer boundaries), but it is systematically upward for the
+seasonal-threshold crossings that actually open this dialog (a rising `season` pushing the displayed
+effective value up past a whole-day boundary) — a second opinion on the issue corrected the original
+framing from "one sign per season" to this narrower, still-real claim. Fixed per technical ADR-0027:
+`CareSchedule.AdaptiveInterval` now carries an unrounded `baseIntervalDays: Double` beside the rounded
+`intervalDays: Int`, `QuickWaterSuggestion` carries a deliberately non-defaulted `suggestedBaseInterval`,
+and `applyWateringIntervalSuggestion()` gained a `suggestedBaseInterval: Double?` parameter — non-null
+persists the model's precise base verbatim instead of running it back through `deseasonalize()`; null
+falls back to the existing `deseasonalize(newInterval)` path unchanged. Null is the callers' explicit
+signal that the user retyped the dialog's field (`PlantDetailIntervalActions.applySuggestedInterval()`'s
+`preciseSuggestion` `takeIf`, and the equivalent `takeIf { it == suggestion.suggestedIntervalEffective }`
+in `CalendarScreen`/`PlantListScreen`), so #644's typed-number contract is unchanged, and the pinned /
+amplitude-Off posture (#584 review round 2) is unaffected — `suggestedBaseInterval` is only ever
+consulted once `seasonAdjustable` already gates it. `effectiveIntervalForDisplay()`/
+`applySuggestionOrPrompt()` derive the displayed effective number from that same precise base, so the
+literal `wateringIntervalDays` and the base-derived schedule can't disagree on the apply date. See
+technical ADR-0027 and `.claude/rules/schedule.md`'s "Sub-day precision (#717/#718)" note — this
+write-path round-trip is distinct from the per-step clamp quantization artifact that note already
+accepts.
+
 **Follow-up (#654 review):** `QuickLogUseCase.adaptWateringInterval()`'s private
 `deseasonalizedObservedIntervalDays()` helper (used to de-seasonalize an observed watering gap before
 feeding it into the adaptive model) evaluated the season at `nowProvider()` (real wall-clock "now")

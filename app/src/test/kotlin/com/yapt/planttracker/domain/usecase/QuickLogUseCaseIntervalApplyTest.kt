@@ -23,8 +23,12 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.Calendar
+import java.util.TimeZone
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -59,8 +63,15 @@ class QuickLogUseCaseIntervalApplyTest {
         updatedAt = 0L
     )
 
-    /** Amplitude defaults to STANDARD (graduated, #656); pass `amplitudeOff = true` to exercise the Off path. */
-    private fun useCase(amplitudeOff: Boolean = false): QuickLogUseCase {
+    /**
+     * Amplitude defaults to STANDARD (graduated, #656); pass `amplitudeOff = true` to exercise the Off
+     * path. [nowProvider] defaults to real wall-clock time, mirroring the production default — pass a
+     * fixed one to pin the date a seasonal conversion is evaluated at (#718).
+     */
+    private fun useCase(
+        amplitudeOff: Boolean = false,
+        nowProvider: () -> Long = System::currentTimeMillis
+    ): QuickLogUseCase {
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(
                 if (amplitudeOff) preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF") else emptyPreferences()
@@ -73,7 +84,8 @@ class QuickLogUseCaseIntervalApplyTest {
             plantPhotoRepo,
             dataStore,
             database,
-            wateringAdjustmentRepo
+            wateringAdjustmentRepo,
+            nowProvider
         )
     }
 
@@ -102,6 +114,10 @@ class QuickLogUseCaseIntervalApplyTest {
         runTest {
             // #572/#644: wateringBaseIntervalDays must be the *inverse* seasonal conversion of the
             // now-effective newInterval, not newInterval written straight through as it was pre-#644.
+            // #718: suggestedBaseInterval = null is the caller's signal that the user retyped the
+            // dialog's field (PlantDetailIntervalActions/CalendarScreen/PlantListScreen only pass a
+            // non-null precise base when the field is untouched) — a typed number must still
+            // de-seasonalize through this path, which is exactly what this test pins.
             val useCase = useCase()
             val monstera = plant().copy(wateringIntervalDays = 18, wateringBaseIntervalDays = 18.0)
             val expectedBase = SeasonalWatering.deseasonalize(
@@ -119,6 +135,39 @@ class QuickLogUseCaseIntervalApplyTest {
             )
 
             coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == expectedBase }) }
+        }
+
+    @Test
+    fun `applyWateringIntervalSuggestion with a precise suggestedBaseInterval persists it verbatim`() =
+        runTest {
+            // #718: an unedited apply must write the model's precise Double base as-is rather than
+            // re-deriving it from the rounded effective display value — the worked example from the
+            // issue (Standard amplitude, northern hemisphere, Sep 13: season ≈ 0.866). The model's raw
+            // result was 8.85 (an observation that recommended *shortening*); the pre-#718 path instead
+            // wrote round(9 × 0.866) = 8 back through deseasonalize(), landing on ≈9.234 — a ratchet in
+            // the opposite direction of what the model actually said.
+            val sep13 = localDateUtcMillis(2026, 9, 13)
+            val useCase = useCase(nowProvider = { sep13 })
+            val monstera = plant().copy(wateringIntervalDays = 9, wateringBaseIntervalDays = 8.718)
+            val preciseModelBase = 8.85
+            val newInterval = 8
+
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = newInterval,
+                suggestedBaseInterval = preciseModelBase
+            )
+
+            val ratchetedBase = SeasonalWatering.deseasonalize(
+                newInterval.toDouble(),
+                sep13.toLocalDate(),
+                SeasonalAmplitude.STANDARD.value,
+                SeasonalWatering.currentHemisphere()
+            )
+            // The two must genuinely differ, or this case would silently become vacuous.
+            assertTrue(abs(preciseModelBase - ratchetedBase) > 0.01)
+            coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == preciseModelBase }) }
         }
 
     @Test
@@ -144,6 +193,27 @@ class QuickLogUseCaseIntervalApplyTest {
         }
 
     @Test
+    fun `applyWateringIntervalSuggestion with amplitude Off ignores a non-null suggestedBaseInterval`() =
+        runTest {
+            // #718 guard: suggestedBaseInterval must only ever apply on the seasonAdjustable path —
+            // passing a non-null precise base must not resurrect the amplitude-Off/pinned posture's
+            // "leave the stored base untouched" contract (#584 review round 2).
+            val useCase = useCase(amplitudeOff = true)
+            val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 6.0)
+
+            useCase.applyWateringIntervalSuggestion(
+                monstera,
+                originalSuggestion = null,
+                newInterval = 8,
+                suggestedBaseInterval = 8.85
+            )
+
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
+            }
+        }
+
+    @Test
     fun `applyWateringIntervalSuggestion on a pinned plant leaves wateringBaseIntervalDays untouched`() = runTest {
         val useCase = useCase()
         val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
@@ -153,6 +223,26 @@ class QuickLogUseCaseIntervalApplyTest {
             originalSuggestion = null,
             newInterval = 14,
             suggestedBaseInterval = null
+        )
+
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
+        }
+    }
+
+    @Test
+    fun `applyWateringIntervalSuggestion on a pinned plant ignores a non-null suggestedBaseInterval`() = runTest {
+        // #718 guard: a non-null precise base must not clobber a pinned plant's stored base — the
+        // gate is `!plant.pinIntervalToBase && amplitude != 0.0`, and suggestedBaseInterval is only
+        // ever consulted once that gate has already passed.
+        val useCase = useCase()
+        val monstera = plant().copy(wateringIntervalDays = 7, pinIntervalToBase = true, wateringBaseIntervalDays = null)
+
+        useCase.applyWateringIntervalSuggestion(
+            monstera,
+            originalSuggestion = null,
+            newInterval = 14,
+            suggestedBaseInterval = 8.85
         )
 
         coVerify {
@@ -282,4 +372,11 @@ class QuickLogUseCaseIntervalApplyTest {
             // did to the displayed/applied number.
             coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 }) }
         }
+}
+
+private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.clear()
+    cal.set(year, month - 1, day, 12, 0, 0)
+    return cal.timeInMillis
 }

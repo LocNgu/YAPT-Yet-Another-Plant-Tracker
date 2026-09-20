@@ -414,6 +414,15 @@ class QuickLogUseCase(
      * base-space accounting, not the user-facing effective value now written into
      * [Plant.wateringIntervalDays] — this divergence from the literal value is intentional and unchanged
      * from before #644, only the source value used to derive it has changed.
+     *
+     * **[suggestedBaseInterval] (#718, technical ADR-0027)** short-circuits the [SeasonalWatering.deseasonalize]
+     * derivation above: when non-null (and the plant is season-adjustable), it is persisted to
+     * [Plant.wateringBaseIntervalDays] verbatim instead of re-deriving the base from the already-rounded
+     * [newInterval] — that round-trip divides a `±0.5`-day rounding residual by `season(today)`, ratcheting
+     * the base upward on every seasonal-threshold-triggered apply. Callers pass the adaptive model's
+     * precise `Double` base only when [newInterval] is the dialog's unedited pre-fill; a `null` here is the
+     * caller's signal that the user retyped the field, so the value still de-seasonalizes through the
+     * existing path (#644's typed-number contract, unchanged).
      */
     suspend fun applyWateringIntervalSuggestion(
         plant: Plant,
