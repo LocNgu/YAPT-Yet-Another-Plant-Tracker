@@ -1,8 +1,7 @@
 package com.yapt.planttracker
 
 /**
- * The [YaptApplication] every Robolectric unit test runs against, registered module-wide in
- * `app/src/test/resources/robolectric.properties` (#757).
+ * The [YaptApplication] every Robolectric unit test runs against (#757).
  *
  * Identical to the production application except that [launchAppStartWork] does nothing. Robolectric
  * builds a fresh application per test method, but
@@ -16,9 +15,18 @@ package com.yapt.planttracker
  * opened at most once per fork (the fixup marks itself done after its first non-empty pass), which is
  * why the failure never reproduced on a re-run or in class isolation.
  *
- * Nothing is lost by skipping it here: no unit test exercises app start itself, and both halves of
- * that work have direct coverage — `SeasonalGraduationFixupTest` for the backfill, `SettingsViewModelTest`
- * for [writeDefaultReminderTimeIfAbsent]. A test that does want app-start behaviour should drive it
+ * **This class's name is load-bearing.** Robolectric's `AndroidTestEnvironment` resolves `Test` +
+ * the manifest application's simple name, in the same package, *before* falling back to the manifest
+ * class itself — so `TestYaptApplication` in `com.yapt.planttracker` is selected by that convention
+ * alone, with or without `app/src/test/resources/robolectric.properties` (verified in
+ * robolectric-4.16.1 bytecode, and by deleting the file and watching the tests still get this class).
+ * The properties file is kept as an explicit, greppable registration that keeps working if this class
+ * is ever renamed off the convention — not as the mechanism that makes it apply today. Renaming this
+ * class therefore silently drops one of the two routes; keep the properties file in step if you do.
+ *
+ * Nothing is lost by skipping app-start work here: no unit test exercises app start, and both halves
+ * have direct coverage — `SeasonalGraduationFixupTest` for the backfill, `SettingsViewModelTest` for
+ * [writeDefaultReminderTimeIfAbsent]. A test that does want app-start behaviour should drive it
  * explicitly rather than race it.
  */
 class TestYaptApplication : YaptApplication() {

@@ -108,9 +108,10 @@ open class YaptApplication : Application() {
      * concurrently with — and against the same database as — whatever test happened to be executing.
      * When [SeasonalGraduationFixup]'s plant snapshot landed after a test had inserted its fixture, the
      * fixup rewrote that fixture's `wateringBaseIntervalDays`, which is exactly the column
-     * `SkipWateringReceiverTest`'s ADR-0007 invariant guard asserts is never written. See
-     * `TestYaptApplication` in the unit-test source set, registered for the whole module via
-     * `app/src/test/resources/robolectric.properties`.
+     * `SkipWateringReceiverTest`'s ADR-0007 invariant guard asserts is never written. The override
+     * lives in `TestYaptApplication` (unit-test source set), which Robolectric selects by its own
+     * `Test` + <application simple name> convention as well as by the explicit
+     * `app/src/test/resources/robolectric.properties` registration — see that class's KDoc.
      */
     protected open fun launchAppStartWork() {
         applicationScope.launch {

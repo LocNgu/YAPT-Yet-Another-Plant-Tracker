@@ -48,10 +48,18 @@ paths:
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
 ## Robolectric's application is `TestYaptApplication`, not `YaptApplication` (#757)
-`app/src/test/resources/robolectric.properties` registers `com.yapt.planttracker.TestYaptApplication`
-for the whole unit-test module. It is the production application with `launchAppStartWork()` (the
-`onCreate` coroutine running `writeDefaultReminderTimeIfAbsent` + `SeasonalGraduationFixup`) overridden
-to a no-op — the sole reason `YaptApplication` and that one method are `open`.
+Every unit test runs against `com.yapt.planttracker.TestYaptApplication`: the production application
+with `launchAppStartWork()` (the `onCreate` coroutine running `writeDefaultReminderTimeIfAbsent` +
+`SeasonalGraduationFixup`) overridden to a no-op — the sole reason `YaptApplication` and that one
+method are `open`.
+**Two independent routes select it, and the class name is load-bearing.** Robolectric's
+`AndroidTestEnvironment` resolves `Test` + the manifest application's simple name in the same package
+*before* falling back to the manifest class, so `TestYaptApplication` applies by naming convention
+alone — verified in robolectric-4.16.1 bytecode and by deleting the properties file and watching tests
+still get it. `app/src/test/resources/robolectric.properties` is kept as the explicit, greppable
+registration that survives renaming the class off that convention (and fails loudly if it names a class
+that doesn't exist). Don't describe either one as "the" wiring: rename the class and you silently drop
+the convention route, so keep the properties file in step.
 Why: Robolectric builds a fresh application per *test method*, while `PlantDatabase.getInstance()` and
 the `settingsDataStore` delegate are process-wide singletons shared by every test in a JVM fork. The
 fire-and-forget `Dispatchers.IO` launch therefore ran against the same database as whatever test was
@@ -64,7 +72,9 @@ Consequences to keep in mind:
 - Don't reintroduce app-start work that tests silently race. New `onCreate` background work goes inside
   `launchAppStartWork()`, and gets its own direct test rather than relying on app start to run it.
 - Don't add `@Config(application = …)` pointing back at `YaptApplication` — that opts a class back into
-  the race. `TestYaptApplicationTest` fails if the properties file stops applying module-wide.
+  the race. `TestYaptApplicationTest` guards the end state (which application Robolectric instantiates),
+  not any one wiring mechanism: it catches a config pointed back at the production application, but
+  passes if only the properties file goes missing, since the naming convention still holds there.
 - A test that genuinely needs app-start behaviour should drive it explicitly (call the underlying
   function), never wait on the launch.
 
