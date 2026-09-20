@@ -40,7 +40,7 @@ internal suspend fun writeDefaultReminderTimeIfAbsent(dataStore: DataStore<Prefe
     }
 }
 
-class YaptApplication : Application() {
+open class YaptApplication : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -100,12 +100,29 @@ class YaptApplication : Application() {
         isAppForeground = foreground
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        NotificationHelper.createChannel(this)
+    /**
+     * Fire-and-forget app-start background work, split out of [onCreate] and left `open` purely so
+     * Robolectric can suppress it (#757). Under Robolectric a fresh `YaptApplication` is created for
+     * *every* test method while [PlantDatabase.getInstance] and the [settingsDataStore] delegate are
+     * both process-wide singletons shared across the whole JVM fork, so this coroutine ran
+     * concurrently with — and against the same database as — whatever test happened to be executing.
+     * When [SeasonalGraduationFixup]'s plant snapshot landed after a test had inserted its fixture, the
+     * fixup rewrote that fixture's `wateringBaseIntervalDays`, which is exactly the column
+     * `SkipWateringReceiverTest`'s ADR-0007 invariant guard asserts is never written. The override
+     * lives in `TestYaptApplication` (unit-test source set), which Robolectric selects by its own
+     * `Test` + <application simple name> convention as well as by the explicit
+     * `app/src/test/resources/robolectric.properties` registration — see that class's KDoc.
+     */
+    protected open fun launchAppStartWork() {
         applicationScope.launch {
             writeDefaultReminderTimeIfAbsent(settingsDataStore)
             runSeasonalGraduationFixupIfNeeded()
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        NotificationHelper.createChannel(this)
+        launchAppStartWork()
     }
 }
