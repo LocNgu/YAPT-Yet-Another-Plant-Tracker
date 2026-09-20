@@ -11,11 +11,16 @@ package com.yapt.planttracker.domain.model
  * editable field and the value it submits to Apply all use this value instead, so nothing compares a
  * base-space number against an already seasonally-adjusted "current" (#620/#644). Equal to
  * [suggestedInterval] whenever the plant is pinned or amplitude is Off.
+ *
+ * [suggestedBaseInterval] is the model's *unrounded* base-space result (technical ADR-0027) and is
+ * deliberately **not** defaulted: defaulting it to `suggestedInterval.toDouble()` would let a
+ * construction site silently substitute the rounded value for the precise one, which is the exact
+ * precision loss #717/#718 removed, and it would fail silently rather than at compile time.
  */
 data class QuickWaterSuggestion(
     val plantId: Long,
     val plantName: String,
     val suggestedInterval: Int,
     val suggestedIntervalEffective: Int,
-    val suggestedBaseInterval: Double = suggestedInterval.toDouble()
+    val suggestedBaseInterval: Double
 )

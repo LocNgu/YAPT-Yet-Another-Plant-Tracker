@@ -429,9 +429,15 @@ class AddCareLogViewModel(
     }
 
     sealed class Event {
+        /**
+         * [suggestedWateringBaseInterval] is the unrounded base-space value behind
+         * [suggestedWateringInterval] (technical ADR-0027); both are null together when the save
+         * produced no suggestion. Not defaulted, so an emit site cannot drop the precise base and
+         * silently fall back to the rounded one (#717/#718).
+         */
         data class Saved(
             val suggestedWateringInterval: Int?,
-            val suggestedWateringBaseInterval: Double? = null
+            val suggestedWateringBaseInterval: Double?
         ) : Event()
         data object NavigateBack : Event()
     }

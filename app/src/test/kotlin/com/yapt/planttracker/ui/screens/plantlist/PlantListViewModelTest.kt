@@ -940,7 +940,13 @@ class PlantListViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4, suggestedIntervalEffective = 5)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 4,
+                    suggestedIntervalEffective = 5,
+                    suggestedBaseInterval = 4.0
+                )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -1035,7 +1041,13 @@ class PlantListViewModelTest {
                 message = "Watered and fertilized Monstera",
                 logged = true,
                 waterPaired = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 8, suggestedIntervalEffective = 8)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 8,
+                    suggestedIntervalEffective = 8,
+                    suggestedBaseInterval = 8.0
+                )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -1428,7 +1440,7 @@ class PlantListViewModelTest {
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
             every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-            coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) } returns
+            coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) } returns
                 QuickLogUseCase.IntervalApplyResult(
                     previousEffectiveIntervalDays = 7,
                     previousBaseIntervalDays = null,
@@ -1444,10 +1456,15 @@ class PlantListViewModelTest {
                 plantIssueRepo
             )
 
-            vm.applySuggestedIntervalFromList(1L, suggestedIntervalDays = 10, newInterval = 10)
+            vm.applySuggestedIntervalFromList(
+                1L,
+                suggestedIntervalDays = 10,
+                newInterval = 10,
+                suggestedBaseInterval = null
+            )
             advanceUntilIdle()
 
-            coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) }
+            coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) }
         }
 
     @Test

@@ -419,7 +419,7 @@ class QuickLogUseCase(
         plant: Plant,
         originalSuggestion: Int?,
         newInterval: Int,
-        suggestedBaseInterval: Double? = null
+        suggestedBaseInterval: Double?
     ): IntervalApplyResult {
         val now = System.currentTimeMillis()
         // When amplitude is 0 (SeasonalAmplitude.OFF) or the plant is pinned, newInterval is a

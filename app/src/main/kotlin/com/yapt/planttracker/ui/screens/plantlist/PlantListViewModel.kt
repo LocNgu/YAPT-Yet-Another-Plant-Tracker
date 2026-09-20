@@ -315,7 +315,7 @@ class PlantListViewModel(
         plantId: Long,
         suggestedIntervalDays: Int,
         newInterval: Int,
-        suggestedBaseInterval: Double? = null
+        suggestedBaseInterval: Double?
     ) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->

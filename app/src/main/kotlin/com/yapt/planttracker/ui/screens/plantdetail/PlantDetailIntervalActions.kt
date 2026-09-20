@@ -51,7 +51,7 @@ private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
  */
 internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
     suggestedInterval: Int,
-    suggestedBaseInterval: Double = suggestedInterval.toDouble()
+    suggestedBaseInterval: Double
 ) {
     if (shouldShowIntervalDialog()) {
         suggestedWateringInterval.value = suggestedInterval
@@ -93,9 +93,13 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
 /** Entry point for the ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow (see `NavGraph`). */
 fun PlantDetailViewModel.handleSuggestedWateringInterval(
     suggestedInterval: Int,
-    suggestedBaseInterval: Double? = null
+    suggestedBaseInterval: Double?
 ) {
     viewModelScope.launch {
+        // The one place the rounded value may legitimately stand in for the precise base: the base
+        // crosses a process boundary via NavGraph's savedStateHandle, so a restored-from-death entry
+        // can carry the interval without it. Nothing better is recoverable at that point -- but the
+        // parameter stays non-defaulted so this substitution happens here, visibly, and nowhere else.
         applySuggestionOrPrompt(suggestedInterval, suggestedBaseInterval ?: suggestedInterval.toDouble())
     }
 }
@@ -111,11 +115,11 @@ fun PlantDetailViewModel.applySuggestedInterval(newInterval: Int) {
             pendingWateringSuggestion.value?.effectiveIntervalDays == newInterval
         }
         plant.value?.let { p ->
-            if (preciseSuggestion == null) {
-                quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval)
-            } else {
-                quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
-            }
+            // preciseSuggestion is deliberately null when the user retyped the field: that number is a
+            // manual effective-space value with no model base behind it, so it must be de-seasonalized
+            // normally (technical ADR-0027). Passed explicitly rather than by omission so the two cases
+            // read as a decision instead of a forgotten argument.
+            quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
         }
         suggestedWateringInterval.value = null
         suggestedWateringBaseInterval.value = null
