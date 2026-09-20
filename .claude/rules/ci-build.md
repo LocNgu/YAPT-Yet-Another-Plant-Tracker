@@ -47,6 +47,27 @@ paths:
 `testReleaseUnitTest` + `lintRelease`. Instrumented tests run on PRs via path filter; concurrency group cancels
 stacked runs. Push to `main` auto-creates a signed-APK GitHub Release (`--target SHA` anchors the tag).
 
+## Robolectric's application is `TestYaptApplication`, not `YaptApplication` (#757)
+`app/src/test/resources/robolectric.properties` registers `com.yapt.planttracker.TestYaptApplication`
+for the whole unit-test module. It is the production application with `launchAppStartWork()` (the
+`onCreate` coroutine running `writeDefaultReminderTimeIfAbsent` + `SeasonalGraduationFixup`) overridden
+to a no-op — the sole reason `YaptApplication` and that one method are `open`.
+Why: Robolectric builds a fresh application per *test method*, while `PlantDatabase.getInstance()` and
+the `settingsDataStore` delegate are process-wide singletons shared by every test in a JVM fork. The
+fire-and-forget `Dispatchers.IO` launch therefore ran against the same database as whatever test was
+executing, and whenever the #702 fixup's plant snapshot landed after a test's fixture insert it
+recomputed that fixture's `wateringBaseIntervalDays` (7.0 → 7.72 at the default 0.35 amplitude) — the
+one column `SkipWateringReceiverTest`'s product-ADR-0007 invariant guard asserts is never written. The
+window opened at most once per fork (the fixup marks itself done after its first non-empty pass),
+which is why it never reproduced on a re-run or in class isolation.
+Consequences to keep in mind:
+- Don't reintroduce app-start work that tests silently race. New `onCreate` background work goes inside
+  `launchAppStartWork()`, and gets its own direct test rather than relying on app start to run it.
+- Don't add `@Config(application = …)` pointing back at `YaptApplication` — that opts a class back into
+  the race. `TestYaptApplicationTest` fails if the properties file stops applying module-wide.
+- A test that genuinely needs app-start behaviour should drive it explicitly (call the underlying
+  function), never wait on the launch.
+
 ## Diagnosing a failed CI check (#684)
 Don't pull the full raw job log as the first move — it's routinely 50K+ characters and most of it is
 noise. Check the failing check run's conclusion/annotations first (the GitHub API's check-run details,
