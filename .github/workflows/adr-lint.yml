@@ -24,5 +24,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Test the checker
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+
       - name: Check ADR numbering and citations
         run: python3 tools/check-adr-numbering.py
