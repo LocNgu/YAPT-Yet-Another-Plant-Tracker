@@ -49,9 +49,13 @@ object CareSchedule {
             (now - it) / ONE_DAY_MS
         }
         val nowDate = now.toLocalDate()
+        // #699/#760 (product ADR-0044): evaluated once, right alongside nowDate, so every downstream
+        // consumer of PlantCareStatus inherits suppression through isOverdue/isDueSoon rather than
+        // calling DormancyWindow itself.
+        val isDormant = DormancyWindow.isDormant(nowDate.monthValue, plant.dormancyStartMonth, plant.dormancyEndMonth)
 
         val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
-        val (nextDueAt, isOverdue, isDueSoon) = wateringDue.dueStatus
+        val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
         val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
@@ -75,8 +79,8 @@ object CareSchedule {
             lastFertilizedAt = lastFertilizedAt,
             daysSinceLastWatering = daysSinceWatering,
             nextWateringDueAt = nextDueAt,
-            isOverdue = isOverdue,
-            isDueSoon = isDueSoon,
+            isOverdue = wateringOverdue && !isDormant,
+            isDueSoon = wateringDueSoon && !isDormant,
             nextFertilizingDueAt = nextFertilizingDueAt,
             isFertilizingOverdue = isFertilizingOverdue,
             isFertilizingDueSoon = isFertilizingDueSoon,
@@ -89,7 +93,8 @@ object CareSchedule {
             isWateringOnSchedule = onSchedule,
             isWateringGapLong = gapRanLong,
             rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
-            computedNextWateringDueAt = wateringDue.computedNextDueAt
+            computedNextWateringDueAt = wateringDue.computedNextDueAt,
+            isDormant = isDormant
         )
     }
 
