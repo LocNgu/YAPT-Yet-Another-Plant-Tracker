@@ -19,26 +19,20 @@ fun PlantDetailViewModel.dismissRescheduleDialog() {
 /**
  * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
  * since the screen disables it while [isRescheduleTodayEnabled] (#746, replacing the earlier
- * `PlantCareStatus.isOverdue`-based gate) says tapping it would be a no-op. [shownNow] is the
- * timestamp on the dialog row, retained even if the wall clock crosses midnight before the tap.
- * See [applyReschedule].
+ * `PlantCareStatus.isOverdue`-based gate) says tapping it would be a no-op. Always reads the clock
+ * on tap, so an overnight-open dialog cannot commit yesterday as "Today". See [applyReschedule].
  */
-fun PlantDetailViewModel.confirmRescheduleToday(shownNow: Long = System.currentTimeMillis()) =
-    applyReschedule(shownNow)
+fun PlantDetailViewModel.confirmRescheduleToday() = applyReschedule(System.currentTimeMillis())
 
 /**
- * Reschedule "+[days]" option (#508, product ADR-0029) — anchored to the current *effective* due
- * date (`maxOf(nextWateringDueAt, now)`, already override-aware via `CareSchedule`), unchanged
- * from the stepper dialog this replaces. [shownDueAt] is the date rendered on that row, passed
- * through unchanged on tap; the default keeps direct non-dialog callers on the same anchor.
- * [days] never affects what the model learns (#586).
+ * Commits the +N option's [shownDueAt] exactly as rendered in the dialog (#737). The dialog alone
+ * computes it from `maxOf(nextWateringDueAt, now)` via [rescheduledRelativeDueAt]; no second clock
+ * read or anchor calculation can drift from the displayed date. The number of days never affects
+ * what the model learns (#586).
  */
-fun PlantDetailViewModel.confirmRescheduleRelativeDays(
-    days: Int,
-    shownDueAt: Long = rescheduledRelativeDueAt(careStatus.value?.nextWateringDueAt, System.currentTimeMillis(), days)
-) = applyReschedule(shownDueAt)
+fun PlantDetailViewModel.confirmRescheduleRelativeDate(shownDueAt: Long) = applyReschedule(shownDueAt)
 
-/** Shared with the dialog's date preview so its due-date anchor matches the committed override. */
+/** The dialog's due-date-anchored +N calculation; its result is both previewed and committed. */
 internal fun rescheduledRelativeDueAt(effectiveDueAt: Long?, now: Long, days: Int): Long =
     maxOf(effectiveDueAt ?: 0L, now) + TimeUnit.DAYS.toMillis(days.toLong())
 

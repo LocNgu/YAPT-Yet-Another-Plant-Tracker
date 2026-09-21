@@ -28,7 +28,7 @@ object WhatsNewContent {
                 "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
-            "Reschedule watering now shows the date each Today and +N-day choice will set, so you " +
+            "Reschedule watering now shows the date each +N-day choice will set, so you " +
                 "can see exactly when the next reminder is due",
             "Retyping a watering suggestion after logging an earlier watering now uses today's season " +
                 "consistently when saving the new interval",

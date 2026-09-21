@@ -370,8 +370,9 @@ is no model input at all.
 
 `RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled via
 `isRescheduleTodayEnabled` — see "Today button's own gate" below, #746)
-/ **+1 / +2 / +3 days** (`confirmRescheduleRelativeDays(days)`, anchored to `maxOf(nextWateringDueAt,
-now)`) / **Custom date…** (`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
+/ **+1 / +2 / +3 days** (`rescheduledRelativeDueAt()` computes the due-date-anchored preview,
+`confirmRescheduleRelativeDate()` commits that exact timestamp) / **Custom date…**
+(`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
 `SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
 date, see below). **Never fires the product ADR-0006 interval-suggestion dialog**
 afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
@@ -387,11 +388,11 @@ anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as 
 interacted with #719/#720.
 
 The remaining `+1/+2/+3` labels were still unclear about their due-date anchor (#737). The dialog
-now shows `Today · <date>` and `+N days · <date>` using `DateUtils.formatDate()` and the same
-`rescheduledRelativeDueAt()` calculation as the action handler. The date can wrap on a narrow screen;
-Custom date remains a picker because its result is not known until a day is selected.
-The option callback carries the exact timestamp used to render its label, so holding the dialog
-across local midnight cannot commit a different day from the one shown on the tapped row.
+shows `+N days · <date>` using `DateUtils.formatDate()` and passes the same calculated timestamp to
+`confirmRescheduleRelativeDate()`. The date can wrap on a narrow screen; Custom date remains a picker
+because its result is not known until a day is selected. Today stays the self-explanatory relative
+label and reads the live clock on tap — a dated Today preview held across midnight could otherwise
+commit yesterday and leave the plant immediately overdue.
 
 ### Custom-date picker's due-date floor (#720)
 `CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an

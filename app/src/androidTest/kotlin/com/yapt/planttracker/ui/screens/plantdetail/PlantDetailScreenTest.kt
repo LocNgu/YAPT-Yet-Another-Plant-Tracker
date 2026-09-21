@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -648,7 +649,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         composeTestRule.onNodeWithText("+1 day ·", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("+2 days ·", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("+3 days ·", substring = true).assertIsDisplayed()
@@ -656,19 +657,19 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun rescheduleDialog_showsTheResultingDueDateForEachOption() {
+    fun rescheduleDialog_showsTheResultingDueDateForEachRelativeOption() {
         val now = LocalDate.of(2026, 9, 21).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val due = LocalDate.of(2026, 9, 25).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         composeTestRule.setContent {
             RescheduleWateringDialog(
                 todayEnabled = true,
-                actions = RescheduleDialogActions({}, {}, { _, _ -> }, {}),
+                actions = RescheduleDialogActions({}, {}, {}, {}),
                 effectiveNextWateringDueAt = due,
                 now = now
             )
         }
 
-        composeTestRule.onNodeWithText("Today · ${DateUtils.formatDate(now)}").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         for (days in 1..3) {
             val label = if (days == 1) "+1 day" else "+$days days"
             val date = DateUtils.formatDate(due + TimeUnit.DAYS.toMillis(days.toLong()))
@@ -678,20 +679,19 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun rescheduleDialog_usesTheShownDateWhenTappedAfterTheClockMoves() {
+    fun rescheduleDialog_passesTheRenderedRelativeDateToItsCallback() {
         val shownNow = LocalDate.of(2026, 9, 21).atTime(23, 59)
             .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val overdue = LocalDate.of(2026, 9, 18).atStartOfDay(ZoneId.systemDefault())
             .toInstant().toEpochMilli()
-        var todayDueAt: Long? = null
         var relativeDueAt: Long? = null
         composeTestRule.setContent {
             RescheduleWateringDialog(
                 todayEnabled = true,
                 actions = RescheduleDialogActions(
                     onDismiss = {},
-                    onToday = { todayDueAt = it },
-                    onRelativeDays = { days, dueAt -> if (days == 1) relativeDueAt = dueAt },
+                    onToday = {},
+                    onRelativeDate = { relativeDueAt = it },
                     onCustomDate = {}
                 ),
                 effectiveNextWateringDueAt = overdue,
@@ -699,12 +699,36 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Today · ${DateUtils.formatDate(shownNow)}").performClick()
         val tomorrow = shownNow + TimeUnit.DAYS.toMillis(1)
         composeTestRule.onNodeWithText("+1 day · ${DateUtils.formatDate(tomorrow)}").performClick()
 
-        assertEquals(shownNow, todayDueAt)
         assertEquals(tomorrow, relativeDueAt)
+    }
+
+    @Test
+    fun rescheduleDialog_defaultClockPreviewUpdatesWithEffectiveDueDate() {
+        val initialDueAt = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
+        val updatedDueAt = initialDueAt + TimeUnit.DAYS.toMillis(3)
+        val effectiveDueAt = mutableLongStateOf(initialDueAt)
+        var committedDueAt: Long? = null
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions(
+                    onDismiss = {},
+                    onToday = {},
+                    onRelativeDate = { committedDueAt = it },
+                    onCustomDate = {}
+                ),
+                effectiveNextWateringDueAt = effectiveDueAt.longValue
+            )
+        }
+
+        composeTestRule.runOnIdle { effectiveDueAt.longValue = updatedDueAt }
+        val expected = updatedDueAt + TimeUnit.DAYS.toMillis(1)
+        composeTestRule.onNodeWithText("+1 day · ${DateUtils.formatDate(expected)}").performClick()
+
+        assertEquals(expected, committedDueAt)
     }
 
     @Test
@@ -766,7 +790,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsEnabled()
+        composeTestRule.onNodeWithText("Today").assertIsEnabled()
     }
 
     @Test
@@ -795,7 +819,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
     }
 
     // ---- Care history CHECK-row filter (#738, product ADR-0039) ----

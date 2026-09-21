@@ -35,7 +35,7 @@ class SkipWateringReceiver : BroadcastReceiver() {
      * records why it stays that way).
      *
      * Anchors to `maxOf(existing override, now) + 1 day`, mirroring
-     * `PlantDetailViewModel.confirmRescheduleRelativeDays()` — never to the existing override alone,
+     * `rescheduledRelativeDueAt()` on Plant Detail — never to the existing override alone,
      * which could already be in the past and would then advance a stale date by only one day,
      * leaving the plant still overdue (#741).
      */

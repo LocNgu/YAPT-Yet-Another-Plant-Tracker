@@ -12,7 +12,6 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
@@ -138,92 +137,21 @@ class PlantDetailViewModelRescheduleTest {
     }
 
     @Test
-    fun `date options commit the timestamp shown in the dialog instead of rereading the clock`() = runTest {
+    fun `relative date option commits the timestamp shown in the dialog`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
         val vm = makeVm()
-        val shownNow = 1_800_000_000_000L
-        val shownRelativeDueAt = shownNow + TimeUnit.DAYS.toMillis(2)
+        val shownRelativeDueAt = 1_800_000_000_000L
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.confirmRescheduleToday(shownNow)
-            vm.confirmRescheduleRelativeDays(2, shownRelativeDueAt)
+            vm.confirmRescheduleRelativeDate(shownRelativeDueAt)
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, shownNow) }
         coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, shownRelativeDueAt) }
     }
-
-    /**
-     * A plant last watered 20 days ago on a 7-day interval is clearly overdue, so
-     * `maxOf(nextWateringDueAt, now)` collapses to `now` — the resulting override is `now + N days`,
-     * asserted against a `[before, after]` wall-clock window bracketing the call rather than an exact
-     * timestamp, since both this test and the ViewModel read `System.currentTimeMillis()` independently.
-     */
-    @Test
-    fun `confirmRescheduleRelativeDays(1) delegates to recordReschedule 1 day from the effective due date`() =
-        runTest {
-            val now = System.currentTimeMillis()
-            val monstera = plant().copy(wateringIntervalDays = 7)
-            val overdueLog = CareLog(
-                plantId = 1L,
-                careType = CareType.WATER,
-                loggedAt = now - TimeUnit.DAYS.toMillis(20)
-            )
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
-            val vm = makeVm(careLogs = listOf(overdueLog))
-
-            val before = System.currentTimeMillis()
-            vm.careStatus.test {
-                assertTrue(awaitItem()!!.isOverdue)
-                vm.confirmRescheduleRelativeDays(1)
-                cancelAndIgnoreRemainingEvents()
-            }
-            val after = System.currentTimeMillis()
-
-            val oneDayMs = TimeUnit.DAYS.toMillis(1)
-            coVerify {
-                quickLogUseCase.recordReschedule(
-                    monstera,
-                    match { it in (before + oneDayMs)..(after + oneDayMs) }
-                )
-            }
-        }
-
-    @Test
-    fun `confirmRescheduleRelativeDays(3) delegates to recordReschedule 3 days from the effective due date`() =
-        runTest {
-            val now = System.currentTimeMillis()
-            val monstera = plant().copy(wateringIntervalDays = 7)
-            val overdueLog = CareLog(
-                plantId = 1L,
-                careType = CareType.WATER,
-                loggedAt = now - TimeUnit.DAYS.toMillis(20)
-            )
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
-            val vm = makeVm(careLogs = listOf(overdueLog))
-
-            val before = System.currentTimeMillis()
-            vm.careStatus.test {
-                assertTrue(awaitItem()!!.isOverdue)
-                vm.confirmRescheduleRelativeDays(3)
-                cancelAndIgnoreRemainingEvents()
-            }
-            val after = System.currentTimeMillis()
-
-            val threeDaysMs = TimeUnit.DAYS.toMillis(3)
-            coVerify {
-                quickLogUseCase.recordReschedule(
-                    monstera,
-                    match { it in (before + threeDaysMs)..(after + threeDaysMs) }
-                )
-            }
-        }
 
     @Test
     fun `confirmRescheduleCustomDate delegates to recordReschedule with the given date verbatim`() = runTest {
@@ -265,7 +193,7 @@ class PlantDetailViewModelRescheduleTest {
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.confirmRescheduleToday()
-            vm.confirmRescheduleRelativeDays(2)
+            vm.confirmRescheduleRelativeDate(customDate + TimeUnit.DAYS.toMillis(1))
             vm.confirmRescheduleCustomDate(customDate)
             cancelAndIgnoreRemainingEvents()
         }
@@ -287,7 +215,7 @@ class PlantDetailViewModelRescheduleTest {
             assertEquals(monstera, awaitItem())
             vm.events.test {
                 vm.confirmRescheduleToday()
-                vm.confirmRescheduleRelativeDays(1)
+                vm.confirmRescheduleRelativeDate(1_800_000_000_000L + TimeUnit.DAYS.toMillis(1))
                 vm.confirmRescheduleCustomDate(1_800_000_000_000L)
                 expectNoEvents()
             }
