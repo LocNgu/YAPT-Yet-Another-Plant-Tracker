@@ -54,7 +54,12 @@ Where codex corrected me:
 The due date is computed from the *base* × today's season; the literal field is only rewritten on a
 manual edit, a suggestion apply, the #571 bootstrap, or the #702 graduation fixup. Between those events
 the season keeps moving and the literal does not. Any code comparing "the interval" against something
-must state which of the two it means.
+must state which of the two it means. **#716 (fixed)** was exactly one instance of this trap — the
+product ADR-0006 suggestion-dialog gate compared a live effective value against the stale literal
+instead of against another live effective value; see `.claude/rules/seasonal-watering.md`'s "#716" note.
+The trap itself (two numbers, one of them stale between events) is structural and not fully closed by
+that one fix — any *new* code that reads `Plant.wateringIntervalDays` as a stand-in for "today's
+effective interval" reintroduces the same class of bug.
 
 **2. There are two date anchors, and only one direction of travel.** **Resolved-by-#738** (product
 ADR-0039): `suggestedStillMoistDeferralDays()` and the "(suggested)" row it fed are removed entirely,
@@ -98,7 +103,7 @@ clamp, not this round-trip.
 |---|---|---|
 | #719 | ~~Still-moist "(suggested)" option overshoots by `daysUntilDue` — from-today figure, due-date anchor~~ **Fixed, then resolved-by-#738** — `RescheduleWateringDialog`'s "(suggested)" row was fixed to call a dedicated `now`-anchored `PlantDetailViewModel.confirmRescheduleSuggestedDays()`, distinct from the due-date-anchored `confirmRescheduleRelativeDays()` the +1/+2/+3 options still use. Superseded, not reverted, by product ADR-0039 (#738): the "(suggested)" row and this handler are removed entirely, since a reschedule no longer teaches the model anything for the row to preview. #719 stays closed. |
 | #718 | ~~Applying a suggestion re-derives the base from a rounded display value, ratcheting it up~~ **Fixed with #717** — adaptive results now carry their precise `Double` base beside the rounded display value, and an unchanged apply persists that precise base. |
-| #716 | Suggestion dialog fires on pure seasonal drift and blames the watering | Biggest product call — touches product ADR-0026/product ADR-0028, needs a spec pass. Fix choice interacts with #717's outcome. |
+| #716 | ~~Suggestion dialog fires on pure seasonal drift and blames the watering~~ **Fixed** — the spec pass concluded the fix is smaller than the issue's own candidate-A framing implied: the three gates already carried the model's precise base (#717/#718); the bug was purely in what they compared it against. All three gates (`QuickLogUseCase.computeSuggestion()`, `AddCareLogViewModel.computeSuggestedInterval()`, `PlantDetailViewModel.pendingWateringSuggestion`) now compare `CareSchedule.effectiveWateringIntervalDaysForDisplay()` of the pre-observation base against the post-observation base, both at today's date — never the stale `Plant.wateringIntervalDays` literal. See `.claude/rules/seasonal-watering.md`'s "#716" note. **Review round 1** caught a second, narrower bug: "today's date" was itself still resolving to the observation's own (possibly backdated, #654) `loggedAt` in `QuickLogUseCase`/`AddCareLogViewModel`, not real wall-clock today — see `.claude/rules/watering-transparency.md`'s "Follow-up (#716 review round 1)" note for the `now`-vs-`displayNow` split that fixed it. |
 | #714 | Second same-day still-moist reschedule silently drops the date | **Resolved-by-#738**: with no `CareType.CHECK` log written on reschedule (product ADR-0039), `isDuplicateGuarded()` no longer covers this path at all — the guard and its special-cased branch are deleted rather than fixed further. Its regression test is reframed, not dropped: "a repeated reschedule still commits the date" stays the pinned contract, just reached trivially. #714 stays closed. |
 | #720 | Reschedule to a date before the due date is silently ignored | **Fixed** (option A). With the "(suggested)" row gone (#738), the only remaining way to pick an ineffective date was the custom-date picker; it now rejects any date on or before the schedule-computed due date via a new `PlantCareStatus.computedNextWateringDueAt` threaded through to `isSelectableRescheduleDate()`. `maxOf()` itself is untouched — the fix is purely picker-side. A related, separate bug in the "Today" button's own `isOverdue`-based gate (the opposite failure mode — conservatively withheld rather than offered-then-discarded) was found and filed separately as **#746 (fixed)** — see `.claude/rules/plant-detail.md`'s "Today button's own gate (#746)". See "#719 shipped; how it interacts with #720" below for the pre-#738 framing, kept for history. |
 | #717 | ~~Unattributed observations can't move any base ≤ 26 days~~ **Fixed with #718** — `AdaptiveInterval` retains the sub-day result, allowing neutral corrections to accumulate even while the displayed whole-day interval is unchanged. |
@@ -108,14 +113,20 @@ clamp, not this round-trip.
 
 **The suggestion gate exists in three places, not one.** `QuickLogUseCase.computeSuggestion()`,
 `AddCareLogViewModel`, and `PlantDetailViewModel.pendingWateringSuggestion` each independently compare an
-effective-space suggestion against the stored literal. #716's fix must cover all three or introduce one
-shared "did the model change base?" predicate — fixing only `QuickLogUseCase` leaves two live copies.
-This is the same class of bug #631 and #674 already fixed twice by consolidating duplicated write paths.
+effective-space value against a "current" comparand. **#716 (fixed)** updated all three independently —
+per this codebase's stated convention of duplicating this exact helper pair between `QuickLogUseCase`
+and `AddCareLogViewModel` rather than forcibly consolidating them (see `.claude/rules/seasonal-watering.md`'s
+"Interaction with Part 1" section) — instead of introducing one shared predicate; all three now compare
+live-to-live rather than live-to-stale, so they can no longer independently regress to comparing against
+the literal again, even though the comparison logic itself still exists in three copies.
 
 **Dismissing a calendar-only dialog is not inert.** A dismissal raises `wateringConfidence` and writes a
-`DIALOG_DISMISSAL` row, so seasonal drift produces both a misleading modal *and* bookkeeping that reads
-the dismissal as confirmation the schedule is right. Higher confidence means a lower gain, so the
-spurious dialogs actively slow real learning. "Just dismiss them" is not a safe workaround.
+`DIALOG_DISMISSAL` row, so seasonal drift used to produce both a misleading modal *and* bookkeeping that
+reads the dismissal as confirmation the schedule is right — higher confidence means a lower gain, so the
+spurious dialogs actively slowed real learning, and "just dismiss them" was never a safe workaround.
+**Moot after #716**: a calendar-only delta no longer opens the dialog at all, so there is nothing left to
+dismiss. Kept here as the historical rationale for why #716 was worth fixing beyond the misleading modal
+by itself.
 
 ## #719 shipped; how it interacts with #720 (resolved-by-#738, kept for history)
 

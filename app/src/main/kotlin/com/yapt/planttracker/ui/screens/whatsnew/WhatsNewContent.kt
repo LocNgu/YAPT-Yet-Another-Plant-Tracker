@@ -28,6 +28,9 @@ object WhatsNewContent {
                 "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
+            "The suggested-interval dialog no longer pops up just because the season moved on since you " +
+                "last touched the interval — it now only appears when watering actually taught YAPT " +
+                "something, so it's no longer wrongly blamed on whichever watering you just logged",
             "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
                 "rounding nudge the underlying interval when a suggested interval is applied — whether " +
                 "you accept it yourself or YAPT applies it for you",

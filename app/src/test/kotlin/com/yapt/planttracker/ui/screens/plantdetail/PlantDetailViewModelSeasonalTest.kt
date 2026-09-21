@@ -284,16 +284,28 @@ class PlantDetailViewModelSeasonalTest {
             // is already seasonally-adjusted. The dialog previously compared the two directly, producing
             // a misleading multi-day jump that was really just a unit mismatch. The effective value must
             // equal CareSchedule's own base->effective conversion of the suggestion — never the raw 9 —
-            // so the two rows can't drift. `current` is deliberately derived from `expectedEffective`
-            // (not a hardcoded literal) so this test can't accidentally land on today's actual date
-            // rounding the two to the same value (which is itself correct behaviour, covered by a
-            // separate "collapses to null" test below).
+            // so the two rows can't drift.
+            //
+            // #716 correction: `currentIntervalDays` is no longer the plant's stale literal
+            // `wateringIntervalDays` — it's a live recomputation of `Plant.wateringBaseIntervalDays`
+            // through today's season (see `pendingWateringSuggestion`'s doc). A hardcoded
+            // "expectedEffective - 1" *base* is no longer guaranteed to always round to a different
+            // effective value than 9 at every possible `season(today)` in STANDARD's [0.65, 1.35] range
+            // (verified by brute-force search — some date ranges do coincide), so `currentBase` is
+            // picked far enough from 9 (30.0) that `9 * season` (max 12.15) and `currentBase * season`
+            // (min 19.5) can never overlap regardless of what day this test happens to run on. The
+            // literal `wateringIntervalDays` on `monstera` is deliberately a dummy value (999, never
+            // read once a real base is present) to make that explicit.
             val expectedEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
                 plant = plant().copy(wateringBaseIntervalDays = 9.0, wateringIntervalDays = 9),
                 seasonalAmplitude = SeasonalAmplitude.STANDARD.value
             )
-            val current = (expectedEffective ?: 9) - 1
-            val monstera = plant().copy(wateringIntervalDays = current, wateringBaseIntervalDays = current.toDouble())
+            val currentBase = 30.0
+            val monstera = plant().copy(wateringIntervalDays = 999, wateringBaseIntervalDays = currentBase)
+            val expectedCurrentEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+                plant = monstera,
+                seasonalAmplitude = SeasonalAmplitude.STANDARD.value
+            )
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             val vm = makeVm()
 
@@ -307,7 +319,7 @@ class PlantDetailViewModelSeasonalTest {
                 val suggestion = awaitItem()
                 assertEquals(9, suggestion?.rawIntervalDays)
                 assertEquals(expectedEffective, suggestion?.effectiveIntervalDays)
-                assertEquals(current, suggestion?.currentIntervalDays)
+                assertEquals(expectedCurrentEffective, suggestion?.currentIntervalDays)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -383,6 +395,36 @@ class PlantDetailViewModelSeasonalTest {
                 cancelAndIgnoreRemainingEvents()
             }
             vm.suggestedWateringInterval.value = 7
+
+            vm.pendingWateringSuggestion.test {
+                assertEquals(null, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `pendingWateringSuggestion is null when the model's base is unchanged, even against a stale literal (#716)`() =
+        runTest {
+            // #716 acceptance criterion 5: this reconstructed-from-navigation-state gate must reach the
+            // same conclusion as QuickLogUseCase.computeSuggestion()/AddCareLogViewModel.computeSuggestedInterval()
+            // for a pure seasonal-drift observation. Deliberately date-independent (no fixed "today"
+            // available to inject here, unlike QuickLogUseCaseSeasonalTest's pinned nowProvider): the
+            // suggestion's base (8.8) is identical to the plant's own current base (8.8), so
+            // `effectiveWateringIntervalDaysForDisplay` is called with the exact same base on both sides
+            // of the gate and must agree regardless of what day this test happens to run on — the
+            // "model's base unchanged" premise from the worked example, made deterministic. The stale
+            // literal (7) is deliberately left mismatched from the live base to prove the gate no longer
+            // reads it at all.
+            val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 8.8)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            val vm = makeVm()
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            vm.suggestedWateringInterval.value = 9
+            vm.suggestedWateringBaseInterval.value = 8.8
 
             vm.pendingWateringSuggestion.test {
                 assertEquals(null, awaitItem())

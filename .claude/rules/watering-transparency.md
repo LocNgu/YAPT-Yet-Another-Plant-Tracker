@@ -205,6 +205,37 @@ backdated) `now`; `AddCareLogViewModel`'s own copy of this helper has no backdat
 is already always real wall-clock time), so it's unaffected and keeps calling `maybeBootstrap()` without
 a `displayNow` argument.
 
+**Follow-up (#716 review round 1) — a related but distinct bug found in the same file, not fixed by
+#679 above.** #679 fixed `maybeApplyHistoryBootstrap`'s own `now` (used for the confidence-reset
+boundary and `WateringAdjustment.triggeredAt`) being real wall-clock time regardless of backdating —
+correctly noted as unaffected. But `QuickLogUseCase.computeSuggestion()`'s two `effectiveIntervalForDisplay()`
+calls (a *different* pair of call sites, feeding the product ADR-0006 dialog's gate, not the
+bootstrap) were still evaluating **both** `effectiveSuggestion` and `currentEffective` at the
+observation's own `now`/`loggedAt` — correct for the gap/season math those two numbers are *built
+from*, wrong for the numbers themselves, which are what the user reads on screen *today*. A
+backdated (#654) quick-water could therefore fire a spurious dialog whose displayed number wouldn't
+actually change today, or — worse — silently persist a base whose *today*-effective value really did
+move, bypassing `askBeforeChangingIntervals` entirely with no dialog at all. Fixed by splitting
+`computeSuggestion()`'s single `now` into `now` (observation math: the gap computation, the model
+input, `persistAdaptiveState`'s `updatedAt`/`WateringAdjustment.triggeredAt` — unchanged) and a new
+`displayNow` (both `effectiveIntervalForDisplay()` calls only), defaulting to `nowProvider()` — unlike
+`maybeApplyHistoryBootstrap`'s `displayNow` above, which hardcodes a fresh `System.currentTimeMillis()`
+call since its host, the stateless `WateringLifecycleReset` object, has no injectable clock of its own;
+`computeSuggestion()` lives inside `QuickLogUseCase`, which already does, so reusing it keeps production
+behavior identical (`nowProvider` itself defaults to `System::currentTimeMillis`) while letting a test
+pin `now`/`displayNow` independently. `computeSuggestion()` is now `internal`, not `private` — same
+`.claude/rules/plant-detail.md` "#679 review round 1" precedent (`isChosenDateOnSchedule`/
+`isChosenDateGapLong`) — so a plain JVM test can exercise the split directly. `AddCareLogViewModel`'s
+own independent copy (`computeSuggestedInterval()`/its own `effectiveIntervalForDisplay()`) had the
+identical bug — its date picker (`AddCareLogScreen`) can back-date `loggedAt` just as freely as Plant
+Detail's #654 picker can, despite the (correct, but talking about a different function) #679 note above
+— and got the identical fix: a `displayNow: Long = System.currentTimeMillis()` parameter (no
+`nowProvider` equivalent exists in this VM, so a plain default), `computeSuggestedInterval()` widened
+to `internal` for the same reason. `PlantDetailViewModel.pendingWateringSuggestion` was checked and
+found **already correct** — its two `CareSchedule.effectiveWateringIntervalDaysForDisplay()` calls omit
+`nowDate` entirely, defaulting to `LocalDate.now()` (real today) on both sides; that combine block has
+no `loggedAt`/`now` concept of its own to begin with, so no code change was needed there.
+
 **Follow-up (#674):** `CalendarViewModel.dismissSuggestedInterval()` and `PlantListViewModel
 .dismissSuggestedIntervalFromList()` both raised `Plant.wateringConfidence` via `CareSchedule
 .confidenceAfterDismissal()` on a dialog dismissal but neither ever wrote the matching

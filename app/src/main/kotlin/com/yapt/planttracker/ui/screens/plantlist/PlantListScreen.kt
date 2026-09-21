@@ -428,9 +428,10 @@ fun PlantListScreen(
     }
 
     pendingIntervalSuggestion?.let { suggestion ->
-        val currentInterval = plantsWithStatus
-            .firstOrNull { it.plant.id == suggestion.plantId }
-            ?.plant?.wateringIntervalDays ?: 0
+        // #716: reads the suggestion's own live-recomputed currentIntervalEffective, not the stale
+        // Plant.wateringIntervalDays literal (which only updates on a manual edit/apply/bootstrap and
+        // drifts from the true seasonal value on its own) — matches Plant Detail's "currently" figure.
+        val currentInterval = suggestion.currentIntervalEffective
         AlertDialog(
             onDismissRequest = {
                 viewModel.dismissSuggestedIntervalFromList(suggestion.plantId)

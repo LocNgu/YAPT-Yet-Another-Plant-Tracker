@@ -77,6 +77,9 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
   therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
   rather than reverse-converting its rounded effective display value.
+- **The suggestion-dialog gate compares live effective values, never the stale `Plant.wateringIntervalDays`
+  literal (#716)** — see `.claude/rules/seasonal-watering.md`'s "#716" note for the full rule; this bullet is
+  just the pointer, since the fix lives in the seasonal-conversion file, not here.
 - **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
   **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
   as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`

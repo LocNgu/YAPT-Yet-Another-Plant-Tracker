@@ -93,7 +93,7 @@ class PlantDetailViewModelQuickActionsTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0, 7)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         val vm = makeVm()
@@ -126,7 +126,7 @@ class PlantDetailViewModelQuickActionsTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 9, 9, 9.0, 7)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 9, 9, 9.0) } returns
@@ -173,7 +173,7 @@ class PlantDetailViewModelQuickActionsTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(1L, "Monstera", 7, 8, 7.0)
+                suggestion = QuickWaterSuggestion(1L, "Monstera", 7, 8, 7.0, 7)
             )
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
         coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 7, any(), 7.0) } returns
@@ -193,6 +193,50 @@ class PlantDetailViewModelQuickActionsTest {
         // 7.0, never null -- the effective-space value is deliberately not the source of the base.
         coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 7, any(), 7.0) }
     }
+
+    /**
+     * #716 acceptance criterion 6: with `askBeforeChangingIntervals = false`, a pure-seasonal-drift
+     * observation must not emit [PlantDetailViewModel.Event.SilentIntervalApplied] nor rewrite
+     * `wateringIntervalDays` — there is no separate code path to fix here, since
+     * [PlantDetailIntervalActions.applySuggestionOrPrompt] only ever runs once
+     * [QuickLogUseCase.computeSuggestion]'s gate has already returned a non-null suggestion
+     * ([QuickLogUseCaseSeasonalTest]'s "#716 worked example" test verifies that gate itself is fixed;
+     * this test verifies the silent-apply branch correctly inherits it by never firing when the use
+     * case reports no suggestion at all).
+     */
+    @Test
+    fun `quickWater with askBeforeChangingIntervals off emits nothing for a pure seasonal-drift observation (#716)`() =
+        runTest {
+            every { dataStore.data } returns flowOf(
+                preferencesOf(SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false)
+            )
+            val monstera = plant().copy(wateringIntervalDays = 7, wateringBaseIntervalDays = 8.8)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            // The fixed QuickLogUseCase.computeSuggestion() gate suppresses this exact scenario (see
+            // QuickLogUseCaseSeasonalTest's identically-numbered worked example) and returns no
+            // suggestion at all.
+            coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
+                QuickLogUseCase.QuickLogOutcome(
+                    message = "Watered Monstera",
+                    logged = true,
+                    suggestion = null
+                )
+            coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+            val vm = makeVm()
+
+            vm.plant.test {
+                assertEquals(monstera, awaitItem())
+                vm.events.test {
+                    vm.quickWater(reason = null)
+                    expectNoEvents()
+                    cancelAndIgnoreRemainingEvents()
+                }
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertEquals(null, vm.suggestedWateringInterval.value)
+            coVerify(exactly = 0) { quickLogUseCase.applyWateringIntervalSuggestion(any(), any(), any(), any()) }
+        }
 
     @Test
     fun `undoSilentIntervalApply reverts wateringIntervalDays to the given value`() = runTest {

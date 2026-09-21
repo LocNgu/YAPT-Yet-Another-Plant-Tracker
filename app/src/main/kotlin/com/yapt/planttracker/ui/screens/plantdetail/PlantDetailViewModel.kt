@@ -165,6 +165,8 @@ class PlantDetailViewModel(
      * [rawIntervalDays] treated as the plant's new base and run through the same base→effective
      * conversion [wateringExplanation] already uses ([CareSchedule.effectiveWateringIntervalDaysForDisplay]),
      * so the two rows can't drift. A single one-way conversion — no round-trip, no double-rounding.
+     * [currentIntervalDays] (#716) is likewise a live recomputation, not `Plant.wateringIntervalDays`
+     * read directly — see the combine block below for why.
      */
     data class PendingWateringSuggestion(
         val rawIntervalDays: Int,
@@ -174,12 +176,26 @@ class PlantDetailViewModel(
 
     /**
      * `null` whenever there's no pending suggestion, or the suggestion's effective-space value equals
-     * [Plant.wateringIntervalDays] — the entire "jump" was a base/effective unit-mismatch artifact
-     * (#620), not a real model change, so the dialog shouldn't appear at all. The dialog's editable text
-     * field is pre-filled from [effectiveIntervalDays] (#644) — matching the "Suggested: N days" sentence
-     * built from the same field — not the raw [suggestedWateringInterval]; [PlantDetailViewModel
-     * .applySuggestedInterval] then passes whatever the user submits straight through to
+     * [currentIntervalDays] — the entire "jump" was calendar drift or a base/effective unit-mismatch
+     * artifact (#620/#716), not a real model change, so the dialog shouldn't appear at all.
+     * [currentIntervalDays] (#716) is a **live-recomputed** effective value — what
+     * [CareSchedule.effectiveWateringIntervalDaysForDisplay] would show for [Plant.wateringBaseIntervalDays]
+     * today — never [Plant.wateringIntervalDays] directly, which is only rewritten on a manual edit /
+     * suggestion apply / the #571 bootstrap / the #702 fixup and drifts from the true seasonal value on
+     * its own between those events. The dialog's editable text field is pre-filled from
+     * [effectiveIntervalDays] (#644) — matching the "Suggested: N days" sentence built from the same
+     * field — not the raw [suggestedWateringInterval]; [PlantDetailViewModel.applySuggestedInterval]
+     * then passes whatever the user submits straight through to
      * [QuickLogUseCase.applyWateringIntervalSuggestion] as its now-effective-space `newInterval`.
+     *
+     * **Already always evaluated at real today, unaffected by #716 review round 1's `now`-vs-`displayNow`
+     * finding.** Both [CareSchedule.effectiveWateringIntervalDaysForDisplay] calls below omit `nowDate`
+     * entirely, so both default to [java.time.LocalDate.now] — this combine block has no `loggedAt`/`now`
+     * of its own to begin with; it only ever reconstructs *today's* dialog from the raw numbers
+     * [QuickLogUseCase.computeSuggestion]/`AddCareLogViewModel.computeSuggestedInterval` already computed
+     * (possibly backdated on their own end, now correctly split from *their* display conversion — see
+     * those functions' docs). Verified, not just assumed, while fixing that bug — no code change was
+     * needed here.
      */
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,
@@ -195,11 +211,15 @@ class PlantDetailViewModel(
             ),
             seasonalAmplitude = amplitude
         ) ?: suggestion
-        if (effective == p.wateringIntervalDays) return@combine null
+        val currentEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = p,
+            seasonalAmplitude = amplitude
+        ) ?: p.wateringIntervalDays
+        if (effective == currentEffective) return@combine null
         PendingWateringSuggestion(
             rawIntervalDays = suggestion,
             effectiveIntervalDays = effective,
-            currentIntervalDays = p.wateringIntervalDays
+            currentIntervalDays = currentEffective
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
