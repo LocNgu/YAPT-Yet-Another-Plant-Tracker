@@ -66,5 +66,16 @@ data class PlantCareStatus(
      * `null` whenever there is no watering interval configured. Defaulted so a status built by hand in
      * a test is unaffected.
      */
-    val computedNextWateringDueAt: Long? = null
+    val computedNextWateringDueAt: Long? = null,
+    /**
+     * Whether [plant]'s dormancy window (#699/#760, product ADR-0044) contains the current month —
+     * `true` forces [isOverdue]/[isDueSoon] both `false` for watering purposes, regardless of how far
+     * past [nextWateringDueAt] the plant is. Deliberately **not** a due-date push to the window's
+     * end: [nextWateringDueAt] is computed exactly as today and may legitimately land inside the
+     * window. Computed once inside
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus] via
+     * [com.yapt.planttracker.domain.schedule.DormancyWindow.isDormant] — never re-derived at a call
+     * site. Defaulted `false` so a status built by hand in a test is unaffected.
+     */
+    val isDormant: Boolean = false
 )
