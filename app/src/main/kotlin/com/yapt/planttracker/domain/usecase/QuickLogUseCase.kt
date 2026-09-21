@@ -24,6 +24,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.util.labelRes
@@ -274,7 +275,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
-        val feedback = reason?.toWateringFeedback()
+        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
         val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
@@ -332,7 +333,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
         }
-        val feedback = reason?.toWateringFeedback()
+        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
         val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
         careLogRepository.addLog(
@@ -601,6 +602,40 @@ class QuickLogUseCase(
         dayTimestampMs: Long = System.currentTimeMillis()
     ): Boolean = careLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs)
 
+    /**
+     * `reason?.toWateringFeedback()`, suppressed to `null` when the gap [loggedAt]'s own chronological
+     * predecessor → [loggedAt] overlaps [plant]'s dormancy window (#699/#761, product ADR-0044 — Codex
+     * review round 1 on #776, P2-c). The three production UI surfaces already gate the reason prompt
+     * itself on this exact condition (`WateringReasonGate.kt`/`CalendarScreen`/`PlantListScreen`'s
+     * `isWateringGapDormancySpanning`/`isChosenDateDormancySpanning` checks), so in practice [reason] is
+     * already `null` here — this is defense-in-depth at the model layer, mirroring why [frozen] inside
+     * [CareSchedule.computeAdaptiveInterval] is "derived inside the pure function, never passed in": a
+     * persisted [CareLog.wateringFeedback] on a dormancy-spanning log would otherwise still enter a
+     * later [CareSchedule.correctionStreak] window even though this observation's own base/confidence
+     * transition is separately excluded inside [adaptWateringInterval]. Queries
+     * [CareLogRepository.getLastWateringBefore] itself (a second query beyond [computeSuggestion]'s own
+     * identical lookup moments later) rather than threading a value through, since this runs *before*
+     * the [CareLog] insert while [computeSuggestion] necessarily runs after — the predecessor is
+     * unaffected either way ([loggedAt]'s own log is never its own predecessor).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun feedbackUnlessDormancySpanning(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long
+    ): WateringFeedback? {
+        val feedback = reason?.toWateringFeedback() ?: return null
+        val previousWateringAt = careLogRepository.getLastWateringBefore(plant.id, loggedAt)?.loggedAt
+            ?: return feedback
+        val dormancySpanning = DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            previousWateringAt,
+            loggedAt
+        )
+        return feedback.takeUnless { dormancySpanning }
+    }
+
     private fun alreadyLoggedMessage(plant: Plant, careType: CareType): String = when (careType) {
         CareType.WATER -> application.getString(R.string.quick_log_already_watered, plant.name)
         CareType.FERTILIZE -> application.getString(R.string.quick_log_already_fertilized, plant.name)
@@ -674,7 +709,7 @@ class QuickLogUseCase(
         val previousWatering = careLogRepository.getLastWateringBefore(plant.id, now) ?: return null
         val actual = CareSchedule.daysBetween(previousWatering.loggedAt, now)
         if (actual <= 0) return null
-        val result = adaptWateringInterval(plant, feedback, actual, current, now) ?: return null
+        val result = adaptWateringInterval(plant, feedback, actual, current, now, previousWatering.loggedAt) ?: return null
         val suggestion = result.intervalDays
         val effectiveSuggestion = effectiveIntervalForDisplay(plant, result.baseIntervalDays, suggestion, displayNow)
         val currentEffective = effectiveIntervalForDisplay(
@@ -738,12 +773,22 @@ class QuickLogUseCase(
      * caller ends up surfacing/applying the returned suggestion. [feedback] may be `null` (#570) — a
      * silent gap-only observation, capped at [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
      *
+     * [dormancySpanning] is now computed *before* [maybeApplyHistoryBootstrap]'s early-return
+     * (#699/#761, Codex review round 2 on #776, P1-3 — this replaces an earlier claim, made when
+     * P1-a first shipped, that re-deriving it there would be pointless; see
+     * [recordDormancyExcludedForBootstrap]'s doc for why that claim was incomplete and what changed).
      * Before evaluating the per-observation update, checks whether this WATER log is the one that
      * unlocks the #571 history bootstrap (either the plant's first-ever adaptive observation, or a
      * pending post-reset opportunity) — see [maybeApplyHistoryBootstrap]. When it fires, the bootstrap
-     * already silently committed the new interval, so this returns [currentInterval] unchanged
-     * (suppressing the product ADR-0006 suggestion dialog for this observation) rather than also running the
-     * incremental per-step correction on top of a value the model just cold-started.
+     * already silently committed the new interval, so this returns `null` (suppressing the product
+     * ADR-0006 suggestion dialog for this observation) rather than also running the incremental
+     * per-step correction on top of a value the model just cold-started. **The bootstrap itself is
+     * separately protected from dormancy-spanning gaps** — [maybeApplyHistoryBootstrap] ultimately
+     * calls [CareSchedule.bootstrapBaseInterval] with [plant]'s dormancy months, which filters any
+     * dormancy-overlapping gap out of the history it medians over (Codex review round 1 on #776,
+     * P1-a) — so [dormancySpanning] being computed early is for transparency (a
+     * [WateringAdjustmentTrigger.DORMANCY_EXCLUDED] row), not because the bootstrap needs this
+     * function's own exclusion to protect it a second time.
      *
      * [now] defaults to the real wall-clock time but [computeSuggestion] threads through the caller's
      * chosen [loggedAt][quickWaterWithReason] instead when backdating (#654) — the same value that
@@ -751,20 +796,58 @@ class QuickLogUseCase(
      * the [WateringAdjustment.triggeredAt] this records, so a backdated observation can't be evaluated
      * against "today" while claiming to have happened on an earlier day. [maybeApplyHistoryBootstrap] is
      * passed a separate, always-real-wall-clock `displayNow` (#679) — see its doc for why.
+     *
+     * [previousWateringAt] (#699/#761, product ADR-0044) is this observation's own chronological
+     * predecessor — [computeSuggestion]'s already-fetched `previousWatering.loggedAt` — used to derive
+     * two dormancy facts, both via [DormancyWindow]: whether the gap [previousWateringAt]→[now]
+     * overlapped the dormancy window ([DormancyWindow.spansDormancy], excludes the base from learning
+     * regardless of [feedback], same `frozen` exclusion mechanism a REPOT freeze uses but recorded
+     * under the distinct [WateringAdjustmentTrigger.DORMANCY_EXCLUDED], **and** suppresses the
+     * confidence transition entirely via [CareSchedule.computeAdaptiveInterval]'s
+     * `suppressConfidenceTransition` parameter — Codex review round 1 on #776, P1-b, corrected the
+     * original assumption that confidence was "unchanged by construction"; a short in-window gap can
+     * satisfy `gapAgrees()` and would otherwise silently raise confidence for an observation that
+     * tested nothing about the schedule), and whether [now] itself falls *outside* the window after
+     * that overlap ([DormancyWindow.isDormant] on `now`'s month) — "did the plant just leave
+     * dormancy?" — which additionally decrements confidence by exactly 1 (floored at 0, applied *after*
+     * the guaranteed-unchanged confidence above) and writes a second, independent
+     * [WateringAdjustmentTrigger.DORMANCY_EXIT] row, since the two are separate facts about the same
+     * observation (the base didn't move; confidence moved for an unrelated reason) — but only when
+     * [result]'s confidence is non-null (P1-1: a suppressed transition on a never-adapted plant leaves
+     * confidence `null`, and there is nothing to decrement from `null`) **and** no dormancy cycle has
+     * already recorded its exit ([alreadyRecordedDormancyExit], P1-2: a backdated watering inserted
+     * between two already-existing ones must not re-decrement confidence for a cycle another,
+     * chronologically-later observation already exited). `null` when there is no previous watering to
+     * measure a gap from.
      */
+    @Suppress("LongParameterList", "ReturnCount")
     private suspend fun adaptWateringInterval(
         plant: Plant,
         feedback: WateringFeedback?,
         actualIntervalDays: Int,
         currentInterval: Int,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        previousWateringAt: Long? = null
     ): CareSchedule.AdaptiveInterval? {
-        if (maybeApplyHistoryBootstrap(plant, feedback, now)) return null
+        val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
+        val dormancySpanning = previousWateringAt != null && DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            previousWateringAt,
+            now
+        )
+        if (maybeApplyHistoryBootstrap(plant, feedback, now)) {
+            if (dormancySpanning) {
+                recordDormancyExcludedForBootstrap(plant, now, currentBase)
+            }
+            return null
+        }
 
         val recentFeedback = careLogRepository.getRecentWaterings(plant.id, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
-        val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
-        val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
+        val frozenPostRepot = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
+        val dormancyExited = dormancySpanning &&
+            !DormancyWindow.isDormant(now.toLocalDate().monthValue, plant.dormancyStartMonth, plant.dormancyEndMonth)
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(
@@ -775,19 +858,118 @@ class QuickLogUseCase(
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
-            frozen = frozen
+            frozen = frozenPostRepot || dormancySpanning,
+            suppressConfidenceTransition = dormancySpanning
         )
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
+                trigger = adjustmentTriggerFor(
+                    feedback,
+                    result.excludedFromBaseLearning,
+                    frozenPostRepot,
+                    dormancySpanning
+                ),
                 beforeIntervalDays = currentBase.roundToInt(),
                 afterIntervalDays = result.intervalDays
             )
         )
-        return result
+        return applyDormancyExitDecrement(plant, now, currentBase, dormancyExited, result)
     }
+
+    /**
+     * Tail of [adaptWateringInterval] — extracted to keep that function under Detekt's `LongMethod`
+     * threshold. See [adaptWateringInterval]'s own doc for the full P1-1/P1-2 rationale: `null` when
+     * there is nothing to decrement from (P1-1), and a no-op when this exact dormancy cycle already
+     * recorded its exit (P1-2, [alreadyRecordedDormancyExit]).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun applyDormancyExitDecrement(
+        plant: Plant,
+        now: Long,
+        currentBase: Double,
+        dormancyExited: Boolean,
+        result: CareSchedule.AdaptiveInterval
+    ): CareSchedule.AdaptiveInterval {
+        if (!dormancyExited) return result
+        val currentResultConfidence = result.confidence ?: return result
+        if (alreadyRecordedDormancyExit(plant, now)) return result
+        val adjustedConfidence = (currentResultConfidence - 1).coerceAtLeast(0)
+        wateringAdjustmentRepository.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.DORMANCY_EXIT,
+                beforeIntervalDays = currentBase.roundToInt(),
+                afterIntervalDays = currentBase.roundToInt()
+            )
+        )
+        return result.copy(confidence = adjustedConfidence)
+    }
+
+    /**
+     * #699/#761 (product ADR-0044 — Codex review round 2 on #776, P1-3): before this fix,
+     * [maybeApplyHistoryBootstrap] firing returned early *before* [dormancySpanning] was even
+     * computed, so a triggering observation whose own gap spanned dormancy got **no**
+     * [WateringAdjustmentTrigger.DORMANCY_EXCLUDED] row at all when it happened to also be the
+     * observation that unlocked a cold-start bootstrap — only [WateringAdjustmentTrigger
+     * .HISTORY_BOOTSTRAP] was written, silently omitting the dormancy provenance "Why this date?"
+     * shows for every other dormancy-spanning observation. [dormancySpanning] is now computed
+     * *before* the bootstrap early-return so this row can still be written for transparency — with
+     * `before == after` (a no-op observation, mirroring every other "nothing moved but the model
+     * still considered it" row), since the correctness-critical half of P1-3 is already handled:
+     * [maybeApplyHistoryBootstrap] ultimately calls [CareSchedule.bootstrapBaseInterval] with
+     * [Plant.dormancyStartMonth]/[Plant.dormancyEndMonth] (Codex review round 1, P1-a), which
+     * already filters this exact gap — and every other dormancy-spanning gap in the eligible
+     * history — out of the wholesale median/gapCount the bootstrap computes. There is nothing left
+     * for this per-observation exclusion to additionally protect.
+     *
+     * **Deliberately no [WateringAdjustmentTrigger.DORMANCY_EXIT] row and no extra confidence
+     * decrement when bootstrap wins — "bootstrap wins, no decrement" is the explicit, tested
+     * decision, not an accident of statement order.** The bootstrapped confidence
+     * ([WateringLifecycleReset.maybeBootstrap]'s `result.confidence`) is a wholesale re-derivation —
+     * `gapCount / 3`, capped at 5 — not an incremental step off the plant's prior confidence the way
+     * every other per-observation transition is; there is no principled "-1 for having just left
+     * dormancy" to layer on top of a value that was not arrived at by incrementing/decrementing in
+     * the first place. Writing a DORMANCY_EXIT row here would also misrepresent the observation as
+     * having gone through the normal per-step exit evaluation when the bootstrap superseded it
+     * entirely — the same reasoning [WateringAdjustmentTrigger.FROZEN_POST_REPOT] already documents
+     * for not conflating an automatic exclusion with a declined attribution.
+     */
+    private suspend fun recordDormancyExcludedForBootstrap(plant: Plant, now: Long, currentBase: Double) {
+        wateringAdjustmentRepository.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.DORMANCY_EXCLUDED,
+                beforeIntervalDays = currentBase.roundToInt(),
+                afterIntervalDays = currentBase.roundToInt()
+            )
+        )
+    }
+
+    /**
+     * #699/#761 (product ADR-0044 — Codex review round 2 on #776, P1-2): whether a
+     * [WateringAdjustmentTrigger.DORMANCY_EXIT] has already been recorded for the same dormancy
+     * cycle [now] belongs to, so a backdated watering inserted *between* two already-existing
+     * waterings can't re-decrement confidence for a cycle another observation already exited.
+     * Two [WateringAdjustment] rows share a cycle when [DormancyWindow.spansDormancy] finds **no**
+     * dormant month between them — i.e. they fall in the same uninterrupted wakeful stretch,
+     * reusing the exact predicate that already defines a dormancy cycle's boundaries rather than
+     * inventing separate "cycle identity" bookkeeping. A row from a genuinely different (earlier or
+     * later) cycle has at least one full dormancy window between it and [now], so it correctly does
+     * not suppress this one.
+     */
+    private suspend fun alreadyRecordedDormancyExit(plant: Plant, now: Long): Boolean =
+        wateringAdjustmentRepository.getByTrigger(plant.id, WateringAdjustmentTrigger.DORMANCY_EXIT).any {
+            !DormancyWindow.spansDormancy(
+                plant.dormancyStartMonth,
+                plant.dormancyEndMonth,
+                minOf(it.triggeredAt, now),
+                maxOf(it.triggeredAt, now)
+            )
+        }
 
     private suspend fun persistAdaptiveState(
         plant: Plant,
@@ -873,9 +1055,13 @@ class QuickLogUseCase(
     private fun adjustmentTriggerFor(
         feedback: WateringFeedback?,
         excludedFromBaseLearning: Boolean,
-        frozen: Boolean = false
+        frozenPostRepot: Boolean = false,
+        dormancySpanning: Boolean = false
     ): WateringAdjustmentTrigger = when {
-        frozen -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
+        // Dormancy takes priority over a REPOT freeze when (rarely) both could apply — it is the more
+        // specific, user-declared cause, and conflating the two would misrepresent why nothing moved.
+        dormancySpanning -> WateringAdjustmentTrigger.DORMANCY_EXCLUDED
+        frozenPostRepot -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
         excludedFromBaseLearning -> WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED
         feedback == WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
         feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE

@@ -247,4 +247,56 @@ class WateringLifecycleResetTest {
                 )
             }
         }
+
+    // ---- Dormancy filtering reaches the bootstrap (#699/#761, product ADR-0044 — Codex review round
+    // 1 on #776, P1-a). Before this fix, maybeBootstrap() had no way to exclude a dormancy-spanning
+    // gap from the history it medians over — the early-return-before-the-dormancy-check in
+    // QuickLogUseCase/AddCareLogViewModel only ever protected the *current* observation's own gap
+    // anyway, never an earlier dormancy-spanning gap already baked into history. The filtering lives
+    // in CareSchedule.bootstrapBaseInterval (see CareScheduleBootstrapTest for direct coverage); this
+    // test proves BootstrapRequest.plant's dormancy months actually reach it through this object. ----
+
+    @Test
+    fun `maybeBootstrap does not apply when dormancy filtering drops eligible gaps below the threshold`() =
+        runTest {
+            val plantRepository: PlantRepository = mockk(relaxed = true)
+            val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+            val augFirst = LocalDate.of(2026, 8, 1).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+            val augEighth = LocalDate.of(2026, 8, 8).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+            val marFirst = LocalDate.of(2027, 3, 1).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+            val marEighth = LocalDate.of(2027, 3, 8).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+            // 3 raw gaps: 7d, a Nov-Feb-straddling gap, 7d — exactly MIN_BOOTSTRAP_GAPS before filtering.
+            val waterLogTimestampsMs = listOf(augFirst, augEighth, marFirst, marEighth)
+
+            val dormantPlant = plant(wateringIntervalDays = 7).copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+            val dormantRequest = WateringLifecycleReset.BootstrapRequest(
+                plant = dormantPlant,
+                waterLogTimestampsMs = waterLogTimestampsMs,
+                boundaryMs = Long.MIN_VALUE,
+                seasonFn = { 1.0 }
+            )
+            val appliedWithDormancy = WateringLifecycleReset.maybeBootstrap(
+                dormantRequest,
+                plantRepository,
+                wateringAdjustmentRepository,
+                now = marEighth
+            )
+            assertFalse(appliedWithDormancy)
+            coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+
+            // Same raw history, no dormancy window configured: the unfiltered gapCount (3) clears the
+            // threshold, so the bootstrap DOES apply — confirming the difference above is genuinely the
+            // dormancy filter, not some other property of this fixture.
+            val noWindowRequest = dormantRequest.copy(
+                plant = plant(wateringIntervalDays = 7)
+            )
+            val appliedWithoutDormancy = WateringLifecycleReset.maybeBootstrap(
+                noWindowRequest,
+                plantRepository,
+                wateringAdjustmentRepository,
+                now = marEighth
+            )
+            assertTrue(appliedWithoutDormancy)
+            coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        }
 }

@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback.TOO_LATE
 import com.yapt.planttracker.domain.model.WateringFeedback.TOO_SOON
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -523,6 +524,109 @@ class CareScheduleAdaptiveTest {
             recentFeedback = listOf(TOO_LATE)
         )
         assertFalse(result.excludedFromBaseLearning)
+    }
+
+    // --- computeAdaptiveInterval(): suppressConfidenceTransition (#699/#761, product ADR-0044 —
+    // Codex review round 1 on #776, P1-b) ---
+
+    /**
+     * The exact counter-example that invalidated the original "confidence unchanged by construction"
+     * claim for a dormancy-spanning observation: two waterings seven days apart, both inside a
+     * dormant month, on a seven-day base. `frozen = true` alone only zeroes the gain (excludes
+     * `base`) — it does **not** touch the confidence transition below it, and here `gapAgrees(7, 7)`
+     * is genuinely true, so without [suppressConfidenceTransition] confidence would silently *rise*
+     * for an observation that tested nothing about the schedule (the plant was asleep the whole gap).
+     * Contrast with `confidence still rises on gap agreement while frozen` above, which is the correct,
+     * *unsuppressed* behavior for the REPOT-freeze case `frozen` was designed for — this is a
+     * genuinely different case, not a variant of it (see this parameter's KDoc).
+     */
+    @Test
+    fun `suppressConfidenceTransition blocks the rise a short in-window gap would otherwise cause`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    /** Without suppression, the same fixture demonstrates the bug this parameter fixes. */
+    @Test
+    fun `the same short in-window gap without suppression incorrectly raises confidence`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true
+        )
+        assertEquals(3, result.confidence)
+    }
+
+    /** The streak-decrement branch is equally suppressed, not just the gap-agreement rise. */
+    @Test
+    fun `suppressConfidenceTransition also blocks a streak decrement`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = listOf(TOO_SOON, TOO_SOON),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    /**
+     * P1-1 (Codex review round 2 on #776): a suppressed transition on a never-adapted plant used to
+     * still write `confidence = 0`, silently consuming the `wateringConfidence == null` cold-start
+     * bootstrap eligibility from a single observation that, by design, should teach the model
+     * nothing. This test previously asserted that wrong `0` under a comment claiming "no effect" —
+     * `suppressConfidenceTransition = true` here genuinely changes the outcome from the unsuppressed
+     * case (see the sibling test immediately below), and the correct outcome is `null`, not `0`.
+     */
+    @Test
+    fun `suppressConfidenceTransition on a first-ever observation leaves confidence null, not 0`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList(),
+            suppressConfidenceTransition = true
+        )
+        assertNull(result.confidence)
+    }
+
+    /** Without suppression, a first-ever observation still bootstraps to 0 exactly as before P1-1. */
+    @Test
+    fun `an unsuppressed first-ever observation still bootstraps confidence to 0`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(0, result.confidence)
+    }
+
+    @Test
+    fun `suppressConfidenceTransition defaults to false, unaffected existing call sites`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = JUST_RIGHT,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 10,
+            currentConfidence = 1,
+            recentFeedback = listOf(JUST_RIGHT)
+        )
+        assertEquals(2, result.confidence)
     }
 
     // --- #738/ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---

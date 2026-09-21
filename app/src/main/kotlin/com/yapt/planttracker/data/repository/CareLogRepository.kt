@@ -34,9 +34,12 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     /**
      * The WATER log immediately preceding [beforeMillis] chronologically (strictly earlier
      * `loggedAt`), for [plantId] — see [com.yapt.planttracker.data.db.CareLogDao.getLastLogOfTypeBefore].
+     * [excludeLogId], optionally, excludes one specific log id — defaulted so every existing 2-arg
+     * caller is unaffected; edit-mode callers pass the log being edited (#699/#761, product ADR-0044
+     * — Codex review round 3 on #776, P2), mirroring [hasLogOfTypeOnDay]'s identical default.
      */
-    suspend fun getLastWateringBefore(plantId: Long, beforeMillis: Long): CareLog? =
-        careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis)?.toDomain()
+    suspend fun getLastWateringBefore(plantId: Long, beforeMillis: Long, excludeLogId: Long? = null): CareLog? =
+        careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis, excludeLogId)?.toDomain()
 
     /**
      * The most recent [limit] WATER logs for [plantId], newest first (default 3 — see technical

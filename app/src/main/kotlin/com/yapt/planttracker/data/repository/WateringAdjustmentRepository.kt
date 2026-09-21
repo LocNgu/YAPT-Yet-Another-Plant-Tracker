@@ -15,6 +15,10 @@ class WateringAdjustmentRepository(private val wateringAdjustmentDao: WateringAd
 
     suspend fun addAdjustment(adjustment: WateringAdjustment): Long =
         wateringAdjustmentDao.insertAdjustment(adjustment.toEntity())
+
+    /** Every existing row for [plantId] with [trigger], any order — see [WateringAdjustmentDao.getAdjustmentsByTrigger]. */
+    suspend fun getByTrigger(plantId: Long, trigger: WateringAdjustmentTrigger): List<WateringAdjustment> =
+        wateringAdjustmentDao.getAdjustmentsByTrigger(plantId, trigger.name).map { it.toDomain() }
 }
 
 private fun WateringAdjustmentEntity.toDomain() = WateringAdjustment(

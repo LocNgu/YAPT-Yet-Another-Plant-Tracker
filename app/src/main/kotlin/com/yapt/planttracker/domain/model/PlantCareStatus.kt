@@ -77,5 +77,20 @@ data class PlantCareStatus(
      * [com.yapt.planttracker.domain.schedule.DormancyWindow.isDormant] — never re-derived at a call
      * site. Defaulted `false` so a status built by hand in a test is unaffected.
      */
-    val isDormant: Boolean = false
+    val isDormant: Boolean = false,
+    /**
+     * Whether the gap since [lastWateredAt] (or, with no prior watering, nothing to gate) overlaps
+     * [plant]'s dormancy window at all — a **distinct**, related condition from [isDormant] (#761,
+     * product ADR-0044). [isDormant] asks "is the current month dormant?"; this asks "did dormancy
+     * happen anywhere between the last watering and now?", via
+     * [com.yapt.planttracker.domain.schedule.DormancyWindow.spansDormancy]. Every quick-log surface's
+     * reason-prompt gate (`isWateringOnSchedule || isWateringGapDormancySpanning`) suppresses the
+     * "why was it late?" prompt when this is `true` — the question is incoherent for a plant that was
+     * asleep, and answering it risks writing a [CareLog.wateringFeedback] that would otherwise poison
+     * a future [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak] window even
+     * though the observation itself is excluded from base learning. `false` with no prior watering,
+     * matching [isWateringOnSchedule]'s own "nothing to gate" convention. Defaulted `false` so a
+     * status built by hand in a test is unaffected.
+     */
+    val isWateringGapDormancySpanning: Boolean = false
 )
