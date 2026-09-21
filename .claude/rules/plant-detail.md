@@ -148,7 +148,7 @@ they lived in — were deleted from the app entirely when `PLANT_DETAIL_TABS` gr
 
 ## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
 `WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** buttons in one row — narrowed
-from #508's three (ADR-0029) — on the Water tab. Reschedule stays gated on
+from #508's three (product ADR-0029) — on the Water tab. Reschedule stays gated on
 `plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
 || status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
 before the plant's due date). **Water is unconditional** — it renders whenever the row itself renders
@@ -354,7 +354,7 @@ rather than directly in `LogWateringDatePickerDialog`'s own body — any future 
 belongs there, not in the now-trivial delegate.
 
 **"Still moist" is retired (#738, product ADR-0039).** It is no longer a button (that happened back
-at #508/ADR-0029) and, as of ADR-0039, it is no longer an answer either — the reschedule reason
+at #508/product ADR-0029) and, as of ADR-0039, it is no longer an answer either — the reschedule reason
 prompt it lived in as "Soil still moist" is removed entirely, and the notification's own "Still
 moist" action (`StillMoistReceiver`) is dropped rather than reworked. `QuickLogUseCase
 .recordStillMoistCheck()`, `recordStillMoistAdaptiveObservation()`, `suggestedStillMoistDeferralDays()`,
@@ -364,7 +364,7 @@ and `StillMoistReceiver` itself are all deleted.
 a plain `Plant.wateringDueDateOverride` write via `QuickLogUseCase.recordReschedule(plant,
 newDueAtMillis)`, never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and
 never a `watering_adjustments` row, and no `QuickLogMessage` emitted. There is no reason branch left
-to distinguish — every reschedule behaves the way ADR-0029 originally described for the half of
+to distinguish — every reschedule behaves the way product ADR-0029 originally described for the half of
 reschedules that really was about the user. **The deferral's length is never a model input** — there
 is no model input at all.
 
@@ -415,7 +415,7 @@ Today/+1/+2/+3 need no such gate — they anchor to `maxOf(nextWateringDueAt, no
 forward time, so they cannot produce an ineffective date by construction; only the free-form custom date
 can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
 this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
-which ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
+which product ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
 "Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which could be `false` in a
 state where tapping Today would actually pull the due date in) was out of scope here and filed
 separately as #746 — now fixed, see "Today button's own gate (#746)" below.

@@ -103,7 +103,7 @@ internal fun RescheduleDeltaChip(
 }
 
 /**
- * The two watering-due actions row (#586, product ADR-0030, narrowing #508/ADR-0029's three):
+ * The two watering-due actions row (#586, product ADR-0030, narrowing #508/product ADR-0029's three):
  * **Water** and **Reschedule watering**, on the Water tab — see
  * `.claude/rules/plant-detail.md`. "Did water go in, or not?" is a fact, not a judgement, so the user
  * never has to work out *why* they are deferring in order to pick a button; the reason is asked
