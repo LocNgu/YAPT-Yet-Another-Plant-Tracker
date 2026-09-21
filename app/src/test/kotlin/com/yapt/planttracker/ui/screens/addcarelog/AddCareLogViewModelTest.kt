@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -86,6 +87,12 @@ class AddCareLogViewModelTest {
         // previousWateringBefore() regardless of which test triggers it", .claude/rules/plant-detail.md).
         // Tests exercising dormancy override this with a real predecessor.
         coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
+        // #699/#761 (Codex review round 3 on #776, P2): isDormancySpanningForLoggedAt() now runs
+        // unconditionally on every WATER save, including edit mode (no more !isEditMode gate) — so
+        // every existing edit-mode WATER test needs a plant lookup default too, not just non-edit ones.
+        // null resolves the dormancy check to "nothing to gate against", same as the predecessor default
+        // above; tests exercising dormancy override this with a real plant.
+        every { plantRepo.getPlantById(any()) } returns flowOf(null)
     }
 
     @Test
@@ -366,6 +373,152 @@ class AddCareLogViewModelTest {
                 plantRepo.updatePlant(match { it.wateringConfidence == 2 })
             }
         }
+
+    // #699/#761 (product ADR-0044, Codex review round 3 on #776, P1): the DORMANCY_EXIT idempotency
+    // check and its row's triggeredAt must key off the observation date (loggedAt), not wall-clock
+    // System.currentTimeMillis() — see .claude/rules/watering-transparency.md's "Follow-up (#654)"
+    // note for the precedent this brings AddCareLogViewModel in line with. Backfilling exits for two
+    // different winters within the same real-world entry session (both saves happen moments apart in
+    // wall-clock time, well within one calendar month) must not let the second, genuinely distinct
+    // cycle's decrement be suppressed just because both entries were *typed* around the same time.
+    @Test
+    fun `backfilling exits for two different winters in one sitting decrements both, not just the first`() = runTest {
+        val octTwentyFive2025 = localDateUtcMillis(2025, 10, 25)
+        val marchFirst2026 = localDateUtcMillis(2026, 3, 1)
+        val octTwentyFive2026 = localDateUtcMillis(2026, 10, 25)
+        val marchFirst2027 = localDateUtcMillis(2027, 3, 1)
+
+        val recordedAdjustments = mutableListOf<WateringAdjustment>()
+        val statefulAdjustmentRepo: WateringAdjustmentRepository = mockk {
+            coEvery { addAdjustment(any()) } coAnswers {
+                recordedAdjustments.add(firstArg())
+                1L
+            }
+            coEvery { getByTrigger(1L, WateringAdjustmentTrigger.DORMANCY_EXIT) } coAnswers {
+                recordedAdjustments.filter { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+            }
+        }
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst2026) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octTwentyFive2025)
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst2027) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octTwentyFive2026)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = statefulAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.WATER
+
+        // Backfill winter A's exit.
+        vm.loggedAt = marchFirst2026
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Backfill winter B's exit, entered moments later in wall-clock time -- but a genuinely
+        // different, later dormancy cycle by its own loggedAt.
+        vm.loggedAt = marchFirst2027
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(2, recordedAdjustments.count { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+    }
+
+    // #699/#761 (product ADR-0044, Codex review round 3 on #776, P2): shouldSuppressWateringFeedback()
+    // no longer gates on !isEditMode -- covers both scenarios Codex named.
+
+    @Test
+    fun `editing an existing WATER log's date into a dormancy-spanning position suppresses its feedback`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val originalNonDormantDate = localDateUtcMillis(2026, 6, 1)
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = originalNonDormantDate,
+            wateringFeedback = WateringFeedback.TOO_SOON
+        )
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        // The edit's own predecessor, excluding the row being edited itself (id 99L) -- P2's excludeId fix.
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst, 99L) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+        // selectedFeedback is loaded from existingLog (TOO_SOON); the user only moves the date picker.
+        vm.loggedAt = marchFirst
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.id == 99L && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
+    fun `re-saving an already-dormant WATER log that carries stale feedback strips it`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = marchFirst,
+            wateringFeedback = WateringFeedback.TOO_SOON
+        )
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst, 99L) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+        // No changes at all -- a plain re-save, e.g. the user only edited the notes field.
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.id == 99L && it.wateringFeedback == null })
+        }
+    }
 
     @Test
     fun `save FERTILIZE log emits Saved with null interval regardless of feedback`() = runTest {

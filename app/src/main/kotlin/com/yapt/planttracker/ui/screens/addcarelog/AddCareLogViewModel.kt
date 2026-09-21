@@ -239,14 +239,36 @@ class AddCareLogViewModel(
      * why the write-time check (not just [adaptWateringInterval]'s model-layer exclusion) is needed
      * on this specific screen. Extracted out of [saveLog] (rather than inlined as three `&&`-chained
      * conditions) to keep that function's own cyclomatic complexity under the Detekt threshold.
+     *
+     * **No `!isEditMode` gate (#699/#761, Codex review round 3 on #776, P2) — deliberate, not an
+     * oversight left standing.** The principle this function enforces ("a dormancy-spanning WATER
+     * log's feedback must never be persisted") has no stated exception for edits, and [saveLog]'s own
+     * `careLogRepository.addLog(...)` call is unconditional regardless of [isEditMode] (a
+     * `REPLACE`-conflict upsert keyed by [careLogId]) — every save, edit or new, writes a fresh
+     * [CareLog] row that this function must gate identically. An `!isEditMode` gate here left two
+     * holes: editing an existing WATER log's date *into* a dormancy-spanning position kept whatever
+     * feedback was already selected, and merely re-saving an already-dormant log that already carried
+     * feedback (e.g. from before this protection existed, or from a `.yapt` import) left that stale
+     * feedback untouched indefinitely, since a plain re-save is otherwise a no-op from the user's
+     * perspective. Both are now covered the same way a fresh save always was: suppression is
+     * recomputed from [loggedAt]'s *current* dormancy relationship on every save, unconditionally.
      */
     private suspend fun shouldSuppressWateringFeedback(): Boolean =
-        !isEditMode && selectedCareType == CareType.WATER && isDormancySpanningForLoggedAt()
+        selectedCareType == CareType.WATER && isDormancySpanningForLoggedAt()
 
+    /**
+     * [excludeId] mirrors [isDuplicateLog]'s identical `excludeId = if (isEditMode) careLogId else
+     * null` idiom (#509) — reused rather than inventing a second exclusion mechanism (Codex review
+     * round 3 on #776, P2). Without it, editing an existing WATER log's date could find *its own*
+     * not-yet-replaced prior row as its predecessor: [saveLog]'s `addLog` call (the row's actual
+     * update) hasn't happened yet when this runs, so the row being edited is still on file at its old
+     * `loggedAt` and would otherwise wrongly compete as a candidate predecessor for its own new date.
+     */
     @Suppress("ReturnCount")
     private suspend fun isDormancySpanningForLoggedAt(): Boolean {
         val plant = plantRepository.getPlantById(plantId).first() ?: return false
-        val previousWateringAt = previousWateringBefore(loggedAt) ?: return false
+        val excludeId = if (isEditMode) careLogId else null
+        val previousWateringAt = previousWateringBefore(loggedAt, excludeId) ?: return false
         return DormancyWindow.spansDormancy(
             plant.dormancyStartMonth,
             plant.dormancyEndMonth,
@@ -267,10 +289,12 @@ class AddCareLogViewModel(
      * in scope (P1-4, Codex review round 2 on #776): that guard used to run before this function's own
      * predecessor was ever consulted, so a stale same-day-duplicate pair elsewhere in history could
      * silently skip all dormancy handling for an unrelated, later, genuinely dormancy-spanning save —
-     * see [computeSuggestedInterval]'s own comment at that guard for the fix.
+     * see [computeSuggestedInterval]'s own comment at that guard for the fix. [excludeLogId] defaults
+     * to `null` (every non-edit-mode caller) — see [isDormancySpanningForLoggedAt]'s doc for the
+     * edit-mode case (P2, review round 3).
      */
-    private suspend fun previousWateringBefore(referenceMillis: Long): Long? =
-        careLogRepository.getLastWateringBefore(plantId, referenceMillis)?.loggedAt
+    private suspend fun previousWateringBefore(referenceMillis: Long, excludeLogId: Long? = null): Long? =
+        careLogRepository.getLastWateringBefore(plantId, referenceMillis, excludeLogId)?.loggedAt
 
     @StringRes
     private fun duplicateErrorRes(careType: CareType): Int = when (careType) {
@@ -454,6 +478,26 @@ class AddCareLogViewModel(
      * `lastTwoWaterings.getOrNull(1)` (P2-d — that mismatch let a dormancy-spanning gap escape
      * exclusion for a backdated entry older than the plant's globally newest pair); [newWateringAt] is
      * [loggedAt] itself, the entry actually being saved.
+     *
+     * **`now` is [newWateringAt], not a fresh `System.currentTimeMillis()` call (#699/#761, product
+     * ADR-0044 — Codex review round 3 on #776, P1).** This screen's date picker lets [loggedAt] be
+     * freely backdated, exactly like Plant Detail's quick-water surfaces (#654) — see
+     * `.claude/rules/watering-transparency.md`'s "Follow-up (#654)" note: `QuickLogUseCase`'s own copy
+     * of this function already threads a single `loggedAt`-derived value through the freeze-window
+     * check, the `WateringAdjustment.triggeredAt` writes, and (since round 2) the dormancy-exit
+     * idempotency check, "so a backdated observation is evaluated (and its adjustment row dated) as of
+     * the day it claims to have happened on, not the day it was actually entered." This VM's own copy
+     * never received that treatment and instead computed a fresh wall-clock `now` internally — harmless
+     * for [WateringLifecycleReset.isFrozen]'s freeze check (a REPOT freeze window is short enough that
+     * wall-clock-vs-`loggedAt` rarely diverges in practice) but **not** harmless for
+     * [alreadyRecordedDormancyExit]: backfilling exit observations for two different winters within the
+     * same wakeful calendar month stamped both `DORMANCY_EXIT` rows with the *entry* date rather than
+     * the *observation* date, so both wall-clock timestamps could land in the same uninterrupted wakeful
+     * stretch even though [loggedAt] itself spans two genuinely different dormancy cycles — silently
+     * suppressing the second cycle's legitimate decrement. Fixed at the source (`now = newWateringAt`)
+     * rather than patching [alreadyRecordedDormancyExit] alone, so every downstream use of `now` in this
+     * function — the bootstrap call, the freeze check, and every [WateringAdjustment.triggeredAt] write —
+     * is corrected together, matching `QuickLogUseCase`'s single-value-threading precedent exactly.
      */
     @Suppress("LongParameterList", "ReturnCount")
     private suspend fun adaptWateringInterval(
@@ -464,7 +508,7 @@ class AddCareLogViewModel(
         previousWateringAt: Long?,
         newWateringAt: Long
     ): CareSchedule.AdaptiveInterval? {
-        val now = System.currentTimeMillis()
+        val now = newWateringAt
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
         val dormancySpanning = previousWateringAt != null && DormancyWindow.spansDormancy(
             plant.dormancyStartMonth,

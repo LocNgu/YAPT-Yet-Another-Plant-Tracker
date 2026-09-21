@@ -162,7 +162,12 @@ class CareLogDaoTest {
         careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
         careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 300L))
 
-        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 200L)
+        val result = careLogDao.getLastLogOfTypeBefore(
+            plantId,
+            CareType.WATER.name,
+            beforeMillis = 200L,
+            excludeId = null
+        )
         assertNotNull(result)
         assertEquals(100L, result?.loggedAt)
     }
@@ -173,7 +178,12 @@ class CareLogDaoTest {
         careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
         careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 200L))
 
-        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 200L)
+        val result = careLogDao.getLastLogOfTypeBefore(
+            plantId,
+            CareType.WATER.name,
+            beforeMillis = 200L,
+            excludeId = null
+        )
         assertNotNull(result)
         assertEquals(100L, result?.loggedAt)
     }
@@ -183,8 +193,49 @@ class CareLogDaoTest {
         val plantId = insertParentPlant()
         careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 300L))
 
-        val result = careLogDao.getLastLogOfTypeBefore(plantId, CareType.WATER.name, beforeMillis = 100L)
+        val result = careLogDao.getLastLogOfTypeBefore(
+            plantId,
+            CareType.WATER.name,
+            beforeMillis = 100L,
+            excludeId = null
+        )
         assertNull(result)
+    }
+
+    // #699/#761 (product ADR-0044 — Codex review round 3 on #776, P2): excludeId lets an edit-mode
+    // predecessor lookup skip the log being edited, mirroring countLogsOfTypeOnDay's identical param.
+    @Test
+    fun `getLastLogOfTypeBefore skips excludeId and falls back to the next-nearest earlier log`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
+        val excludedId = careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 200L))
+
+        val result = careLogDao.getLastLogOfTypeBefore(
+            plantId,
+            CareType.WATER.name,
+            beforeMillis = 300L,
+            excludeId = excludedId
+        )
+
+        assertNotNull(result)
+        assertEquals(100L, result?.loggedAt)
+    }
+
+    @Test
+    fun `getLastLogOfTypeBefore with excludeId null behaves exactly as before`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 100L))
+        careLogDao.insertLog(log(plantId, careType = CareType.WATER.name, loggedAt = 200L))
+
+        val result = careLogDao.getLastLogOfTypeBefore(
+            plantId,
+            CareType.WATER.name,
+            beforeMillis = 300L,
+            excludeId = null
+        )
+
+        assertNotNull(result)
+        assertEquals(200L, result?.loggedAt)
     }
 
     @Test

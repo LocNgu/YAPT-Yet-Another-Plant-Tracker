@@ -33,13 +33,23 @@ interface CareLogDao {
      * [beforeMillis] is chronological (the log's `loggedAt`), not insertion order, so a caller
      * backdating a log finds *that log's own* preceding neighbor rather than "whichever two rows
      * happen to be newest by `loggedAt` overall" (#654 round-2 review fix; see
-     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]).
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]). [excludeId],
+     * optionally, excludes one specific log id — an edit-mode predecessor lookup must not let a
+     * log's own (not-yet-replaced) prior row count as its own predecessor when the edit moves its
+     * date (#699/#761, product ADR-0044 — Codex review round 3 on #776, P2), mirroring
+     * [countLogsOfTypeOnDay]'s identical `excludeId` convention for the same reason (#509).
      */
     @Query(
         "SELECT * FROM care_logs WHERE plantId = :plantId AND careType = :careType " +
-            "AND loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1"
+            "AND loggedAt < :beforeMillis AND (:excludeId IS NULL OR id != :excludeId) " +
+            "ORDER BY loggedAt DESC LIMIT 1"
     )
-    suspend fun getLastLogOfTypeBefore(plantId: Long, careType: String, beforeMillis: Long): CareLogEntity?
+    suspend fun getLastLogOfTypeBefore(
+        plantId: Long,
+        careType: String,
+        beforeMillis: Long,
+        excludeId: Long?
+    ): CareLogEntity?
 
     /**
      * The most recent [limit] logs of [careType] for [plantId], newest first — used to derive
