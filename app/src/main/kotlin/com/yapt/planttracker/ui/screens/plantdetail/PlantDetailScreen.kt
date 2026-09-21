@@ -331,8 +331,10 @@ fun PlantDetailScreen(
             } == true,
             actions = RescheduleDialogActions(
                 onDismiss = { viewModel.dismissRescheduleDialog() },
-                onToday = { viewModel.confirmRescheduleToday() },
-                onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
+                onToday = { shownNow -> viewModel.confirmRescheduleToday(shownNow) },
+                onRelativeDays = { days, shownDueAt ->
+                    viewModel.confirmRescheduleRelativeDays(days, shownDueAt)
+                },
                 onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
             ),
             computedNextWateringDueAt = careStatus?.computedNextWateringDueAt,

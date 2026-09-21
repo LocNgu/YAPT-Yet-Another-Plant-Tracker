@@ -390,6 +390,8 @@ The remaining `+1/+2/+3` labels were still unclear about their due-date anchor (
 now shows `Today · <date>` and `+N days · <date>` using `DateUtils.formatDate()` and the same
 `rescheduledRelativeDueAt()` calculation as the action handler. The date can wrap on a narrow screen;
 Custom date remains a picker because its result is not known until a day is selected.
+The option callback carries the exact timestamp used to render its label, so holding the dialog
+across local midnight cannot commit a different day from the one shown on the tapped row.
 
 ### Custom-date picker's due-date floor (#720)
 `CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an

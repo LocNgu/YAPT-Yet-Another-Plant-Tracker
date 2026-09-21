@@ -245,8 +245,8 @@ internal fun FertilizeDueActionRow(
  */
 internal data class RescheduleDialogActions(
     val onDismiss: () -> Unit,
-    val onToday: () -> Unit,
-    val onRelativeDays: (Int) -> Unit,
+    val onToday: (Long) -> Unit,
+    val onRelativeDays: (Int, Long) -> Unit,
     val onCustomDate: (Long) -> Unit
 )
 
@@ -261,6 +261,8 @@ internal data class RescheduleDialogActions(
  * date in, including a winning *future* override the plant's `isOverdue` status doesn't reflect.
  * Each fixed choice shows its resulting date (#737); [effectiveNextWateringDueAt] is the same
  * override-aware anchor used by the +N action, and [now] supplies the fallback when it is overdue.
+ * Both callbacks receive the exact timestamp used for their visible preview, so a dialog held open
+ * across midnight (or a care-status update) cannot commit a different date on tap.
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
  * product ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
@@ -308,17 +310,18 @@ internal fun RescheduleWateringDialog(
                         stringResource(R.string.reschedule_watering_today),
                         DateUtils.formatDate(now)
                     ),
-                    onClick = actions.onToday,
+                    onClick = { actions.onToday(now) },
                     enabled = todayEnabled
                 )
                 for (days in RELATIVE_DAY_OPTIONS) {
+                    val dueAt = rescheduledRelativeDueAt(effectiveNextWateringDueAt, now, days)
                     RescheduleOption(
                         label = stringResource(
                             R.string.reschedule_watering_option_date,
                             pluralStringResource(R.plurals.reschedule_watering_plus_days, days, days),
-                            DateUtils.formatDate(rescheduledRelativeDueAt(effectiveNextWateringDueAt, now, days))
+                            DateUtils.formatDate(dueAt)
                         ),
-                        onClick = { actions.onRelativeDays(days) }
+                        onClick = { actions.onRelativeDays(days, dueAt) }
                     )
                 }
                 RescheduleOption(

@@ -137,6 +137,26 @@ class PlantDetailViewModelRescheduleTest {
         }
     }
 
+    @Test
+    fun `date options commit the timestamp shown in the dialog instead of rereading the clock`() = runTest {
+        val monstera = plant().copy(wateringIntervalDays = 7)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
+        val vm = makeVm()
+        val shownNow = 1_800_000_000_000L
+        val shownRelativeDueAt = shownNow + TimeUnit.DAYS.toMillis(2)
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.confirmRescheduleToday(shownNow)
+            vm.confirmRescheduleRelativeDays(2, shownRelativeDueAt)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, shownNow) }
+        coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, shownRelativeDueAt) }
+    }
+
     /**
      * A plant last watered 20 days ago on a 7-day interval is clearly overdue, so
      * `maxOf(nextWateringDueAt, now)` collapses to `now` — the resulting override is `now + N days`,

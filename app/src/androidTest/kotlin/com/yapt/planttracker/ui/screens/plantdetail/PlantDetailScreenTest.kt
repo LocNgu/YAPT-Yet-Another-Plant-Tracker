@@ -662,7 +662,7 @@ class PlantDetailScreenTest {
         composeTestRule.setContent {
             RescheduleWateringDialog(
                 todayEnabled = true,
-                actions = RescheduleDialogActions({}, {}, {}, {}),
+                actions = RescheduleDialogActions({}, {}, { _, _ -> }, {}),
                 effectiveNextWateringDueAt = due,
                 now = now
             )
@@ -675,6 +675,36 @@ class PlantDetailScreenTest {
             composeTestRule.onNodeWithText("$label · $date").assertIsDisplayed()
         }
         composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDialog_usesTheShownDateWhenTappedAfterTheClockMoves() {
+        val shownNow = LocalDate.of(2026, 9, 21).atTime(23, 59)
+            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val overdue = LocalDate.of(2026, 9, 18).atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        var todayDueAt: Long? = null
+        var relativeDueAt: Long? = null
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions(
+                    onDismiss = {},
+                    onToday = { todayDueAt = it },
+                    onRelativeDays = { days, dueAt -> if (days == 1) relativeDueAt = dueAt },
+                    onCustomDate = {}
+                ),
+                effectiveNextWateringDueAt = overdue,
+                now = shownNow
+            )
+        }
+
+        composeTestRule.onNodeWithText("Today · ${DateUtils.formatDate(shownNow)}").performClick()
+        val tomorrow = shownNow + TimeUnit.DAYS.toMillis(1)
+        composeTestRule.onNodeWithText("+1 day · ${DateUtils.formatDate(tomorrow)}").performClick()
+
+        assertEquals(shownNow, todayDueAt)
+        assertEquals(tomorrow, relativeDueAt)
     }
 
     @Test
