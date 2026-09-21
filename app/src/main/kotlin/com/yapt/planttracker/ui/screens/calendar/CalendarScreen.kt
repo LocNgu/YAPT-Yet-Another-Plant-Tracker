@@ -574,14 +574,22 @@ private fun CalendarDayPlantRow(
 /**
  * #586 fast path, mirroring `PlantDetailScreen`'s helper of the same name: only an *off-schedule*
  * watering asks why, so an on-schedule tap logs straight through with no reason
- * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030).
+ * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030). A gap that overlaps the plant's
+ * dormancy window ([PlantCareStatus.isWateringGapDormancySpanning], #699/#761, product ADR-0044) skips
+ * the prompt too, for the same reason `PlantDetailScreen`'s `requestWater` does — the question is
+ * incoherent for a plant that was asleep, and a persisted answer could poison a later
+ * `correctionStreak()` window even though the observation itself is excluded from base learning.
  */
 private fun requestWater(
     status: PlantCareStatus,
     viewModel: CalendarViewModel,
     showReasonSheet: () -> Unit
 ) {
-    if (status.isWateringOnSchedule) viewModel.quickWater(status.plant.id, reason = null) else showReasonSheet()
+    if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
+        viewModel.quickWater(status.plant.id, reason = null)
+    } else {
+        showReasonSheet()
+    }
 }
 
 /**
@@ -595,7 +603,8 @@ private fun requestFertilize(
 ) {
     when {
         !status.plant.useLiquidFertilizer -> viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-        status.isWateringOnSchedule -> viewModel.quickLiquidFertilize(status.plant.id, reason = null)
+        status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
+            viewModel.quickLiquidFertilize(status.plant.id, reason = null)
         else -> showReasonSheet()
     }
 }

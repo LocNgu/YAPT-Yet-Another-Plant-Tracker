@@ -375,9 +375,14 @@ fun PlantListScreen(
                                     onClick = { onNavigateToPlant(status.plant.id) },
                                     onLongClick = { viewModel.toggleSelection(status.plant.id) },
                                     onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
-                                    // #586 fast path: only an off-schedule watering asks why.
+                                    // #586 fast path: only an off-schedule watering asks why. A gap
+                                    // that overlaps the plant's dormancy window skips the prompt too
+                                    // (#699/#761, product ADR-0044) — see CalendarScreen's requestWater
+                                    // for the full rationale (a persisted answer could poison a later
+                                    // correctionStreak() window even though this observation is
+                                    // excluded from base learning either way).
                                     onQuickWater = {
-                                        if (status.isWateringOnSchedule) {
+                                        if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
                                             viewModel.quickWater(status.plant.id, reason = null)
                                         } else {
                                             waterFeedbackPlant = status
@@ -387,7 +392,7 @@ fun PlantListScreen(
                                         when {
                                             !status.plant.useLiquidFertilizer ->
                                                 viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                                            status.isWateringOnSchedule ->
+                                            status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
                                                 viewModel.quickLiquidFertilize(status.plant.id, reason = null)
                                             else -> liquidFertilizeFeedbackPlant = status
                                         }

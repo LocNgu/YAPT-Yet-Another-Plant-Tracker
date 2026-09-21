@@ -100,5 +100,26 @@ enum class WateringAdjustmentTrigger {
      * once, distinct from [HISTORY_BOOTSTRAP] (which reconstructs a base from watering-log history, not
      * from reconciling a stale column against the literal interval).
      */
-    SEASONAL_GRADUATION_FIXUP
+    SEASONAL_GRADUATION_FIXUP,
+
+    /**
+     * A watering whose gap overlapped the plant's dormancy window (#699/#761, product ADR-0044) —
+     * excluded from base learning regardless of feedback, the same `frozen` exclusion mechanism
+     * [FROZEN_POST_REPOT] uses, but deliberately a **distinct** trigger: this is a user-declared
+     * dormancy window, not an automatic post-repot freeze, and the sheet should not conflate the two.
+     * `beforeIntervalDays`/`afterIntervalDays` are always equal — dormancy excludes the base from
+     * moving, it never moves it.
+     */
+    DORMANCY_EXCLUDED,
+
+    /**
+     * Leaving a dormancy window: `wateringConfidence = max(0, confidence - 1)` (#699/#761, product
+     * ADR-0044) — never a full reset, since the pre-dormancy base is still the best available estimate
+     * for the same plant in the same position. Written alongside [DORMANCY_EXCLUDED] on the same
+     * watering when that watering both spans the window and is the first one after it, since the two
+     * are independent facts about that one observation (the base didn't move; confidence *did*, for a
+     * different reason than the exclusion itself). `beforeIntervalDays`/`afterIntervalDays` are always
+     * equal, same reasoning as [DORMANCY_EXCLUDED] — this is a confidence-only event.
+     */
+    DORMANCY_EXIT
 }

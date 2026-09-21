@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.Hemisphere
@@ -164,6 +165,70 @@ class AddCareLogViewModelTest {
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
             assertTrue(event.suggestedWateringInterval != null)
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // #699/#761 (product ADR-0044): this VM's own copy of the adaptive path must exclude a
+    // dormancy-spanning gap from base learning too — even with explicit TOO_SOON feedback typed on
+    // the form (this screen has no dynamic reason prompt to suppress; the exclusion has to hold at
+    // the model layer regardless). Pins the same 127-day, Oct25-to-Mar1 scenario QuickLogUseCase's
+    // own dormancy tests pin, confirming both independent copies agree.
+    @Test
+    fun `save WATER log spanning dormancy excludes base learning and decrements confidence on exit`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = marchFirst),
+            waterLog(loggedAt = octoberTwentyFifth)
+        )
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.TOO_SOON
+        vm.loggedAt = marchFirst
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Base unchanged (7), confidence decremented by exactly 1 for leaving dormancy (3 -> 2) —
+        // never the ~10-day ratchet a bare TOO_SOON observation would otherwise cause.
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.wateringIntervalDays == 7 })
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED &&
+                        it.beforeIntervalDays == it.afterIntervalDays
+                }
+            )
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT &&
+                        it.beforeIntervalDays == it.afterIntervalDays
+                }
+            )
+        }
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.WATER_TOO_SOON })
         }
     }
 

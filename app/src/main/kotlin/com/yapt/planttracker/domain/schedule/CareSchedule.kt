@@ -72,6 +72,15 @@ object CareSchedule {
             effectiveIntervalDays = effectiveWateringDays,
             now = now
         )
+        // #761 (product ADR-0044): distinct from isDormant above — "did dormancy happen anywhere
+        // between the last watering and now?", not "is the current month dormant?". `false` with no
+        // prior watering, mirroring isWateringOnSchedule's own "nothing to gate" convention.
+        val gapDormancySpanning = lastWateredAt != null && DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            lastWateredAt,
+            now
+        )
 
         return PlantCareStatus(
             plant = plant,
@@ -94,7 +103,8 @@ object CareSchedule {
             isWateringGapLong = gapRanLong,
             rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
             computedNextWateringDueAt = wateringDue.computedNextDueAt,
-            isDormant = isDormant
+            isDormant = isDormant,
+            isWateringGapDormancySpanning = gapDormancySpanning
         )
     }
 

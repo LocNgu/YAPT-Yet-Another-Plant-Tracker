@@ -120,6 +120,50 @@ class CareScheduleDormancyTest {
         assertEquals(lastWatered + TimeUnit.DAYS.toMillis(7), status.nextWateringDueAt)
     }
 
+    // ---- isWateringGapDormancySpanning (#761) — distinct from isDormant, see PlantCareStatus's doc ----
+
+    @Test
+    fun `a gap that crosses into the dormancy window reports gap-dormancy-spanning true`() {
+        val lastWatered = now - TimeUnit.DAYS.toMillis(100)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, dormancyStartMonth = 11, dormancyEndMonth = 2),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertTrue(status.isWateringGapDormancySpanning)
+    }
+
+    @Test
+    fun `a gap that never touches the dormancy window reports gap-dormancy-spanning false`() {
+        val lastWatered = now - TimeUnit.DAYS.toMillis(5)
+        val status = CareSchedule.computeStatus(
+            // Jun-Aug window has nothing to do with a 5-day-old January gap.
+            plant = plantWith(wateringIntervalDays = 7, dormancyStartMonth = 6, dormancyEndMonth = 8),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertFalse(status.isWateringGapDormancySpanning)
+    }
+
+    @Test
+    fun `no prior watering at all reports gap-dormancy-spanning false`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, dormancyStartMonth = 11, dormancyEndMonth = 2),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertFalse(status.isWateringGapDormancySpanning)
+    }
+
     @Test
     fun `exiting the dormancy window on the very next day restores overdue reporting`() {
         // Nov 1 - Jan 31 window; Feb 1 is the first day outside it.

@@ -65,4 +65,40 @@ class PlantDetailScreenGateTest {
         assertTrue(isChosenDateOnSchedule(plant(), null, chosenDate, seasonalAmplitude = 0.0))
         assertFalse(isChosenDateGapLong(plant(), null, chosenDate, seasonalAmplitude = 0.0))
     }
+
+    // ---- isChosenDateDormancySpanning (#699/#761, product ADR-0044) ----
+
+    private fun dormantPlant(intervalDays: Int = 7) = plant(intervalDays).copy(
+        dormancyStartMonth = 10,
+        dormancyEndMonth = 2
+    )
+
+    @Test
+    fun `an off-schedule gap that overlaps the dormancy window is reported as spanning`() {
+        // May 25 -> Jun 15 predecessor pair is genuinely off-schedule, but a window of Oct-Feb has
+        // nothing to do with either date here — swap in a predecessor before the window's start and a
+        // chosen date after it to actually exercise the span.
+        val predecessorBeforeWindow = millisAt(LocalDate.of(2025, 9, 20))
+        val chosenAfterWindow = millisAt(LocalDate.of(2026, 3, 5))
+        assertFalse(isChosenDateOnSchedule(dormantPlant(), predecessorBeforeWindow, chosenAfterWindow, 0.0))
+        assertTrue(isChosenDateDormancySpanning(dormantPlant(), predecessorBeforeWindow, chosenAfterWindow))
+    }
+
+    @Test
+    fun `an off-schedule gap that never touches the dormancy window is not reported as spanning`() {
+        assertFalse(isChosenDateOnSchedule(dormantPlant(), realPredecessor, chosenDate, seasonalAmplitude = 0.0))
+        assertFalse(isChosenDateDormancySpanning(dormantPlant(), realPredecessor, chosenDate))
+    }
+
+    @Test
+    fun `no predecessor at all is never reported as dormancy spanning`() {
+        assertFalse(isChosenDateDormancySpanning(dormantPlant(), null, chosenDate))
+    }
+
+    @Test
+    fun `a plant with no dormancy window is never reported as dormancy spanning`() {
+        val predecessorBeforeWindow = millisAt(LocalDate.of(2025, 9, 20))
+        val chosenAfterWindow = millisAt(LocalDate.of(2026, 3, 5))
+        assertFalse(isChosenDateDormancySpanning(plant(), predecessorBeforeWindow, chosenAfterWindow))
+    }
 }

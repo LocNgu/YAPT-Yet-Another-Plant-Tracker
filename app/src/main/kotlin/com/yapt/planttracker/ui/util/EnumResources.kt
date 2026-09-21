@@ -116,6 +116,8 @@ fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.FROZEN_POST_REPOT -> R.string.adjustment_trigger_frozen_post_repot
     WateringAdjustmentTrigger.HISTORY_BOOTSTRAP -> R.string.adjustment_trigger_history_bootstrap
     WateringAdjustmentTrigger.SEASONAL_GRADUATION_FIXUP -> R.string.adjustment_trigger_seasonal_graduation_fixup
+    WateringAdjustmentTrigger.DORMANCY_EXCLUDED -> R.string.adjustment_trigger_dormancy_excluded
+    WateringAdjustmentTrigger.DORMANCY_EXIT -> R.string.adjustment_trigger_dormancy_exit
 }
 
 @StringRes

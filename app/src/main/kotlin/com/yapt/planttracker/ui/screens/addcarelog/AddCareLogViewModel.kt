@@ -21,6 +21,7 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
@@ -251,7 +252,7 @@ class AddCareLogViewModel(
      * identical widening, for the identical reason: a plain JVM test can pin [displayNow] independently
      * of [loggedAt] without fighting the real device clock.
      */
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "CyclomaticComplexMethod")
     internal suspend fun computeSuggestedInterval(displayNow: Long = System.currentTimeMillis()): SuggestedInterval? {
         if (selectedCareType != CareType.WATER) return null
         val feedback = selectedFeedback
@@ -268,7 +269,19 @@ class AddCareLogViewModel(
 
         if (actualIntervalDays <= 0) return null
 
-        val result = adaptWateringInterval(plant, feedback, actualIntervalDays, currentInterval) ?: return null
+        // #699/#761: the same two timestamps actualIntervalDays was just derived from, so the
+        // dormancy span check can't disagree with what "the gap" means in this VM's own (pre-existing,
+        // #654/#679-quirky) model of "current" watering.
+        val previousWateringAt = lastTwoWaterings.getOrNull(1)?.loggedAt
+        val newWateringAt = lastTwoWaterings.getOrNull(0)?.loggedAt ?: loggedAt
+        val result = adaptWateringInterval(
+            plant,
+            feedback,
+            actualIntervalDays,
+            currentInterval,
+            previousWateringAt,
+            newWateringAt
+        ) ?: return null
         val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
         val effectiveSuggested = effectiveIntervalForDisplay(
             plant,
@@ -350,12 +363,21 @@ class AddCareLogViewModel(
      * suggestion dialog. [feedback] may be `null` (#570) — a silent gap-only observation, capped at
      * [CareSchedule.NEUTRAL_OBSERVATION_GAIN]. See [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same function for
      * the #571 history-bootstrap short-circuit this mirrors.
+     *
+     * [previousWateringAt]/[newWateringAt] (#699/#761, product ADR-0044) — see
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same function for the
+     * dormancy-exclusion/exit rule this duplicates; this VM's caller ([computeSuggestedInterval])
+     * threads through the same two [CareLog] timestamps `actualIntervalDays` was itself derived from,
+     * rather than real wall-clock `now`, so the two checks can't disagree about what "the gap" means.
      */
+    @Suppress("LongParameterList", "ReturnCount")
     private suspend fun adaptWateringInterval(
         plant: Plant,
         feedback: WateringFeedback?,
         actualIntervalDays: Int,
-        currentInterval: Int
+        currentInterval: Int,
+        previousWateringAt: Long?,
+        newWateringAt: Long
     ): CareSchedule.AdaptiveInterval? {
         val now = System.currentTimeMillis()
         if (maybeApplyHistoryBootstrap(plant, now)) return null
@@ -363,25 +385,52 @@ class AddCareLogViewModel(
         val recentFeedback = careLogRepository.getRecentWaterings(plantId, limit = RECENT_WATERINGS_WINDOW)
             .map { it.wateringFeedback }
         val currentBase = currentAdaptiveBaseIntervalDays(plant, currentInterval)
-        val frozen = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
+        val frozenPostRepot = WateringLifecycleReset.isFrozen(plant.wateringFreezeUntil, now)
+        val dormancySpanning = previousWateringAt != null && DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            previousWateringAt,
+            newWateringAt
+        )
+        val dormancyExited = dormancySpanning && !DormancyWindow.isDormant(
+            newWateringAt.toLocalDate().monthValue,
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth
+        )
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
             observedIntervalDays = deseasonalizedObservedIntervalDays(actualIntervalDays, plant.pinIntervalToBase),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
-            frozen = frozen
+            frozen = frozenPostRepot || dormancySpanning
         )
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(
                 plantId = plant.id,
                 triggeredAt = now,
-                trigger = adjustmentTriggerFor(feedback, result.excludedFromBaseLearning, frozen),
+                trigger = adjustmentTriggerFor(
+                    feedback,
+                    result.excludedFromBaseLearning,
+                    frozenPostRepot,
+                    dormancySpanning
+                ),
                 beforeIntervalDays = currentBase.roundToInt(),
                 afterIntervalDays = result.intervalDays
             )
         )
-        return result
+        if (!dormancyExited) return result
+        val adjustedConfidence = (result.confidence - 1).coerceAtLeast(0)
+        wateringAdjustmentRepository?.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.DORMANCY_EXIT,
+                beforeIntervalDays = currentBase.roundToInt(),
+                afterIntervalDays = currentBase.roundToInt()
+            )
+        )
+        return result.copy(confidence = adjustedConfidence)
     }
 
     /**
@@ -417,9 +466,13 @@ class AddCareLogViewModel(
     private fun adjustmentTriggerFor(
         feedback: WateringFeedback?,
         excludedFromBaseLearning: Boolean,
-        frozen: Boolean = false
+        frozenPostRepot: Boolean = false,
+        dormancySpanning: Boolean = false
     ): WateringAdjustmentTrigger = when {
-        frozen -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
+        // See QuickLogUseCase's identical copy of this function for why dormancy wins the (rare)
+        // case both could apply.
+        dormancySpanning -> WateringAdjustmentTrigger.DORMANCY_EXCLUDED
+        frozenPostRepot -> WateringAdjustmentTrigger.FROZEN_POST_REPOT
         excludedFromBaseLearning -> WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED
         feedback == WateringFeedback.TOO_SOON -> WateringAdjustmentTrigger.WATER_TOO_SOON
         feedback == WateringFeedback.TOO_LATE -> WateringAdjustmentTrigger.WATER_TOO_LATE
