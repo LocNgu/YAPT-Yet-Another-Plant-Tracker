@@ -19,9 +19,11 @@ or tool instructions into Codex workflows.
   `main`, `master`, `develop`, or a detached `HEAD`.
 - Start from a freshly fetched `origin/develop`; target `develop` in any pull
   request.
-- When a push is authorized, push the current branch only to the same-named
-  remote branch and establish upstream tracking with `git push -u origin HEAD`.
-  Never push feature commits directly to `main`, `master`, or `develop`.
+- For work on a GitHub issue, pushing the completed feature branch and opening
+  its pull request are standing-authorized; do both without asking again. Push
+  only the current branch to the same-named remote branch and establish upstream
+  tracking with `git push -u origin HEAD`. Never push feature commits directly
+  to `main`, `master`, or `develop`.
 - Do not mix unrelated changes in one branch or pull request.
 - Never merge a pull request. A human performs merges.
 - Preserve existing user changes and untracked files unless the user explicitly
@@ -32,8 +34,10 @@ or tool instructions into Codex workflows.
 - Local implementation, focused tests, and static analysis are normal parts of
   an authorized coding task.
 - Ask for explicit authorization before externally creating or modifying GitHub
-  issues, pull requests, reviews, comments, labels, or branches, and before
-  pushing commits.
+  issues, reviews, comments, labels, or unrelated branches. Issue delivery is a
+  standing exception: after completing and verifying issue work, commit it,
+  push its `codex/*` feature branch, and open or update the pull request against
+  `develop` without requesting further authorization.
 - Use GitHub context to inspect existing issues and pull requests when it helps
   scope a request, but do not assume an issue must be created before starting
   user-authorized local work.
@@ -75,7 +79,14 @@ or tool instructions into Codex workflows.
   are fixed in the code, never deferred into `config/detekt/baseline.xml`,
   which records pre-existing debt and is not a valid target for code introduced
   in the same change.
-- Make the pull request title and body describe the actual diff. When it
-  resolves an issue, include `Fixes #<issue>` or `Closes #<issue>`; explicitly
+- Follow the established Claude-authored pull request format: use a conventional
+  title that includes the issue number (for example, `fix: ... (#123)`) and a
+  body organized around `Summary`, `Linked issue`, `Changes`, `Testing`, and
+  `Checklist` as applicable.
+- In every issue-backed pull request, explicitly identify every issue the pull
+  request fully resolves in the `Linked issue` section with a closing keyword,
+  such as `Closes #123` or `Fixes #123`. Do not use a closing keyword for an
+  issue the pull request merely references or only partially addresses.
+- Make the pull request title and body describe the actual diff; explicitly
   state no intended behaviour change for a refactor and map verification to the
   issue's acceptance criteria.
