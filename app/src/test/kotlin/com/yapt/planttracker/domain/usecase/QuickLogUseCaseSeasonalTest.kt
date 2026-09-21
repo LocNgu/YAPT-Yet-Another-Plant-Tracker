@@ -260,7 +260,7 @@ class QuickLogUseCaseSeasonalTest {
         val twentyDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(20)
 
         // TOO_LATE feedback, so a gap that disagrees with the base still moves it (unlike a null
-        // observation, which #586/ADR-0030 excludes from base learning entirely when off-schedule) —
+        // observation, which #586 (product ADR-0030) excludes from base learning when off-schedule) —
         // a real raw suggestion distinct from the current literal interval.
         val monstera = plant(wateringIntervalDays = 10)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

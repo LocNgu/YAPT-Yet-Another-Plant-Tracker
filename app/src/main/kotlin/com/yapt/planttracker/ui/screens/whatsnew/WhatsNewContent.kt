@@ -14,6 +14,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
+            "Watering logs now use the same adaptive schedule logic whether you use a quick action or " +
+                "the full Add Care Log form; this keeps their existing behavior consistent",
             "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
                 "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
                 "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
