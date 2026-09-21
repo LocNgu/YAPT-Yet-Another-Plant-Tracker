@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -7,6 +8,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 /**
  * [isOnOrAfterLocalToday] boundary coverage (#508 review fix) — the [DatePicker] operates on UTC
@@ -23,6 +25,22 @@ import java.time.ZoneOffset
  * opposite result.
  */
 class WateringDueActionsTest {
+
+    @Test
+    fun `relative reschedule date uses the effective due date while it is in the future`() {
+        val now = Instant.parse("2026-09-21T12:00:00Z").toEpochMilli()
+        val due = Instant.parse("2026-09-25T12:00:00Z").toEpochMilli()
+
+        assertEquals(due + TimeUnit.DAYS.toMillis(2), rescheduledRelativeDueAt(due, now, 2))
+    }
+
+    @Test
+    fun `relative reschedule date uses today once the due date has passed`() {
+        val now = Instant.parse("2026-09-21T12:00:00Z").toEpochMilli()
+        val overdue = Instant.parse("2026-09-18T12:00:00Z").toEpochMilli()
+
+        assertEquals(now + TimeUnit.DAYS.toMillis(2), rescheduledRelativeDueAt(overdue, now, 2))
+    }
 
     private val tokyo = ZoneId.of("Asia/Tokyo")
     private val losAngeles = ZoneId.of("America/Los_Angeles")

@@ -19,19 +19,22 @@ fun PlantDetailViewModel.dismissRescheduleDialog() {
 /**
  * Reschedule "Today" option (#508, product ADR-0029) — only ever tapped from an enabled state,
  * since the screen disables it while [isRescheduleTodayEnabled] (#746, replacing the earlier
- * `PlantCareStatus.isOverdue`-based gate) says tapping it would be a no-op. See [applyReschedule].
+ * `PlantCareStatus.isOverdue`-based gate) says tapping it would be a no-op. Always reads the clock
+ * on tap, so an overnight-open dialog cannot commit yesterday as "Today". See [applyReschedule].
  */
 fun PlantDetailViewModel.confirmRescheduleToday() = applyReschedule(System.currentTimeMillis())
 
 /**
- * Reschedule "+[days]" option (#508, product ADR-0029) — anchored to the current *effective* due
- * date (`maxOf(nextWateringDueAt, now)`, already override-aware via `CareSchedule`), unchanged
- * from the stepper dialog this replaces. [days] never affects what the model learns (#586).
+ * Commits the +N option's [shownDueAt] exactly as rendered in the dialog (#737). The dialog alone
+ * computes it from `maxOf(nextWateringDueAt, now)` via [rescheduledRelativeDueAt]; no second clock
+ * read or anchor calculation can drift from the displayed date. The number of days never affects
+ * what the model learns (#586).
  */
-fun PlantDetailViewModel.confirmRescheduleRelativeDays(days: Int) {
-    val currentDue = maxOf(careStatus.value?.nextWateringDueAt ?: 0L, System.currentTimeMillis())
-    applyReschedule(currentDue + TimeUnit.DAYS.toMillis(days.toLong()))
-}
+fun PlantDetailViewModel.confirmRescheduleRelativeDate(shownDueAt: Long) = applyReschedule(shownDueAt)
+
+/** The dialog's due-date-anchored +N calculation; its result is both previewed and committed. */
+internal fun rescheduledRelativeDueAt(effectiveDueAt: Long?, now: Long, days: Int): Long =
+    maxOf(effectiveDueAt ?: 0L, now) + TimeUnit.DAYS.toMillis(days.toLong())
 
 /**
  * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked

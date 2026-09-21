@@ -63,8 +63,8 @@ fertilizing/repotting-only reminder never reframes, since there's no "check the 
   *learning* standpoint: "Not now" writes only `wateringDueDateOverride` and never a model field. It
   computes `maxOf(wateringDueDateOverride ?: now, now) + 1 day` — anchored to whichever is later, the
   existing override or now — so a tap always moves the due date to at least one day past today,
-  regardless of any stale past override (#741; mirrors `PlantDetailViewModel
-  .confirmRescheduleRelativeDays()`'s anchoring). **History:** before #741's fix, the arithmetic was
+  regardless of any stale past override (#741; mirrors Plant Detail's
+  `rescheduledRelativeDueAt()` anchor). **History:** before #741's fix, the arithmetic was
   `(wateringDueDateOverride ?: now) + 1 day`, anchored to the existing override alone — on a plant with
   a stale past override, a tap advanced that stale date by only one day and could leave the plant still
   overdue, requiring several taps to clear. An earlier draft of ADR-0039 asserted the opposite (that

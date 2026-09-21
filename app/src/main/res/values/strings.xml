@@ -100,6 +100,7 @@
          Plant Detail button/dialog title and the ReminderWorker notification action label. -->
     <string name="reschedule_watering_title">Reschedule watering</string>
     <string name="reschedule_watering_today">Today</string>
+    <string name="reschedule_watering_option_date">%1$s · %2$s</string>
     <plurals name="reschedule_watering_plus_days">
         <item quantity="one">+1 day</item>
         <item quantity="other">+%d days</item>

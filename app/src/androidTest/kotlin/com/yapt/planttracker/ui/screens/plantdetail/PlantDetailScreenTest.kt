@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -52,6 +53,7 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.DateUtils
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -67,6 +69,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
@@ -646,10 +650,85 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+2 days").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+3 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("+1 day ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("+2 days ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("+3 days ·", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDialog_showsTheResultingDueDateForEachRelativeOption() {
+        val now = LocalDate.of(2026, 9, 21).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val due = LocalDate.of(2026, 9, 25).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions({}, {}, {}, {}),
+                effectiveNextWateringDueAt = due,
+                now = now
+            )
+        }
+
+        composeTestRule.onNodeWithText("Today").assertIsDisplayed()
+        for (days in 1..3) {
+            val label = if (days == 1) "+1 day" else "+$days days"
+            val date = DateUtils.formatDate(due + TimeUnit.DAYS.toMillis(days.toLong()))
+            composeTestRule.onNodeWithText("$label · $date").assertIsDisplayed()
+        }
+        composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDialog_passesTheRenderedRelativeDateToItsCallback() {
+        val shownNow = LocalDate.of(2026, 9, 21).atTime(23, 59)
+            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val overdue = LocalDate.of(2026, 9, 18).atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        var relativeDueAt: Long? = null
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions(
+                    onDismiss = {},
+                    onToday = {},
+                    onRelativeDate = { relativeDueAt = it },
+                    onCustomDate = {}
+                ),
+                effectiveNextWateringDueAt = overdue,
+                now = shownNow
+            )
+        }
+
+        val tomorrow = shownNow + TimeUnit.DAYS.toMillis(1)
+        composeTestRule.onNodeWithText("+1 day · ${DateUtils.formatDate(tomorrow)}").performClick()
+
+        assertEquals(tomorrow, relativeDueAt)
+    }
+
+    @Test
+    fun rescheduleDialog_defaultClockPreviewUpdatesWithEffectiveDueDate() {
+        val initialDueAt = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
+        val updatedDueAt = initialDueAt + TimeUnit.DAYS.toMillis(3)
+        val effectiveDueAt = mutableLongStateOf(initialDueAt)
+        var committedDueAt: Long? = null
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions(
+                    onDismiss = {},
+                    onToday = {},
+                    onRelativeDate = { committedDueAt = it },
+                    onCustomDate = {}
+                ),
+                effectiveNextWateringDueAt = effectiveDueAt.longValue
+            )
+        }
+
+        composeTestRule.runOnIdle { effectiveDueAt.longValue = updatedDueAt }
+        val expected = updatedDueAt + TimeUnit.DAYS.toMillis(1)
+        composeTestRule.onNodeWithText("+1 day · ${DateUtils.formatDate(expected)}").performClick()
+
+        assertEquals(expected, committedDueAt)
     }
 
     @Test

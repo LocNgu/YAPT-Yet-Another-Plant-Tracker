@@ -35,6 +35,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
+import com.yapt.planttracker.util.DateUtils
 
 /**
  * Disambiguates the watering-due row's "Water" button from the `plant_detail_tab_water` tab strip
@@ -245,7 +246,7 @@ internal fun FertilizeDueActionRow(
 internal data class RescheduleDialogActions(
     val onDismiss: () -> Unit,
     val onToday: () -> Unit,
-    val onRelativeDays: (Int) -> Unit,
+    val onRelativeDate: (Long) -> Unit,
     val onCustomDate: (Long) -> Unit
 )
 
@@ -258,6 +259,10 @@ internal data class RescheduleDialogActions(
  * due date is already today (a true no-op against whatever's already there, e.g. a second tap after
  * Today was already applied — #752 review round 1), and `true` whenever it would actually pull the
  * date in, including a winning *future* override the plant's `isOverdue` status doesn't reflect.
+ * The +N choices show their resulting date (#737); [effectiveNextWateringDueAt] is the same
+ * override-aware anchor used by the action, and [now] supplies the fallback when it is overdue.
+ * Their callback receives the exact timestamp used for the visible preview. Today has no redundant
+ * dated preview: it commits the current time on tap, even if the dialog stayed open across midnight.
  * Every option writes `wateringDueDateOverride` only via [actions] — this dialog never fires the
  * product ADR-0006 interval-suggestion dialog, unlike the flow it replaces.
  *
@@ -276,7 +281,9 @@ internal data class RescheduleDialogActions(
 internal fun RescheduleWateringDialog(
     todayEnabled: Boolean,
     actions: RescheduleDialogActions,
-    computedNextWateringDueAt: Long? = null
+    computedNextWateringDueAt: Long? = null,
+    effectiveNextWateringDueAt: Long? = null,
+    now: Long = System.currentTimeMillis()
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -303,9 +310,14 @@ internal fun RescheduleWateringDialog(
                     enabled = todayEnabled
                 )
                 for (days in RELATIVE_DAY_OPTIONS) {
+                    val dueAt = rescheduledRelativeDueAt(effectiveNextWateringDueAt, now, days)
                     RescheduleOption(
-                        label = pluralStringResource(R.plurals.reschedule_watering_plus_days, days, days),
-                        onClick = { actions.onRelativeDays(days) }
+                        label = stringResource(
+                            R.string.reschedule_watering_option_date,
+                            pluralStringResource(R.plurals.reschedule_watering_plus_days, days, days),
+                            DateUtils.formatDate(dueAt)
+                        ),
+                        onClick = { actions.onRelativeDate(dueAt) }
                     )
                 }
                 RescheduleOption(
