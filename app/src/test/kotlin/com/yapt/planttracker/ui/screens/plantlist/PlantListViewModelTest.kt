@@ -945,7 +945,8 @@ class PlantListViewModelTest {
                     plantName = "Monstera",
                     suggestedInterval = 4,
                     suggestedIntervalEffective = 5,
-                    suggestedBaseInterval = 4.0
+                    suggestedBaseInterval = 4.0,
+                    currentIntervalEffective = 7
                 )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
@@ -1046,7 +1047,8 @@ class PlantListViewModelTest {
                     plantName = "Monstera",
                     suggestedInterval = 8,
                     suggestedIntervalEffective = 8,
-                    suggestedBaseInterval = 8.0
+                    suggestedBaseInterval = 8.0,
+                    currentIntervalEffective = 7
                 )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)

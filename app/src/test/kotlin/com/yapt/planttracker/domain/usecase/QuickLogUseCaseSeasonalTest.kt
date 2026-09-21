@@ -297,6 +297,119 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(expectedRaw, outcome.suggestion?.suggestedInterval)
         assertEquals(expectedEffective, outcome.suggestion?.suggestedIntervalEffective)
     }
+
+    /**
+     * #716 worked-example regression (acceptance criteria 1, 3, 7): a plant anchored around Sep 1 at
+     * "every 7 days" (the stale, never-since-updated literal `wateringIntervalDays = 7`) with a real
+     * season-neutral base of 8.8 — the old gate compared `effectiveIntervalForDisplay(...)` against
+     * that stale `7` literal directly, so on Sep 13 (`season = 0.866`, `round(8.8 * 0.866) = 8 != 7`)
+     * it fired the product ADR-0006 dialog purely off calendar drift, blaming whichever watering was
+     * logged that day. Watering 1 day early (observed gap 7, de-seasonalizing to `round(7 / 0.866) =
+     * 8`, agreeing with the base within [CareSchedule.GAP_AGREEMENT_TOLERANCE]) is exactly the
+     * reported symptom's own numbers. The fixed gate compares live-to-live instead: pre-observation
+     * `round(8.8 * 0.866) = 8` vs post-observation `round(8.68 * 0.866) = 8` (the neutral,
+     * capped-gain nudge moves the base from 8.8 to 8.68 — a real but sub-threshold correction) — both
+     * sides agree, so no suggestion is surfaced at all.
+     */
+    @Test
+    fun `quickWaterWithReason suppresses a suggestion on pure seasonal drift (#716 worked example)`() = runTest {
+        val sep13 = localDateUtcMillis(2023, 9, 13)
+        val useCase = useCaseWithSeasonOn(sep13)
+        val sevenDaysBeforeSep13 = sep13 - TimeUnit.DAYS.toMillis(7)
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 8.8)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastWateringBefore(1L, sep13) } returns
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = sevenDaysBeforeSep13,
+                wateringFeedback = null
+            )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+        // No reason: watered 1 day early while on schedule, so no prompt ever appeared (#586).
+        val outcome = useCase.quickWaterWithReason(monstera, null, loggedAt = sep13)
+
+        assertEquals(null, outcome.suggestion)
+        // technical ADR-0027: the sub-threshold base correction still persists immediately even
+        // though nothing crossed a rounding boundary for display.
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringBaseIntervalDays != null && it.wateringBaseIntervalDays!! < 8.8 })
+        }
+        // #716 acceptance criterion 7: since no suggestion was ever surfaced, there is no dialog to
+        // dismiss and therefore no DIALOG_DISMISSAL row possible for this observation.
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DIALOG_DISMISSAL })
+        }
+    }
+
+    /**
+     * #716 acceptance criterion 2's sibling: when the model's base genuinely moves *and* that movement
+     * crosses today's display-rounding threshold, the suggestion must still surface — the fix only
+     * suppresses calendar-only drift, not genuine model movement. `suggestedIntervalEffective` is
+     * unaffected by this fix (still the base-to-effective conversion the existing
+     * `suggestedIntervalEffective is the base-to-effective conversion` test already covers) — this
+     * test's own focus is that the *gate itself* still lets a real change through.
+     */
+    @Test
+    fun `quickWaterWithReason still surfaces a suggestion when the base genuinely crosses a rounding threshold`() =
+        runTest {
+            val sep13 = localDateUtcMillis(2023, 9, 13)
+            val useCase = useCaseWithSeasonOn(sep13)
+            val eightDaysBeforeSep13 = sep13 - TimeUnit.DAYS.toMillis(8)
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 8.6)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastWateringBefore(1L, sep13) } returns
+                CareLog(
+                    plantId = 1L,
+                    careType = CareType.WATER,
+                    loggedAt = eightDaysBeforeSep13,
+                    wateringFeedback = null
+                )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            val outcome = useCase.quickWaterWithReason(monstera, null, loggedAt = sep13)
+
+            assertTrue(outcome.suggestion != null)
+            // Pre-observation base 8.6 -> round(8.6 * 0.866) = 7; the observed 8-day gap de-seasonalizes
+            // to 9 (agreeing with the base within tolerance), nudging the base up to 8.66, which crosses
+            // the rounding boundary to round(8.66 * 0.866) = 8 -- a genuine, real change.
+            assertEquals(7, outcome.suggestion?.currentIntervalEffective)
+            assertEquals(8, outcome.suggestion?.suggestedIntervalEffective)
+        }
+
+    /**
+     * #716 acceptance criterion 4: a pinned plant's gate must reduce to exactly the pre-existing
+     * literal comparison, provably unchanged by this fix — [currentAdaptiveBaseIntervalDays] and
+     * [effectiveIntervalForDisplay] both collapse to identity when pinned, regardless of
+     * [Plant.wateringBaseIntervalDays]. `wateringBaseIntervalDays` is deliberately set to a wildly
+     * different value (8.8) than the literal (10) to prove it's ignored entirely on both sides of the
+     * gate, not merely coincidentally equal.
+     */
+    @Test
+    fun `quickWaterWithReason's gate ignores wateringBaseIntervalDays entirely for a pinned plant (#716)`() = runTest {
+        val peakDay = localDateUtcMillis(2023, 9, 13)
+        val useCase = useCaseWithSeasonOn(peakDay)
+        val tenDaysBeforePeak = peakDay - TimeUnit.DAYS.toMillis(10)
+        val monstera = plant(wateringIntervalDays = 10)
+            .copy(pinIntervalToBase = true, wateringBaseIntervalDays = 8.8)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = tenDaysBeforePeak,
+                wateringFeedback = null
+            )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+        // No reason (null feedback, on schedule): observed gap = current literal exactly -> the model
+        // returns the base unchanged (target == currentBase == 10) regardless of gain, so the raw
+        // suggestion also equals the literal -- suppressed, exactly like the pre-#716 pinned-plant gate.
+        val outcome = useCase.quickWaterWithReason(monstera, null, loggedAt = peakDay)
+
+        assertEquals(null, outcome.suggestion)
+    }
 }
 
 private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {

@@ -87,6 +87,29 @@ whenever amplitude wasn't Off. See `.claude/rules/watering-transparency.md` for 
 the same fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug
 fix feeds.
 
+**The suggestion-dialog gate must compare live effective values, never `Plant.wateringIntervalDays`
+directly (#716).** `currentAdaptiveBaseIntervalDays()` fixed what the *model* reasons about; #716 fixed
+a second, distinct bug in what the *dialog gate* compares against. All three gates
+(`QuickLogUseCase.computeSuggestion()`, `AddCareLogViewModel.computeSuggestedInterval()`,
+`PlantDetailViewModel.pendingWateringSuggestion`) used to decide whether to show the product ADR-0006
+dialog by comparing today's live `effectiveWateringIntervalDaysForDisplay()` against the stale
+`Plant.wateringIntervalDays` literal — a number only rewritten on a manual edit, a suggestion apply, the
+#571 bootstrap, or the #702 fixup. Between those events the seasonal curve keeps moving while the
+literal doesn't, so the two drift apart on their own and the dialog could fire on pure calendar drift,
+misattributed to whichever watering happened to be logged that day. Fixed by comparing **live-to-live**
+instead: `effectiveWateringIntervalDaysForDisplay()` of the model's pre-observation base against its
+post-observation base, both evaluated at today's date — reusing the exact same public wrapper
+`WateringExplanationBuilder` already calls, so the gate cannot drift from the sheet by construction. A
+base that moves but still rounds to the same effective value today is the intended silent case (technical
+ADR-0027's existing "does not alter today's displayed effective interval… does not require approval"
+policy) — the fix only corrects what the comparison reads, not that policy itself. `QuickWaterSuggestion
+.currentIntervalEffective` carries this same live value out to Calendar/Plant List so their own
+"currently N days" text can stop independently re-deriving it from the stale literal (a 4th and 5th live
+copy of the same bug). Pinned plants and amplitude-Off plants are unaffected — both
+`currentAdaptiveBaseIntervalDays()`/`effectiveWateringIntervalDaysForDisplay()` already collapse to the
+literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
+schema change.
+
 ## App-start reconciliation fixup (#702)
 Graduating `SEASONAL_WATERING` (#656) removed the flag check from `seasonalAmplitudeFlow()`/
 `seasonalAmplitudeOnce()`, which used to hard-return `0.0` while the dev-mode flag was off (the default

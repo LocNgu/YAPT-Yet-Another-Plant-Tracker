@@ -606,12 +606,20 @@ class QuickLogUseCase(
      * [feedback] may be `null` (#570, product ADR-0027) — the quick-water sheet's chip collapsed to
      * one optional flag, so `null` is now the dominant case; the adaptive model accepts `null` directly.
      *
-     * Gates on the **effective**-space comparison (#620), not the raw base-space [suggestion] vs
-     * [current] — [suggestion] is season-neutral base space while `plant.wateringIntervalDays`
-     * ("current") is what the Calendar/Plant List/Plant Detail dialogs display as today's cadence, so
-     * comparing them directly could flag a pure unit-mismatch artifact as a real change (the same bug
-     * #620 fixed for the Plant Detail dialog specifically). This is the single choke point all three
-     * quick-log surfaces share, so none of them can independently regress this comparison again.
+     * Gates on a **live-to-live, effective-space** comparison (#716) — the pre-observation model's
+     * base run through today's season versus the post-observation model's base run through the same
+     * today, **never** the stale `plant.wateringIntervalDays` literal that used to stand in for
+     * "current". That literal is only rewritten on a manual edit / suggestion apply / the #571
+     * bootstrap / the #702 fixup, while the true effective value moves every day the seasonal curve
+     * crosses a rounding threshold — comparing a live number against that stale one flagged pure
+     * calendar drift as a model change and attributed it to whichever watering happened to be logged
+     * that day. [currentEffective] is exactly what [com.yapt.planttracker.domain.schedule
+     * .CareSchedule.effectiveWateringIntervalDaysForDisplay] would show for [plant] **before** this
+     * observation, reusing [currentAdaptiveBaseIntervalDays]/[effectiveIntervalForDisplay] — the same
+     * two helpers [effectiveSuggestion] itself is built from — so "did the model change what's shown
+     * today" can't drift from "what's shown today" by construction. [current] is unchanged and is
+     * still the literal fed into [adaptWateringInterval] as the base-fallback input (unrelated to this
+     * display-space comparison).
      *
      * The observed gap is computed against [now]'s own chronological predecessor
      * ([CareLogRepository.getLastWateringBefore], strictly earlier `loggedAt`), not "the two globally
@@ -633,9 +641,22 @@ class QuickLogUseCase(
         val result = adaptWateringInterval(plant, feedback, actual, current, now) ?: return null
         val suggestion = result.intervalDays
         val effectiveSuggestion = effectiveIntervalForDisplay(plant, result.baseIntervalDays, suggestion, now)
-        persistAdaptiveState(plant, result, effectiveSuggestion == current, now)
-        return if (effectiveSuggestion != current) {
-            QuickWaterSuggestion(plant.id, plant.name, suggestion, effectiveSuggestion, result.baseIntervalDays)
+        val currentEffective = effectiveIntervalForDisplay(
+            plant,
+            currentAdaptiveBaseIntervalDays(plant, current),
+            current,
+            now
+        )
+        persistAdaptiveState(plant, result, effectiveSuggestion == currentEffective, now)
+        return if (effectiveSuggestion != currentEffective) {
+            QuickWaterSuggestion(
+                plant.id,
+                plant.name,
+                suggestion,
+                effectiveSuggestion,
+                result.baseIntervalDays,
+                currentEffective
+            )
         } else {
             null
         }

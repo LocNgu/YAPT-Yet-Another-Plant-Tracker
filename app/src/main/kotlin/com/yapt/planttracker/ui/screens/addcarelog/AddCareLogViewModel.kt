@@ -259,9 +259,19 @@ class AddCareLogViewModel(
             result.intervalDays,
             amplitude
         )
+        // #716: gate against a live-recomputed currentEffective (the pre-observation base run through
+        // today's season), never the stale currentInterval literal — see QuickLogUseCase
+        // .computeSuggestion()'s identical fix for the full rationale. This VM keeps its own copy of
+        // the helpers per this file's stated duplication convention.
+        val currentEffective = effectiveIntervalForDisplay(
+            plant,
+            currentAdaptiveBaseIntervalDays(plant, currentInterval),
+            currentInterval,
+            amplitude
+        )
         val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
         val newBase = result.baseIntervalDays.takeIf {
-            effectiveSuggested == currentInterval && seasonAdjustable
+            effectiveSuggested == currentEffective && seasonAdjustable
         } ?: plant.wateringBaseIntervalDays
         if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
             plantRepository.updatePlant(
@@ -272,7 +282,7 @@ class AddCareLogViewModel(
                 )
             )
         }
-        return if (effectiveSuggested != currentInterval) {
+        return if (effectiveSuggested != currentEffective) {
             SuggestedInterval(result.intervalDays, result.baseIntervalDays)
         } else {
             null

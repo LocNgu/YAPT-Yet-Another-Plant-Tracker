@@ -751,30 +751,35 @@ class AddCareLogViewModelTest {
     // #620 round 2: computeSuggestedInterval() must gate on the effective-space value, not the raw
     // base-space suggestion, or a pure unit-mismatch artifact reaches Event.Saved ungated.
     @Test
-    fun `save WATER log suppresses a suggestion whose effective-space value equals current under a non-1_0 seasonal multiplier`() =
+    fun `save WATER log suppresses a suggestion whose base moves but today's rounded effective value doesn't`() =
         runTest {
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
             val peakDay = localDateUtcMillis(2023, 1, 5)
-            val fiveDaysBeforePeak = peakDay - 5L * 24 * 60 * 60 * 1000
+            val eightDaysBeforePeak = peakDay - 8L * 24 * 60 * 60 * 1000
             val seasonalDataStore: DataStore<Preferences> = mockk {
                 every { data } returns flowOf(emptyPreferences())
             }
-            // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the
-            // observed 5-day gap de-seasonalizes to round(5 / 1.35) = 4 before the adaptive model sees
-            // it, and the model (confidence-0, JUST_RIGHT, target = 4) lands the raw base-space
-            // suggestion back at round(7 + 0.60*(4-7)) = 5. But at the peak day, season() = 1.35, so
-            // round(5 * 1.35) = 7 == current: the entire "5 vs 7" jump is a unit-mismatch artifact, not a
-            // real model change, and must be suppressed exactly like the product ADR-0006 dialog gate is.
-            every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+            // #716 regression, corrected from the pre-fix version of this test (which compared against
+            // the stale wateringIntervalDays literal directly — the exact bug #716 fixes, see
+            // .claude/rules/adaptive-watering-cluster.md). A self-consistent plant: base = 5.0,
+            // literal = 7 = round(5.0 * season(peakDay)=1.35) — the literal already agrees with what
+            // the live base would show today, so this isn't stale. The observed 8-day gap de-seasonalizes
+            // to round(8 / 1.35) = 6; TOO_LATE (mult 0.82) targets 6*0.82 = 4.92; confidence-0 gain 0.60
+            // lands the raw base-space suggestion at 5.0 + 0.60*(4.92-5.0) = 4.952 — a genuine, if small,
+            // base movement. But round(4.952 * 1.35) = 7 == round(5.0 * 1.35) = 7: today's *displayed*
+            // effective value doesn't move, so per technical ADR-0027/#716 the observation must persist
+            // silently (base updates immediately) with no dialog and no suggestion surfaced.
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.addLog(any()) } returns 1L
             coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
                 waterLog(loggedAt = peakDay),
-                waterLog(loggedAt = fiveDaysBeforePeak)
+                waterLog(loggedAt = eightDaysBeforePeak)
             )
             coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
-            vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
             vm.loggedAt = peakDay
 
             vm.events.test {
@@ -783,7 +788,50 @@ class AddCareLogViewModelTest {
                 assertNull(event.suggestedWateringInterval)
                 cancelAndIgnoreRemainingEvents()
             }
+
+            // technical ADR-0027: silently persists the moved base even though nothing is surfaced.
+            coVerify {
+                plantRepo.updatePlant(
+                    match { it.wateringBaseIntervalDays != null && Math.abs(it.wateringBaseIntervalDays!! - 4.952) < 1e-9 }
+                )
+            }
         }
+
+    /**
+     * #716 acceptance criterion 5: this VM's independent copy of the gate must reach the same
+     * conclusion as [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion] for the
+     * exact same worked example (see `QuickLogUseCaseSeasonalTest`'s identically-named/numbered
+     * scenario) — a stale `wateringIntervalDays = 7` literal, a real base of 8.8, watered 1 day early
+     * on Sep 13 (season 0.866) with no feedback. Both gates must independently suppress the suggestion.
+     */
+    @Test
+    fun `save WATER log agrees with QuickLogUseCase on the #716 worked example`() = runTest {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val sep13 = localDateUtcMillis(2023, 9, 13)
+        val sevenDaysBeforeSep13 = sep13 - 7L * 24 * 60 * 60 * 1000
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(emptyPreferences())
+        }
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 8.8)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = sep13),
+            waterLog(loggedAt = sevenDaysBeforeSep13)
+        )
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = null
+        vm.loggedAt = sep13
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            assertNull(event.suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
     // Sanity check for the same fix: a raw suggestion whose effective-space value genuinely differs
     // from current must still surface, seasonal multiplier or not.
