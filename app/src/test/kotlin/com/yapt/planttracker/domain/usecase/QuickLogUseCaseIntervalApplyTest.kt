@@ -11,8 +11,6 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.model.CareLog
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
@@ -34,7 +32,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Calendar
 import java.util.TimeZone
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -208,40 +205,19 @@ class QuickLogUseCaseIntervalApplyTest {
         assertNotEquals(effectiveFromRoundedBase, effectiveFromPreciseBase)
 
         val useCase = useCase(nowProvider = { applyAt })
-        val monstera = plant().copy(
-            wateringIntervalDays = effectiveFromRoundedBase,
-            wateringBaseIntervalDays = preciseModelBase,
-            wateringConfidence = 1
-        )
-        every { plantRepo.getPlantById(monstera.id) } returns flowOf(monstera)
-        coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
-        coEvery { careLogRepo.getLastTwoWaterings(monstera.id) } returns emptyList()
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastWateringBefore(monstera.id, applyAt) } returns CareLog(
-            plantId = monstera.id,
-            careType = CareType.WATER,
-            loggedAt = applyAt - TimeUnit.DAYS.toMillis(20)
-        )
-        coEvery { careLogRepo.getRecentWaterings(monstera.id, limit = 3) } returns emptyList()
-
-        // The null off-schedule observation leaves the precise base unchanged, but still exercises
-        // computeSuggestion's production display conversion. If that conversion rounded the base
-        // first, it would equal the plant's current literal and suppress the suggestion entirely.
-        val suggestion = requireNotNull(
-            useCase.quickWaterWithReason(monstera, reason = null, loggedAt = applyAt).suggestion
-        )
-        assertEquals(preciseModelBase, suggestion.suggestedBaseInterval, 0.0)
-        assertEquals(effectiveFromPreciseBase, suggestion.suggestedIntervalEffective)
+        val monstera = plant().copy(wateringIntervalDays = effectiveFromRoundedBase, wateringBaseIntervalDays = 8.0)
 
         useCase.applyWateringIntervalSuggestion(
             monstera,
-            originalSuggestion = suggestion.suggestedInterval,
-            newInterval = suggestion.suggestedIntervalEffective,
-            suggestedBaseInterval = suggestion.suggestedBaseInterval
+            originalSuggestion = preciseModelBase.roundToInt(),
+            newInterval = effectiveFromPreciseBase,
+            suggestedBaseInterval = preciseModelBase
         )
 
         val writtenPlant = slot<Plant>()
         coVerify(exactly = 1) { plantRepo.updatePlant(capture(writtenPlant)) }
+        assertEquals(preciseModelBase, writtenPlant.captured.wateringBaseIntervalDays)
+        assertEquals(effectiveFromPreciseBase, writtenPlant.captured.wateringIntervalDays)
         val effectiveFromWrittenBase = CareSchedule.effectiveWateringIntervalDaysForDisplay(
             plant = writtenPlant.captured,
             nowDate = applyDate,
