@@ -236,6 +236,17 @@ found **already correct** — its two `CareSchedule.effectiveWateringIntervalDay
 `nowDate` entirely, defaulting to `LocalDate.now()` (real today) on both sides; that combine block has
 no `loggedAt`/`now` concept of its own to begin with, so no code change was needed there.
 
+**Follow-up (#767):** Apply follows that same display-day decision. A backdated watering still uses
+its `loggedAt` for the observed gap and adaptive learning (#654/#679), but #716 evaluates the
+suggestion's displayed effective interval on the day the dialog appears. If the user retypes its
+effective-space field, `QuickLogUseCase.applyWateringIntervalSuggestion()` de-seasonalizes that value
+on the day Apply is tapped, **not** the watering's historical date. An untouched field instead
+persists the precise model base as before (#718). Apply reads `nowProvider()` once and uses that
+instant for both the seasonal inverse and `Plant.updatedAt`/`DIALOG_EDIT.triggeredAt`, so a test can
+pin the date and the row timestamps together; `recordReschedule()` also uses the injected clock for
+its `updatedAt` column. A dialog held open across midnight uses the actual Apply day for a retyped
+value, matching the current display-day semantics rather than the observation-day semantics.
+
 **Follow-up (#674):** `CalendarViewModel.dismissSuggestedInterval()` and `PlantListViewModel
 .dismissSuggestedIntervalFromList()` both raised `Plant.wateringConfidence` via `CareSchedule
 .confidenceAfterDismissal()` on a dialog dismissal but neither ever wrote the matching

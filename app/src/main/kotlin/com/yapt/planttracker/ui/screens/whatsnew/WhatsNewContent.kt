@@ -28,6 +28,8 @@ object WhatsNewContent {
                 "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
+            "Retyping a watering suggestion after logging an earlier watering now uses today's season " +
+                "consistently when saving the new interval",
             "The suggested-interval dialog no longer pops up just because the season moved on since you " +
                 "last touched the interval — it now only appears when watering actually taught YAPT " +
                 "something, so it's no longer wrongly blamed on whichever watering you just logged",

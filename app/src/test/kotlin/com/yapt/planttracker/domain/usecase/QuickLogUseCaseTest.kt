@@ -602,6 +602,26 @@ class QuickLogUseCaseTest {
     }
 
     @Test
+    fun `recordReschedule uses the injectable clock for the update timestamp`() = runTest {
+        val updatedAt = 1_789_000_000_000L
+        val fixedClockUseCase = QuickLogUseCase(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            database,
+            wateringAdjustmentRepo,
+            nowProvider = { updatedAt }
+        )
+        val monstera = plant(wateringIntervalDays = 7)
+
+        fixedClockUseCase.recordReschedule(monstera, newDueAt)
+
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, updatedAt) }
+    }
+
+    @Test
     fun `recordReschedule replaces an existing override rather than stacking on top of it`() = runTest {
         val monstera = plant(wateringIntervalDays = 7, wateringDueDateOverride = 1_000_000L)
 

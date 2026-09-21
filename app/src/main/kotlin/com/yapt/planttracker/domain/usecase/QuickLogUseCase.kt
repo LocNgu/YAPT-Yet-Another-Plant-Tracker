@@ -423,6 +423,11 @@ class QuickLogUseCase(
      * precise `Double` base only when [newInterval] is the dialog's unedited pre-fill; a `null` here is the
      * caller's signal that the user retyped the field, so the value still de-seasonalizes through the
      * existing path (#644's typed-number contract, unchanged).
+     *
+     * #767: a retyped effective interval is de-seasonalized on the day Apply is tapped, not on the
+     * observation's possibly backdated `loggedAt`. The dialog's effective numbers are evaluated for
+     * today (#716), while the observed gap is evaluated on its logged day (#654/#679). One [nowProvider]
+     * reading anchors both this conversion and the write/adjustment timestamps.
      */
     suspend fun applyWateringIntervalSuggestion(
         plant: Plant,
@@ -430,7 +435,7 @@ class QuickLogUseCase(
         newInterval: Int,
         suggestedBaseInterval: Double?
     ): IntervalApplyResult {
-        val now = System.currentTimeMillis()
+        val now = nowProvider()
         // When amplitude is 0 (SeasonalAmplitude.OFF) or the plant is pinned, newInterval is a
         // *literal* value, not base-space-convertible, so it's used as-is for the confidence check
         // and the base is left untouched below rather than clobbered with a never-seasonally-converted
@@ -442,7 +447,7 @@ class QuickLogUseCase(
         } else if (seasonAdjustable) {
             SeasonalWatering.deseasonalize(
                 newInterval.toDouble(),
-                nowProvider().toLocalDate(),
+                now.toLocalDate(),
                 amplitude,
                 SeasonalWatering.currentHemisphere()
             )
@@ -552,7 +557,7 @@ class QuickLogUseCase(
      * entirely, rather than just narrowing its window.
      */
     suspend fun recordReschedule(plant: Plant, newDueAtMillis: Long) {
-        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, System.currentTimeMillis())
+        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, nowProvider())
     }
 
     /**
