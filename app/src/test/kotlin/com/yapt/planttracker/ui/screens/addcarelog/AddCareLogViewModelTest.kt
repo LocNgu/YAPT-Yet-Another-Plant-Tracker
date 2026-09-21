@@ -188,7 +188,7 @@ class AddCareLogViewModelTest {
     // the model layer regardless). Pins the same 127-day, Oct25-to-Mar1 scenario QuickLogUseCase's
     // own dormancy tests pin, confirming both independent copies agree.
     /**
-     * Shared setup for the two dormancy-exclusion regression tests below — extracted to keep each
+     * Shared setup for dormancy-exclusion regression tests below — extracted to keep each
      * test's own body under Detekt's `LongMethod` threshold. [predecessorLoggedAt] is the plant's true
      * chronological predecessor of [marchFirst] ([CareLogRepository.getLastWateringBefore]);
      * [lastTwoWaterings] is a separate, independently-stubbed pair used only by
@@ -270,6 +270,93 @@ class AddCareLogViewModelTest {
         }
         coVerify(exactly = 0) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.WATER_TOO_SOON })
+        }
+    }
+
+    // #779: a history bootstrap is a wholesale re-derivation, so it wins over the per-observation
+    // exit decrement. Both rows still explain the bootstrap and the excluded gap in "Why this date?".
+    @Test
+    fun `post-reset bootstrap on dormancy exit records exclusion without decrementing bootstrapped confidence`() =
+        runTest {
+            val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+            val marchFirst = localDateUtcMillis(2027, 3, 1)
+            val dormantPlant = plant().copy(
+                wateringConfidence = 3,
+                wateringResetAt = localDateUtcMillis(2026, 5, 1),
+                wateringFreezeUntil = localDateUtcMillis(2026, 5, 29),
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+            val (vm, adjustments) = buildDormancySpanningWaterVm(
+                dormantPlant,
+                listOf(waterLog(marchFirst), waterLog(octoberTwentyFifth)),
+                octoberTwentyFifth,
+                marchFirst
+            )
+            coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+                localDateUtcMillis(2026, 6, 1),
+                localDateUtcMillis(2026, 6, 8),
+                localDateUtcMillis(2026, 6, 15),
+                localDateUtcMillis(2026, 6, 22),
+                localDateUtcMillis(2026, 6, 29)
+            )
+
+            vm.events.test {
+                vm.saveLog()
+                assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            // Four eligible gaps yield confidence 1; an extra exit decrement would turn it into 0.
+            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 && it.wateringResetAt == null }) }
+            coVerify { adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }) }
+            coVerify {
+                adjustments.addAdjustment(
+                    match {
+                        it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED &&
+                            it.beforeIntervalDays == it.afterIntervalDays
+                    }
+                )
+            }
+            coVerify(exactly = 0) {
+                adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+            }
+        }
+
+    @Test
+    fun `history bootstrap without a dormancy window records no dormancy adjustments`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val noWindow = plant().copy(wateringConfidence = null)
+        val (vm, adjustments) = buildDormancySpanningWaterVm(
+            noWindow,
+            listOf(waterLog(marchFirst), waterLog(octoberTwentyFifth)),
+            octoberTwentyFifth,
+            marchFirst
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+            localDateUtcMillis(2026, 6, 1),
+            localDateUtcMillis(2026, 6, 8),
+            localDateUtcMillis(2026, 6, 15),
+            localDateUtcMillis(2026, 6, 22),
+            localDateUtcMillis(2026, 6, 29)
+        )
+
+        vm.events.test {
+            vm.saveLog()
+            assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        coVerify { adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }) }
+        coVerify(exactly = 0) {
+            adjustments.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED ||
+                        it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT
+                }
+            )
         }
     }
 

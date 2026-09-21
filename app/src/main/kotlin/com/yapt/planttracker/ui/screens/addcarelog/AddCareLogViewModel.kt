@@ -588,7 +588,7 @@ class AddCareLogViewModel(
 
     /**
      * See [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s identical copy of this function
-     * for the full P1-3 rationale — "bootstrap wins, no decrement" is deliberate: the bootstrap
+     * for the full P1-3/#779 rationale — "bootstrap wins, no decrement" is deliberate: the bootstrap
      * already filters this exact gap out of its own wholesale median/gapCount via [Plant
      * .dormancyStartMonth]/[Plant.dormancyEndMonth] (P1-a), so this row is transparency-only.
      */

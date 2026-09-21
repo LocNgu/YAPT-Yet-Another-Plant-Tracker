@@ -926,7 +926,7 @@ class QuickLogUseCase(
      * for this per-observation exclusion to additionally protect.
      *
      * **Deliberately no [WateringAdjustmentTrigger.DORMANCY_EXIT] row and no extra confidence
-     * decrement when bootstrap wins — "bootstrap wins, no decrement" is the explicit, tested
+     * decrement when bootstrap wins (#779) — "bootstrap wins, no decrement" is the explicit, tested
      * decision, not an accident of statement order.** The bootstrapped confidence
      * ([WateringLifecycleReset.maybeBootstrap]'s `result.confidence`) is a wholesale re-derivation —
      * `gapCount / 3`, capped at 5 — not an incremental step off the plant's prior confidence the way
