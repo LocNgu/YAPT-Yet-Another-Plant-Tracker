@@ -13,6 +13,7 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
@@ -22,6 +23,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
@@ -262,6 +265,154 @@ class QuickLogUseCaseDormancyTest {
         coVerify(exactly = 1) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
         }
+    }
+
+    // ---- P1-1 (Codex review round 2 on #776): a suppressed transition on a never-adapted plant must
+    // not consume the wateringConfidence == null cold-start bootstrap eligibility ----
+
+    @Test
+    fun `a dormancy-spanning first-ever observation leaves confidence null instead of writing 0`() = runTest {
+        // Below MIN_BOOTSTRAP_GAPS (empty history, per class-level default), so maybeApplyHistoryBootstrap
+        // returns false and this falls through to computeAdaptiveInterval's currentConfidence == null
+        // branch — exactly the combination that used to silently burn the null state.
+        val neverAdapted = dormantPlant(confidence = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(neverAdapted)
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        useCase.quickWaterWithReason(neverAdapted, reason = null, loggedAt = marchFirst)
+
+        // Before the fix: computeAdaptiveInterval's null branch always returned confidence = 0
+        // regardless of suppressConfidenceTransition, and persistAdaptiveState would then write it
+        // (0 != null), permanently forfeiting this plant's cold-start bootstrap eligibility.
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
+        }
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+        }
+    }
+
+    // ---- P1-2 (Codex review round 2 on #776): the exit decrement must fire at most once per cycle,
+    // even when a watering is backdated into the middle of already-processed history ----
+
+    @Test
+    fun `backdating a watering between two already-processed waterings does not double-decrement the exit`() =
+        runTest {
+            // October (pre-dormancy) -> April (post-dormancy, processed first) already exits and
+            // decrements once. Backdating a March watering afterwards recomputes its own predecessor
+            // as October too (the only earlier log on file when IT is processed, since getLastWateringBefore
+            // filters strictly by loggedAt < reference and April is chronologically after March) — making
+            // the pair (Oct, March) look like its own fresh dormancy exit unless the fix recognizes April's
+            // already-recorded exit covers the same winter.
+            val aprilTenth = millisAt(2027, 4, 10)
+            val recordedAdjustments = mutableListOf<WateringAdjustment>()
+            val statefulAdjustmentRepo: WateringAdjustmentRepository = mockk {
+                coEvery { addAdjustment(any()) } coAnswers {
+                    recordedAdjustments.add(firstArg())
+                    1L
+                }
+                coEvery { getByTrigger(1L, WateringAdjustmentTrigger.DORMANCY_EXIT) } coAnswers {
+                    recordedAdjustments.filter { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+                }
+            }
+            val statefulUseCase = QuickLogUseCase(
+                application,
+                plantRepo,
+                careLogRepo,
+                plantPhotoRepo,
+                dataStore,
+                database,
+                statefulAdjustmentRepo
+            )
+            val monstera = dormantPlant(confidence = 3)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastWateringBefore(1L, aprilTenth) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+            // Call 1: April watering exits dormancy against Oct's predecessor, confidence 3 -> 2.
+            statefulUseCase.quickWaterWithReason(monstera, reason = null, loggedAt = aprilTenth)
+
+            // Call 2: backdate a March watering. Its own predecessor (queried relative to its own
+            // loggedAt) is still Oct25.
+            val afterFirstExit = monstera.copy(wateringConfidence = 2)
+            every { plantRepo.getPlantById(1L) } returns flowOf(afterFirstExit)
+            coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+            statefulUseCase.quickWaterWithReason(afterFirstExit, reason = null, loggedAt = marchFirst)
+
+            // Before the fix: this fired a second, independent decrement (2 -> 1) and a second
+            // DORMANCY_EXIT row for the same winter.
+            assertEquals(
+                1,
+                recordedAdjustments.count { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+            )
+            assertTrue(recordedAdjustments.none { it.beforeIntervalDays != it.afterIntervalDays })
+        }
+
+    // ---- Bootstrap interaction (Codex review round 2 on #776, P1-3): "bootstrap wins, no decrement" ----
+
+    @Test
+    fun `a dormancy-spanning observation that also triggers the history bootstrap still gets a transparency row`() =
+        runTest {
+            val neverAdapted = dormantPlant(confidence = null)
+            every { plantRepo.getPlantById(1L) } returns flowOf(neverAdapted)
+            coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+            // A clean, non-dormancy-touching history that clears MIN_BOOTSTRAP_GAPS (3) on its own,
+            // entirely unrelated to the Oct25 -> Mar1 gap that triggers this specific observation.
+            coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+                millisAt(2026, 6, 1),
+                millisAt(2026, 6, 8),
+                millisAt(2026, 6, 15),
+                millisAt(2026, 6, 22),
+                millisAt(2026, 6, 29)
+            )
+
+            useCase.quickWaterWithReason(neverAdapted, reason = null, loggedAt = marchFirst)
+
+            // Before the fix: only HISTORY_BOOTSTRAP was written; this observation's own dormancy
+            // exclusion was silently dropped since dormancySpanning was never computed before the
+            // bootstrap's early return.
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }
+                )
+            }
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match {
+                        it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED &&
+                            it.beforeIntervalDays == it.afterIntervalDays
+                    }
+                )
+            }
+        }
+
+    @Test
+    fun `bootstrap wins -- the exit decrement never applies on top of a bootstrapped confidence`() = runTest {
+        val neverAdapted = dormantPlant(confidence = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(neverAdapted)
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+            millisAt(2026, 6, 1),
+            millisAt(2026, 6, 8),
+            millisAt(2026, 6, 15),
+            millisAt(2026, 6, 22),
+            millisAt(2026, 6, 29)
+        )
+
+        useCase.quickWaterWithReason(neverAdapted, reason = null, loggedAt = marchFirst)
+
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+        }
+        // The bootstrap's own gapCount/3 confidence (4 gaps / 3 = 1), never decremented by an
+        // additional -1 for the unrelated dormancy exit this same observation also represents.
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
     }
 
     // ---- No dormancy window configured: unchanged pre-existing behaviour ----

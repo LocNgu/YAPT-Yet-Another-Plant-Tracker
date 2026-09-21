@@ -24,6 +24,13 @@ interface WateringAdjustmentDao {
     )
     fun getRecentForPlant(plantId: Long, limit: Int): Flow<List<WateringAdjustmentEntity>>
 
+    // #699/#761 (product ADR-0044 — Codex review round 2 on #776, P1-2): lets a write path check
+    // whether a given trigger has already been recorded for a plant before writing another one — the
+    // dormancy-exit idempotency fix needs to see every existing DORMANCY_EXIT row, not just the most
+    // recent [limit] the sheet shows, so this is a plain unbounded one-shot query, not a Flow.
+    @Query("SELECT * FROM watering_adjustments WHERE plantId = :plantId AND trigger = :trigger")
+    suspend fun getAdjustmentsByTrigger(plantId: Long, trigger: String): List<WateringAdjustmentEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAdjustment(adjustment: WateringAdjustmentEntity): Long
 

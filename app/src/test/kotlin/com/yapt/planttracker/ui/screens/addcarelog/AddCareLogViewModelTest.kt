@@ -318,6 +318,55 @@ class AddCareLogViewModelTest {
             }
         }
 
+    // #699/#761 (product ADR-0044, Codex review round 2 on #776, P1-4): actualIntervalDays comes from
+    // lastTwoWaterings (the plant's globally-newest pair), a *different* query than the dormancy
+    // check's own predecessor (previousWateringBefore). Before this fix, a stale same-day-duplicate
+    // pair elsewhere in history (actualIntervalDays == 0, reachable from imported/historical data —
+    // the duplicate guard is repository-level) made computeSuggestedInterval() return null via the
+    // #446 same-day guard *before* adaptWateringInterval ever ran, silently skipping all dormancy
+    // handling for this save even though its own gap (against the correct predecessor) is a genuine,
+    // 127-day, dormancy-spanning one.
+    @Test
+    fun `a backdated WATER log spanning dormancy is still excluded even when the newest pair is a stale same-day duplicate`() =
+        runTest {
+            val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+            val marchFirst = localDateUtcMillis(2027, 3, 1)
+            val duplicateDay = localDateUtcMillis(2027, 4, 1)
+            val dormantPlant = plant(wateringIntervalDays = 7).copy(
+                wateringConfidence = 3,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+            // The globally newest pair: an unrelated same-day duplicate elsewhere in history, giving
+            // actualIntervalDays == 0 — nothing to do with the true Oct25 -> Mar1 gap being saved.
+            val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+                dormantPlant = dormantPlant,
+                lastTwoWaterings = listOf(waterLog(loggedAt = duplicateDay), waterLog(loggedAt = duplicateDay)),
+                predecessorLoggedAt = octoberTwentyFifth,
+                marchFirst = marchFirst
+            )
+
+            vm.events.test {
+                vm.saveLog()
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED }
+                )
+            }
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+                )
+            }
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringConfidence == 2 })
+            }
+        }
+
     @Test
     fun `save FERTILIZE log emits Saved with null interval regardless of feedback`() = runTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(plant())

@@ -361,7 +361,17 @@ object CareSchedule {
         val intervalDays: Int,
         /** The unrounded base-space result persisted by callers; [intervalDays] is display-only. */
         val baseIntervalDays: Double,
-        val confidence: Int,
+        /**
+         * `null` only when [currentConfidence] was itself `null` (never-adapted) **and**
+         * [suppressConfidenceTransition] was `true` (#699/#761, product ADR-0044 — Codex review round
+         * 2 on #776, P1-1): a dormancy-spanning observation on an uninitialized plant must not consume
+         * that uninitialized state by writing `0`, since [WateringLifecycleReset.maybeBootstrap]'s
+         * cold-start opportunity is gated on `wateringConfidence == null` and a `0` write would
+         * permanently forfeit it for a single observation that, by design, should teach the model
+         * nothing. Every other path (including the un-suppressed `currentConfidence == null` bootstrap
+         * itself) still returns a concrete `Int`, unchanged from before this parameter existed.
+         */
+        val confidence: Int?,
         val excludedFromBaseLearning: Boolean = false
     )
 
@@ -445,6 +455,16 @@ object CareSchedule {
      * (`WateringAdjustmentTrigger.DORMANCY_EXIT`, applied by callers *after* this function returns,
      * never inside it) — that is a one-time -1 for *leaving* dormancy, layered on top of the
      * (now correctly unchanged) confidence this parameter guarantees.
+     *
+     * **`currentConfidence == null` is not "unchanged by construction" the way the non-null branch is
+     * (#699/#761, Codex review round 2 on #776, P1-1).** The `currentConfidence == null` branch below
+     * returns *before* this parameter was originally consulted at all, so a suppressed observation on
+     * a never-adapted plant used to still bootstrap confidence to `0` — silently consuming the
+     * `wateringConfidence == null` state [WateringLifecycleReset.maybeBootstrap]'s cold-start
+     * eligibility is gated on, permanently, from a single observation that by design should teach the
+     * model nothing. `suppressConfidenceTransition = true` on that branch now returns `confidence =
+     * null` instead (see [AdaptiveInterval.confidence]'s doc), leaving the plant eligible for a future
+     * cold-start bootstrap exactly as if this observation had never been evaluated at all.
      */
     @Suppress("LongParameterList")
     fun computeAdaptiveInterval(
@@ -489,7 +509,11 @@ object CareSchedule {
             val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback, excluded)
             val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
             val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
-            return AdaptiveInterval(newBase.roundToInt(), newBase, 0, excluded)
+            // #699/#761 (Codex review round 2 on #776, P1-1): a suppressed transition on an
+            // uninitialized plant must leave confidence null, not write 0 — see AdaptiveInterval
+            // .confidence's doc for why writing 0 here would be worse than "confidence moved a bit".
+            val newConfidence = if (suppressConfidenceTransition) null else 0
+            return AdaptiveInterval(newBase.roundToInt(), newBase, newConfidence, excluded)
         }
 
         val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback, excluded)

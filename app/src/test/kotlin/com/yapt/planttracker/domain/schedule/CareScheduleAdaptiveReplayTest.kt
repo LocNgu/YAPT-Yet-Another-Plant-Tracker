@@ -64,7 +64,11 @@ class CareScheduleAdaptiveReplayTest {
             history.add(0, feedback)
             base = result.intervalDays
             confidence = result.confidence
-            steps.add(Step(base, confidence))
+            // suppressConfidenceTransition is never passed by this harness (always defaults false),
+            // so confidence can only be null before the very first call, never as a result — P1-1
+            // (Codex review round 2 on #776) only widened AdaptiveInterval.confidence to Int? for the
+            // suppressed + never-adapted combination this replay harness never exercises.
+            steps.add(Step(base, checkNotNull(confidence)))
         }
         return steps
     }

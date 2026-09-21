@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback.TOO_LATE
 import com.yapt.planttracker.domain.model.WateringFeedback.TOO_SOON
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -582,9 +583,16 @@ class CareScheduleAdaptiveTest {
         assertEquals(2, result.confidence)
     }
 
+    /**
+     * P1-1 (Codex review round 2 on #776): a suppressed transition on a never-adapted plant used to
+     * still write `confidence = 0`, silently consuming the `wateringConfidence == null` cold-start
+     * bootstrap eligibility from a single observation that, by design, should teach the model
+     * nothing. This test previously asserted that wrong `0` under a comment claiming "no effect" —
+     * `suppressConfidenceTransition = true` here genuinely changes the outcome from the unsuppressed
+     * case (see the sibling test immediately below), and the correct outcome is `null`, not `0`.
+     */
     @Test
-    fun `suppressConfidenceTransition has no effect on a first-ever observation`() {
-        // currentConfidence == null already bootstraps to 0 without evaluating any transition.
+    fun `suppressConfidenceTransition on a first-ever observation leaves confidence null, not 0`() {
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = null,
             observedIntervalDays = 7,
@@ -592,6 +600,19 @@ class CareScheduleAdaptiveTest {
             currentConfidence = null,
             recentFeedback = emptyList(),
             suppressConfidenceTransition = true
+        )
+        assertNull(result.confidence)
+    }
+
+    /** Without suppression, a first-ever observation still bootstraps to 0 exactly as before P1-1. */
+    @Test
+    fun `an unsuppressed first-ever observation still bootstraps confidence to 0`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList()
         )
         assertEquals(0, result.confidence)
     }
