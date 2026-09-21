@@ -120,6 +120,9 @@ enum class WateringAdjustmentTrigger {
      * are independent facts about that one observation (the base didn't move; confidence *did*, for a
      * different reason than the exclusion itself). `beforeIntervalDays`/`afterIntervalDays` are always
      * equal, same reasoning as [DORMANCY_EXCLUDED] — this is a confidence-only event.
+     * When the same watering fires a history bootstrap (#779), the bootstrap's fresh confidence
+     * supersedes this incremental decrement: [HISTORY_BOOTSTRAP] and [DORMANCY_EXCLUDED] record
+     * that observation instead, with no [DORMANCY_EXIT] row.
      */
     DORMANCY_EXIT
 }
