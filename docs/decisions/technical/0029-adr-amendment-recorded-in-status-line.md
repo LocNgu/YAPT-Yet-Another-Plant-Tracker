@@ -40,8 +40,9 @@ mirroring the existing supersession form (`superseded by [ADR-XXXX](file.md)`) a
 ADR-0021's own line, which already used this shape before this ADR made it a rule. Where an ADR needs to
 record more than one relationship (a supersession and an amendment, or more than one amendment), they
 are combined in the same Status line — product ADR-0016's multi-clause, comma-separated Status line is
-the in-repo precedent for that shape, and this ADR's own Task 2/3 migrations (product ADR-0029, product
-ADR-0030, product ADR-0031) follow it.
+the in-repo precedent for that shape, and the migrations this ADR lands alongside follow it: product
+ADR-0029 chains its ADR-0030 supersession with its ADR-0031 amendment, and product ADR-0030 folds the
+ADR-0031 amendment into a Status line that already recorded two partial supersessions.
 
 A Consequences-section note recording the same fact is removed once its Status-line equivalent exists —
 the two must not both exist, or a future edit to one silently leaves the other stale. This resolves the
