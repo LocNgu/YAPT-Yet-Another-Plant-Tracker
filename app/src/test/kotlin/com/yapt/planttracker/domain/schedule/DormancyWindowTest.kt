@@ -262,17 +262,48 @@ class DormancyWindowTest {
         )
     }
 
+    // ---- spansDormancy: the MONTHS_IN_YEAR - 1 shortcut threshold, pinned against a single-month
+    // window (review round 2, Codex on #776) ----
+    //
+    // A wide window (like the Nov-Feb fixture used everywhere else in this file) can't discriminate
+    // the shortcut threshold: an 11-month walk already hits *some* month of a 4-month window no
+    // matter where the walk starts, so a test built on such a window passes identically whether the
+    // threshold is `MONTHS_IN_YEAR - 1` (11, correct) or `MONTHS_IN_YEAR - 2` (10, off-by-one) — the
+    // walk itself finds the match either way, with or without the shortcut ever firing. A single-month
+    // window is the only fixture that can be missed by a walk exactly one month short, which is
+    // precisely the case the threshold has to get right: a walk covering `MONTHS_IN_YEAR - 1` (11)
+    // distinct months always omits exactly one month-of-year value, so a single-month window placed at
+    // that omitted value is the worst case the shortcut must still handle correctly by *not* firing.
+
     @Test
-    fun `spansDormancy long-span shortcut agrees with the month-walk for an exact 11-month gap`() {
-        // Regression pin for the MONTHS_IN_YEAR - 1 shortcut threshold: 11 full calendar months
-        // between fromMillis and toMillis (Mar 1 -> Feb 1 the following year) already guarantees
-        // every month-of-year occurs at least once in the walk.
+    fun `an 11-month walk that omits the window's one month correctly returns false, not the shortcut`() {
+        // Feb 2026 -> Dec 2026 is a 10-month gap (ChronoUnit.MONTHS.between on the 1st-of-month dates),
+        // so the walk covers 11 consecutive months, Feb through Dec — every month-of-year value except
+        // January. A single-month January window therefore genuinely does not overlap this span, and
+        // 10 < MONTHS_IN_YEAR - 1 (11), so the shortcut must not fire here at all; the walk itself must
+        // correctly conclude "no overlap".
+        assertFalse(
+            DormancyWindow.spansDormancy(
+                startMonth = 1,
+                endMonth = 1,
+                fromMillis = millisAt(2026, 2, 5),
+                toMillis = millisAt(2026, 12, 20)
+            )
+        )
+    }
+
+    @Test
+    fun `one month longer, the same single-month window is now guaranteed and the shortcut fires`() {
+        // Feb 2026 -> Jan 2027 is an 11-month gap, one month longer than the case above — now
+        // MONTHS_IN_YEAR - 1 (11) is met, so the shortcut fires unconditionally. The walk this
+        // guarantees now covers all 12 months (Feb through the following Jan), including the exact
+        // January window the shorter span above just missed.
         assertTrue(
             DormancyWindow.spansDormancy(
-                startMonth = 11,
-                endMonth = 2,
-                fromMillis = millisAt(2026, 3, 1),
-                toMillis = millisAt(2027, 2, 1)
+                startMonth = 1,
+                endMonth = 1,
+                fromMillis = millisAt(2026, 2, 5),
+                toMillis = millisAt(2027, 1, 20)
             )
         )
     }
