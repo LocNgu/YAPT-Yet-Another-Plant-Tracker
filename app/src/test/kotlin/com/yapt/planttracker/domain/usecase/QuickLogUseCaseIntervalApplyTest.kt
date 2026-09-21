@@ -30,6 +30,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
@@ -185,8 +187,9 @@ class QuickLogUseCaseIntervalApplyTest {
         // whether the base is rounded first. The case works in either hemisphere: Standard amplitude
         // is approximately 0.65 or 1.35 here. An unedited apply must derive the literal from the same
         // precise base it persists, or the UI and the authoritative due-date schedule disagree.
-        val applyAt = localDateUtcMillis(2026, 7, 6)
-        val applyDate = applyAt.toLocalDate()
+        val applyDate = LocalDate.of(2026, 7, 6)
+        val applyAt = applyDate.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        assertEquals(applyDate, applyAt.toLocalDate())
         val amplitude = SeasonalAmplitude.STANDARD.value
         val hemisphere = SeasonalWatering.currentHemisphere()
         val preciseModelBase = 9.5
