@@ -72,19 +72,23 @@ loosening the rule to explicitly permit a Consequences-section note:
 ## Consequences
 
 - CLAUDE.md's ADR section is amended in the same PR that introduces this ADR: the permitted-edits clause
-  now explicitly includes the amendment form on the Status line, and the citation-resolution example is
-  re-anchored to a Status-line amendment note instead of a Consequences-section one.
+  now explicitly includes the amendment form on the Status line, permits the one-time removal of a
+  legacy Consequences note once its Status-line equivalent is added — which is what makes the migration
+  below legal under the very rule it amends — and the citation-resolution example is re-anchored to a
+  Status-line amendment note instead of a Consequences-section one.
 - Three existing ADRs are migrated in the same PR: technical ADR-0018 (Edit button scroll fade →
   ADR-0022), product ADR-0029 and product ADR-0030 (due-status visibility gate → ADR-0031) each lose
   their Consequences-section "Amended by ADR-XXXX" note and gain the equivalent Status-line clause.
   Product ADR-0031 gains a new Status-line back-reference to product ADR-0040 that did not exist before
   under any convention (ADR-0040 deliberately omitted one, per the old rule's own contradiction).
-- **Technical ADR-0022, product ADR-0031, and product ADR-0040 are deliberately left byte-for-byte
-  unchanged by this migration**, even though their own Consequences prose now describes an arrangement
-  that is no longer true — ADR-0022 and ADR-0031 each say the ADR they amend "now carries a one-line
-  'Amended by ADR-XXXX' note under its own Consequences section" (no longer the case after this PR's
-  migration), and ADR-0040 says no back-reference is added to ADR-0031 "per CLAUDE.md's rule" (a
-  back-reference is added, by this same PR). This is intentional, not an oversight: those sentences are
+- **Technical ADR-0022 and product ADR-0040 are deliberately left byte-for-byte unchanged by this
+  migration, as is product ADR-0031's Consequences prose** — ADR-0031's Status line does change, to
+  gain the ADR-0040 back-reference described above, but nothing below it does. All three keep
+  Consequences prose that now describes an arrangement which is no longer true: ADR-0022 and ADR-0031
+  each say the ADR they amend "now carries a one-line 'Amended by ADR-XXXX' note under its own
+  Consequences section" (no longer the case after this PR's migration), and ADR-0040 says no
+  back-reference is added to ADR-0031 "per CLAUDE.md's rule" (a back-reference is added, by this same
+  PR). This is intentional, not an oversight: those sentences are
   accurate **historical records of what those PRs actually did** at the time they merged, under the
   convention that existed then. Editing them to match the new convention would itself be the forbidden
   kind of retroactive Consequences-prose edit — describing a later revert as if it were the original
