@@ -621,6 +621,29 @@ class QuickLogUseCase(
      * still the literal fed into [adaptWateringInterval] as the base-fallback input (unrelated to this
      * display-space comparison).
      *
+     * **Two separate clocks, on purpose (#716 review round 1).** [now] is the observation's own
+     * timestamp — the just-inserted log's own `loggedAt` (real "now", or Plant Detail's #654 backdated
+     * pick) — and drives every piece of *observation* math: the gap computation below, the model input
+     * ([adaptWateringInterval]), and what gets persisted ([persistAdaptiveState]'s `updatedAt` /
+     * [WateringAdjustment.triggeredAt]). [displayNow] drives only the two [effectiveIntervalForDisplay]
+     * calls below — [effectiveSuggestion] and [currentEffective] are both numbers the user reads
+     * **today**, on screen, regardless of what date the watering being logged claims to have happened
+     * on. Evaluating them at a backdated [now] instead (the bug this split fixes) can fire a spurious
+     * dialog for a backdated log whose displayed number wouldn't actually change today, or — worse —
+     * silently apply a real display change without ever asking, since the silent-apply path only runs
+     * once this gate has decided nothing needs asking.
+     *
+     * Defaults to [nowProvider] — deliberately **not** a fresh `System.currentTimeMillis()` call, unlike
+     * [maybeApplyHistoryBootstrap]'s otherwise-identical `displayNow` split (#679): that object-level
+     * `WateringLifecycleReset` function has no injectable clock of its own to reuse, while this method
+     * lives inside [QuickLogUseCase], which already has one — [nowProvider] itself defaults to
+     * `System::currentTimeMillis`, so production behavior is identical either way, and every existing
+     * test that pins [nowProvider] to a fixed instant (and never independently backdates [now]) keeps
+     * working unchanged, since [now] and [displayNow] still resolve to the same instant when a caller
+     * doesn't explicitly diverge them. Only a caller that explicitly passes a [now] different from
+     * [nowProvider]'s current value (Plant Detail's #654 backdated quick-water; equivalently, a test
+     * pinning both clocks independently) exercises the split at all.
+     *
      * The observed gap is computed against [now]'s own chronological predecessor
      * ([CareLogRepository.getLastWateringBefore], strictly earlier `loggedAt`), not "the two globally
      * newest waterings" (#654 round-2 review fix) — [now] is the just-inserted log's own `loggedAt`
@@ -628,11 +651,19 @@ class QuickLogUseCase(
      * a log to a date *before* an already-existing WATER log: the old `getLastTwoWaterings()`-based
      * query would pair the new log with that later, already-existing one (or skip the new log's real
      * neighbor entirely) instead of the log the new one actually follows.
+     *
+     * `internal`, not `private` (#716 review round 1) — mirrors `PlantDetailScreen.kt`'s
+     * `isChosenDateOnSchedule`/`isChosenDateGapLong` precedent (#679 review round 1,
+     * `.claude/rules/plant-detail.md`): widened specifically so a plain JVM test can exercise the
+     * `now`/`displayNow` split directly with both clocks pinned independently, rather than fighting the
+     * real device clock for a deterministic "today".
      */
-    private suspend fun computeSuggestion(
+    @Suppress("ReturnCount")
+    internal suspend fun computeSuggestion(
         plant: Plant,
         feedback: WateringFeedback?,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        displayNow: Long = nowProvider()
     ): QuickWaterSuggestion? {
         val current = plant.wateringIntervalDays ?: return null
         val previousWatering = careLogRepository.getLastWateringBefore(plant.id, now) ?: return null
@@ -640,12 +671,12 @@ class QuickLogUseCase(
         if (actual <= 0) return null
         val result = adaptWateringInterval(plant, feedback, actual, current, now) ?: return null
         val suggestion = result.intervalDays
-        val effectiveSuggestion = effectiveIntervalForDisplay(plant, result.baseIntervalDays, suggestion, now)
+        val effectiveSuggestion = effectiveIntervalForDisplay(plant, result.baseIntervalDays, suggestion, displayNow)
         val currentEffective = effectiveIntervalForDisplay(
             plant,
             currentAdaptiveBaseIntervalDays(plant, current),
             current,
-            now
+            displayNow
         )
         persistAdaptiveState(plant, result, effectiveSuggestion == currentEffective, now)
         return if (effectiveSuggestion != currentEffective) {
@@ -670,20 +701,29 @@ class QuickLogUseCase(
      * `PlantDetailViewModel`'s identical `plant.copy(...)` pattern — so this is a display-only, one-way
      * conversion; the returned [QuickWaterSuggestion.suggestedInterval] (write path) is untouched.
      *
-     * [now] mirrors [computeSuggestion]'s own parameter of the same name (#654 review) — the season used
-     * to convert [suggestion] must be the day the watering was actually logged (possibly backdated), not
-     * [nowProvider]'s real wall-clock time, or the "different from current" comparison the product ADR-0006
-     * dialog relies on could be judged against the wrong season.
+     * **[displayNow], not the observation's `loggedAt` (#716 review round 1, amending #654's original
+     * rationale below).** Both call sites in [computeSuggestion] compare two numbers the user reads on
+     * screen *today* — [effectiveSuggestion] and [currentEffective] — so both must be converted at the
+     * same real "today", never at a backdated `now`. The #654-era rationale this replaces argued the
+     * opposite (convert at the logged day, "or the comparison could be judged against the wrong
+     * season") because at the time the other side of the comparison was `plant.wateringIntervalDays`,
+     * itself not date-anchored to anything in particular; #716 replaced that stale literal with a
+     * second live conversion, and once both sides are live, "the wrong season" is unambiguously
+     * *today's*, not the logged day's — a backdated `now` here would silently re-introduce a
+     * `now`-vs-`displayNow` mismatch of exactly the kind #716 exists to remove. Observation-space math
+     * ([adaptWateringInterval]'s gap/season conversion, the [CareLog] write, [WateringAdjustment
+     * .triggeredAt]) is unaffected and stays anchored to the logged day — only this display conversion
+     * moved.
      */
     private suspend fun effectiveIntervalForDisplay(
         plant: Plant,
         suggestionBase: Double,
         suggestion: Int,
-        now: Long = System.currentTimeMillis()
+        displayNow: Long = nowProvider()
     ): Int =
         CareSchedule.effectiveWateringIntervalDaysForDisplay(
             plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
-            nowDate = now.toLocalDate(),
+            nowDate = displayNow.toLocalDate(),
             seasonalAmplitude = dataStore.seasonalAmplitudeOnce()
         ) ?: suggestion
 

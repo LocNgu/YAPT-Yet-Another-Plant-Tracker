@@ -299,7 +299,7 @@ class QuickLogUseCaseSeasonalTest {
     }
 
     /**
-     * #716 worked-example regression (acceptance criteria 1, 3, 7): a plant anchored around Sep 1 at
+     * #716 worked-example regression (acceptance criteria 1, 3): a plant anchored around Sep 1 at
      * "every 7 days" (the stale, never-since-updated literal `wateringIntervalDays = 7`) with a real
      * season-neutral base of 8.8 — the old gate compared `effectiveIntervalForDisplay(...)` against
      * that stale `7` literal directly, so on Sep 13 (`season = 0.866`, `round(8.8 * 0.866) = 8 != 7`)
@@ -309,7 +309,11 @@ class QuickLogUseCaseSeasonalTest {
      * reported symptom's own numbers. The fixed gate compares live-to-live instead: pre-observation
      * `round(8.8 * 0.866) = 8` vs post-observation `round(8.68 * 0.866) = 8` (the neutral,
      * capped-gain nudge moves the base from 8.8 to 8.68 — a real but sub-threshold correction) — both
-     * sides agree, so no suggestion is surfaced at all.
+     * sides agree, so no suggestion is surfaced at all. Acceptance criterion 7 ("no `DIALOG_DISMISSAL`
+     * row reachable for a calendar-only delta") follows structurally from this, not from any extra
+     * assertion here: `recordWateringSuggestionDismissal()` is only ever reached from a Dismiss tap on
+     * a dialog that opened, and `outcome.suggestion == null` below means none did — there is nothing
+     * left to independently pin without asserting a call this test never makes in the first place.
      */
     @Test
     fun `quickWaterWithReason suppresses a suggestion on pure seasonal drift (#716 worked example)`() = runTest {
@@ -335,11 +339,6 @@ class QuickLogUseCaseSeasonalTest {
         // though nothing crossed a rounding boundary for display.
         coVerify {
             plantRepo.updatePlant(match { it.wateringBaseIntervalDays != null && it.wateringBaseIntervalDays!! < 8.8 })
-        }
-        // #716 acceptance criterion 7: since no suggestion was ever surfaced, there is no dialog to
-        // dismiss and therefore no DIALOG_DISMISSAL row possible for this observation.
-        coVerify(exactly = 0) {
-            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DIALOG_DISMISSAL })
         }
     }
 
@@ -410,6 +409,86 @@ class QuickLogUseCaseSeasonalTest {
 
         assertEquals(null, outcome.suggestion)
     }
+
+    /**
+     * #716 review round 1 regression, direction 1 (spurious dialog): `computeSuggestion()`'s two
+     * `effectiveIntervalForDisplay` calls must be evaluated at real wall-clock `displayNow`, never at
+     * the observation's own (possibly backdated, #654) `now`. STANDARD amplitude, northern hemisphere;
+     * logged date Jan 1 (`season = 1.349`), real today Sep 21 (`season = 0.912`) — the two seasons must
+     * provably differ, mirroring `WateringLifecycleResetTest`'s `displayNow` test. Both this test and
+     * its direction-2 sibling below share the exact same observed gap (11 days) and feedback
+     * (`TOO_LATE`, full confidence-0 gain of 0.60 — feedback is non-null, so #586's neutral-only
+     * exclusion never applies) — only the plant's starting base differs, isolating the display-date bug
+     * from every other variable in the model.
+     *
+     * `computeAdaptiveInterval(TOO_LATE, observed=8 [11 days deseasonalized at Jan 1], base=5.0)` moves
+     * the base to 5.936. At the *logged* date (Jan 1) that is `round(5.0 * 1.349) = 7` ->
+     * `round(5.936 * 1.349) = 8` — a real jump, which the pre-fix code (evaluating both sides at `now`)
+     * would have surfaced as a dialog. At *today* (Sep 21) it is `round(5.0 * 0.912) = 5` ->
+     * `round(5.936 * 0.912) = 5` — nothing the user would actually see change. The fixed gate must
+     * therefore return no suggestion at all.
+     */
+    @Test
+    fun `computeSuggestion uses displayNow not backdated now - direction 1, spurious dialog (#716 rr1)`() =
+        runTest {
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val useCase = useCaseWithSeasonOn(jan1)
+            val elevenDaysBeforeJan1 = jan1 - TimeUnit.DAYS.toMillis(11)
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
+            coEvery { careLogRepo.getLastWateringBefore(1L, jan1) } returns
+                CareLog(
+                    plantId = 1L,
+                    careType = CareType.WATER,
+                    loggedAt = elevenDaysBeforeJan1,
+                    wateringFeedback = null
+                )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            val outcome = useCase.computeSuggestion(monstera, WateringFeedback.TOO_LATE, now = jan1, displayNow = sep21)
+
+            assertEquals(null, outcome)
+        }
+
+    /**
+     * #716 review round 1 regression, direction 2 (silent bypass — the worse direction): the mirror
+     * image of the test above, same gap/feedback, starting one rounding band higher (base 5.6 instead
+     * of 5.0). `computeAdaptiveInterval(TOO_LATE, observed=8, base=5.6)` moves the base to 6.176. At the
+     * *logged* date (Jan 1): `round(5.6 * 1.349) = 8` -> `round(6.176 * 1.349) = 8` — unchanged, so the
+     * pre-fix code (evaluating both sides at `now`) would have taken its *silent-persist* branch and
+     * written the moved base straight to the database with no dialog and no
+     * `askBeforeChangingIntervals` check at all. But at *today* (Sep 21): `round(5.6 * 0.912) = 5` ->
+     * `round(6.176 * 0.912) = 6` — the number the user actually reads on screen right now really does
+     * move. The fixed gate must surface a real suggestion instead of silently persisting, and — since
+     * the suggestion is now pending rather than silently applied — must leave `wateringBaseIntervalDays`
+     * untouched at its original 5.6 (any write is deferred to the explicit apply path).
+     */
+    @Test
+    fun `computeSuggestion uses displayNow not backdated now - direction 2, silent bypass (#716 rr1)`() =
+        runTest {
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val useCase = useCaseWithSeasonOn(jan1)
+            val elevenDaysBeforeJan1 = jan1 - TimeUnit.DAYS.toMillis(11)
+            val monstera = plant(wateringIntervalDays = 8).copy(wateringBaseIntervalDays = 5.6)
+            coEvery { careLogRepo.getLastWateringBefore(1L, jan1) } returns
+                CareLog(
+                    plantId = 1L,
+                    careType = CareType.WATER,
+                    loggedAt = elevenDaysBeforeJan1,
+                    wateringFeedback = null
+                )
+            coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+            val outcome = useCase.computeSuggestion(monstera, WateringFeedback.TOO_LATE, now = jan1, displayNow = sep21)
+
+            assertTrue(outcome != null)
+            assertEquals(5, outcome?.currentIntervalEffective)
+            assertEquals(6, outcome?.suggestedIntervalEffective)
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.6 })
+            }
+        }
 }
 
 private fun localDateUtcMillis(year: Int, month: Int, day: Int): Long {

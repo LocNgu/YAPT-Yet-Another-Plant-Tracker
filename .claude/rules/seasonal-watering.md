@@ -110,6 +110,12 @@ copy of the same bug). Pinned plants and amplitude-Off plants are unaffected —
 literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
 schema change.
 
+**"Today's date" needed its own follow-up fix (#716 review round 1).** The two live values above must
+both be evaluated at real wall-clock *today*, not at a backdated (#654) observation's own `loggedAt` —
+a second, narrower bug found after this fix's first round landed. See
+`.claude/rules/watering-transparency.md`'s "Follow-up (#716 review round 1)" note (filed alongside its
+#679 `displayNow` precedent) for the full `now`-vs-`displayNow` split.
+
 ## App-start reconciliation fixup (#702)
 Graduating `SEASONAL_WATERING` (#656) removed the flag check from `seasonalAmplitudeFlow()`/
 `seasonalAmplitudeOnce()`, which used to hard-return `0.0` while the dev-mode flag was off (the default

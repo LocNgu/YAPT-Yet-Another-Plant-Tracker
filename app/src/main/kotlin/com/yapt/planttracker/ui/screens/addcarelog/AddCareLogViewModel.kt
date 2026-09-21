@@ -232,10 +232,27 @@ class AddCareLogViewModel(
      * [Plant.wateringIntervalDays] was never configured — there is no established base to correct —
      * mirroring [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion]'s identical guard.
      */
-    private data class SuggestedInterval(val intervalDays: Int, val baseIntervalDays: Double)
+    internal data class SuggestedInterval(val intervalDays: Int, val baseIntervalDays: Double)
 
+    /**
+     * **Two separate clocks, on purpose (#716 review round 1)** — this VM's own copy of the split
+     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion] makes for the identical
+     * reason. Observation math (the gap computation above, [adaptWateringInterval]'s model input, and
+     * everything it persists) stays anchored to [loggedAt] — this screen's date picker (unlike Plant
+     * Detail's quick-water surfaces) lets [loggedAt] be freely backdated, so it is *not* real wall-clock
+     * time in general. [displayNow] defaults to real wall-clock time and is used **only** for the two
+     * [effectiveIntervalForDisplay] calls below — [effectiveSuggested]/[currentEffective] are numbers
+     * the user reads on screen *today*, regardless of what date the log being saved claims to have
+     * happened on. Evaluating them at a backdated [loggedAt] instead (the pre-fix behavior) could fire
+     * a spurious dialog for a backdated log whose displayed number wouldn't actually change today, or
+     * silently apply a real display change without ever asking.
+     *
+     * `internal`, not `private` (#716 review round 1) — mirrors `QuickLogUseCase.computeSuggestion`'s
+     * identical widening, for the identical reason: a plain JVM test can pin [displayNow] independently
+     * of [loggedAt] without fighting the real device clock.
+     */
     @Suppress("ReturnCount")
-    private suspend fun computeSuggestedInterval(): SuggestedInterval? {
+    internal suspend fun computeSuggestedInterval(displayNow: Long = System.currentTimeMillis()): SuggestedInterval? {
         if (selectedCareType != CareType.WATER) return null
         val feedback = selectedFeedback
 
@@ -257,7 +274,8 @@ class AddCareLogViewModel(
             plant,
             result.baseIntervalDays,
             result.intervalDays,
-            amplitude
+            amplitude,
+            displayNow
         )
         // #716: gate against a live-recomputed currentEffective (the pre-observation base run through
         // today's season), never the stale currentInterval literal — see QuickLogUseCase
@@ -267,7 +285,8 @@ class AddCareLogViewModel(
             plant,
             currentAdaptiveBaseIntervalDays(plant, currentInterval),
             currentInterval,
-            amplitude
+            amplitude,
+            displayNow
         )
         val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
         val newBase = result.baseIntervalDays.takeIf {
@@ -299,20 +318,28 @@ class AddCareLogViewModel(
      * silent-apply branch writes it straight into `plant.wateringIntervalDays` with nothing else to
      * catch it.
      *
-     * [loggedAt] is the reference date, not `LocalDate.now()` — this whole computation runs
-     * synchronously as part of the same save that set [loggedAt], mirroring how
-     * [deseasonalizedObservedIntervalDays] already anchors this file's other seasonal math to
-     * [loggedAt] rather than the wall-clock instant the suspend function happens to run.
+     * **[displayNow], not [loggedAt] (#716 review round 1, amending #654's original rationale below).**
+     * Both call sites in [computeSuggestedInterval] compare two numbers the user reads on screen
+     * *today* — [effectiveSuggested]/[currentEffective] — so both must be converted at the same real
+     * "today", never at [loggedAt], which this screen's date picker can freely backdate. The #654-era
+     * rationale this replaces argued the opposite (convert at [loggedAt], "or this whole computation …
+     * mirroring how [deseasonalizedObservedIntervalDays] already anchors this file's other seasonal
+     * math to [loggedAt]") because at the time the other side of the comparison was the stale
+     * `Plant.wateringIntervalDays` literal; #716 replaced that literal with a second live conversion,
+     * and once both sides are live, the correct anchor is unambiguously today's real date, not
+     * [loggedAt]'s. [deseasonalizedObservedIntervalDays] itself is unaffected and stays anchored to
+     * [loggedAt] — only this *display* conversion moved.
      */
     private fun effectiveIntervalForDisplay(
         plant: Plant,
         suggestionBase: Double,
         suggestion: Int,
-        amplitude: Double
+        amplitude: Double,
+        displayNow: Long = System.currentTimeMillis()
     ): Int =
         CareSchedule.effectiveWateringIntervalDaysForDisplay(
             plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
-            nowDate = loggedAt.toLocalDate(),
+            nowDate = displayNow.toLocalDate(),
             seasonalAmplitude = amplitude
         ) ?: suggestion
 

@@ -187,6 +187,15 @@ class PlantDetailViewModel(
      * field — not the raw [suggestedWateringInterval]; [PlantDetailViewModel.applySuggestedInterval]
      * then passes whatever the user submits straight through to
      * [QuickLogUseCase.applyWateringIntervalSuggestion] as its now-effective-space `newInterval`.
+     *
+     * **Already always evaluated at real today, unaffected by #716 review round 1's `now`-vs-`displayNow`
+     * finding.** Both [CareSchedule.effectiveWateringIntervalDaysForDisplay] calls below omit `nowDate`
+     * entirely, so both default to [java.time.LocalDate.now] — this combine block has no `loggedAt`/`now`
+     * of its own to begin with; it only ever reconstructs *today's* dialog from the raw numbers
+     * [QuickLogUseCase.computeSuggestion]/`AddCareLogViewModel.computeSuggestedInterval` already computed
+     * (possibly backdated on their own end, now correctly split from *their* display conversion — see
+     * those functions' docs). Verified, not just assumed, while fixing that bug — no code change was
+     * needed here.
      */
     val pendingWateringSuggestion: StateFlow<PendingWateringSuggestion?> = combine(
         plant,

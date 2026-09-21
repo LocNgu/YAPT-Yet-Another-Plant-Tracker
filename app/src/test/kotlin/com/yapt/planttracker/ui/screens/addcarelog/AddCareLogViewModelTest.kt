@@ -833,6 +833,88 @@ class AddCareLogViewModelTest {
         }
     }
 
+    /**
+     * #716 review round 1 regression, direction 1 (spurious dialog), mirroring
+     * `QuickLogUseCaseSeasonalTest`'s identically-numbered test — this screen's own date picker can
+     * back-date [AddCareLogViewModel.loggedAt] just as freely as Plant Detail's #654 quick-water picker
+     * can. STANDARD amplitude, northern hemisphere; logged date Jan 1 (`season = 1.349`), real today
+     * Sep 21 (`season = 0.912`). `computeAdaptiveInterval(TOO_LATE, observed=8, base=5.0)` moves the
+     * base to 5.936: at the logged date `round(5.0*1.349)=7 -> round(5.936*1.349)=8` (a real jump, what
+     * the pre-fix code — evaluating both sides at `loggedAt` — would have surfaced as a dialog); at
+     * today `round(5.0*0.912)=5 -> round(5.936*0.912)=5` (nothing the user would actually see change).
+     * `computeSuggestedInterval` is called directly (now `internal`, mirroring `QuickLogUseCase
+     * .computeSuggestion`'s identical widening) so [displayNow] can be pinned independently of
+     * [AddCareLogViewModel.loggedAt] without fighting the real device clock.
+     */
+    @Test
+    fun `computeSuggestedInterval uses displayNow not backdated loggedAt - direction 1, spurious dialog (#716 rr1)`() =
+        runTest {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val elevenDaysBeforeJan1 = jan1 - 11L * 24 * 60 * 60 * 1000
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(emptyPreferences())
+            }
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                waterLog(loggedAt = jan1),
+                waterLog(loggedAt = elevenDaysBeforeJan1)
+            )
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+            vm.selectedCareType = CareType.WATER
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
+            vm.loggedAt = jan1
+
+            val suggestion = vm.computeSuggestedInterval(displayNow = sep21)
+
+            assertEquals(null, suggestion)
+        }
+
+    /**
+     * #716 review round 1 regression, direction 2 (silent bypass — the worse direction): the mirror
+     * image of the test above, same gap/feedback, starting one rounding band higher (base 5.6 instead
+     * of 5.0). `computeAdaptiveInterval(TOO_LATE, observed=8, base=5.6)` moves the base to 6.176. At the
+     * logged date: `round(5.6*1.349)=8 -> round(6.176*1.349)=8` — unchanged, so the pre-fix code
+     * (evaluating both sides at `loggedAt`) would have silently persisted the moved base with no
+     * suggestion surfaced at all, bypassing `askBeforeChangingIntervals` entirely. At today:
+     * `round(5.6*0.912)=5 -> round(6.176*0.912)=6` — the number the user actually reads on screen right
+     * now really does move. The fixed gate must surface a real suggestion and must leave
+     * `wateringBaseIntervalDays` untouched at its original 5.6 (any write is deferred to the explicit
+     * apply path).
+     */
+    @Test
+    fun `computeSuggestedInterval uses displayNow not backdated loggedAt - direction 2, silent bypass (#716 rr1)`() =
+        runTest {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val elevenDaysBeforeJan1 = jan1 - 11L * 24 * 60 * 60 * 1000
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(emptyPreferences())
+            }
+            val monstera = plant(wateringIntervalDays = 8).copy(wateringBaseIntervalDays = 5.6)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                waterLog(loggedAt = jan1),
+                waterLog(loggedAt = elevenDaysBeforeJan1)
+            )
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+            vm.selectedCareType = CareType.WATER
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
+            vm.loggedAt = jan1
+
+            val suggestion = vm.computeSuggestedInterval(displayNow = sep21)
+
+            assertTrue(suggestion != null)
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.6 })
+            }
+        }
+
     // Sanity check for the same fix: a raw suggestion whose effective-space value genuinely differs
     // from current must still surface, seasonal multiplier or not.
     @Test
