@@ -14,6 +14,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -103,6 +104,49 @@ class QuickLogUseCaseDormancyTest {
         }
         coVerify(exactly = 0) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+        }
+    }
+
+    // #699/#761 (Codex review round 1 on #776, P2-c): defense-in-depth at the model layer, mirroring
+    // AddCareLogViewModel's equivalent write-time suppression — a persisted WateringFeedback on a
+    // dormancy-spanning log would otherwise still enter a later correctionStreak() window even though
+    // this observation's own base/confidence transition is separately excluded above. In production
+    // this reason never reaches quickWaterWithReason at all, since every UI surface's own gate already
+    // suppresses the prompt for a dormancy-spanning gap (WateringReasonGate.kt/CalendarScreen/
+    // PlantListScreen) — this test calls the use case directly, bypassing the UI gate entirely, to
+    // prove the model-layer protection holds independent of it.
+    @Test
+    fun `a dormancy-spanning watering never persists the explicit feedback on the CareLog itself`() = runTest {
+        val decemberFifteenth = millisAt(2026, 12, 15)
+        val monstera = dormantPlant(confidence = 3)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastWateringBefore(1L, decemberFifteenth) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = decemberFifteenth)
+
+        coVerify {
+            careLogRepo.addLog(
+                match {
+                    it.careType == CareType.WATER && it.loggedAt == decemberFifteenth && it.wateringFeedback == null
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `a plant with no dormancy window still persists explicit feedback normally`() = runTest {
+        val noWindow = dormantPlant(confidence = 3).copy(dormancyStartMonth = null, dormancyEndMonth = null)
+        every { plantRepo.getPlantById(1L) } returns flowOf(noWindow)
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        useCase.quickWaterWithReason(noWindow, WateringReason.SOIL_STILL_MOIST, loggedAt = marchFirst)
+
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.wateringFeedback == WateringFeedback.TOO_SOON }
+            )
         }
     }
 

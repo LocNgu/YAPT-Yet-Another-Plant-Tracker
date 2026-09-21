@@ -525,6 +525,89 @@ class CareScheduleAdaptiveTest {
         assertFalse(result.excludedFromBaseLearning)
     }
 
+    // --- computeAdaptiveInterval(): suppressConfidenceTransition (#699/#761, product ADR-0044 —
+    // Codex review round 1 on #776, P1-b) ---
+
+    /**
+     * The exact counter-example that invalidated the original "confidence unchanged by construction"
+     * claim for a dormancy-spanning observation: two waterings seven days apart, both inside a
+     * dormant month, on a seven-day base. `frozen = true` alone only zeroes the gain (excludes
+     * `base`) — it does **not** touch the confidence transition below it, and here `gapAgrees(7, 7)`
+     * is genuinely true, so without [suppressConfidenceTransition] confidence would silently *rise*
+     * for an observation that tested nothing about the schedule (the plant was asleep the whole gap).
+     * Contrast with `confidence still rises on gap agreement while frozen` above, which is the correct,
+     * *unsuppressed* behavior for the REPOT-freeze case `frozen` was designed for — this is a
+     * genuinely different case, not a variant of it (see this parameter's KDoc).
+     */
+    @Test
+    fun `suppressConfidenceTransition blocks the rise a short in-window gap would otherwise cause`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    /** Without suppression, the same fixture demonstrates the bug this parameter fixes. */
+    @Test
+    fun `the same short in-window gap without suppression incorrectly raises confidence`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true
+        )
+        assertEquals(3, result.confidence)
+    }
+
+    /** The streak-decrement branch is equally suppressed, not just the gap-agreement rise. */
+    @Test
+    fun `suppressConfidenceTransition also blocks a streak decrement`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = listOf(TOO_SOON, TOO_SOON),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    @Test
+    fun `suppressConfidenceTransition has no effect on a first-ever observation`() {
+        // currentConfidence == null already bootstraps to 0 without evaluating any transition.
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList(),
+            suppressConfidenceTransition = true
+        )
+        assertEquals(0, result.confidence)
+    }
+
+    @Test
+    fun `suppressConfidenceTransition defaults to false, unaffected existing call sites`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = JUST_RIGHT,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 10,
+            currentConfidence = 1,
+            recentFeedback = listOf(JUST_RIGHT)
+        )
+        assertEquals(2, result.confidence)
+    }
+
     // --- #738/ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---
 
     /**

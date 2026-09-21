@@ -179,10 +179,21 @@ object WateringLifecycleReset {
         return true
     }
 
-    /** `null` when there's no [CareSchedule.bootstrapBaseInterval] result, or it's below the application threshold. */
+    /**
+     * `null` when there's no [CareSchedule.bootstrapBaseInterval] result, or it's below the
+     * application threshold. Passes [Plant.dormancyStartMonth]/[Plant.dormancyEndMonth] through
+     * (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-a) so a dormancy-spanning gap
+     * anywhere in the eligible history is excluded from the cold-start estimate, not merely the
+     * triggering observation's own gap.
+     */
     private fun eligibleBootstrapResult(request: BootstrapRequest): CareSchedule.BootstrapResult? {
         val eligibleTimestamps = request.waterLogTimestampsMs.filter { it >= request.boundaryMs }
-        val result = CareSchedule.bootstrapBaseInterval(eligibleTimestamps, request.seasonFn)
+        val result = CareSchedule.bootstrapBaseInterval(
+            eligibleTimestamps,
+            request.seasonFn,
+            request.plant.dormancyStartMonth,
+            request.plant.dormancyEndMonth
+        )
         return result?.takeIf { it.gapCount >= CareSchedule.MIN_BOOTSTRAP_GAPS }
     }
 

@@ -134,4 +134,68 @@ class CareScheduleBootstrapTest {
         requireNotNull(result)
         assertTrue(result.baseIntervalDays >= 1.0)
     }
+
+    // ---- Dormancy filtering (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-a) ----
+    // Regression pin: before this fix, a dormancy-spanning gap anywhere in history fed the median and
+    // gapCount like any other gap, letting the one-time cold-start estimate ingest a gap the plant
+    // spent asleep, not thirsty.
+
+    @Test
+    fun `a dormancy-spanning gap is excluded from gapCount and the median`() {
+        // Oct1->Oct8 (7d) and Mar1->Mar8 (7d) are genuine, non-dormant gaps; Oct8->Mar1 straddles a
+        // Nov-Feb window and must not count as a third data point.
+        val dates = listOf(
+            LocalDate.of(2026, 10, 1),
+            LocalDate.of(2026, 10, 8),
+            LocalDate.of(2027, 3, 1),
+            LocalDate.of(2027, 3, 8)
+        )
+        val unfiltered = CareSchedule.bootstrapBaseInterval(dates.map { ms(it) }, flatSeason)
+        requireNotNull(unfiltered)
+        assertEquals(3, unfiltered.gapCount)
+
+        val filtered = CareSchedule.bootstrapBaseInterval(
+            dates.map { ms(it) },
+            flatSeason,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        requireNotNull(filtered)
+        assertEquals(2, filtered.gapCount)
+        assertEquals(7.0, filtered.baseIntervalDays, 1e-9)
+    }
+
+    @Test
+    fun `bootstrapBaseInterval returns null when every gap spans dormancy`() {
+        val dormancySpanningOnly = listOf(
+            LocalDate.of(2026, 10, 25),
+            LocalDate.of(2027, 3, 1)
+        )
+        assertNull(
+            CareSchedule.bootstrapBaseInterval(
+                dormancySpanningOnly.map { ms(it) },
+                flatSeason,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+        )
+    }
+
+    @Test
+    fun `a dormancy window configured but never touched by any gap leaves the result unchanged`() {
+        val dates = listOf(
+            LocalDate.of(2026, 6, 1),
+            LocalDate.of(2026, 6, 8),
+            LocalDate.of(2026, 6, 15),
+            LocalDate.of(2026, 6, 22)
+        )
+        val withoutDormancy = CareSchedule.bootstrapBaseInterval(dates.map { ms(it) }, flatSeason)
+        val withDormancy = CareSchedule.bootstrapBaseInterval(
+            dates.map { ms(it) },
+            flatSeason,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        assertEquals(withoutDormancy, withDormancy)
+    }
 }

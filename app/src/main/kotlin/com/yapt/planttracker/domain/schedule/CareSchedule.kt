@@ -428,6 +428,23 @@ object CareSchedule {
      * suppressed while frozen, for the same reason ADR-0030 gives: it is evidence about the schedule
      * regardless of why an observation is excluded from `base`. Defaults `false` so every existing call
      * site/test is unaffected.
+     *
+     * [suppressConfidenceTransition] (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-b)
+     * is a **genuinely different case from [frozen], not a variant of it.** ADR-0030's reasoning for
+     * leaving confidence unsuppressed while `frozen`/excluded is that confidence is evidence about the
+     * schedule *regardless of why the base was excluded* — a REPOT-frozen or unattributed observation
+     * still measured something real, even if the model chose not to trust it for `base`. A dormancy-
+     * spanning gap is not that: a short in-window gap (e.g. two waterings seven days apart, both inside
+     * a dormant month, on a seven-day base) still has `gapAgrees(7, 7) == true`, so without this
+     * parameter confidence would silently *rise* even though nothing about the schedule was actually
+     * tested — the plant was asleep for the entire gap. `true` skips the streak/gap-agreement
+     * transition entirely (`newConfidence = currentConfidence`, verbatim) rather than post-hoc
+     * correcting the result at each call site, which is how [QuickLogUseCase] and
+     * `AddCareLogViewModel`'s two independent copies of this call would otherwise drift apart. Defaults
+     * `false` so every existing call site/test is unaffected. Distinct from a post-hoc "exit decrement"
+     * (`WateringAdjustmentTrigger.DORMANCY_EXIT`, applied by callers *after* this function returns,
+     * never inside it) — that is a one-time -1 for *leaving* dormancy, layered on top of the
+     * (now correctly unchanged) confidence this parameter guarantees.
      */
     @Suppress("LongParameterList")
     fun computeAdaptiveInterval(
@@ -436,14 +453,16 @@ object CareSchedule {
         currentBaseIntervalDays: Int,
         currentConfidence: Int?,
         recentFeedback: List<WateringFeedback?>,
-        frozen: Boolean = false
+        frozen: Boolean = false,
+        suppressConfidenceTransition: Boolean = false
     ): AdaptiveInterval = computeAdaptiveInterval(
         feedback,
         observedIntervalDays,
         currentBaseIntervalDays.toDouble(),
         currentConfidence,
         recentFeedback,
-        frozen
+        frozen,
+        suppressConfidenceTransition
     )
 
     @Suppress("LongParameterList")
@@ -453,7 +472,8 @@ object CareSchedule {
         currentBaseIntervalDays: Double,
         currentConfidence: Int?,
         recentFeedback: List<WateringFeedback?>,
-        frozen: Boolean = false
+        frozen: Boolean = false,
+        suppressConfidenceTransition: Boolean = false
     ): AdaptiveInterval {
         val multiplier = when (feedback) {
             WateringFeedback.TOO_SOON -> TOO_SOON_TARGET_MULTIPLIER
@@ -476,13 +496,17 @@ object CareSchedule {
         val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
         val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
 
-        val streak = correctionStreak(recentFeedback)
-        val newConfidence = when {
-            abs(streak) >= STREAK_DECREMENT_THRESHOLD ->
-                (currentConfidence - STREAK_CONFIDENCE_PENALTY).coerceAtLeast(0)
-            gapAgrees(observedIntervalDays, currentBaseIntervalDays) ->
-                min(currentConfidence + 1, MAX_CONFIDENCE)
-            else -> currentConfidence
+        val newConfidence = if (suppressConfidenceTransition) {
+            currentConfidence
+        } else {
+            val streak = correctionStreak(recentFeedback)
+            when {
+                abs(streak) >= STREAK_DECREMENT_THRESHOLD ->
+                    (currentConfidence - STREAK_CONFIDENCE_PENALTY).coerceAtLeast(0)
+                gapAgrees(observedIntervalDays, currentBaseIntervalDays) ->
+                    min(currentConfidence + 1, MAX_CONFIDENCE)
+                else -> currentConfidence
+            }
         }
         return AdaptiveInterval(newBase.roundToInt(), newBase, newConfidence, excluded)
     }
@@ -583,18 +607,36 @@ object CareSchedule {
      * Returns `null` when there are fewer than 2 timestamps (zero gaps — "no estimate", per the spec's
      * empty-history edge case). A single gap (2 timestamps) still returns a real, testable result with
      * [BootstrapResult.gapCount] == 1; it is the caller's job not to apply it below [MIN_BOOTSTRAP_GAPS].
+     *
+     * [dormancyStartMonth]/[dormancyEndMonth] (#699/#761, product ADR-0044 — Codex review round 1 on
+     * #776, P1-a) filter out any consecutive pair whose gap overlaps the plant's dormancy window
+     * ([DormancyWindow.spansDormancy]) *before* computing the median/gap count, so a dormancy-corrupted
+     * gap anywhere in history — not just the newest one — can never feed the cold-start estimate. This
+     * is a different, more thorough protection than excluding only the triggering observation's own
+     * gap: a plant with two winters' worth of history could otherwise still bootstrap from an earlier
+     * dormancy-spanning gap even after the newest one was correctly excluded elsewhere. Both `null`
+     * (the default, matching every other caller that doesn't configure dormancy) is a no-op filter — no
+     * gap can span a window that doesn't exist.
      */
+    @Suppress("ReturnCount")
     fun bootstrapBaseInterval(
         waterLogTimestampsMs: List<Long>,
-        seasonFn: (LocalDate) -> Double
+        seasonFn: (LocalDate) -> Double,
+        dormancyStartMonth: Int? = null,
+        dormancyEndMonth: Int? = null
     ): BootstrapResult? {
         val sorted = waterLogTimestampsMs.sorted()
         if (sorted.size < 2) return null
 
-        val deseasonalizedGaps = sorted.zipWithNext { earlier, later ->
-            val gapDays = daysBetween(earlier, later)
-            gapDays / seasonFn(later.toLocalDate())
-        }
+        val deseasonalizedGaps = sorted.zipWithNext { earlier, later -> earlier to later }
+            .filterNot { (earlier, later) ->
+                DormancyWindow.spansDormancy(dormancyStartMonth, dormancyEndMonth, earlier, later)
+            }
+            .map { (earlier, later) ->
+                val gapDays = daysBetween(earlier, later)
+                gapDays / seasonFn(later.toLocalDate())
+            }
+        if (deseasonalizedGaps.isEmpty()) return null
         val gapCount = deseasonalizedGaps.size
         val baseIntervalDays = median(deseasonalizedGaps)
             .coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS.toDouble(), MAX_ADAPTIVE_INTERVAL_DAYS.toDouble())

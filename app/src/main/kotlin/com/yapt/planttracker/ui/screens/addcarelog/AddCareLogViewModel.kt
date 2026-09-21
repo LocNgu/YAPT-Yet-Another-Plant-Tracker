@@ -128,7 +128,7 @@ class AddCareLogViewModel(
             // row inserted by this same save (#509).
             val willPairWater = shouldPairWaterLog()
 
-            careLogRepository.addLog(buildLogFromState())
+            careLogRepository.addLog(buildLogFromState(shouldSuppressWateringFeedback()))
 
             if (!isEditMode && selectedCareType == CareType.REPOT) {
                 plantRepository.getPlantById(plantId).first()?.let { plant ->
@@ -176,7 +176,7 @@ class AddCareLogViewModel(
             selectedFertilizerType == FertilizerType.LIQUID &&
             !careLogRepository.hasLogOfTypeOnDay(plantId, CareType.WATER, loggedAt)
 
-    private fun buildLogFromState() = CareLog(
+    private fun buildLogFromState(suppressWateringFeedback: Boolean = false) = CareLog(
         id = careLogId,
         plantId = plantId,
         careType = selectedCareType,
@@ -184,7 +184,11 @@ class AddCareLogViewModel(
         notes = notes.trim().ifBlank { null },
         photoUri = photoUri,
         amount = amount.trim().ifBlank { null },
-        wateringFeedback = if (selectedCareType == CareType.WATER) selectedFeedback else null,
+        wateringFeedback = if (selectedCareType == CareType.WATER && !suppressWateringFeedback) {
+            selectedFeedback
+        } else {
+            null
+        },
         fertilizerType = if (selectedCareType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED,
         customReminderId = customReminderId
     )
@@ -219,6 +223,51 @@ class AddCareLogViewModel(
         }
     }
 
+    /**
+     * Whether [loggedAt]'s own chronological predecessor → [loggedAt] overlaps this plant's dormancy
+     * window (#699/#761, product ADR-0044 — Codex review round 1 on #776, P2-c) — used to suppress
+     * persisting [selectedFeedback] on such a log entirely. The Add Care Log form's feedback chip is a
+     * static field with no dynamic prompt to gate the way the quick-log surfaces do
+     * (`WateringReasonGate.kt`'s `isChosenDateDormancySpanning`), so this write-time check is the only
+     * choke point available: a persisted feedback value on a dormancy-spanning log would otherwise
+     * still enter a *later* [CareSchedule.correctionStreak] window even though this observation's own
+     * confidence transition is separately suppressed inside [adaptWateringInterval] (P1-b).
+     */
+    /**
+     * #699/#761 (product ADR-0044, Codex review round 1 on #776, P2-c): a dormancy-spanning WATER
+     * log's feedback must never be persisted at all — see [isDormancySpanningForLoggedAt]'s doc for
+     * why the write-time check (not just [adaptWateringInterval]'s model-layer exclusion) is needed
+     * on this specific screen. Extracted out of [saveLog] (rather than inlined as three `&&`-chained
+     * conditions) to keep that function's own cyclomatic complexity under the Detekt threshold.
+     */
+    private suspend fun shouldSuppressWateringFeedback(): Boolean =
+        !isEditMode && selectedCareType == CareType.WATER && isDormancySpanningForLoggedAt()
+
+    @Suppress("ReturnCount")
+    private suspend fun isDormancySpanningForLoggedAt(): Boolean {
+        val plant = plantRepository.getPlantById(plantId).first() ?: return false
+        val previousWateringAt = previousWateringBefore(loggedAt) ?: return false
+        return DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            previousWateringAt,
+            loggedAt
+        )
+    }
+
+    /**
+     * [referenceMillis]'s own chronological predecessor WATER log (#679 precedent,
+     * [CareLogRepository.getLastWateringBefore]) — **not** `lastTwoWaterings.getOrNull(1)` (the
+     * plant's globally newest pair), which disagrees with the true predecessor for a backdated entry
+     * older than both (#699/#761, Codex review round 1 on #776, P2-d: that mismatch let a dormancy-
+     * spanning gap escape exclusion entirely by pairing it with an unrelated, non-dormant predecessor).
+     * `actualIntervalDays` in [computeSuggestedInterval] deliberately keeps its own pre-existing,
+     * `lastTwoWaterings`-based gap calculation unchanged — that quirk is unrelated to dormancy and out
+     * of scope here; only the dormancy check's own predecessor needed fixing.
+     */
+    private suspend fun previousWateringBefore(referenceMillis: Long): Long? =
+        careLogRepository.getLastWateringBefore(plantId, referenceMillis)?.loggedAt
+
     @StringRes
     private fun duplicateErrorRes(careType: CareType): Int = when (careType) {
         CareType.WATER -> R.string.care_log_error_already_watered
@@ -252,7 +301,7 @@ class AddCareLogViewModel(
      * identical widening, for the identical reason: a plain JVM test can pin [displayNow] independently
      * of [loggedAt] without fighting the real device clock.
      */
-    @Suppress("ReturnCount", "CyclomaticComplexMethod")
+    @Suppress("ReturnCount")
     internal suspend fun computeSuggestedInterval(displayNow: Long = System.currentTimeMillis()): SuggestedInterval? {
         if (selectedCareType != CareType.WATER) return null
         val feedback = selectedFeedback
@@ -269,18 +318,13 @@ class AddCareLogViewModel(
 
         if (actualIntervalDays <= 0) return null
 
-        // #699/#761: the same two timestamps actualIntervalDays was just derived from, so the
-        // dormancy span check can't disagree with what "the gap" means in this VM's own (pre-existing,
-        // #654/#679-quirky) model of "current" watering.
-        val previousWateringAt = lastTwoWaterings.getOrNull(1)?.loggedAt
-        val newWateringAt = lastTwoWaterings.getOrNull(0)?.loggedAt ?: loggedAt
         val result = adaptWateringInterval(
             plant,
             feedback,
             actualIntervalDays,
             currentInterval,
-            previousWateringAt,
-            newWateringAt
+            previousWateringAt = previousWateringBefore(loggedAt),
+            newWateringAt = loggedAt
         ) ?: return null
         val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
         val effectiveSuggested = effectiveIntervalForDisplay(
@@ -366,9 +410,14 @@ class AddCareLogViewModel(
      *
      * [previousWateringAt]/[newWateringAt] (#699/#761, product ADR-0044) — see
      * [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s copy of this same function for the
-     * dormancy-exclusion/exit rule this duplicates; this VM's caller ([computeSuggestedInterval])
-     * threads through the same two [CareLog] timestamps `actualIntervalDays` was itself derived from,
-     * rather than real wall-clock `now`, so the two checks can't disagree about what "the gap" means.
+     * dormancy-exclusion/exit rule this duplicates, including [CareSchedule.computeAdaptiveInterval]'s
+     * `suppressConfidenceTransition` parameter (Codex review round 1 on #776, P1-b) and the centralized
+     * [WateringLifecycleReset]/[CareSchedule.bootstrapBaseInterval] history-filtering that protects
+     * [maybeApplyHistoryBootstrap] (P1-a) — both fixes are shared code, not duplicated here.
+     * [previousWateringAt] is [computeSuggestedInterval]'s own [previousWateringBefore] lookup, **not**
+     * `lastTwoWaterings.getOrNull(1)` (P2-d — that mismatch let a dormancy-spanning gap escape
+     * exclusion for a backdated entry older than the plant's globally newest pair); [newWateringAt] is
+     * [loggedAt] itself, the entry actually being saved.
      */
     @Suppress("LongParameterList", "ReturnCount")
     private suspend fun adaptWateringInterval(
@@ -403,7 +452,8 @@ class AddCareLogViewModel(
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
-            frozen = frozenPostRepot || dormancySpanning
+            frozen = frozenPostRepot || dormancySpanning,
+            suppressConfidenceTransition = dormancySpanning
         )
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(

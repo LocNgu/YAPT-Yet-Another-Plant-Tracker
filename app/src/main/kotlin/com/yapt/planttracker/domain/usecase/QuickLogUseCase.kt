@@ -275,7 +275,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
-        val feedback = reason?.toWateringFeedback()
+        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
         val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
@@ -333,7 +333,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
         }
-        val feedback = reason?.toWateringFeedback()
+        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
         val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
         careLogRepository.addLog(
@@ -597,6 +597,40 @@ class QuickLogUseCase(
         dayTimestampMs: Long = System.currentTimeMillis()
     ): Boolean = careLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs)
 
+    /**
+     * `reason?.toWateringFeedback()`, suppressed to `null` when the gap [loggedAt]'s own chronological
+     * predecessor → [loggedAt] overlaps [plant]'s dormancy window (#699/#761, product ADR-0044 — Codex
+     * review round 1 on #776, P2-c). The three production UI surfaces already gate the reason prompt
+     * itself on this exact condition (`WateringReasonGate.kt`/`CalendarScreen`/`PlantListScreen`'s
+     * `isWateringGapDormancySpanning`/`isChosenDateDormancySpanning` checks), so in practice [reason] is
+     * already `null` here — this is defense-in-depth at the model layer, mirroring why [frozen] inside
+     * [CareSchedule.computeAdaptiveInterval] is "derived inside the pure function, never passed in": a
+     * persisted [CareLog.wateringFeedback] on a dormancy-spanning log would otherwise still enter a
+     * later [CareSchedule.correctionStreak] window even though this observation's own base/confidence
+     * transition is separately excluded inside [adaptWateringInterval]. Queries
+     * [CareLogRepository.getLastWateringBefore] itself (a second query beyond [computeSuggestion]'s own
+     * identical lookup moments later) rather than threading a value through, since this runs *before*
+     * the [CareLog] insert while [computeSuggestion] necessarily runs after — the predecessor is
+     * unaffected either way ([loggedAt]'s own log is never its own predecessor).
+     */
+    @Suppress("ReturnCount")
+    private suspend fun feedbackUnlessDormancySpanning(
+        plant: Plant,
+        reason: WateringReason?,
+        loggedAt: Long
+    ): WateringFeedback? {
+        val feedback = reason?.toWateringFeedback() ?: return null
+        val previousWateringAt = careLogRepository.getLastWateringBefore(plant.id, loggedAt)?.loggedAt
+            ?: return feedback
+        val dormancySpanning = DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            previousWateringAt,
+            loggedAt
+        )
+        return feedback.takeUnless { dormancySpanning }
+    }
+
     private fun alreadyLoggedMessage(plant: Plant, careType: CareType): String = when (careType) {
         CareType.WATER -> application.getString(R.string.quick_log_already_watered, plant.name)
         CareType.FERTILIZE -> application.getString(R.string.quick_log_already_fertilized, plant.name)
@@ -739,7 +773,13 @@ class QuickLogUseCase(
      * pending post-reset opportunity) — see [maybeApplyHistoryBootstrap]. When it fires, the bootstrap
      * already silently committed the new interval, so this returns [currentInterval] unchanged
      * (suppressing the product ADR-0006 suggestion dialog for this observation) rather than also running the
-     * incremental per-step correction on top of a value the model just cold-started.
+     * incremental per-step correction on top of a value the model just cold-started. **The bootstrap
+     * itself is separately protected from dormancy-spanning gaps** — [maybeApplyHistoryBootstrap]
+     * ultimately calls [CareSchedule.bootstrapBaseInterval] with [plant]'s dormancy months, which
+     * filters any dormancy-overlapping gap out of the history it medians over (Codex review round 1 on
+     * #776, P1-a) — rather than this function re-deriving [dormancySpanning] before the early return
+     * below, which would only have protected the *current* gap and not any earlier dormancy-spanning
+     * gap already baked into the bootstrapped history.
      *
      * [now] defaults to the real wall-clock time but [computeSuggestion] threads through the caller's
      * chosen [loggedAt][quickWaterWithReason] instead when backdating (#654) — the same value that
@@ -753,12 +793,18 @@ class QuickLogUseCase(
      * two dormancy facts, both via [DormancyWindow]: whether the gap [previousWateringAt]→[now]
      * overlapped the dormancy window ([DormancyWindow.spansDormancy], excludes the base from learning
      * regardless of [feedback], same `frozen` exclusion mechanism a REPOT freeze uses but recorded
-     * under the distinct [WateringAdjustmentTrigger.DORMANCY_EXCLUDED]), and whether [now] itself falls
-     * *outside* the window after that overlap ([DormancyWindow.isDormant] on `now`'s month) — "did the
-     * plant just leave dormancy?" — which additionally decrements confidence by exactly 1 (floored at
-     * 0) and writes a second, independent [WateringAdjustmentTrigger.DORMANCY_EXIT] row, since the two
-     * are separate facts about the same observation (the base didn't move; confidence moved for an
-     * unrelated reason). `null` when there is no previous watering to measure a gap from.
+     * under the distinct [WateringAdjustmentTrigger.DORMANCY_EXCLUDED], **and** suppresses the
+     * confidence transition entirely via [CareSchedule.computeAdaptiveInterval]'s
+     * `suppressConfidenceTransition` parameter — Codex review round 1 on #776, P1-b, corrected the
+     * original assumption that confidence was "unchanged by construction"; a short in-window gap can
+     * satisfy `gapAgrees()` and would otherwise silently raise confidence for an observation that
+     * tested nothing about the schedule), and whether [now] itself falls *outside* the window after
+     * that overlap ([DormancyWindow.isDormant] on `now`'s month) — "did the plant just leave
+     * dormancy?" — which additionally decrements confidence by exactly 1 (floored at 0, applied *after*
+     * the guaranteed-unchanged confidence above) and writes a second, independent
+     * [WateringAdjustmentTrigger.DORMANCY_EXIT] row, since the two are separate facts about the same
+     * observation (the base didn't move; confidence moved for an unrelated reason). `null` when there
+     * is no previous watering to measure a gap from.
      */
     @Suppress("LongParameterList", "ReturnCount")
     private suspend fun adaptWateringInterval(
@@ -793,7 +839,8 @@ class QuickLogUseCase(
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
-            frozen = frozenPostRepot || dormancySpanning
+            frozen = frozenPostRepot || dormancySpanning,
+            suppressConfidenceTransition = dormancySpanning
         )
         wateringAdjustmentRepository.addAdjustment(
             WateringAdjustment(
