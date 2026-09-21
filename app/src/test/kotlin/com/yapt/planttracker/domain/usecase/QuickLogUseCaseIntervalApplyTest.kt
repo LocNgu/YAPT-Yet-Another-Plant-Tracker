@@ -12,6 +12,7 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -140,6 +141,62 @@ class QuickLogUseCaseIntervalApplyTest {
 
             coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == expectedBase }) }
         }
+
+    @Test
+    fun `backdated suggestion with a retyped interval uses the apply day for base and timestamps`() = runTest {
+        // The watering was logged on Jan 5, but #716 shows the dialog's effective value for today.
+        // Retyping that field opts out of the precise-base branch; its inverse must use the apply
+        // day's season, not the observation's, and share that instant with both write timestamps.
+        val loggedAt = localDateUtcMillis(2026, 1, 5)
+        val appliedAt = localDateUtcMillis(2026, 7, 5)
+        var clockReads = 0
+        val useCase = useCase(nowProvider = {
+            clockReads++
+            appliedAt
+        })
+        val monstera = plant().copy(wateringIntervalDays = 10, wateringBaseIntervalDays = 10.0)
+        val retypedInterval = 14
+        val amplitude = SeasonalAmplitude.STANDARD.value
+        val hemisphere = SeasonalWatering.currentHemisphere()
+        val expectedBase = SeasonalWatering.deseasonalize(
+            retypedInterval.toDouble(),
+            appliedAt.toLocalDate(),
+            amplitude,
+            hemisphere
+        )
+        val loggedDayBase = SeasonalWatering.deseasonalize(
+            retypedInterval.toDouble(),
+            loggedAt.toLocalDate(),
+            amplitude,
+            hemisphere
+        )
+        assertTrue(abs(expectedBase - loggedDayBase) > 0.1)
+
+        useCase.applyWateringIntervalSuggestion(
+            monstera,
+            originalSuggestion = 10,
+            newInterval = retypedInterval,
+            suggestedBaseInterval = null
+        )
+
+        assertEquals(1, clockReads)
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringIntervalDays == retypedInterval &&
+                        it.wateringBaseIntervalDays == expectedBase && it.updatedAt == appliedAt
+                }
+            )
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DIALOG_EDIT &&
+                        it.triggeredAt == appliedAt && it.afterIntervalDays == expectedBase.roundToInt()
+                }
+            )
+        }
+    }
 
     @Test
     fun `applyWateringIntervalSuggestion with a precise suggestedBaseInterval persists it verbatim`() =
