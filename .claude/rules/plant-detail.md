@@ -386,6 +386,11 @@ anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as 
 `.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor pair and how it
 interacted with #719/#720.
 
+The remaining `+1/+2/+3` labels were still unclear about their due-date anchor (#737). The dialog
+now shows `Today · <date>` and `+N days · <date>` using `DateUtils.formatDate()` and the same
+`rescheduledRelativeDueAt()` calculation as the action handler. The date can wrap on a narrow screen;
+Custom date remains a picker because its result is not known until a day is selected.
+
 ### Custom-date picker's due-date floor (#720)
 `CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an
 override earlier than the schedule-computed date can never win — it would be written to the database

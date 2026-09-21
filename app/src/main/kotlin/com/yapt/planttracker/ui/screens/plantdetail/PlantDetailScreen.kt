@@ -335,7 +335,8 @@ fun PlantDetailScreen(
                 onRelativeDays = { days -> viewModel.confirmRescheduleRelativeDays(days) },
                 onCustomDate = { dateMillis -> viewModel.confirmRescheduleCustomDate(dateMillis) }
             ),
-            computedNextWateringDueAt = careStatus?.computedNextWateringDueAt
+            computedNextWateringDueAt = careStatus?.computedNextWateringDueAt,
+            effectiveNextWateringDueAt = careStatus?.nextWateringDueAt
         )
     }
 

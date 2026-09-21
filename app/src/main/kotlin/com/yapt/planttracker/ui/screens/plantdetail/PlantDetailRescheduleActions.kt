@@ -29,9 +29,12 @@ fun PlantDetailViewModel.confirmRescheduleToday() = applyReschedule(System.curre
  * from the stepper dialog this replaces. [days] never affects what the model learns (#586).
  */
 fun PlantDetailViewModel.confirmRescheduleRelativeDays(days: Int) {
-    val currentDue = maxOf(careStatus.value?.nextWateringDueAt ?: 0L, System.currentTimeMillis())
-    applyReschedule(currentDue + TimeUnit.DAYS.toMillis(days.toLong()))
+    applyReschedule(rescheduledRelativeDueAt(careStatus.value?.nextWateringDueAt, System.currentTimeMillis(), days))
 }
+
+/** Shared with the dialog's date preview so its due-date anchor matches the committed override. */
+internal fun rescheduledRelativeDueAt(effectiveDueAt: Long?, now: Long, days: Int): Long =
+    maxOf(effectiveDueAt ?: 0L, now) + TimeUnit.DAYS.toMillis(days.toLong())
 
 /**
  * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked

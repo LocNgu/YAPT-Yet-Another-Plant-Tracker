@@ -52,6 +52,7 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.DateUtils
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -67,6 +68,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
@@ -645,10 +648,32 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+1 day").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+2 days").assertIsDisplayed()
-        composeTestRule.onNodeWithText("+3 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("+1 day ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("+2 days ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("+3 days ·", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
+    }
+
+    @Test
+    fun rescheduleDialog_showsTheResultingDueDateForEachOption() {
+        val now = LocalDate.of(2026, 9, 21).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val due = LocalDate.of(2026, 9, 25).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        composeTestRule.setContent {
+            RescheduleWateringDialog(
+                todayEnabled = true,
+                actions = RescheduleDialogActions({}, {}, {}, {}),
+                effectiveNextWateringDueAt = due,
+                now = now
+            )
+        }
+
+        composeTestRule.onNodeWithText("Today · ${DateUtils.formatDate(now)}").assertIsDisplayed()
+        for (days in 1..3) {
+            val label = if (days == 1) "+1 day" else "+$days days"
+            val date = DateUtils.formatDate(due + TimeUnit.DAYS.toMillis(days.toLong()))
+            composeTestRule.onNodeWithText("$label · $date").assertIsDisplayed()
+        }
         composeTestRule.onNodeWithText("Custom date…").assertIsDisplayed()
     }
 
@@ -711,7 +736,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today").assertIsEnabled()
+        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsEnabled()
     }
 
     @Test
@@ -740,7 +765,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasTestTag("why_this_date_button"))
         composeTestRule.onNodeWithContentDescription("Reschedule watering").performClick()
 
-        composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Today ·", substring = true).assertIsNotEnabled()
     }
 
     // ---- Care history CHECK-row filter (#738, product ADR-0039) ----
