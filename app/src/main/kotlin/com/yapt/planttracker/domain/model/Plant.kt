@@ -45,5 +45,13 @@ data class Plant(
      * once the freeze window has never been active or has already elapsed (elapsed is still a real,
      * non-null past timestamp; callers compare it against "now", they don't need to clear it).
      */
-    val wateringFreezeUntil: Long? = null
+    val wateringFreezeUntil: Long? = null,
+    /**
+     * Month-pair dormancy window (1-12, #699/#759, product ADR-0044): both `null` = no dormancy,
+     * which is every plant migrated from before this column existed. `dormancyStartMonth >
+     * dormancyEndMonth` wraps across the year boundary (e.g. Nov-Feb); neither value alone is ever
+     * `null` while the other is set. This slice only stores the window — nothing reads it yet.
+     */
+    val dormancyStartMonth: Int? = null,
+    val dormancyEndMonth: Int? = null
 )

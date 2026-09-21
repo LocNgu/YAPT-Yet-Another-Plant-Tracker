@@ -30,6 +30,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
+// round-trip the per-plant dormancy window unconditionally (same posture as wateringResetAt/
+// wateringFreezeUntil below). Nothing reads these columns yet; this slice is storage-only.
 // Schema 16 (#519): postWateringReminderEnabled added to BackupSettings.
 // Schema 15 (#656 review): seasonalAmplitude added to BackupSettings — round-trips the user's
 // Off/Mild/Standard/Strong choice for the (now-unconditional, graduated #656) seasonal watering
@@ -59,7 +62,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 16
+const val CURRENT_SCHEMA_VERSION = 17
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -171,7 +174,9 @@ class BackupManager(
                     wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
                     pinIntervalToBase = entity.pinIntervalToBase,
                     wateringResetAt = entity.wateringResetAt,
-                    wateringFreezeUntil = entity.wateringFreezeUntil
+                    wateringFreezeUntil = entity.wateringFreezeUntil,
+                    dormancyStartMonth = entity.dormancyStartMonth,
+                    dormancyEndMonth = entity.dormancyEndMonth
                 )
             }
 
@@ -388,7 +393,9 @@ class BackupManager(
                     wateringBaseIntervalDays = bp.wateringBaseIntervalDays,
                     pinIntervalToBase = bp.pinIntervalToBase,
                     wateringResetAt = bp.wateringResetAt,
-                    wateringFreezeUntil = bp.wateringFreezeUntil
+                    wateringFreezeUntil = bp.wateringFreezeUntil,
+                    dormancyStartMonth = bp.dormancyStartMonth,
+                    dormancyEndMonth = bp.dormancyEndMonth
                 )
             }
 
