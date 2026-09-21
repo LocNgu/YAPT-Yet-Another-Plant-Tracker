@@ -1,6 +1,6 @@
 # Product ADR-0031: Watering-due actions are always visible, not gated on due status
 
-**Status**: accepted
+**Status**: accepted — Water button's `wateringIntervalDays`-gate clause amended by [ADR-0040](0040-water-button-unconditional-on-graduation.md)
 
 **Date**: 2026-08-29
 

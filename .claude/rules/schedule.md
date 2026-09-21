@@ -133,7 +133,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   involvement at all. `CareType.CHECK` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` remain as enum
   constants (Room/`.yapt` deserialization safety for historical rows) but are write-only-in-the-past —
   see `.claude/rules/watering-transparency.md`. Every reschedule option, "I can't right now" included,
-  writes the override only and nothing else, same posture ADR-0029 originally established.
+  writes the override only and nothing else, same posture product ADR-0029 originally established.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

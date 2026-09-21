@@ -41,12 +41,12 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
 #586's `check_reminders` reframe, now the only watering-due label since that flag graduated, #657); guards on `intent.action`
 (#178). Its actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside
 `goAsync()` for direct testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a
-learning signal (#570, product ADR-0027, reaffirmed by ADR-0029) — it only ever touches `wateringDueDateOverride`,
+learning signal (#570, product ADR-0027, reaffirmed by product ADR-0029) — it only ever touches `wateringDueDateOverride`,
 never `wateringConfidence`/`wateringIntervalDays`/`wateringBaseIntervalDays`; `SkipWateringReceiverTest` pins this
 so it can't be wired up later by accident. The action's label string (`reschedule_watering_title`, was
 `skip_watering_title`) is shared with the Plant Detail Reschedule button/dialog (`.claude/rules/plant-detail.md`) —
 one rename covers both surfaces. The now-unregistered duplicate under `worker/SkipWateringReceiver.kt` (which
-mutated `wateringIntervalDays` directly, contradicting product ADR-0007/ADR-0029) was deleted in #508.
+mutated `wateringIntervalDays` directly, contradicting product ADR-0007/product ADR-0029) was deleted in #508.
 
 ## Check reminders (#570, product ADR-0027; `CHECK_REMINDERS` graduated #657)
 The watering-due reminder is always a check-in prompt, not an instruction. Gated in
