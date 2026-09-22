@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
+import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
@@ -311,6 +312,12 @@ fun AddEditPlantScreen(
                     )
                 }
             }
+
+            DormancyWindowSetting(
+                startMonth = viewModel.dormancyStartMonth,
+                endMonth = viewModel.dormancyEndMonth,
+                onWindowChange = viewModel::setDormancyWindow
+            )
 
             Column {
                 Row(

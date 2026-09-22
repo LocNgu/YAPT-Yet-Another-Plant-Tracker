@@ -1431,6 +1431,26 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun waterTab_showsDormancyOffEvenWithoutWateringSchedule() {
+        val plant = Plant(id = 133L, name = "Cactus", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Dormancy window"))
+        composeTestRule.onNodeWithContentDescription("Dormancy window").assertIsOff().assertIsDisplayed()
+    }
+
+    @Test
     fun fertilizeTab_showsInlineScheduleControl() {
         // No fertilizing interval → the inline control shows its disabled "Fertilizing reminder" header,
         // which is unique to this control (the Fertilize tab's action button is gated on the interval

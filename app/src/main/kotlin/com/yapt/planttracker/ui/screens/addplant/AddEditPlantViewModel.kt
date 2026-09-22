@@ -71,6 +71,8 @@ class AddEditPlantViewModel(
 
     /** Per-plant opt-out from the seasonal curve (#569) — always surfaced now that seasonal watering ships unconditionally (#656). */
     var pinIntervalToBase by mutableStateOf(false)
+    var dormancyStartMonth by mutableStateOf<Int?>(null)
+    var dormancyEndMonth by mutableStateOf<Int?>(null)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
@@ -113,6 +115,8 @@ class AddEditPlantViewModel(
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
                     pinIntervalToBase = plant.pinIntervalToBase
+                    dormancyStartMonth = plant.dormancyStartMonth
+                    dormancyEndMonth = plant.dormancyEndMonth
                 }
             }
         }
@@ -123,6 +127,15 @@ class AddEditPlantViewModel(
             pendingPhotos.add(uri)
         }
         coverPhotoUri = uri
+    }
+
+    fun setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+        require(
+            (startMonth == null && endMonth == null) ||
+                (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
+        )
+        dormancyStartMonth = startMonth
+        dormancyEndMonth = endMonth
     }
 
     fun save() {
@@ -151,7 +164,9 @@ class AddEditPlantViewModel(
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
                 useLiquidFertilizer = useLiquidFertilizer,
-                pinIntervalToBase = pinIntervalToBase
+                pinIntervalToBase = pinIntervalToBase,
+                dormancyStartMonth = dormancyStartMonth,
+                dormancyEndMonth = dormancyEndMonth
             )
             if (isEditMode) {
                 saveEdit(plant, newWateringIntervalDays, intervalChanged, now)

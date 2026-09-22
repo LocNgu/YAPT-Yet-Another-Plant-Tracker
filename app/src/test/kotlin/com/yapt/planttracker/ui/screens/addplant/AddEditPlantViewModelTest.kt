@@ -131,6 +131,55 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
+    fun `dormancy window loads and wrapping range saves in edit mode`() = runTest {
+        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertEquals(11, vm.dormancyStartMonth)
+        assertEquals(2, vm.dormancyEndMonth)
+        vm.setDormancyWindow(12, 3)
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
+    }
+
+    @Test
+    fun `new plant can save a wrapping dormancy window without a watering schedule`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Cactus"
+        vm.setDormancyWindow(11, 2)
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.addPlant(
+                match {
+                    it.wateringIntervalDays == null && it.dormancyStartMonth == 11 && it.dormancyEndMonth == 2
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `turning dormancy off clears both columns in edit mode`() = runTest {
+        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        vm.setDormancyWindow(null, null)
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+    }
+
+    @Test
     fun `useLiquidFertilizer true saved in new plant mode`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 5L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)

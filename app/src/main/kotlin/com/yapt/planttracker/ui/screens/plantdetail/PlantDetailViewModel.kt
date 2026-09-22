@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 @Suppress("LongParameterList", "TooManyFunctions")
 class PlantDetailViewModel(
@@ -58,6 +59,9 @@ class PlantDetailViewModel(
     internal val database: PlantDatabase,
     internal val wateringAdjustmentRepository: WateringAdjustmentRepository
 ) : ViewModel() {
+
+    /** Serializes inline dormancy writes so rapid month selections commit in tap order. */
+    internal val dormancyEditMutex = Mutex()
 
     /**
      * Raw global amplitude value for the seasonal-curve preview chart (#579) shown alongside the

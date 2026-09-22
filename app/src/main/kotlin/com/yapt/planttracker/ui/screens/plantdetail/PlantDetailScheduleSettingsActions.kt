@@ -7,7 +7,9 @@ import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
 /**
@@ -70,6 +72,29 @@ fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
     viewModelScope.launch {
         plant.value?.let {
             plantRepository.updatePlant(it.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
+        }
+    }
+}
+
+/** Persist a complete window, or clear both columns together, from the Water tab (#762). */
+fun PlantDetailViewModel.setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+    require(
+        (startMonth == null && endMonth == null) ||
+            (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
+    )
+    viewModelScope.launch {
+        dormancyEditMutex.withLock {
+            // Read inside the lock: a previous selection may have committed while the screen's
+            // StateFlow still holds its older Plant snapshot.
+            plantRepository.getPlantById(plantId).first()?.let { current ->
+                plantRepository.updatePlant(
+                    current.copy(
+                        dormancyStartMonth = startMonth,
+                        dormancyEndMonth = endMonth,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+            }
         }
     }
 }

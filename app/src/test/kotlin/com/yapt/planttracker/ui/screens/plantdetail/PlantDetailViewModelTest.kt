@@ -27,7 +27,11 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -196,6 +200,55 @@ class PlantDetailViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == null }) }
+    }
+
+    @Test
+    fun `setDormancyWindow auto persists a wrapping range and clears both months`() = runTest {
+        val current = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        every { plantRepo.getPlantById(1L) } returns flowOf(current)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(current, awaitItem())
+            vm.setDormancyWindow(12, 3)
+            vm.setDormancyWindow(null, null)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `rapid dormancy writes commit in order using the latest stored plant`() = runTest {
+        val initial = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        val stored = MutableStateFlow<Plant?>(initial)
+        val releaseFirstWrite = CompletableDeferred<Unit>()
+        val writes = mutableListOf<Pair<Int?, Int?>>()
+        every { plantRepo.getPlantById(1L) } returns stored
+        coEvery { plantRepo.updatePlant(any()) } coAnswers {
+            val updated = firstArg<Plant>()
+            if (writes.isEmpty()) releaseFirstWrite.await()
+            writes += updated.dormancyStartMonth to updated.dormancyEndMonth
+            stored.value = updated
+        }
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(initial, awaitItem())
+            vm.setDormancyWindow(10, 2)
+            vm.setDormancyWindow(10, 3)
+            assertEquals(initial, stored.value)
+            releaseFirstWrite.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(listOf(10 to 2, 10 to 3), writes)
+            assertEquals(10, stored.value?.dormancyStartMonth)
+            assertEquals(3, stored.value?.dormancyEndMonth)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

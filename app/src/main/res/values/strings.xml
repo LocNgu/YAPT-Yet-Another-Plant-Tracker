@@ -295,6 +295,25 @@
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
+    <string name="dormancy_window_label">Dormancy window</string>
+    <string name="dormancy_window_subtitle">Pause watering reminders during these months</string>
+    <string name="dormancy_start_month">Start</string>
+    <string name="dormancy_end_month">End</string>
+    <string name="dormancy_month_selection_cd">%1$s: %2$s</string>
+    <string-array name="dormancy_months">
+        <item>January</item>
+        <item>February</item>
+        <item>March</item>
+        <item>April</item>
+        <item>May</item>
+        <item>June</item>
+        <item>July</item>
+        <item>August</item>
+        <item>September</item>
+        <item>October</item>
+        <item>November</item>
+        <item>December</item>
+    </string-array>
     <!-- Plant Detail per-action tabs (#436) -->
     <string name="plant_detail_tab_water">Water</string>
     <string name="plant_detail_tab_fertilize">Fertilize</string>
