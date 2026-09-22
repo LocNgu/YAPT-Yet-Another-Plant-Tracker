@@ -7,7 +7,9 @@ import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
 /**
@@ -81,14 +83,18 @@ fun PlantDetailViewModel.setDormancyWindow(startMonth: Int?, endMonth: Int?) {
             (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
     )
     viewModelScope.launch {
-        plant.value?.let {
-            plantRepository.updatePlant(
-                it.copy(
-                    dormancyStartMonth = startMonth,
-                    dormancyEndMonth = endMonth,
-                    updatedAt = System.currentTimeMillis()
+        dormancyEditMutex.withLock {
+            // Read inside the lock: a previous selection may have committed while the screen's
+            // StateFlow still holds its older Plant snapshot.
+            plantRepository.getPlantById(plantId).first()?.let { current ->
+                plantRepository.updatePlant(
+                    current.copy(
+                        dormancyStartMonth = startMonth,
+                        dormancyEndMonth = endMonth,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
-            )
+            }
         }
     }
 }

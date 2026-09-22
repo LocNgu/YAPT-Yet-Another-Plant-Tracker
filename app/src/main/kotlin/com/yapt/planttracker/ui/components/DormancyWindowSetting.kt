@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,8 +33,20 @@ fun DormancyWindowSetting(
     endMonth: Int?,
     onWindowChange: (Int?, Int?) -> Unit
 ) {
-    val enabled = startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12
+    val persistedWindow = startMonth to endMonth
+    // Room may re-emit an earlier selection after the user has already changed the other month.
+    // Keep the most recent complete pair visible until persistence catches up.
+    var pendingWindow by remember { mutableStateOf<Pair<Int?, Int?>?>(null) }
+    LaunchedEffect(persistedWindow) {
+        if (pendingWindow == persistedWindow) pendingWindow = null
+    }
+    val (shownStart, shownEnd) = pendingWindow ?: persistedWindow
+    val enabled = shownStart != null && shownEnd != null && shownStart in 1..12 && shownEnd in 1..12
     val label = stringResource(R.string.dormancy_window_label)
+    fun changeWindow(nextStart: Int?, nextEnd: Int?) {
+        pendingWindow = nextStart to nextEnd
+        onWindowChange(nextStart, nextEnd)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -46,9 +59,9 @@ fun DormancyWindowSetting(
                 onCheckedChange = { on ->
                     if (on) {
                         val month = LocalDate.now().monthValue
-                        onWindowChange(month, month)
+                        changeWindow(month, month)
                     } else {
-                        onWindowChange(null, null)
+                        changeWindow(null, null)
                     }
                 },
                 modifier = Modifier.semantics { contentDescription = label }
@@ -63,14 +76,14 @@ fun DormancyWindowSetting(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MonthDropdown(
                     label = stringResource(R.string.dormancy_start_month),
-                    month = startMonth!!,
-                    onMonthChange = { onWindowChange(it, endMonth) },
+                    month = shownStart!!,
+                    onMonthChange = { changeWindow(it, shownEnd) },
                     modifier = Modifier.weight(1f)
                 )
                 MonthDropdown(
                     label = stringResource(R.string.dormancy_end_month),
-                    month = endMonth!!,
-                    onMonthChange = { onWindowChange(startMonth, it) },
+                    month = shownEnd!!,
+                    onMonthChange = { changeWindow(shownStart, it) },
                     modifier = Modifier.weight(1f)
                 )
             }

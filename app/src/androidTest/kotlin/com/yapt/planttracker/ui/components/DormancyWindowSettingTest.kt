@@ -67,4 +67,33 @@ class DormancyWindowSettingTest {
             assertEquals(3, end)
         }
     }
+
+    @Test
+    fun rapidSelections_keepTheLatestPairWhileParentStillEmitsOlderValues() {
+        var persistedStart by mutableStateOf<Int?>(11)
+        var persistedEnd by mutableStateOf<Int?>(2)
+        val writes = mutableListOf<Pair<Int?, Int?>>()
+        composeTestRule.setContent {
+            DormancyWindowSetting(persistedStart, persistedEnd) { nextStart, nextEnd ->
+                writes += nextStart to nextEnd
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Start: November").performClick()
+        composeTestRule.onNodeWithText("October").performClick()
+        composeTestRule.onNodeWithContentDescription("Start: October").assertExists()
+        composeTestRule.onNodeWithContentDescription("End: February").performClick()
+        composeTestRule.onNodeWithText("March").performClick()
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(10 to 2, 10 to 3), writes)
+            persistedStart = 10
+        }
+        composeTestRule.onNodeWithContentDescription("Start: October").assertExists()
+        composeTestRule.onNodeWithContentDescription("End: March").assertExists()
+
+        composeTestRule.runOnIdle { persistedEnd = 3 }
+        composeTestRule.onNodeWithContentDescription("Start: October").assertExists()
+        composeTestRule.onNodeWithContentDescription("End: March").assertExists()
+    }
 }
