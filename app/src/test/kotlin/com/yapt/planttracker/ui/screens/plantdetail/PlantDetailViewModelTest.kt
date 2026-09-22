@@ -199,6 +199,24 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun `setDormancyWindow auto persists a wrapping range and clears both months`() = runTest {
+        val current = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        every { plantRepo.getPlantById(1L) } returns flowOf(current)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(current, awaitItem())
+            vm.setDormancyWindow(12, 3)
+            vm.setDormancyWindow(null, null)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
+        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+    }
+
+    @Test
     fun `setFertilizingInterval persists the new interval via repo`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)

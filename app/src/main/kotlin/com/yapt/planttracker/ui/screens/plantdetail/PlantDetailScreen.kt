@@ -101,6 +101,7 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
+import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
@@ -754,6 +755,13 @@ fun PlantDetailScreen(
                                                 onCheckedChange = { viewModel.setPinIntervalToBase(it) }
                                             )
                                         }
+                                    }
+                                    DormancyWindowSetting(
+                                        startMonth = plant?.dormancyStartMonth,
+                                        endMonth = plant?.dormancyEndMonth,
+                                        onWindowChange = viewModel::setDormancyWindow
+                                    )
+                                    if (plant?.wateringIntervalDays != null) {
                                         val hemisphere = remember { SeasonalWatering.currentHemisphere() }
                                         SeasonalWateringCurveChart(
                                             amplitude = seasonalAmplitudeValue,
@@ -848,20 +856,22 @@ fun PlantDetailScreen(
                                     ),
                                     onIntervalChange = { viewModel.setFertilizingInterval(it) }
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.liquid_fertilizer_label),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Switch(
-                                            checked = plant?.useLiquidFertilizer == true,
-                                            onCheckedChange = { viewModel.setLiquidFertilizer(it) }
-                                        )
+                                    if (plant?.fertilizingIntervalDays != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.liquid_fertilizer_label),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Switch(
+                                                checked = plant?.useLiquidFertilizer == true,
+                                                onCheckedChange = { viewModel.setLiquidFertilizer(it) }
+                                            )
+                                        }
                                     }
                                 }
                                 Spacer(Modifier.height(16.dp))
@@ -1324,8 +1334,7 @@ private data class IntervalSetting(
  * ADR-0023): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
  * changes through [onIntervalChange] — the day count when enabled/committed, or `null` when the
  * schedule is switched off. The drag persists on release (`onValueChangeFinished`), not per frame.
- * [extra] renders additional rows inside the card when enabled (the liquid-fertilizer toggle on the
- * Fertilize tab).
+ * [extra] renders additional rows inside the card; callers gate rows tied to an enabled schedule.
  */
 @Composable
 private fun InlineIntervalSetting(
@@ -1370,8 +1379,8 @@ private fun InlineIntervalSetting(
                     valueRange = setting.range.first.toFloat()..setting.range.last.toFloat(),
                     steps = setting.range.last - setting.range.first - 1
                 )
-                extra()
             }
+            extra()
         }
     }
 }

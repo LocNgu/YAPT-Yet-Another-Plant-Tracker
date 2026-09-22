@@ -74,6 +74,25 @@ fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
     }
 }
 
+/** Persist a complete window, or clear both columns together, from the Water tab (#762). */
+fun PlantDetailViewModel.setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+    require(
+        (startMonth == null && endMonth == null) ||
+            (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
+    )
+    viewModelScope.launch {
+        plant.value?.let {
+            plantRepository.updatePlant(
+                it.copy(
+                    dormancyStartMonth = startMonth,
+                    dormancyEndMonth = endMonth,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+}
+
 private suspend fun PlantDetailViewModel.deseasonalizedBaseOrNull(intervalDays: Int): Double? {
     val amplitude = dataStore.seasonalAmplitudeOnce()
     if (amplitude == 0.0) return null
