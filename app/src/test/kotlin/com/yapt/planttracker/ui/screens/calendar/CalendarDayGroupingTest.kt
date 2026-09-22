@@ -90,6 +90,22 @@ class CalendarDayGroupingTest {
     }
 
     @Test
+    fun `watering date inside a wrapping dormancy window is absent`() {
+        val wrappingToday = LocalDate.of(2027, 1, 12)
+        val wateringDate = wrappingToday.plusDays(2)
+        val baseStatus = status(nextWateringDueAt = wateringDate)
+        val dormant = baseStatus.copy(
+            plant = baseStatus.plant.copy(dormancyStartMonth = 11, dormancyEndMonth = 2),
+            isDormant = true
+        )
+
+        val entries = computePlantsByDay(listOf(dormant), YearMonth.from(wrappingToday), wrappingToday)
+
+        assertEquals(1, entries.getValue(wrappingToday).dormantPlants.size)
+        assertFalse(entries.containsKey(wateringDate))
+    }
+
+    @Test
     fun `past dormancy watering date rolls overdue after dormancy ends`() {
         val afterDormancy = dormant(
             status(
@@ -135,6 +151,17 @@ class CalendarDayGroupingTest {
         assertTrue(entry.containsOverdue)
         assertFalse(entry.plants[0].waterDue)
         assertTrue(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `overdue fertilizing without a due date remains visible defensively`() {
+        val s = status(nextFertilizingDueAt = null, isFertilizingOverdue = true)
+
+        val entry = computePlantsByDay(listOf(s), visibleMonth, today).getValue(today)
+
+        assertEquals(1, entry.plants.size)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants.single().fertilizeDue)
     }
 
     @Test

@@ -297,6 +297,26 @@ class PlantListItemTest {
     }
 
     @Test
+    fun `plant dormant in a wrapping November to February window gets the dormant bucket`() {
+        val baseStatus = statusWithWateringDueIn(1L, 2L)
+        val wrappingDormant = baseStatus.copy(
+            plant = baseStatus.plant.copy(
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            ),
+            isDormant = true
+        )
+
+        val items = groupPlantsByDueDate(
+            listOf(wrappingDormant),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+
+        assertEquals(listOf(DateBucket.Dormant), headerBuckets(items))
+    }
+
+    @Test
     fun `plant without dormancy keeps its existing watering bucket`() {
         val overdue = statusWithWateringDueIn(1L, -2L)
         val items = groupPlantsByDueDate(

@@ -921,6 +921,40 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun rescheduleDeltaChip_isHiddenDuringDormancy() {
+        val dayInMs = 24 * 60 * 60 * 1000L
+        val currentMonth = LocalDate.now().monthValue
+        val plant = Plant(
+            id = 26L,
+            name = "Dormant Deferred Plant",
+            wateringIntervalDays = 7,
+            wateringDueDateOverride = System.currentTimeMillis() + (3 * dayInMs),
+            dormancyStartMonth = currentMonth,
+            dormancyEndMonth = currentMonth,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription("Reschedule watering"))
+        assertTrue(
+            composeTestRule.onAllNodesWithTag(RESCHEDULE_DELTA_CHIP_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
     fun rescheduleDeltaChip_isHiddenWhenOverrideIsStale() {
         // A past override the schedule has already caught up with and exceeded is not the maxOf()
         // winner (mirrors wateringDueActionsRow_isDisplayedWhenDueSoon's fixture).

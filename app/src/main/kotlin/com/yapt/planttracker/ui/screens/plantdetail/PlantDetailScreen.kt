@@ -700,7 +700,7 @@ fun PlantDetailScreen(
                             careStatus?.let { status ->
                                 item {
                                     if (plant?.wateringIntervalDays != null) {
-                                        status.rescheduleDeltaDays?.let { delta ->
+                                        status.rescheduleDeltaDays?.takeUnless { status.isDormant }?.let { delta ->
                                             RescheduleDeltaChip(
                                                 deltaDays = delta,
                                                 onClick = { viewModel.revertReschedule() },

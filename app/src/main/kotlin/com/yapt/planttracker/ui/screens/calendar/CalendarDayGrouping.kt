@@ -60,7 +60,7 @@ fun computePlantsByDay(
 
         if (landsToday) {
             val waterDue = waterOverdue || (waterDateActive && waterDate == today)
-            val fertilizeDue = fertilizeDate != null && (fertilizeOverdue || fertilizeDate == today)
+            val fertilizeDue = fertilizeOverdue || fertilizeDate == today
             contributions += Contribution(
                 date = today,
                 info = PlantDayInfo(status, waterDue, fertilizeDue, status.isDormant),
