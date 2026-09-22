@@ -110,6 +110,33 @@ copy of the same bug). Pinned plants and amplitude-Off plants are unaffected —
 literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
 schema change.
 
+**Two of those three gates have since been merged; the third has not.** #780 (technical ADR-0030)
+consolidated the `QuickLogUseCase` and `AddCareLogViewModel` copies into `AdaptiveWateringObservation`,
+which now owns the comparison for both callers. `PlantDetailViewModel.pendingWateringSuggestion` is
+**still an independent copy** — it does its own live-to-live `combine` over
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` and never routes through
+`AdaptiveWateringObservation` or `QuickLogUseCase.computeSuggestion()`. Correct today, but it means a
+future fix to the suggestion gate has **two** places to land, not one, and the shared path is not the
+whole story.
+
+**The trap outlives the fix.** #716 closed the three gates that had it, but the underlying shape is
+structural: there are two interval numbers, `Plant.wateringBaseIntervalDays` (season-neutral, `REAL`,
+what the model reasons about) and `Plant.wateringIntervalDays` (effective, `Int`, what the UI shows),
+and the second is only rewritten on the four discrete events listed above while the curve keeps moving
+between them. Any *new* code that reads `Plant.wateringIntervalDays` as a stand-in for "today's
+effective interval" reintroduces the same class of bug. Read it through
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` instead, and when code compares "the interval"
+against anything, say which of the two numbers it means. Two settled points, both re-argued more than
+once already: `wateringIntervalDays` is **effective-space at every read site** (#620/#626/#644 landed on
+this three separate times — don't re-litigate it), and `wateringBaseIntervalDays` is **deliberately
+unrounded at rest** — don't "tidy" it to an `Int`.
+
+**The drift the user experiences is stepped, not smooth.** The curve itself is continuous, but the
+*displayed* effective interval only moves when `base × season(today)` crosses a whole-day rounding
+boundary — so a spurious dialog arrived in bursts near particular dates rather than creeping in. Those
+dates are where the curve is steepest, a quarter-period from its day-5 peak: around **Apr 6 and Oct 6**,
+not the equinoxes.
+
 **"Today's date" needed its own follow-up fix (#716 review round 1).** The two live values above must
 both be evaluated at real wall-clock *today*, not at a backdated (#654) observation's own `loggedAt` —
 a second, narrower bug found after this fix's first round landed. See

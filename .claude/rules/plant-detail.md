@@ -383,9 +383,9 @@ preview, leaving Today/+1/+2/+3/Custom date as the full option set.
 **The two-anchor confusion this file used to document under "#719" is resolved by #738, not by
 patching it.** The removed "(suggested)" row's from-today anchor and `confirmRescheduleRelativeDays()`'s
 due-date anchor only ever needed reconciling because that row existed; removing it removes the second
-anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. See
-`.claude/rules/adaptive-watering-cluster.md` for the fuller history of that anchor pair and how it
-interacted with #719/#720.
+anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. #719
+(which had fixed the from-today row on its own anchor) is superseded rather than reverted; the history
+of that anchor pair is in #719/#720/#738 and their PRs.
 
 The remaining `+1/+2/+3` labels were still unclear about their due-date anchor (#737). The dialog
 shows `+N days · <date>` using `DateUtils.formatDate()` and passes the same calculated timestamp to
@@ -423,7 +423,9 @@ Today/+1/+2/+3 need no such gate — they anchor to `maxOf(nextWateringDueAt, no
 forward time, so they cannot produce an ineffective date by construction; only the free-form custom date
 can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
 this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
-which product ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A related, separate bug in the
+which product ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A reschedule can therefore
+only ever push a plant **later**; there is deliberately no way to express "come back sooner", and that is
+an invariant rather than a gap awaiting a fix. A related, separate bug in the
 "Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which could be `false` in a
 state where tapping Today would actually pull the due date in) was out of scope here and filed
 separately as #746 — now fixed, see "Today button's own gate (#746)" below.

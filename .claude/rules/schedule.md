@@ -77,6 +77,25 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
   therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
   rather than reverse-converting its rounded effective display value.
+  The model is `Double` end to end: the `Double` overload of this function is the real one (the `Int` overload
+  only widens via `.toDouble()`), `clampStep()` returns an unrounded `Double`, and the one rounding inside is
+  `newBase.roundToInt()` populating the display-facing `AdaptiveInterval.intervalDays`. Write paths persist
+  `baseIntervalDays`, never that rounded sibling — don't route the persisted base through an `Int`. Rounding a
+  base is safe only for display, and the *round-trip* is what makes it unsafe: deriving a base back **from** a
+  rounded effective value divides the ±0.5-day residual by `season(today)`, amplifying it by `1/season` —
+  ±0.77 days at the July trough on the default `STANDARD` amplitude (0.35) and a full ±1.0 on `STRONG` (0.5),
+  and worst in the growing season rather than winter, since a factor below 1 magnifies rather than shrinks.
+  That is the bug #718 fixed, and it is a different thing from the accepted whole-day *display* artifact noted
+  on the clamp bullet above. Retaining sub-day precision is also what makes a
+  capped-gain neutral correction able to move a short interval at all: at `NEUTRAL_OBSERVATION_GAIN` = 0.15, a
+  whole-day move needs `0.15 × |observed − base| >= 0.5`, i.e. an *integer* gap difference of 4, and `4 <= 0.15
+  × base` needs `base >= 27` (the two `0.15`s there are *different* constants — `NEUTRAL_OBSERVATION_GAIN`
+  for the gain and `GAP_AGREEMENT_TOLERANCE` for the exclusion bound — which happen to be equal today, so the
+  threshold moves if either is ever tuned alone) — so before #717/#718, when the sub-day result was
+  discarded, every base of 26 days or less was a dead zone a neutral observation could never move.
+  (Neutral here is the null-feedback, *on-schedule* case at the capped gain — an unattributed
+  *off-schedule* observation is a different rule and gets gain 0.0 outright, per #586/product ADR-0030
+  below.)
 - **The suggestion-dialog gate compares live effective values, never the stale `Plant.wateringIntervalDays`
   literal (#716)** — see `.claude/rules/seasonal-watering.md`'s "#716" note for the full rule; this bullet is
   just the pointer, since the fix lives in the seasonal-conversion file, not here.

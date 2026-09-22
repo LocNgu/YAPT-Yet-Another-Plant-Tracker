@@ -119,7 +119,6 @@ via the commands people actually reach for (technical ADR-0025).
 | Merging PRs by any means | **Forbidden** — human only |
 
 ## Pointers (load on demand — path-scoped rules load only when you touch matching files)
-- `.claude/rules/adaptive-watering-cluster.md` — **open** defect cluster #714–#720 (tracked by #722): shared model, invariants, fix interactions. Read before touching the adaptive-watering/reschedule path; delete when #722 closes.
 - `.claude/rules/schedule.md` — CareSchedule status + adaptive-interval rules
 - `.claude/rules/seasonal-watering.md` — computed seasonal watering curve, hemisphere, base interval, pin
 - `.claude/rules/watering-transparency.md` — "Why this date?" sheet, `watering_adjustments` table, ask-before-changing-intervals toggle
