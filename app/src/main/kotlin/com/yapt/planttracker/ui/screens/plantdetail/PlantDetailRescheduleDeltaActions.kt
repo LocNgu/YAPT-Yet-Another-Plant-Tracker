@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
  * The "Rescheduled +N days" chip's tap-to-revert action (#630) — clears
  * `Plant.wateringDueDateOverride`, restoring the schedule-computed due date immediately. A plain
  * override-only write, same posture `applyReschedule` (`PlantDetailRescheduleActions.kt`) already
- * keeps for "I can't right now" (product ADR-0029/ADR-0030): never touches
+ * keeps for "I can't right now" (product ADR-0029 and product ADR-0030): never touches
  * `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence`, never a
  * `WateringAdjustment` row. No confirmation dialog per spec — the Snackbar/Undo pair is the only
  * safety net, mirroring `applySuggestionOrPrompt`'s silent-apply flow. `Event.RescheduleReverted`

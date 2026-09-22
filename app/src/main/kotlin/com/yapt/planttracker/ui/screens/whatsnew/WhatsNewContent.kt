@@ -14,6 +14,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
+            "Watering logs now use the same adaptive schedule logic whether you use a quick action or " +
+                "the full Add Care Log form; this keeps their existing behavior consistent",
             "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
                 "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
                 "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
@@ -28,6 +30,8 @@ object WhatsNewContent {
                 "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
+            "A late watering marked \"Soil was still moist\" in Add Care Log can no longer shorten " +
+                "a plant's watering interval when its schedule first learns from history or learns again after a reset",
             "Reschedule watering now shows the date each +N-day choice will set, so you " +
                 "can see exactly when the next reminder is due",
             "Retyping a watering suggestion after logging an earlier watering now uses today's season " +

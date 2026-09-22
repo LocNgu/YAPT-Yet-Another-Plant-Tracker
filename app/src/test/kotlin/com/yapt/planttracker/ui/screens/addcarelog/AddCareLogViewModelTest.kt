@@ -138,17 +138,19 @@ class AddCareLogViewModelTest {
 
     @Test
     fun `save WATER log with JUST_RIGHT feedback emits Saved with suggested interval when gap differs from stored`() = runTest {
-        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        val observedAt = localDateUtcMillis(2026, 1, 15)
+        val sevenDaysAgo = localDateUtcMillis(2026, 1, 8)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
+            waterLog(loggedAt = observedAt),
             waterLog(loggedAt = sevenDaysAgo)
         )
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = observedAt
 
         vm.events.test {
             vm.saveLog()
@@ -158,6 +160,7 @@ class AddCareLogViewModelTest {
             assertEquals(10, event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
+        coVerify { plantRepo.updatePlant(match { it.updatedAt == observedAt }) }
     }
 
     @Test
@@ -357,6 +360,79 @@ class AddCareLogViewModelTest {
                         it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT
                 }
             )
+        }
+    }
+
+    @Test
+    fun `form bootstrap with TOO_SOON feedback does not shorten the prior interval`() = runTest {
+        val observedAt = localDateUtcMillis(2026, 1, 13)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(observedAt),
+            waterLog(localDateUtcMillis(2026, 1, 10))
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(1, 4, 7, 10, 13)
+            .map { localDateUtcMillis(2026, 1, it) }
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.TOO_SOON
+        vm.loggedAt = observedAt
+
+        vm.events.test {
+            vm.saveLog()
+            assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringBaseIntervalDays == 14.0 && it.wateringIntervalDays == 14 && it.wateringConfidence == 1
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `form bootstrap keeps dormancy provenance and does not decrement the new confidence`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val neverAdapted = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = null,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+            dormantPlant = neverAdapted,
+            lastTwoWaterings = listOf(waterLog(loggedAt = marchFirst), waterLog(loggedAt = octoberTwentyFifth)),
+            predecessorLoggedAt = octoberTwentyFifth,
+            marchFirst = marchFirst
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+            localDateUtcMillis(2026, 6, 1),
+            localDateUtcMillis(2026, 6, 8),
+            localDateUtcMillis(2026, 6, 15),
+            localDateUtcMillis(2026, 6, 22),
+            localDateUtcMillis(2026, 6, 29)
+        )
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP })
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
+        }
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
         }
     }
 
@@ -670,6 +746,8 @@ class AddCareLogViewModelTest {
     @Test
     fun `edit mode WATER save skips suggestion and post-watering reminder`() = runTest {
         val scheduled = mutableListOf<Long>()
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.getLastWateringBefore(1L, any(), 99L) } returns null
         val existingLog = CareLog(
             id = 99L,
             plantId = 1L,
@@ -696,6 +774,7 @@ class AddCareLogViewModelTest {
         }
 
         assertTrue(scheduled.isEmpty())
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test

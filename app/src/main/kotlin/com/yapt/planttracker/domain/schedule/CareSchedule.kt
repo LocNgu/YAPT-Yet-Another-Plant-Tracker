@@ -435,12 +435,12 @@ object CareSchedule {
      * before [Plant.wateringFreezeUntil] elapses, forcing the same exclusion treatment #586 already
      * gives an unattributed off-schedule observation (gain 0, [AdaptiveInterval.excludedFromBaseLearning]
      * set) — reusing that mechanism rather than inventing a second one. Confidence is **not** separately
-     * suppressed while frozen, for the same reason ADR-0030 gives: it is evidence about the schedule
+     * suppressed while frozen, for the same reason product ADR-0030 gives: it is evidence about the schedule
      * regardless of why an observation is excluded from `base`. Defaults `false` so every existing call
      * site/test is unaffected.
      *
      * [suppressConfidenceTransition] (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-b)
-     * is a **genuinely different case from [frozen], not a variant of it.** ADR-0030's reasoning for
+     * is a **genuinely different case from [frozen], not a variant of it.** product ADR-0030's reasoning for
      * leaving confidence unsuppressed while `frozen`/excluded is that confidence is evidence about the
      * schedule *regardless of why the base was excluded* — a REPOT-frozen or unattributed observation
      * still measured something real, even if the model chose not to trust it for `base`. A dormancy-

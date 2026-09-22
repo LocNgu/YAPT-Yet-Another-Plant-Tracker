@@ -48,7 +48,7 @@ enum class WateringReason {
      * schema-free.
      *
      * [SOIL_STILL_MOIST] maps to [WateringFeedback.TOO_SOON] (#649, product ADR-0033, amending
-     * ADR-0030's "TOO_SOON becomes structurally impossible on a WATER log" — that no longer holds:
+     * product ADR-0030's "TOO_SOON becomes structurally impossible on a WATER log" — that no longer holds:
      * TOO_SOON is now reachable on a WATER log via this value).
      */
     fun toWateringFeedback(): WateringFeedback? = when (this) {

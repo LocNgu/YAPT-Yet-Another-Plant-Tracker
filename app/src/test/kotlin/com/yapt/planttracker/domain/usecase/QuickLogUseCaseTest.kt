@@ -158,7 +158,7 @@ class QuickLogUseCaseTest {
                 match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
             )
         }
-        // ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
+        // product ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
         // never asked why they watered, so nothing is attributed.
         coVerify {
             careLogRepo.addLog(
@@ -485,7 +485,7 @@ class QuickLogUseCaseTest {
                 match { it.careType == CareType.FERTILIZE && it.fertilizerType == FertilizerType.LIQUID }
             )
         }
-        // ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
+        // product ADR-0030: the paired WATER of a liquid fertilizing is a silent writer — the user was
         // never asked why they watered, so nothing is attributed.
         coVerify {
             careLogRepo.addLog(

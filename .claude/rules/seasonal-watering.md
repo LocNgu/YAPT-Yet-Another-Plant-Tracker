@@ -70,14 +70,14 @@ doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab) both surfa
 `Switch` bound to `pinIntervalToBase`, always visible.
 
 ## Interaction with Part 1's adaptive model (#568, amended #572)
-`AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into
+`AdaptiveWateringObservation` de-seasonalizes the *observed gap* for both callers before feeding it into
 `CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per product ADR-0026's
 "Interaction with Part 1" consequence — so a seasonal swing isn't misread as a permanent change in the
 plant's thirst. The legacy pre-#568 `computeSuggestedInterval()` ±1-day path is untouched (matching
 Part 1's own precedent of leaving that path alone).
 
 `currentBaseIntervalDays` no longer stays `Plant.wateringIntervalDays` unconditionally (that was a bug,
-fixed in #572/product ADR-0028): each of `QuickLogUseCase`/`AddCareLogViewModel`'s private
+fixed in #572/product ADR-0028): the shared `AdaptiveWateringObservation`
 `currentAdaptiveBaseIntervalDays(plant, configuredIntervalDays)` helper reads season-neutral
 `Plant.wateringBaseIntervalDays` instead, whenever amplitude isn't Off and the plant isn't
 pinned — otherwise (amplitude Off, or pinned) it's unchanged, `configuredIntervalDays`

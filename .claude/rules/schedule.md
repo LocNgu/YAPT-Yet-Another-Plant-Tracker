@@ -95,7 +95,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `isWateringOnSchedule` is false, and it selects the reason prompt's late wording ("Why was it late?" /
   "It was dry by then" / "Forgot, or no time") over the early one ("Why now?" / "The plant needed it" /
   "Just my schedule"). Same two bits in either direction — about the plant, or about you — so this is
-  wording only and ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
+  wording only and product ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
   gap-vs-effective-interval comparison as `isWateringOnSchedule`, **never** from `isOverdue`: the latter
   measures against the due date, which a `wateringDueDateOverride` moves, so a deferred plant can be
   not-overdue while its gap has still run long.
@@ -125,7 +125,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   pre-bootstrap interval unchanged so the product ADR-0006 suggestion dialog never re-surfaces a value the
   bootstrap already silently committed.
 - **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027) no longer feeds this function at all
-  (#738, product ADR-0039, superseding ADR-0030's Reschedule-flow clause) — a reschedule writes only
+  (#738, product ADR-0039, superseding product ADR-0030's Reschedule-flow clause) — a reschedule writes only
   `Plant.wateringDueDateOverride` and asks no reason prompt. `QuickLogUseCase.recordStillMoistCheck()`,
   `recordStillMoistAdaptiveObservation()`, `computeStillMoistAdaptiveInterval()`, and
   `suggestedStillMoistDeferralDays()` are all deleted; the reschedule write path is
