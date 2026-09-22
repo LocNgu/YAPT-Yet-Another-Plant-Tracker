@@ -58,10 +58,15 @@ fun groupPlantsByDueDate(
     val nowDate = now.toLocalDate()
     val buckets = LinkedHashMap<DateBucket, MutableList<PlantCareStatus>>()
     for (status in statuses) {
-        val bucket = if (sortOption != SortOption.FERTILIZING_DUE && status.isDormant) {
+        val dueAt = dueAtOf(status)
+        val bucket = if (
+            sortOption != SortOption.FERTILIZING_DUE &&
+            status.isDormant &&
+            dueAt != null
+        ) {
             DateBucket.Dormant
         } else {
-            bucketFor(dueAtOf(status), nowDate)
+            bucketFor(dueAt, nowDate)
         }
         buckets.getOrPut(bucket) { mutableListOf() }.add(status)
     }

@@ -306,6 +306,19 @@ class PlantListItemTest {
         )
         assertEquals(listOf(DateBucket.Overdue), headerBuckets(items))
     }
+
+    @Test
+    fun `dormant plant without watering schedule remains not scheduled`() {
+        val intervalLess = statusWithWateringDueIn(1L, null).copy(isDormant = true)
+
+        val items = groupPlantsByDueDate(
+            listOf(intervalLess),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+
+        assertEquals(listOf(DateBucket.NotScheduled), headerBuckets(items))
+    }
 }
 
 private fun Long.toLocalDateEpochDay(): Long =

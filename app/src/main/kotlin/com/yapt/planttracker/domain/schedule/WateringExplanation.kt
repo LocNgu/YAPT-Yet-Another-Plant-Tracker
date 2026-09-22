@@ -23,6 +23,8 @@ data class WateringExplanation(
     /** Raw 0-5 dot count backing [confidenceLevel]'s decorative dots — `0` when never adapted. */
     val confidenceScore: Int = 0,
     val recentAdjustments: List<WateringAdjustment> = emptyList(),
+    /** Whether the plant has a configured window, including after it exits dormancy. */
+    val hasDormancyWindow: Boolean = false,
     /** The current schedule is suspended; [nextWateringDueAt] remains stored for when dormancy ends. */
     val isDormant: Boolean = false,
     /**
@@ -116,6 +118,7 @@ object WateringExplanationBuilder {
             confidenceLevel = WateringConfidenceLevel.fromScore(plant.wateringConfidence),
             confidenceScore = plant.wateringConfidence ?: 0,
             recentAdjustments = recentAdjustments,
+            hasDormancyWindow = plant.dormancyStartMonth != null && plant.dormancyEndMonth != null,
             isDormant = isDormant,
             rescheduleDeltaDays = rescheduleDeltaDays
         )

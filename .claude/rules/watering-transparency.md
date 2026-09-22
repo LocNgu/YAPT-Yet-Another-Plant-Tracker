@@ -19,7 +19,9 @@ paths:
 the sheet says the watering schedule is suspended in place of the stored next due date and hides the
 effective-interval and reschedule rows that would imply an active schedule. Base, season, last-watered,
 confidence, and Recent adjustments remain visible. `DORMANCY_EXCLUDED` and `DORMANCY_EXIT` use their
-existing `WateringAdjustmentTrigger.labelRes()` labels in Recent adjustments.
+existing `WateringAdjustmentTrigger.labelRes()` labels in Recent adjustments. A configured dormancy
+window makes the sheet fully expanded with a bounded inner scroll, so those rows remain reachable on
+short viewports without changing the sheet posture for plants that have no dormancy window.
 
 ## Bug fix that gates everything else (also #572)
 `PlantDetailViewModel.applySuggestedInterval()` (the product ADR-0006 dialog's Apply button — the only place

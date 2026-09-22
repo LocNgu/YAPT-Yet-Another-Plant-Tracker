@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +41,17 @@ import com.yapt.planttracker.util.DateUtils
 fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState()
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = explanation.hasDormancyWindow)
     ) {
+        val scrollModifier = if (explanation.hasDormancyWindow) {
+            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+        } else {
+            Modifier
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(scrollModifier)
                 .testTag("watering_explanation_sheet")
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
         ) {

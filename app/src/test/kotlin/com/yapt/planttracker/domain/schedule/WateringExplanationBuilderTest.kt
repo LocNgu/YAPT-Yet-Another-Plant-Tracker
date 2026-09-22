@@ -70,6 +70,7 @@ class WateringExplanationBuilderTest {
         )
         assertNotNull(explanation)
         assertEquals(10, explanation!!.effectiveIntervalDays)
+        assertFalse(explanation.hasDormancyWindow)
         assertFalse(explanation.isDormant)
         assertEquals(10, explanation.baseIntervalDays)
         assertNull(explanation.season)
@@ -214,7 +215,7 @@ class WateringExplanationBuilderTest {
             )
         )
         val explanation = WateringExplanationBuilder.build(
-            plant = plantWith(),
+            plant = plantWith().copy(dormancyStartMonth = 11, dormancyEndMonth = 2),
             nextWateringDueAt = now,
             lastWateredAt = now,
             waterLogCount = 2,
@@ -225,6 +226,7 @@ class WateringExplanationBuilderTest {
         )!!
 
         assertTrue(explanation.isDormant)
+        assertTrue(explanation.hasDormancyWindow)
         assertEquals(now, explanation.nextWateringDueAt)
         assertEquals(adjustments, explanation.recentAdjustments)
     }

@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
@@ -28,6 +29,7 @@ class WateringExplanationSheetTest {
             waterLogCount = 2,
             baseIntervalDays = 7,
             confidenceLevel = WateringConfidenceLevel.GETTING_THERE,
+            hasDormancyWindow = true,
             isDormant = true,
             recentAdjustments = listOf(
                 WateringAdjustment(
@@ -50,7 +52,9 @@ class WateringExplanationSheetTest {
         composeTestRule.setContent { WateringExplanationSheet(explanation, onDismiss = {}) }
 
         composeTestRule.onNodeWithText("Suspended during dormancy").assertIsDisplayed()
+        composeTestRule.onNodeWithText("dormant — not counted").performScrollTo()
         composeTestRule.onNodeWithText("dormant — not counted").assertIsDisplayed()
+        composeTestRule.onNodeWithText("left dormancy").performScrollTo()
         composeTestRule.onNodeWithText("left dormancy").assertIsDisplayed()
         composeTestRule.onNodeWithText("Watering every 7 days").assertDoesNotExist()
     }
