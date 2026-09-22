@@ -39,7 +39,7 @@ The setting round-trips through backup schema v16 and defaults on for older back
 
 The reminder uses the existing plant-care notification channel and reserved notification ID `-2`,
 distinct from per-plant positive IDs and the combined daily reminder's `-1`. WorkManager persists the
-one-time request through process death and reboot. Technical ADR-0025 covers coexistence with daily
+one-time request through process death and reboot. Technical ADR-0026 covers coexistence with daily
 notification cleanup. This decision complements ADR-0020's combined daily reminders; the two
 coalescing policies remain independent.
 

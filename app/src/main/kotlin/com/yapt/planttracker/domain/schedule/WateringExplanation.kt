@@ -23,6 +23,10 @@ data class WateringExplanation(
     /** Raw 0-5 dot count backing [confidenceLevel]'s decorative dots — `0` when never adapted. */
     val confidenceScore: Int = 0,
     val recentAdjustments: List<WateringAdjustment> = emptyList(),
+    /** Whether the plant has a configured window, including after it exits dormancy. */
+    val hasDormancyWindow: Boolean = false,
+    /** The current schedule is suspended; [nextWateringDueAt] remains stored for when dormancy ends. */
+    val isDormant: Boolean = false,
     /**
      * Display-only mirror of [com.yapt.planttracker.domain.model.PlantCareStatus.rescheduleDeltaDays]
      * (#630) — the sheet's matching read-only row for the "Rescheduled +N days" chip, taken as-is from
@@ -87,7 +91,8 @@ object WateringExplanationBuilder {
         recentAdjustments: List<WateringAdjustment>,
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
         now: Long = System.currentTimeMillis(),
-        rescheduleDeltaDays: Int? = null
+        rescheduleDeltaDays: Int? = null,
+        isDormant: Boolean = false
     ): WateringExplanation? {
         val nowDate = now.toLocalDate()
         val effectiveIntervalDays = plant.wateringIntervalDays?.let {
@@ -113,6 +118,8 @@ object WateringExplanationBuilder {
             confidenceLevel = WateringConfidenceLevel.fromScore(plant.wateringConfidence),
             confidenceScore = plant.wateringConfidence ?: 0,
             recentAdjustments = recentAdjustments,
+            hasDormancyWindow = plant.dormancyStartMonth != null && plant.dormancyEndMonth != null,
+            isDormant = isDormant,
             rescheduleDeltaDays = rescheduleDeltaDays
         )
     }

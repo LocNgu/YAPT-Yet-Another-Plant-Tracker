@@ -75,7 +75,9 @@ class CalendarViewModel(
         plantsByDay,
         _selectedDay
     ) { byDay, day ->
-        day?.let { byDay[it]?.plants } ?: emptyList()
+        day?.let { selected ->
+            byDay[selected]?.let { it.plants + it.dormantPlants }
+        } ?: emptyList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _quickLogEvent = MutableSharedFlow<String>()
@@ -162,7 +164,7 @@ class CalendarViewModel(
     }
 
     /**
-     * Applying the ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
+     * Applying the product ADR-0006 suggestion dialog. [suggestedIntervalDays] is the interval that was
      * originally suggested (before any retyping) — still base-space. [newInterval] is effective-space
      * (#644) — `CalendarScreen`'s editable field is pre-filled from and submits
      * `QuickWaterSuggestion.suggestedIntervalEffective`, matching the dialog's "Suggested: N days"
@@ -173,16 +175,26 @@ class CalendarViewModel(
      * screen carrying its own copy of the math. Calendar has no silent-apply/undo equivalent, so the
      * result is intentionally not surfaced further — the dialog itself is dismissed by the caller.
      */
-    fun applySuggestedInterval(plantId: Long, suggestedIntervalDays: Int, newInterval: Int) {
+    fun applySuggestedInterval(
+        plantId: Long,
+        suggestedIntervalDays: Int,
+        newInterval: Int,
+        suggestedBaseInterval: Double?
+    ) {
         viewModelScope.launch {
             plantRepository.getPlantById(plantId).first()?.let { p ->
-                quickLogUseCase.applyWateringIntervalSuggestion(p, suggestedIntervalDays, newInterval)
+                quickLogUseCase.applyWateringIntervalSuggestion(
+                    p,
+                    suggestedIntervalDays,
+                    newInterval,
+                    suggestedBaseInterval
+                )
             }
         }
     }
 
     /**
-     * Dismissing the ADR-0006 suggestion dialog without applying. Delegates to
+     * Dismissing the product ADR-0006 suggestion dialog without applying. Delegates to
      * [QuickLogUseCase.recordWateringSuggestionDismissal] (#674) — the same choke point
      * [com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel.dismissSuggestedInterval]
      * uses — so the confidence bump and the matching [com.yapt.planttracker.domain.model

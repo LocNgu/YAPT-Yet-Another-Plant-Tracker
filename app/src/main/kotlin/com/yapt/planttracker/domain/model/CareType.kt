@@ -11,12 +11,13 @@ enum class CareType {
     CUSTOM,
 
     /**
-     * A "Still moist" observation from the check-reminders notification action (#570) — the
-     * user checked the soil and did *not* water. Always carries
-     * [com.yapt.planttracker.domain.model.WateringFeedback.TOO_SOON] as its [CareLog.wateringFeedback];
-     * reuses the existing care-log pipeline rather than a new table (see product ADR-0027). Never
-     * offered as a manually-loggable type on [com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen]
-     * — it is only ever written by [com.yapt.planttracker.domain.usecase.QuickLogUseCase.recordStillMoistCheck].
+     * A "Still moist" observation from the (now-removed) check-reminders notification action
+     * (#570) and, later, the Reschedule reason prompt — the user checked the soil and did *not*
+     * water. **Retained for historical data only (#738, product ADR-0039): no longer written by
+     * any code path.** Existing installs and `.yapt` backups carry rows with this value, persisted
+     * as a String and read back via `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)` —
+     * removing this constant would make those rows silently coerce to the wrong fallback. Hidden
+     * from Plant Detail's care-history list (a display filter) but never deleted.
      */
     CHECK
 }

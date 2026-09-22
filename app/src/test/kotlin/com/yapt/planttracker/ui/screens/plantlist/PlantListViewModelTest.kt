@@ -940,7 +940,14 @@ class PlantListViewModelTest {
             QuickLogUseCase.QuickLogOutcome(
                 message = "Watered Monstera",
                 logged = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 4, suggestedIntervalEffective = 5)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 4,
+                    suggestedIntervalEffective = 5,
+                    suggestedBaseInterval = 4.0,
+                    currentIntervalEffective = 7
+                )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -1035,7 +1042,14 @@ class PlantListViewModelTest {
                 message = "Watered and fertilized Monstera",
                 logged = true,
                 waterPaired = true,
-                suggestion = QuickWaterSuggestion(plantId = 1L, plantName = "Monstera", suggestedInterval = 8, suggestedIntervalEffective = 8)
+                suggestion = QuickWaterSuggestion(
+                    plantId = 1L,
+                    plantName = "Monstera",
+                    suggestedInterval = 8,
+                    suggestedIntervalEffective = 8,
+                    suggestedBaseInterval = 8.0,
+                    currentIntervalEffective = 7
+                )
             )
         vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
 
@@ -1416,7 +1430,7 @@ class PlantListViewModelTest {
     }
 
     // dismissSuggestedIntervalFromList/applySuggestedIntervalFromList are thin delegations to
-    // QuickLogUseCase's shared functions so the ADR-0006 dialog has the same confidence effect (and,
+    // QuickLogUseCase's shared functions so the product ADR-0006 dialog has the same confidence effect (and,
     // for dismissal, the same WateringAdjustment row, #674) regardless of which of the three screens it
     // was shown from. Write-path math-correctness coverage lives in QuickLogUseCaseIntervalApplyTest
     // (#631) and QuickLogUseCaseDismissalTest (#674), directly against QuickLogUseCase.
@@ -1428,7 +1442,7 @@ class PlantListViewModelTest {
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
             every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-            coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) } returns
+            coEvery { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) } returns
                 QuickLogUseCase.IntervalApplyResult(
                     previousEffectiveIntervalDays = 7,
                     previousBaseIntervalDays = null,
@@ -1444,10 +1458,15 @@ class PlantListViewModelTest {
                 plantIssueRepo
             )
 
-            vm.applySuggestedIntervalFromList(1L, suggestedIntervalDays = 10, newInterval = 10)
+            vm.applySuggestedIntervalFromList(
+                1L,
+                suggestedIntervalDays = 10,
+                newInterval = 10,
+                suggestedBaseInterval = null
+            )
             advanceUntilIdle()
 
-            coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10) }
+            coVerify { quickLogUseCase.applyWateringIntervalSuggestion(monstera, 10, 10, null) }
         }
 
     @Test

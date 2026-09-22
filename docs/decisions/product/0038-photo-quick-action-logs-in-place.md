@@ -1,4 +1,4 @@
-# ADR-0038: Photo quick action logs in place
+# Product ADR-0038: Photo quick action logs in place
 
 **Status**: accepted
 

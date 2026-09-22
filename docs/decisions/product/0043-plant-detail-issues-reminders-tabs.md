@@ -1,4 +1,4 @@
-# ADR-0030: Custom Reminders and Active Issues become their own Plant Detail tabs, with a collapsible tab row
+# Product ADR-0043: Custom Reminders and Active Issues become their own Plant Detail tabs, with a collapsible tab row
 
 **Status**: accepted
 
@@ -75,6 +75,6 @@ gallery. No new flag — this is additive UI inside the strip `PLANT_DETAIL_TABS
 - This does **not** supersede technical ADR-0019 or ADR-0020 — those describe the child-table/repository
   architecture behind custom reminders and plant issues, which is untouched. This ADR is purely about
   *where* their cards render, the same kind of UI-placement decision as product ADR-0023.
-- Per ADR-0022's flag-lifecycle rule, when `PLANT_DETAIL_TABS` eventually graduates, the classic-layout
+- Per product ADR-0042's flag-lifecycle rule, when `PLANT_DETAIL_TABS` eventually graduates, the classic-layout
   branch (and its now-duplicated always-visible `CustomRemindersCard`/`PlantIssuesCard` rendering) is
   deleted in that same graduating PR, leaving the tab-strip version as the only layout.

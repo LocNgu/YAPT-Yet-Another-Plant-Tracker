@@ -1,4 +1,4 @@
-# ADR-0008: Custom ProGuard rules to preserve Room DAOs and WorkManager workers
+# Technical ADR-0008: Custom ProGuard rules to preserve Room DAOs and WorkManager workers
 
 **Status**: accepted
 

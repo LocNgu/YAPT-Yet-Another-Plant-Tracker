@@ -1,4 +1,4 @@
-# ADR-0007: Unique notification IDs per plant with cancelAll before re-posting
+# Technical ADR-0007: Unique notification IDs per plant with cancelAll before re-posting
 
 **Status**: superseded by [ADR-0026](0026-selective-daily-notification-cleanup.md)
 

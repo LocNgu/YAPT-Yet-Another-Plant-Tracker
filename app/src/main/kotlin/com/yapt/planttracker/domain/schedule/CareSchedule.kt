@@ -49,9 +49,13 @@ object CareSchedule {
             (now - it) / ONE_DAY_MS
         }
         val nowDate = now.toLocalDate()
+        // #699/#760 (product ADR-0044): evaluated once, right alongside nowDate, so every downstream
+        // consumer of PlantCareStatus inherits suppression through isOverdue/isDueSoon rather than
+        // calling DormancyWindow itself.
+        val isDormant = DormancyWindow.isDormant(nowDate.monthValue, plant.dormancyStartMonth, plant.dormancyEndMonth)
 
         val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
-        val (nextDueAt, isOverdue, isDueSoon) = wateringDue.dueStatus
+        val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
         val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
@@ -68,6 +72,15 @@ object CareSchedule {
             effectiveIntervalDays = effectiveWateringDays,
             now = now
         )
+        // #761 (product ADR-0044): distinct from isDormant above — "did dormancy happen anywhere
+        // between the last watering and now?", not "is the current month dormant?". `false` with no
+        // prior watering, mirroring isWateringOnSchedule's own "nothing to gate" convention.
+        val gapDormancySpanning = lastWateredAt != null && DormancyWindow.spansDormancy(
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth,
+            lastWateredAt,
+            now
+        )
 
         return PlantCareStatus(
             plant = plant,
@@ -75,8 +88,8 @@ object CareSchedule {
             lastFertilizedAt = lastFertilizedAt,
             daysSinceLastWatering = daysSinceWatering,
             nextWateringDueAt = nextDueAt,
-            isOverdue = isOverdue,
-            isDueSoon = isDueSoon,
+            isOverdue = wateringOverdue && !isDormant,
+            isDueSoon = wateringDueSoon && !isDormant,
             nextFertilizingDueAt = nextFertilizingDueAt,
             isFertilizingOverdue = isFertilizingOverdue,
             isFertilizingDueSoon = isFertilizingDueSoon,
@@ -88,7 +101,10 @@ object CareSchedule {
             customReminderStatuses = customReminderStatuses,
             isWateringOnSchedule = onSchedule,
             isWateringGapLong = gapRanLong,
-            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays
+            rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
+            computedNextWateringDueAt = wateringDue.computedNextDueAt,
+            isDormant = isDormant,
+            isWateringGapDormancySpanning = gapDormancySpanning
         )
     }
 
@@ -146,8 +162,16 @@ object CareSchedule {
     fun isWateringGapLongAt(lastWateredAt: Long?, effectiveIntervalDays: Int?, chosenDate: Long): Boolean =
         wateringGapRanLong(lastWateredAt, effectiveIntervalDays, chosenDate)
 
-    /** [computeWateringDue]'s result: the usual [DueStatus] plus the #630 reschedule delta. */
-    private data class WateringDueStatus(val dueStatus: DueStatus, val rescheduleDeltaDays: Int?)
+    /**
+     * [computeWateringDue]'s result: the usual [DueStatus], the #630 reschedule delta, and (#720)
+     * the pre-override [computedNextDueAt] itself — carried out so [PlantCareStatus
+     * .computedNextWateringDueAt] can be populated without re-deriving it in the UI layer.
+     */
+    private data class WateringDueStatus(
+        val dueStatus: DueStatus,
+        val rescheduleDeltaDays: Int?,
+        val computedNextDueAt: Long?
+    )
 
     @Suppress("LongParameterList")
     private fun computeWateringDue(
@@ -182,7 +206,7 @@ object CareSchedule {
             null
         }
 
-        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays)
+        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays, computedNextDueAt)
     }
 
     /**
@@ -335,7 +359,19 @@ object CareSchedule {
      */
     data class AdaptiveInterval(
         val intervalDays: Int,
-        val confidence: Int,
+        /** The unrounded base-space result persisted by callers; [intervalDays] is display-only. */
+        val baseIntervalDays: Double,
+        /**
+         * `null` only when [currentConfidence] was itself `null` (never-adapted) **and**
+         * [suppressConfidenceTransition] was `true` (#699/#761, product ADR-0044 — Codex review round
+         * 2 on #776, P1-1): a dormancy-spanning observation on an uninitialized plant must not consume
+         * that uninitialized state by writing `0`, since [WateringLifecycleReset.maybeBootstrap]'s
+         * cold-start opportunity is gated on `wateringConfidence == null` and a `0` write would
+         * permanently forfeit it for a single observation that, by design, should teach the model
+         * nothing. Every other path (including the un-suppressed `currentConfidence == null` bootstrap
+         * itself) still returns a concrete `Int`, unchanged from before this parameter existed.
+         */
+        val confidence: Int?,
         val excludedFromBaseLearning: Boolean = false
     )
 
@@ -399,9 +435,36 @@ object CareSchedule {
      * before [Plant.wateringFreezeUntil] elapses, forcing the same exclusion treatment #586 already
      * gives an unattributed off-schedule observation (gain 0, [AdaptiveInterval.excludedFromBaseLearning]
      * set) — reusing that mechanism rather than inventing a second one. Confidence is **not** separately
-     * suppressed while frozen, for the same reason ADR-0030 gives: it is evidence about the schedule
+     * suppressed while frozen, for the same reason product ADR-0030 gives: it is evidence about the schedule
      * regardless of why an observation is excluded from `base`. Defaults `false` so every existing call
      * site/test is unaffected.
+     *
+     * [suppressConfidenceTransition] (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-b)
+     * is a **genuinely different case from [frozen], not a variant of it.** product ADR-0030's reasoning for
+     * leaving confidence unsuppressed while `frozen`/excluded is that confidence is evidence about the
+     * schedule *regardless of why the base was excluded* — a REPOT-frozen or unattributed observation
+     * still measured something real, even if the model chose not to trust it for `base`. A dormancy-
+     * spanning gap is not that: a short in-window gap (e.g. two waterings seven days apart, both inside
+     * a dormant month, on a seven-day base) still has `gapAgrees(7, 7) == true`, so without this
+     * parameter confidence would silently *rise* even though nothing about the schedule was actually
+     * tested — the plant was asleep for the entire gap. `true` skips the streak/gap-agreement
+     * transition entirely (`newConfidence = currentConfidence`, verbatim) rather than post-hoc
+     * correcting the result at each call site, which is how [QuickLogUseCase] and
+     * `AddCareLogViewModel`'s two independent copies of this call would otherwise drift apart. Defaults
+     * `false` so every existing call site/test is unaffected. Distinct from a post-hoc "exit decrement"
+     * (`WateringAdjustmentTrigger.DORMANCY_EXIT`, applied by callers *after* this function returns,
+     * never inside it) — that is a one-time -1 for *leaving* dormancy, layered on top of the
+     * (now correctly unchanged) confidence this parameter guarantees.
+     *
+     * **`currentConfidence == null` is not "unchanged by construction" the way the non-null branch is
+     * (#699/#761, Codex review round 2 on #776, P1-1).** The `currentConfidence == null` branch below
+     * returns *before* this parameter was originally consulted at all, so a suppressed observation on
+     * a never-adapted plant used to still bootstrap confidence to `0` — silently consuming the
+     * `wateringConfidence == null` state [WateringLifecycleReset.maybeBootstrap]'s cold-start
+     * eligibility is gated on, permanently, from a single observation that by design should teach the
+     * model nothing. `suppressConfidenceTransition = true` on that branch now returns `confidence =
+     * null` instead (see [AdaptiveInterval.confidence]'s doc), leaving the plant eligible for a future
+     * cold-start bootstrap exactly as if this observation had never been evaluated at all.
      */
     @Suppress("LongParameterList")
     fun computeAdaptiveInterval(
@@ -410,7 +473,27 @@ object CareSchedule {
         currentBaseIntervalDays: Int,
         currentConfidence: Int?,
         recentFeedback: List<WateringFeedback?>,
-        frozen: Boolean = false
+        frozen: Boolean = false,
+        suppressConfidenceTransition: Boolean = false
+    ): AdaptiveInterval = computeAdaptiveInterval(
+        feedback,
+        observedIntervalDays,
+        currentBaseIntervalDays.toDouble(),
+        currentConfidence,
+        recentFeedback,
+        frozen,
+        suppressConfidenceTransition
+    )
+
+    @Suppress("LongParameterList")
+    fun computeAdaptiveInterval(
+        feedback: WateringFeedback?,
+        observedIntervalDays: Int,
+        currentBaseIntervalDays: Double,
+        currentConfidence: Int?,
+        recentFeedback: List<WateringFeedback?>,
+        frozen: Boolean = false,
+        suppressConfidenceTransition: Boolean = false
     ): AdaptiveInterval {
         val multiplier = when (feedback) {
             WateringFeedback.TOO_SOON -> TOO_SOON_TARGET_MULTIPLIER
@@ -425,22 +508,31 @@ object CareSchedule {
         if (currentConfidence == null) {
             val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[0], feedback, excluded)
             val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
-            return AdaptiveInterval(clampStep(currentBaseIntervalDays, rawNewBase), 0, excluded)
+            val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
+            // #699/#761 (Codex review round 2 on #776, P1-1): a suppressed transition on an
+            // uninitialized plant must leave confidence null, not write 0 — see AdaptiveInterval
+            // .confidence's doc for why writing 0 here would be worse than "confidence moved a bit".
+            val newConfidence = if (suppressConfidenceTransition) null else 0
+            return AdaptiveInterval(newBase.roundToInt(), newBase, newConfidence, excluded)
         }
 
         val gain = gainFor(ADAPTIVE_GAIN_BY_CONFIDENCE[currentConfidence], feedback, excluded)
         val rawNewBase = currentBaseIntervalDays + gain * (target - currentBaseIntervalDays)
         val newBase = clampStep(currentBaseIntervalDays, rawNewBase)
 
-        val streak = correctionStreak(recentFeedback)
-        val newConfidence = when {
-            abs(streak) >= STREAK_DECREMENT_THRESHOLD ->
-                (currentConfidence - STREAK_CONFIDENCE_PENALTY).coerceAtLeast(0)
-            gapAgrees(observedIntervalDays, currentBaseIntervalDays) ->
-                min(currentConfidence + 1, MAX_CONFIDENCE)
-            else -> currentConfidence
+        val newConfidence = if (suppressConfidenceTransition) {
+            currentConfidence
+        } else {
+            val streak = correctionStreak(recentFeedback)
+            when {
+                abs(streak) >= STREAK_DECREMENT_THRESHOLD ->
+                    (currentConfidence - STREAK_CONFIDENCE_PENALTY).coerceAtLeast(0)
+                gapAgrees(observedIntervalDays, currentBaseIntervalDays) ->
+                    min(currentConfidence + 1, MAX_CONFIDENCE)
+                else -> currentConfidence
+            }
         }
-        return AdaptiveInterval(newBase, newConfidence, excluded)
+        return AdaptiveInterval(newBase.roundToInt(), newBase, newConfidence, excluded)
     }
 
     /**
@@ -453,7 +545,7 @@ object CareSchedule {
     private fun isUnattributedOffScheduleObservation(
         feedback: WateringFeedback?,
         observedIntervalDays: Int,
-        currentBaseIntervalDays: Int
+        currentBaseIntervalDays: Double
     ): Boolean = feedback == null && !gapAgrees(observedIntervalDays, currentBaseIntervalDays)
 
     /**
@@ -469,7 +561,7 @@ object CareSchedule {
     }
 
     /**
-     * Confidence effect of dismissing the ADR-0006 suggestion dialog without applying: a dismissal
+     * Confidence effect of dismissing the product ADR-0006 suggestion dialog without applying: a dismissal
      * says "the current schedule is fine", so it raises confidence, but only up to
      * [DISMISSAL_CONFIDENCE_CEILING] — it never lowers an already-higher confidence (#568 comment 3).
      */
@@ -479,7 +571,7 @@ object CareSchedule {
     }
 
     /**
-     * Confidence effect of applying a suggestion the user retyped inside the ADR-0006 dialog before
+     * Confidence effect of applying a suggestion the user retyped inside the product ADR-0006 dialog before
      * tapping Apply. An edit within [GAP_AGREEMENT_TOLERANCE] of [suggestedIntervalDays] is fine-tuning
      * and leaves confidence on normal rules (already applied by [computeAdaptiveInterval] at log time);
      * an edit further off says the suggestion was materially wrong, so confidence falls — but this is
@@ -499,10 +591,13 @@ object CareSchedule {
         }
     }
 
-    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Int): Boolean {
+    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Double): Boolean {
         if (predictedIntervalDays <= 0) return false
         return abs(observedIntervalDays - predictedIntervalDays) <= GAP_AGREEMENT_TOLERANCE * predictedIntervalDays
     }
+
+    private fun gapAgrees(observedIntervalDays: Int, predictedIntervalDays: Int): Boolean =
+        gapAgrees(observedIntervalDays, predictedIntervalDays.toDouble())
 
     // --- Cold-start bootstrap from watering history (#571 Part B) ---
 
@@ -536,18 +631,36 @@ object CareSchedule {
      * Returns `null` when there are fewer than 2 timestamps (zero gaps — "no estimate", per the spec's
      * empty-history edge case). A single gap (2 timestamps) still returns a real, testable result with
      * [BootstrapResult.gapCount] == 1; it is the caller's job not to apply it below [MIN_BOOTSTRAP_GAPS].
+     *
+     * [dormancyStartMonth]/[dormancyEndMonth] (#699/#761, product ADR-0044 — Codex review round 1 on
+     * #776, P1-a) filter out any consecutive pair whose gap overlaps the plant's dormancy window
+     * ([DormancyWindow.spansDormancy]) *before* computing the median/gap count, so a dormancy-corrupted
+     * gap anywhere in history — not just the newest one — can never feed the cold-start estimate. This
+     * is a different, more thorough protection than excluding only the triggering observation's own
+     * gap: a plant with two winters' worth of history could otherwise still bootstrap from an earlier
+     * dormancy-spanning gap even after the newest one was correctly excluded elsewhere. Both `null`
+     * (the default, matching every other caller that doesn't configure dormancy) is a no-op filter — no
+     * gap can span a window that doesn't exist.
      */
+    @Suppress("ReturnCount")
     fun bootstrapBaseInterval(
         waterLogTimestampsMs: List<Long>,
-        seasonFn: (LocalDate) -> Double
+        seasonFn: (LocalDate) -> Double,
+        dormancyStartMonth: Int? = null,
+        dormancyEndMonth: Int? = null
     ): BootstrapResult? {
         val sorted = waterLogTimestampsMs.sorted()
         if (sorted.size < 2) return null
 
-        val deseasonalizedGaps = sorted.zipWithNext { earlier, later ->
-            val gapDays = daysBetween(earlier, later)
-            gapDays / seasonFn(later.toLocalDate())
-        }
+        val deseasonalizedGaps = sorted.zipWithNext { earlier, later -> earlier to later }
+            .filterNot { (earlier, later) ->
+                DormancyWindow.spansDormancy(dormancyStartMonth, dormancyEndMonth, earlier, later)
+            }
+            .map { (earlier, later) ->
+                val gapDays = daysBetween(earlier, later)
+                gapDays / seasonFn(later.toLocalDate())
+            }
+        if (deseasonalizedGaps.isEmpty()) return null
         val gapCount = deseasonalizedGaps.size
         val baseIntervalDays = median(deseasonalizedGaps)
             .coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS.toDouble(), MAX_ADAPTIVE_INTERVAL_DAYS.toDouble())
@@ -565,10 +678,10 @@ object CareSchedule {
         }
     }
 
-    private fun clampStep(oldBaseIntervalDays: Int, rawNewBaseIntervalDays: Double): Int {
+    private fun clampStep(oldBaseIntervalDays: Double, rawNewBaseIntervalDays: Double): Double {
         val minStep = oldBaseIntervalDays * (1 - PER_STEP_CLAMP_FRACTION)
         val maxStep = oldBaseIntervalDays * (1 + PER_STEP_CLAMP_FRACTION)
         val clamped = rawNewBaseIntervalDays.coerceIn(minStep, maxStep)
-        return clamped.roundToInt().coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS, MAX_ADAPTIVE_INTERVAL_DAYS)
+        return clamped.coerceIn(MIN_ADAPTIVE_INTERVAL_DAYS.toDouble(), MAX_ADAPTIVE_INTERVAL_DAYS.toDouble())
     }
 }

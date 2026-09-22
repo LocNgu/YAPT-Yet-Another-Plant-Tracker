@@ -1,4 +1,4 @@
-# ADR-0003: For-loop instead of .map{} for suspend calls inside Flow combine
+# Technical ADR-0003: For-loop instead of .map{} for suspend calls inside Flow combine
 
 **Status**: accepted
 

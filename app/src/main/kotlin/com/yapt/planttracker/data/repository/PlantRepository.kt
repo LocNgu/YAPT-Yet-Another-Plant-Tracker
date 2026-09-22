@@ -39,6 +39,10 @@ class PlantRepository(private val plantDao: PlantDao) {
     suspend fun updateWateringBaseInterval(id: Long, wateringBaseIntervalDays: Double, updatedAt: Long) =
         plantDao.updateWateringBaseInterval(id, wateringBaseIntervalDays, updatedAt)
 
+    /** Column-specific update — see [PlantDao.updateWateringDueDateOverride]'s doc for why this exists. */
+    suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long) =
+        plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)
+
     /** Archives every id in a single atomic statement (bulk graveyard action, #448). */
     suspend fun archivePlants(ids: List<Long>, timestamp: Long = System.currentTimeMillis()) =
         plantDao.archivePlants(ids, timestamp)
@@ -71,7 +75,9 @@ private fun PlantEntity.toDomain() = Plant(
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
     wateringResetAt = wateringResetAt,
-    wateringFreezeUntil = wateringFreezeUntil
+    wateringFreezeUntil = wateringFreezeUntil,
+    dormancyStartMonth = dormancyStartMonth,
+    dormancyEndMonth = dormancyEndMonth
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -93,5 +99,7 @@ private fun Plant.toEntity() = PlantEntity(
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
     wateringResetAt = wateringResetAt,
-    wateringFreezeUntil = wateringFreezeUntil
+    wateringFreezeUntil = wateringFreezeUntil,
+    dormancyStartMonth = dormancyStartMonth,
+    dormancyEndMonth = dormancyEndMonth
 )

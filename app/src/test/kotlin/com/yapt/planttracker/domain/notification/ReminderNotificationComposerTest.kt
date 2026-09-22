@@ -26,7 +26,9 @@ class ReminderNotificationComposerTest {
         fertilizingIntervalDays: Int? = null,
         useLiquidFertilizer: Boolean = false,
         createdAt: Long = now,
-        repottingIntervalDays: Int? = null
+        repottingIntervalDays: Int? = null,
+        dormancyStartMonth: Int? = null,
+        dormancyEndMonth: Int? = null
     ) = Plant(
         id = id,
         name = "Plant $id",
@@ -34,7 +36,9 @@ class ReminderNotificationComposerTest {
         fertilizingIntervalDays = fertilizingIntervalDays,
         useLiquidFertilizer = useLiquidFertilizer,
         createdAt = createdAt,
-        repottingIntervalDays = repottingIntervalDays
+        repottingIntervalDays = repottingIntervalDays,
+        dormancyStartMonth = dormancyStartMonth,
+        dormancyEndMonth = dormancyEndMonth
     )
 
     @Test
@@ -358,5 +362,56 @@ class ReminderNotificationComposerTest {
 
         assertEquals(1, reminders.size)
         assertTrue(reminders[0].items.any { it is CareReminderItem.CustomReminderOverdue })
+    }
+
+    // ---- Dormancy window (#699/#760, product ADR-0044) ----
+
+    @Test
+    fun `computeCareReminderItems returns empty list for an overdue plant inside its dormancy window`() {
+        // now (Nov 14) falls inside a Nov-Feb wrapping window; the plant would otherwise be overdue.
+        val lastWatered = now - TimeUnit.DAYS.toMillis(30)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(wateringIntervalDays = 7, dormancyStartMonth = 11, dormancyEndMonth = 2),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertTrue(status.isDormant)
+        assertTrue(ReminderNotificationComposer.computeCareReminderItems(status, now).isEmpty())
+    }
+
+    /**
+     * `computeDueReminders` is the single computation both `ReminderWorker` posting paths (one
+     * notification per plant, and the count-only combined notification) read from — neither branch
+     * re-derives due-ness independently (`ReminderWorker.postCombinedNotification` only ever reads
+     * `dueReminders.size`), so proving this list excludes a dormant plant proves both notification
+     * modes suppress it.
+     */
+    @Test
+    fun `computeDueReminders excludes a dormant plant under both the per-plant and combined notification modes`() {
+        val lastWatered = now - TimeUnit.DAYS.toMillis(30)
+        val dormant = CareSchedule.computeStatus(
+            plant = plantWith(id = 1L, wateringIntervalDays = 7, dormancyStartMonth = 11, dormancyEndMonth = 2),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+        val notDormant = CareSchedule.computeStatus(
+            plant = plantWith(id = 2L, wateringIntervalDays = 7),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        // The per-plant loop and the combined notification both read this same list — see the KDoc
+        // above for why one assertion here covers both `ReminderWorker` posting paths.
+        val reminders = ReminderNotificationComposer.computeDueReminders(listOf(dormant, notDormant), now)
+
+        assertEquals(1, reminders.size)
+        assertEquals(2L, reminders[0].status.plant.id)
     }
 }

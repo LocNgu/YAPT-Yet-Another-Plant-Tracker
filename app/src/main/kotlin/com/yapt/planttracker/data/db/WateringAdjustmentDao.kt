@@ -13,8 +13,23 @@ interface WateringAdjustmentDao {
     @Query("SELECT * FROM watering_adjustments ORDER BY triggeredAt DESC")
     fun getAllAdjustments(): Flow<List<WateringAdjustmentEntity>>
 
-    @Query("SELECT * FROM watering_adjustments WHERE plantId = :plantId ORDER BY triggeredAt DESC LIMIT :limit")
+    // id DESC is a secondary sort key, not just tie-break cosmetics: #761 (product ADR-0044) is the
+    // first place two rows (DORMANCY_EXCLUDED + DORMANCY_EXIT) are written with an identical
+    // triggeredAt for one logical observation, and SQLite's insertion-order-on-a-tie is not a
+    // contract — id DESC deterministically puts the later-inserted row (the higher autoincrement id)
+    // first, matching "Recent adjustments"'s own most-recent-first framing (Codex review round 1 on
+    // #776, item 5).
+    @Query(
+        "SELECT * FROM watering_adjustments WHERE plantId = :plantId ORDER BY triggeredAt DESC, id DESC LIMIT :limit"
+    )
     fun getRecentForPlant(plantId: Long, limit: Int): Flow<List<WateringAdjustmentEntity>>
+
+    // #699/#761 (product ADR-0044 — Codex review round 2 on #776, P1-2): lets a write path check
+    // whether a given trigger has already been recorded for a plant before writing another one — the
+    // dormancy-exit idempotency fix needs to see every existing DORMANCY_EXIT row, not just the most
+    // recent [limit] the sheet shows, so this is a plain unbounded one-shot query, not a Flow.
+    @Query("SELECT * FROM watering_adjustments WHERE plantId = :plantId AND trigger = :trigger")
+    suspend fun getAdjustmentsByTrigger(plantId: Long, trigger: String): List<WateringAdjustmentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAdjustment(adjustment: WateringAdjustmentEntity): Long

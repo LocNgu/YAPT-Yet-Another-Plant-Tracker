@@ -12,6 +12,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -79,6 +80,19 @@ class AddEditPlantScreenTest {
         }
 
         composeTestRule.onNodeWithContentDescription("Save").assertIsDisplayed()
+    }
+
+    @Test
+    fun dormancyEditor_isOffByDefaultEvenWithoutWateringReminder() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithContentDescription("Dormancy window")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsOff()
     }
 
     @Test

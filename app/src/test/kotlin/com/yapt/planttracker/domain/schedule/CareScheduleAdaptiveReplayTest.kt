@@ -18,11 +18,32 @@ import kotlin.math.abs
  * Each iteration feeds the previous iteration's [CareSchedule.AdaptiveInterval] back in as the next
  * iteration's `currentBaseIntervalDays`/`currentConfidence` — i.e. it simulates a user who always
  * applies the suggestion, which is the only way "the app's due date" (referenced by the scenario
- * descriptions) can track the learned interval across many observations. The real app's ADR-0006
+ * descriptions) can track the learned interval across many observations. The real app's product ADR-0006
  * dialog still requires an explicit tap; this harness tests the pure convergence properties of the
  * update rule in isolation from that UI gate.
  */
 class CareScheduleAdaptiveReplayTest {
+
+    @Test
+    fun `neutral in-band observations accumulate fractional base movement`() {
+        var base = 9.0
+        var confidence: Int? = 5
+
+        repeat(10) {
+            val result = CareSchedule.computeAdaptiveInterval(
+                feedback = null,
+                observedIntervalDays = 8,
+                currentBaseIntervalDays = base,
+                currentConfidence = confidence,
+                recentFeedback = listOf(null)
+            )
+            base = result.baseIntervalDays
+            confidence = result.confidence
+        }
+
+        assertTrue("fractional corrections should accumulate below the starting base", base < 8.3)
+        assertEquals(8, base.toInt())
+    }
 
     private data class Step(val base: Int, val confidence: Int)
 
@@ -43,7 +64,11 @@ class CareScheduleAdaptiveReplayTest {
             history.add(0, feedback)
             base = result.intervalDays
             confidence = result.confidence
-            steps.add(Step(base, confidence))
+            // suppressConfidenceTransition is never passed by this harness (always defaults false),
+            // so confidence can only be null before the very first call, never as a result — P1-1
+            // (Codex review round 2 on #776) only widened AdaptiveInterval.confidence to Int? for the
+            // suppressed + never-adapted combination this replay harness never exercises.
+            steps.add(Step(base, checkNotNull(confidence)))
         }
         return steps
     }

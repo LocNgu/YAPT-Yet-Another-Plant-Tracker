@@ -1,4 +1,4 @@
-# ADR-0016: Care event markers rendered as canvas `Decoration` inside the chart
+# Technical ADR-0016: Care event markers rendered as canvas `Decoration` inside the chart
 
 **Status**: accepted
 

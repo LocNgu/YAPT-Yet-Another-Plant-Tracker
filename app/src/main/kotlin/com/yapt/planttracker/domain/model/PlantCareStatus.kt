@@ -54,5 +54,43 @@ data class PlantCareStatus(
      * never re-derived in the UI layer, same "no drift by construction" posture as the rest of this
      * status.
      */
-    val rescheduleDeltaDays: Int? = null
+    val rescheduleDeltaDays: Int? = null,
+    /**
+     * The schedule-computed watering due date **before** [Plant.wateringDueDateOverride] is applied
+     * (#720) — distinct from [nextWateringDueAt], which is the post-`maxOf()` effective date. Exists
+     * so the Reschedule dialog's custom-date picker can tell which candidate dates `maxOf()` will
+     * discard: an override earlier than this value never wins and is silently dropped, so the picker
+     * must reject it rather than let the tap succeed with no visible effect. Computed once inside
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.computeWateringDue] — never re-derived in
+     * the UI layer, same "no drift by construction" posture [rescheduleDeltaDays] already documents.
+     * `null` whenever there is no watering interval configured. Defaulted so a status built by hand in
+     * a test is unaffected.
+     */
+    val computedNextWateringDueAt: Long? = null,
+    /**
+     * Whether [plant]'s dormancy window (#699/#760, product ADR-0044) contains the current month —
+     * `true` forces [isOverdue]/[isDueSoon] both `false` for watering purposes, regardless of how far
+     * past [nextWateringDueAt] the plant is. Deliberately **not** a due-date push to the window's
+     * end: [nextWateringDueAt] is computed exactly as today and may legitimately land inside the
+     * window. Computed once inside
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus] via
+     * [com.yapt.planttracker.domain.schedule.DormancyWindow.isDormant] — never re-derived at a call
+     * site. Defaulted `false` so a status built by hand in a test is unaffected.
+     */
+    val isDormant: Boolean = false,
+    /**
+     * Whether the gap since [lastWateredAt] (or, with no prior watering, nothing to gate) overlaps
+     * [plant]'s dormancy window at all — a **distinct**, related condition from [isDormant] (#761,
+     * product ADR-0044). [isDormant] asks "is the current month dormant?"; this asks "did dormancy
+     * happen anywhere between the last watering and now?", via
+     * [com.yapt.planttracker.domain.schedule.DormancyWindow.spansDormancy]. Every quick-log surface's
+     * reason-prompt gate (`isWateringOnSchedule || isWateringGapDormancySpanning`) suppresses the
+     * "why was it late?" prompt when this is `true` — the question is incoherent for a plant that was
+     * asleep, and answering it risks writing a [CareLog.wateringFeedback] that would otherwise poison
+     * a future [com.yapt.planttracker.domain.schedule.CareSchedule.correctionStreak] window even
+     * though the observation itself is excluded from base learning. `false` with no prior watering,
+     * matching [isWateringOnSchedule]'s own "nothing to gate" convention. Defaulted `false` so a
+     * status built by hand in a test is unaffected.
+     */
+    val isWateringGapDormancySpanning: Boolean = false
 )

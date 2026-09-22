@@ -375,9 +375,14 @@ fun PlantListScreen(
                                     onClick = { onNavigateToPlant(status.plant.id) },
                                     onLongClick = { viewModel.toggleSelection(status.plant.id) },
                                     onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
-                                    // #586 fast path: only an off-schedule watering asks why.
+                                    // #586 fast path: only an off-schedule watering asks why. A gap
+                                    // that overlaps the plant's dormancy window skips the prompt too
+                                    // (#699/#761, product ADR-0044) — see CalendarScreen's requestWater
+                                    // for the full rationale (a persisted answer could poison a later
+                                    // correctionStreak() window even though this observation is
+                                    // excluded from base learning either way).
                                     onQuickWater = {
-                                        if (status.isWateringOnSchedule) {
+                                        if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
                                             viewModel.quickWater(status.plant.id, reason = null)
                                         } else {
                                             waterFeedbackPlant = status
@@ -387,7 +392,7 @@ fun PlantListScreen(
                                         when {
                                             !status.plant.useLiquidFertilizer ->
                                                 viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                                            status.isWateringOnSchedule ->
+                                            status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
                                                 viewModel.quickLiquidFertilize(status.plant.id, reason = null)
                                             else -> liquidFertilizeFeedbackPlant = status
                                         }
@@ -428,9 +433,10 @@ fun PlantListScreen(
     }
 
     pendingIntervalSuggestion?.let { suggestion ->
-        val currentInterval = plantsWithStatus
-            .firstOrNull { it.plant.id == suggestion.plantId }
-            ?.plant?.wateringIntervalDays ?: 0
+        // #716: reads the suggestion's own live-recomputed currentIntervalEffective, not the stale
+        // Plant.wateringIntervalDays literal (which only updates on a manual edit/apply/bootstrap and
+        // drifts from the true seasonal value on its own) — matches Plant Detail's "currently" figure.
+        val currentInterval = suggestion.currentIntervalEffective
         AlertDialog(
             onDismissRequest = {
                 viewModel.dismissSuggestedIntervalFromList(suggestion.plantId)
@@ -462,7 +468,10 @@ fun PlantListScreen(
                             viewModel.applySuggestedIntervalFromList(
                                 suggestion.plantId,
                                 suggestion.suggestedInterval,
-                                it
+                                it,
+                                suggestion.suggestedBaseInterval.takeIf { _ ->
+                                    it == suggestion.suggestedIntervalEffective
+                                }
                             )
                         }
                         pendingIntervalSuggestion = null
@@ -538,6 +547,7 @@ private fun DateGroupHeader(bucket: DateBucket) {
         DateBucket.Tomorrow -> stringResource(R.string.date_group_tomorrow)
         is DateBucket.Dated -> DateUtils.formatWeekdayDate(bucket.epochDay)
         DateBucket.Later -> stringResource(R.string.date_group_later)
+        DateBucket.Dormant -> stringResource(R.string.date_group_dormant)
         DateBucket.NotScheduled -> stringResource(R.string.date_group_not_scheduled)
     }
     Column(

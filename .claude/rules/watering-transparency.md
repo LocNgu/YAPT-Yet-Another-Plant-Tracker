@@ -14,8 +14,17 @@ paths:
 
 # "Why this date?" watering transparency sheet (#572, product ADR-0028)
 
+## Dormancy display (#763, product ADR-0044)
+`WateringExplanationBuilder.build()` carries `PlantCareStatus.isDormant` into the sheet. While dormant,
+the sheet says the watering schedule is suspended in place of the stored next due date and hides the
+effective-interval and reschedule rows that would imply an active schedule. Base, season, last-watered,
+confidence, and Recent adjustments remain visible. `DORMANCY_EXCLUDED` and `DORMANCY_EXIT` use their
+existing `WateringAdjustmentTrigger.labelRes()` labels in Recent adjustments. A configured dormancy
+window makes the sheet fully expanded with a bounded inner scroll, so those rows remain reachable on
+short viewports without changing the sheet posture for plants that have no dormancy window.
+
 ## Bug fix that gates everything else (also #572)
-`PlantDetailViewModel.applySuggestedInterval()` (the ADR-0006 dialog's Apply button — the only place
+`PlantDetailViewModel.applySuggestedInterval()` (the product ADR-0006 dialog's Apply button — the only place
 #568's adaptive suggestion is ever committed) now dual-writes `wateringBaseIntervalDays` alongside
 `wateringIntervalDays`, mirroring `setWateringInterval()`'s existing manual-edit dual-write — see
 `.claude/rules/seasonal-watering.md`'s "Interaction with Part 1" section for the read-side half
@@ -51,11 +60,11 @@ Detail, Calendar, Plant List) now call, so this class of bug can't recur indepen
 screen again. `PlantDetailViewModel.applyIntervalInternal()` is now a thin delegation to this function;
 its own `Event.SilentIntervalApplied`/`undoSilentIntervalApply()` wrapping (the "ask before changing
 intervals" flow below) stays Plant-Detail-specific, since Calendar/Plant List have no silent-apply/undo
-equivalent and always show the ADR-0006 dialog unconditionally. Math-correctness tests for the write
+equivalent and always show the product ADR-0006 dialog unconditionally. Math-correctness tests for the write
 path itself live in `QuickLogUseCaseIntervalApplyTest`; each ViewModel keeps only a thin
 delegation/smoke test verifying it calls the shared function with the right arguments.
 
-**Follow-up (#644):** the three ADR-0006 dialogs' editable text fields were pre-filled from the raw
+**Follow-up (#644):** the three product ADR-0006 dialogs' editable text fields were pre-filled from the raw
 base-space suggestion (`suggestedWateringInterval`/`QuickWaterSuggestion.suggestedInterval`) while the
 dialog's own "Suggested: N days" sentence showed the *effective* (seasonally-converted) value from the
 same suggestion — two different numbers presented as one "suggestion", and accepting the untouched field
@@ -83,18 +92,45 @@ the same number the dialog would have shown/pre-filled had it appeared. The `DIA
 `afterIntervalDays` still deliberately stays base-space (unchanged posture from #626) — only the value
 it's derived from changed.
 
+**Follow-up (#718):** the #644 write path above was itself lossy. `newInterval` had already been rounded
+to a whole day for display; re-deriving `wateringBaseIntervalDays` from that rounded value via
+`SeasonalWatering.deseasonalize()` divides a `±0.5`-day rounding residual by `season(today)`, amplifying
+it by `1/season` — worst in the growing season (±0.77 days at the July trough), not winter, since a
+factor below 1 magnifies rather than shrinks. The residual is a sawtooth in general (it changes sign as
+`base × season` crosses integer/half-integer boundaries), but it is systematically upward for the
+seasonal-threshold crossings that actually open this dialog (a rising `season` pushing the displayed
+effective value up past a whole-day boundary) — a second opinion on the issue corrected the original
+framing from "one sign per season" to this narrower, still-real claim. Fixed per technical ADR-0027:
+`CareSchedule.AdaptiveInterval` now carries an unrounded `baseIntervalDays: Double` beside the rounded
+`intervalDays: Int`, `QuickWaterSuggestion` carries a deliberately non-defaulted `suggestedBaseInterval`,
+and `applyWateringIntervalSuggestion()` gained a `suggestedBaseInterval: Double?` parameter — non-null
+persists the model's precise base verbatim instead of running it back through `deseasonalize()`; null
+falls back to the existing `deseasonalize(newInterval)` path unchanged. Null is the callers' explicit
+signal that the user retyped the dialog's field (`PlantDetailIntervalActions.applySuggestedInterval()`'s
+`preciseSuggestion` `takeIf`, and the equivalent `takeIf { it == suggestion.suggestedIntervalEffective }`
+in `CalendarScreen`/`PlantListScreen`), so #644's typed-number contract is unchanged, and the pinned /
+amplitude-Off posture (#584 review round 2) is unaffected — `suggestedBaseInterval` is only ever
+consulted once `seasonAdjustable` already gates it. `effectiveIntervalForDisplay()`/
+`applySuggestionOrPrompt()` derive the displayed effective number from that same precise base, so the
+literal `wateringIntervalDays` and the base-derived schedule can't disagree on the apply date. See
+technical ADR-0027 and `.claude/rules/schedule.md`'s "Sub-day precision (#717/#718)" note — this
+write-path round-trip is distinct from the per-step clamp quantization artifact that note already
+accepts.
+
 **Follow-up (#654 review):** `QuickLogUseCase.adaptWateringInterval()`'s private
 `deseasonalizedObservedIntervalDays()` helper (used to de-seasonalize an observed watering gap before
 feeding it into the adaptive model) evaluated the season at `nowProvider()` (real wall-clock "now")
 rather than the caller's `loggedAt`, so a backdated quick-water (#654's "Log watering" date picker) with
 `SEASONAL_WATERING` on de-seasonalized using *today's* season, not the logged day's — contradicting the
 "`loggedAt` threads through everywhere" claim documented above. Fixed by giving the helper an explicit
-`atDate: LocalDate` parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s
-two callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now
-passes `now.toLocalDate()` into, mirroring this section's own `loggedAt`-threading pattern.
-`effectiveIntervalForDisplay()` (display-only, feeds the ADR-0006 suggestion dialog's "different from
-current" check) had the identical bug and got the same fix via an explicit `now` parameter threaded from
-`computeSuggestion()`.
+`atDate: LocalDate` parameter, which `adaptWateringInterval()` passes `now.toLocalDate()` into, mirroring
+this section's own `loggedAt`-threading pattern. (At the time, the default `atDate = nowProvider()
+.toLocalDate()` existed so `computeStillMoistAdaptiveInterval()`'s two still-moist callers — which had
+no backdating concept — could keep using it unchanged; that function is deleted by #738, product
+ADR-0039, leaving `adaptWateringInterval()` as this helper's one caller, always passing `atDate`
+explicitly.) `effectiveIntervalForDisplay()` (display-only, feeds the product ADR-0006 suggestion dialog's
+"different from current" check) had the identical bug and got the same fix via an explicit `now`
+parameter threaded from `computeSuggestion()`.
 
 **Follow-up (#679):** three more edge cases, all only reachable when backdating to before an
 already-existing later watering. (1) `QuickLogUseCase.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()`
@@ -121,12 +157,15 @@ so a pure replay would misrepresent history. `WateringAdjustmentTrigger` (`domai
 `WATER_TOO_SOON`/`WATER_TOO_LATE`/`WATER_JUST_RIGHT`/`WATER_NEUTRAL`/`WATER_NOT_ATTRIBUTED` (from
 `QuickLogUseCase.adaptWateringInterval()`/`AddCareLogViewModel.adaptWateringInterval()`, keyed off the feedback
 param — `WATER_TOO_SOON` reachable since #649 (product ADR-0033) via the late-direction reason prompt's
-`WateringReason.SOIL_STILL_MOIST` → `TOO_SOON`, not only via `CHECK_STILL_MOIST`'s CHECK-log path — plus
+`WateringReason.SOIL_STILL_MOIST` → `TOO_SOON` — plus
 `AdaptiveInterval.excludedFromBaseLearning`, which wins and selects `WATER_NOT_ATTRIBUTED`: an
 off-schedule watering the user declined to attribute, #586 product ADR-0030, distinct from `WATER_NEUTRAL`'s
 on-schedule "nothing to change" so the sheet can explain a row where nothing moved), `CHECK_STILL_MOIST`
-(`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, now reached from the Reschedule reason prompt as well as
-the notification action), `DIALOG_DISMISSAL`
+(**no longer written, as of #738, product ADR-0039** — a reschedule is model-neutral again and
+`QuickLogUseCase.recordStillMoistAdaptiveObservation()` is removed; existing `CHECK_STILL_MOIST` rows
+written before that change stay visible, rendering read-only in "Why this date?" → Recent adjustments,
+since that surface is model provenance rather than a user journal — distinct from the `CareType.CHECK`
+care-history filter, which does hide those rows elsewhere), `DIALOG_DISMISSAL`
 (`PlantDetailViewModel.dismissSuggestedInterval()`, `before == after`), `DIALOG_EDIT`
 (`QuickLogUseCase.applyWateringIntervalSuggestion()` — shared by the Plant Detail dialog's Apply
 button/silent-apply path and the Calendar/Plant List dialogs, #631), `MANUAL_EDIT`
@@ -175,6 +214,48 @@ backdated) `now`; `AddCareLogViewModel`'s own copy of this helper has no backdat
 is already always real wall-clock time), so it's unaffected and keeps calling `maybeBootstrap()` without
 a `displayNow` argument.
 
+**Follow-up (#716 review round 1) — a related but distinct bug found in the same file, not fixed by
+#679 above.** #679 fixed `maybeApplyHistoryBootstrap`'s own `now` (used for the confidence-reset
+boundary and `WateringAdjustment.triggeredAt`) being real wall-clock time regardless of backdating —
+correctly noted as unaffected. But `QuickLogUseCase.computeSuggestion()`'s two `effectiveIntervalForDisplay()`
+calls (a *different* pair of call sites, feeding the product ADR-0006 dialog's gate, not the
+bootstrap) were still evaluating **both** `effectiveSuggestion` and `currentEffective` at the
+observation's own `now`/`loggedAt` — correct for the gap/season math those two numbers are *built
+from*, wrong for the numbers themselves, which are what the user reads on screen *today*. A
+backdated (#654) quick-water could therefore fire a spurious dialog whose displayed number wouldn't
+actually change today, or — worse — silently persist a base whose *today*-effective value really did
+move, bypassing `askBeforeChangingIntervals` entirely with no dialog at all. Fixed by splitting
+`computeSuggestion()`'s single `now` into `now` (observation math: the gap computation, the model
+input, `persistAdaptiveState`'s `updatedAt`/`WateringAdjustment.triggeredAt` — unchanged) and a new
+`displayNow` (both `effectiveIntervalForDisplay()` calls only), defaulting to `nowProvider()` — unlike
+`maybeApplyHistoryBootstrap`'s `displayNow` above, which hardcodes a fresh `System.currentTimeMillis()`
+call since its host, the stateless `WateringLifecycleReset` object, has no injectable clock of its own;
+`computeSuggestion()` lives inside `QuickLogUseCase`, which already does, so reusing it keeps production
+behavior identical (`nowProvider` itself defaults to `System::currentTimeMillis`) while letting a test
+pin `now`/`displayNow` independently. `computeSuggestion()` is now `internal`, not `private` — same
+`.claude/rules/plant-detail.md` "#679 review round 1" precedent (`isChosenDateOnSchedule`/
+`isChosenDateGapLong`) — so a plain JVM test can exercise the split directly. `AddCareLogViewModel`'s
+own independent copy (`computeSuggestedInterval()`/its own `effectiveIntervalForDisplay()`) had the
+identical bug — its date picker (`AddCareLogScreen`) can back-date `loggedAt` just as freely as Plant
+Detail's #654 picker can, despite the (correct, but talking about a different function) #679 note above
+— and got the identical fix: a `displayNow: Long = System.currentTimeMillis()` parameter (no
+`nowProvider` equivalent exists in this VM, so a plain default), `computeSuggestedInterval()` widened
+to `internal` for the same reason. `PlantDetailViewModel.pendingWateringSuggestion` was checked and
+found **already correct** — its two `CareSchedule.effectiveWateringIntervalDaysForDisplay()` calls omit
+`nowDate` entirely, defaulting to `LocalDate.now()` (real today) on both sides; that combine block has
+no `loggedAt`/`now` concept of its own to begin with, so no code change was needed there.
+
+**Follow-up (#767):** Apply follows that same display-day decision. A backdated watering still uses
+its `loggedAt` for the observed gap and adaptive learning (#654/#679), but #716 evaluates the
+suggestion's displayed effective interval on the day the dialog appears. If the user retypes its
+effective-space field, `QuickLogUseCase.applyWateringIntervalSuggestion()` de-seasonalizes that value
+on the day Apply is tapped, **not** the watering's historical date. An untouched field instead
+persists the precise model base as before (#718). Apply reads `nowProvider()` once and uses that
+instant for both the seasonal inverse and `Plant.updatedAt`/`DIALOG_EDIT.triggeredAt`, so a test can
+pin the date and the row timestamps together; `recordReschedule()` also uses the injected clock for
+its `updatedAt` column. A dialog held open across midnight uses the actual Apply day for a retyped
+value, matching the current display-day semantics rather than the observation-day semantics.
+
 **Follow-up (#674):** `CalendarViewModel.dismissSuggestedInterval()` and `PlantListViewModel
 .dismissSuggestedIntervalFromList()` both raised `Plant.wateringConfidence` via `CareSchedule
 .confidenceAfterDismissal()` on a dialog dismissal but neither ever wrote the matching
@@ -190,6 +271,47 @@ guarded on `plant.wateringIntervalDays != null`). All three dismiss-suggestion c
 this one function; Plant Detail's own wrapper keeps only its ViewModel-scoped bits (reading the current
 `plant`, clearing `suggestedWateringInterval`).
 
+**Follow-up (#714), superseded by #738 (product ADR-0039) — kept as history, not current behaviour:**
+`QuickLogUseCase.recordStillMoistCheck()`'s same-day `CareType.CHECK` duplicate guard used to return
+early *before* writing `Plant.wateringDueDateOverride` at all, so a second same-day "Soil still moist"
+reschedule silently discarded the date the user just picked. The duplicate branch was fixed to commit
+the override, skipping only the CHECK log / adaptive observation / `WateringAdjustment` row it would
+otherwise duplicate. **This entire function, its duplicate guard, and the branch described here are
+deleted by #738** — a reschedule no longer writes a `CareType.CHECK` log at all, so there is nothing
+left to guard against re-logging. `QuickLogUseCase.recordReschedule(plant, newDueAtMillis)` is the
+current write path: an unconditional column write with no duplicate check of any kind. The reworded
+`quick_log_already_checked` string this follow-up introduced is deleted along with it.
+
+**Follow-up (#714 review round 1) — the DAO method survives, the rationale for *why* it's used has
+changed:** the duplicate branch above did *not* use a full-row `updatePlant()` — two overlapping
+`StillMoistReceiver` deliveries (e.g. a doubled broadcast) could interleave, so a duplicate-branch write
+built off a `plant` snapshot taken before the other delivery's own `updatePlant()` call could silently
+revert that write's `wateringConfidence` (or any other column). It instead called a new column-specific
+`PlantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)` (mirrored by a thin
+`PlantRepository` wrapper) — same rationale as `PlantDao.updateWateringBaseInterval` (#703 review round
+3): a statement that can't touch a column it doesn't name eliminates the race entirely rather than just
+narrowing its window. **That DAO method is not deleted by #738** — `recordReschedule()` still calls it,
+now simply because it's the correct minimal-surface write for a reschedule, not because of a
+duplicate-delivery race that no longer has a guard branch to protect. The success path's single combined
+`updatePlant()` call (#612) is unrelated and unaffected either way — that invariant only ever governed
+the WATER-log adaptive-observation path, which still writes confidence and an override together when
+relevant.
+
+**Follow-up (#715), superseded by #738 (product ADR-0039) — kept as history, not current behaviour:**
+`recordStillMoistAdaptiveObservation()` used to write the `CHECK_STILL_MOIST` (and `FROZEN_POST_REPOT`)
+row's `afterIntervalDays` as `result.intervalDays` — the value the adaptive model computed but that this
+path deliberately never wrote to the plant (only `Plant.wateringConfidence` was persisted there).
+Whenever that rounded to something different from `beforeIntervalDays`, the sheet's Recent adjustments
+list claimed an interval change ("7 → 8 days") that was never applied. Fixed per the chosen posture
+(Option A over a distinct "considered, not applied" wording): `afterIntervalDays` was made to always
+write as `currentBase`, so the row rendered "unchanged" for both trigger branches uniformly.
+**`recordStillMoistAdaptiveObservation()`, `computeStillMoistAdaptiveInterval()`, and
+`suggestedStillMoistDeferralDays()` are all deleted by #738** — a reschedule no longer evaluates the
+adaptive model at all, so there is no `WateringAdjustment` row left for this fix to apply to. Existing
+`CHECK_STILL_MOIST` rows written before #738 keep whatever `afterIntervalDays` this fix gave them
+(read-only history, per the `CHECK_STILL_MOIST` entry above); no new row of that trigger is ever
+written again.
+
 **Schema**: `MIGRATION_11_12`, `PlantDatabase.DB_VERSION` 11→12, `app/schemas/.../12.json`. `.yapt`
 backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdjustment>` (default
 `emptyList()`) + `BackupSettings.askBeforeChangingIntervals: Boolean` (default `true`) — see
@@ -199,7 +321,7 @@ backup schema v12→v13: `BackupRoot.wateringAdjustments: List<BackupWateringAdj
 A plain settings key, not a `FeatureFlagRegistry` entry — survives disabling developer mode. Always
 consulted (`PlantDetailViewModel.shouldShowIntervalDialog()`) — `ADAPTIVE_WATERING` graduated (#655),
 so the confidence-weighted model and this toggle are both unconditional now.
-- **On** (default): today's ADR-0006 `AlertDialog`, byte-for-byte unchanged.
+- **On** (default): today's product ADR-0006 `AlertDialog`, byte-for-byte unchanged.
 - **Off**: `applySuggestionOrPrompt()` (an extension on `PlantDetailViewModel` in
   `PlantDetailIntervalActions.kt`, #641) calls `quickLogUseCase.applyWateringIntervalSuggestion()`
   directly (same dual-write, logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays,

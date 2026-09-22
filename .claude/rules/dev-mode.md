@@ -6,7 +6,7 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/settings/**/*"
 ---
 
-# Developer mode / feature flags / debug actions (product ADR-0022, #514)
+# Developer mode / feature flags / debug actions (product ADR-0042, #514)
 
 ## Developer mode unlock (#520)
 Tapping Settings → About version row 5× unlocks a **Developer** section at the bottom of Settings. Counter logic is
@@ -40,11 +40,23 @@ no schema bump).
   unconditionally; there is no registry entry or flag row for it anymore. The backing
   `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields, which already
   shipped unconditionally before the flag was removed, are unaffected.
-- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title with
-  Watered/Still-moist/Not now actions (#570) now ships unconditionally; there is no registry entry or flag row
-  for it anymore. See `.claude/rules/notifications.md`. `ReminderWorker`, the notification composer, and
-  `StillMoistReceiver` are unaffected otherwise — no new columns/backup fields, `CareType.CHECK` still reuses
+- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title (#570)
+  now ships unconditionally; there is no registry entry or flag row for it anymore. See
+  `.claude/rules/notifications.md`. The action set itself narrowed from three (Watered/Still-moist/Not
+  now) to two (Watered/Not now) later, by #738 (product ADR-0039) — `StillMoistReceiver` is deleted,
+  unrelated to this graduation. `ReminderWorker` and the notification composer were otherwise
+  unaffected by the graduation itself — no new columns/backup fields, `CareType.CHECK` still reuses
   the existing care-log pipeline entirely.
+- `PLANT_DETAIL_TABS` graduated (#704) — the Plant Detail per-action tabs feature (tab strip, inline
+  scheduling settings, per-tab insights, `.claude/rules/plant-detail.md`) now ships unconditionally;
+  there is no registry entry or flag row for it anymore. Unlike the three graduations above, this one
+  was user-visible on every real install — the flag-off classic single-page layout (and the `StatsRow`/
+  `StatChip` quick-log chips it alone hosted, #434) was deleted entirely, not merely made permanent.
+  `FeatureFlagRegistry.all` is now a genuinely empty `listOf()` — the last remaining flag graduated, and
+  Product ADR-0042 already anticipated this as the registry's expected steady state ("often be empty or
+  near-empty in practice, not just at initial ship"), not an edge case needing special handling. Developer
+  mode's `dev_mode_feature_flags_empty` rendering needed no new UI code — `SettingsScreen.kt` has
+  branched on `viewModel.flags.isEmpty()` since #521.
 
 ## Demo data (#523)
 Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,

@@ -553,13 +553,37 @@ class SettingsScreenTest {
 
     @Test
     fun featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty() {
-        // Inject an explicitly empty flag list rather than relying on FeatureFlagRegistry, which
-        // ships real flags now (#436) — this case asserts empty-registry rendering and must keep
-        // that meaning as flags come and go.
+        // Inject an explicitly empty flag list rather than relying on FeatureFlagRegistry so this
+        // case keeps asserting empty-registry rendering on purpose, independent of whether the real
+        // registry (see featureFlagsEmptyState_isDisplayed_withRealRegistry) happens to be empty too.
         val emptyFlagsViewModel = buildViewModelWithFlags(emptyList())
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = emptyFlagsViewModel,
+                onNavigateBack = {},
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        tapVersionRow(5)
+        waitForDeveloperSwitch(present = true)
+
+        composeTestRule.onNodeWithText("No feature flags in this build").performScrollTo().assertIsDisplayed()
+    }
+
+    /**
+     * Same rendering as [featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty], but against the
+     * real [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.all] via the default
+     * [viewModel] built in [setUp] (no injected flag list) — `PLANT_DETAIL_TABS` graduating (#704)
+     * left the registry genuinely empty, which is now every real install's developer mode, not just
+     * an injected test case.
+     */
+    @Test
+    fun featureFlagsEmptyState_isDisplayed_withRealRegistry() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
                 onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}

@@ -71,10 +71,12 @@ class AddEditPlantViewModel(
 
     /** Per-plant opt-out from the seasonal curve (#569) — always surfaced now that seasonal watering ships unconditionally (#656). */
     var pinIntervalToBase by mutableStateOf(false)
+    var dormancyStartMonth by mutableStateOf<Int?>(null)
+    var dormancyEndMonth by mutableStateOf<Int?>(null)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
-     * unprompted edit on this screen — as opposed to applying an ADR-0006 suggestion, which never
+     * unprompted edit on this screen — as opposed to applying a product ADR-0006 suggestion, which never
      * routes through this screen. An edit here is a full [Plant.wateringConfidence] reset (#568):
      * the user is asserting a new baseline (moved the plant, repotted, changed pot size), unlike
      * fine-tuning the number inside the suggestion dialog itself.
@@ -113,6 +115,8 @@ class AddEditPlantViewModel(
                     }
                     useLiquidFertilizer = plant.useLiquidFertilizer
                     pinIntervalToBase = plant.pinIntervalToBase
+                    dormancyStartMonth = plant.dormancyStartMonth
+                    dormancyEndMonth = plant.dormancyEndMonth
                 }
             }
         }
@@ -123,6 +127,15 @@ class AddEditPlantViewModel(
             pendingPhotos.add(uri)
         }
         coverPhotoUri = uri
+    }
+
+    fun setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+        require(
+            (startMonth == null && endMonth == null) ||
+                (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
+        )
+        dormancyStartMonth = startMonth
+        dormancyEndMonth = endMonth
     }
 
     fun save() {
@@ -151,7 +164,9 @@ class AddEditPlantViewModel(
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
                 useLiquidFertilizer = useLiquidFertilizer,
-                pinIntervalToBase = pinIntervalToBase
+                pinIntervalToBase = pinIntervalToBase,
+                dormancyStartMonth = dormancyStartMonth,
+                dormancyEndMonth = dormancyEndMonth
             )
             if (isEditMode) {
                 saveEdit(plant, newWateringIntervalDays, intervalChanged, now)
@@ -190,7 +205,7 @@ class AddEditPlantViewModel(
         val roomChangeResetFires = existing != null &&
             WateringLifecycleReset.roomChangeTriggersReset(existing.room, plant.room)
         // An unprompted edit to the watering interval on this screen is a full confidence
-        // reset (#568) — distinct from fine-tuning a number inside the ADR-0006 suggestion
+        // reset (#568) — distinct from fine-tuning a number inside the product ADR-0006 suggestion
         // dialog, which never routes through here.
         val wateringConfidence = if (intervalChanged || roomChangeResetFires) 0 else existing?.wateringConfidence
         val (deseasonalizedNewBase, wateringBaseIntervalDays) =

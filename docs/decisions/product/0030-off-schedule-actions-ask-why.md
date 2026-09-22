@@ -1,8 +1,10 @@
 # Product ADR-0030: Off-schedule actions get asked why; the answer decides whether it counts
 
 **Status**: accepted (late-direction mapping superseded by
-[ADR-0033](0033-late-watering-reason-never-shortens.md) — the early-direction mapping and the
-Reschedule-flow mapping below still stand as written)
+[ADR-0033](0033-late-watering-reason-never-shortens.md); Reschedule-flow mapping superseded by
+[ADR-0039](0039-reschedule-returns-to-model-neutral.md) — the early-direction watering mapping
+still stands as written; due-status visibility gate amended by
+[ADR-0031](0031-watering-actions-always-visible.md))
 
 **Date**: 2026-08-25
 
@@ -200,6 +202,3 @@ attribution.
   need a third control.
 - The thing a future change is most likely to break is the symmetric rule itself, by adding a fourth
   control or a fourth reason. That is what this ADR exists to record.
-- Amended by [ADR-0031](0031-watering-actions-always-visible.md) (visibility gate): the
-  `isOverdue || isDueSoon` due-status gate this ADR carried forward from ADR-0029 is dropped, so both
-  Water and Reschedule watering render on any day, not only once a plant is due.

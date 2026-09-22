@@ -9,7 +9,7 @@ paths:
 # Seasonal watering rules (#569, product ADR-0026)
 
 `SEASONAL_WATERING` graduated (#656) — the curve and the amplitude picker ship unconditionally; no
-registry entry. Computed, not learned — see ADR-0026 for the full rationale (data sparsity +
+registry entry. Computed, not learned — see product ADR-0026 for the full rationale (data sparsity +
 shared-shape argument against per-month learning). This file is the mechanical reference.
 
 ## The curve
@@ -66,18 +66,18 @@ Both `AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterva
 newly typed/dragged interval to *today* (`base = editedValue / season(now)`) when amplitude isn't Off
 and the plant isn't pinned — an unprompted edit is the user asserting a new baseline. When amplitude
 reads Off, the prior base is preserved rather than cleared, so choosing a non-Off amplitude later
-doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab, gated behind
-`PLANT_DETAIL_TABS`) both surface a "Pin interval" `Switch` bound to `pinIntervalToBase`, always visible.
+doesn't lose it. `AddEditPlantScreen`/`PlantDetailScreen` (Water tab) both surface a "Pin interval"
+`Switch` bound to `pinIntervalToBase`, always visible.
 
 ## Interaction with Part 1's adaptive model (#568, amended #572)
-`AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the *observed gap* before feeding it into
-`CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per ADR-0026's
+`AdaptiveWateringObservation` de-seasonalizes the *observed gap* for both callers before feeding it into
+`CareSchedule.computeAdaptiveInterval()` (`deseasonalizedObservedIntervalDays`), per product ADR-0026's
 "Interaction with Part 1" consequence — so a seasonal swing isn't misread as a permanent change in the
 plant's thirst. The legacy pre-#568 `computeSuggestedInterval()` ±1-day path is untouched (matching
 Part 1's own precedent of leaving that path alone).
 
 `currentBaseIntervalDays` no longer stays `Plant.wateringIntervalDays` unconditionally (that was a bug,
-fixed in #572/product ADR-0028): each of `QuickLogUseCase`/`AddCareLogViewModel`'s private
+fixed in #572/product ADR-0028): the shared `AdaptiveWateringObservation`
 `currentAdaptiveBaseIntervalDays(plant, configuredIntervalDays)` helper reads season-neutral
 `Plant.wateringBaseIntervalDays` instead, whenever amplitude isn't Off and the plant isn't
 pinned — otherwise (amplitude Off, or pinned) it's unchanged, `configuredIntervalDays`
@@ -86,6 +86,62 @@ edit, silently diverging from what `CareSchedule.computeStatus()` was actually u
 whenever amplitude wasn't Off. See `.claude/rules/watering-transparency.md` for the write-side half of
 the same fix (`applySuggestedInterval()`'s dual-write) and the `watering_adjustments` table this bug
 fix feeds.
+
+**The suggestion-dialog gate must compare live effective values, never `Plant.wateringIntervalDays`
+directly (#716).** `currentAdaptiveBaseIntervalDays()` fixed what the *model* reasons about; #716 fixed
+a second, distinct bug in what the *dialog gate* compares against. All three gates
+(`QuickLogUseCase.computeSuggestion()`, `AddCareLogViewModel.computeSuggestedInterval()`,
+`PlantDetailViewModel.pendingWateringSuggestion`) used to decide whether to show the product ADR-0006
+dialog by comparing today's live `effectiveWateringIntervalDaysForDisplay()` against the stale
+`Plant.wateringIntervalDays` literal — a number only rewritten on a manual edit, a suggestion apply, the
+#571 bootstrap, or the #702 fixup. Between those events the seasonal curve keeps moving while the
+literal doesn't, so the two drift apart on their own and the dialog could fire on pure calendar drift,
+misattributed to whichever watering happened to be logged that day. Fixed by comparing **live-to-live**
+instead: `effectiveWateringIntervalDaysForDisplay()` of the model's pre-observation base against its
+post-observation base, both evaluated at today's date — reusing the exact same public wrapper
+`WateringExplanationBuilder` already calls, so the gate cannot drift from the sheet by construction. A
+base that moves but still rounds to the same effective value today is the intended silent case (technical
+ADR-0027's existing "does not alter today's displayed effective interval… does not require approval"
+policy) — the fix only corrects what the comparison reads, not that policy itself. `QuickWaterSuggestion
+.currentIntervalEffective` carries this same live value out to Calendar/Plant List so their own
+"currently N days" text can stop independently re-deriving it from the stale literal (a 4th and 5th live
+copy of the same bug). Pinned plants and amplitude-Off plants are unaffected — both
+`currentAdaptiveBaseIntervalDays()`/`effectiveWateringIntervalDaysForDisplay()` already collapse to the
+literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
+schema change.
+
+**Two of those three gates have since been merged; the third has not.** #780 (technical ADR-0030)
+consolidated the `QuickLogUseCase` and `AddCareLogViewModel` copies into `AdaptiveWateringObservation`,
+which now owns the comparison for both callers. `PlantDetailViewModel.pendingWateringSuggestion` is
+**still an independent copy** — it does its own live-to-live `combine` over
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` and never routes through
+`AdaptiveWateringObservation` or `QuickLogUseCase.computeSuggestion()`. Correct today, but it means a
+future fix to the suggestion gate has **two** places to land, not one, and the shared path is not the
+whole story.
+
+**The trap outlives the fix.** #716 closed the three gates that had it, but the underlying shape is
+structural: there are two interval numbers, `Plant.wateringBaseIntervalDays` (season-neutral, `REAL`,
+what the model reasons about) and `Plant.wateringIntervalDays` (effective, `Int`, what the UI shows),
+and the second is only rewritten on the four discrete events listed above while the curve keeps moving
+between them. Any *new* code that reads `Plant.wateringIntervalDays` as a stand-in for "today's
+effective interval" reintroduces the same class of bug. Read it through
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` instead, and when code compares "the interval"
+against anything, say which of the two numbers it means. Two settled points, both re-argued more than
+once already: `wateringIntervalDays` is **effective-space at every read site** (#620/#626/#644 landed on
+this three separate times — don't re-litigate it), and `wateringBaseIntervalDays` is **deliberately
+unrounded at rest** — don't "tidy" it to an `Int`.
+
+**The drift the user experiences is stepped, not smooth.** The curve itself is continuous, but the
+*displayed* effective interval only moves when `base × season(today)` crosses a whole-day rounding
+boundary — so a spurious dialog arrived in bursts near particular dates rather than creeping in. Those
+dates are where the curve is steepest, a quarter-period from its day-5 peak: around **Apr 6 and Oct 6**,
+not the equinoxes.
+
+**"Today's date" needed its own follow-up fix (#716 review round 1).** The two live values above must
+both be evaluated at real wall-clock *today*, not at a backdated (#654) observation's own `loggedAt` —
+a second, narrower bug found after this fix's first round landed. See
+`.claude/rules/watering-transparency.md`'s "Follow-up (#716 review round 1)" note (filed alongside its
+#679 `displayNow` precedent) for the full `now`-vs-`displayNow` split.
 
 ## App-start reconciliation fixup (#702)
 Graduating `SEASONAL_WATERING` (#656) removed the flag check from `seasonalAmplitudeFlow()`/
@@ -149,7 +205,7 @@ watering-log history). Not a schema change — no new column, no migration/DB ve
 against the code, and explicitly accepted by the human as documented trade-offs rather than fixed
 further: neither applies to this install (confirmed with the human), both would need a schema change to
 fix properly, and this codebase currently serves a single install (no cloud/accounts/sync, product
-ADR-0022). Naming the exact failure mode here so a future reader — especially anyone reusing this code
+ADR-0042). Naming the exact failure mode here so a future reader — especially anyone reusing this code
 for a multi-install scenario — understands the real risk, not a softened version of it:
 - **The legacy-flag check in the item above only sees the flag's *current* value, not an ever-true
   history.** If a plant's base was correctly established while the old dev-mode flag was on (the

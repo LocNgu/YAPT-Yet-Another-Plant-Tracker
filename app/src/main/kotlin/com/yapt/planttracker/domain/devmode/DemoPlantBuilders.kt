@@ -164,7 +164,7 @@ internal object DemoPlantBuilders {
 
     /**
      * Liquid-fertilizer plant. Its one FERTILIZE log must be paired with a WATER log at the exact
-     * same timestamp (product ADR-0008/ADR-0017) — building both from the same [fertTimestamp]
+     * same timestamp (product ADR-0008/product ADR-0017) — building both from the same [fertTimestamp]
      * makes that invariant structural rather than something that has to be double-checked.
      */
     private fun buildPothos(anchor: Long): DemoPlantSeed {

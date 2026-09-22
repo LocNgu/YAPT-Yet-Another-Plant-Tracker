@@ -31,6 +31,11 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
+- A configured dormancy window suppresses watering due/overdue flags while its current month is inside
+  the window (product ADR-0044). `nextWateringDueAt` remains computed. Plant List places these plants
+  in a Dormant bucket for watering due sorts; Calendar lists them in today's Dormant section with a
+  separate count and does not place a watering due date inside the window on the calendar grid.
+  Fertilizing stays on its normal schedule.
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
 The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy
@@ -53,7 +58,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `correctionStreak()` shows `abs(streak) >= 2`. First observation (`wateringConfidence == null`) bootstraps to 0
   without evaluating a transition, but still corrects `base` at the confidence-0 gain.
 - Manual-edit semantics differ by surface: an AddEditPlant interval edit is a full reset (`confidence = 0`,
-  `AddEditPlantViewModel.save()`); editing the number inside the ADR-0006 dialog before Apply reuses
+  `AddEditPlantViewModel.save()`); editing the number inside the product ADR-0006 dialog before Apply reuses
   `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
   .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
   `onDismissRequest`, not `clearSuggestedInterval()`, a plain no-side-effect reset with no production caller since
@@ -73,6 +78,32 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
   `NEUTRAL_OBSERVATION_GAIN` (0.15) — a ceiling on the existing gain, not a second learning rate. Confidence still
   updates normally on gap agreement for a null-feedback observation; only the `base` correction is throttled.
+- **Sub-day precision (#717/#718):** `AdaptiveInterval` carries both the rounded whole-day value used by UI and
+  adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
+  therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
+  rather than reverse-converting its rounded effective display value.
+  The model is `Double` end to end: the `Double` overload of this function is the real one (the `Int` overload
+  only widens via `.toDouble()`), `clampStep()` returns an unrounded `Double`, and the one rounding inside is
+  `newBase.roundToInt()` populating the display-facing `AdaptiveInterval.intervalDays`. Write paths persist
+  `baseIntervalDays`, never that rounded sibling — don't route the persisted base through an `Int`. Rounding a
+  base is safe only for display, and the *round-trip* is what makes it unsafe: deriving a base back **from** a
+  rounded effective value divides the ±0.5-day residual by `season(today)`, amplifying it by `1/season` —
+  ±0.77 days at the July trough on the default `STANDARD` amplitude (0.35) and a full ±1.0 on `STRONG` (0.5),
+  and worst in the growing season rather than winter, since a factor below 1 magnifies rather than shrinks.
+  That is the bug #718 fixed, and it is a different thing from the accepted whole-day *display* artifact noted
+  on the clamp bullet above. Retaining sub-day precision is also what makes a
+  capped-gain neutral correction able to move a short interval at all: at `NEUTRAL_OBSERVATION_GAIN` = 0.15, a
+  whole-day move needs `0.15 × |observed − base| >= 0.5`, i.e. an *integer* gap difference of 4, and `4 <= 0.15
+  × base` needs `base >= 27` (the two `0.15`s there are *different* constants — `NEUTRAL_OBSERVATION_GAIN`
+  for the gain and `GAP_AGREEMENT_TOLERANCE` for the exclusion bound — which happen to be equal today, so the
+  threshold moves if either is ever tuned alone) — so before #717/#718, when the sub-day result was
+  discarded, every base of 26 days or less was a dead zone a neutral observation could never move.
+  (Neutral here is the null-feedback, *on-schedule* case at the capped gain — an unattributed
+  *off-schedule* observation is a different rule and gets gain 0.0 outright, per #586/product ADR-0030
+  below.)
+- **The suggestion-dialog gate compares live effective values, never the stale `Plant.wateringIntervalDays`
+  literal (#716)** — see `.claude/rules/seasonal-watering.md`'s "#716" note for the full rule; this bullet is
+  just the pointer, since the fix lives in the seasonal-conversion file, not here.
 - **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
   **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
   as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`
@@ -88,7 +119,7 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `isWateringOnSchedule` is false, and it selects the reason prompt's late wording ("Why was it late?" /
   "It was dry by then" / "Forgot, or no time") over the early one ("Why now?" / "The plant needed it" /
   "Just my schedule"). Same two bits in either direction — about the plant, or about you — so this is
-  wording only and ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
+  wording only and product ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
   gap-vs-effective-interval comparison as `isWateringOnSchedule`, **never** from `isOverdue`: the latter
   measures against the due date, which a `wateringDueDateOverride` moves, so a deferred plant can be
   not-overdue while its gap has still run long.
@@ -115,19 +146,18 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing `wateringIntervalDays`/
   `wateringBaseIntervalDays` (mirroring `QuickLogUseCase.applyWateringIntervalSuggestion()`'s dual-write fix) plus clearing
   `wateringResetAt` so it fires exactly once. When it fires, `adaptWateringInterval()` returns the
-  pre-bootstrap interval unchanged so the ADR-0006 suggestion dialog never re-surfaces a value the
+  pre-bootstrap interval unchanged so the product ADR-0006 suggestion dialog never re-surfaces a value the
   bootstrap already silently committed.
-- **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027, reached via the Reschedule reason prompt since
-  #586 product ADR-0030) is a `TOO_SOON` observation fed through this same function by
-  `QuickLogUseCase.recordStillMoistCheck(plant, newDueAtMillis)` — full confidence gain (it's explicit, not silent),
-  and only `Plant.wateringConfidence` is persisted from the result; the suggested `intervalDays` itself is never
-  silently applied. Unconditional (`ADAPTIVE_WATERING` graduated, #655; `CHECK_REMINDERS` graduated, #657) — see
-  `.claude/rules/notifications.md`. The **length** of the deferral is never a model input (#586): the reason
-  already decided what is learned, and `suggestedStillMoistDeferralDays()` (`newBase - observedGap`, floored at
-  `DEFAULT_STILL_MOIST_DEFERRAL_DAYS` = 1) only *suggests* a date — it shares `computeStillMoistAdaptiveInterval()`
-  with the real write so the two can't drift. A reschedule the user attributed to themselves ("I can't right now")
-  still does **not** feed this model at all (verified by `SkipWateringReceiverTest`) — ADR-0030 keeps ADR-0029's
-  posture for that half.
+- **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027) no longer feeds this function at all
+  (#738, product ADR-0039, superseding product ADR-0030's Reschedule-flow clause) — a reschedule writes only
+  `Plant.wateringDueDateOverride` and asks no reason prompt. `QuickLogUseCase.recordStillMoistCheck()`,
+  `recordStillMoistAdaptiveObservation()`, `computeStillMoistAdaptiveInterval()`, and
+  `suggestedStillMoistDeferralDays()` are all deleted; the reschedule write path is
+  `QuickLogUseCase.recordReschedule(plant, newDueAtMillis)`, a plain column write with no adaptive-model
+  involvement at all. `CareType.CHECK` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` remain as enum
+  constants (Room/`.yapt` deserialization safety for historical rows) but are write-only-in-the-past —
+  see `.claude/rules/watering-transparency.md`. Every reschedule option, "I can't right now" included,
+  writes the override only and nothing else, same posture product ADR-0029 originally established.
 
 ## DateUtils.formatRelative()
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window

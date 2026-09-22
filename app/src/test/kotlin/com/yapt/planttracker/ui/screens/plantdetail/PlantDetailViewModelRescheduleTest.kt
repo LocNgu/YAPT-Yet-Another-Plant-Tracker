@@ -12,9 +12,7 @@ import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
-import com.yapt.planttracker.domain.model.RescheduleReason
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -34,10 +32,10 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * Reschedule watering (reason prompt, then Today/+N days/custom date) coverage for
- * [PlantDetailViewModel] (#508 product ADR-0029, reshaped by #586 product ADR-0030), split out of
- * `PlantDetailViewModelTest` to keep that file under Detekt's `LargeClass` threshold — mirrors
- * `PlantDetailViewModelSeasonalTest`'s precedent.
+ * Reschedule watering (Today/+N days/custom date) coverage for [PlantDetailViewModel] (#508 product
+ * ADR-0029, reshaped by #586 product ADR-0030, made model-neutral again by #738 product ADR-0039),
+ * split out of `PlantDetailViewModelTest` to keep that file under Detekt's `LargeClass` threshold —
+ * mirrors `PlantDetailViewModelSeasonalTest`'s precedent.
  */
 class PlantDetailViewModelRescheduleTest {
 
@@ -86,19 +84,17 @@ class PlantDetailViewModelRescheduleTest {
     }
 
     @Test
-    fun `requestReschedule opens the reason prompt, not the date dialog`() = runTest {
+    fun `requestReschedule opens the date dialog directly, with no reason prompt`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         val vm = makeVm()
 
-        vm.showRescheduleReasonSheet.test {
+        vm.showRescheduleDialog.test {
             assertFalse(awaitItem())
             vm.requestReschedule()
             assertTrue(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
-        // #586: the date dialog only opens once a reason has been given.
-        assertFalse(vm.showRescheduleDialog.value)
     }
 
     @Test
@@ -108,7 +104,6 @@ class PlantDetailViewModelRescheduleTest {
         val vm = makeVm()
 
         vm.requestReschedule()
-        vm.chooseRescheduleReason(RescheduleReason.CANT_RIGHT_NOW)
         vm.showRescheduleDialog.test {
             assertTrue(awaitItem())
             vm.dismissRescheduleDialog()
@@ -117,62 +112,13 @@ class PlantDetailViewModelRescheduleTest {
         }
     }
 
-    @Test
-    fun `dismissRescheduleReasonSheet abandons the reschedule without writing anything`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = makeVm()
-
-        vm.requestReschedule()
-        vm.dismissRescheduleReasonSheet()
-
-        assertFalse(vm.showRescheduleReasonSheet.value)
-        assertFalse(vm.showRescheduleDialog.value)
-        assertNull(vm.rescheduleReason.value)
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
-    }
+    // ---- Reschedule watering (#508, product ADR-0029; model-neutral since #738, product ADR-0039) ----
 
     @Test
-    fun `chooseRescheduleReason CANT_RIGHT_NOW opens the date dialog with no suggested deferral`() = runTest {
+    fun `confirmRescheduleToday delegates to recordReschedule with now and closes the dialog`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        val vm = makeVm()
-
-        vm.requestReschedule()
-        vm.chooseRescheduleReason(RescheduleReason.CANT_RIGHT_NOW)
-
-        assertFalse(vm.showRescheduleReasonSheet.value)
-        assertTrue(vm.showRescheduleDialog.value)
-        assertNull(vm.rescheduleSuggestedDays.value)
-        coVerify(exactly = 0) { quickLogUseCase.suggestedStillMoistDeferralDays(any()) }
-    }
-
-    @Test
-    fun `chooseRescheduleReason SOIL_STILL_MOIST opens the date dialog on the derived deferral`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 4
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.requestReschedule()
-            vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        assertTrue(vm.showRescheduleDialog.value)
-        assertEquals(4, vm.rescheduleSuggestedDays.value)
-    }
-
-    // ---- Reschedule watering (#508, product ADR-0029) ----
-
-    @Test
-    fun `confirmRescheduleToday sets wateringDueDateOverride to now and closes the dialog`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
         val vm = makeVm()
         vm.requestReschedule()
 
@@ -186,86 +132,32 @@ class PlantDetailViewModelRescheduleTest {
 
         assertFalse(vm.showRescheduleDialog.value)
         coVerify {
-            plantRepo.updatePlant(
-                match {
-                    val override = it.wateringDueDateOverride
-                    it.wateringIntervalDays == 7 && override != null && override in before..after
-                }
-            )
+            quickLogUseCase.recordReschedule(monstera, match { it in before..after })
         }
     }
 
-    /**
-     * A plant last watered 20 days ago on a 7-day interval is clearly overdue, so
-     * `maxOf(nextWateringDueAt, now)` collapses to `now` — the resulting override is `now + N days`,
-     * asserted against a `[before, after]` wall-clock window bracketing the call rather than an exact
-     * timestamp, since both this test and the ViewModel read `System.currentTimeMillis()` independently.
-     */
     @Test
-    fun `confirmRescheduleRelativeDays(1) pushes the due date 1 day from the effective due date`() = runTest {
-        val now = System.currentTimeMillis()
+    fun `relative date option commits the timestamp shown in the dialog`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
-        val overdueLog = CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(20))
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm(careLogs = listOf(overdueLog))
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
+        val vm = makeVm()
+        val shownRelativeDueAt = 1_800_000_000_000L
 
-        val before = System.currentTimeMillis()
-        vm.careStatus.test {
-            assertTrue(awaitItem()!!.isOverdue)
-            vm.confirmRescheduleRelativeDays(1)
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.confirmRescheduleRelativeDate(shownRelativeDueAt)
             cancelAndIgnoreRemainingEvents()
         }
-        val after = System.currentTimeMillis()
 
-        val oneDayMs = TimeUnit.DAYS.toMillis(1)
-        coVerify {
-            plantRepo.updatePlant(
-                match {
-                    val override = it.wateringDueDateOverride
-                    it.wateringIntervalDays == 7 &&
-                        override != null &&
-                        override in (before + oneDayMs)..(after + oneDayMs)
-                }
-            )
-        }
+        coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, shownRelativeDueAt) }
     }
 
     @Test
-    fun `confirmRescheduleRelativeDays(3) pushes the due date 3 days from the effective due date`() = runTest {
-        val now = System.currentTimeMillis()
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        val overdueLog = CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - TimeUnit.DAYS.toMillis(20))
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm(careLogs = listOf(overdueLog))
-
-        val before = System.currentTimeMillis()
-        vm.careStatus.test {
-            assertTrue(awaitItem()!!.isOverdue)
-            vm.confirmRescheduleRelativeDays(3)
-            cancelAndIgnoreRemainingEvents()
-        }
-        val after = System.currentTimeMillis()
-
-        val threeDaysMs = TimeUnit.DAYS.toMillis(3)
-        coVerify {
-            plantRepo.updatePlant(
-                match {
-                    val override = it.wateringDueDateOverride
-                    it.wateringIntervalDays == 7 &&
-                        override != null &&
-                        override in (before + threeDaysMs)..(after + threeDaysMs)
-                }
-            )
-        }
-    }
-
-    @Test
-    fun `confirmRescheduleCustomDate writes the given date verbatim as wateringDueDateOverride`() = runTest {
+    fun `confirmRescheduleCustomDate delegates to recordReschedule with the given date verbatim`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
         val vm = makeVm()
         val customDate = 1_800_000_000_000L
 
@@ -275,53 +167,55 @@ class PlantDetailViewModelRescheduleTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == customDate && it.wateringIntervalDays == 7 }
-            )
-        }
+        coVerify { quickLogUseCase.recordReschedule(monstera, customDate) }
     }
 
+    /**
+     * #738 (product ADR-0039): every reschedule option — whichever date option was tapped — writes
+     * only `Plant.wateringDueDateOverride` via `QuickLogUseCase.recordReschedule()`. It never touches
+     * `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` directly (those columns
+     * are never even passed to the mocked use case) and never writes a `watering_adjustments` row —
+     * the single surviving contract for the whole Reschedule flow, broadened from the pre-#738 test of
+     * the same name once the reason-prompt code it also covered was removed.
+     */
     @Test
-    fun `reschedule options never touch wateringBaseIntervalDays, wateringConfidence, or watering_adjustments`() =
-        runTest {
-            val monstera = plant().copy(
-                wateringIntervalDays = 7,
-                wateringBaseIntervalDays = 7.0,
-                wateringConfidence = 3
-            )
-            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
-            val vm = makeVm()
+    fun `every reschedule option delegates to recordReschedule and touches nothing else`() = runTest {
+        val monstera = plant().copy(
+            wateringIntervalDays = 7,
+            wateringBaseIntervalDays = 7.0,
+            wateringConfidence = 3
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
+        val vm = makeVm()
+        val customDate = 1_800_000_000_000L
 
-            vm.plant.test {
-                assertEquals(monstera, awaitItem())
-                vm.confirmRescheduleToday()
-                vm.confirmRescheduleRelativeDays(2)
-                vm.confirmRescheduleCustomDate(1_800_000_000_000L)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            coVerify(exactly = 3) {
-                plantRepo.updatePlant(
-                    match { it.wateringBaseIntervalDays == 7.0 && it.wateringConfidence == 3 }
-                )
-            }
-            coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.confirmRescheduleToday()
+            vm.confirmRescheduleRelativeDate(customDate + TimeUnit.DAYS.toMillis(1))
+            vm.confirmRescheduleCustomDate(customDate)
+            cancelAndIgnoreRemainingEvents()
         }
+
+        coVerify(exactly = 3) { quickLogUseCase.recordReschedule(monstera, any()) }
+        coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, customDate) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+    }
 
     @Test
     fun `reschedule options never emit an Event that could feed the interval-suggestion dialog`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.recordReschedule(any(), any()) } just runs
         val vm = makeVm()
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
             vm.events.test {
                 vm.confirmRescheduleToday()
-                vm.confirmRescheduleRelativeDays(1)
+                vm.confirmRescheduleRelativeDate(1_800_000_000_000L + TimeUnit.DAYS.toMillis(1))
                 vm.confirmRescheduleCustomDate(1_800_000_000_000L)
                 expectNoEvents()
             }
@@ -329,106 +223,6 @@ class PlantDetailViewModelRescheduleTest {
         }
 
         assertNull(vm.suggestedWateringInterval.value)
-    }
-
-    // ---- "Soil still moist" reschedule (#586, product ADR-0030) ----
-
-    @Test
-    fun `a SOIL_STILL_MOIST reschedule routes through recordStillMoistCheck with the picked date`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        val pickedDate = 1_800_000_000_000L
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 2
-        coEvery { quickLogUseCase.recordStillMoistCheck(monstera, pickedDate) } returns true
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.requestReschedule()
-            vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
-            vm.quickLogMessage.test {
-                vm.confirmRescheduleCustomDate(pickedDate)
-                assertEquals(PlantDetailViewModel.QuickLogMessage.StillMoistChecked("Monstera"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { quickLogUseCase.recordStillMoistCheck(monstera, pickedDate) }
-        // The plain override write is the *other* branch's job — this one must not also fire it.
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
-    @Test
-    fun `a SOIL_STILL_MOIST reschedule emits AlreadyCheckedToday when the use case returns false`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        val pickedDate = 1_800_000_000_000L
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 2
-        coEvery { quickLogUseCase.recordStillMoistCheck(monstera, pickedDate) } returns false
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.requestReschedule()
-            vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
-            vm.quickLogMessage.test {
-                vm.confirmRescheduleCustomDate(pickedDate)
-                assertEquals(PlantDetailViewModel.QuickLogMessage.AlreadyCheckedToday("Monstera"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    /**
-     * #586 acceptance criterion: reschedule *length* never affects what the model learns. Whatever
-     * date the user picks is passed through verbatim as the new due date, and the observation itself
-     * is identical — the reason already decided it.
-     */
-    @Test
-    fun `reschedule length is passed through verbatim and never varies the observation`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { quickLogUseCase.suggestedStillMoistDeferralDays(monstera) } returns 2
-        coEvery { quickLogUseCase.recordStillMoistCheck(monstera, any()) } returns true
-        val vm = makeVm()
-        val shortDate = 1_800_000_000_000L
-        val longDate = shortDate + TimeUnit.DAYS.toMillis(30)
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            for (date in listOf(shortDate, longDate)) {
-                vm.requestReschedule()
-                vm.chooseRescheduleReason(RescheduleReason.SOIL_STILL_MOIST)
-                vm.confirmRescheduleCustomDate(date)
-            }
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify(exactly = 1) { quickLogUseCase.recordStillMoistCheck(monstera, shortDate) }
-        coVerify(exactly = 1) { quickLogUseCase.recordStillMoistCheck(monstera, longDate) }
-    }
-
-    @Test
-    fun `a CANT_RIGHT_NOW reschedule writes only the override and never a CHECK log`() = runTest {
-        val monstera = plant().copy(wateringIntervalDays = 7)
-        val pickedDate = 1_800_000_000_000L
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
-        val vm = makeVm()
-
-        vm.plant.test {
-            assertEquals(monstera, awaitItem())
-            vm.requestReschedule()
-            vm.chooseRescheduleReason(RescheduleReason.CANT_RIGHT_NOW)
-            vm.confirmRescheduleCustomDate(pickedDate)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == pickedDate }) }
-        coVerify(exactly = 0) { quickLogUseCase.recordStillMoistCheck(any(), any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
     // ---- Reschedule delta + revert (#630) ----

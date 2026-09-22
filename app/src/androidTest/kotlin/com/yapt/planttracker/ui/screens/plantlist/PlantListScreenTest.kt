@@ -8,6 +8,7 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.datastore.core.DataStore
@@ -33,6 +34,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
 
 @RunWith(AndroidJUnit4::class)
 class PlantListScreenTest {
@@ -128,6 +130,29 @@ class PlantListScreenTest {
         composeTestRule.onNodeWithText("Watering due").performClick()
 
         composeTestRule.onNodeWithText("Not scheduled").assertIsDisplayed()
+    }
+
+    @Test
+    fun dormantPlant_showsDormantWateringLabelAndGroup() {
+        val month = LocalDate.now().monthValue
+        val plant = Plant(
+            id = 1L,
+            name = "Cactus",
+            wateringIntervalDays = 5,
+            dormancyStartMonth = month,
+            dormancyEndMonth = month,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(plants = listOf(plant))
+        composeTestRule.setContent {
+            PlantListScreen(viewModel, onNavigateToPlant = {}, onNavigateToAdd = {}, onNavigateToSettings = {})
+        }
+
+        composeTestRule.onNodeWithText("Dormant").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Sort plants").performClick()
+        composeTestRule.onNodeWithText("Watering due").performClick()
+        composeTestRule.onAllNodesWithText("Dormant")[0].assertIsDisplayed()
     }
 
     @Test

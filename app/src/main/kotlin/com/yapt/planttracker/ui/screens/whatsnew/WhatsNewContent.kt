@@ -18,6 +18,55 @@ object WhatsNewContent {
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 470,
+            versionName = "0.31.0",
+            added = listOf(
+                "You can now give a plant a dormancy window — the months it rests, set on Add/Edit Plant or " +
+                    "the Water tab's settings. Watering reminders pause during those months, and a watering " +
+                    "that spans the rest period no longer throws off the plant's learned watering rhythm",
+                "Plants inside a dormancy window now show as Dormant on the Plant List and Calendar. " +
+                    "Their watering schedule is suspended, and Why this date? explains that while keeping " +
+                    "their recent watering adjustments visible"
+            ),
+            changed = listOf(
+                "Watering logs now use the same adaptive schedule logic whether you use a quick action or " +
+                    "the full Add Care Log form; this keeps their existing behavior consistent",
+                "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
+                    "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
+                    "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
+                    "their own tabs — Water still works even for a plant with no set schedule. Custom Reminders " +
+                    "and Issues now live behind their own tabs too; tap the expand arrow (it shows a dot when " +
+                    "something there needs attention) to see all six tabs at once",
+                "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
+                    "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
+                    "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
+                    "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm",
+                "New and existing photos taken inside YAPT now use substantially less app storage. Backup export " +
+                    "can also optimize its copies of photos—including gallery photos—without changing your originals"
+            ),
+            fixed = listOf(
+                "A late watering marked \"Soil was still moist\" in Add Care Log can no longer shorten " +
+                    "a plant's watering interval when its schedule first learns from history or learns again after a reset",
+                "Reschedule watering now shows the date each +N-day choice will set, so you " +
+                    "can see exactly when the next reminder is due",
+                "Retyping a watering suggestion after logging an earlier watering now uses today's season " +
+                    "consistently when saving the new interval",
+                "The suggested-interval dialog no longer pops up just because the season moved on since you " +
+                    "last touched the interval — it now only appears when watering actually taught YAPT " +
+                    "something, so it's no longer wrongly blamed on whichever watering you just logged",
+                "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
+                    "rounding nudge the underlying interval when a suggested interval is applied — whether " +
+                    "you accept it yourself or YAPT applies it for you",
+                "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
+                    "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
+                    "least tomorrow on the first tap",
+                "Rescheduling watering to a custom date on or before the plant's current watering due date no " +
+                    "longer silently does nothing — that date is no longer offered in the picker",
+                "Rescheduling watering's \"Today\" option is no longer greyed out in cases where tapping it " +
+                    "would actually pull the due date in sooner"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 460,
             versionName = "0.30.0",
             changed = listOf(

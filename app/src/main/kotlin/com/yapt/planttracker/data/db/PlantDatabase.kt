@@ -40,7 +40,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 13
+        const val DB_VERSION = 14
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -234,6 +234,17 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #759 (product ADR-0044): dormancyStartMonth/dormancyEndMonth back the per-plant dormancy
+        // window (1-12, both null = no dormancy). Pure ALTER TABLE, no row iteration — every existing
+        // row is untouched and reads back null for both columns. Nothing reads these columns yet.
+        @Suppress("MagicNumber")
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN dormancyStartMonth INTEGER")
+                db.execSQL("ALTER TABLE plants ADD COLUMN dormancyEndMonth INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -253,7 +264,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_9_10,
                         MIGRATION_10_11,
                         MIGRATION_11_12,
-                        MIGRATION_12_13
+                        MIGRATION_12_13,
+                        MIGRATION_13_14
                     )
                     .build()
                     .also { INSTANCE = it }

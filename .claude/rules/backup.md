@@ -9,7 +9,9 @@ paths:
 
 # Backup / Restore rules
 
-`.yapt` ZIP export/import via SAF; optional photo inclusion; settings round-trip; forward-compat warning dialog.
+`.yapt` ZIP export/import via SAF; optional photo inclusion and opt-in-at-export lossy photo optimization; settings
+round-trip; forward-compat warning dialog. Optimization changes only the copies written into the archive, never a
+gallery-owned source image.
 
 ## Mechanics (don't regress these)
 - **Export** assembles the ZIP in a `cacheDir` temp file first, then streams to the SAF destination — prevents
@@ -41,6 +43,7 @@ paths:
 | v14 | `BackupPlant.wateringResetAt: Long?` + `BackupPlant.wateringFreezeUntil: Long?` | `null` / `null` (#571) |
 | v15 | `BackupSettings.seasonalAmplitude: String` | `"STANDARD"` (#656) |
 | v16 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
+| v17 | `BackupPlant.dormancyStartMonth: Int?` + `BackupPlant.dormancyEndMonth: Int?` | `null` / `null` (#759, product ADR-0044) |
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.

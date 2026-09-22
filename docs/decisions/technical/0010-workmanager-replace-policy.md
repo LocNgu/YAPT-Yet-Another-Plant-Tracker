@@ -1,4 +1,4 @@
-# ADR-0010: WorkManager REPLACE policy so reminder time changes take effect immediately
+# Technical ADR-0010: WorkManager REPLACE policy so reminder time changes take effect immediately
 
 **Status**: accepted
 

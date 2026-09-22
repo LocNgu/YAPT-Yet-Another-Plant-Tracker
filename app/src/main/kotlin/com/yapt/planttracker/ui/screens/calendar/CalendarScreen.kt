@@ -1,6 +1,5 @@
 package com.yapt.planttracker.ui.screens.calendar
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,20 +48,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
@@ -84,8 +75,6 @@ import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.QuickLogButtons
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.theme.OverdueRed
-import com.yapt.planttracker.ui.theme.SageGreen
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -233,9 +222,10 @@ fun CalendarScreen(
     }
 
     pendingIntervalSuggestion?.let { suggestion ->
-        val currentInterval = plantsWithStatus
-            .firstOrNull { it.plant.id == suggestion.plantId }
-            ?.plant?.wateringIntervalDays ?: 0
+        // #716: reads the suggestion's own live-recomputed currentIntervalEffective, not the stale
+        // Plant.wateringIntervalDays literal (which only updates on a manual edit/apply/bootstrap and
+        // drifts from the true seasonal value on its own) — matches Plant Detail's "currently" figure.
+        val currentInterval = suggestion.currentIntervalEffective
         AlertDialog(
             onDismissRequest = {
                 viewModel.dismissSuggestedInterval(suggestion.plantId)
@@ -264,7 +254,14 @@ fun CalendarScreen(
                 TextButton(
                     onClick = {
                         parsedInterval?.let {
-                            viewModel.applySuggestedInterval(suggestion.plantId, suggestion.suggestedInterval, it)
+                            viewModel.applySuggestedInterval(
+                                suggestion.plantId,
+                                suggestion.suggestedInterval,
+                                it,
+                                suggestion.suggestedBaseInterval.takeIf { _ ->
+                                    it == suggestion.suggestedIntervalEffective
+                                }
+                            )
                         }
                         pendingIntervalSuggestion = null
                     },
@@ -386,40 +383,7 @@ private fun CalendarDayCell(
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
             )
             Spacer(Modifier.height(2.dp))
-            val plantCount = entry?.plants?.size ?: 0
-            if (inMonth && plantCount > 0) {
-                val isOverdueBadge = isToday && entry?.containsOverdue == true
-                val badgeColor = if (isOverdueBadge) OverdueRed else SageGreen
-                val badgeDescription = pluralStringResource(R.plurals.calendar_badge_cd, plantCount, plantCount)
-                val overdueStateDescription = stringResource(R.string.calendar_badge_state_overdue)
-                val badgeTag = "calendar_badge_${day.date}"
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(badgeColor)
-                        // Semantics modifiers on one node are folded tail-to-head, and
-                        // clearAndSetSemantics resets whatever was folded in before it (i.e.
-                        // anything later/more-tail in this chain). testTag must therefore come
-                        // before clearAndSetSemantics so it survives the reset instead of being
-                        // wiped by it.
-                        .testTag(badgeTag)
-                        .clearAndSetSemantics {
-                            contentDescription = badgeDescription
-                            if (isOverdueBadge) stateDescription = overdueStateDescription
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = plantCount.toString(),
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            } else {
-                Spacer(Modifier.size(18.dp))
-            }
+            CalendarDayBadges(day.date, entry, inMonth, isToday)
         }
     }
 }
@@ -458,7 +422,8 @@ private fun CalendarDaySheet(
             )
 
             if (day == today) {
-                val (overdue, dueToday) = plants.partition { isOverdueEntry(it) }
+                val (dormant, due) = plants.partition { it.isDormant && !it.waterDue && !it.fertilizeDue }
+                val (overdue, dueToday) = due.partition { isOverdueEntry(it) }
                 val sortedOverdue = overdue.sortedBy { it.status.plant.name.lowercase() }
                 val sortedToday = dueToday.sortedBy { it.status.plant.name.lowercase() }
                 if (sortedOverdue.isNotEmpty()) {
@@ -470,6 +435,12 @@ private fun CalendarDaySheet(
                 if (sortedToday.isNotEmpty()) {
                     CalendarDaySheetSectionHeader(stringResource(R.string.date_group_today))
                     sortedToday.forEach { info ->
+                        CalendarDayPlantRow(info, onNavigateToPlant, onQuickWater, onQuickFertilize)
+                    }
+                }
+                if (dormant.isNotEmpty()) {
+                    CalendarDaySheetSectionHeader(stringResource(R.string.date_group_dormant))
+                    dormant.sortedBy { it.status.plant.name.lowercase() }.forEach { info ->
                         CalendarDayPlantRow(info, onNavigateToPlant, onQuickWater, onQuickFertilize)
                     }
                 }
@@ -523,6 +494,13 @@ private fun CalendarDayPlantRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 4.dp)
             ) {
+                if (info.isDormant) {
+                    Text(
+                        text = stringResource(R.string.date_group_dormant),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (info.waterDue) {
                     AssistChip(
                         onClick = {},
@@ -566,19 +544,27 @@ private fun CalendarDayPlantRow(
 /**
  * #586 fast path, mirroring `PlantDetailScreen`'s helper of the same name: only an *off-schedule*
  * watering asks why, so an on-schedule tap logs straight through with no reason
- * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030).
+ * ([PlantCareStatus.isWateringOnSchedule], product ADR-0030). A gap that overlaps the plant's
+ * dormancy window ([PlantCareStatus.isWateringGapDormancySpanning], #699/#761, product ADR-0044) skips
+ * the prompt too, for the same reason `PlantDetailScreen`'s `requestWater` does — the question is
+ * incoherent for a plant that was asleep, and a persisted answer could poison a later
+ * `correctionStreak()` window even though the observation itself is excluded from base learning.
  */
 private fun requestWater(
     status: PlantCareStatus,
     viewModel: CalendarViewModel,
     showReasonSheet: () -> Unit
 ) {
-    if (status.isWateringOnSchedule) viewModel.quickWater(status.plant.id, reason = null) else showReasonSheet()
+    if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
+        viewModel.quickWater(status.plant.id, reason = null)
+    } else {
+        showReasonSheet()
+    }
 }
 
 /**
  * [requestWater]'s counterpart for the fertilize button. Only a liquid-fertilizer plant writes a
- * paired WATER log (ADR-0008), so only that case is ever subject to the reason prompt.
+ * paired WATER log (product ADR-0008), so only that case is ever subject to the reason prompt.
  */
 private fun requestFertilize(
     status: PlantCareStatus,
@@ -587,7 +573,8 @@ private fun requestFertilize(
 ) {
     when {
         !status.plant.useLiquidFertilizer -> viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-        status.isWateringOnSchedule -> viewModel.quickLiquidFertilize(status.plant.id, reason = null)
+        status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
+            viewModel.quickLiquidFertilize(status.plant.id, reason = null)
         else -> showReasonSheet()
     }
 }

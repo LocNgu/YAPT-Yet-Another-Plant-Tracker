@@ -1,4 +1,4 @@
-# ADR-0034: Quick-water always opens a "Log watering" date picker (no instant-log fast path)
+# Product ADR-0034: Quick-water always opens a "Log watering" date picker (no instant-log fast path)
 
 **Status**: accepted
 

@@ -12,6 +12,8 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.Hemisphere
@@ -78,6 +80,19 @@ class AddCareLogViewModelTest {
         // configured interval and 2+ prior waterings reaches this; individual tests override with a
         // real correction-streak window where that matters.
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
+        // #699/#761 (product ADR-0044): default no predecessor at all, so isDormancySpanningForLoggedAt()
+        // and computeSuggestedInterval()'s own dormancy check both resolve to "nothing to gate against"
+        // for every existing test that doesn't care about dormancy — mirrors PlantDetailScreenTest's
+        // identical precedent for the same call ("every 'Log watering' date-picker confirm now calls
+        // previousWateringBefore() regardless of which test triggers it", .claude/rules/plant-detail.md).
+        // Tests exercising dormancy override this with a real predecessor.
+        coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
+        // #699/#761 (Codex review round 3 on #776, P2): isDormancySpanningForLoggedAt() now runs
+        // unconditionally on every WATER save, including edit mode (no more !isEditMode gate) — so
+        // every existing edit-mode WATER test needs a plant lookup default too, not just non-edit ones.
+        // null resolves the dormancy check to "nothing to gate against", same as the predecessor default
+        // above; tests exercising dormancy override this with a real plant.
+        every { plantRepo.getPlantById(any()) } returns flowOf(null)
     }
 
     @Test
@@ -123,17 +138,19 @@ class AddCareLogViewModelTest {
 
     @Test
     fun `save WATER log with JUST_RIGHT feedback emits Saved with suggested interval when gap differs from stored`() = runTest {
-        val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
+        val observedAt = localDateUtcMillis(2026, 1, 15)
+        val sevenDaysAgo = localDateUtcMillis(2026, 1, 8)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
         coEvery { careLogRepo.addLog(any()) } returns 1L
         coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
+            waterLog(loggedAt = observedAt),
             waterLog(loggedAt = sevenDaysAgo)
         )
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
         vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = observedAt
 
         vm.events.test {
             vm.saveLog()
@@ -143,6 +160,7 @@ class AddCareLogViewModelTest {
             assertEquals(10, event.suggestedWateringInterval)
             cancelAndIgnoreRemainingEvents()
         }
+        coVerify { plantRepo.updatePlant(match { it.updatedAt == observedAt }) }
     }
 
     @Test
@@ -164,6 +182,504 @@ class AddCareLogViewModelTest {
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
             assertTrue(event.suggestedWateringInterval != null)
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // #699/#761 (product ADR-0044): this VM's own copy of the adaptive path must exclude a
+    // dormancy-spanning gap from base learning too — even with explicit TOO_SOON feedback typed on
+    // the form (this screen has no dynamic reason prompt to suppress; the exclusion has to hold at
+    // the model layer regardless). Pins the same 127-day, Oct25-to-Mar1 scenario QuickLogUseCase's
+    // own dormancy tests pin, confirming both independent copies agree.
+    /**
+     * Shared setup for dormancy-exclusion regression tests below — extracted to keep each
+     * test's own body under Detekt's `LongMethod` threshold. [predecessorLoggedAt] is the plant's true
+     * chronological predecessor of [marchFirst] ([CareLogRepository.getLastWateringBefore]);
+     * [lastTwoWaterings] is a separate, independently-stubbed pair used only by
+     * `computeSuggestedInterval`'s unrelated `actualIntervalDays` calculation (P2-d note above).
+     */
+    private fun buildDormancySpanningWaterVm(
+        dormantPlant: Plant,
+        lastTwoWaterings: List<CareLog>,
+        predecessorLoggedAt: Long,
+        marchFirst: Long
+    ): Pair<AddCareLogViewModel, WateringAdjustmentRepository> {
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns lastTwoWaterings
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = predecessorLoggedAt)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.TOO_SOON
+        vm.loggedAt = marchFirst
+        return vm to wateringAdjustmentRepo
+    }
+
+    @Test
+    fun `save WATER log spanning dormancy excludes base learning and decrements confidence on exit`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+            dormantPlant = dormantPlant,
+            lastTwoWaterings = listOf(waterLog(loggedAt = marchFirst), waterLog(loggedAt = octoberTwentyFifth)),
+            predecessorLoggedAt = octoberTwentyFifth,
+            marchFirst = marchFirst
+        )
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // P2-c: the TOO_SOON feedback typed on the form is never persisted on a dormancy-spanning log.
+        coVerify {
+            careLogRepo.addLog(
+                match { it.careType == CareType.WATER && it.loggedAt == marchFirst && it.wateringFeedback == null }
+            )
+        }
+        // Base unchanged (7), confidence decremented by exactly 1 for leaving dormancy (3 -> 2) —
+        // never the ~10-day ratchet a bare TOO_SOON observation would otherwise cause.
+        coVerify {
+            plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.wateringIntervalDays == 7 })
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED &&
+                        it.beforeIntervalDays == it.afterIntervalDays
+                }
+            )
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT &&
+                        it.beforeIntervalDays == it.afterIntervalDays
+                }
+            )
+        }
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.WATER_TOO_SOON })
+        }
+    }
+
+    // #779: a history bootstrap is a wholesale re-derivation, so it wins over the per-observation
+    // exit decrement. Both rows still explain the bootstrap and the excluded gap in "Why this date?".
+    @Test
+    fun `post-reset bootstrap on dormancy exit records exclusion without decrementing bootstrapped confidence`() =
+        runTest {
+            val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+            val marchFirst = localDateUtcMillis(2027, 3, 1)
+            val dormantPlant = plant().copy(
+                wateringConfidence = 3,
+                wateringResetAt = localDateUtcMillis(2026, 5, 1),
+                wateringFreezeUntil = localDateUtcMillis(2026, 5, 29),
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+            val (vm, adjustments) = buildDormancySpanningWaterVm(
+                dormantPlant,
+                listOf(waterLog(marchFirst), waterLog(octoberTwentyFifth)),
+                octoberTwentyFifth,
+                marchFirst
+            )
+            coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+                localDateUtcMillis(2026, 6, 1),
+                localDateUtcMillis(2026, 6, 8),
+                localDateUtcMillis(2026, 6, 15),
+                localDateUtcMillis(2026, 6, 22),
+                localDateUtcMillis(2026, 6, 29)
+            )
+
+            vm.events.test {
+                vm.saveLog()
+                assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            // Four eligible gaps yield confidence 1; an extra exit decrement would turn it into 0.
+            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 && it.wateringResetAt == null }) }
+            coVerify { adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }) }
+            coVerify {
+                adjustments.addAdjustment(
+                    match {
+                        it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED &&
+                            it.beforeIntervalDays == it.afterIntervalDays
+                    }
+                )
+            }
+            coVerify(exactly = 0) {
+                adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+            }
+        }
+
+    @Test
+    fun `history bootstrap without a dormancy window records no dormancy adjustments`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val noWindow = plant().copy(wateringConfidence = null)
+        val (vm, adjustments) = buildDormancySpanningWaterVm(
+            noWindow,
+            listOf(waterLog(marchFirst), waterLog(octoberTwentyFifth)),
+            octoberTwentyFifth,
+            marchFirst
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+            localDateUtcMillis(2026, 6, 1),
+            localDateUtcMillis(2026, 6, 8),
+            localDateUtcMillis(2026, 6, 15),
+            localDateUtcMillis(2026, 6, 22),
+            localDateUtcMillis(2026, 6, 29)
+        )
+
+        vm.events.test {
+            vm.saveLog()
+            assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        coVerify { adjustments.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP }) }
+        coVerify(exactly = 0) {
+            adjustments.addAdjustment(
+                match {
+                    it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED ||
+                        it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `form bootstrap with TOO_SOON feedback does not shorten the prior interval`() = runTest {
+        val observedAt = localDateUtcMillis(2026, 1, 13)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(observedAt),
+            waterLog(localDateUtcMillis(2026, 1, 10))
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(1, 4, 7, 10, 13)
+            .map { localDateUtcMillis(2026, 1, it) }
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.TOO_SOON
+        vm.loggedAt = observedAt
+
+        vm.events.test {
+            vm.saveLog()
+            assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringBaseIntervalDays == 14.0 && it.wateringIntervalDays == 14 && it.wateringConfidence == 1
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `form bootstrap keeps dormancy provenance and does not decrement the new confidence`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val neverAdapted = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = null,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+            dormantPlant = neverAdapted,
+            lastTwoWaterings = listOf(waterLog(loggedAt = marchFirst), waterLog(loggedAt = octoberTwentyFifth)),
+            predecessorLoggedAt = octoberTwentyFifth,
+            marchFirst = marchFirst
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
+            localDateUtcMillis(2026, 6, 1),
+            localDateUtcMillis(2026, 6, 8),
+            localDateUtcMillis(2026, 6, 15),
+            localDateUtcMillis(2026, 6, 22),
+            localDateUtcMillis(2026, 6, 29)
+        )
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP })
+        }
+        coVerify {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
+        }
+        coVerify(exactly = 0) {
+            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+        }
+    }
+
+    // #699/#761 (product ADR-0044, Codex review round 1 on #776, P2-d): getLastTwoWaterings() returns
+    // the plant's globally newest pair, which disagrees with a backdated entry's own chronological
+    // predecessor once that entry is older than both. Before this fix, the dormancy check ran against
+    // an unrelated, non-dormant gap and the entry escaped exclusion entirely — this pins the exact
+    // scenario: the backdated entry's true predecessor (Oct 25) is dormancy-spanning with it, but the
+    // globally newest pair (two April waterings, both already on file and both later than the entry
+    // being saved) is not.
+    @Test
+    fun `a backdated WATER log is excluded by its own predecessor even when the globally newest pair is unrelated`() =
+        runTest {
+            val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+            val marchFirst = localDateUtcMillis(2027, 3, 1)
+            val aprilFirst = localDateUtcMillis(2027, 4, 1)
+            val aprilEighth = localDateUtcMillis(2027, 4, 8)
+            val dormantPlant = plant(wateringIntervalDays = 7).copy(
+                wateringConfidence = 3,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+            // The globally newest pair: two unrelated April waterings, both already on file and both
+            // chronologically *after* the entry being saved below; the true predecessor (Oct 25) is
+            // queried relative to marchFirst itself, not this pair.
+            val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+                dormantPlant = dormantPlant,
+                lastTwoWaterings = listOf(waterLog(loggedAt = aprilEighth), waterLog(loggedAt = aprilFirst)),
+                predecessorLoggedAt = octoberTwentyFifth,
+                marchFirst = marchFirst
+            )
+
+            vm.events.test {
+                vm.saveLog()
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                careLogRepo.addLog(
+                    match {
+                        it.careType == CareType.WATER && it.loggedAt == marchFirst && it.wateringFeedback == null
+                    }
+                )
+            }
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED }
+                )
+            }
+            coVerify(exactly = 0) {
+                wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.WATER_TOO_SOON })
+            }
+        }
+
+    // #699/#761 (product ADR-0044, Codex review round 2 on #776, P1-4): actualIntervalDays comes from
+    // lastTwoWaterings (the plant's globally-newest pair), a *different* query than the dormancy
+    // check's own predecessor (previousWateringBefore). Before this fix, a stale same-day-duplicate
+    // pair elsewhere in history (actualIntervalDays == 0, reachable from imported/historical data —
+    // the duplicate guard is repository-level) made computeSuggestedInterval() return null via the
+    // #446 same-day guard *before* adaptWateringInterval ever ran, silently skipping all dormancy
+    // handling for this save even though its own gap (against the correct predecessor) is a genuine,
+    // 127-day, dormancy-spanning one.
+    @Test
+    fun `a backdated WATER log spanning dormancy is still excluded even when the newest pair is a stale same-day duplicate`() =
+        runTest {
+            val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+            val marchFirst = localDateUtcMillis(2027, 3, 1)
+            val duplicateDay = localDateUtcMillis(2027, 4, 1)
+            val dormantPlant = plant(wateringIntervalDays = 7).copy(
+                wateringConfidence = 3,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            )
+            // The globally newest pair: an unrelated same-day duplicate elsewhere in history, giving
+            // actualIntervalDays == 0 — nothing to do with the true Oct25 -> Mar1 gap being saved.
+            val (vm, wateringAdjustmentRepo) = buildDormancySpanningWaterVm(
+                dormantPlant = dormantPlant,
+                lastTwoWaterings = listOf(waterLog(loggedAt = duplicateDay), waterLog(loggedAt = duplicateDay)),
+                predecessorLoggedAt = octoberTwentyFifth,
+                marchFirst = marchFirst
+            )
+
+            vm.events.test {
+                vm.saveLog()
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED }
+                )
+            }
+            coVerify {
+                wateringAdjustmentRepo.addAdjustment(
+                    match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+                )
+            }
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringConfidence == 2 })
+            }
+        }
+
+    // #699/#761 (product ADR-0044, Codex review round 3 on #776, P1): the DORMANCY_EXIT idempotency
+    // check and its row's triggeredAt must key off the observation date (loggedAt), not wall-clock
+    // System.currentTimeMillis() — see .claude/rules/watering-transparency.md's "Follow-up (#654)"
+    // note for the precedent this brings AddCareLogViewModel in line with. Backfilling exits for two
+    // different winters within the same real-world entry session (both saves happen moments apart in
+    // wall-clock time, well within one calendar month) must not let the second, genuinely distinct
+    // cycle's decrement be suppressed just because both entries were *typed* around the same time.
+    @Test
+    fun `backfilling exits for two different winters in one sitting decrements both, not just the first`() = runTest {
+        val octTwentyFive2025 = localDateUtcMillis(2025, 10, 25)
+        val marchFirst2026 = localDateUtcMillis(2026, 3, 1)
+        val octTwentyFive2026 = localDateUtcMillis(2026, 10, 25)
+        val marchFirst2027 = localDateUtcMillis(2027, 3, 1)
+
+        val recordedAdjustments = mutableListOf<WateringAdjustment>()
+        val statefulAdjustmentRepo: WateringAdjustmentRepository = mockk {
+            coEvery { addAdjustment(any()) } coAnswers {
+                recordedAdjustments.add(firstArg())
+                1L
+            }
+            coEvery { getByTrigger(1L, WateringAdjustmentTrigger.DORMANCY_EXIT) } coAnswers {
+                recordedAdjustments.filter { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT }
+            }
+        }
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns emptyList()
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst2026) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octTwentyFive2025)
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst2027) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octTwentyFive2026)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = statefulAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.WATER
+
+        // Backfill winter A's exit.
+        vm.loggedAt = marchFirst2026
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Backfill winter B's exit, entered moments later in wall-clock time -- but a genuinely
+        // different, later dormancy cycle by its own loggedAt.
+        vm.loggedAt = marchFirst2027
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(2, recordedAdjustments.count { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
+    }
+
+    // #699/#761 (product ADR-0044, Codex review round 3 on #776, P2): shouldSuppressWateringFeedback()
+    // no longer gates on !isEditMode -- covers both scenarios Codex named.
+
+    @Test
+    fun `editing an existing WATER log's date into a dormancy-spanning position suppresses its feedback`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val originalNonDormantDate = localDateUtcMillis(2026, 6, 1)
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = originalNonDormantDate,
+            wateringFeedback = WateringFeedback.TOO_SOON
+        )
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        // The edit's own predecessor, excluding the row being edited itself (id 99L) -- P2's excludeId fix.
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst, 99L) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+        // selectedFeedback is loaded from existingLog (TOO_SOON); the user only moves the date picker.
+        vm.loggedAt = marchFirst
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.id == 99L && it.wateringFeedback == null })
+        }
+    }
+
+    @Test
+    fun `re-saving an already-dormant WATER log that carries stale feedback strips it`() = runTest {
+        val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
+        val marchFirst = localDateUtcMillis(2027, 3, 1)
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.WATER,
+            loggedAt = marchFirst,
+            wateringFeedback = WateringFeedback.TOO_SOON
+        )
+        val dormantPlant = plant(wateringIntervalDays = 7).copy(
+            wateringConfidence = 3,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        every { plantRepo.getPlantById(1L) } returns flowOf(dormantPlant)
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst, 99L) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = octoberTwentyFifth)
+
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+        advanceUntilIdle()
+        // No changes at all -- a plain re-save, e.g. the user only edited the notes field.
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            careLogRepo.addLog(match { it.id == 99L && it.wateringFeedback == null })
         }
     }
 
@@ -230,6 +746,8 @@ class AddCareLogViewModelTest {
     @Test
     fun `edit mode WATER save skips suggestion and post-watering reminder`() = runTest {
         val scheduled = mutableListOf<Long>()
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.getLastWateringBefore(1L, any(), 99L) } returns null
         val existingLog = CareLog(
             id = 99L,
             plantId = 1L,
@@ -256,6 +774,7 @@ class AddCareLogViewModelTest {
         }
 
         assertTrue(scheduled.isEmpty())
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -280,7 +799,7 @@ class AddCareLogViewModelTest {
 
         coVerify(exactly = 2) { careLogRepo.addLog(any()) }
         // #586: the paired watering carries no reason — the user fertilized and the watering came
-        // along with it (ADR-0008), so they were never asked why they watered.
+        // along with it (product ADR-0008), so they were never asked why they watered.
         coVerify {
             careLogRepo.addLog(match { it.careType == CareType.WATER && it.wateringFeedback == null })
         }
@@ -751,30 +1270,35 @@ class AddCareLogViewModelTest {
     // #620 round 2: computeSuggestedInterval() must gate on the effective-space value, not the raw
     // base-space suggestion, or a pure unit-mismatch artifact reaches Event.Saved ungated.
     @Test
-    fun `save WATER log suppresses a suggestion whose effective-space value equals current under a non-1_0 seasonal multiplier`() =
+    fun `save WATER log suppresses a suggestion whose base moves but today's rounded effective value doesn't`() =
         runTest {
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
             val peakDay = localDateUtcMillis(2023, 1, 5)
-            val fiveDaysBeforePeak = peakDay - 5L * 24 * 60 * 60 * 1000
+            val eightDaysBeforePeak = peakDay - 8L * 24 * 60 * 60 * 1000
             val seasonalDataStore: DataStore<Preferences> = mockk {
                 every { data } returns flowOf(emptyPreferences())
             }
-            // current = 7 (already seasonally-adjusted, e.g. from a prior effective-space edit); the
-            // observed 5-day gap de-seasonalizes to round(5 / 1.35) = 4 before the adaptive model sees
-            // it, and the model (confidence-0, JUST_RIGHT, target = 4) lands the raw base-space
-            // suggestion back at round(7 + 0.60*(4-7)) = 5. But at the peak day, season() = 1.35, so
-            // round(5 * 1.35) = 7 == current: the entire "5 vs 7" jump is a unit-mismatch artifact, not a
-            // real model change, and must be suppressed exactly like the ADR-0006 dialog gate is.
-            every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+            // #716 regression, corrected from the pre-fix version of this test (which compared against
+            // the stale wateringIntervalDays literal directly — the exact bug #716 fixes, see
+            // .claude/rules/seasonal-watering.md). A self-consistent plant: base = 5.0,
+            // literal = 7 = round(5.0 * season(peakDay)=1.35) — the literal already agrees with what
+            // the live base would show today, so this isn't stale. The observed 8-day gap de-seasonalizes
+            // to round(8 / 1.35) = 6; TOO_LATE (mult 0.82) targets 6*0.82 = 4.92; confidence-0 gain 0.60
+            // lands the raw base-space suggestion at 5.0 + 0.60*(4.92-5.0) = 4.952 — a genuine, if small,
+            // base movement. But round(4.952 * 1.35) = 7 == round(5.0 * 1.35) = 7: today's *displayed*
+            // effective value doesn't move, so per technical ADR-0027/#716 the observation must persist
+            // silently (base updates immediately) with no dialog and no suggestion surfaced.
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.addLog(any()) } returns 1L
             coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
                 waterLog(loggedAt = peakDay),
-                waterLog(loggedAt = fiveDaysBeforePeak)
+                waterLog(loggedAt = eightDaysBeforePeak)
             )
             coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
-            vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
             vm.loggedAt = peakDay
 
             vm.events.test {
@@ -782,6 +1306,131 @@ class AddCareLogViewModelTest {
                 val event = awaitItem() as AddCareLogViewModel.Event.Saved
                 assertNull(event.suggestedWateringInterval)
                 cancelAndIgnoreRemainingEvents()
+            }
+
+            // technical ADR-0027: silently persists the moved base even though nothing is surfaced.
+            coVerify {
+                plantRepo.updatePlant(
+                    match { it.wateringBaseIntervalDays != null && Math.abs(it.wateringBaseIntervalDays!! - 4.952) < 1e-9 }
+                )
+            }
+        }
+
+    /**
+     * #716 acceptance criterion 5: this VM's independent copy of the gate must reach the same
+     * conclusion as [com.yapt.planttracker.domain.usecase.QuickLogUseCase.computeSuggestion] for the
+     * exact same worked example (see `QuickLogUseCaseSeasonalTest`'s identically-named/numbered
+     * scenario) — a stale `wateringIntervalDays = 7` literal, a real base of 8.8, watered 1 day early
+     * on Sep 13 (season 0.866) with no feedback. Both gates must independently suppress the suggestion.
+     */
+    @Test
+    fun `save WATER log agrees with QuickLogUseCase on the #716 worked example`() = runTest {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val sep13 = localDateUtcMillis(2023, 9, 13)
+        val sevenDaysBeforeSep13 = sep13 - 7L * 24 * 60 * 60 * 1000
+        val seasonalDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(emptyPreferences())
+        }
+        val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 8.8)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = sep13),
+            waterLog(loggedAt = sevenDaysBeforeSep13)
+        )
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = null
+        vm.loggedAt = sep13
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            assertNull(event.suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /**
+     * #716 review round 1 regression, direction 1 (spurious dialog), mirroring
+     * `QuickLogUseCaseSeasonalTest`'s identically-numbered test — this screen's own date picker can
+     * back-date [AddCareLogViewModel.loggedAt] just as freely as Plant Detail's #654 quick-water picker
+     * can. STANDARD amplitude, northern hemisphere; logged date Jan 1 (`season = 1.349`), real today
+     * Sep 21 (`season = 0.912`). `computeAdaptiveInterval(TOO_LATE, observed=8, base=5.0)` moves the
+     * base to 5.936: at the logged date `round(5.0*1.349)=7 -> round(5.936*1.349)=8` (a real jump, what
+     * the pre-fix code — evaluating both sides at `loggedAt` — would have surfaced as a dialog); at
+     * today `round(5.0*0.912)=5 -> round(5.936*0.912)=5` (nothing the user would actually see change).
+     * `computeSuggestedInterval` is called directly (now `internal`, mirroring `QuickLogUseCase
+     * .computeSuggestion`'s identical widening) so [displayNow] can be pinned independently of
+     * [AddCareLogViewModel.loggedAt] without fighting the real device clock.
+     */
+    @Test
+    fun `computeSuggestedInterval uses displayNow not backdated loggedAt - direction 1, spurious dialog (#716 rr1)`() =
+        runTest {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val elevenDaysBeforeJan1 = jan1 - 11L * 24 * 60 * 60 * 1000
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(emptyPreferences())
+            }
+            val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                waterLog(loggedAt = jan1),
+                waterLog(loggedAt = elevenDaysBeforeJan1)
+            )
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+            vm.selectedCareType = CareType.WATER
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
+            vm.loggedAt = jan1
+
+            val suggestion = vm.computeSuggestedInterval(displayNow = sep21)
+
+            assertEquals(null, suggestion)
+        }
+
+    /**
+     * #716 review round 1 regression, direction 2 (silent bypass — the worse direction): the mirror
+     * image of the test above, same gap/feedback, starting one rounding band higher (base 5.6 instead
+     * of 5.0). `computeAdaptiveInterval(TOO_LATE, observed=8, base=5.6)` moves the base to 6.176. At the
+     * logged date: `round(5.6*1.349)=8 -> round(6.176*1.349)=8` — unchanged, so the pre-fix code
+     * (evaluating both sides at `loggedAt`) would have silently persisted the moved base with no
+     * suggestion surfaced at all, bypassing `askBeforeChangingIntervals` entirely. At today:
+     * `round(5.6*0.912)=5 -> round(6.176*0.912)=6` — the number the user actually reads on screen right
+     * now really does move. The fixed gate must surface a real suggestion and must leave
+     * `wateringBaseIntervalDays` untouched at its original 5.6 (any write is deferred to the explicit
+     * apply path).
+     */
+    @Test
+    fun `computeSuggestedInterval uses displayNow not backdated loggedAt - direction 2, silent bypass (#716 rr1)`() =
+        runTest {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val jan1 = localDateUtcMillis(2023, 1, 1)
+            val sep21 = localDateUtcMillis(2023, 9, 21)
+            val elevenDaysBeforeJan1 = jan1 - 11L * 24 * 60 * 60 * 1000
+            val seasonalDataStore: DataStore<Preferences> = mockk {
+                every { data } returns flowOf(emptyPreferences())
+            }
+            val monstera = plant(wateringIntervalDays = 8).copy(wateringBaseIntervalDays = 5.6)
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+                waterLog(loggedAt = jan1),
+                waterLog(loggedAt = elevenDaysBeforeJan1)
+            )
+            coEvery { plantRepo.updatePlant(any()) } just runs
+            val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
+            vm.selectedCareType = CareType.WATER
+            vm.selectedFeedback = WateringFeedback.TOO_LATE
+            vm.loggedAt = jan1
+
+            val suggestion = vm.computeSuggestedInterval(displayNow = sep21)
+
+            assertTrue(suggestion != null)
+            coVerify {
+                plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.6 })
             }
         }
 
@@ -815,6 +1464,7 @@ class AddCareLogViewModelTest {
             vm.saveLog()
             val event = awaitItem() as AddCareLogViewModel.Event.Saved
             assertEquals(4, event.suggestedWateringInterval)
+            assertEquals(4.2, event.suggestedWateringBaseInterval!!, 1e-9)
             cancelAndIgnoreRemainingEvents()
         }
     }

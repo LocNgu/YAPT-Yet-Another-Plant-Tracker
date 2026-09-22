@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -49,6 +50,7 @@ class ReminderWorkerTest {
         runBlocking {
             app.settingsDataStore.edit {
                 it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED)
+                it.remove(SettingsKeys.COMBINE_NOTIFICATIONS)
             }
         }
     }
@@ -200,7 +202,7 @@ class ReminderWorkerTest {
     }
 
     @Test
-    fun `doWork reframes to a Check title with Watered, Still moist and Not now when the plant is watering-due`() =
+    fun `doWork reframes to a Check title with Watered and Not now when the plant is watering-due`() =
         runBlocking {
             shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
             app.plantRepository.addPlant(
@@ -212,16 +214,17 @@ class ReminderWorkerTest {
             val notification = notificationManager.activeNotifications.first().notification
             assertEquals("Check Fern", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
             val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-            assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
+            assertEquals(listOf("Watered", "Not now"), actionTitles)
         }
 
     /**
      * #586 acceptance criterion: the action set is **fixed**, never varied by how overdue the plant
      * is. Unpredictable buttons between firings would cost more than the one attribution the fixed
-     * set gives up.
+     * set gives up. Narrowed from three to two actions by #738 (product ADR-0039), which drops
+     * "Still moist" entirely.
      */
     @Test
-    fun `doWork offers the same three actions however overdue the plant is`() = runBlocking {
+    fun `doWork offers the same two actions however overdue the plant is`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         val plantId = app.plantRepository.addPlant(
             Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
@@ -238,7 +241,7 @@ class ReminderWorkerTest {
 
         val notification = notificationManager.activeNotifications.first().notification
         val actionTitles = notification.actions.orEmpty().map { it.title.toString() }
-        assertEquals(listOf("Watered", "Still moist", "Not now"), actionTitles)
+        assertEquals(listOf("Watered", "Not now"), actionTitles)
     }
 
     @Test
@@ -275,6 +278,29 @@ class ReminderWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `dormant watering posts no reminder in per-plant or combined mode`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val month = LocalDate.now().monthValue
+        app.plantRepository.addPlant(
+            Plant(
+                name = "Dormant Cactus",
+                wateringIntervalDays = 5,
+                dormancyStartMonth = month,
+                dormancyEndMonth = month,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+
+        for (combined in listOf(false, true)) {
+            app.settingsDataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = combined }
+            notificationManager.cancelAll()
+            assertEquals(ListenableWorker.Result.success(), runWorker())
+            assertEquals(0, shadowOf(notificationManager).size())
+        }
     }
 
     @Test

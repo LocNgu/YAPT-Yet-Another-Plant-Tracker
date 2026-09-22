@@ -25,7 +25,10 @@ import androidx.core.content.ContextCompat
 import com.yapt.planttracker.R
 import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.util.findActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class CameraPhotoState {
@@ -42,6 +45,23 @@ class CameraPhotoState {
 
     fun onGallerySelected() {
         pendingCameraFile?.delete()
+        pendingCameraFile = null
+        pendingCameraUri = null
+    }
+
+    internal fun finishCapture(success: Boolean, scope: CoroutineScope, onPhotoTaken: (Uri) -> Unit) {
+        val file = pendingCameraFile
+        val uri = pendingCameraUri
+        if (success && file != null && uri != null) {
+            // Commit the stable FileProvider URI immediately. If the UI disappears while optimization is running,
+            // the photo remains referenced and usable at its original size rather than becoming an orphan.
+            onPhotoTaken(uri)
+            scope.launch {
+                withContext(Dispatchers.IO) { ImageUtils.compressCameraImage(file) }
+            }
+        } else if (!success) {
+            file?.delete()
+        }
         pendingCameraFile = null
         pendingCameraUri = null
     }
@@ -64,13 +84,7 @@ fun rememberCameraPhotoState(
     val cameraCaptureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) {
-            state.pendingCameraUri?.let { currentOnPhotoTaken(it) }
-        } else {
-            state.pendingCameraFile?.delete()
-        }
-        state.pendingCameraFile = null
-        state.pendingCameraUri = null
+        state.finishCapture(success, scope, currentOnPhotoTaken)
     }
 
     fun launchCamera() {

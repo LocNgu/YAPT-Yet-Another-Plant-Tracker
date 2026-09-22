@@ -17,17 +17,22 @@ import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
+import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
+// round-trip the per-plant dormancy window unconditionally (same posture as wateringResetAt/
+// wateringFreezeUntil below). Nothing reads these columns yet; this slice is storage-only.
 // Schema 16 (#519): postWateringReminderEnabled added to BackupSettings.
 // Schema 15 (#656 review): seasonalAmplitude added to BackupSettings — round-trips the user's
 // Off/Mild/Standard/Strong choice for the (now-unconditional, graduated #656) seasonal watering
@@ -57,7 +62,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 16
+const val CURRENT_SCHEMA_VERSION = 17
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -73,7 +78,11 @@ sealed class BackupResult {
 }
 
 interface BackupManagerInterface {
-    suspend fun exportBackup(destinationUri: Uri, includePhotos: Boolean): BackupResult
+    suspend fun exportBackup(
+        destinationUri: Uri,
+        includePhotos: Boolean,
+        optimizePhotos: Boolean = false
+    ): BackupResult
     suspend fun importBackup(sourceUri: Uri): BackupResult
 }
 
@@ -83,9 +92,12 @@ class BackupManager(
     private val dataStore: DataStore<Preferences>
 ) : BackupManagerInterface {
 
+    // Pre-existing export orchestration debt; photo URI opening/optimization/ZIP streaming is extracted below.
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     override suspend fun exportBackup(
         destinationUri: Uri,
-        includePhotos: Boolean
+        includePhotos: Boolean,
+        optimizePhotos: Boolean
     ): BackupResult = withContext(Dispatchers.IO) {
         runCatching {
             val plantDao = database.plantDao()
@@ -162,7 +174,9 @@ class BackupManager(
                     wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
                     pinIntervalToBase = entity.pinIntervalToBase,
                     wateringResetAt = entity.wateringResetAt,
-                    wateringFreezeUntil = entity.wateringFreezeUntil
+                    wateringFreezeUntil = entity.wateringFreezeUntil,
+                    dormancyStartMonth = entity.dormancyStartMonth,
+                    dormancyEndMonth = entity.dormancyEndMonth
                 )
             }
 
@@ -262,21 +276,7 @@ class BackupManager(
                         zip.closeEntry()
 
                         if (includePhotos) {
-                            for ((originalUri, zipPath) in photoMapping) {
-                                val input = runCatching {
-                                    val parsedUri = Uri.parse(originalUri)
-                                    when (parsedUri.scheme) {
-                                        null -> File(originalUri).inputStream()
-                                        "file" -> File(parsedUri.path!!).inputStream()
-                                        else -> context.contentResolver.openInputStream(parsedUri)
-                                    }
-                                }.getOrNull() ?: continue
-                                input.use {
-                                    zip.putNextEntry(ZipEntry(zipPath))
-                                    it.copyTo(zip)
-                                    zip.closeEntry()
-                                }
-                            }
+                            writePhotosToZip(zip, photoMapping, optimizePhotos)
                         }
                     }
                 }
@@ -393,7 +393,9 @@ class BackupManager(
                     wateringBaseIntervalDays = bp.wateringBaseIntervalDays,
                     pinIntervalToBase = bp.pinIntervalToBase,
                     wateringResetAt = bp.wateringResetAt,
-                    wateringFreezeUntil = bp.wateringFreezeUntil
+                    wateringFreezeUntil = bp.wateringFreezeUntil,
+                    dormancyStartMonth = bp.dormancyStartMonth,
+                    dormancyEndMonth = bp.dormancyEndMonth
                 )
             }
 
@@ -506,6 +508,42 @@ class BackupManager(
         } catch (e: Exception) {
             if (!dbCommitted) writtenFiles.forEach { it.delete() }
             throw e
+        }
+    }
+
+    private fun writePhotosToZip(
+        zip: ZipOutputStream,
+        photoMapping: Map<String, String>,
+        optimizePhotos: Boolean
+    ) {
+        for ((originalUri, zipPath) in photoMapping) {
+            val input = openPhoto(originalUri) ?: continue
+            input.use {
+                zip.putNextEntry(ZipEntry(zipPath))
+                if (optimizePhotos) copyOptimizedPhotoToZip(it, zip, zipPath) else it.copyTo(zip)
+                zip.closeEntry()
+            }
+        }
+    }
+
+    private fun openPhoto(originalUri: String): InputStream? = runCatching {
+        val parsedUri = Uri.parse(originalUri)
+        when (parsedUri.scheme) {
+            null -> File(originalUri).inputStream()
+            "file" -> File(parsedUri.path!!).inputStream()
+            else -> context.contentResolver.openInputStream(parsedUri)
+        }
+    }.getOrNull()
+
+    private fun copyOptimizedPhotoToZip(input: InputStream, zip: ZipOutputStream, zipPath: String) {
+        val extension = File(zipPath).extension.ifBlank { "jpg" }
+        val temporary = File(context.cacheDir, "${UUID.randomUUID()}.$extension")
+        try {
+            temporary.outputStream().use { output -> input.copyTo(output) }
+            ImageUtils.compressCameraImage(temporary)
+            temporary.inputStream().use { it.copyTo(zip) }
+        } finally {
+            temporary.delete()
         }
     }
 

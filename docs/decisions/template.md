@@ -1,4 +1,4 @@
-# ADR-XXXX: Title
+# Product ADR-XXXX: Title (use "Technical" instead of "Product" for technical/ ADRs; product/ and technical/ number independently)
 
 **Status**: proposed | accepted | superseded by ADR-XXXX
 

@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback.TOO_LATE
 import com.yapt.planttracker.domain.model.WateringFeedback.TOO_SOON
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,6 +15,20 @@ import org.junit.Test
  * technical ADR-0021). See [CareScheduleAdaptiveReplayTest] for the multi-observation replay harness.
  */
 class CareScheduleAdaptiveTest {
+
+    @Test
+    fun `neutral observation preserves a sub-day base correction`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 8,
+            currentBaseIntervalDays = 7.0,
+            currentConfidence = 5,
+            recentFeedback = listOf(null)
+        )
+
+        assertEquals(7, result.intervalDays)
+        assertEquals(7.15, result.baseIntervalDays, 1e-9)
+    }
 
     // --- correctionStreak() ---
 
@@ -371,10 +386,10 @@ class CareScheduleAdaptiveTest {
     /**
      * The specific hole reusing `wateringFeedback` opens: an off-schedule watering the user declined
      * to attribute writes `null`, and under #570's rule alone that `null` would still drag `base`
-     * toward the gap through the passive channel — the conflation ADR-0007 exists to prevent, coming
+     * toward the gap through the passive channel — the conflation product ADR-0007 exists to prevent, coming
      * back in through the side door.
      *
-     * This covers the **late** half of ADR-0030's mapping table (watered at day 30 of a 20-day
+     * This covers the **late** half of product ADR-0030's mapping table (watered at day 30 of a 20-day
      * plant, "just my timing"); the early half is the holiday regression below. Both directions
      * matter because the exclusion is keyed off gap *disagreement*, not off which side of `base`
      * the gap fell on.
@@ -509,5 +524,140 @@ class CareScheduleAdaptiveTest {
             recentFeedback = listOf(TOO_LATE)
         )
         assertFalse(result.excludedFromBaseLearning)
+    }
+
+    // --- computeAdaptiveInterval(): suppressConfidenceTransition (#699/#761, product ADR-0044 —
+    // Codex review round 1 on #776, P1-b) ---
+
+    /**
+     * The exact counter-example that invalidated the original "confidence unchanged by construction"
+     * claim for a dormancy-spanning observation: two waterings seven days apart, both inside a
+     * dormant month, on a seven-day base. `frozen = true` alone only zeroes the gain (excludes
+     * `base`) — it does **not** touch the confidence transition below it, and here `gapAgrees(7, 7)`
+     * is genuinely true, so without [suppressConfidenceTransition] confidence would silently *rise*
+     * for an observation that tested nothing about the schedule (the plant was asleep the whole gap).
+     * Contrast with `confidence still rises on gap agreement while frozen` above, which is the correct,
+     * *unsuppressed* behavior for the REPOT-freeze case `frozen` was designed for — this is a
+     * genuinely different case, not a variant of it (see this parameter's KDoc).
+     */
+    @Test
+    fun `suppressConfidenceTransition blocks the rise a short in-window gap would otherwise cause`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    /** Without suppression, the same fixture demonstrates the bug this parameter fixes. */
+    @Test
+    fun `the same short in-window gap without suppression incorrectly raises confidence`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = emptyList(),
+            frozen = true
+        )
+        assertEquals(3, result.confidence)
+    }
+
+    /** The streak-decrement branch is equally suppressed, not just the gap-agreement rise. */
+    @Test
+    fun `suppressConfidenceTransition also blocks a streak decrement`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = 2,
+            recentFeedback = listOf(TOO_SOON, TOO_SOON),
+            frozen = true,
+            suppressConfidenceTransition = true
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    /**
+     * P1-1 (Codex review round 2 on #776): a suppressed transition on a never-adapted plant used to
+     * still write `confidence = 0`, silently consuming the `wateringConfidence == null` cold-start
+     * bootstrap eligibility from a single observation that, by design, should teach the model
+     * nothing. This test previously asserted that wrong `0` under a comment claiming "no effect" —
+     * `suppressConfidenceTransition = true` here genuinely changes the outcome from the unsuppressed
+     * case (see the sibling test immediately below), and the correct outcome is `null`, not `0`.
+     */
+    @Test
+    fun `suppressConfidenceTransition on a first-ever observation leaves confidence null, not 0`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList(),
+            suppressConfidenceTransition = true
+        )
+        assertNull(result.confidence)
+    }
+
+    /** Without suppression, a first-ever observation still bootstraps to 0 exactly as before P1-1. */
+    @Test
+    fun `an unsuppressed first-ever observation still bootstraps confidence to 0`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = null,
+            observedIntervalDays = 7,
+            currentBaseIntervalDays = 7,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(0, result.confidence)
+    }
+
+    @Test
+    fun `suppressConfidenceTransition defaults to false, unaffected existing call sites`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = JUST_RIGHT,
+            observedIntervalDays = 10,
+            currentBaseIntervalDays = 10,
+            currentConfidence = 1,
+            recentFeedback = listOf(JUST_RIGHT)
+        )
+        assertEquals(2, result.confidence)
+    }
+
+    // --- #738/ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---
+
+    /**
+     * Pins the #738/ADR-0039 defect: a `TOO_SOON` observation taken well *before* the interval has
+     * elapsed still shortens the base, exactly the mirror-image bug ADR-0033 already fixed for the
+     * late direction ("a late gap never shortens"). This was reachable via the "Soil still moist"
+     * Reschedule flow (`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, itself removed in the
+     * PR 2 follow-up to #738) — checking a 14-day plant on day 8 (well before it was due) and
+     * reporting "still moist" fed `feedback = TOO_SOON` into this function with the full observed gap
+     * of 8 days, computing `target = 8 * 1.25 = 10`, which is *below* the current base of 14, so the
+     * model concluded the plant needed water sooner — the opposite of what the user reported.
+     *
+     * This is pinned as a property of this pure function, whose arithmetic is genuinely unchanged by
+     * #738 — only the reschedule call site that could reach an early `TOO_SOON` observation is being
+     * removed. It stays permanently, documenting why that removal was correct, not as a regression
+     * test of a call site that no longer exists.
+     *
+     * Arithmetic: target = 8 * 1.25 = 10; raw = 14 + 0.28 * (10 - 14) = 14 - 1.12 = 12.88;
+     * `clampStep()` rounds to 13.
+     */
+    @Test
+    fun `an early TOO_SOON observation still shortens the base (#738 ADR-0039 pinned defect)`() {
+        val result = CareSchedule.computeAdaptiveInterval(
+            feedback = TOO_SOON,
+            observedIntervalDays = 8,
+            currentBaseIntervalDays = 14,
+            currentConfidence = 3,
+            recentFeedback = emptyList()
+        )
+        assertEquals(13, result.intervalDays)
     }
 }

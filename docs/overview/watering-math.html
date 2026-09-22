@@ -316,7 +316,7 @@ footer code{font-family:"IBM Plex Mono",monospace;}
     <div class="card">
       <h3><span class="dot up" style="display:inline-block;margin-right:6px;"></span>Rises</h3>
       <p><b>Gap agreement</b> — the observed gap lands within <code>GAP_AGREEMENT_TOLERANCE</code> (15%) of the current base: <code>+1</code>, capped at 5. Checked on every observation, feedback or not — a silent but on-schedule watering still counts as evidence.</p>
-      <p style="margin-top:8px;"><b>Dialog dismissal</b> — dismissing the ADR-0006 suggestion without applying says "the schedule is fine": <code>+1</code>, but capped at <code>DISMISSAL_CONFIDENCE_CEILING</code> (3) and never lowers an already-higher value. A habit-dismisser can't reach a level that implies real agreement.</p>
+      <p style="margin-top:8px;"><b>Dialog dismissal</b> — dismissing the product ADR-0006 suggestion without applying says "the schedule is fine": <code>+1</code>, but capped at <code>DISMISSAL_CONFIDENCE_CEILING</code> (3) and never lowers an already-higher value. A habit-dismisser can't reach a level that implies real agreement.</p>
     </div>
     <div class="card">
       <h3><span class="dot down" style="display:inline-block;margin-right:6px;"></span>Falls</h3>
@@ -351,7 +351,7 @@ footer code{font-family:"IBM Plex Mono",monospace;}
 
 <section>
   <div class="sec-head"><span class="sec-num">05</span><h2>The seasonal curve</h2></div>
-  <p class="sec-note"><code>domain/schedule/SeasonalWatering.kt</code> — computed, not learned (ADR-0026: too little per-plant data to learn twelve monthly factors, and every houseplant broadly shares the same "faster growth in local summer" shape).</p>
+  <p class="sec-note"><code>domain/schedule/SeasonalWatering.kt</code> — computed, not learned (product ADR-0026: too little per-plant data to learn twelve monthly factors, and every houseplant broadly shares the same "faster growth in local summer" shape).</p>
   <div class="formula">
     <div class="line"><span class="k">season</span>(date, amplitude, hemisphere) = 1 + amplitude · cos(2π · (dayOfYear − peakDay) / 365)</div>
     <div class="line"><span class="k">effective</span> = round(base × season(today)).coerceIn(1, 180)</div>
@@ -377,7 +377,7 @@ footer code{font-family:"IBM Plex Mono",monospace;}
     <div class="line"><span class="k">confidence</span> = min(5, gapCount / 3)</div>
     <div class="caption">Median, not mean — absorbs one outlier gap (a two-week holiday) without extra trimming logic. Applied only once <code>MIN_BOOTSTRAP_GAPS</code> (3 gaps → 4 waterings) is met; below that, a fresh flag-enable keeps the user's typed interval and a post-reset plant just stays at confidence 0.</div>
   </div>
-  <p class="sec-note" style="margin-top:14px;">Runs automatically on the next adaptive observation: once when <code>wateringConfidence == null</code> (first-ever observation — the whole history is eligible), or repeatedly while <code>wateringResetAt</code> is set after a lifecycle reset (eligible history bounded to what happened after the freeze/reset boundary — a gap not trusted for live learning isn't trusted for the bootstrap either). When it fires, the triggering observation's own suggested interval is discarded in favor of the bootstrap result, so the ADR-0006 dialog never re-surfaces a value the bootstrap already silently committed.</p>
+  <p class="sec-note" style="margin-top:14px;">Runs automatically on the next adaptive observation: once when <code>wateringConfidence == null</code> (first-ever observation — the whole history is eligible), or repeatedly while <code>wateringResetAt</code> is set after a lifecycle reset (eligible history bounded to what happened after the freeze/reset boundary — a gap not trusted for live learning isn't trusted for the bootstrap either). When it fires, the triggering observation's own suggested interval is discarded in favor of the bootstrap result, so the product ADR-0006 dialog never re-surfaces a value the bootstrap already silently committed.</p>
 </section>
 
 <section>
@@ -397,7 +397,7 @@ footer code{font-family:"IBM Plex Mono",monospace;}
 
 <section>
   <div class="sec-head"><span class="sec-num">08</span><h2>Worked example</h2></div>
-  <p class="sec-note">A plant added with a typed interval of 7 days, adaptive watering on, no history yet (<code>wateringConfidence = null</code>). Three real waterings, three different outcomes — this is ADR-0030's thesis end to end.</p>
+  <p class="sec-note">A plant added with a typed interval of 7 days, adaptive watering on, no history yet (<code>wateringConfidence = null</code>). Three real waterings, three different outcomes — this is product ADR-0030's thesis end to end.</p>
   <div class="steps">
     <div class="step">
       <div class="idx">A</div>

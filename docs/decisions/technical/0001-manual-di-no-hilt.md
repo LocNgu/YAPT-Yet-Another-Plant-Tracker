@@ -1,4 +1,4 @@
-# ADR-0001: Manual dependency injection via Application singletons instead of Hilt
+# Technical ADR-0001: Manual dependency injection via Application singletons instead of Hilt
 
 **Status**: accepted
 

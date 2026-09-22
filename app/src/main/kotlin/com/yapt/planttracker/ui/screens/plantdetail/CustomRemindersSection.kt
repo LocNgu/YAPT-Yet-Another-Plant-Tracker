@@ -53,9 +53,9 @@ internal data class CustomReminderActions(
 )
 
 /**
- * Always-visible "Custom reminders" section (#232) — unbounded, free-text recurring reminders per
- * plant, deliberately not gated behind [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.PLANT_DETAIL_TABS]
- * unlike the per-action tabs below it. Lives in its own file (not `PlantDetailScreen.kt`), mirroring
+ * "Custom reminders" section (#232) — unbounded, free-text recurring reminders per plant. Rendered
+ * only when the Custom Reminders tab is selected (product ADR-0043); see
+ * `.claude/rules/plant-detail.md`. Lives in its own file (not `PlantDetailScreen.kt`), mirroring
  * `PlantIssuesSection.kt`, to stay under Detekt's per-file `TooManyFunctions` threshold.
  */
 @Composable

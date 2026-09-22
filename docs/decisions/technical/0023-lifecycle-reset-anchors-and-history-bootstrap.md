@@ -1,6 +1,6 @@
 # Technical ADR-0023: Lifecycle reset anchors and the history-bootstrap sampling rule
 
-**Status**: accepted
+**Status**: accepted — duplicated observation-path clause superseded by ADR-0030
 
 **Date**: 2026-08-30
 

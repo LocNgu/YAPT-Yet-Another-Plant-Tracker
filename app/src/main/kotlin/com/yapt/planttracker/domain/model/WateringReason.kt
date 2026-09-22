@@ -5,7 +5,7 @@ package com.yapt.planttracker.domain.model
  * #649 product ADR-0033). The app **asks** rather than infers: the same observable gap carries
  * opposite meanings — watered three days late because the plant was fine and could go longer, or
  * because you were busy and it went thirsty — so timing alone can never tell *the plant's needs*
- * from *the user's availability*, the exact conflation ADR-0007 exists to prevent.
+ * from *the user's availability*, the exact conflation product ADR-0007 exists to prevent.
  *
  * `null` at a call site means no reason was given: either the watering was on schedule (no prompt
  * appears at all) or the user logged without choosing. Both mean the same thing to the model — no
@@ -32,9 +32,7 @@ enum class WateringReason {
 
     /**
      * "Soil was still moist" — late-direction only (#649, product ADR-0033). Evidence about the
-     * plant, feeding the model as [WateringFeedback.TOO_SOON] — the same signal
-     * [RescheduleReason.SOIL_STILL_MOIST] represents, just captured retroactively on the WATER log
-     * for a user who checked informally rather than tapping Reschedule. A late gap **never** shortens
+     * plant, feeding the model as [WateringFeedback.TOO_SOON]. A late gap **never** shortens
      * the interval (that would require knowing exactly when inside the overdue window the plant went
      * dry, which a single retrospective observation cannot): the late direction only ever holds
      * ([JUST_MY_TIMING], excluded) or lengthens (this value).
@@ -50,35 +48,12 @@ enum class WateringReason {
      * schema-free.
      *
      * [SOIL_STILL_MOIST] maps to [WateringFeedback.TOO_SOON] (#649, product ADR-0033, amending
-     * ADR-0030's "TOO_SOON becomes structurally impossible on a WATER log" — that no longer holds:
-     * TOO_SOON is now reachable on a WATER log via this value, not only via [RescheduleReason
-     * .SOIL_STILL_MOIST]'s `CareType.CHECK` log).
+     * product ADR-0030's "TOO_SOON becomes structurally impossible on a WATER log" — that no longer holds:
+     * TOO_SOON is now reachable on a WATER log via this value).
      */
     fun toWateringFeedback(): WateringFeedback? = when (this) {
         PLANT_NEEDED_IT -> WateringFeedback.TOO_LATE
         SOIL_STILL_MOIST -> WateringFeedback.TOO_SOON
         JUST_MY_TIMING -> null
     }
-}
-
-/**
- * Why a watering was rescheduled (#586, product ADR-0030) — the symmetric half of [WateringReason],
- * and the reason Reschedule is no longer unconditionally inert to the adaptive model (superseding
- * ADR-0029). Rescheduling +2 days because the soil is still wet and rescheduling +2 days because you
- * are away for the weekend are the same calendar operation and opposite observations; the answer,
- * never the duration, decides which one the model sees.
- */
-enum class RescheduleReason {
-    /**
-     * "Soil still moist" — an observation about the plant. Writes the same `CareType.CHECK` log
-     * (`wateringFeedback = TOO_SOON`) the notification's Still-moist action does, through the same
-     * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.recordStillMoistCheck] call site.
-     */
-    SOIL_STILL_MOIST,
-
-    /**
-     * "I can't right now" — about the user. A pure `wateringDueDateOverride` write with no log and
-     * no model effect, exactly as every Reschedule option behaved under ADR-0029.
-     */
-    CANT_RIGHT_NOW
 }

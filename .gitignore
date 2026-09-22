@@ -45,3 +45,7 @@ google-services.json
 
 # macOS metadata
 .DS_Store
+
+# Python bytecode from tools/ (see tools/check-adr-numbering.py)
+__pycache__/
+*.pyc

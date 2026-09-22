@@ -25,7 +25,7 @@ object SettingsKeys {
     /**
      * "Ask before changing intervals" (#572) — a plain user setting, not a [com.yapt.planttracker
      * .domain.featureflag.FeatureFlagRegistry] entry, so it survives disabling developer mode.
-     * Default `true` reproduces today's ADR-0006 dialog behavior exactly.
+     * Default `true` reproduces today's product ADR-0006 dialog behavior exactly.
      */
     val ASK_BEFORE_CHANGING_INTERVALS = booleanPreferencesKey("ask_before_changing_intervals")
 
@@ -38,6 +38,9 @@ object SettingsKeys {
      * [ASK_BEFORE_CHANGING_INTERVALS]'s, which does round-trip through backup).
      */
     val SEASONAL_BASE_GRADUATION_FIXUP_DONE = booleanPreferencesKey("seasonal_base_graduation_fixup_done")
+
+    /** Device-local marker for the #309 one-time compression of pre-existing in-app camera captures. */
+    val CAMERA_PHOTO_COMPRESSION_FIXUP_DONE = booleanPreferencesKey("camera_photo_compression_fixup_done")
 }
 
 /**
