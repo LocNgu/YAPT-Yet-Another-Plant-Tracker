@@ -547,6 +547,7 @@ private fun DateGroupHeader(bucket: DateBucket) {
         DateBucket.Tomorrow -> stringResource(R.string.date_group_tomorrow)
         is DateBucket.Dated -> DateUtils.formatWeekdayDate(bucket.epochDay)
         DateBucket.Later -> stringResource(R.string.date_group_later)
+        DateBucket.Dormant -> stringResource(R.string.date_group_dormant)
         DateBucket.NotScheduled -> stringResource(R.string.date_group_not_scheduled)
     }
     Column(

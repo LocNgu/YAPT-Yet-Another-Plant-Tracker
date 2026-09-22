@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -49,6 +50,7 @@ class ReminderWorkerTest {
         runBlocking {
             app.settingsDataStore.edit {
                 it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED)
+                it.remove(SettingsKeys.COMBINE_NOTIFICATIONS)
             }
         }
     }
@@ -276,6 +278,29 @@ class ReminderWorkerTest {
 
         assertEquals(ListenableWorker.Result.success(), result)
         assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `dormant watering posts no reminder in per-plant or combined mode`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val month = LocalDate.now().monthValue
+        app.plantRepository.addPlant(
+            Plant(
+                name = "Dormant Cactus",
+                wateringIntervalDays = 5,
+                dormancyStartMonth = month,
+                dormancyEndMonth = month,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+
+        for (combined in listOf(false, true)) {
+            app.settingsDataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = combined }
+            notificationManager.cancelAll()
+            assertEquals(ListenableWorker.Result.success(), runWorker())
+            assertEquals(0, shadowOf(notificationManager).size())
+        }
     }
 
     @Test

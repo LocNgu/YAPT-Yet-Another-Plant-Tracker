@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +41,17 @@ import com.yapt.planttracker.util.DateUtils
 fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState()
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = explanation.hasDormancyWindow)
     ) {
+        val scrollModifier = if (explanation.hasDormancyWindow) {
+            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+        } else {
+            Modifier
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(scrollModifier)
                 .testTag("watering_explanation_sheet")
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
         ) {
@@ -60,10 +68,14 @@ fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> 
 private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_next_watering),
-        value = explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
+        value = if (explanation.isDormant) {
+            stringResource(R.string.watering_explanation_dormant)
+        } else {
+            explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
+        }
     )
 
-    explanation.rescheduleDeltaDays?.let { delta ->
+    explanation.rescheduleDeltaDays?.takeUnless { explanation.isDormant }?.let { delta ->
         ExplanationRow(
             label = pluralStringResource(R.plurals.watering_reschedule_delta_days, delta, delta),
             value = ""
@@ -93,14 +105,16 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-    ExplanationRow(
-        label = pluralStringResource(
-            R.plurals.watering_explanation_effective_interval,
-            explanation.effectiveIntervalDays,
-            explanation.effectiveIntervalDays
-        ),
-        value = ""
-    )
+    if (!explanation.isDormant) {
+        ExplanationRow(
+            label = pluralStringResource(
+                R.plurals.watering_explanation_effective_interval,
+                explanation.effectiveIntervalDays,
+                explanation.effectiveIntervalDays
+            ),
+            value = ""
+        )
+    }
 
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_last_watered),

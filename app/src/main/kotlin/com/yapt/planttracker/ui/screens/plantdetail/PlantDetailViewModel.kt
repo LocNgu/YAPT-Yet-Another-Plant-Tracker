@@ -153,7 +153,8 @@ class PlantDetailViewModel(
             waterLogCount = waterCount,
             seasonalAmplitude = amplitude,
             recentAdjustments = adjustments,
-            rescheduleDeltaDays = status?.rescheduleDeltaDays
+            rescheduleDeltaDays = status?.rescheduleDeltaDays,
+            isDormant = status?.isDormant == true
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

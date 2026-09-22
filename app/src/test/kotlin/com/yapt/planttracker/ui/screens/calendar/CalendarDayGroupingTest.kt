@@ -34,7 +34,13 @@ class CalendarDayGroupingTest {
         isFertilizingOverdue: Boolean = false,
         useLiquidFertilizer: Boolean = false
     ) = PlantCareStatus(
-        plant = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L, useLiquidFertilizer = useLiquidFertilizer),
+        plant = Plant(
+            id = id,
+            name = name,
+            createdAt = 0L,
+            updatedAt = 0L,
+            useLiquidFertilizer = useLiquidFertilizer
+        ),
         lastWateredAt = null,
         lastFertilizedAt = null,
         daysSinceLastWatering = null,
@@ -46,6 +52,74 @@ class CalendarDayGroupingTest {
         isFertilizingDueSoon = nextFertilizingDueAt == today && !isFertilizingOverdue,
         totalCareLogs = 0
     )
+
+    private fun dormant(status: PlantCareStatus, startMonth: Int, endMonth: Int): PlantCareStatus =
+        status.copy(
+            plant = status.plant.copy(dormancyStartMonth = startMonth, dormancyEndMonth = endMonth),
+            isDormant = today.monthValue in startMonth..endMonth
+        )
+
+    @Test
+    fun `dormant plant is visible today without counting as watering due`() {
+        val dormant = dormant(status(nextWateringDueAt = today.minusDays(3)), 6, 8)
+        val entry = computePlantsByDay(listOf(dormant), visibleMonth, today).getValue(today)
+
+        assertTrue(entry.plants.isEmpty())
+        assertEquals(1, entry.dormantPlants.size)
+        assertFalse(entry.dormantPlants.single().waterDue)
+        assertFalse(entry.containsOverdue)
+    }
+
+    @Test
+    fun `watering date inside dormancy is absent but fertilizing still appears`() {
+        val dormant = dormant(
+            status(
+                nextWateringDueAt = today.plusDays(2),
+                nextFertilizingDueAt = today.plusDays(2)
+            ),
+            6,
+            8
+        )
+        val entries = computePlantsByDay(listOf(dormant), visibleMonth, today)
+
+        assertEquals(1, entries.getValue(today).dormantPlants.size)
+        val future = entries.getValue(today.plusDays(2)).plants.single()
+        assertFalse(future.waterDue)
+        assertTrue(future.fertilizeDue)
+        assertTrue(future.isDormant)
+    }
+
+    @Test
+    fun `watering date inside a wrapping dormancy window is absent`() {
+        val wrappingToday = LocalDate.of(2027, 1, 12)
+        val wateringDate = wrappingToday.plusDays(2)
+        val baseStatus = status(nextWateringDueAt = wateringDate)
+        val dormant = baseStatus.copy(
+            plant = baseStatus.plant.copy(dormancyStartMonth = 11, dormancyEndMonth = 2),
+            isDormant = true
+        )
+
+        val entries = computePlantsByDay(listOf(dormant), YearMonth.from(wrappingToday), wrappingToday)
+
+        assertEquals(1, entries.getValue(wrappingToday).dormantPlants.size)
+        assertFalse(entries.containsKey(wateringDate))
+    }
+
+    @Test
+    fun `past dormancy watering date rolls overdue after dormancy ends`() {
+        val afterDormancy = dormant(
+            status(
+                nextWateringDueAt = LocalDate.of(2026, 6, 30),
+                isOverdue = true
+            ),
+            6,
+            6
+        )
+
+        val entry = computePlantsByDay(listOf(afterDormancy), visibleMonth, today).getValue(today)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants.single().waterDue)
+    }
 
     @Test
     fun `empty statuses produces empty map`() {
@@ -77,6 +151,17 @@ class CalendarDayGroupingTest {
         assertTrue(entry.containsOverdue)
         assertFalse(entry.plants[0].waterDue)
         assertTrue(entry.plants[0].fertilizeDue)
+    }
+
+    @Test
+    fun `overdue fertilizing without a due date remains visible defensively`() {
+        val s = status(nextFertilizingDueAt = null, isFertilizingOverdue = true)
+
+        val entry = computePlantsByDay(listOf(s), visibleMonth, today).getValue(today)
+
+        assertEquals(1, entry.plants.size)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants.single().fertilizeDue)
     }
 
     @Test

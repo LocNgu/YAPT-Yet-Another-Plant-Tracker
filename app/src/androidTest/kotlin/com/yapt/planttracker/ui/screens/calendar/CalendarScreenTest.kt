@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -200,6 +201,29 @@ class CalendarScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun dormantPlant_hasItsOwnAccessibleTodayBadgeAndSection() {
+        val month = LocalDate.now().monthValue
+        val plant = Plant(
+            id = 1L,
+            name = "Cactus",
+            wateringIntervalDays = 5,
+            dormancyStartMonth = month,
+            dormancyEndMonth = month,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val viewModel = makeViewModel(listOf(plant))
+
+        composeTestRule.setContent { CalendarScreen(viewModel = viewModel, onNavigateToPlant = {}) }
+
+        composeTestRule.onNodeWithTag(todayTag).assert(hasContentDescription("1 dormant plant"))
+        composeTestRule.onNodeWithTag(todayTag).assert(!hasContentDescription("1 plant due"))
+        composeTestRule.onNodeWithTag(todayTag).performClick()
+        composeTestRule.onNodeWithText("Cactus").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Dormant")[0].assertIsDisplayed()
     }
 
     @Test

@@ -31,6 +31,11 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
+- A configured dormancy window suppresses watering due/overdue flags while its current month is inside
+  the window (product ADR-0044). `nextWateringDueAt` remains computed. Plant List places these plants
+  in a Dormant bucket for watering due sorts; Calendar lists them in today's Dormant section with a
+  separate count and does not place a watering due date inside the window on the calendar grid.
+  Fertilizing stays on its normal schedule.
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
 The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy

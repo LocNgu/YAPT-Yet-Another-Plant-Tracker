@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Dormancy is visible across watering surfaces** — a plant inside its configured dormancy window appears under a Dormant group in the Plant List's watering due sorts and in today's Calendar sheet, with a separate Calendar badge that does not inflate the count of plants due for care. Its watering chip says Dormant, and "Why this date?" says the watering schedule is suspended instead of presenting the stored due date as active. Fertilizing remains on its normal schedule, and dormancy exclusion/exit events appear in Recent adjustments (#763, closes #699)
+
 ### Changed
 - **Adaptive watering now uses one observation path for quick logging and the Add Care Log form** — dormancy, bootstrap, confidence, and adjustment rules are shared so fixes apply consistently to both entry points (#780, technical ADR-0030)
 - **Plant Detail's per-action tabs (Water, Fertilize, Repot, Photo, Custom Reminders, Issues) are now the only layout** — the older single-page layout (one long scroll of chart, photo gallery, and care history) is gone, along with the tappable watering/fertilizing stat chips it showed at the top. Every action those chips offered is still available: Water and Reschedule are always-visible buttons on the Water tab (Water works even for a plant with no configured watering schedule), and Fertilize has the same always-visible button on its own tab. Custom Reminders and Issues, previously always shown, now live behind their own tabs — collapsed by default alongside Water/Fertilize/Repot/Photo, with a badge on the expand toggle when either has something needing attention. Tap the toggle to see all six tabs at once (#704)

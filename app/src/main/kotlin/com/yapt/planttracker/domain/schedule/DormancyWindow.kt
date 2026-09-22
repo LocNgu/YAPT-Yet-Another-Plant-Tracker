@@ -7,9 +7,9 @@ import java.time.temporal.ChronoUnit
  * Per-plant dormancy window membership (#699/#760, product ADR-0044): a discrete suspension of
  * watering reminders for an arbitrary, user-authored month range, distinct from
  * [SeasonalWatering]'s continuous multiplicative curve — see that ADR for why the seasonal cosine
- * cannot express this. Called from exactly one place, [CareSchedule.computeStatus] — every other
- * consumer of [com.yapt.planttracker.domain.model.PlantCareStatus] inherits suppression through
- * [com.yapt.planttracker.domain.model.PlantCareStatus.isDormant] rather than calling this directly.
+ * cannot express this. [CareSchedule.computeStatus] uses it for the current status; Calendar also
+ * checks future watering dates so its grid never presents a date inside the configured window as
+ * an active watering due date.
  */
 object DormancyWindow {
 
