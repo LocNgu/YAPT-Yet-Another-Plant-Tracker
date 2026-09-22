@@ -1280,7 +1280,7 @@ class AddCareLogViewModelTest {
             }
             // #716 regression, corrected from the pre-fix version of this test (which compared against
             // the stale wateringIntervalDays literal directly — the exact bug #716 fixes, see
-            // .claude/rules/adaptive-watering-cluster.md). A self-consistent plant: base = 5.0,
+            // .claude/rules/seasonal-watering.md). A self-consistent plant: base = 5.0,
             // literal = 7 = round(5.0 * season(peakDay)=1.35) — the literal already agrees with what
             // the live base would show today, so this isn't stale. The observed 8-day gap de-seasonalizes
             // to round(8 / 1.35) = 6; TOO_LATE (mult 0.82) targets 6*0.82 = 4.92; confidence-0 gain 0.60

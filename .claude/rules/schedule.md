@@ -77,6 +77,17 @@ check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLo
   adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
   therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
   rather than reverse-converting its rounded effective display value.
+  Rounding happens at **three** boundaries — the `REAL` base going into this function, `clampStep()`'s result
+  coming out, and the effective value rendered for display — and they are not equally harmless. The per-step
+  clamp rounding is the accepted quantization artifact noted above. The base → effective → base *round-trip* is
+  not: deriving a base back from a rounded effective value divides the ±0.5-day residual by `season(today)`,
+  amplifying it by `1/season` (up to ±0.77 days at the July trough, worst in the growing season, since a factor
+  below 1 magnifies rather than shrinks). Hence the precise `baseIntervalDays` above — do not reintroduce a
+  write path that reverse-converts a rounded display value. Retaining sub-day precision is also what makes a
+  capped-gain neutral correction able to move a short interval at all: at `NEUTRAL_OBSERVATION_GAIN` = 0.15, a
+  whole-day move needs `0.15 × |observed − base| >= 0.5`, i.e. an *integer* gap difference of 4, and `4 <= 0.15
+  × base` needs `base >= 27` — so before #717/#718 every base of 26 days or less was a dead zone that
+  unattributed observations could never move.
 - **The suggestion-dialog gate compares live effective values, never the stale `Plant.wateringIntervalDays`
   literal (#716)** — see `.claude/rules/seasonal-watering.md`'s "#716" note for the full rule; this bullet is
   just the pointer, since the fix lives in the seasonal-conversion file, not here.

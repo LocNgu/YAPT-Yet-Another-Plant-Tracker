@@ -110,6 +110,18 @@ copy of the same bug). Pinned plants and amplitude-Off plants are unaffected —
 literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
 schema change.
 
+**The trap outlives the fix.** #716 closed the three gates that had it, but the underlying shape is
+structural: there are two interval numbers, `Plant.wateringBaseIntervalDays` (season-neutral, `REAL`,
+what the model reasons about) and `Plant.wateringIntervalDays` (effective, `Int`, what the UI shows),
+and the second is only rewritten on the four discrete events listed above while the curve keeps moving
+between them. Any *new* code that reads `Plant.wateringIntervalDays` as a stand-in for "today's
+effective interval" reintroduces the same class of bug. Read it through
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` instead, and when code compares "the interval"
+against anything, say which of the two numbers it means. Two settled points, both re-argued more than
+once already: `wateringIntervalDays` is **effective-space at every read site** (#620/#626/#644 landed on
+this three separate times — don't re-litigate it), and `wateringBaseIntervalDays` is **deliberately
+unrounded at rest** — don't "tidy" it to an `Int`.
+
 **"Today's date" needed its own follow-up fix (#716 review round 1).** The two live values above must
 both be evaluated at real wall-clock *today*, not at a backdated (#654) observation's own `loggedAt` —
 a second, narrower bug found after this fix's first round landed. See
