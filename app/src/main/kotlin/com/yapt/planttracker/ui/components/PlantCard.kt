@@ -205,10 +205,12 @@ fun PlantCard(
                     val waterColor = when {
                         status.isOverdue -> OverdueRed
                         status.isDueSoon -> WarnOrange
+                        status.isDormant -> MaterialTheme.colorScheme.onSurfaceVariant
                         else -> OkGreen
                     }
                     val neverWateredLabel = stringResource(R.string.water_label_never_watered)
                     val waterLabel = when {
+                        status.isDormant -> stringResource(R.string.date_group_dormant)
                         status.lastWateredAt == null -> neverWateredLabel
                         status.nextWateringDueAt != null ->
                             DateUtils.formatCountdown(status.nextWateringDueAt)

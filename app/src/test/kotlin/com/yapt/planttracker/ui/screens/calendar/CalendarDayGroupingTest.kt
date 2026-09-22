@@ -34,7 +34,13 @@ class CalendarDayGroupingTest {
         isFertilizingOverdue: Boolean = false,
         useLiquidFertilizer: Boolean = false
     ) = PlantCareStatus(
-        plant = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L, useLiquidFertilizer = useLiquidFertilizer),
+        plant = Plant(
+            id = id,
+            name = name,
+            createdAt = 0L,
+            updatedAt = 0L,
+            useLiquidFertilizer = useLiquidFertilizer
+        ),
         lastWateredAt = null,
         lastFertilizedAt = null,
         daysSinceLastWatering = null,
@@ -46,6 +52,58 @@ class CalendarDayGroupingTest {
         isFertilizingDueSoon = nextFertilizingDueAt == today && !isFertilizingOverdue,
         totalCareLogs = 0
     )
+
+    private fun dormant(status: PlantCareStatus, startMonth: Int, endMonth: Int): PlantCareStatus =
+        status.copy(
+            plant = status.plant.copy(dormancyStartMonth = startMonth, dormancyEndMonth = endMonth),
+            isDormant = today.monthValue in startMonth..endMonth
+        )
+
+    @Test
+    fun `dormant plant is visible today without counting as watering due`() {
+        val dormant = dormant(status(nextWateringDueAt = today.minusDays(3)), 6, 8)
+        val entry = computePlantsByDay(listOf(dormant), visibleMonth, today).getValue(today)
+
+        assertTrue(entry.plants.isEmpty())
+        assertEquals(1, entry.dormantPlants.size)
+        assertFalse(entry.dormantPlants.single().waterDue)
+        assertFalse(entry.containsOverdue)
+    }
+
+    @Test
+    fun `watering date inside dormancy is absent but fertilizing still appears`() {
+        val dormant = dormant(
+            status(
+                nextWateringDueAt = today.plusDays(2),
+                nextFertilizingDueAt = today.plusDays(2)
+            ),
+            6,
+            8
+        )
+        val entries = computePlantsByDay(listOf(dormant), visibleMonth, today)
+
+        assertEquals(1, entries.getValue(today).dormantPlants.size)
+        val future = entries.getValue(today.plusDays(2)).plants.single()
+        assertFalse(future.waterDue)
+        assertTrue(future.fertilizeDue)
+        assertTrue(future.isDormant)
+    }
+
+    @Test
+    fun `past dormancy watering date rolls overdue after dormancy ends`() {
+        val afterDormancy = dormant(
+            status(
+                nextWateringDueAt = LocalDate.of(2026, 6, 30),
+                isOverdue = true
+            ),
+            6,
+            6
+        )
+
+        val entry = computePlantsByDay(listOf(afterDormancy), visibleMonth, today).getValue(today)
+        assertTrue(entry.containsOverdue)
+        assertTrue(entry.plants.single().waterDue)
+    }
 
     @Test
     fun `empty statuses produces empty map`() {

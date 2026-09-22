@@ -11,6 +11,7 @@ sealed class DateBucket {
     data object Tomorrow : DateBucket()
     data class Dated(val epochDay: Long) : DateBucket()
     data object Later : DateBucket()
+    data object Dormant : DateBucket()
     data object NotScheduled : DateBucket()
 }
 
@@ -27,7 +28,8 @@ private fun DateBucket.rank(): Int = when (this) {
     DateBucket.Tomorrow -> 2
     is DateBucket.Dated -> 3
     DateBucket.Later -> 4
-    DateBucket.NotScheduled -> 5
+    DateBucket.Dormant -> 5
+    DateBucket.NotScheduled -> 6
 }
 
 /**
@@ -56,7 +58,11 @@ fun groupPlantsByDueDate(
     val nowDate = now.toLocalDate()
     val buckets = LinkedHashMap<DateBucket, MutableList<PlantCareStatus>>()
     for (status in statuses) {
-        val bucket = bucketFor(dueAtOf(status), nowDate)
+        val bucket = if (sortOption != SortOption.FERTILIZING_DUE && status.isDormant) {
+            DateBucket.Dormant
+        } else {
+            bucketFor(dueAtOf(status), nowDate)
+        }
         buckets.getOrPut(bucket) { mutableListOf() }.add(status)
     }
 

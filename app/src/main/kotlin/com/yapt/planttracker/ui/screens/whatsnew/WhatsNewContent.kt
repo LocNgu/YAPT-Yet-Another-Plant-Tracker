@@ -13,6 +13,11 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "Plants inside a dormancy window now show as Dormant on the Plant List and Calendar. " +
+                "Their watering schedule is suspended, and Why this date? explains that while keeping " +
+                "their recent watering adjustments visible"
+        ),
         changed = listOf(
             "Watering logs now use the same adaptive schedule logic whether you use a quick action or " +
                 "the full Add Care Log form; this keeps their existing behavior consistent",

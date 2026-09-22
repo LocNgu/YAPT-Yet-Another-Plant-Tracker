@@ -75,7 +75,9 @@ class CalendarViewModel(
         plantsByDay,
         _selectedDay
     ) { byDay, day ->
-        day?.let { byDay[it]?.plants } ?: emptyList()
+        day?.let { selected ->
+            byDay[selected]?.let { it.plants + it.dormantPlants }
+        } ?: emptyList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _quickLogEvent = MutableSharedFlow<String>()

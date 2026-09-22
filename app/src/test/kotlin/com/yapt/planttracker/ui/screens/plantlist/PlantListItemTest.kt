@@ -272,6 +272,40 @@ class PlantListItemTest {
 
         assertEquals(listOf(DateBucket.NotScheduled, DateBucket.Overdue), headerBuckets(result))
     }
+
+    @Test
+    fun `dormant plant gets its own watering bucket without hiding fertilizing due`() {
+        val dormant = statusWithWateringDueIn(1L, -2L).copy(
+            isDormant = true,
+            nextFertilizingDueAt = now
+        )
+        val ordinary = statusWithWateringDueIn(2L, 4L)
+
+        val waterItems = groupPlantsByDueDate(
+            listOf(dormant, ordinary),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+        assertEquals(listOf(DateBucket.Later, DateBucket.Dormant), headerBuckets(waterItems))
+
+        val fertilizeItems = groupPlantsByDueDate(
+            listOf(dormant),
+            SortOrder(SortOption.FERTILIZING_DUE, SortDirection.DESC),
+            now
+        )
+        assertEquals(listOf(DateBucket.Today), headerBuckets(fertilizeItems))
+    }
+
+    @Test
+    fun `plant without dormancy keeps its existing watering bucket`() {
+        val overdue = statusWithWateringDueIn(1L, -2L)
+        val items = groupPlantsByDueDate(
+            listOf(overdue),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+        assertEquals(listOf(DateBucket.Overdue), headerBuckets(items))
+    }
 }
 
 private fun Long.toLocalDateEpochDay(): Long =

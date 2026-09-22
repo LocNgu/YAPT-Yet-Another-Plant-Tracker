@@ -14,6 +14,13 @@ paths:
 
 # "Why this date?" watering transparency sheet (#572, product ADR-0028)
 
+## Dormancy display (#763, product ADR-0044)
+`WateringExplanationBuilder.build()` carries `PlantCareStatus.isDormant` into the sheet. While dormant,
+the sheet says the watering schedule is suspended in place of the stored next due date and hides the
+effective-interval and reschedule rows that would imply an active schedule. Base, season, last-watered,
+confidence, and Recent adjustments remain visible. `DORMANCY_EXCLUDED` and `DORMANCY_EXIT` use their
+existing `WateringAdjustmentTrigger.labelRes()` labels in Recent adjustments.
+
 ## Bug fix that gates everything else (also #572)
 `PlantDetailViewModel.applySuggestedInterval()` (the product ADR-0006 dialog's Apply button — the only place
 #568's adaptive suggestion is ever committed) now dual-writes `wateringBaseIntervalDays` alongside

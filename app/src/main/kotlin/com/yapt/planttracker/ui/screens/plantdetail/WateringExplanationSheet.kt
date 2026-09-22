@@ -60,10 +60,14 @@ fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> 
 private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_next_watering),
-        value = explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
+        value = if (explanation.isDormant) {
+            stringResource(R.string.watering_explanation_dormant)
+        } else {
+            explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
+        }
     )
 
-    explanation.rescheduleDeltaDays?.let { delta ->
+    explanation.rescheduleDeltaDays?.takeUnless { explanation.isDormant }?.let { delta ->
         ExplanationRow(
             label = pluralStringResource(R.plurals.watering_reschedule_delta_days, delta, delta),
             value = ""
@@ -93,14 +97,16 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-    ExplanationRow(
-        label = pluralStringResource(
-            R.plurals.watering_explanation_effective_interval,
-            explanation.effectiveIntervalDays,
-            explanation.effectiveIntervalDays
-        ),
-        value = ""
-    )
+    if (!explanation.isDormant) {
+        ExplanationRow(
+            label = pluralStringResource(
+                R.plurals.watering_explanation_effective_interval,
+                explanation.effectiveIntervalDays,
+                explanation.effectiveIntervalDays
+            ),
+            value = ""
+        )
+    }
 
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_last_watered),

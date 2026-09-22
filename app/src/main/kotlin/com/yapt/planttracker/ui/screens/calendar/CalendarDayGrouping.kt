@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.calendar
 
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
 import java.time.YearMonth
@@ -13,13 +14,15 @@ import java.time.YearMonth
 data class PlantDayInfo(
     val status: PlantCareStatus,
     val waterDue: Boolean,
-    val fertilizeDue: Boolean
+    val fertilizeDue: Boolean,
+    val isDormant: Boolean = false
 )
 
 /** Everything landing on a single calendar day: the plants due and whether any of them are overdue. */
 data class DayEntry(
     val plants: List<PlantDayInfo>,
-    val containsOverdue: Boolean
+    val containsOverdue: Boolean,
+    val dormantPlants: List<PlantDayInfo> = emptyList()
 )
 
 private data class Contribution(val date: LocalDate, val info: PlantDayInfo, val overdue: Boolean)
@@ -50,22 +53,29 @@ fun computePlantsByDay(
         val fertilizeDate = if (isLiquidFertilizer) null else status.nextFertilizingDueAt?.toLocalDate()
         val waterOverdue = status.isOverdue
         val fertilizeOverdue = if (isLiquidFertilizer) false else status.isFertilizingOverdue
+        val waterDateActive = waterDate != null && !isDormantOnDate(status, waterDate)
 
         val landsToday = waterOverdue || fertilizeOverdue ||
-            waterDate == today || fertilizeDate == today
+            (waterDateActive && waterDate == today) || fertilizeDate == today
 
         if (landsToday) {
-            val waterDue = waterDate != null && (waterOverdue || waterDate == today)
+            val waterDue = waterOverdue || (waterDateActive && waterDate == today)
             val fertilizeDue = fertilizeDate != null && (fertilizeOverdue || fertilizeDate == today)
             contributions += Contribution(
                 date = today,
-                info = PlantDayInfo(status, waterDue, fertilizeDue),
+                info = PlantDayInfo(status, waterDue, fertilizeDue, status.isDormant),
                 overdue = waterOverdue || fertilizeOverdue
+            )
+        } else if (status.isDormant) {
+            contributions += Contribution(
+                date = today,
+                info = PlantDayInfo(status, waterDue = false, fertilizeDue = false, isDormant = true),
+                overdue = false
             )
         }
 
         val futureDates = mutableSetOf<LocalDate>()
-        if (waterDate != null && !waterOverdue && waterDate != today) futureDates += waterDate
+        waterDate?.takeIf { waterDateActive && !waterOverdue && it != today }?.let { futureDates += it }
         if (fertilizeDate != null && !fertilizeOverdue && fertilizeDate != today) futureDates += fertilizeDate
 
         for (date in futureDates) {
@@ -73,8 +83,9 @@ fun computePlantsByDay(
                 date = date,
                 info = PlantDayInfo(
                     status = status,
-                    waterDue = waterDate == date,
-                    fertilizeDue = fertilizeDate == date
+                    waterDue = waterDateActive && waterDate == date,
+                    fertilizeDue = fertilizeDate == date,
+                    isDormant = isDormantOnDate(status, date)
                 ),
                 overdue = false
             )
@@ -86,11 +97,16 @@ fun computePlantsByDay(
         .groupBy { it.date }
         .mapValues { (_, entries) ->
             DayEntry(
-                plants = entries.map { it.info },
-                containsOverdue = entries.any { it.overdue }
+                plants = entries.filter { it.info.waterDue || it.info.fertilizeDue }.map { it.info },
+                containsOverdue = entries.any { it.overdue },
+                dormantPlants = entries.filter { !it.info.waterDue && !it.info.fertilizeDue && it.info.isDormant }
+                    .map { it.info }
             )
         }
 }
+
+private fun isDormantOnDate(status: PlantCareStatus, date: LocalDate): Boolean =
+    DormancyWindow.isDormant(date.monthValue, status.plant.dormancyStartMonth, status.plant.dormancyEndMonth)
 
 /**
  * Whether [info] belongs in the today-sheet's "Overdue" section rather than "Today".

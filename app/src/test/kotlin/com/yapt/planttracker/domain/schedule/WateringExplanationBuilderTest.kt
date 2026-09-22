@@ -5,8 +5,10 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.util.toLocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
 import java.util.TimeZone
@@ -68,6 +70,7 @@ class WateringExplanationBuilderTest {
         )
         assertNotNull(explanation)
         assertEquals(10, explanation!!.effectiveIntervalDays)
+        assertFalse(explanation.isDormant)
         assertEquals(10, explanation.baseIntervalDays)
         assertNull(explanation.season)
         assertNotNull(explanation.confidenceLevel)
@@ -192,6 +195,38 @@ class WateringExplanationBuilderTest {
             now = now
         )
         assertNull(explanation!!.rescheduleDeltaDays)
+    }
+
+    @Test
+    fun `dormant state and adjustment rows reach the sheet model without changing the stored due date`() {
+        val adjustments = listOf(
+            WateringAdjustment(
+                plantId = 1L,
+                trigger = WateringAdjustmentTrigger.DORMANCY_EXCLUDED,
+                beforeIntervalDays = 10,
+                afterIntervalDays = 10
+            ),
+            WateringAdjustment(
+                plantId = 1L,
+                trigger = WateringAdjustmentTrigger.DORMANCY_EXIT,
+                beforeIntervalDays = 10,
+                afterIntervalDays = 10
+            )
+        )
+        val explanation = WateringExplanationBuilder.build(
+            plant = plantWith(),
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            waterLogCount = 2,
+            seasonalAmplitude = 0.35,
+            recentAdjustments = adjustments,
+            now = now,
+            isDormant = true
+        )!!
+
+        assertTrue(explanation.isDormant)
+        assertEquals(now, explanation.nextWateringDueAt)
+        assertEquals(adjustments, explanation.recentAdjustments)
     }
 
     @Test
