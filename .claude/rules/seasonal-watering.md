@@ -110,6 +110,15 @@ copy of the same bug). Pinned plants and amplitude-Off plants are unaffected —
 literal in those cases, so the gate reduces to exactly the pre-#716 literal comparison for them. No
 schema change.
 
+**Two of those three gates have since been merged; the third has not.** #780 (technical ADR-0030)
+consolidated the `QuickLogUseCase` and `AddCareLogViewModel` copies into `AdaptiveWateringObservation`,
+which now owns the comparison for both callers. `PlantDetailViewModel.pendingWateringSuggestion` is
+**still an independent copy** — it does its own live-to-live `combine` over
+`CareSchedule.effectiveWateringIntervalDaysForDisplay()` and never routes through
+`AdaptiveWateringObservation` or `QuickLogUseCase.computeSuggestion()`. Correct today, but it means a
+future fix to the suggestion gate has **two** places to land, not one, and the shared path is not the
+whole story.
+
 **The trap outlives the fix.** #716 closed the three gates that had it, but the underlying shape is
 structural: there are two interval numbers, `Plant.wateringBaseIntervalDays` (season-neutral, `REAL`,
 what the model reasons about) and `Plant.wateringIntervalDays` (effective, `Int`, what the UI shows),
