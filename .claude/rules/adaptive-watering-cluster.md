@@ -111,14 +111,12 @@ clamp, not this round-trip.
 
 ## Two things the second opinion added that the issues understate
 
-**The suggestion gate exists in three places, not one.** `QuickLogUseCase.computeSuggestion()`,
-`AddCareLogViewModel`, and `PlantDetailViewModel.pendingWateringSuggestion` each independently compare an
-effective-space value against a "current" comparand. **#716 (fixed)** updated all three independently —
-per this codebase's stated convention of duplicating this exact helper pair between `QuickLogUseCase`
-and `AddCareLogViewModel` rather than forcibly consolidating them (see `.claude/rules/seasonal-watering.md`'s
-"Interaction with Part 1" section) — instead of introducing one shared predicate; all three now compare
-live-to-live rather than live-to-stale, so they can no longer independently regress to comparing against
-the literal again, even though the comparison logic itself still exists in three copies.
+**The suggestion gate originated in three places.** `QuickLogUseCase.computeSuggestion()`,
+`AddCareLogViewModel`, and `PlantDetailViewModel.pendingWateringSuggestion` each compared an
+effective-space value against a "current" comparand. **#716 (fixed)** changed all three from
+live-to-stale to live-to-live comparison. **#780 (technical ADR-0030)** then consolidated the
+quick-log and Add Care Log copies into `AdaptiveWateringObservation`; both callers now share its
+comparison. `PlantDetailViewModel.pendingWateringSuggestion` remains the only independent copy.
 
 **Dismissing a calendar-only dialog is not inert.** A dismissal raises `wateringConfidence` and writes a
 `DIALOG_DISMISSAL` row, so seasonal drift used to produce both a misleading modal *and* bookkeeping that
