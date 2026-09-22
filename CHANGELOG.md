@@ -12,7 +12,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.31.0] - 2026-09-22
+
 ### Added
+- **Per-plant dormancy window** — give a plant start and end months (Add/Edit Plant, or the Water tab's settings on Plant Detail) during which its watering reminders pause; the window may wrap the new year (e.g. Nov–Feb). A watering whose gap spans the dormancy window no longer teaches the adaptive model or asks why it was off schedule, and the first watering after dormancy lowers the model's confidence by one step rather than resetting it. The dormancy window is included in `.yapt` backups (#759, #760, #761, #762, product ADR-0044)
 - **Dormancy is visible across watering surfaces** — a plant inside its configured dormancy window appears under a Dormant group in the Plant List's watering due sorts and in today's Calendar sheet, with a separate Calendar badge that does not inflate the count of plants due for care. Its watering chip says Dormant, and "Why this date?" says the watering schedule is suspended instead of presenting the stored due date as active. Fertilizing remains on its normal schedule, and dormancy exclusion/exit events appear in Recent adjustments (#763, closes #699)
 
 ### Changed
