@@ -364,6 +364,38 @@ class AddCareLogViewModelTest {
     }
 
     @Test
+    fun `form bootstrap with TOO_SOON feedback does not shorten the prior interval`() = runTest {
+        val observedAt = localDateUtcMillis(2026, 1, 13)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(observedAt),
+            waterLog(localDateUtcMillis(2026, 1, 10))
+        )
+        coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(1, 4, 7, 10, 13)
+            .map { localDateUtcMillis(2026, 1, it) }
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.TOO_SOON
+        vm.loggedAt = observedAt
+
+        vm.events.test {
+            vm.saveLog()
+            assertNull((awaitItem() as AddCareLogViewModel.Event.Saved).suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.wateringBaseIntervalDays == 14.0 && it.wateringIntervalDays == 14 && it.wateringConfidence == 1
+                }
+            )
+        }
+    }
+
+    @Test
     fun `form bootstrap keeps dormancy provenance and does not decrement the new confidence`() = runTest {
         val octoberTwentyFifth = localDateUtcMillis(2026, 10, 25)
         val marchFirst = localDateUtcMillis(2027, 3, 1)
@@ -714,6 +746,8 @@ class AddCareLogViewModelTest {
     @Test
     fun `edit mode WATER save skips suggestion and post-watering reminder`() = runTest {
         val scheduled = mutableListOf<Long>()
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
+        coEvery { careLogRepo.getLastWateringBefore(1L, any(), 99L) } returns null
         val existingLog = CareLog(
             id = 99L,
             plantId = 1L,
@@ -740,6 +774,7 @@ class AddCareLogViewModelTest {
         }
 
         assertTrue(scheduled.isEmpty())
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test

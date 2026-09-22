@@ -319,7 +319,8 @@ internal class AdaptiveWateringObservation(
      * [feedback] is passed to [WateringLifecycleReset.BootstrapRequest] so a late "Soil was still
      * moist" observation ([WateringFeedback.TOO_SOON]) cannot make the median bootstrap shorten
      * the interval, contrary to product ADR-0033's guarantee (#649 follow-up). That request floors
-     * the bootstrapped base at the plant's prior interval for this feedback.
+     * the bootstrapped base at the plant's prior interval for this feedback. The former Add Care Log
+     * copy omitted [feedback] here; sharing the path closes that narrow cold-start/post-reset gap.
      *
      * [loggedAt] may be backdated. [WateringLifecycleReset.maybeBootstrap] gets a separate, always
      * real-wall-clock `displayNow` for converting the new base to today's effective interval (#679).

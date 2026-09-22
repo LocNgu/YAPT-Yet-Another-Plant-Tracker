@@ -30,6 +30,8 @@ object WhatsNewContent {
                 "can also optimize its copies of photos—including gallery photos—without changing your originals"
         ),
         fixed = listOf(
+            "A late watering marked \"Soil was still moist\" in Add Care Log can no longer shorten " +
+                "a plant's watering interval when its schedule first learns from history or learns again after a reset",
             "Reschedule watering now shows the date each +N-day choice will set, so you " +
                 "can see exactly when the next reminder is due",
             "Retyping a watering suggestion after logging an earlier watering now uses today's season " +
