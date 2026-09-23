@@ -884,6 +884,13 @@ fun PlantDetailScreen(
                                                     )
                                                 }
                                             }
+                                            if (p.dormancyStartMonth != null && p.dormancyEndMonth != null) {
+                                                Text(
+                                                    text = stringResource(R.string.fertilizing_dormancy_pause_note),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),

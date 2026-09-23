@@ -235,6 +235,7 @@
     <string name="fertilizing_current_season">%1$s · Current season</string>
     <string name="fertilizing_active_seasons_label">Active in</string>
     <string name="fertilizing_out_of_season">Out of season — next fertilizing %1$s</string>
+    <string name="fertilizing_dormancy_pause_note">Fertilizing reminders pause during this plant’s dormancy window.</string>
     <plurals name="repotting_interval_label">
         <item quantity="one">Repot every month</item>
         <item quantity="other">Repot every %d months</item>

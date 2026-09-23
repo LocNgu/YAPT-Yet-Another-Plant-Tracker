@@ -47,13 +47,8 @@ plant become due during a season the user just said fertilizing shouldn't happen
 selected is an unconditional early-out: the raw date is returned unchanged, however overdue, so every
 existing plant is bit-for-bit identical to before this ADR.
 
-Evaluating the raw date's *own* season alone is not sufficient once seasons are genuinely restricted — an
-early implementation of this rule did exactly that, and reading only the raw date's season let a plant go
-overdue for an entire inactive season. Example: Spring and Summer active; last fertilized in August (raw
-date lands in Summer, active, and would be used unchanged); but with no further fertilizing, the plant
-then reads overdue continuously from that August date through the whole Sep–Feb inactive stretch, instead
-of reading not-due once the gap crossed into it. The rule instead branches on whether the raw date is
-still in the future relative to *today*:
+The raw date's own season is not enough on its own: a raw date in an active month can be followed by an
+inactive stretch, so the rule branches on whether the raw date is still in the future relative to *today*:
 - **Future raw date** (after today): the simple forward shift — unchanged if its own hemisphere-aware
   season (`SeasonalFertilizing.season()`, unchanged from ADR-0045) is active, else the start of day
   (system default zone) of the 1st of the first following month whose season is active, checked at most
@@ -71,8 +66,7 @@ still in the future relative to *today*:
 
 Consequence: a plant is never due or overdue during an inactive season, and on re-entry it is due exactly
 on the first day of the newly active season rather than carrying forward however overdue the raw date had
-become — including across a gap that started inside a still-active month, which is the case the "raw
-date's own season" check alone got wrong.
+become — including across a gap that started inside a still-active month.
 
 Dormancy (product ADR-0044) is unchanged and stays independent: it suppresses `isFertilizingOverdue`/
 `isFertilizingDueSoon` on top of whatever this rule computes, the same as it always suppressed the
