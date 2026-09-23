@@ -3,6 +3,8 @@ package com.yapt.planttracker.domain.notification
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.Hemisphere
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -106,22 +108,45 @@ class ReminderNotificationComposerTest {
     }
 
     @Test
-    fun `liquid fertilizer wording uses the current seasonal interval for the due check`() {
-        // `now` is in northern autumn. The 14-day autumn slot is due; the 30-day fallback is not.
+    fun `liquid fertilizer wording is due when the raw due date falls in an active season`() {
+        // `now` is in northern autumn; only Autumn is active, so the raw due date (well within it) stays put.
         val status = CareSchedule.computeStatus(
             plant = plantWith(
                 wateringIntervalDays = 7,
-                fertilizingIntervalDays = 30,
+                fertilizingIntervalDays = 14,
                 useLiquidFertilizer = true
-            ).copy(fertilizingIntervalAutumn = 14),
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.AUTUMN)),
             lastWateredAt = null,
             lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
             totalLogs = 0,
-            now = now
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
         )
 
         assertEquals(
             listOf(CareReminderItem.WateringDueToday, CareReminderItem.FertilizeWithWatering),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `liquid fertilizer wording omits fertilizing when the raw due date shifts out of season`() {
+        // Only Winter is active; the raw due date (in northern autumn) shifts forward, out of "now".
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = 14,
+                useLiquidFertilizer = true
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.WINTER)),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(
+            listOf(CareReminderItem.WateringDueToday),
             ReminderNotificationComposer.computeCareReminderItems(status, now)
         )
     }
@@ -133,7 +158,7 @@ class ReminderNotificationComposerTest {
                 fertilizingIntervalDays = 30,
                 dormancyStartMonth = 11,
                 dormancyEndMonth = 2
-            ).copy(fertilizingIntervalAutumn = 14),
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.AUTUMN)),
             lastWateredAt = null,
             lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
             totalLogs = 0,

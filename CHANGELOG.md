@@ -13,7 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- **Per-plant seasonal fertilizing intervals** — set separate Spring, Summer, Autumn, and Winter cadences from 1–180 days, with blank seasons falling back to the plant's main fertilizing interval. Seasons follow the device timezone's hemisphere, Plant Detail summarizes the choices, `.yapt` backups preserve them, and the existing dormancy window now pauses fertilizing reminders as well as watering reminders (#286, product ADR-0045)
+- **Fertilizing active seasons** — choose which of Spring, Summer, Autumn, and Winter a plant fertilizes in, at its one existing interval; an inactive season is never due or overdue, and re-entering an active season makes the plant due that day rather than "overdue by months." Seasons follow the device timezone's hemisphere and default to every season, so existing plants are unchanged. Add/Edit Plant and Plant Detail's Fertilize tab share the same inline, always-editable season chips (at least one must stay selected), `.yapt` backups preserve the choice, and the existing dormancy window still independently pauses fertilizing reminders on top of this (#286, #795, product ADR-0046, superseding product ADR-0045's four separate per-season intervals, which never shipped in a release)
 
 ---
 

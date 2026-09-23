@@ -1,5 +1,7 @@
 package com.yapt.planttracker.domain.model
 
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+
 data class Plant(
     val id: Long = 0,
     val name: String,
@@ -56,12 +58,10 @@ data class Plant(
     val dormancyStartMonth: Int? = null,
     val dormancyEndMonth: Int? = null,
     /**
-     * Optional manual fertilizing intervals for each hemisphere-aware season (#286, product
-     * ADR-0045). A `null` slot falls back to [fertilizingIntervalDays]. Dormancy remains the only
-     * way to pause the schedule; these slots only change cadence outside that shared window.
+     * Which hemisphere-aware seasons [fertilizingIntervalDays] is active in (#795, product ADR-0046,
+     * superseding #286's four discrete per-season intervals, product ADR-0045). Defaults to every
+     * season, so every existing plant behaves exactly as before. Dormancy remains an independent,
+     * additional pause on top of this.
      */
-    val fertilizingIntervalSpring: Int? = null,
-    val fertilizingIntervalSummer: Int? = null,
-    val fertilizingIntervalAutumn: Int? = null,
-    val fertilizingIntervalWinter: Int? = null
+    val fertilizingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet()
 )

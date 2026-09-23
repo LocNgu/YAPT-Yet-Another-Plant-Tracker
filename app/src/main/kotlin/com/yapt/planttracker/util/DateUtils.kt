@@ -11,6 +11,10 @@ import java.util.Locale
 internal fun Long.toLocalDate(): LocalDate =
     Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
 
+/** The inverse of [toLocalDate]: midnight of [this] date in the system default zone, as epoch millis. */
+internal fun LocalDate.toStartOfDayMillis(): Long =
+    atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
 object DateUtils {
 
     fun formatRelative(
@@ -56,13 +60,13 @@ object DateUtils {
      */
     fun todayRangeMillis(now: Long = System.currentTimeMillis()): Pair<Long, Long> {
         val today = now.toLocalDate()
-        val startOfToday = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val startOfTomorrow = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startOfToday = today.toStartOfDayMillis()
+        val startOfTomorrow = today.plusDays(1).toStartOfDayMillis()
         return startOfToday to startOfTomorrow
     }
 
     fun formatWeekdayDate(epochDay: Long): String {
-        val timestampMs = LocalDate.ofEpochDay(epochDay).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val timestampMs = LocalDate.ofEpochDay(epochDay).toStartOfDayMillis()
         return SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(timestampMs))
     }
 }

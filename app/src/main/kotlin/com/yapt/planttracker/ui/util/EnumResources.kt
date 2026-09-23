@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
@@ -132,4 +133,12 @@ fun SeasonBand.labelRes(): Int = when (this) {
     SeasonBand.SLOWER_GROWTH -> R.string.watering_explanation_season_slower
     SeasonBand.FASTER_GROWTH -> R.string.watering_explanation_season_faster
     SeasonBand.TRANSITIONAL -> R.string.watering_explanation_season_transitional
+}
+
+@StringRes
+fun FertilizingSeason.labelRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.season_spring
+    FertilizingSeason.SUMMER -> R.string.season_summer
+    FertilizingSeason.AUTUMN -> R.string.season_autumn
+    FertilizingSeason.WINTER -> R.string.season_winter
 }

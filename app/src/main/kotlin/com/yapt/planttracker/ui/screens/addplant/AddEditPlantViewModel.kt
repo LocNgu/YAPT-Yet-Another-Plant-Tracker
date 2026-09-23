@@ -59,11 +59,7 @@ class AddEditPlantViewModel(
     var wateringIntervalEnabled by mutableStateOf(false)
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
-    var sameFertilizingIntervalAllSeasons by mutableStateOf(true)
-    var fertilizingIntervalSpring by mutableStateOf<Int?>(null)
-    var fertilizingIntervalSummer by mutableStateOf<Int?>(null)
-    var fertilizingIntervalAutumn by mutableStateOf<Int?>(null)
-    var fertilizingIntervalWinter by mutableStateOf<Int?>(null)
+    var fertilizingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
     var useLiquidFertilizer by mutableStateOf(false)
 
     /**
@@ -115,16 +111,7 @@ class AddEditPlantViewModel(
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
                     }
-                    fertilizingIntervalSpring = plant.fertilizingIntervalSpring
-                    fertilizingIntervalSummer = plant.fertilizingIntervalSummer
-                    fertilizingIntervalAutumn = plant.fertilizingIntervalAutumn
-                    fertilizingIntervalWinter = plant.fertilizingIntervalWinter
-                    sameFertilizingIntervalAllSeasons = listOf(
-                        plant.fertilizingIntervalSpring,
-                        plant.fertilizingIntervalSummer,
-                        plant.fertilizingIntervalAutumn,
-                        plant.fertilizingIntervalWinter
-                    ).all { it == null }
+                    fertilizingSeasons = plant.fertilizingSeasons
                     plant.repottingIntervalDays?.let {
                         repottingIntervalMonths = daysToRepottingMonths(it)
                         repottingIntervalEnabled = true
@@ -154,24 +141,14 @@ class AddEditPlantViewModel(
         dormancyEndMonth = endMonth
     }
 
-    fun updateSameFertilizingIntervalAllSeasons(sameForAll: Boolean) {
-        sameFertilizingIntervalAllSeasons = sameForAll
-        if (sameForAll) {
-            fertilizingIntervalSpring = null
-            fertilizingIntervalSummer = null
-            fertilizingIntervalAutumn = null
-            fertilizingIntervalWinter = null
-        }
-    }
-
-    fun setFertilizingSeasonInterval(season: FertilizingSeason, days: Int?) {
-        require(days == null || days in 1..180)
-        when (season) {
-            FertilizingSeason.SPRING -> fertilizingIntervalSpring = days
-            FertilizingSeason.SUMMER -> fertilizingIntervalSummer = days
-            FertilizingSeason.AUTUMN -> fertilizingIntervalAutumn = days
-            FertilizingSeason.WINTER -> fertilizingIntervalWinter = days
-        }
+    /**
+     * At least one season must always stay active — an empty set is rejected, keeping the previous
+     * selection (#795). Named `update*`, not `set*`, to avoid a platform declaration clash with the
+     * [fertilizingSeasons] property's own Kotlin-generated setter.
+     */
+    fun updateFertilizingSeasons(seasons: Set<FertilizingSeason>) {
+        if (seasons.isEmpty()) return
+        fertilizingSeasons = seasons
     }
 
     fun save() {
@@ -203,10 +180,7 @@ class AddEditPlantViewModel(
                 pinIntervalToBase = pinIntervalToBase,
                 dormancyStartMonth = dormancyStartMonth,
                 dormancyEndMonth = dormancyEndMonth,
-                fertilizingIntervalSpring = fertilizingIntervalSpring,
-                fertilizingIntervalSummer = fertilizingIntervalSummer,
-                fertilizingIntervalAutumn = fertilizingIntervalAutumn,
-                fertilizingIntervalWinter = fertilizingIntervalWinter
+                fertilizingSeasons = fertilizingSeasons
             )
             if (isEditMode) {
                 saveEdit(plant, newWateringIntervalDays, intervalChanged, now)

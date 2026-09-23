@@ -18,11 +18,14 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
   `isDueSoon = true`), stays due-today (never drifts overdue) until the first WATER log; an existing
   `wateringDueDateOverride` still wins via `maxOf()`.
-- **Fertilizing** — never-fertilized plant with an interval becomes due at
-  `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const), then overdue by normal date math.
-  After the first log, `SeasonalFertilizing` selects the current hemisphere-aware Spring/Summer/
-  Autumn/Winter slot, falling back to `fertilizingIntervalDays` when that slot is null (#286,
-  product ADR-0045). This is manual discrete scheduling; adaptive watering never touches it.
+- **Fertilizing** (#795, product ADR-0046, superseding #286's four discrete per-season intervals,
+  product ADR-0045) — the raw due date is `lastFertilizedAt + fertilizingIntervalDays`, or
+  `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const) before the first log; both go through
+  the same shift. `SeasonalFertilizing.nextActiveDueAtMillis()` leaves the raw date unchanged when
+  its own hemisphere-aware season is in `Plant.fertilizingSeasons`, else moves it to the start of day
+  of the 1st of the first following month whose season is active — never due or overdue in an
+  inactive season, due exactly on the first day of the next active one on re-entry. Adaptive watering
+  never touches this; no learning, confidence, or adjustment history.
 - **Repotting** — first-due for a never-repotted plant is `createdAt + interval` (private generic
   `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
   `nextRepottingDueAt`/`isRepottingOverdue`/`isRepottingDueSoon`/`lastRepottedAt` (all defaulted, existing

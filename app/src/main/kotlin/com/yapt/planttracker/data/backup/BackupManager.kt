@@ -16,6 +16,7 @@ import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
@@ -30,8 +31,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 18 (#286, product ADR-0045): four nullable seasonal fertilizing intervals added to
-// BackupPlant. Null means the season falls back to fertilizingIntervalDays.
+// Schema 18 (#795, product ADR-0046, redefined in place — never released, superseding #286's
+// original four-column shape from product ADR-0045): a single nullable BackupPlant.fertilizingSeasons
+// comma-separated FertilizingSeason-name string. Null means every season is active.
 // Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
 // round-trip the per-plant dormancy window unconditionally (same posture as wateringResetAt/
 // wateringFreezeUntil below).
@@ -179,10 +181,9 @@ class BackupManager(
                     wateringFreezeUntil = entity.wateringFreezeUntil,
                     dormancyStartMonth = entity.dormancyStartMonth,
                     dormancyEndMonth = entity.dormancyEndMonth,
-                    fertilizingIntervalSpring = entity.fertilizingIntervalSpring,
-                    fertilizingIntervalSummer = entity.fertilizingIntervalSummer,
-                    fertilizingIntervalAutumn = entity.fertilizingIntervalAutumn,
-                    fertilizingIntervalWinter = entity.fertilizingIntervalWinter
+                    fertilizingSeasons = SeasonalFertilizing.encode(
+                        SeasonalFertilizing.decode(entity.fertilizingSeasons)
+                    )
                 )
             }
 
@@ -402,10 +403,9 @@ class BackupManager(
                     wateringFreezeUntil = bp.wateringFreezeUntil,
                     dormancyStartMonth = bp.dormancyStartMonth,
                     dormancyEndMonth = bp.dormancyEndMonth,
-                    fertilizingIntervalSpring = bp.fertilizingIntervalSpring,
-                    fertilizingIntervalSummer = bp.fertilizingIntervalSummer,
-                    fertilizingIntervalAutumn = bp.fertilizingIntervalAutumn,
-                    fertilizingIntervalWinter = bp.fertilizingIntervalWinter
+                    fertilizingSeasons = SeasonalFertilizing.encode(
+                        SeasonalFertilizing.decode(bp.fertilizingSeasons)
+                    )
                 )
             }
 

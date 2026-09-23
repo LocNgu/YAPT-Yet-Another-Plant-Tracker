@@ -55,10 +55,7 @@ class BackupSerializerTest {
         wateringFreezeUntil = 1_692_000_000_000L,
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
-        fertilizingIntervalSpring = 21,
-        fertilizingIntervalSummer = 14,
-        fertilizingIntervalAutumn = 30,
-        fertilizingIntervalWinter = 45
+        fertilizingSeasons = "SPRING,SUMMER"
     )
 
     private val defaultCareLog = BackupCareLog(
@@ -502,20 +499,16 @@ class BackupSerializerTest {
     }
 
     @Test
-    fun `seasonal fertilizing intervals round-trip their stored values`() {
+    fun `fertilizingSeasons round-trips its stored value`() {
         val decoded = backupJson.decodeFromString(
             BackupRoot.serializer(),
             backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
         )
-        val plant = decoded.plants[0]
-        assertEquals(21, plant.fertilizingIntervalSpring)
-        assertEquals(14, plant.fertilizingIntervalSummer)
-        assertEquals(30, plant.fertilizingIntervalAutumn)
-        assertEquals(45, plant.fertilizingIntervalWinter)
+        assertEquals("SPRING,SUMMER", decoded.plants[0].fertilizingSeasons)
     }
 
     @Test
-    fun `plant without seasonal fertilizing intervals defaults to null`() {
+    fun `plant without fertilizingSeasons defaults to null`() {
         val json = """
             {"schemaVersion":17,"exportedAt":1700000000000,"appVersion":"1.0",
              "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
@@ -523,10 +516,7 @@ class BackupSerializerTest {
              "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
         """.trimIndent()
         val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
-        assertNull(plant.fertilizingIntervalSpring)
-        assertNull(plant.fertilizingIntervalSummer)
-        assertNull(plant.fertilizingIntervalAutumn)
-        assertNull(plant.fertilizingIntervalWinter)
+        assertNull(plant.fertilizingSeasons)
     }
 
     @Test

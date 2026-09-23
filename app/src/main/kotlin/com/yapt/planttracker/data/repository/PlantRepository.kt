@@ -3,6 +3,7 @@ package com.yapt.planttracker.data.repository
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -78,10 +79,7 @@ private fun PlantEntity.toDomain() = Plant(
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
-    fertilizingIntervalSpring = fertilizingIntervalSpring,
-    fertilizingIntervalSummer = fertilizingIntervalSummer,
-    fertilizingIntervalAutumn = fertilizingIntervalAutumn,
-    fertilizingIntervalWinter = fertilizingIntervalWinter
+    fertilizingSeasons = SeasonalFertilizing.decode(fertilizingSeasons)
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -106,8 +104,5 @@ private fun Plant.toEntity() = PlantEntity(
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
-    fertilizingIntervalSpring = fertilizingIntervalSpring,
-    fertilizingIntervalSummer = fertilizingIntervalSummer,
-    fertilizingIntervalAutumn = fertilizingIntervalAutumn,
-    fertilizingIntervalWinter = fertilizingIntervalWinter
+    fertilizingSeasons = SeasonalFertilizing.encode(fertilizingSeasons)
 )

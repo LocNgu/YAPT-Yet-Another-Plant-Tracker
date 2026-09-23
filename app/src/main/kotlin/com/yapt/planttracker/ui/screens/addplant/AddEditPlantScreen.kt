@@ -57,12 +57,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
-import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
+import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
-import com.yapt.planttracker.ui.components.SeasonalFertilizingSetting
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import kotlin.math.roundToInt
 
@@ -347,19 +346,9 @@ fun AddEditPlantScreen(
                         valueRange = 1f..180f,
                         steps = 178
                     )
-                    SeasonalFertilizingSetting(
-                        sameForAllSeasons = viewModel.sameFertilizingIntervalAllSeasons,
-                        fallbackDays = viewModel.fertilizingIntervalDays,
-                        intervalForSeason = { season ->
-                            when (season) {
-                                FertilizingSeason.SPRING -> viewModel.fertilizingIntervalSpring
-                                FertilizingSeason.SUMMER -> viewModel.fertilizingIntervalSummer
-                                FertilizingSeason.AUTUMN -> viewModel.fertilizingIntervalAutumn
-                                FertilizingSeason.WINTER -> viewModel.fertilizingIntervalWinter
-                            }
-                        },
-                        onSameForAllSeasonsChange = viewModel::updateSameFertilizingIntervalAllSeasons,
-                        onIntervalChange = viewModel::setFertilizingSeasonInterval
+                    FertilizingSeasonsSelector(
+                        selected = viewModel.fertilizingSeasons,
+                        onChange = viewModel::updateFertilizingSeasons
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

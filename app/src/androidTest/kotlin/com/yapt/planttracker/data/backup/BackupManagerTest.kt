@@ -86,10 +86,7 @@ class BackupManagerTest {
             fertilizingIntervalDays = 30,
             createdAt = 1000L,
             updatedAt = 1000L,
-            fertilizingIntervalSpring = 21,
-            fertilizingIntervalSummer = 14,
-            fertilizingIntervalAutumn = null,
-            fertilizingIntervalWinter = 45
+            fertilizingSeasons = "SPRING,SUMMER"
         )
         db.plantDao().insertPlant(plant)
         val log = CareLogEntity(
@@ -124,10 +121,7 @@ class BackupManagerTest {
         assertEquals(1, restoredPlants.size)
         assertEquals("Monstera", restoredPlants[0].name)
         assertNull(restoredPlants[0].coverPhotoUri)
-        assertEquals(21, restoredPlants[0].fertilizingIntervalSpring)
-        assertEquals(14, restoredPlants[0].fertilizingIntervalSummer)
-        assertNull(restoredPlants[0].fertilizingIntervalAutumn)
-        assertEquals(45, restoredPlants[0].fertilizingIntervalWinter)
+        assertEquals("SPRING,SUMMER", restoredPlants[0].fertilizingSeasons)
     }
 
     @Test

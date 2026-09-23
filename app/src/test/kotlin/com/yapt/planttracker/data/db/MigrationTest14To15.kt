@@ -21,47 +21,30 @@ class MigrationTest14To15 {
     )
 
     @Test
-    fun `migration14To15 preserves plants and defaults seasonal intervals to null`() {
+    fun `migration14To15 preserves plants and defaults fertilizingSeasons to null`() {
         helper.createDatabase(TEST_DB, 14).use { db -> insertV14Plant(db) }
 
         val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, PlantDatabase.MIGRATION_14_15)
 
-        db.query(
-            "SELECT name, fertilizingIntervalSpring, fertilizingIntervalSummer, " +
-                "fertilizingIntervalAutumn, fertilizingIntervalWinter FROM plants WHERE id = 1"
-        ).use { cursor ->
+        db.query("SELECT name, fertilizingSeasons FROM plants WHERE id = 1").use { cursor ->
             cursor.moveToFirst()
             Assert.assertEquals("Fern", cursor.getString(cursor.getColumnIndexOrThrow("name")))
-            listOf(
-                "fertilizingIntervalSpring",
-                "fertilizingIntervalSummer",
-                "fertilizingIntervalAutumn",
-                "fertilizingIntervalWinter"
-            ).forEach { column -> Assert.assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow(column))) }
+            Assert.assertTrue(cursor.isNull(cursor.getColumnIndexOrThrow("fertilizingSeasons")))
         }
 
         db.close()
     }
 
     @Test
-    fun `migration14To15 seasonal interval columns accept values`() {
+    fun `migration14To15 fertilizingSeasons column accepts a value`() {
         helper.createDatabase(TEST_DB_VALUES, 14).use { db -> insertV14Plant(db) }
 
         val db = helper.runMigrationsAndValidate(TEST_DB_VALUES, 15, true, PlantDatabase.MIGRATION_14_15)
-        db.execSQL(
-            "UPDATE plants SET fertilizingIntervalSpring = 21, fertilizingIntervalSummer = 14, " +
-                "fertilizingIntervalAutumn = 30, fertilizingIntervalWinter = 45 WHERE id = 1"
-        )
+        db.execSQL("UPDATE plants SET fertilizingSeasons = 'SPRING,SUMMER' WHERE id = 1")
 
-        db.query(
-            "SELECT fertilizingIntervalSpring, fertilizingIntervalSummer, " +
-                "fertilizingIntervalAutumn, fertilizingIntervalWinter FROM plants WHERE id = 1"
-        ).use { cursor ->
+        db.query("SELECT fertilizingSeasons FROM plants WHERE id = 1").use { cursor ->
             cursor.moveToFirst()
-            Assert.assertEquals(21, cursor.getInt(0))
-            Assert.assertEquals(14, cursor.getInt(1))
-            Assert.assertEquals(30, cursor.getInt(2))
-            Assert.assertEquals(45, cursor.getInt(3))
+            Assert.assertEquals("SPRING,SUMMER", cursor.getString(0))
         }
 
         db.close()

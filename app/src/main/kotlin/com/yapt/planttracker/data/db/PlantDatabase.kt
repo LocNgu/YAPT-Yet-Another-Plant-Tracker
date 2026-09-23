@@ -245,15 +245,14 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
-        // #286 (product ADR-0045): nullable manual fertilizing intervals keyed by season. Null
-        // falls back to fertilizingIntervalDays, preserving every existing plant unchanged.
+        // #795 (product ADR-0046), redefined in place — v15 never shipped in a release (#791 merged
+        // after 0.31.0 cut), so this rewrites the migration rather than adding a new one. A single
+        // nullable comma-separated FertilizingSeason-name column; null means every season is active,
+        // preserving every existing plant unchanged.
         @Suppress("MagicNumber")
         val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingIntervalSpring INTEGER")
-                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingIntervalSummer INTEGER")
-                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingIntervalAutumn INTEGER")
-                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingIntervalWinter INTEGER")
+                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingSeasons TEXT")
             }
         }
 

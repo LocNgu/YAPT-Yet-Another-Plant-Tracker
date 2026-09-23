@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "56db3690748bbda2c83664c8d50f0e09",
+    "identityHash": "54b192c0d1097540030007503dd73952",
     "entities": [
       {
         "tableName": "plants",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER, `repottingIntervalDays` INTEGER, `wateringConfidence` INTEGER, `wateringBaseIntervalDays` REAL, `pinIntervalToBase` INTEGER NOT NULL, `wateringResetAt` INTEGER, `wateringFreezeUntil` INTEGER, `dormancyStartMonth` INTEGER, `dormancyEndMonth` INTEGER, `fertilizingIntervalSpring` INTEGER, `fertilizingIntervalSummer` INTEGER, `fertilizingIntervalAutumn` INTEGER, `fertilizingIntervalWinter` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER, `repottingIntervalDays` INTEGER, `wateringConfidence` INTEGER, `wateringBaseIntervalDays` REAL, `pinIntervalToBase` INTEGER NOT NULL, `wateringResetAt` INTEGER, `wateringFreezeUntil` INTEGER, `dormancyStartMonth` INTEGER, `dormancyEndMonth` INTEGER, `fertilizingSeasons` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -120,24 +120,9 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "fertilizingIntervalSpring",
-            "columnName": "fertilizingIntervalSpring",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "fertilizingIntervalSummer",
-            "columnName": "fertilizingIntervalSummer",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "fertilizingIntervalAutumn",
-            "columnName": "fertilizingIntervalAutumn",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "fertilizingIntervalWinter",
-            "columnName": "fertilizingIntervalWinter",
-            "affinity": "INTEGER"
+            "fieldPath": "fertilizingSeasons",
+            "columnName": "fertilizingSeasons",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -529,7 +514,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '56db3690748bbda2c83664c8d50f0e09')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '54b192c0d1097540030007503dd73952')"
     ]
   }
 }
