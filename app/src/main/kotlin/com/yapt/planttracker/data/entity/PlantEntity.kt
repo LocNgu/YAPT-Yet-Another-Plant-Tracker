@@ -26,5 +26,9 @@ data class PlantEntity(
     val wateringResetAt: Long? = null,
     val wateringFreezeUntil: Long? = null,
     val dormancyStartMonth: Int? = null,
-    val dormancyEndMonth: Int? = null
+    val dormancyEndMonth: Int? = null,
+    val fertilizingIntervalSpring: Int? = null,
+    val fertilizingIntervalSummer: Int? = null,
+    val fertilizingIntervalAutumn: Int? = null,
+    val fertilizingIntervalWinter: Int? = null
 )

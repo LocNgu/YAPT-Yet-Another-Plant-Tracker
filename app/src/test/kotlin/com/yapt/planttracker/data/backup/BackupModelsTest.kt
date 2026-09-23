@@ -32,7 +32,13 @@ class BackupModelsTest {
         wateringBaseIntervalDays = wateringBaseIntervalDays,
         pinIntervalToBase = pinIntervalToBase,
         wateringResetAt = wateringResetAt,
-        wateringFreezeUntil = wateringFreezeUntil
+        wateringFreezeUntil = wateringFreezeUntil,
+        dormancyStartMonth = dormancyStartMonth,
+        dormancyEndMonth = dormancyEndMonth,
+        fertilizingIntervalSpring = fertilizingIntervalSpring,
+        fertilizingIntervalSummer = fertilizingIntervalSummer,
+        fertilizingIntervalAutumn = fertilizingIntervalAutumn,
+        fertilizingIntervalWinter = fertilizingIntervalWinter
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -51,7 +57,13 @@ class BackupModelsTest {
         wateringBaseIntervalDays = wateringBaseIntervalDays,
         pinIntervalToBase = pinIntervalToBase,
         wateringResetAt = wateringResetAt,
-        wateringFreezeUntil = wateringFreezeUntil
+        wateringFreezeUntil = wateringFreezeUntil,
+        dormancyStartMonth = dormancyStartMonth,
+        dormancyEndMonth = dormancyEndMonth,
+        fertilizingIntervalSpring = fertilizingIntervalSpring,
+        fertilizingIntervalSummer = fertilizingIntervalSummer,
+        fertilizingIntervalAutumn = fertilizingIntervalAutumn,
+        fertilizingIntervalWinter = fertilizingIntervalWinter
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -94,7 +106,13 @@ class BackupModelsTest {
         wateringBaseIntervalDays = 6.42,
         pinIntervalToBase = true,
         wateringResetAt = 1_650_000_000_000L,
-        wateringFreezeUntil = 1_652_000_000_000L
+        wateringFreezeUntil = 1_652_000_000_000L,
+        dormancyStartMonth = 11,
+        dormancyEndMonth = 2,
+        fertilizingIntervalSpring = 21,
+        fertilizingIntervalSummer = 14,
+        fertilizingIntervalAutumn = 30,
+        fertilizingIntervalWinter = 45
     )
 
     private val fullLog = CareLogEntity(
@@ -129,6 +147,12 @@ class BackupModelsTest {
         assertEquals(fullPlant.pinIntervalToBase, bp.pinIntervalToBase)
         assertEquals(fullPlant.wateringResetAt, bp.wateringResetAt)
         assertEquals(fullPlant.wateringFreezeUntil, bp.wateringFreezeUntil)
+        assertEquals(fullPlant.dormancyStartMonth, bp.dormancyStartMonth)
+        assertEquals(fullPlant.dormancyEndMonth, bp.dormancyEndMonth)
+        assertEquals(fullPlant.fertilizingIntervalSpring, bp.fertilizingIntervalSpring)
+        assertEquals(fullPlant.fertilizingIntervalSummer, bp.fertilizingIntervalSummer)
+        assertEquals(fullPlant.fertilizingIntervalAutumn, bp.fertilizingIntervalAutumn)
+        assertEquals(fullPlant.fertilizingIntervalWinter, bp.fertilizingIntervalWinter)
     }
 
     @Test

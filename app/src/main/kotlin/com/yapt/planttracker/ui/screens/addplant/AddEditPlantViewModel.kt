@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
@@ -58,6 +59,11 @@ class AddEditPlantViewModel(
     var wateringIntervalEnabled by mutableStateOf(false)
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
+    var sameFertilizingIntervalAllSeasons by mutableStateOf(true)
+    var fertilizingIntervalSpring by mutableStateOf<Int?>(null)
+    var fertilizingIntervalSummer by mutableStateOf<Int?>(null)
+    var fertilizingIntervalAutumn by mutableStateOf<Int?>(null)
+    var fertilizingIntervalWinter by mutableStateOf<Int?>(null)
     var useLiquidFertilizer by mutableStateOf(false)
 
     /**
@@ -109,6 +115,16 @@ class AddEditPlantViewModel(
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
                     }
+                    fertilizingIntervalSpring = plant.fertilizingIntervalSpring
+                    fertilizingIntervalSummer = plant.fertilizingIntervalSummer
+                    fertilizingIntervalAutumn = plant.fertilizingIntervalAutumn
+                    fertilizingIntervalWinter = plant.fertilizingIntervalWinter
+                    sameFertilizingIntervalAllSeasons = listOf(
+                        plant.fertilizingIntervalSpring,
+                        plant.fertilizingIntervalSummer,
+                        plant.fertilizingIntervalAutumn,
+                        plant.fertilizingIntervalWinter
+                    ).all { it == null }
                     plant.repottingIntervalDays?.let {
                         repottingIntervalMonths = daysToRepottingMonths(it)
                         repottingIntervalEnabled = true
@@ -136,6 +152,26 @@ class AddEditPlantViewModel(
         )
         dormancyStartMonth = startMonth
         dormancyEndMonth = endMonth
+    }
+
+    fun updateSameFertilizingIntervalAllSeasons(sameForAll: Boolean) {
+        sameFertilizingIntervalAllSeasons = sameForAll
+        if (sameForAll) {
+            fertilizingIntervalSpring = null
+            fertilizingIntervalSummer = null
+            fertilizingIntervalAutumn = null
+            fertilizingIntervalWinter = null
+        }
+    }
+
+    fun setFertilizingSeasonInterval(season: FertilizingSeason, days: Int?) {
+        require(days == null || days in 1..180)
+        when (season) {
+            FertilizingSeason.SPRING -> fertilizingIntervalSpring = days
+            FertilizingSeason.SUMMER -> fertilizingIntervalSummer = days
+            FertilizingSeason.AUTUMN -> fertilizingIntervalAutumn = days
+            FertilizingSeason.WINTER -> fertilizingIntervalWinter = days
+        }
     }
 
     fun save() {
@@ -166,7 +202,11 @@ class AddEditPlantViewModel(
                 useLiquidFertilizer = useLiquidFertilizer,
                 pinIntervalToBase = pinIntervalToBase,
                 dormancyStartMonth = dormancyStartMonth,
-                dormancyEndMonth = dormancyEndMonth
+                dormancyEndMonth = dormancyEndMonth,
+                fertilizingIntervalSpring = fertilizingIntervalSpring,
+                fertilizingIntervalSummer = fertilizingIntervalSummer,
+                fertilizingIntervalAutumn = fertilizingIntervalAutumn,
+                fertilizingIntervalWinter = fertilizingIntervalWinter
             )
             if (isEditMode) {
                 saveEdit(plant, newWateringIntervalDays, intervalChanged, now)

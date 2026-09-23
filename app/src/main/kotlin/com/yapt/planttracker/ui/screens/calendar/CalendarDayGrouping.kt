@@ -54,13 +54,14 @@ fun computePlantsByDay(
         val waterOverdue = status.isOverdue
         val fertilizeOverdue = if (isLiquidFertilizer) false else status.isFertilizingOverdue
         val waterDateActive = waterDate != null && !isDormantOnDate(status, waterDate)
+        val fertilizeDateActive = fertilizeDate != null && !isDormantOnDate(status, fertilizeDate)
 
         val landsToday = waterOverdue || fertilizeOverdue ||
-            (waterDateActive && waterDate == today) || fertilizeDate == today
+            (waterDateActive && waterDate == today) || (fertilizeDateActive && fertilizeDate == today)
 
         if (landsToday) {
             val waterDue = waterOverdue || (waterDateActive && waterDate == today)
-            val fertilizeDue = fertilizeOverdue || fertilizeDate == today
+            val fertilizeDue = fertilizeOverdue || (fertilizeDateActive && fertilizeDate == today)
             contributions += Contribution(
                 date = today,
                 info = PlantDayInfo(status, waterDue, fertilizeDue, status.isDormant),
@@ -76,7 +77,8 @@ fun computePlantsByDay(
 
         val futureDates = mutableSetOf<LocalDate>()
         waterDate?.takeIf { waterDateActive && !waterOverdue && it != today }?.let { futureDates += it }
-        if (fertilizeDate != null && !fertilizeOverdue && fertilizeDate != today) futureDates += fertilizeDate
+        fertilizeDate?.takeIf { fertilizeDateActive && !fertilizeOverdue && it != today }
+            ?.let { futureDates += it }
 
         for (date in futureDates) {
             contributions += Contribution(
@@ -84,7 +86,7 @@ fun computePlantsByDay(
                 info = PlantDayInfo(
                     status = status,
                     waterDue = waterDateActive && waterDate == date,
-                    fertilizeDue = fertilizeDate == date,
+                    fertilizeDue = fertilizeDateActive && fertilizeDate == date,
                     isDormant = isDormantOnDate(status, date)
                 ),
                 overdue = false

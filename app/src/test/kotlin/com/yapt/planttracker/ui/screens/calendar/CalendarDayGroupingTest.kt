@@ -71,7 +71,7 @@ class CalendarDayGroupingTest {
     }
 
     @Test
-    fun `watering date inside dormancy is absent but fertilizing still appears`() {
+    fun `watering and fertilizing dates inside dormancy are both absent`() {
         val dormant = dormant(
             status(
                 nextWateringDueAt = today.plusDays(2),
@@ -83,10 +83,7 @@ class CalendarDayGroupingTest {
         val entries = computePlantsByDay(listOf(dormant), visibleMonth, today)
 
         assertEquals(1, entries.getValue(today).dormantPlants.size)
-        val future = entries.getValue(today.plusDays(2)).plants.single()
-        assertFalse(future.waterDue)
-        assertTrue(future.fertilizeDue)
-        assertTrue(future.isDormant)
+        assertFalse(entries.containsKey(today.plusDays(2)))
     }
 
     @Test
