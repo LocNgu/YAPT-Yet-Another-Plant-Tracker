@@ -33,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
@@ -63,8 +62,10 @@ import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.SeasonalFertilizingSetting
+import com.yapt.planttracker.ui.components.SteppedSlider
+import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
+import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -286,11 +287,16 @@ fun AddEditPlantScreen(
                     )
                 }
                 if (viewModel.wateringIntervalEnabled) {
-                    Slider(
-                        value = viewModel.wateringIntervalDays.toFloat(),
-                        onValueChange = { viewModel.wateringIntervalDays = it.roundToInt() },
-                        valueRange = 1f..60f,
-                        steps = 58
+                    SteppedSlider(
+                        value = viewModel.wateringIntervalDays,
+                        range = 1..60,
+                        callbacks = SteppedSliderCallbacks(
+                            onValueChange = { viewModel.wateringIntervalDays = it }
+                        ),
+                        labels = SteppedSliderLabels(
+                            decreaseContentDescription = stringResource(R.string.watering_interval_decrease_cd),
+                            increaseContentDescription = stringResource(R.string.watering_interval_increase_cd)
+                        )
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -342,11 +348,16 @@ fun AddEditPlantScreen(
                     )
                 }
                 if (viewModel.fertilizingIntervalEnabled) {
-                    Slider(
-                        value = viewModel.fertilizingIntervalDays.toFloat(),
-                        onValueChange = { viewModel.fertilizingIntervalDays = it.roundToInt() },
-                        valueRange = 1f..180f,
-                        steps = 178
+                    SteppedSlider(
+                        value = viewModel.fertilizingIntervalDays,
+                        range = 1..180,
+                        callbacks = SteppedSliderCallbacks(
+                            onValueChange = { viewModel.fertilizingIntervalDays = it }
+                        ),
+                        labels = SteppedSliderLabels(
+                            decreaseContentDescription = stringResource(R.string.fertilizing_interval_decrease_cd),
+                            increaseContentDescription = stringResource(R.string.fertilizing_interval_increase_cd)
+                        )
                     )
                     SeasonalFertilizingSetting(
                         sameForAllSeasons = viewModel.sameFertilizingIntervalAllSeasons,
@@ -405,11 +416,16 @@ fun AddEditPlantScreen(
                 if (viewModel.repottingIntervalEnabled) {
                     val minMonths = AddEditPlantViewModel.MIN_REPOTTING_MONTHS
                     val maxMonths = AddEditPlantViewModel.MAX_REPOTTING_MONTHS
-                    Slider(
-                        value = viewModel.repottingIntervalMonths.toFloat(),
-                        onValueChange = { viewModel.repottingIntervalMonths = it.roundToInt() },
-                        valueRange = minMonths.toFloat()..maxMonths.toFloat(),
-                        steps = maxMonths - minMonths - 1
+                    SteppedSlider(
+                        value = viewModel.repottingIntervalMonths,
+                        range = minMonths..maxMonths,
+                        callbacks = SteppedSliderCallbacks(
+                            onValueChange = { viewModel.repottingIntervalMonths = it }
+                        ),
+                        labels = SteppedSliderLabels(
+                            decreaseContentDescription = stringResource(R.string.repotting_interval_decrease_cd),
+                            increaseContentDescription = stringResource(R.string.repotting_interval_increase_cd)
+                        )
                     )
                 }
             }

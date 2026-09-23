@@ -1,6 +1,6 @@
 # Product ADR-0023: Scheduling settings are editable inline on Plant Detail tabs
 
-**Status**: accepted
+**Status**: accepted — slider-control clause amended by [ADR-0048](0048-stepper-buttons-on-interval-sliders.md)
 
 **Date**: 2026-08-01
 
