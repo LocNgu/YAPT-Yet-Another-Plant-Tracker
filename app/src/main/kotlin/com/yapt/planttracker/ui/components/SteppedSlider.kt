@@ -9,6 +9,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -40,10 +41,16 @@ data class SteppedSliderLabels(
  * Change callbacks for a [SteppedSlider], bundled alongside [SteppedSliderLabels] to keep the
  * composable's own parameter count within Detekt's `LongParameterList` threshold. See
  * [SteppedSlider]'s doc for what "finished" means for a drag vs. a stepper-button tap.
+ *
+ * [onValueChangeFinished]'s `viaButtonTap` parameter (#531 review round 1, product ADR-0048) tells a
+ * caller whether this particular "finished" call came from releasing the slider thumb (`false`) or
+ * tapping a −/+ button (`true`) — a caller that wants to treat the two differently (e.g. committing a
+ * release immediately but coalescing a burst of taps) can branch on it; one that doesn't care (the
+ * common case) simply ignores the parameter.
  */
 data class SteppedSliderCallbacks(
     val onValueChange: (Int) -> Unit,
-    val onValueChangeFinished: (() -> Unit)? = null
+    val onValueChangeFinished: ((viaButtonTap: Boolean) -> Unit)? = null
 )
 
 /**
@@ -58,21 +65,23 @@ data class SteppedSliderCallbacks(
  * `onValueChange` alone is the persistence path, so a caller with nothing extra to do on commit can
  * omit it; a non-null value (the Plant Detail inline cards and the dormancy cadence control) is
  * invoked on slider release *and* on every ±1 button tap, since a caller using this parameter
- * expects "commit now" to mean the same thing regardless of which input produced the change. A
- * caller that wants commit-on-release-only slider dragging plus immediate-commit taps (as those two
- * surfaces do) keeps its own local `value` state, passing it in here and only touching its
- * persisted state from `onValueChangeFinished`.
+ * expects "commit now" to mean the same thing regardless of which input produced the change — its
+ * `viaButtonTap` parameter lets a caller that *does* want to distinguish the two do so (see
+ * [SteppedSliderCallbacks]). A caller that wants commit-on-release-only slider dragging plus
+ * immediate-or-coalesced-commit taps (as the Plant Detail inline cards do) keeps its own local
+ * `value` state, passing it in here and only touching its persisted state from
+ * `onValueChangeFinished`.
  *
  * `steps` is always `range.last - range.first - 1`, computed here so callers stop hand-computing it
  * (and can't disagree with each other on the formula).
  *
  * Haptics: a light [HapticFeedbackType.SegmentTick] tick fires when a drag moves the *rounded*
- * value to a new integer — tracked via an internal remembered "last ticked value" rather than
- * comparing against the [value] parameter itself, since recomposition (and therefore an updated
- * [value]) can lag behind a fast drag's raw pointer events by more than one callback, which would
- * otherwise re-fire the tick every callback rather than only on an actual step change. Button taps
- * deliberately do not trigger this tick — [IconButton] already gives its own touch feedback, and a
- * discrete, deliberate tap doesn't need a second confirmation the way a continuous drag does.
+ * value to a new integer — tracked via an internal remembered "last ticked value" that resyncs
+ * ([LaunchedEffect]) whenever [value] changes from outside a drag (a button tap, or the caller's own
+ * state changing independently, #531 review round 1) so a drag starting right after such a change is
+ * compared against the right baseline rather than a stale one left over from an earlier drag. Button
+ * taps deliberately do not trigger this tick — [IconButton] already gives its own touch feedback, and
+ * a discrete, deliberate tap doesn't need a second confirmation the way a continuous drag does.
  */
 @Composable
 fun SteppedSlider(
@@ -84,12 +93,13 @@ fun SteppedSlider(
 ) {
     val haptics = LocalHapticFeedback.current
     var lastTickedValue by remember(range) { mutableIntStateOf(value) }
+    LaunchedEffect(value) { lastTickedValue = value }
 
     fun changeBy(delta: Int) {
         val next = (value + delta).coerceIn(range.first, range.last)
         lastTickedValue = next
         callbacks.onValueChange(next)
-        callbacks.onValueChangeFinished?.invoke()
+        callbacks.onValueChangeFinished?.invoke(true)
     }
 
     Row(
@@ -117,7 +127,7 @@ fun SteppedSlider(
                 }
                 callbacks.onValueChange(rounded)
             },
-            onValueChangeFinished = callbacks.onValueChangeFinished,
+            onValueChangeFinished = { callbacks.onValueChangeFinished?.invoke(false) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = range.last - range.first - 1,
             modifier = sliderModifier

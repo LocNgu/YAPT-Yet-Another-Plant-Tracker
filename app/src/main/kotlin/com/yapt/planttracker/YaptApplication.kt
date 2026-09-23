@@ -42,7 +42,13 @@ internal suspend fun writeDefaultReminderTimeIfAbsent(dataStore: DataStore<Prefe
 
 open class YaptApplication : Application() {
 
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /**
+     * Process-wide scope, unaffected by any one screen's `viewModelScope` being cancelled — exposed
+     * (rather than kept private) so `PlantDetailViewModel.Factory` (#531 review round 1, product
+     * ADR-0048) can hand it to a ViewModel whose coalesced interval-tap writes must survive the screen
+     * being left before their debounce window elapses.
+     */
+    internal val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     internal var isAppForeground: Boolean = false

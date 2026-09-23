@@ -268,6 +268,8 @@ fun AddEditPlantScreen(
             }
 
             Column {
+                val wateringIntervalLabel =
+                    stringResource(R.string.watering_interval_label, viewModel.wateringIntervalDays)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,7 +277,7 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.wateringIntervalEnabled) {
-                            stringResource(R.string.watering_interval_label, viewModel.wateringIntervalDays)
+                            wateringIntervalLabel
                         } else {
                             stringResource(R.string.watering_reminder_label)
                         },
@@ -295,7 +297,8 @@ fun AddEditPlantScreen(
                         ),
                         labels = SteppedSliderLabels(
                             decreaseContentDescription = stringResource(R.string.watering_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.watering_interval_increase_cd)
+                            increaseContentDescription = stringResource(R.string.watering_interval_increase_cd),
+                            stateDescription = wateringIntervalLabel
                         )
                     )
                     Row(
@@ -329,6 +332,8 @@ fun AddEditPlantScreen(
             )
 
             Column {
+                val fertilizingIntervalLabel =
+                    stringResource(R.string.fertilizing_interval_label, viewModel.fertilizingIntervalDays)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -336,7 +341,7 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.fertilizingIntervalEnabled) {
-                            stringResource(R.string.fertilizing_interval_label, viewModel.fertilizingIntervalDays)
+                            fertilizingIntervalLabel
                         } else {
                             stringResource(R.string.fertilizing_reminder_label)
                         },
@@ -356,7 +361,8 @@ fun AddEditPlantScreen(
                         ),
                         labels = SteppedSliderLabels(
                             decreaseContentDescription = stringResource(R.string.fertilizing_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.fertilizing_interval_increase_cd)
+                            increaseContentDescription = stringResource(R.string.fertilizing_interval_increase_cd),
+                            stateDescription = fertilizingIntervalLabel
                         )
                     )
                     SeasonalFertilizingSetting(
@@ -391,6 +397,11 @@ fun AddEditPlantScreen(
             }
 
             Column {
+                val repottingIntervalLabel = pluralStringResource(
+                    R.plurals.repotting_interval_label,
+                    viewModel.repottingIntervalMonths,
+                    viewModel.repottingIntervalMonths
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -398,11 +409,7 @@ fun AddEditPlantScreen(
                 ) {
                     Text(
                         text = if (viewModel.repottingIntervalEnabled) {
-                            pluralStringResource(
-                                R.plurals.repotting_interval_label,
-                                viewModel.repottingIntervalMonths,
-                                viewModel.repottingIntervalMonths
-                            )
+                            repottingIntervalLabel
                         } else {
                             stringResource(R.string.repotting_reminder_label)
                         },
@@ -424,7 +431,8 @@ fun AddEditPlantScreen(
                         ),
                         labels = SteppedSliderLabels(
                             decreaseContentDescription = stringResource(R.string.repotting_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.repotting_interval_increase_cd)
+                            increaseContentDescription = stringResource(R.string.repotting_interval_increase_cd),
+                            stateDescription = repottingIntervalLabel
                         )
                     )
                 }

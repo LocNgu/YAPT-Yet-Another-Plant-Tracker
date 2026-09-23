@@ -741,7 +741,9 @@ fun PlantDetailScreen(
                                         decreaseCdRes = R.string.watering_interval_decrease_cd,
                                         increaseCdRes = R.string.watering_interval_increase_cd
                                     ),
-                                    onIntervalChange = { viewModel.setWateringInterval(it) }
+                                    onIntervalChange = { days, viaButtonTap ->
+                                        viewModel.setWateringInterval(days, viaButtonTap)
+                                    }
                                 ) {
                                     if (plant?.wateringIntervalDays != null) {
                                         Row(
@@ -862,7 +864,9 @@ fun PlantDetailScreen(
                                         decreaseCdRes = R.string.fertilizing_interval_decrease_cd,
                                         increaseCdRes = R.string.fertilizing_interval_increase_cd
                                     ),
-                                    onIntervalChange = { viewModel.setFertilizingInterval(it) }
+                                    onIntervalChange = { days, viaButtonTap ->
+                                        viewModel.setFertilizingInterval(days, viaButtonTap)
+                                    }
                                 ) {
                                     if (plant?.fertilizingIntervalDays != null) {
                                         plant?.let {
@@ -1350,15 +1354,17 @@ private data class IntervalSetting(
  * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436, product
  * ADR-0023): an enable [Switch] plus a [SteppedSlider]. It owns the slider's local position and
  * reports changes through [onIntervalChange] — the day count when enabled/committed, or `null`
- * when the schedule is switched off. A drag persists on release; a stepper-button tap commits
- * immediately (both via [SteppedSlider]'s `onValueChangeFinished`, since a discrete tap is already
- * a deliberate, "finished" change). [extra] renders additional rows inside the card; callers gate
- * rows tied to an enabled schedule.
+ * when the schedule is switched off, plus whether the change came from a stepper-button tap
+ * (`viaButtonTap`, #531 review round 1, product ADR-0048) so the caller can coalesce a burst of taps
+ * while a drag release or the switch still commits immediately; a slider drag persists on release, a
+ * stepper-button tap reports `viaButtonTap = true` on that same "finished" call (a discrete tap is
+ * already a deliberate, complete change). [extra] renders additional rows inside the card; callers
+ * gate rows tied to an enabled schedule.
  */
 @Composable
 private fun InlineIntervalSetting(
     setting: IntervalSetting,
-    onIntervalChange: (Int?) -> Unit,
+    onIntervalChange: (Int?, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     extra: @Composable ColumnScope.() -> Unit = {}
 ) {
@@ -1384,7 +1390,7 @@ private fun InlineIntervalSetting(
                 )
                 Switch(
                     checked = setting.enabled,
-                    onCheckedChange = { on -> onIntervalChange(if (on) sliderDays else null) }
+                    onCheckedChange = { on -> onIntervalChange(if (on) sliderDays else null, false) }
                 )
             }
             if (setting.enabled) {
@@ -1393,7 +1399,7 @@ private fun InlineIntervalSetting(
                     range = setting.range,
                     callbacks = SteppedSliderCallbacks(
                         onValueChange = { sliderDays = it },
-                        onValueChangeFinished = { onIntervalChange(sliderDays) }
+                        onValueChangeFinished = { viaButtonTap -> onIntervalChange(sliderDays, viaButtonTap) }
                     ),
                     labels = SteppedSliderLabels(
                         decreaseContentDescription = stringResource(setting.decreaseCdRes),

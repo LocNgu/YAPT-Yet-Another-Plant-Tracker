@@ -162,9 +162,14 @@ private fun DormantWateringIntervalControl(cadence: Int?, onCadenceChange: (Int?
         SteppedSlider(
             value = sliderWeeks,
             range = DormancyWindow.MIN_WATERING_INTERVAL_WEEKS..DormancyWindow.MAX_WATERING_INTERVAL_WEEKS,
+            // Always commits immediately, tap or release alike (#531 review round 1, product ADR-0048)
+            // — unlike the watering/fertilizing inline cards, this control has its own pre-existing
+            // mutex + `pendingWindow` staleness guard (see `DormancyWindowSetting` above) and writes
+            // no audit row, so a burst of taps has neither a stale-snapshot race nor a duplicated
+            // adjustment row to coalesce away.
             callbacks = SteppedSliderCallbacks(
                 onValueChange = { sliderWeeks = it },
-                onValueChangeFinished = { onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) }
+                onValueChangeFinished = { _ -> onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) }
             ),
             labels = SteppedSliderLabels(
                 decreaseContentDescription = stringResource(R.string.dormant_watering_interval_decrease_cd),
