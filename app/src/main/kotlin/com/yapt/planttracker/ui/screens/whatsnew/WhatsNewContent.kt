@@ -14,6 +14,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
+                "watering schedule. Dormant watering appears in reminders and due dates while fertilizing stays paused",
             "Choose which seasons a plant fertilizes in — Spring, Summer, Autumn, Winter, any combination — " +
                 "at its one existing interval. An inactive season is never due or overdue, and the plant " +
                 "becomes due again exactly on the first day of its next active season. Seasons follow your " +

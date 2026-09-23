@@ -35,7 +35,8 @@ class BackupModelsTest {
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
-        fertilizingSeasons = fertilizingSeasons
+        fertilizingSeasons = fertilizingSeasons,
+        dormantWateringIntervalDays = dormantWateringIntervalDays
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -57,7 +58,8 @@ class BackupModelsTest {
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
-        fertilizingSeasons = fertilizingSeasons
+        fertilizingSeasons = fertilizingSeasons,
+        dormantWateringIntervalDays = dormantWateringIntervalDays
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -103,7 +105,8 @@ class BackupModelsTest {
         wateringFreezeUntil = 1_652_000_000_000L,
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
-        fertilizingSeasons = "SPRING,SUMMER"
+        fertilizingSeasons = "SPRING,SUMMER",
+        dormantWateringIntervalDays = 35
     )
 
     private val fullLog = CareLogEntity(
@@ -141,6 +144,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.dormancyStartMonth, bp.dormancyStartMonth)
         assertEquals(fullPlant.dormancyEndMonth, bp.dormancyEndMonth)
         assertEquals(fullPlant.fertilizingSeasons, bp.fertilizingSeasons)
+        assertEquals(fullPlant.dormantWateringIntervalDays, bp.dormantWateringIntervalDays)
     }
 
     @Test

@@ -477,4 +477,22 @@ class ReminderNotificationComposerTest {
         assertEquals(1, reminders.size)
         assertEquals(2L, reminders[0].status.plant.id)
     }
+
+    @Test
+    fun `dormant cadence due today is included in per-plant and combined reminder source list`() {
+        val dueCadence = CareSchedule.computeStatus(
+            plant = plantWith(id = 1L, wateringIntervalDays = null, dormancyStartMonth = 11, dormancyEndMonth = 2)
+                .copy(dormantWateringIntervalDays = 28),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(28),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+
+        val items = ReminderNotificationComposer.computeCareReminderItems(dueCadence, now)
+        val reminders = ReminderNotificationComposer.computeDueReminders(listOf(dueCadence), now)
+
+        assertTrue(items.single() is CareReminderItem.WateringDueToday)
+        assertEquals(1, reminders.size)
+    }
 }

@@ -28,5 +28,6 @@ data class PlantEntity(
     val dormancyStartMonth: Int? = null,
     val dormancyEndMonth: Int? = null,
     /** Comma-separated [com.yapt.planttracker.domain.schedule.FertilizingSeason] names; `null` = every season (#795). */
-    val fertilizingSeasons: String? = null
+    val fertilizingSeasons: String? = null,
+    val dormantWateringIntervalDays: Int? = null
 )

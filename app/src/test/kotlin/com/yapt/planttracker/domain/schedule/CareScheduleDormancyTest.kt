@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,6 +33,121 @@ class CareScheduleDormancyTest {
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth
     )
+
+    private fun dormantCadencePlant(
+        cadence: Int = 35,
+        wateringIntervalDays: Int? = 7
+    ) = plantWith(wateringIntervalDays, 11, 2).copy(dormantWateringIntervalDays = cadence)
+
+    @Test
+    fun `dormant cadence uses latest watering plus fixed interval and ignores normal seasonal interval`() {
+        val lastWatered = LocalDateUtcMillis(2022, 12, 20)
+        val status = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(cadence = 35, wateringIntervalDays = 3).copy(
+                wateringBaseIntervalDays = 100.0
+            ),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now,
+            seasonalAmplitude = 0.5
+        )
+
+        assertEquals(WateringScheduleMode.DORMANT_CADENCE, status.wateringScheduleMode)
+        assertEquals(lastWatered + TimeUnit.DAYS.toMillis(35), status.computedNextWateringDueAt)
+        assertEquals(status.computedNextWateringDueAt, status.dormantComputedNextWateringDueAt)
+        assertFalse(status.isDueSoon)
+        assertFalse(status.isOverdue)
+    }
+
+    @Test
+    fun `dormant cadence floors a pre-window raw due at current wrapping cycle start`() {
+        val status = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(28),
+            lastWateredAt = LocalDateUtcMillis(2022, 1, 1),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+
+        assertEquals(
+            LocalDateUtcMillis(2022, 11, 1) - TimeUnit.HOURS.toMillis(12),
+            status.computedNextWateringDueAt
+        )
+        assertTrue(status.isOverdue)
+    }
+
+    @Test
+    fun `eight-week dormant-only cadence works without a normal watering interval`() {
+        val status = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(cadence = 56, wateringIntervalDays = null),
+            lastWateredAt = LocalDateUtcMillis(2022, 11, 20),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+
+        assertEquals(WateringScheduleMode.DORMANT_CADENCE, status.wateringScheduleMode)
+        assertEquals(LocalDateUtcMillis(2023, 1, 15), status.nextWateringDueAt)
+        assertTrue(status.isDueSoon)
+        assertEquals(null, status.normalComputedNextWateringDueAt)
+    }
+
+    @Test
+    fun `dormant cadence remains calendar-correct on leap day`() {
+        val leapDay = LocalDateUtcMillis(2024, 2, 29)
+        val status = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(cadence = 28),
+            lastWateredAt = LocalDateUtcMillis(2024, 2, 1),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = leapDay
+        )
+
+        assertEquals(leapDay, status.nextWateringDueAt)
+        assertTrue(status.isDueSoon)
+    }
+
+    @Test
+    fun `never watered dormant cadence stays due today and override applies after active schedule`() {
+        val futureOverride = LocalDateUtcMillis(2023, 1, 20)
+        val status = CareSchedule.computeStatus(
+            plant = dormantCadencePlant().copy(wateringDueDateOverride = futureOverride),
+            lastWateredAt = null,
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = now
+        )
+
+        assertEquals(now, status.computedNextWateringDueAt)
+        assertEquals(futureOverride, status.nextWateringDueAt)
+        assertFalse(status.isDueSoon)
+    }
+
+    @Test
+    fun `unsupported cadence suspends and leaving dormancy immediately restores normal schedule`() {
+        val lastWatered = LocalDateUtcMillis(2022, 12, 1)
+        val malformed = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(cadence = 30),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+        val afterExit = CareSchedule.computeStatus(
+            plant = dormantCadencePlant(cadence = 35),
+            lastWateredAt = lastWatered,
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = LocalDateUtcMillis(2023, 3, 1)
+        )
+
+        assertEquals(WateringScheduleMode.DORMANT_SUSPENDED, malformed.wateringScheduleMode)
+        assertFalse(malformed.isOverdue)
+        assertEquals(WateringScheduleMode.NORMAL, afterExit.wateringScheduleMode)
+        assertEquals(lastWatered + TimeUnit.DAYS.toMillis(7), afterExit.nextWateringDueAt)
+        assertTrue(afterExit.isOverdue)
+    }
 
     @Test
     fun `a wildly overdue plant inside its dormancy window reports not overdue and not due soon`() {

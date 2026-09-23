@@ -86,6 +86,9 @@ class BackupManagerTest {
             fertilizingIntervalDays = 30,
             createdAt = 1000L,
             updatedAt = 1000L,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35,
             fertilizingSeasons = "SPRING,SUMMER"
         )
         db.plantDao().insertPlant(plant)
@@ -121,6 +124,9 @@ class BackupManagerTest {
         assertEquals(1, restoredPlants.size)
         assertEquals("Monstera", restoredPlants[0].name)
         assertNull(restoredPlants[0].coverPhotoUri)
+        assertEquals(11, restoredPlants[0].dormancyStartMonth)
+        assertEquals(2, restoredPlants[0].dormancyEndMonth)
+        assertEquals(35, restoredPlants[0].dormantWateringIntervalDays)
         assertEquals("SPRING,SUMMER", restoredPlants[0].fertilizingSeasons)
     }
 

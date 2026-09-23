@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -59,10 +60,7 @@ fun groupPlantsByDueDate(
     val buckets = LinkedHashMap<DateBucket, MutableList<PlantCareStatus>>()
     for (status in statuses) {
         val dueAt = dueAtOf(status)
-        val bucket = if (
-            status.isDormant &&
-            dueAt != null
-        ) {
+        val bucket = if (belongsInDormantBucket(status, sortOption, dueAt)) {
             DateBucket.Dormant
         } else {
             bucketFor(dueAt, nowDate)
@@ -84,6 +82,12 @@ fun groupPlantsByDueDate(
         }
     }
     return items
+}
+
+private fun belongsInDormantBucket(status: PlantCareStatus, sortOption: SortOption, dueAt: Long?): Boolean {
+    if (!status.isDormant || dueAt == null) return false
+    val wateringSuspended = status.wateringScheduleMode != WateringScheduleMode.DORMANT_CADENCE
+    return sortOption == SortOption.FERTILIZING_DUE || wateringSuspended
 }
 
 private fun bucketFor(dueAt: Long?, nowDate: LocalDate): DateBucket {

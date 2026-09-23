@@ -303,7 +303,13 @@
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
     <string name="dormancy_window_label">Dormancy window</string>
-    <string name="dormancy_window_subtitle">Pause watering reminders during these months</string>
+    <string name="dormancy_window_subtitle">Use a dormant watering schedule during these months</string>
+    <string name="dormant_watering_label">Dormancy watering interval</string>
+    <string name="dormant_watering_suspended">Paused — no watering reminders</string>
+    <plurals name="dormant_watering_every_weeks">
+        <item quantity="one">Every %1$d week</item>
+        <item quantity="other">Every %1$d weeks</item>
+    </plurals>
     <string name="dormancy_start_month">Start</string>
     <string name="dormancy_end_month">End</string>
     <string name="dormancy_month_selection_cd">%1$s: %2$s</string>
@@ -537,6 +543,8 @@
     <string name="watering_explanation_title">Why this date?</string>
     <string name="watering_explanation_next_watering">Next watering</string>
     <string name="watering_explanation_dormant">Suspended during dormancy</string>
+    <string name="watering_explanation_dormant_schedule">Dormant schedule</string>
+    <string name="watering_explanation_growing_season_schedule">Growing-season schedule</string>
     <string name="watering_explanation_base_interval">Base interval</string>
     <plurals name="watering_explanation_learned_from">
         <item quantity="one">learned from %1$d watering</item>

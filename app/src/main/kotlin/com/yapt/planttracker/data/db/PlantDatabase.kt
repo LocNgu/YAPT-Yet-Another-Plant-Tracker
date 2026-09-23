@@ -40,7 +40,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 15
+        const val DB_VERSION = 16
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -245,7 +245,7 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
-        // #795 (product ADR-0046), redefined in place — v15 never shipped in a release (#791 merged
+        // #795 (product ADR-0048), redefined in place — v15 never shipped in a release (#791 merged
         // after 0.31.0 cut), so this rewrites the migration rather than adding a new one. A single
         // nullable comma-separated FertilizingSeason-name column; null means every season is active,
         // preserving every existing plant unchanged.
@@ -253,6 +253,14 @@ abstract class PlantDatabase : RoomDatabase() {
         val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingSeasons TEXT")
+            }
+        }
+
+        // #785 (product ADR-0046): an optional fixed cadence for watering during dormancy.
+        @Suppress("MagicNumber")
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN dormantWateringIntervalDays INTEGER")
             }
         }
 
@@ -277,7 +285,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_11_12,
                         MIGRATION_12_13,
                         MIGRATION_13_14,
-                        MIGRATION_14_15
+                        MIGRATION_14_15,
+                        MIGRATION_15_16
                     )
                     .build()
                     .also { INSTANCE = it }

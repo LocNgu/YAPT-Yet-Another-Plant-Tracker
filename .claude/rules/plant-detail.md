@@ -65,6 +65,12 @@ schedule. Slider commits on release (`onValueChangeFinished`). Shared `InlineInt
 `DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS` = 7/30. Add/Edit Plant stays the canonical
 editor for name/species/room/notes/cover.
 
+The shared dormancy editor in Add/Edit and the Water tab also offers a "Dormancy watering interval"
+switch plus a 1–12 week slider (#785, product ADR-0046/product ADR-0047). The switch is labelled by what
+it enables, never "Pause watering" — off (null) keeps full suspension and reads as a subtitle; disabling the
+window clears the cadence. An active dormant-only cadence may expose Reschedule and “Why this date?”
+even when the ordinary watering interval is disabled.
+
 ## Per-tab insights (#436)
 `domain/insights/CareInsights.summarize(logs, careType)` → `CareTypeSummary(count, lastAt, averageIntervalDays)`
 (mean of consecutive calendar-day gaps via `CareSchedule.daysBetween`, rounded, floored at 1). Photo tab uses

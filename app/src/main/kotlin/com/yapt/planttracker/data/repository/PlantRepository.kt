@@ -79,7 +79,8 @@ private fun PlantEntity.toDomain() = Plant(
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
-    fertilizingSeasons = SeasonalFertilizing.decode(fertilizingSeasons)
+    fertilizingSeasons = SeasonalFertilizing.decode(fertilizingSeasons),
+    dormantWateringIntervalDays = dormantWateringIntervalDays
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -104,5 +105,6 @@ private fun Plant.toEntity() = PlantEntity(
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
-    fertilizingSeasons = SeasonalFertilizing.encode(fertilizingSeasons)
+    fertilizingSeasons = SeasonalFertilizing.encode(fertilizingSeasons),
+    dormantWateringIntervalDays = dormantWateringIntervalDays
 )

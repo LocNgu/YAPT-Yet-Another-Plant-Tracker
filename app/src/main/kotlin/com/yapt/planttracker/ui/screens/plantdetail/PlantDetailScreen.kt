@@ -98,6 +98,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -702,19 +703,19 @@ fun PlantDetailScreen(
                         PlantDetailTab.WATER -> {
                             careStatus?.let { status ->
                                 item {
-                                    if (plant?.wateringIntervalDays != null) {
-                                        status.rescheduleDeltaDays?.takeUnless { status.isDormant }?.let { delta ->
-                                            RescheduleDeltaChip(
-                                                deltaDays = delta,
-                                                onClick = { viewModel.revertReschedule() },
-                                                modifier = Modifier.padding(horizontal = 16.dp)
-                                            )
-                                            Spacer(Modifier.height(8.dp))
-                                        }
+                                    status.rescheduleDeltaDays?.takeUnless {
+                                        status.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED
+                                    }?.let { delta ->
+                                        RescheduleDeltaChip(
+                                            deltaDays = delta,
+                                            onClick = { viewModel.revertReschedule() },
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
                                     }
                                     WateringDueActionsRow(
                                         onWaterClick = { showWaterDatePicker = true },
-                                        onRescheduleClick = if (plant?.wateringIntervalDays != null) {
+                                        onRescheduleClick = if (status.computedNextWateringDueAt != null) {
                                             { viewModel.requestReschedule() }
                                         } else {
                                             null
@@ -762,6 +763,7 @@ fun PlantDetailScreen(
                                     DormancyWindowSetting(
                                         startMonth = plant?.dormancyStartMonth,
                                         endMonth = plant?.dormancyEndMonth,
+                                        dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
                                         onWindowChange = viewModel::setDormancyWindow
                                     )
                                     if (plant?.wateringIntervalDays != null) {
@@ -777,7 +779,7 @@ fun PlantDetailScreen(
                                             )
                                         )
                                     }
-                                    if (plant?.wateringIntervalDays != null) {
+                                    if (careStatus?.computedNextWateringDueAt != null) {
                                         TextButton(
                                             onClick = { showWateringExplanationSheet = true },
                                             modifier = Modifier

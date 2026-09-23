@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.util.toLocalDate
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 /**
@@ -12,6 +13,11 @@ import java.time.temporal.ChronoUnit
  * an active watering due date.
  */
 object DormancyWindow {
+
+    const val MIN_WATERING_INTERVAL_WEEKS = 1
+    const val MAX_WATERING_INTERVAL_WEEKS = 12
+    const val DEFAULT_WATERING_INTERVAL_WEEKS = 5
+    private const val DAYS_PER_WEEK = 7
 
     private const val MIN_MONTH = 1
     private const val MAX_MONTH = 12
@@ -49,6 +55,30 @@ object DormancyWindow {
         } else {
             month >= startMonth || month <= endMonth
         }
+    }
+
+    /** First day of the dormant cycle containing [date], or `null` for an inactive/malformed window. */
+    fun currentCycleStart(date: LocalDate, startMonth: Int?, endMonth: Int?): LocalDate? {
+        return if (isDormant(date.monthValue, startMonth, endMonth)) {
+            val start = checkNotNull(startMonth)
+            val end = checkNotNull(endMonth)
+            val startYear = if (start > end && date.monthValue <= end) date.year - 1 else date.year
+            LocalDate.of(startYear, start, 1)
+        } else {
+            null
+        }
+    }
+
+    /** A dormant cadence is whole weeks, from one to twelve weeks inclusive (#785, product ADR-0047). */
+    fun validWateringInterval(days: Int?): Int? = days?.takeIf {
+        it % DAYS_PER_WEEK == 0 && it / DAYS_PER_WEEK in MIN_WATERING_INTERVAL_WEEKS..MAX_WATERING_INTERVAL_WEEKS
+    }
+
+    fun wateringIntervalWeeks(days: Int?): Int? = validWateringInterval(days)?.div(DAYS_PER_WEEK)
+
+    fun wateringIntervalDays(weeks: Int): Int {
+        require(weeks in MIN_WATERING_INTERVAL_WEEKS..MAX_WATERING_INTERVAL_WEEKS)
+        return weeks * DAYS_PER_WEEK
     }
 
     /**

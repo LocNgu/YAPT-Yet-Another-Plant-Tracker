@@ -57,8 +57,10 @@ data class Plant(
      */
     val dormancyStartMonth: Int? = null,
     val dormancyEndMonth: Int? = null,
+    /** Optional whole-week watering cadence used only while the configured dormancy window is active (#785). */
+    val dormantWateringIntervalDays: Int? = null,
     /**
-     * Which hemisphere-aware seasons [fertilizingIntervalDays] is active in (#795, product ADR-0046,
+     * Which hemisphere-aware seasons [fertilizingIntervalDays] is active in (#795, product ADR-0048,
      * superseding #286's four discrete per-season intervals, product ADR-0045). Defaults to every
      * season, so every existing plant behaves exactly as before. Dormancy remains an independent,
      * additional pause on top of this.

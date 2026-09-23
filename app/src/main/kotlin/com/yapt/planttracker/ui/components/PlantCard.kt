@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.ui.theme.IssuePurple
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
@@ -205,12 +206,14 @@ fun PlantCard(
                     val waterColor = when {
                         status.isOverdue -> OverdueRed
                         status.isDueSoon -> WarnOrange
-                        status.isDormant -> MaterialTheme.colorScheme.onSurfaceVariant
+                        status.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED ->
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         else -> OkGreen
                     }
                     val neverWateredLabel = stringResource(R.string.water_label_never_watered)
                     val waterLabel = when {
-                        status.isDormant -> stringResource(R.string.date_group_dormant)
+                        status.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED ->
+                            stringResource(R.string.date_group_dormant)
                         status.lastWateredAt == null -> neverWateredLabel
                         status.nextWateringDueAt != null ->
                             DateUtils.formatCountdown(status.nextWateringDueAt)

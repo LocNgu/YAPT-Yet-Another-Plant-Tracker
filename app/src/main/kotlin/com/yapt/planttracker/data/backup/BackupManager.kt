@@ -31,7 +31,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 18 (#795, product ADR-0046, redefined in place — never released, superseding #286's
+// Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
+// the full watering pause established by product ADR-0044.
+// Schema 18 (#795, product ADR-0048, redefined in place — never released, superseding #286's
 // original four-column shape from product ADR-0045): a single nullable BackupPlant.fertilizingSeasons
 // comma-separated FertilizingSeason-name string. Null means every season is active.
 // Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
@@ -66,7 +68,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 18
+const val CURRENT_SCHEMA_VERSION = 19
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -183,7 +185,8 @@ class BackupManager(
                     dormancyEndMonth = entity.dormancyEndMonth,
                     fertilizingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(entity.fertilizingSeasons)
-                    )
+                    ),
+                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays
                 )
             }
 
@@ -405,7 +408,8 @@ class BackupManager(
                     dormancyEndMonth = bp.dormancyEndMonth,
                     fertilizingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(bp.fertilizingSeasons)
-                    )
+                    ),
+                    dormantWateringIntervalDays = bp.dormantWateringIntervalDays
                 )
             }
 

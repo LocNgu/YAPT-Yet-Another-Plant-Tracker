@@ -18,7 +18,7 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
   `isDueSoon = true`), stays due-today (never drifts overdue) until the first WATER log; an existing
   `wateringDueDateOverride` still wins via `maxOf()`.
-- **Fertilizing** (#795, product ADR-0046, superseding #286's four discrete per-season intervals,
+- **Fertilizing** (#795, product ADR-0048, superseding #286's four discrete per-season intervals,
   product ADR-0045) — the raw due date is `lastFertilizedAt + fertilizingIntervalDays`, or
   `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const) before the first log; both go through
   the same shift, `SeasonalFertilizing.nextActiveDueAtMillis(rawDueAtMillis, activeSeasons,
@@ -52,11 +52,12 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
-- A configured dormancy window suppresses watering and fertilizing due/overdue flags while its current month is inside
-  the window (product ADR-0044). `nextWateringDueAt` remains computed. Plant List places these plants
-  in a Dormant bucket for watering or fertilizing due sorts; Calendar lists them in today's Dormant
-  section with a separate count and does not place either due date inside the window on the grid.
-  Both underlying due dates remain computed and become active again when dormancy ends.
+- A configured dormancy window always suppresses fertilizing due/overdue flags. Watering is either
+  fully suspended (`dormantWateringIntervalDays == null`, product ADR-0044) or uses a fixed whole-week
+  cadence of 1–12 weeks (product ADR-0046/product ADR-0047). The fixed cadence ignores seasonal/adaptive state, is floored at the
+  current dormant cycle's first day, and becomes the active computed schedule before
+  `wateringDueDateOverride` is applied. Only fully suspended plants go in the Dormant list/calendar
+  bucket; cadence plants participate normally. Ordinary due dates become active immediately on exit.
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
 The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy

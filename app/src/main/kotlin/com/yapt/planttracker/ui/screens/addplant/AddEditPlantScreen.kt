@@ -317,6 +317,7 @@ fun AddEditPlantScreen(
             DormancyWindowSetting(
                 startMonth = viewModel.dormancyStartMonth,
                 endMonth = viewModel.dormancyEndMonth,
+                dormantWateringIntervalDays = viewModel.dormantWateringIntervalDays,
                 onWindowChange = viewModel::setDormancyWindow
             )
 

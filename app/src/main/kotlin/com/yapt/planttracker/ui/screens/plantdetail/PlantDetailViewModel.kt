@@ -154,7 +154,9 @@ class PlantDetailViewModel(
             seasonalAmplitude = amplitude,
             recentAdjustments = adjustments,
             rescheduleDeltaDays = status?.rescheduleDeltaDays,
-            isDormant = status?.isDormant == true
+            isDormant = status?.isDormant == true,
+            wateringScheduleMode = status?.wateringScheduleMode
+                ?: com.yapt.planttracker.domain.model.WateringScheduleMode.NORMAL
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
