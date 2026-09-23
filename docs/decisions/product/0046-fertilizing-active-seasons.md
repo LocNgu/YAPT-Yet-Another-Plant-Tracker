@@ -40,16 +40,39 @@ set. `SeasonalFertilizing.encode()`/`decode()` is the one place this conversion 
 `BackupManager` both call it rather than each keeping their own copy.
 
 **Due-date rule.** The raw due date is unchanged from today: `lastFertilizedAt + fertilizingIntervalDays`,
-or `createdAt + FIRST_FERTILIZE_GRACE_DAYS` before the first FERTILIZE log. If that raw date's own
-hemisphere-aware season (`SeasonalFertilizing.season()`, unchanged from ADR-0045) is in the active set, it
-is used unchanged, millisecond for millisecond. Otherwise it moves to the start of day (system default
-zone) of the 1st of the first following month whose season is active, checked at most 12 months ahead (the
-set is never empty by construction, so this always terminates well before the bound). The grace date goes
-through the identical shift — a deliberate reversal of ADR-0045, which explicitly exempted the grace path
-from season slots; under the new active-season model, exempting it would let a plant become due during a
-season the user just said fertilizing shouldn't happen in. Consequence: a plant is never due or overdue
-during an inactive season, and on re-entry it is due exactly on the first day of the newly active season
-rather than carrying forward however overdue the raw date had become.
+or `createdAt + FIRST_FERTILIZE_GRACE_DAYS` before the first FERTILIZE log. The grace date goes through
+the identical rule below as any other raw date — a deliberate reversal of ADR-0045, which explicitly
+exempted the grace path from season slots; under the new active-season model, exempting it would let a
+plant become due during a season the user just said fertilizing shouldn't happen in. All four seasons
+selected is an unconditional early-out: the raw date is returned unchanged, however overdue, so every
+existing plant is bit-for-bit identical to before this ADR.
+
+Evaluating the raw date's *own* season alone is not sufficient once seasons are genuinely restricted — an
+early implementation of this rule did exactly that, and reading only the raw date's season let a plant go
+overdue for an entire inactive season. Example: Spring and Summer active; last fertilized in August (raw
+date lands in Summer, active, and would be used unchanged); but with no further fertilizing, the plant
+then reads overdue continuously from that August date through the whole Sep–Feb inactive stretch, instead
+of reading not-due once the gap crossed into it. The rule instead branches on whether the raw date is
+still in the future relative to *today*:
+- **Future raw date** (after today): the simple forward shift — unchanged if its own hemisphere-aware
+  season (`SeasonalFertilizing.season()`, unchanged from ADR-0045) is active, else the start of day
+  (system default zone) of the 1st of the first following month whose season is active, checked at most
+  12 months ahead (the active set is never empty by construction, so this always terminates well before
+  the bound).
+- **Past-or-present raw date** (on or before today): evaluated against *today's* season instead. If
+  today's season is inactive, the result is the same forward shift as above, starting the search from
+  today's month — a future date, so the plant reads not due and not overdue right now. If today's season
+  is active, the rule finds the start of the *contiguous run* of active months ending at today's month —
+  walking backward one month at a time while the previous month's season is also active, which correctly
+  spans a run that wraps the year boundary (e.g. Autumn+Winter active bridges Dec→Jan). The raw date is
+  used unchanged when it already falls on or after that run's start (still overdue from the real raw date,
+  exactly as before this correction); otherwise the run's start itself is the due date — due today while
+  still in that first calendar month, overdue once past it.
+
+Consequence: a plant is never due or overdue during an inactive season, and on re-entry it is due exactly
+on the first day of the newly active season rather than carrying forward however overdue the raw date had
+become — including across a gap that started inside a still-active month, which is the case the "raw
+date's own season" check alone got wrong.
 
 Dormancy (product ADR-0044) is unchanged and stays independent: it suppresses `isFertilizingOverdue`/
 `isFertilizingDueSoon` on top of whatever this rule computes, the same as it always suppressed the

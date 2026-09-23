@@ -114,6 +114,153 @@ class CareScheduleSeasonalFertilizingTest {
         assertFalse(status.isFertilizingOverdue)
     }
 
+    // --- Fix-round (#795): a raw date can land inside an active season while a gap opens up between
+    // it and today that crosses into an inactive one — the due date must track *today's* season, not
+    // just the raw date's own, or the plant reads overdue for the entire inactive stretch. ---
+
+    @Test
+    fun `raw date inside an active season is not due once the gap crosses into an inactive one`() {
+        // Spring+Summer active; last fertilized Aug 20 (raw lands in the active run) but never
+        // fertilized again — querying in October (Autumn, inactive) must not read this as overdue.
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 8, 20)
+        val now = seasonalFertilizingUtcMillis(2026, 10, 1)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(100),
+                activeSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(utcStartOfDayMillis(2027, 3, 1), status.nextFertilizingDueAt)
+        assertFalse(status.isFertilizingOverdue)
+        assertFalse(status.isFertilizingDueSoon)
+    }
+
+    @Test
+    fun `same plant queried on the first day back in an active season is due today, not overdue`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 8, 20)
+        val now = seasonalFertilizingUtcMillis(2027, 3, 1)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(100),
+                activeSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(utcStartOfDayMillis(2027, 3, 1), status.nextFertilizingDueAt)
+        assertTrue(status.isFertilizingDueSoon)
+        assertFalse(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `same plant queried days after re-entering the active season is overdue`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 8, 20)
+        val now = seasonalFertilizingUtcMillis(2027, 3, 5)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(100),
+                activeSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(utcStartOfDayMillis(2027, 3, 1), status.nextFertilizingDueAt)
+        assertTrue(status.isFertilizingOverdue)
+        assertFalse(status.isFertilizingDueSoon)
+    }
+
+    @Test
+    fun `raw date already inside the current active run stays overdue from the raw date, unchanged`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 6, 20)
+        val now = seasonalFertilizingUtcMillis(2026, 7, 25)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(100),
+                activeSeasons = setOf(FertilizingSeason.SUMMER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(lastFertilized + TimeUnit.DAYS.toMillis(30), status.nextFertilizingDueAt)
+        assertTrue(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `all-active plant fertilized over a year ago stays overdue from the raw date`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 1, 15)
+        val now = seasonalFertilizingUtcMillis(2027, 3, 1) // Well over 13 months after lastFertilized.
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(createdAt = lastFertilized - TimeUnit.DAYS.toMillis(50)),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(lastFertilized + TimeUnit.DAYS.toMillis(30), status.nextFertilizingDueAt)
+        assertTrue(status.isFertilizingOverdue)
+    }
+
+    @Test
+    fun `southern hemisphere variant is not due while the gap sits in an inactive season`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 8, 20) // Southern winter (active).
+        val now = seasonalFertilizingUtcMillis(2026, 11, 1) // Southern spring (inactive).
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(100),
+                activeSeasons = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.SOUTHERN
+        )
+
+        assertEquals(utcStartOfDayMillis(2027, 3, 1), status.nextFertilizingDueAt)
+        assertFalse(status.isFertilizingOverdue)
+        assertFalse(status.isFertilizingDueSoon)
+    }
+
+    @Test
+    fun `year-wrapping active run is correctly identified as still containing the raw date`() {
+        val lastFertilized = seasonalFertilizingUtcMillis(2026, 10, 1) // Inside the Sep-Feb wrapped run.
+        val now = seasonalFertilizingUtcMillis(2027, 1, 10)
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                createdAt = lastFertilized - TimeUnit.DAYS.toMillis(200),
+                activeSeasons = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+            ),
+            lastWateredAt = null,
+            lastFertilizedAt = lastFertilized,
+            totalLogs = 1,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(lastFertilized + TimeUnit.DAYS.toMillis(30), status.nextFertilizingDueAt)
+        assertTrue(status.isFertilizingOverdue)
+    }
+
     @Test
     fun `shared dormancy window suppresses fertilizing flags without moving the due date`() {
         val now = seasonalFertilizingUtcMillis(2026, 1, 15)

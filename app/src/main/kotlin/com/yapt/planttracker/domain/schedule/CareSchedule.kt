@@ -258,7 +258,7 @@ object CareSchedule {
                 plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
             }
             // #795 (product ADR-0046): shift out of an inactive season, including the grace date.
-            SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere)
+            SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere, nowDate)
         }
 
         return dueStatusFor(nextFertilizingDueAt, nowDate)
