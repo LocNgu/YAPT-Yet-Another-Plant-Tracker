@@ -245,7 +245,7 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
-        // #795 (product ADR-0048), redefined in place — v15 never shipped in a release (#791 merged
+        // #795 (product ADR-0049), redefined in place — v15 never shipped in a release (#791 merged
         // after 0.31.0 cut), so this rewrites the migration rather than adding a new one. A single
         // nullable comma-separated FertilizingSeason-name column; null means every season is active,
         // preserving every existing plant unchanged.

@@ -4,7 +4,7 @@ import com.yapt.planttracker.util.toLocalDate
 import com.yapt.planttracker.util.toStartOfDayMillis
 import java.time.LocalDate
 
-/** Which quarter of the year fertilizing can be active in (#286, product ADR-0045/product ADR-0048). */
+/** Which quarter of the year fertilizing can be active in (#286, product ADR-0045/product ADR-0049). */
 enum class FertilizingSeason {
     SPRING,
     SUMMER,
@@ -14,7 +14,7 @@ enum class FertilizingSeason {
 
 /**
  * Hemisphere-aware season selection, active-season storage encoding, and the move-into-an-active-
- * season due-date rule for fertilizing (#795, product ADR-0048 — replacing #286's four discrete
+ * season due-date rule for fertilizing (#795, product ADR-0049 — replacing #286's four discrete
  * per-season intervals, product ADR-0045).
  */
 object SeasonalFertilizing {
@@ -65,7 +65,7 @@ object SeasonalFertilizing {
 
     /**
      * [rawDueAtMillis] (`lastFertilizedAt + interval`, or the first-fertilize grace date), moved out
-     * of an inactive season (#795, product ADR-0048). Every season selected is an unconditional
+     * of an inactive season (#795, product ADR-0049). Every season selected is an unconditional
      * early-out: every existing plant stays bit-for-bit unchanged, however overdue.
      *
      * A **future** raw date (after [nowDate]) uses the simple forward shift: unchanged if its own

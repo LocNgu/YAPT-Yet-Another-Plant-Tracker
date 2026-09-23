@@ -33,7 +33,7 @@ import java.util.zip.ZipOutputStream
 
 // Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
 // the full watering pause established by product ADR-0044.
-// Schema 18 (#795, product ADR-0048, redefined in place — never released, superseding #286's
+// Schema 18 (#795, product ADR-0049, redefined in place — never released, superseding #286's
 // original four-column shape from product ADR-0045): a single nullable BackupPlant.fertilizingSeasons
 // comma-separated FertilizingSeason-name string. Null means every season is active.
 // Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —

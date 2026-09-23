@@ -20,7 +20,9 @@ object WhatsNewContent {
                 "at its one existing interval. An inactive season is never due or overdue, and the plant " +
                 "becomes due again exactly on the first day of its next active season. Seasons follow your " +
                 "device's hemisphere and default to every season, so existing plants are unchanged; a " +
-                "configured dormancy window still pauses fertilizing reminders on top of this"
+                "configured dormancy window still pauses fertilizing reminders on top of this",
+            "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
+                "for exact one-day (or one-week) nudges, with a light haptic tick while dragging"
         )
     )
 

@@ -18,7 +18,7 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
   `isDueSoon = true`), stays due-today (never drifts overdue) until the first WATER log; an existing
   `wateringDueDateOverride` still wins via `maxOf()`.
-- **Fertilizing** (#795, product ADR-0048, superseding #286's four discrete per-season intervals,
+- **Fertilizing** (#795, product ADR-0049, superseding #286's four discrete per-season intervals,
   product ADR-0045) — the raw due date is `lastFertilizedAt + fertilizingIntervalDays`, or
   `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const) before the first log; both go through
   the same shift, `SeasonalFertilizing.nextActiveDueAtMillis(rawDueAtMillis, activeSeasons,

@@ -57,7 +57,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -111,6 +110,9 @@ import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
+import com.yapt.planttracker.ui.components.SteppedSlider
+import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
+import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
@@ -118,7 +120,6 @@ import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 /** Test tag on the Plant Detail scrolling `LazyColumn`, so instrumented tests can scroll it to a
  *  specific node on the small (320x640) CI emulator without ambiguity with the chart's own scroll. */
@@ -738,7 +739,9 @@ fun PlantDetailScreen(
                                             ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
                                         range = 1..60,
                                         enabledLabelRes = R.string.watering_interval_label,
-                                        disabledLabelRes = R.string.watering_reminder_label
+                                        disabledLabelRes = R.string.watering_reminder_label,
+                                        decreaseCdRes = R.string.watering_interval_decrease_cd,
+                                        increaseCdRes = R.string.watering_interval_increase_cd
                                     ),
                                     onIntervalChange = { viewModel.setWateringInterval(it) }
                                 ) {
@@ -857,7 +860,9 @@ fun PlantDetailScreen(
                                             ?: PlantDetailViewModel.DEFAULT_FERTILIZING_INTERVAL_DAYS,
                                         range = 1..180,
                                         enabledLabelRes = R.string.fertilizing_interval_label,
-                                        disabledLabelRes = R.string.fertilizing_reminder_label
+                                        disabledLabelRes = R.string.fertilizing_reminder_label,
+                                        decreaseCdRes = R.string.fertilizing_interval_decrease_cd,
+                                        increaseCdRes = R.string.fertilizing_interval_increase_cd
                                     ),
                                     onIntervalChange = { viewModel.setFertilizingInterval(it) }
                                 ) {
@@ -1353,23 +1358,28 @@ private fun TabRowExpandToggle(
 
 /**
  * Config for an [InlineIntervalSetting]: whether the schedule is on, the day count to show, the
- * allowed range, and the label resources for the on/off header. Bundled into one value so the
- * composable stays within the parameter budget.
+ * allowed range, the label resources for the on/off header, and the stepper buttons' content
+ * descriptions (#531, product ADR-0048). Bundled into one value so the composable stays within
+ * the parameter budget.
  */
 private data class IntervalSetting(
     val enabled: Boolean,
     val days: Int,
     val range: IntRange,
     @StringRes val enabledLabelRes: Int,
-    @StringRes val disabledLabelRes: Int
+    @StringRes val disabledLabelRes: Int,
+    @StringRes val decreaseCdRes: Int,
+    @StringRes val increaseCdRes: Int
 )
 
 /**
  * Inline scheduling control shown at the top of the Water and Fertilize tabs (#436, product
- * ADR-0023): an enable [Switch] plus a [Slider]. It owns the slider's local position and reports
- * changes through [onIntervalChange] — the day count when enabled/committed, or `null` when the
- * schedule is switched off. The drag persists on release (`onValueChangeFinished`), not per frame.
- * [extra] renders additional rows inside the card; callers gate rows tied to an enabled schedule.
+ * ADR-0023): an enable [Switch] plus a [SteppedSlider]. It owns the slider's local position and
+ * reports changes through [onIntervalChange] — the day count when enabled/committed, or `null`
+ * when the schedule is switched off. A drag persists on release; a stepper-button tap commits
+ * immediately (both via [SteppedSlider]'s `onValueChangeFinished`, since a discrete tap is already
+ * a deliberate, "finished" change). [extra] renders additional rows inside the card; callers gate
+ * rows tied to an enabled schedule.
  */
 @Composable
 private fun InlineIntervalSetting(
@@ -1388,17 +1398,14 @@ private fun InlineIntervalSetting(
         )
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            val enabledLabel = stringResource(setting.enabledLabelRes, sliderDays)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (setting.enabled) {
-                        stringResource(setting.enabledLabelRes, sliderDays)
-                    } else {
-                        stringResource(setting.disabledLabelRes)
-                    },
+                    text = if (setting.enabled) enabledLabel else stringResource(setting.disabledLabelRes),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Switch(
@@ -1407,12 +1414,18 @@ private fun InlineIntervalSetting(
                 )
             }
             if (setting.enabled) {
-                Slider(
-                    value = sliderDays.toFloat(),
-                    onValueChange = { sliderDays = it.roundToInt() },
-                    onValueChangeFinished = { onIntervalChange(sliderDays) },
-                    valueRange = setting.range.first.toFloat()..setting.range.last.toFloat(),
-                    steps = setting.range.last - setting.range.first - 1
+                SteppedSlider(
+                    value = sliderDays,
+                    range = setting.range,
+                    callbacks = SteppedSliderCallbacks(
+                        onValueChange = { sliderDays = it },
+                        onValueChangeFinished = { onIntervalChange(sliderDays) }
+                    ),
+                    labels = SteppedSliderLabels(
+                        decreaseContentDescription = stringResource(setting.decreaseCdRes),
+                        increaseContentDescription = stringResource(setting.increaseCdRes),
+                        stateDescription = enabledLabel
+                    )
                 )
             }
             extra()

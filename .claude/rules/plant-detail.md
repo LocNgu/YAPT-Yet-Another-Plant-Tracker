@@ -57,16 +57,19 @@ all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same 
   one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
   a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
 
-## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession)
-Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + `Slider`; Fertilize adds the
-liquid-fert toggle). Edits **auto-persist** (no Save button) via `setWateringInterval(Int?)` /
-`setFertilizingInterval(Int?)` / `setLiquidFertilizer(Boolean)` → `PlantRepository.updatePlant`; `null` clears the
-schedule. Slider commits on release (`onValueChangeFinished`). Shared `InlineIntervalSetting` composable; defaults
+## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession; slider-control clause amended by product ADR-0048)
+Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + shared `SteppedSlider`
+(`ui/components/SteppedSlider.kt`, #531, product ADR-0048) — a `Slider` flanked by −/+ `IconButton`s with a
+haptic tick on drag; Fertilize adds the liquid-fert toggle). Edits **auto-persist** (no Save button) via
+`setWateringInterval(Int?)` / `setFertilizingInterval(Int?)` / `setLiquidFertilizer(Boolean)` →
+`PlantRepository.updatePlant`; `null` clears the schedule. A drag commits on release
+(`onValueChangeFinished`); a −/+ tap commits immediately. Shared `InlineIntervalSetting` composable; defaults
 `DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS` = 7/30. Add/Edit Plant stays the canonical
 editor for name/species/room/notes/cover.
 
 The shared dormancy editor in Add/Edit and the Water tab also offers a "Dormancy watering interval"
-switch plus a 1–12 week slider (#785, product ADR-0046/product ADR-0047). The switch is labelled by what
+switch plus a 1–12 week `SteppedSlider` (#785, product ADR-0046/product ADR-0047; stepper buttons added
+by #531, product ADR-0048). The switch is labelled by what
 it enables, never "Pause watering" — off (null) keeps full suspension and reads as a subtitle; disabling the
 window clears the cadence. An active dormant-only cadence may expose Reschedule and “Why this date?”
 even when the ordinary watering interval is disabled.

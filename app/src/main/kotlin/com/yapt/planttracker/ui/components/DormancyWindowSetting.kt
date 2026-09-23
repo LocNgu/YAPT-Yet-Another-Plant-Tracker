@@ -8,7 +8,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,12 +24,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 /** Shared editor for the two nullable month columns (#762). Every change supplies a complete pair. */
 @Composable
@@ -162,19 +159,21 @@ private fun DormantWateringIntervalControl(cadence: Int?, onCadenceChange: (Int?
         )
     }
     if (persistedWeeks != null) {
-        Slider(
-            value = sliderWeeks.toFloat(),
-            onValueChange = { sliderWeeks = it.roundToInt() },
-            onValueChangeFinished = { onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) },
-            valueRange = WEEK_SLIDER_RANGE,
-            steps = DormancyWindow.MAX_WATERING_INTERVAL_WEEKS - DormancyWindow.MIN_WATERING_INTERVAL_WEEKS - 1,
-            modifier = Modifier.semantics { stateDescription = weeksLabel }
+        SteppedSlider(
+            value = sliderWeeks,
+            range = DormancyWindow.MIN_WATERING_INTERVAL_WEEKS..DormancyWindow.MAX_WATERING_INTERVAL_WEEKS,
+            callbacks = SteppedSliderCallbacks(
+                onValueChange = { sliderWeeks = it },
+                onValueChangeFinished = { onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) }
+            ),
+            labels = SteppedSliderLabels(
+                decreaseContentDescription = stringResource(R.string.dormant_watering_interval_decrease_cd),
+                increaseContentDescription = stringResource(R.string.dormant_watering_interval_increase_cd),
+                stateDescription = weeksLabel
+            )
         )
     }
 }
-
-private val WEEK_SLIDER_RANGE =
-    DormancyWindow.MIN_WATERING_INTERVAL_WEEKS.toFloat()..DormancyWindow.MAX_WATERING_INTERVAL_WEEKS.toFloat()
 
 @Composable
 private fun dormantWateringIntervalLabel(weeks: Int): String = pluralStringResource(

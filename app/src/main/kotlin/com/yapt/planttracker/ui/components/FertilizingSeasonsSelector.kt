@@ -20,7 +20,7 @@ import com.yapt.planttracker.ui.util.labelRes
 import java.time.LocalDate
 
 /**
- * Shared "Active in" season selector for fertilizing (#795, product ADR-0048, replacing #286's
+ * Shared "Active in" season selector for fertilizing (#795, product ADR-0049, replacing #286's
  * four discrete per-season interval fields) — used by both Add/Edit Plant and Plant Detail's
  * Fertilize tab inline editor, so the two surfaces can never disagree on which seasons a plant
  * fertilizes in. The currently active hemisphere-aware season is marked on its chip's visible

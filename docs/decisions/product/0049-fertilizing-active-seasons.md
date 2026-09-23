@@ -1,4 +1,4 @@
-# Product ADR-0048: Fertilizing active seasons
+# Product ADR-0049: Fertilizing active seasons
 
 **Status**: accepted
 

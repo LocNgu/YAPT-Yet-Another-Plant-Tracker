@@ -1,6 +1,6 @@
 # Product ADR-0045: Discrete manual seasonal fertilizing intervals
 
-**Status**: superseded by [ADR-0048](0048-fertilizing-active-seasons.md)
+**Status**: superseded by [ADR-0049](0049-fertilizing-active-seasons.md)
 
 **Date**: 2026-09-23
 

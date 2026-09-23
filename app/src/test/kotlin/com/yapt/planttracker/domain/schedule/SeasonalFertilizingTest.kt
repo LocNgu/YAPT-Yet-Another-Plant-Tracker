@@ -83,7 +83,7 @@ class SeasonalFertilizingTest {
         assertEquals(FertilizingSeason.entries.toSet(), SeasonalFertilizing.decode("BOGUS,NONSENSE"))
     }
 
-    // --- nextActiveDueAtMillis: the move-into-an-active-season due-date rule (#795, product ADR-0048) ---
+    // --- nextActiveDueAtMillis: the move-into-an-active-season due-date rule (#795, product ADR-0049) ---
     // Every case below with a raw date that is still in the future relative to `nowDate` exercises the
     // simple forward shift (unchanged if the raw date's own season is active, else shift forward from
     // its own month); `nowDate` is picked before `raw` in those to keep that branch exercised.
