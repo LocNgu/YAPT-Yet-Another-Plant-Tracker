@@ -211,13 +211,27 @@ class PlantDetailViewModelTest {
 
         vm.plant.test {
             assertEquals(current, awaitItem())
-            vm.setDormancyWindow(12, 3)
+            vm.setDormancyWindow(12, 3, 35)
             vm.setDormancyWindow(null, null)
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 &&
+                        it.dormantWateringIntervalDays == 35
+                }
+            )
+        }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == null && it.dormancyEndMonth == null &&
+                        it.dormantWateringIntervalDays == null
+                }
+            )
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

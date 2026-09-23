@@ -86,6 +86,9 @@ class BackupManagerTest {
             fertilizingIntervalDays = 30,
             createdAt = 1000L,
             updatedAt = 1000L,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35,
             fertilizingIntervalSpring = 21,
             fertilizingIntervalSummer = 14,
             fertilizingIntervalAutumn = null,
@@ -124,6 +127,9 @@ class BackupManagerTest {
         assertEquals(1, restoredPlants.size)
         assertEquals("Monstera", restoredPlants[0].name)
         assertNull(restoredPlants[0].coverPhotoUri)
+        assertEquals(11, restoredPlants[0].dormancyStartMonth)
+        assertEquals(2, restoredPlants[0].dormancyEndMonth)
+        assertEquals(35, restoredPlants[0].dormantWateringIntervalDays)
         assertEquals(21, restoredPlants[0].fertilizingIntervalSpring)
         assertEquals(14, restoredPlants[0].fertilizingIntervalSummer)
         assertNull(restoredPlants[0].fertilizingIntervalAutumn)

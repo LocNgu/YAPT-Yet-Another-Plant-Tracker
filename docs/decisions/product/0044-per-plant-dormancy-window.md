@@ -1,6 +1,6 @@
 # Product ADR-0044: Per-plant dormancy window
 
-**Status**: accepted
+**Status**: accepted — full watering-suspension clause superseded by [ADR-0046](0046-optional-dormant-watering-cadence.md)
 
 **Date**: 2026-09-21
 

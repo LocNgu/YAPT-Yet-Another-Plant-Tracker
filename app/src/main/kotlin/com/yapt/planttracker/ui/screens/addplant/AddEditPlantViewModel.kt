@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
@@ -79,6 +80,7 @@ class AddEditPlantViewModel(
     var pinIntervalToBase by mutableStateOf(false)
     var dormancyStartMonth by mutableStateOf<Int?>(null)
     var dormancyEndMonth by mutableStateOf<Int?>(null)
+    var dormantWateringIntervalDays by mutableStateOf<Int?>(null)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
@@ -133,6 +135,9 @@ class AddEditPlantViewModel(
                     pinIntervalToBase = plant.pinIntervalToBase
                     dormancyStartMonth = plant.dormancyStartMonth
                     dormancyEndMonth = plant.dormancyEndMonth
+                    dormantWateringIntervalDays = DormancyWindow.validWateringInterval(
+                        plant.dormantWateringIntervalDays
+                    )
                 }
             }
         }
@@ -145,13 +150,15 @@ class AddEditPlantViewModel(
         coverPhotoUri = uri
     }
 
-    fun setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+    fun setDormancyWindow(startMonth: Int?, endMonth: Int?, dormantIntervalDays: Int? = null) {
         require(
             (startMonth == null && endMonth == null) ||
                 (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
         )
+        require(dormantIntervalDays == null || DormancyWindow.validWateringInterval(dormantIntervalDays) != null)
         dormancyStartMonth = startMonth
         dormancyEndMonth = endMonth
+        dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
     }
 
     fun updateSameFertilizingIntervalAllSeasons(sameForAll: Boolean) {
@@ -203,6 +210,7 @@ class AddEditPlantViewModel(
                 pinIntervalToBase = pinIntervalToBase,
                 dormancyStartMonth = dormancyStartMonth,
                 dormancyEndMonth = dormancyEndMonth,
+                dormantWateringIntervalDays = dormantWateringIntervalDays,
                 fertilizingIntervalSpring = fertilizingIntervalSpring,
                 fertilizingIntervalSummer = fertilizingIntervalSummer,
                 fertilizingIntervalAutumn = fertilizingIntervalAutumn,

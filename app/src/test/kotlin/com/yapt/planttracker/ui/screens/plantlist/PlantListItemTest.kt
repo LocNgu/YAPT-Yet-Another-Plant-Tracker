@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.screens.plantlist
 
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -294,6 +295,29 @@ class PlantListItemTest {
             now
         )
         assertEquals(listOf(DateBucket.Dormant), headerBuckets(fertilizeItems))
+    }
+
+    @Test
+    fun `dormant cadence uses watering due bucket while fertilizing remains dormant`() {
+        val cadence = statusWithWateringDueIn(1L, 0L).copy(
+            isDormant = true,
+            wateringScheduleMode = WateringScheduleMode.DORMANT_CADENCE,
+            nextFertilizingDueAt = now
+        )
+
+        val waterItems = groupPlantsByDueDate(
+            listOf(cadence),
+            SortOrder(SortOption.WATERING_DUE, SortDirection.DESC),
+            now
+        )
+        val fertilizerItems = groupPlantsByDueDate(
+            listOf(cadence),
+            SortOrder(SortOption.FERTILIZING_DUE, SortDirection.DESC),
+            now
+        )
+
+        assertEquals(listOf(DateBucket.Today), headerBuckets(waterItems))
+        assertEquals(listOf(DateBucket.Dormant), headerBuckets(fertilizerItems))
     }
 
     @Test

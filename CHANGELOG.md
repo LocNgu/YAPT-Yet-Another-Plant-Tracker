@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Optional watering during dormancy** — a plant's dormancy window can now keep the existing full pause or use a fixed 1–12 week watering cadence. The dormant cadence ignores seasonal/adaptive interval changes, appears normally in due lists, Calendar, notifications, and “Why this date?”, and is preserved in `.yapt` backups; fertilizing remains paused (#785, product ADR-0046/product ADR-0047)
 - **Per-plant seasonal fertilizing intervals** — set separate Spring, Summer, Autumn, and Winter cadences from 1–180 days, with blank seasons falling back to the plant's main fertilizing interval. Seasons follow the device timezone's hemisphere, Plant Detail summarizes the choices, `.yapt` backups preserve them, and the existing dormancy window now pauses fertilizing reminders as well as watering reminders (#286, product ADR-0045)
 
 ---

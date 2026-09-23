@@ -55,6 +55,7 @@ class BackupSerializerTest {
         wateringFreezeUntil = 1_692_000_000_000L,
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
+        dormantWateringIntervalDays = 42,
         fertilizingIntervalSpring = 21,
         fertilizingIntervalSummer = 14,
         fertilizingIntervalAutumn = 30,
@@ -144,6 +145,7 @@ class BackupSerializerTest {
         assertNull(plant.wateringIntervalDays)
         assertNull(plant.fertilizingIntervalDays)
         assertNull(plant.wateringDueDateOverride)
+        assertNull(plant.dormantWateringIntervalDays)
     }
 
     @Test

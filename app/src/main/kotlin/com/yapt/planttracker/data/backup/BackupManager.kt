@@ -32,6 +32,8 @@ import java.util.zip.ZipOutputStream
 
 // Schema 18 (#286, product ADR-0045): four nullable seasonal fertilizing intervals added to
 // BackupPlant. Null means the season falls back to fertilizingIntervalDays.
+// Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
+// the full watering pause established by product ADR-0044.
 // Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
 // round-trip the per-plant dormancy window unconditionally (same posture as wateringResetAt/
 // wateringFreezeUntil below).
@@ -64,7 +66,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 18
+const val CURRENT_SCHEMA_VERSION = 19
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -179,6 +181,7 @@ class BackupManager(
                     wateringFreezeUntil = entity.wateringFreezeUntil,
                     dormancyStartMonth = entity.dormancyStartMonth,
                     dormancyEndMonth = entity.dormancyEndMonth,
+                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays,
                     fertilizingIntervalSpring = entity.fertilizingIntervalSpring,
                     fertilizingIntervalSummer = entity.fertilizingIntervalSummer,
                     fertilizingIntervalAutumn = entity.fertilizingIntervalAutumn,
@@ -402,6 +405,7 @@ class BackupManager(
                     wateringFreezeUntil = bp.wateringFreezeUntil,
                     dormancyStartMonth = bp.dormancyStartMonth,
                     dormancyEndMonth = bp.dormancyEndMonth,
+                    dormantWateringIntervalDays = bp.dormantWateringIntervalDays,
                     fertilizingIntervalSpring = bp.fertilizingIntervalSpring,
                     fertilizingIntervalSummer = bp.fertilizingIntervalSummer,
                     fertilizingIntervalAutumn = bp.fertilizingIntervalAutumn,
