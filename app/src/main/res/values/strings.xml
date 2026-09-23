@@ -226,8 +226,13 @@
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
     <string name="watering_interval_label">Water every %1$d days</string>
     <string name="watering_reminder_label">Watering reminder</string>
+    <!-- Stepper buttons flanking the watering/fertilizing/repotting interval sliders (#531, product ADR-0048) -->
+    <string name="watering_interval_decrease_cd">Decrease watering interval</string>
+    <string name="watering_interval_increase_cd">Increase watering interval</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
+    <string name="fertilizing_interval_decrease_cd">Decrease fertilizing interval</string>
+    <string name="fertilizing_interval_increase_cd">Increase fertilizing interval</string>
     <string name="fertilizing_same_all_seasons">Same for all seasons</string>
     <string name="fertilizing_seasonal_subtitle">Leave a season blank to use the main interval.</string>
     <string name="season_spring">Spring</string>
@@ -248,6 +253,8 @@
         <item quantity="other">Repot every %d months</item>
     </plurals>
     <string name="repotting_reminder_label">Repotting reminder</string>
+    <string name="repotting_interval_decrease_cd">Decrease repotting interval</string>
+    <string name="repotting_interval_increase_cd">Increase repotting interval</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
@@ -318,6 +325,8 @@
         <item quantity="one">Every %1$d week</item>
         <item quantity="other">Every %1$d weeks</item>
     </plurals>
+    <string name="dormant_watering_interval_decrease_cd">Decrease dormant watering cadence</string>
+    <string name="dormant_watering_interval_increase_cd">Increase dormant watering cadence</string>
     <string name="dormancy_start_month">Start</string>
     <string name="dormancy_end_month">End</string>
     <string name="dormancy_month_selection_cd">%1$s: %2$s</string>
