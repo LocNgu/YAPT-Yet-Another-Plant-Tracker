@@ -44,6 +44,7 @@ gallery-owned source image.
 | v15 | `BackupSettings.seasonalAmplitude: String` | `"STANDARD"` (#656) |
 | v16 | `BackupSettings.postWateringReminderEnabled: Boolean` | `true` (#519) |
 | v17 | `BackupPlant.dormancyStartMonth: Int?` + `BackupPlant.dormancyEndMonth: Int?` | `null` / `null` (#759, product ADR-0044) |
+| v18 | Four nullable `BackupPlant.fertilizingInterval{Spring,Summer,Autumn,Winter}` fields | `null` (#286, product ADR-0045) |
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.

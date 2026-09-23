@@ -106,6 +106,44 @@ class ReminderNotificationComposerTest {
     }
 
     @Test
+    fun `liquid fertilizer wording uses the current seasonal interval for the due check`() {
+        // `now` is in northern autumn. The 14-day autumn slot is due; the 30-day fallback is not.
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = 30,
+                useLiquidFertilizer = true
+            ).copy(fertilizingIntervalAutumn = 14),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now
+        )
+
+        assertEquals(
+            listOf(CareReminderItem.WateringDueToday, CareReminderItem.FertilizeWithWatering),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `dormancy suppresses seasonal fertilizing reminder items`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                fertilizingIntervalDays = 30,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            ).copy(fertilizingIntervalAutumn = 14),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now
+        )
+
+        assertTrue(ReminderNotificationComposer.computeCareReminderItems(status, now).isEmpty())
+    }
+
+    @Test
     fun `computeCareReminderItems omits fertilizing for liquid fertilizer when watering is not due`() {
         val status = CareSchedule.computeStatus(
             plant = plantWith(

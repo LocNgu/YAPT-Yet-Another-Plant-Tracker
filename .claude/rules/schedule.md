@@ -20,6 +20,9 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   `wateringDueDateOverride` still wins via `maxOf()`.
 - **Fertilizing** — never-fertilized plant with an interval becomes due at
   `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const), then overdue by normal date math.
+  After the first log, `SeasonalFertilizing` selects the current hemisphere-aware Spring/Summer/
+  Autumn/Winter slot, falling back to `fertilizingIntervalDays` when that slot is null (#286,
+  product ADR-0045). This is manual discrete scheduling; adaptive watering never touches it.
 - **Repotting** — first-due for a never-repotted plant is `createdAt + interval` (private generic
   `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
   `nextRepottingDueAt`/`isRepottingOverdue`/`isRepottingDueSoon`/`lastRepottedAt` (all defaulted, existing
@@ -31,11 +34,11 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
-- A configured dormancy window suppresses watering due/overdue flags while its current month is inside
+- A configured dormancy window suppresses watering and fertilizing due/overdue flags while its current month is inside
   the window (product ADR-0044). `nextWateringDueAt` remains computed. Plant List places these plants
-  in a Dormant bucket for watering due sorts; Calendar lists them in today's Dormant section with a
-  separate count and does not place a watering due date inside the window on the calendar grid.
-  Fertilizing stays on its normal schedule.
+  in a Dormant bucket for watering or fertilizing due sorts; Calendar lists them in today's Dormant
+  section with a separate count and does not place either due date inside the window on the grid.
+  Both underlying due dates remain computed and become active again when dormancy ends.
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
 The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy

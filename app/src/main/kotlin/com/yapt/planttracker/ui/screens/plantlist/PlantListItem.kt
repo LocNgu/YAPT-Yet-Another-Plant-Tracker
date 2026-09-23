@@ -60,7 +60,6 @@ fun groupPlantsByDueDate(
     for (status in statuses) {
         val dueAt = dueAtOf(status)
         val bucket = if (
-            sortOption != SortOption.FERTILIZING_DUE &&
             status.isDormant &&
             dueAt != null
         ) {

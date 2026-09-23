@@ -56,8 +56,8 @@ object CareSchedule {
 
         val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
         val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
-        val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
-            computeFertilizingDue(plant, lastFertilizedAt, nowDate)
+        val (nextFertilizingDueAt, fertilizingOverdue, fertilizingDueSoon) =
+            computeFertilizingDue(plant, lastFertilizedAt, nowDate, hemisphere)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
@@ -91,8 +91,8 @@ object CareSchedule {
             isOverdue = wateringOverdue && !isDormant,
             isDueSoon = wateringDueSoon && !isDormant,
             nextFertilizingDueAt = nextFertilizingDueAt,
-            isFertilizingOverdue = isFertilizingOverdue,
-            isFertilizingDueSoon = isFertilizingDueSoon,
+            isFertilizingOverdue = fertilizingOverdue && !isDormant,
+            isFertilizingDueSoon = fertilizingDueSoon && !isDormant,
             totalCareLogs = totalLogs,
             lastRepottedAt = lastRepottedAt,
             nextRepottingDueAt = nextRepottingDueAt,
@@ -242,11 +242,17 @@ object CareSchedule {
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
     ): Int? = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
 
-    private fun computeFertilizingDue(plant: Plant, lastFertilizedAt: Long?, nowDate: LocalDate): DueStatus {
-        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
+    private fun computeFertilizingDue(
+        plant: Plant,
+        lastFertilizedAt: Long?,
+        nowDate: LocalDate,
+        hemisphere: Hemisphere
+    ): DueStatus {
+        val intervalDays = SeasonalFertilizing.effectiveInterval(plant, nowDate, hemisphere)
+        val nextFertilizingDueAt = if (intervalDays == null) {
             null
         } else if (lastFertilizedAt != null) {
-            lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
+            lastFertilizedAt + TimeUnit.DAYS.toMillis(intervalDays.toLong())
         } else {
             plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
         }

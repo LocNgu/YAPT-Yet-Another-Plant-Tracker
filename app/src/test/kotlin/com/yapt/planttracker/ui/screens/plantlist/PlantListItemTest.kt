@@ -274,7 +274,7 @@ class PlantListItemTest {
     }
 
     @Test
-    fun `dormant plant gets its own watering bucket without hiding fertilizing due`() {
+    fun `dormant plant gets its own bucket for watering and fertilizing sorts`() {
         val dormant = statusWithWateringDueIn(1L, -2L).copy(
             isDormant = true,
             nextFertilizingDueAt = now
@@ -293,7 +293,7 @@ class PlantListItemTest {
             SortOrder(SortOption.FERTILIZING_DUE, SortDirection.DESC),
             now
         )
-        assertEquals(listOf(DateBucket.Today), headerBuckets(fertilizeItems))
+        assertEquals(listOf(DateBucket.Dormant), headerBuckets(fertilizeItems))
     }
 
     @Test

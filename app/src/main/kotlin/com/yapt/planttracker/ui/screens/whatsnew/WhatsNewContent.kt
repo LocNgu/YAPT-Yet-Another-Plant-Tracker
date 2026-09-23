@@ -12,7 +12,12 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        added = listOf(
+            "Each plant can now use different fertilizing intervals in Spring, Summer, Autumn, and Winter. " +
+                "Leave any season blank to use the main interval; seasons follow your device's hemisphere, " +
+                "and a configured dormancy window pauses fertilizing reminders too"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.

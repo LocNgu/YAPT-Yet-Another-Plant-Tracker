@@ -107,6 +107,7 @@ import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
+import com.yapt.planttracker.ui.components.SeasonalFertilizingSummary
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
@@ -857,6 +858,12 @@ fun PlantDetailScreen(
                                     onIntervalChange = { viewModel.setFertilizingInterval(it) }
                                 ) {
                                     if (plant?.fertilizingIntervalDays != null) {
+                                        plant?.let {
+                                            SeasonalFertilizingSummary(
+                                                plant = it,
+                                                onEdit = onNavigateToEdit
+                                            )
+                                        }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,

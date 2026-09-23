@@ -11,6 +11,7 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -177,6 +178,64 @@ class AddEditPlantViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+    }
+
+    @Test
+    fun `seasonal fertilizing intervals load and round-trip in edit mode`() = runTest {
+        val existing = plant().copy(
+            fertilizingIntervalDays = 30,
+            fertilizingIntervalSpring = 21,
+            fertilizingIntervalSummer = 14,
+            fertilizingIntervalAutumn = 35,
+            fertilizingIntervalWinter = null
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertEquals(false, vm.sameFertilizingIntervalAllSeasons)
+        assertEquals(21, vm.fertilizingIntervalSpring)
+        assertEquals(14, vm.fertilizingIntervalSummer)
+        assertEquals(35, vm.fertilizingIntervalAutumn)
+        assertEquals(null, vm.fertilizingIntervalWinter)
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.fertilizingIntervalSpring == 21 &&
+                        it.fertilizingIntervalSummer == 14 &&
+                        it.fertilizingIntervalAutumn == 35 &&
+                        it.fertilizingIntervalWinter == null
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `same for all seasons clears every seasonal fertilizing slot`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Fern"
+        vm.fertilizingIntervalEnabled = true
+        vm.updateSameFertilizingIntervalAllSeasons(false)
+        vm.setFertilizingSeasonInterval(FertilizingSeason.SUMMER, 14)
+        vm.updateSameFertilizingIntervalAllSeasons(true)
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.addPlant(
+                match {
+                    it.fertilizingIntervalSpring == null &&
+                        it.fertilizingIntervalSummer == null &&
+                        it.fertilizingIntervalAutumn == null &&
+                        it.fertilizingIntervalWinter == null
+                }
+            )
+        }
     }
 
     @Test

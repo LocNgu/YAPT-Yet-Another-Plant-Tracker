@@ -50,8 +50,18 @@ data class Plant(
      * Month-pair dormancy window (1-12, #699/#759, product ADR-0044): both `null` = no dormancy,
      * which is every plant migrated from before this column existed. `dormancyStartMonth >
      * dormancyEndMonth` wraps across the year boundary (e.g. Nov-Feb); neither value alone is ever
-     * `null` while the other is set. This slice only stores the window — nothing reads it yet.
+     * `null` while the other is set. Watering and fertilizing due flags are both suppressed inside
+     * the window (product ADR-0044/product ADR-0045).
      */
     val dormancyStartMonth: Int? = null,
-    val dormancyEndMonth: Int? = null
+    val dormancyEndMonth: Int? = null,
+    /**
+     * Optional manual fertilizing intervals for each hemisphere-aware season (#286, product
+     * ADR-0045). A `null` slot falls back to [fertilizingIntervalDays]. Dormancy remains the only
+     * way to pause the schedule; these slots only change cadence outside that shared window.
+     */
+    val fertilizingIntervalSpring: Int? = null,
+    val fertilizingIntervalSummer: Int? = null,
+    val fertilizingIntervalAutumn: Int? = null,
+    val fertilizingIntervalWinter: Int? = null
 )
