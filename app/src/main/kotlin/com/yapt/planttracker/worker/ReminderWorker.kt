@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.notification.CareReminderItem
 import com.yapt.planttracker.domain.notification.DuePlantReminder
 import com.yapt.planttracker.domain.notification.ReminderNotificationComposer
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
@@ -88,7 +89,9 @@ class ReminderWorker(
         seasonalAmplitude: Double,
         hemisphere: Hemisphere
     ): PlantCareStatus {
-        val lastWatering = if (plant.wateringIntervalDays != null) {
+        val hasWateringSchedule = plant.wateringIntervalDays != null ||
+            DormancyWindow.validWateringInterval(plant.dormantWateringIntervalDays) != null
+        val lastWatering = if (hasWateringSchedule) {
             app.careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         } else {
             null

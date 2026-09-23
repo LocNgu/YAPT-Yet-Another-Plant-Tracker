@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -59,7 +60,9 @@ fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> 
             Spacer(Modifier.height(16.dp))
 
             WateringExplanationIntervalRows(explanation)
-            WateringExplanationAdaptiveSection(explanation)
+            if (explanation.hasNormalWateringSchedule) {
+                WateringExplanationAdaptiveSection(explanation)
+            }
         }
     }
 }
@@ -68,44 +71,45 @@ fun WateringExplanationSheet(explanation: WateringExplanation, onDismiss: () -> 
 private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_next_watering),
-        value = if (explanation.isDormant) {
+        value = if (explanation.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED) {
             stringResource(R.string.watering_explanation_dormant)
         } else {
             explanation.nextWateringDueAt?.let { DateUtils.formatDate(it) } ?: "—"
         }
     )
 
-    explanation.rescheduleDeltaDays?.takeUnless { explanation.isDormant }?.let { delta ->
+    if (explanation.wateringScheduleMode == WateringScheduleMode.DORMANT_CADENCE) {
+        val days = explanation.dormantWateringIntervalDays ?: return
+        ExplanationRow(
+            label = stringResource(R.string.watering_explanation_dormant_schedule),
+            value = stringResource(R.string.dormant_watering_every_days, days)
+        )
+        if (explanation.hasNormalWateringSchedule) {
+            Text(
+                text = stringResource(R.string.watering_explanation_growing_season_schedule),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
+    }
+
+    explanation.rescheduleDeltaDays?.takeUnless {
+        explanation.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED
+    }?.let { delta ->
         ExplanationRow(
             label = pluralStringResource(R.plurals.watering_reschedule_delta_days, delta, delta),
             value = ""
         )
     }
 
-    ExplanationRow(
-        label = stringResource(R.string.watering_explanation_base_interval),
-        value = pluralStringResource(
-            R.plurals.insight_interval_days,
-            explanation.baseIntervalDays,
-            explanation.baseIntervalDays
-        ),
-        caption = pluralStringResource(
-            R.plurals.watering_explanation_learned_from,
-            explanation.waterLogCount,
-            explanation.waterLogCount
-        )
-    )
-
-    explanation.season?.let { season ->
-        ExplanationRow(
-            label = stringResource(season.band.labelRes()),
-            value = stringResource(R.string.watering_explanation_multiplier, season.multiplier)
-        )
-    }
+    if (explanation.hasNormalWateringSchedule) WateringExplanationNormalSchedule(explanation)
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-    if (!explanation.isDormant) {
+    if (explanation.wateringScheduleMode != WateringScheduleMode.DORMANT_SUSPENDED &&
+        explanation.wateringScheduleMode != WateringScheduleMode.DORMANT_CADENCE
+    ) {
         ExplanationRow(
             label = pluralStringResource(
                 R.plurals.watering_explanation_effective_interval,
@@ -121,6 +125,29 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
         value = explanation.lastWateredAt?.let { DateUtils.formatRelative(it) }
             ?: stringResource(R.string.water_label_never_watered)
     )
+}
+
+@Composable
+private fun WateringExplanationNormalSchedule(explanation: WateringExplanation) {
+    ExplanationRow(
+        label = stringResource(R.string.watering_explanation_base_interval),
+        value = pluralStringResource(
+            R.plurals.insight_interval_days,
+            explanation.baseIntervalDays,
+            explanation.baseIntervalDays
+        ),
+        caption = pluralStringResource(
+            R.plurals.watering_explanation_learned_from,
+            explanation.waterLogCount,
+            explanation.waterLogCount
+        )
+    )
+    explanation.season?.let { season ->
+        ExplanationRow(
+            label = stringResource(season.band.labelRes()),
+            value = stringResource(R.string.watering_explanation_multiplier, season.multiplier)
+        )
+    }
 }
 
 @Composable

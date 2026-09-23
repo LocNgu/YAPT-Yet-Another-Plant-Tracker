@@ -92,5 +92,13 @@ data class PlantCareStatus(
      * matching [isWateringOnSchedule]'s own "nothing to gate" convention. Defaulted `false` so a
      * status built by hand in a test is unaffected.
      */
-    val isWateringGapDormancySpanning: Boolean = false
+    val isWateringGapDormancySpanning: Boolean = false,
+    /** Which watering schedule is active at status-computation time (#785, product ADR-0046). */
+    val wateringScheduleMode: WateringScheduleMode = WateringScheduleMode.NORMAL,
+    /** Ordinary seasonal/adaptive due date before an override, even when dormancy selects another mode. */
+    val normalComputedNextWateringDueAt: Long? = null,
+    /** Fixed-cadence dormant due date before an override; populated only in [WateringScheduleMode.DORMANT_CADENCE]. */
+    val dormantComputedNextWateringDueAt: Long? = null
 )
+
+enum class WateringScheduleMode { NORMAL, DORMANT_CADENCE, DORMANT_SUSPENDED }

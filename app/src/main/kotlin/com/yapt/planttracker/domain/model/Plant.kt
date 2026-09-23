@@ -55,6 +55,8 @@ data class Plant(
      */
     val dormancyStartMonth: Int? = null,
     val dormancyEndMonth: Int? = null,
+    /** Optional fixed watering cadence used only while the configured dormancy window is active (#785). */
+    val dormantWateringIntervalDays: Int? = null,
     /**
      * Optional manual fertilizing intervals for each hemisphere-aware season (#286, product
      * ADR-0045). A `null` slot falls back to [fertilizingIntervalDays]. Dormancy remains the only

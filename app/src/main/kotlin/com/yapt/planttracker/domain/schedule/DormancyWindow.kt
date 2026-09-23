@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.util.toLocalDate
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 /**
@@ -12,6 +13,15 @@ import java.time.temporal.ChronoUnit
  * an active watering due date.
  */
 object DormancyWindow {
+
+    private const val SHORT_DORMANT_INTERVAL_DAYS = 28
+    private const val STANDARD_DORMANT_INTERVAL_DAYS = 35
+    private const val LONG_DORMANT_INTERVAL_DAYS = 42
+    val WATERING_INTERVAL_OPTIONS = setOf(
+        SHORT_DORMANT_INTERVAL_DAYS,
+        STANDARD_DORMANT_INTERVAL_DAYS,
+        LONG_DORMANT_INTERVAL_DAYS
+    )
 
     private const val MIN_MONTH = 1
     private const val MAX_MONTH = 12
@@ -50,6 +60,20 @@ object DormancyWindow {
             month >= startMonth || month <= endMonth
         }
     }
+
+    /** First day of the dormant cycle containing [date], or `null` for an inactive/malformed window. */
+    fun currentCycleStart(date: LocalDate, startMonth: Int?, endMonth: Int?): LocalDate? {
+        return if (isDormant(date.monthValue, startMonth, endMonth)) {
+            val start = checkNotNull(startMonth)
+            val end = checkNotNull(endMonth)
+            val startYear = if (start > end && date.monthValue <= end) date.year - 1 else date.year
+            LocalDate.of(startYear, start, 1)
+        } else {
+            null
+        }
+    }
+
+    fun validWateringInterval(days: Int?): Int? = days?.takeIf { it in WATERING_INTERVAL_OPTIONS }
 
     /**
      * Walking this many consecutive calendar months (starting anywhere) necessarily visits every

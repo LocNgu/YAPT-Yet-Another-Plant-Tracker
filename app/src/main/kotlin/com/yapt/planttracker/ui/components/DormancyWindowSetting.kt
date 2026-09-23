@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +26,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import java.time.LocalDate
 
 /** Shared editor for the two nullable month columns (#762). Every change supplies a complete pair. */
@@ -32,20 +35,32 @@ fun DormancyWindowSetting(
     startMonth: Int?,
     endMonth: Int?,
     onWindowChange: (Int?, Int?) -> Unit
+) = DormancyWindowSetting(startMonth, endMonth, null) { start, end, _ -> onWindowChange(start, end) }
+
+@Composable
+fun DormancyWindowSetting(
+    startMonth: Int?,
+    endMonth: Int?,
+    dormantWateringIntervalDays: Int?,
+    onWindowChange: (Int?, Int?, Int?) -> Unit
 ) {
-    val persistedWindow = startMonth to endMonth
+    val persistedWindow = Triple(
+        startMonth,
+        endMonth,
+        DormancyWindow.validWateringInterval(dormantWateringIntervalDays)
+    )
     // Room may re-emit an earlier selection after the user has already changed the other month.
     // Keep the most recent complete pair visible until persistence catches up.
-    var pendingWindow by remember { mutableStateOf<Pair<Int?, Int?>?>(null) }
+    var pendingWindow by remember { mutableStateOf<Triple<Int?, Int?, Int?>?>(null) }
     LaunchedEffect(persistedWindow) {
         if (pendingWindow == persistedWindow) pendingWindow = null
     }
-    val (shownStart, shownEnd) = pendingWindow ?: persistedWindow
+    val (shownStart, shownEnd, shownCadence) = pendingWindow ?: persistedWindow
     val enabled = shownStart != null && shownEnd != null && shownStart in 1..12 && shownEnd in 1..12
     val label = stringResource(R.string.dormancy_window_label)
-    fun changeWindow(nextStart: Int?, nextEnd: Int?) {
-        pendingWindow = nextStart to nextEnd
-        onWindowChange(nextStart, nextEnd)
+    fun changeWindow(nextStart: Int?, nextEnd: Int?, nextCadence: Int?) {
+        pendingWindow = Triple(nextStart, nextEnd, nextCadence)
+        onWindowChange(nextStart, nextEnd, nextCadence)
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -59,35 +74,66 @@ fun DormancyWindowSetting(
                 onCheckedChange = { on ->
                     if (on) {
                         val month = LocalDate.now().monthValue
-                        changeWindow(month, month)
+                        changeWindow(month, month, null)
                     } else {
-                        changeWindow(null, null)
+                        changeWindow(null, null, null)
                     }
                 },
                 modifier = Modifier.semantics { contentDescription = label }
             )
         }
         if (enabled) {
-            Text(
-                stringResource(R.string.dormancy_window_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonthDropdown(
-                    label = stringResource(R.string.dormancy_start_month),
-                    month = shownStart!!,
-                    onMonthChange = { changeWindow(it, shownEnd) },
-                    modifier = Modifier.weight(1f)
-                )
-                MonthDropdown(
-                    label = stringResource(R.string.dormancy_end_month),
-                    month = shownEnd!!,
-                    onMonthChange = { changeWindow(shownStart, it) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            DormancyWindowControls(shownStart!!, shownEnd!!, shownCadence, ::changeWindow)
         }
+    }
+}
+
+@Composable
+private fun DormancyWindowControls(
+    startMonth: Int,
+    endMonth: Int,
+    cadence: Int?,
+    onChange: (Int?, Int?, Int?) -> Unit
+) {
+    Text(
+        stringResource(R.string.dormancy_window_subtitle),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MonthDropdown(
+            stringResource(R.string.dormancy_start_month),
+            startMonth,
+            { onChange(it, endMonth, cadence) },
+            Modifier.weight(1f)
+        )
+        MonthDropdown(
+            stringResource(R.string.dormancy_end_month),
+            endMonth,
+            { onChange(startMonth, it, cadence) },
+            Modifier.weight(1f)
+        )
+    }
+    Text(stringResource(R.string.dormant_watering_label), style = MaterialTheme.typography.labelMedium)
+    DormantWateringChoice(
+        stringResource(R.string.dormant_watering_suspended),
+        cadence == null
+    ) { onChange(startMonth, endMonth, null) }
+    DormancyWindow.WATERING_INTERVAL_OPTIONS.sorted().forEach { days ->
+        DormantWateringChoice(stringResource(R.string.dormant_watering_every_days, days), cadence == days) {
+            onChange(startMonth, endMonth, days)
+        }
+    }
+}
+
+@Composable
+private fun DormantWateringChoice(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

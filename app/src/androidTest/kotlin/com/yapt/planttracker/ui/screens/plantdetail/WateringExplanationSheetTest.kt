@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import org.junit.Rule
@@ -31,6 +32,7 @@ class WateringExplanationSheetTest {
             confidenceLevel = WateringConfidenceLevel.GETTING_THERE,
             hasDormancyWindow = true,
             isDormant = true,
+            wateringScheduleMode = WateringScheduleMode.DORMANT_SUSPENDED,
             recentAdjustments = listOf(
                 WateringAdjustment(
                     plantId = 1L,
@@ -57,5 +59,30 @@ class WateringExplanationSheetTest {
         composeTestRule.onNodeWithText("left dormancy").performScrollTo()
         composeTestRule.onNodeWithText("left dormancy").assertIsDisplayed()
         composeTestRule.onNodeWithText("Watering every 7 days").assertDoesNotExist()
+    }
+
+    @Test
+    fun dormantCadenceShowsActiveScheduleAndLabelsGrowingSeasonModel() {
+        val now = System.currentTimeMillis()
+        val explanation = WateringExplanation(
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            effectiveIntervalDays = 35,
+            waterLogCount = 2,
+            baseIntervalDays = 7,
+            confidenceLevel = WateringConfidenceLevel.GETTING_THERE,
+            hasDormancyWindow = true,
+            isDormant = true,
+            wateringScheduleMode = WateringScheduleMode.DORMANT_CADENCE,
+            dormantWateringIntervalDays = 35,
+            hasNormalWateringSchedule = true
+        )
+
+        composeTestRule.setContent { WateringExplanationSheet(explanation, onDismiss = {}) }
+
+        composeTestRule.onNodeWithText("Dormant schedule").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Every 35 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Growing-season schedule").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Suspended during dormancy").assertDoesNotExist()
     }
 }

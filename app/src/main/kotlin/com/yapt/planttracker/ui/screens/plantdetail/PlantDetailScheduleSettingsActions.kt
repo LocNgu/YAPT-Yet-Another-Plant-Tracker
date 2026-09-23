@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
@@ -77,10 +78,18 @@ fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
 }
 
 /** Persist a complete window, or clear both columns together, from the Water tab (#762). */
-fun PlantDetailViewModel.setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+fun PlantDetailViewModel.setDormancyWindow(
+    startMonth: Int?,
+    endMonth: Int?,
+    dormantWateringIntervalDays: Int? = null
+) {
     require(
         (startMonth == null && endMonth == null) ||
             (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
+    )
+    require(
+        dormantWateringIntervalDays == null ||
+            dormantWateringIntervalDays in DormancyWindow.WATERING_INTERVAL_OPTIONS
     )
     viewModelScope.launch {
         dormancyEditMutex.withLock {
@@ -91,6 +100,11 @@ fun PlantDetailViewModel.setDormancyWindow(startMonth: Int?, endMonth: Int?) {
                     current.copy(
                         dormancyStartMonth = startMonth,
                         dormancyEndMonth = endMonth,
+                        dormantWateringIntervalDays = if (startMonth == null || endMonth == null) {
+                            null
+                        } else {
+                            dormantWateringIntervalDays
+                        },
                         updatedAt = System.currentTimeMillis()
                     )
                 )

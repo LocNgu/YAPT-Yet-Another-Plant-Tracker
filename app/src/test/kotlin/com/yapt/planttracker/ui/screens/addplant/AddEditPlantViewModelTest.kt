@@ -133,18 +133,45 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `dormancy window loads and wrapping range saves in edit mode`() = runTest {
-        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        val existing = plant().copy(
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35
+        )
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         assertEquals(11, vm.dormancyStartMonth)
         assertEquals(2, vm.dormancyEndMonth)
-        vm.setDormancyWindow(12, 3)
+        assertEquals(35, vm.dormantWateringIntervalDays)
+        vm.setDormancyWindow(12, 3, 42)
         vm.save()
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 &&
+                        it.dormantWateringIntervalDays == 42
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `unsupported persisted dormant cadence loads as full suspension`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(
+            plant().copy(
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2,
+                dormantWateringIntervalDays = 30
+            )
+        )
+
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertEquals(null, vm.dormantWateringIntervalDays)
     }
 
     @Test
@@ -152,7 +179,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Cactus"
-        vm.setDormancyWindow(11, 2)
+        vm.setDormancyWindow(11, 2, 28)
 
         vm.save()
         advanceUntilIdle()
@@ -160,7 +187,8 @@ class AddEditPlantViewModelTest {
         coVerify {
             plantRepo.addPlant(
                 match {
-                    it.wateringIntervalDays == null && it.dormancyStartMonth == 11 && it.dormancyEndMonth == 2
+                    it.wateringIntervalDays == null && it.dormancyStartMonth == 11 && it.dormancyEndMonth == 2 &&
+                        it.dormantWateringIntervalDays == 28
                 }
             )
         }
@@ -168,7 +196,11 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `turning dormancy off clears both columns in edit mode`() = runTest {
-        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        val existing = plant().copy(
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35
+        )
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
@@ -177,7 +209,14 @@ class AddEditPlantViewModelTest {
         vm.save()
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == null && it.dormancyEndMonth == null &&
+                        it.dormantWateringIntervalDays == null
+                }
+            )
+        }
     }
 
     @Test

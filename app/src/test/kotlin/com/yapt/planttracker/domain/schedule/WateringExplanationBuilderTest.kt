@@ -3,6 +3,7 @@ package com.yapt.planttracker.domain.schedule
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.util.toLocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -229,6 +230,31 @@ class WateringExplanationBuilderTest {
         assertTrue(explanation.hasDormancyWindow)
         assertEquals(now, explanation.nextWateringDueAt)
         assertEquals(adjustments, explanation.recentAdjustments)
+    }
+
+    @Test
+    fun `dormant-only cadence explains fixed schedule without a seasonal row`() {
+        val explanation = WateringExplanationBuilder.build(
+            plant = plantWith(wateringIntervalDays = null).copy(
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2,
+                dormantWateringIntervalDays = 35
+            ),
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            waterLogCount = 2,
+            seasonalAmplitude = 0.5,
+            recentAdjustments = emptyList(),
+            now = now,
+            isDormant = true,
+            wateringScheduleMode = WateringScheduleMode.DORMANT_CADENCE
+        )!!
+
+        assertEquals(WateringScheduleMode.DORMANT_CADENCE, explanation.wateringScheduleMode)
+        assertEquals(35, explanation.dormantWateringIntervalDays)
+        assertEquals(35, explanation.effectiveIntervalDays)
+        assertEquals(null, explanation.season)
+        assertFalse(explanation.hasNormalWateringSchedule)
     }
 
     @Test

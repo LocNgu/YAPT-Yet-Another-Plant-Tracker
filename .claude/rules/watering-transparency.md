@@ -23,6 +23,11 @@ existing `WateringAdjustmentTrigger.labelRes()` labels in Recent adjustments. A 
 window makes the sheet fully expanded with a bounded inner scroll, so those rows remain reachable on
 short viewports without changing the sheet posture for plants that have no dormancy window.
 
+Product ADR-0046 adds an opted-in fixed dormant watering cadence (#785). In that mode the sheet shows
+the active due date plus a “Dormant schedule · Every N days” row and labels the retained model detail
+as the growing-season schedule; it suppresses the seasonal row because seasonal/adaptive state does
+not drive the dormant date. Only `DORMANT_SUSPENDED` uses the suspension wording.
+
 ## Bug fix that gates everything else (also #572)
 `PlantDetailViewModel.applySuggestedInterval()` (the product ADR-0006 dialog's Apply button — the only place
 #568's adaptive suggestion is ever committed) now dual-writes `wateringBaseIntervalDays` alongside
