@@ -14,14 +14,10 @@ import java.time.temporal.ChronoUnit
  */
 object DormancyWindow {
 
-    private const val SHORT_DORMANT_INTERVAL_DAYS = 28
-    private const val STANDARD_DORMANT_INTERVAL_DAYS = 35
-    private const val LONG_DORMANT_INTERVAL_DAYS = 42
-    val WATERING_INTERVAL_OPTIONS = setOf(
-        SHORT_DORMANT_INTERVAL_DAYS,
-        STANDARD_DORMANT_INTERVAL_DAYS,
-        LONG_DORMANT_INTERVAL_DAYS
-    )
+    const val MIN_WATERING_INTERVAL_WEEKS = 1
+    const val MAX_WATERING_INTERVAL_WEEKS = 12
+    const val DEFAULT_WATERING_INTERVAL_WEEKS = 5
+    private const val DAYS_PER_WEEK = 7
 
     private const val MIN_MONTH = 1
     private const val MAX_MONTH = 12
@@ -73,7 +69,17 @@ object DormancyWindow {
         }
     }
 
-    fun validWateringInterval(days: Int?): Int? = days?.takeIf { it in WATERING_INTERVAL_OPTIONS }
+    /** A dormant cadence is whole weeks, from one to twelve weeks inclusive (#785, product ADR-0047). */
+    fun validWateringInterval(days: Int?): Int? = days?.takeIf {
+        it % DAYS_PER_WEEK == 0 && it / DAYS_PER_WEEK in MIN_WATERING_INTERVAL_WEEKS..MAX_WATERING_INTERVAL_WEEKS
+    }
+
+    fun wateringIntervalWeeks(days: Int?): Int? = validWateringInterval(days)?.div(DAYS_PER_WEEK)
+
+    fun wateringIntervalDays(weeks: Int): Int {
+        require(weeks in MIN_WATERING_INTERVAL_WEEKS..MAX_WATERING_INTERVAL_WEEKS)
+        return weeks * DAYS_PER_WEEK
+    }
 
     /**
      * Walking this many consecutive calendar months (starting anywhere) necessarily visits every

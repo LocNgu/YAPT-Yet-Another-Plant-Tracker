@@ -89,7 +89,7 @@ fun PlantDetailViewModel.setDormancyWindow(
     )
     require(
         dormantWateringIntervalDays == null ||
-            dormantWateringIntervalDays in DormancyWindow.WATERING_INTERVAL_OPTIONS
+            DormancyWindow.validWateringInterval(dormantWateringIntervalDays) != null
     )
     viewModelScope.launch {
         dormancyEditMutex.withLock {

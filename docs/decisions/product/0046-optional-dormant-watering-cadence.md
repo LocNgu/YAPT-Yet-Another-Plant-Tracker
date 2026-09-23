@@ -1,6 +1,6 @@
 # Product ADR-0046: Optional dormant watering cadence
 
-**Status**: accepted
+**Status**: accepted — fixed option clause amended by ADR-0047
 
 **Date**: 2026-09-23
 

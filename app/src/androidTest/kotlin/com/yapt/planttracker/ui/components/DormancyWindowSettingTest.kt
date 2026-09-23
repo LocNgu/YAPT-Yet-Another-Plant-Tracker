@@ -98,7 +98,7 @@ class DormancyWindowSettingTest {
     }
 
     @Test
-    fun dormantWatering_offersOnlySupportedCadences_andDisablingClearsSelection() {
+    fun dormantWatering_usesAWeekSlider_andDisablingClearsSelection() {
         var start by mutableStateOf<Int?>(11)
         var end by mutableStateOf<Int?>(2)
         var cadence by mutableStateOf<Int?>(null)
@@ -110,13 +110,13 @@ class DormancyWindowSettingTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Every 28 days").assertExists()
-        composeTestRule.onNodeWithText("Every 35 days").assertExists().performClick()
-        composeTestRule.onNodeWithText("Every 42 days").assertExists()
-        composeTestRule.onNodeWithText("Every 30 days").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Pause watering").assertExists()
+        composeTestRule.onNodeWithContentDescription("Watering during dormancy").assertIsOff().performClick()
+        composeTestRule.onNodeWithContentDescription("Watering during dormancy").assertIsOn()
+        composeTestRule.onNodeWithText("Every 5 weeks").assertExists()
         composeTestRule.runOnIdle { assertEquals(35, cadence) }
 
-        composeTestRule.onNodeWithContentDescription("Dormancy window").performClick()
+        composeTestRule.onNodeWithContentDescription("Watering during dormancy").performClick()
         composeTestRule.runOnIdle { assertEquals(null, cadence) }
     }
 }

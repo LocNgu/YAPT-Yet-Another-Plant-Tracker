@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringScheduleMode
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
@@ -79,10 +80,10 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
     )
 
     if (explanation.wateringScheduleMode == WateringScheduleMode.DORMANT_CADENCE) {
-        val days = explanation.dormantWateringIntervalDays ?: return
+        val weeks = DormancyWindow.wateringIntervalWeeks(explanation.dormantWateringIntervalDays) ?: return
         ExplanationRow(
             label = stringResource(R.string.watering_explanation_dormant_schedule),
-            value = stringResource(R.string.dormant_watering_every_days, days)
+            value = pluralStringResource(R.plurals.dormant_watering_every_weeks, weeks, weeks)
         )
         if (explanation.hasNormalWateringSchedule) {
             Text(

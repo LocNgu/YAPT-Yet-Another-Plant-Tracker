@@ -1,6 +1,8 @@
 package com.yapt.planttracker.domain.schedule
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -12,6 +14,17 @@ class DormancyWindowTest {
 
     private fun millisAt(year: Int, month: Int, day: Int) =
         LocalDate.of(year, month, day).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+
+    @Test
+    fun `dormant watering cadence accepts whole weeks from one through twelve`() {
+        assertEquals(7, DormancyWindow.validWateringInterval(7))
+        assertEquals(84, DormancyWindow.validWateringInterval(84))
+        assertEquals(8, DormancyWindow.wateringIntervalWeeks(56))
+        assertEquals(56, DormancyWindow.wateringIntervalDays(8))
+        assertNull(DormancyWindow.validWateringInterval(6))
+        assertNull(DormancyWindow.validWateringInterval(85))
+        assertNull(DormancyWindow.validWateringInterval(91))
+    }
 
     // ---- Non-wrapping window (start <= end) ----
 

@@ -81,7 +81,7 @@ class WateringExplanationSheetTest {
         composeTestRule.setContent { WateringExplanationSheet(explanation, onDismiss = {}) }
 
         composeTestRule.onNodeWithText("Dormant schedule").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Every 35 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Every 5 weeks").assertIsDisplayed()
         composeTestRule.onNodeWithText("Growing-season schedule").assertIsDisplayed()
         composeTestRule.onNodeWithText("Suspended during dormancy").assertDoesNotExist()
     }

@@ -78,10 +78,10 @@ class CareScheduleDormancyTest {
     }
 
     @Test
-    fun `dormant-only cadence works without a normal watering interval`() {
+    fun `eight-week dormant-only cadence works without a normal watering interval`() {
         val status = CareSchedule.computeStatus(
-            plant = dormantCadencePlant(cadence = 42, wateringIntervalDays = null),
-            lastWateredAt = LocalDateUtcMillis(2022, 12, 4),
+            plant = dormantCadencePlant(cadence = 56, wateringIntervalDays = null),
+            lastWateredAt = LocalDateUtcMillis(2022, 11, 20),
             lastFertilizedAt = null,
             totalLogs = 1,
             now = now

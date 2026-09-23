@@ -1,6 +1,5 @@
 package com.yapt.planttracker.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,25 +8,29 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** Shared editor for the two nullable month columns (#762). Every change supplies a complete pair. */
 @Composable
@@ -114,28 +117,59 @@ private fun DormancyWindowControls(
             Modifier.weight(1f)
         )
     }
-    Text(stringResource(R.string.dormant_watering_label), style = MaterialTheme.typography.labelMedium)
-    DormantWateringChoice(
-        stringResource(R.string.dormant_watering_suspended),
-        cadence == null
-    ) { onChange(startMonth, endMonth, null) }
-    DormancyWindow.WATERING_INTERVAL_OPTIONS.sorted().forEach { days ->
-        DormantWateringChoice(stringResource(R.string.dormant_watering_every_days, days), cadence == days) {
-            onChange(startMonth, endMonth, days)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val label = if (cadence == null) {
+            stringResource(R.string.dormant_watering_suspended)
+        } else {
+            dormantWateringIntervalLabel(DormancyWindow.wateringIntervalWeeks(cadence)!!)
         }
+        val toggleDescription = stringResource(R.string.dormant_watering_label)
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Switch(
+            checked = cadence != null,
+            onCheckedChange = { enabled ->
+                onChange(
+                    startMonth,
+                    endMonth,
+                    if (enabled) {
+                        DormancyWindow.wateringIntervalDays(DormancyWindow.DEFAULT_WATERING_INTERVAL_WEEKS)
+                    } else {
+                        null
+                    }
+                )
+            },
+            modifier = Modifier.semantics { contentDescription = toggleDescription }
+        )
+    }
+    cadence?.let {
+        var sliderWeeks by remember(it) {
+            mutableIntStateOf(checkNotNull(DormancyWindow.wateringIntervalWeeks(it)))
+        }
+        val sliderLabel = dormantWateringIntervalLabel(sliderWeeks)
+        Slider(
+            value = sliderWeeks.toFloat(),
+            onValueChange = { sliderWeeks = it.roundToInt() },
+            onValueChangeFinished = {
+                onChange(startMonth, endMonth, DormancyWindow.wateringIntervalDays(sliderWeeks))
+            },
+            valueRange = DormancyWindow.MIN_WATERING_INTERVAL_WEEKS.toFloat()..
+                DormancyWindow.MAX_WATERING_INTERVAL_WEEKS.toFloat(),
+            steps = DormancyWindow.MAX_WATERING_INTERVAL_WEEKS - DormancyWindow.MIN_WATERING_INTERVAL_WEEKS - 1,
+            modifier = Modifier.semantics { stateDescription = sliderLabel }
+        )
     }
 }
 
 @Composable
-private fun DormantWateringChoice(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-    }
-}
+private fun dormantWateringIntervalLabel(weeks: Int): String = pluralStringResource(
+    R.plurals.dormant_watering_every_weeks,
+    weeks,
+    weeks
+)
 
 @Composable
 private fun MonthDropdown(label: String, month: Int, onMonthChange: (Int) -> Unit, modifier: Modifier = Modifier) {

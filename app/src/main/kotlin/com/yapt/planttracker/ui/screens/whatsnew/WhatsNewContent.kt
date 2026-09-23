@@ -14,7 +14,7 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
-            "Dormant plants can now keep watering fully paused or use a simple 28-, 35-, or 42-day " +
+            "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
                 "watering schedule. Dormant watering appears in reminders and due dates while fertilizing stays paused",
             "Each plant can now use different fertilizing intervals in Spring, Summer, Autumn, and Winter. " +
                 "Leave any season blank to use the main interval; seasons follow your device's hemisphere, " +

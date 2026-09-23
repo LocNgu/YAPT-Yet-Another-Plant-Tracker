@@ -314,7 +314,10 @@
     <string name="dormancy_window_subtitle">Use a dormant watering schedule during these months</string>
     <string name="dormant_watering_label">Watering during dormancy</string>
     <string name="dormant_watering_suspended">Pause watering</string>
-    <string name="dormant_watering_every_days">Every %1$d days</string>
+    <plurals name="dormant_watering_every_weeks">
+        <item quantity="one">Every %1$d week</item>
+        <item quantity="other">Every %1$d weeks</item>
+    </plurals>
     <string name="dormancy_start_month">Start</string>
     <string name="dormancy_end_month">End</string>
     <string name="dormancy_month_selection_cd">%1$s: %2$s</string>

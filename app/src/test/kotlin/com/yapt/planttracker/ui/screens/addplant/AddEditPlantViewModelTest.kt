@@ -145,7 +145,7 @@ class AddEditPlantViewModelTest {
         assertEquals(11, vm.dormancyStartMonth)
         assertEquals(2, vm.dormancyEndMonth)
         assertEquals(35, vm.dormantWateringIntervalDays)
-        vm.setDormancyWindow(12, 3, 42)
+        vm.setDormancyWindow(12, 3, 56)
         vm.save()
         advanceUntilIdle()
 
@@ -153,7 +153,7 @@ class AddEditPlantViewModelTest {
             plantRepo.updatePlant(
                 match {
                     it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 &&
-                        it.dormantWateringIntervalDays == 42
+                        it.dormantWateringIntervalDays == 56
                 }
             )
         }

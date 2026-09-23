@@ -155,7 +155,7 @@ class AddEditPlantViewModel(
             (startMonth == null && endMonth == null) ||
                 (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
         )
-        require(dormantIntervalDays == null || dormantIntervalDays in DormancyWindow.WATERING_INTERVAL_OPTIONS)
+        require(dormantIntervalDays == null || DormancyWindow.validWateringInterval(dormantIntervalDays) != null)
         dormancyStartMonth = startMonth
         dormancyEndMonth = endMonth
         dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
