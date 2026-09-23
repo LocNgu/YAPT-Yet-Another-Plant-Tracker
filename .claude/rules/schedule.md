@@ -35,8 +35,8 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
   ADR-0019 (#232).
 - No interval configured → "Not scheduled".
 - A configured dormancy window always suppresses fertilizing due/overdue flags. Watering is either
-  fully suspended (`dormantWateringIntervalDays == null`, product ADR-0044) or uses a fixed 28/35/42-day
-  cadence (product ADR-0046). The fixed cadence ignores seasonal/adaptive state, is floored at the
+  fully suspended (`dormantWateringIntervalDays == null`, product ADR-0044) or uses a fixed whole-week
+  cadence of 1–12 weeks (product ADR-0046/product ADR-0047). The fixed cadence ignores seasonal/adaptive state, is floored at the
   current dormant cycle's first day, and becomes the active computed schedule before
   `wateringDueDateOverride` is applied. Only fully suspended plants go in the Dormant list/calendar
   bucket; cadence plants participate normally. Ordinary due dates become active immediately on exit.

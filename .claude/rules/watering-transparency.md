@@ -24,7 +24,7 @@ window makes the sheet fully expanded with a bounded inner scroll, so those rows
 short viewports without changing the sheet posture for plants that have no dormancy window.
 
 Product ADR-0046 adds an opted-in fixed dormant watering cadence (#785). In that mode the sheet shows
-the active due date plus a “Dormant schedule · Every N days” row and labels the retained model detail
+the active due date plus a “Dormant schedule · Every N weeks” row and labels the retained model detail
 as the growing-season schedule; it suppresses the seasonal row because seasonal/adaptive state does
 not drive the dormant date. Only `DORMANT_SUSPENDED` uses the suspension wording.
 

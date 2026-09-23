@@ -13,8 +13,10 @@ cadence appropriate to its species, pot, or indoor conditions.
 ## Decision
 
 Keep `Plant.dormantWateringIntervalDays` as the stored representation, but allow every whole-week
-cadence from one through twelve weeks (7–84 days). The dormancy editor uses a discrete week slider,
-defaulting to five weeks when dormant watering is enabled. `null` still means pause watering.
+cadence from one through twelve weeks (7–84 days). The dormancy editor uses a switch labelled "Dormancy watering interval" and a discrete week slider,
+defaulting to five weeks when the switch is turned on. The switch names what it enables, so turning it
+on starts watering rather than ending a pause; when off (`null`, pause watering) a subtitle states that
+watering reminders are paused.
 
 The twelve-week maximum keeps the dormant cadence bounded to roughly one season and avoids turning a
 care reminder into an implicit multi-season pause. Non-week values and values outside the range are

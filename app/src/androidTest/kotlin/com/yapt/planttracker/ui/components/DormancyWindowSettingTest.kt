@@ -110,13 +110,14 @@ class DormancyWindowSettingTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Pause watering").assertExists()
-        composeTestRule.onNodeWithContentDescription("Watering during dormancy").assertIsOff().performClick()
-        composeTestRule.onNodeWithContentDescription("Watering during dormancy").assertIsOn()
+        composeTestRule.onNodeWithText("Paused — no watering reminders").assertExists()
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").assertIsOff().performClick()
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").assertIsOn()
         composeTestRule.onNodeWithText("Every 5 weeks").assertExists()
+        composeTestRule.onNodeWithText("Paused — no watering reminders").assertDoesNotExist()
         composeTestRule.runOnIdle { assertEquals(35, cadence) }
 
-        composeTestRule.onNodeWithContentDescription("Watering during dormancy").performClick()
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").performClick()
         composeTestRule.runOnIdle { assertEquals(null, cadence) }
     }
 }

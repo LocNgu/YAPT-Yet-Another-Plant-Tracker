@@ -24,8 +24,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.schedule.DormancyWindow
@@ -117,24 +117,40 @@ private fun DormancyWindowControls(
             Modifier.weight(1f)
         )
     }
+    DormantWateringIntervalControl(cadence) { onChange(startMonth, endMonth, it) }
+}
+
+/**
+ * The switch turns the dormant cadence on; its label names what it enables ("Dormancy watering
+ * interval") so switching it on reads as starting watering, not ending a pause (#785). The subtitle
+ * carries the current state and the slider only appears once a cadence exists.
+ */
+@Composable
+private fun DormantWateringIntervalControl(cadence: Int?, onCadenceChange: (Int?) -> Unit) {
+    val label = stringResource(R.string.dormant_watering_label)
+    val persistedWeeks = DormancyWindow.wateringIntervalWeeks(cadence)
+    // Local while dragging so the subtitle follows the thumb; committed on release.
+    var sliderWeeks by remember(persistedWeeks) {
+        mutableIntStateOf(persistedWeeks ?: DormancyWindow.DEFAULT_WATERING_INTERVAL_WEEKS)
+    }
+    val weeksLabel = dormantWateringIntervalLabel(sliderWeeks)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val label = if (cadence == null) {
-            stringResource(R.string.dormant_watering_suspended)
-        } else {
-            dormantWateringIntervalLabel(DormancyWindow.wateringIntervalWeeks(cadence)!!)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (persistedWeeks == null) stringResource(R.string.dormant_watering_suspended) else weeksLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        val toggleDescription = stringResource(R.string.dormant_watering_label)
-        Text(label, style = MaterialTheme.typography.bodyMedium)
         Switch(
-            checked = cadence != null,
+            checked = persistedWeeks != null,
             onCheckedChange = { enabled ->
-                onChange(
-                    startMonth,
-                    endMonth,
+                onCadenceChange(
                     if (enabled) {
                         DormancyWindow.wateringIntervalDays(DormancyWindow.DEFAULT_WATERING_INTERVAL_WEEKS)
                     } else {
@@ -142,27 +158,23 @@ private fun DormancyWindowControls(
                     }
                 )
             },
-            modifier = Modifier.semantics { contentDescription = toggleDescription }
+            modifier = Modifier.semantics { contentDescription = label }
         )
     }
-    cadence?.let {
-        var sliderWeeks by remember(it) {
-            mutableIntStateOf(checkNotNull(DormancyWindow.wateringIntervalWeeks(it)))
-        }
-        val sliderLabel = dormantWateringIntervalLabel(sliderWeeks)
+    if (persistedWeeks != null) {
         Slider(
             value = sliderWeeks.toFloat(),
             onValueChange = { sliderWeeks = it.roundToInt() },
-            onValueChangeFinished = {
-                onChange(startMonth, endMonth, DormancyWindow.wateringIntervalDays(sliderWeeks))
-            },
-            valueRange = DormancyWindow.MIN_WATERING_INTERVAL_WEEKS.toFloat()..
-                DormancyWindow.MAX_WATERING_INTERVAL_WEEKS.toFloat(),
+            onValueChangeFinished = { onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) },
+            valueRange = WEEK_SLIDER_RANGE,
             steps = DormancyWindow.MAX_WATERING_INTERVAL_WEEKS - DormancyWindow.MIN_WATERING_INTERVAL_WEEKS - 1,
-            modifier = Modifier.semantics { stateDescription = sliderLabel }
+            modifier = Modifier.semantics { stateDescription = weeksLabel }
         )
     }
 }
+
+private val WEEK_SLIDER_RANGE =
+    DormancyWindow.MIN_WATERING_INTERVAL_WEEKS.toFloat()..DormancyWindow.MAX_WATERING_INTERVAL_WEEKS.toFloat()
 
 @Composable
 private fun dormantWateringIntervalLabel(weeks: Int): String = pluralStringResource(
