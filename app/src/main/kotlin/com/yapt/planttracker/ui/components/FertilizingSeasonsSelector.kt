@@ -27,12 +27,18 @@ import java.time.LocalDate
  * label (announced along with the rest of the chip's text). The last remaining selected chip
  * renders disabled: tapping it is a no-op, and the standard disabled semantics tell assistive
  * tech why, rather than the tap silently doing nothing.
+ *
+ * [onToggle] reports only the tapped season, not a full replacement set (#804) — building the new
+ * set from [selected] here raced a second tap against Plant Detail's `plant` StateFlow, which can
+ * still hold the pre-first-tap snapshot when the second tap lands. Each caller now applies the
+ * toggle to its own freshest source of truth: Add/Edit Plant's local form state, Plant Detail's
+ * plant row re-read inside `PlantDetailViewModel.intervalEditMutex`.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FertilizingSeasonsSelector(
     selected: Set<FertilizingSeason>,
-    onChange: (Set<FertilizingSeason>) -> Unit,
+    onToggle: (FertilizingSeason) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val hemisphere = remember { SeasonalWatering.currentHemisphere() }
@@ -55,7 +61,7 @@ fun FertilizingSeasonsSelector(
                 FilterChip(
                     selected = isSelected,
                     enabled = !isOnlySelected,
-                    onClick = { onChange(if (isSelected) selected - season else selected + season) },
+                    onClick = { onToggle(season) },
                     label = { Text(label) }
                 )
             }

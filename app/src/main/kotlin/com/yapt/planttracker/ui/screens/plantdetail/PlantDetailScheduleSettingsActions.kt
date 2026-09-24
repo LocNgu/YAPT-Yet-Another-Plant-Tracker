@@ -11,11 +11,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
-/** "Pin interval" switch on the inline Water tab settings card (#569), always visible (#656). */
+/**
+ * "Pin interval" switch on the inline Water tab settings card (#569), always visible (#656). Reads
+ * the plant fresh inside [PlantDetailViewModel.intervalEditMutex] (#804) rather than the cached
+ * `plant` StateFlow, which a season-toggle or liquid-fertilizer write sharing this lock can still
+ * have in flight.
+ */
 fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
     viewModelScope.launch {
-        plant.value?.let {
-            plantRepository.updatePlant(it.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
+        intervalEditMutex.withLock {
+            val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
+            plantRepository.updatePlant(p.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
         }
     }
 }
@@ -70,21 +76,39 @@ internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant
     return (plant.wateringBaseIntervalDays ?: literal.toDouble()).roundToInt()
 }
 
-/** Inline auto-save for the Fertilize tab's season selector (#795); rejects an empty set, same as Add/Edit Plant. */
-fun PlantDetailViewModel.setFertilizingSeasons(seasons: Set<FertilizingSeason>) {
-    if (seasons.isEmpty()) return
+/**
+ * Inline auto-save for the Fertilize tab's season selector (#795). [FertilizingSeasonsSelector]
+ * reports the tapped [season] rather than a full replacement set (#804) — this reads the plant
+ * fresh inside [PlantDetailViewModel.intervalEditMutex], applies the toggle to *that* set, and
+ * rejects (writes nothing) if the result would be empty, same rule as Add/Edit Plant but checked
+ * against the freshly read row rather than the cached `plant` StateFlow. A prior season toggle, or
+ * a liquid-fertilizer/pin-interval write sharing this lock, can still be in flight when the next
+ * one starts — that race, not the "at least one season" rule itself, is what #804 fixed.
+ */
+fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
     viewModelScope.launch {
-        plant.value?.let { p ->
-            plantRepository.updatePlant(
-                p.copy(fertilizingSeasons = seasons, updatedAt = System.currentTimeMillis())
-            )
+        intervalEditMutex.withLock {
+            val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
+            val newSeasons = if (season in p.fertilizingSeasons) {
+                p.fertilizingSeasons - season
+            } else {
+                p.fertilizingSeasons + season
+            }
+            if (newSeasons.isEmpty()) return@withLock
+            plantRepository.updatePlant(p.copy(fertilizingSeasons = newSeasons, updatedAt = System.currentTimeMillis()))
         }
     }
 }
 
+/**
+ * Liquid-fertilizer switch on the Fertilize tab's inline settings card. Reads the plant fresh
+ * inside [PlantDetailViewModel.intervalEditMutex] (#804) rather than the cached `plant` StateFlow,
+ * which a season-toggle or pin-interval write sharing this lock can still have in flight.
+ */
 fun PlantDetailViewModel.setLiquidFertilizer(enabled: Boolean) {
     viewModelScope.launch {
-        plant.value?.let { p ->
+        intervalEditMutex.withLock {
+            val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
             plantRepository.updatePlant(p.copy(useLiquidFertilizer = enabled, updatedAt = System.currentTimeMillis()))
         }
     }

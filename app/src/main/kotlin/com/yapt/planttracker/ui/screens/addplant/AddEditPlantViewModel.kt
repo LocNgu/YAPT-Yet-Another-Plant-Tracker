@@ -149,13 +149,17 @@ class AddEditPlantViewModel(
     }
 
     /**
-     * At least one season must always stay active — an empty set is rejected, keeping the previous
-     * selection (#795). Named `update*`, not `set*`, to avoid a platform declaration clash with the
-     * [fertilizingSeasons] property's own Kotlin-generated setter.
+     * [FertilizingSeasonsSelector] reports the tapped season, not a full replacement set (#804) —
+     * this applies it to the local [fertilizingSeasons] form state, which this screen never shares
+     * with another writer, so no staleness guard beyond the plain in-memory read is needed here (see
+     * `PlantDetailViewModel.toggleFertilizingSeason` for the fresh-read-under-lock equivalent). At
+     * least one season must always stay active — a toggle that would empty the set is rejected,
+     * keeping the previous selection (#795).
      */
-    fun updateFertilizingSeasons(seasons: Set<FertilizingSeason>) {
-        if (seasons.isEmpty()) return
-        fertilizingSeasons = seasons
+    fun toggleFertilizingSeason(season: FertilizingSeason) {
+        val newSeasons = if (season in fertilizingSeasons) fertilizingSeasons - season else fertilizingSeasons + season
+        if (newSeasons.isEmpty()) return
+        fertilizingSeasons = newSeasons
     }
 
     fun save() {

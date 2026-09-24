@@ -366,7 +366,7 @@ fun AddEditPlantScreen(
                     )
                     FertilizingSeasonsSelector(
                         selected = viewModel.fertilizingSeasons,
-                        onChange = viewModel::updateFertilizingSeasons
+                        onToggle = viewModel::toggleFertilizingSeason
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

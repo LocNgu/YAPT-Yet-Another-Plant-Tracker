@@ -42,7 +42,7 @@ class FertilizingSeasonsSelectorTest {
     @Test
     fun everySeasonSelected_everyChipShowsSelected() {
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = FertilizingSeason.entries.toSet(), onChange = {})
+            FertilizingSeasonsSelector(selected = FertilizingSeason.entries.toSet(), onToggle = {})
         }
 
         FertilizingSeason.entries.forEach { season ->
@@ -55,7 +55,10 @@ class FertilizingSeasonsSelectorTest {
         val (current, others) = currentSeasonAndOthers()
         var selected by mutableStateOf(setOf(current))
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = selected, onChange = { selected = it })
+            FertilizingSeasonsSelector(
+                selected = selected,
+                onToggle = { season -> selected = if (season in selected) selected - season else selected + season }
+            )
         }
 
         val toAdd = others.first()
@@ -71,7 +74,10 @@ class FertilizingSeasonsSelectorTest {
         val toRemove = others.first()
         var selected by mutableStateOf(setOf(current, toRemove))
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = selected, onChange = { selected = it })
+            FertilizingSeasonsSelector(
+                selected = selected,
+                onToggle = { season -> selected = if (season in selected) selected - season else selected + season }
+            )
         }
 
         composeTestRule.onNodeWithText(seasonLabel(toRemove), substring = true).assertIsEnabled().performClick()
@@ -83,7 +89,7 @@ class FertilizingSeasonsSelectorTest {
     fun lastRemainingSelectedChip_isDisabled_soATapCannotDeselectIt() {
         val (current, _) = currentSeasonAndOthers()
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = setOf(current), onChange = {})
+            FertilizingSeasonsSelector(selected = setOf(current), onToggle = {})
         }
 
         // Disabled is the user-visible (and screen-reader-announced) signal that this chip's tap
@@ -98,7 +104,7 @@ class FertilizingSeasonsSelectorTest {
     fun currentSeasonChip_announcesItselfAsTheCurrentSeason() {
         val (current, _) = currentSeasonAndOthers()
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = FertilizingSeason.entries.toSet(), onChange = {})
+            FertilizingSeasonsSelector(selected = FertilizingSeason.entries.toSet(), onToggle = {})
         }
 
         val expectedLabel = targetContext().getString(R.string.fertilizing_current_season, seasonLabel(current))

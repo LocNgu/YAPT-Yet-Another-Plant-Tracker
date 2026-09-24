@@ -299,35 +299,38 @@ class PlantDetailViewModelTest {
     }
 
     @Test
-    fun `setFertilizingSeasons persists a non-empty set via repo`() = runTest {
-        val monstera = plant()
+    fun `toggleFertilizingSeason persists the toggled set via repo`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER))
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.setFertilizingSeasons(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER))
+            vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
             cancelAndIgnoreRemainingEvents()
         }
 
         coVerify {
             plantRepo.updatePlant(
-                match { it.fertilizingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER) }
+                match {
+                    it.fertilizingSeasons ==
+                        setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER, FertilizingSeason.AUTUMN)
+                }
             )
         }
     }
 
     @Test
-    fun `setFertilizingSeasons rejects an empty set`() = runTest {
-        val monstera = plant()
+    fun `toggleFertilizingSeason rejects a toggle that would empty the set`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = makeVm()
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.setFertilizingSeasons(emptySet())
+            vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
             cancelAndIgnoreRemainingEvents()
         }
 
