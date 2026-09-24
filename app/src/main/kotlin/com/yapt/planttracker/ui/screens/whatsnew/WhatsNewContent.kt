@@ -12,22 +12,32 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased",
-        added = listOf(
-            "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
-                "watering schedule. Dormant watering appears in reminders and due dates while fertilizing stays paused",
-            "Choose which seasons a plant fertilizes in — Spring, Summer, Autumn, Winter, any combination — " +
-                "at its one existing interval. An inactive season is never due or overdue, and the plant " +
-                "becomes due again exactly on the first day of its next active season. Seasons follow your " +
-                "device's hemisphere and default to every season, so existing plants are unchanged; a " +
-                "configured dormancy window still pauses fertilizing reminders on top of this",
-            "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
-                "for exact one-day (or one-week) nudges, with a light haptic tick while dragging"
-        )
+        versionName = "Unreleased"
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 480,
+            versionName = "0.32.0",
+            added = listOf(
+                "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
+                    "watering schedule. Dormant watering appears in reminders and due dates while " +
+                    "fertilizing stays paused",
+                "Choose which seasons a plant fertilizes in — Spring, Summer, Autumn, Winter, any combination — " +
+                    "at its one existing interval. An inactive season is never due or overdue, and the plant " +
+                    "becomes due again exactly on the first day of its next active season. Seasons follow your " +
+                    "device's hemisphere and default to every season, so existing plants are unchanged; a " +
+                    "configured dormancy window pauses fertilizing reminders on top of this",
+                "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
+                    "for exact one-day (or one-week) nudges, with a light haptic tick while dragging"
+            ),
+            changed = listOf(
+                "A plant's dormancy window now pauses its fertilizing reminders too, not just watering. " +
+                    "While dormant it won't show as due for fertilizing on the Plant List, Calendar, or in " +
+                    "the daily reminder, and fertilizing picks back up from its normal schedule afterwards"
+            )
+        ),
         ReleaseNotes(
             versionCode = 470,
             versionName = "0.31.0",

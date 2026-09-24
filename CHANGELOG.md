@@ -12,10 +12,17 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+---
+
+## [0.32.0] - 2026-09-24
+
 ### Added
 - **Interval sliders now have −/+ stepper buttons for exact 1-unit nudges** — watering, fertilizing, and repotting on Add/Edit Plant, watering and fertilizing on Plant Detail's inline cards, and the dormant watering cadence slider all gained flanking decrease/increase buttons alongside the existing slider, plus a light haptic tick while dragging across a step. Buttons are disabled at each range's bounds, each has a setting-specific accessibility label, and the slider announces its current value after every change — including on Add/Edit Plant, which now also gets a live spoken value. On Plant Detail's watering/fertilizing cards, a burst of stepper taps now coalesces into a single save and a single history entry after a brief pause, rather than one for every tap, and that pending save is never lost even if you navigate away right after tapping (#531, product ADR-0048/product ADR-0050)
 - **Optional watering during dormancy** — a plant's dormancy window can now keep the existing full pause or use a fixed 1–12 week watering cadence. The dormant cadence ignores seasonal/adaptive interval changes, appears normally in due lists, Calendar, notifications, and “Why this date?”, and is preserved in `.yapt` backups; fertilizing remains paused (#785, product ADR-0046/product ADR-0047)
-- **Fertilizing active seasons** — choose which of Spring, Summer, Autumn, and Winter a plant fertilizes in, at its one existing interval; an inactive season is never due or overdue, and re-entering an active season makes the plant due that day rather than "overdue by months." Seasons follow the device timezone's hemisphere and default to every season, so existing plants are unchanged. Add/Edit Plant and Plant Detail's Fertilize tab share the same inline, always-editable season chips (at least one must stay selected), `.yapt` backups preserve the choice, and the existing dormancy window still independently pauses fertilizing reminders on top of this (#286, #795, product ADR-0049, superseding product ADR-0045's four separate per-season intervals, which never shipped in a release)
+- **Fertilizing active seasons** — choose which of Spring, Summer, Autumn, and Winter a plant fertilizes in, at its one existing interval; an inactive season is never due or overdue, and re-entering an active season makes the plant due that day rather than "overdue by months." Seasons follow the device timezone's hemisphere and default to every season, so existing plants are unchanged. Add/Edit Plant and Plant Detail's Fertilize tab share the same inline, always-editable season chips (at least one must stay selected), `.yapt` backups preserve the choice, and a configured dormancy window independently pauses fertilizing reminders on top of this (see Changed below) (#286, #795, product ADR-0049, superseding product ADR-0045's four separate per-season intervals, which never shipped in a release)
+
+### Changed
+- **A plant's dormancy window now pauses fertilizing reminders as well as watering** — in 0.31.0, dormancy only suspended watering and fertilizing stayed on its normal schedule. A plant inside its dormancy window is now never shown as due or overdue for fertilizing: the Plant List's Fertilizing due sort groups it under Dormant, Calendar omits its fertilizing dates inside the window, and it drops out of the daily care notification's fertilizing reminders. The underlying fertilizing due date is still tracked and becomes active again once the window ends. Repotting and custom reminders are unaffected (#286, product ADR-0049)
 
 ---
 
