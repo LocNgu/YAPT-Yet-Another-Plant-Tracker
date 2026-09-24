@@ -237,6 +237,7 @@ fun PlantCard(
 
                     if (status.plant.fertilizingIntervalDays != null) {
                         val fertColor = when {
+                            status.isDormant -> MaterialTheme.colorScheme.onSurfaceVariant
                             status.isFertilizingOverdue -> OverdueRed
                             status.isFertilizingDueSoon -> WarnOrange
                             else -> OkGreen
@@ -246,6 +247,7 @@ fun PlantCard(
                             stringResource(R.string.fert_label_fertilizing, DateUtils.formatRelative(it))
                         }
                         val fertLabel = when {
+                            status.isDormant -> stringResource(R.string.date_group_dormant)
                             status.plant.useLiquidFertilizer &&
                                 (status.isFertilizingOverdue || status.isFertilizingDueSoon) ->
                                 stringResource(R.string.fert_label_due_with_watering)
