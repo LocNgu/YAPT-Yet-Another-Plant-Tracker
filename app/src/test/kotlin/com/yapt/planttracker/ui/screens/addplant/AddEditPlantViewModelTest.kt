@@ -220,61 +220,50 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `seasonal fertilizing intervals load and round-trip in edit mode`() = runTest {
+    fun `fertilizingSeasons loads and round-trips in edit mode`() = runTest {
         val existing = plant().copy(
             fertilizingIntervalDays = 30,
-            fertilizingIntervalSpring = 21,
-            fertilizingIntervalSummer = 14,
-            fertilizingIntervalAutumn = 35,
-            fertilizingIntervalWinter = null
+            fertilizingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
         )
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertEquals(false, vm.sameFertilizingIntervalAllSeasons)
-        assertEquals(21, vm.fertilizingIntervalSpring)
-        assertEquals(14, vm.fertilizingIntervalSummer)
-        assertEquals(35, vm.fertilizingIntervalAutumn)
-        assertEquals(null, vm.fertilizingIntervalWinter)
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.fertilizingSeasons)
         vm.save()
         advanceUntilIdle()
 
         coVerify {
             plantRepo.updatePlant(
-                match {
-                    it.fertilizingIntervalSpring == 21 &&
-                        it.fertilizingIntervalSummer == 14 &&
-                        it.fertilizingIntervalAutumn == 35 &&
-                        it.fertilizingIntervalWinter == null
-                }
+                match { it.fertilizingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER) }
             )
         }
     }
 
     @Test
-    fun `same for all seasons clears every seasonal fertilizing slot`() = runTest {
+    fun `updateFertilizingSeasons saves the newly chosen set`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Fern"
         vm.fertilizingIntervalEnabled = true
-        vm.updateSameFertilizingIntervalAllSeasons(false)
-        vm.setFertilizingSeasonInterval(FertilizingSeason.SUMMER, 14)
-        vm.updateSameFertilizingIntervalAllSeasons(true)
+        vm.updateFertilizingSeasons(setOf(FertilizingSeason.WINTER))
 
         vm.save()
         advanceUntilIdle()
 
         coVerify {
-            plantRepo.addPlant(
-                match {
-                    it.fertilizingIntervalSpring == null &&
-                        it.fertilizingIntervalSummer == null &&
-                        it.fertilizingIntervalAutumn == null &&
-                        it.fertilizingIntervalWinter == null
-                }
-            )
+            plantRepo.addPlant(match { it.fertilizingSeasons == setOf(FertilizingSeason.WINTER) })
         }
+    }
+
+    @Test
+    fun `updateFertilizingSeasons rejects an empty set and keeps the previous selection`() = runTest {
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.updateFertilizingSeasons(setOf(FertilizingSeason.SUMMER))
+
+        vm.updateFertilizingSeasons(emptySet())
+
+        assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
     }
 
     @Test

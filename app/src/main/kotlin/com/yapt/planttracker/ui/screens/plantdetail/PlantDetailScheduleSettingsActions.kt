@@ -5,6 +5,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.DormancyWindow
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
@@ -210,6 +211,18 @@ private suspend fun PlantDetailViewModel.writeFertilizingIntervalLocked(days: In
     intervalEditMutex.withLock {
         val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
         plantRepository.updatePlant(p.copy(fertilizingIntervalDays = days, updatedAt = System.currentTimeMillis()))
+    }
+}
+
+/** Inline auto-save for the Fertilize tab's season selector (#795); rejects an empty set, same as Add/Edit Plant. */
+fun PlantDetailViewModel.setFertilizingSeasons(seasons: Set<FertilizingSeason>) {
+    if (seasons.isEmpty()) return
+    viewModelScope.launch {
+        plant.value?.let { p ->
+            plantRepository.updatePlant(
+                p.copy(fertilizingSeasons = seasons, updatedAt = System.currentTimeMillis())
+            )
+        }
     }
 }
 
