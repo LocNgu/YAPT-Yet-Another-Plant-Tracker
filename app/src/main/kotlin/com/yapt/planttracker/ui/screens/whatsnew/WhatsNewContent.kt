@@ -36,8 +36,9 @@ object WhatsNewContent {
             changed = listOf(
                 "A plant's dormancy window now pauses its fertilizing reminders too, not just watering. " +
                     "While dormant it's left out of the daily fertilizing reminder, grouped under Dormant when " +
-                    "sorting by fertilizing, and its fertilizing dates are left off the Calendar; fertilizing " +
-                    "picks back up from its normal schedule afterwards"
+                    "sorting by fertilizing, shows Dormant on its plant card instead of a countdown, and its " +
+                    "fertilizing dates are left off the Calendar; fertilizing picks back up from its normal " +
+                    "schedule afterwards"
             )
         ),
         ReleaseNotes(
