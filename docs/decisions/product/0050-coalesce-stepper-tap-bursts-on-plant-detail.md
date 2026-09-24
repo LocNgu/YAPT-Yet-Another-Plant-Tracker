@@ -1,4 +1,4 @@
-# Product ADR-0049: Coalesce a burst of −/+ taps on Plant Detail's inline interval cards
+# Product ADR-0050: Coalesce a burst of −/+ taps on Plant Detail's inline interval cards
 
 **Status**: accepted
 
@@ -47,7 +47,7 @@ product ADR-0048's original behaviour for those two inputs unchanged. Only a ste
 (`viaButtonTap = true`) is coalesced:
 
 - A tap starts (or restarts) a **1-second quiet-window timer**
-  (`INTERVAL_TAP_COALESCE_WINDOW_MS`, `PlantDetailScheduleSettingsActions.kt`). Each subsequent tap
+  (`INTERVAL_TAP_COALESCE_WINDOW_MS`, `PlantDetailIntervalEditActions.kt`). Each subsequent tap
   within that window cancels the previous timer and starts a fresh one carrying the *new* target value
   — so only the value from the *last* tap in a burst is ever written, and the timer only fires once the
   user has stopped tapping for a full second.

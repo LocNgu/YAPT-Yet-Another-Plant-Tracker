@@ -65,7 +65,7 @@ class PlantDetailViewModel(
     /**
      * A scope that outlives [viewModelScope] (#531 review round 1, product ADR-0048) — production
      * wiring passes `YaptApplication`'s process-wide `applicationScope` via [Factory]. The watering/
-     * fertilizing interval writes in `PlantDetailScheduleSettingsActions.kt` always execute here, not
+     * fertilizing interval writes in `PlantDetailIntervalEditActions.kt` always execute here, not
      * on `viewModelScope`, so a coalesced −/+ tap edit's write is never lost to the screen being left
      * before its debounce window elapses. Defaults to an independent scope (rather than requiring every
      * existing test call site to supply one) — production code always gets the shared instance because
@@ -78,7 +78,7 @@ class PlantDetailViewModel(
     internal val dormancyEditMutex = Mutex()
 
     /**
-     * Serializes the watering/fertilizing interval writes in `PlantDetailScheduleSettingsActions.kt`
+     * Serializes the watering/fertilizing interval writes in `PlantDetailIntervalEditActions.kt`
      * (#531 review round 1, product ADR-0048) and forces each one to re-read the plant fresh rather
      * than the (potentially stale) cached [plant] StateFlow snapshot — a prior write from the same
      * burst, or a concurrent edit from another surface, can still be in flight when the next one starts.

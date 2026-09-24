@@ -28,7 +28,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * #531 review round 1 (product ADR-0048/product ADR-0049): the stale-snapshot race (a burst of −/+
+ * #531 review round 1 (product ADR-0048/product ADR-0050): the stale-snapshot race (a burst of −/+
  * taps writing from the same cached `plant.value`) and the tap-burst coalescing window. Each test
  * shares [mainDispatcherRule]'s single [kotlinx.coroutines.test.TestDispatcher] between `runTest`,
  * `viewModelScope` (via [MainDispatcherRule] swapping `Dispatchers.Main`), and the ViewModel's
