@@ -73,9 +73,9 @@ object SeasonalFertilizing {
      * is active.
      *
      * A raw date **on or before** [nowDate] cannot use that same rule alone — the raw date's own
-     * season can be active while a long inactive gap has since opened up between it and today (#795
-     * fix-round bug: e.g. Spring+Summer active, last fertilized in August; the raw date lands in
-     * Summer and is returned unchanged, but the plant then reads overdue for the entire Sep–Feb
+     * season can be active while a long inactive gap has since opened up between it and today (e.g.
+     * Spring+Summer active, last fertilized in August: the raw date lands in Summer and would
+     * otherwise be returned unchanged, but the plant would then read overdue for the entire Sep–Feb
      * inactive stretch instead of "not due"). Past-or-present raw dates are instead evaluated against
      * *today's* season:
      * - [nowDate]'s season inactive → the start of day of the 1st of the first following month whose

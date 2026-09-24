@@ -29,17 +29,16 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
     active, else the start of day of the 1st of the first following month whose season is active.
   - **Past-or-present raw** (on or before `nowDate`): evaluated against *today's* season instead of
     the raw date's own, because the raw date's season can be active while a long inactive gap has
-    since opened up between it and today (fix-round bug: a plant last fertilized in an active month
-    then left unfertilized read overdue for the entire following inactive season, up to when it
-    finally re-entered an active one, rather than reading not-due once the gap it was overdue by
-    crossed into that inactive season). If today's season is inactive, the result is the start of day
-    of the 1st of the first following month whose season is active (a future date — not due, not
+    since opened up between it and today — a plant last fertilized in an active month and then left
+    unfertilized only reads overdue up to where that gap crosses into the next inactive season, not
+    for that inactive season's entire span. If today's season is inactive, the result is the start of
+    day of the 1st of the first following month whose season is active (a future date — not due, not
     overdue). If today's season is active, `SeasonalFertilizing` finds the start of the *contiguous
     run* of active months ending at today's month (walking backward while the previous month is also
     active — this correctly spans a run that wraps the year boundary, e.g. Autumn+Winter active); the
     raw date is used unchanged when it already falls on or after that run's start (still overdue from
-    the real raw date, same as before this fix), otherwise the run's start is the due date — due today
-    while still in that first month, overdue once past it.
+    the real raw date), otherwise the run's start is the due date — due today while still in that
+    first month, overdue once past it.
   Adaptive watering never touches this; no learning, confidence, or adjustment history.
 - **Repotting** — first-due for a never-repotted plant is `createdAt + interval` (private generic
   `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
