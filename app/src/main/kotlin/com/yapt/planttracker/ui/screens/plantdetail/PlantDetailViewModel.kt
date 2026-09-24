@@ -79,9 +79,11 @@ class PlantDetailViewModel(
 
     /**
      * Serializes the watering/fertilizing interval writes in `PlantDetailIntervalEditActions.kt`
-     * (#531 review round 1, product ADR-0048) and forces each one to re-read the plant fresh rather
-     * than the (potentially stale) cached [plant] StateFlow snapshot — a prior write from the same
-     * burst, or a concurrent edit from another surface, can still be in flight when the next one starts.
+     * (#531 review round 1, product ADR-0048), plus the fertilizing season toggle, liquid-fertilizer
+     * switch, and pin-interval switch writes in `PlantDetailScheduleSettingsActions.kt` (#804) — and
+     * forces each one to re-read the plant fresh rather than the (potentially stale) cached [plant]
+     * StateFlow snapshot — a prior write from the same burst, or a concurrent edit from another inline
+     * setting, can still be in flight when the next one starts.
      */
     internal val intervalEditMutex = Mutex()
 

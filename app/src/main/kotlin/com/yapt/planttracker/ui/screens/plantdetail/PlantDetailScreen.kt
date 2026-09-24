@@ -874,7 +874,7 @@ fun PlantDetailScreen(
                                         plant?.let { p ->
                                             FertilizingSeasonsSelector(
                                                 selected = p.fertilizingSeasons,
-                                                onChange = { viewModel.setFertilizingSeasons(it) }
+                                                onToggle = { viewModel.toggleFertilizingSeason(it) }
                                             )
                                             val fertilizingHemisphere =
                                                 remember { SeasonalWatering.currentHemisphere() }
