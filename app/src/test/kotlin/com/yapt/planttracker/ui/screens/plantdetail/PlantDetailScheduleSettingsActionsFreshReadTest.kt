@@ -3,7 +3,6 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
@@ -16,8 +15,11 @@ import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -122,26 +124,50 @@ class PlantDetailScheduleSettingsActionsFreshReadTest {
     @Test
     fun `a toggle that would empty the freshly read set is rejected even with a stale 2-season cached snapshot`() =
         runTest(mainDispatcherRule.testDispatcher) {
-            val stored = MutableStateFlow<Plant?>(
+            // `PlantDetailViewModel.init` keeps a permanent subscriber on `plant` alive for the
+            // VM's whole lifetime (the photo-reminder check), so under `UnconfinedTestDispatcher` a
+            // single shared hot flow would deliver a same-instant `stored.value = ...` write to
+            // `plant.value` immediately, regardless of whether the production code under test reads
+            // `plant.value` or re-reads the repository fresh — that shape doesn't actually exercise
+            // the fix (#804 review round 1). Modelled instead with two *separate* stubbed flows:
+            // `getPlantById` is called exactly once to build the VM's own `plant` StateFlow (at
+            // construction) and once more per fresh read inside `intervalEditMutex` (this test's one
+            // `toggleFertilizingSeason` call) — `returnsMany` hands back a different, independent
+            // flow for each, so `plant.value` genuinely cannot see the second one.
+            val staleTwoSeasonRow =
                 plant(fertilizingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER))
+            val freshOneSeasonRow = plant(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
+            every { careLogRepo.getLogsForPlant(1L) } returns flowOf(emptyList())
+            every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(emptyList())
+            every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(emptyList())
+            every { customReminderRepo.getRemindersForPlant(1L) } returns flowOf(emptyList())
+            every { plantIssueRepo.getActiveIssuesForPlant(1L) } returns flowOf(emptyList())
+            every { plantRepo.getPlantById(1L) } returnsMany
+                listOf(flowOf(staleTwoSeasonRow), flowOf(freshOneSeasonRow))
+            coEvery { plantRepo.updatePlant(any()) } just runs
+
+            val vm = PlantDetailViewModel(
+                plantRepo,
+                careLogRepo,
+                plantPhotoRepo,
+                1L,
+                dataStore,
+                quickLogUseCase,
+                customReminderRepo,
+                plantIssueRepo,
+                database,
+                wateringAdjustmentRepo
             )
-            val vm = makeVm(stored)
+            advanceUntilIdle()
 
-            // Populate the cached `plant` StateFlow with the 2-season snapshot, then stop collecting
-            // it — its `.value` now lags behind `stored`, same as a screen that hasn't recomposed
-            // since a write landed from elsewhere.
-            vm.plant.test {
-                assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), awaitItem()?.fertilizingSeasons)
-                cancelAndIgnoreRemainingEvents()
-            }
-
-            // A write from elsewhere narrows the real row to one season, behind the cached snapshot's back.
-            stored.value = stored.value?.copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
+            // Confirms the setup actually models staleness — if this ever stops holding, the test
+            // below stops meaning anything, so assert it explicitly rather than assuming it.
+            assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.plant.value?.fertilizingSeasons)
 
             vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
             advanceUntilIdle()
 
-            assertEquals(setOf(FertilizingSeason.SPRING), stored.value?.fertilizingSeasons)
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         }
 
     @Test
