@@ -1,6 +1,5 @@
 package com.yapt.planttracker.ui.components
 
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -17,7 +16,9 @@ import org.junit.runner.RunWith
 /**
  * #802: a dormant plant's fertilizing label must show "Dormant" instead of a due/overdue
  * countdown, mirroring the watering label's existing [WateringScheduleMode.DORMANT_SUSPENDED]
- * branch. Assertions are on the user-visible label text only (#420), never tree structure.
+ * branch. Assertions are on the user-visible label text only (#420), never tree structure: the
+ * card's clickable modifier merges every label into one semantics node, so the tests assert which
+ * texts are shown, not how many nodes carry them.
  */
 @RunWith(AndroidJUnit4::class)
 class PlantCardTest {
@@ -59,8 +60,9 @@ class PlantCardTest {
             PlantCard(status = status, onClick = {}, onQuickWater = {}, onQuickFertilize = {})
         }
 
-        // Both the watering and fertilizing labels read "Dormant" while fully suspended.
-        composeTestRule.onAllNodesWithText("Dormant").assertCountEquals(2)
+        // Both labels read "Dormant" while fully suspended; before #802 the fertilizing label
+        // showed "Overdue by 3 days" here instead.
+        composeTestRule.onAllNodesWithText("Dormant")[0].assertIsDisplayed()
         composeTestRule.onNode(hasText("Overdue", substring = true)).assertDoesNotExist()
     }
 
@@ -87,9 +89,9 @@ class PlantCardTest {
         }
 
         // Fertilizing is always paused during dormancy, even with a #785 dormant watering
-        // cadence configured, so exactly one "Dormant" node (fertilizing) is shown here, while
-        // watering shows its own countdown text instead.
-        composeTestRule.onAllNodesWithText("Dormant").assertCountEquals(1)
+        // cadence configured: watering shows its own countdown, so "Dormant" can only come from
+        // the fertilizing label.
+        composeTestRule.onAllNodesWithText("Dormant")[0].assertIsDisplayed()
         composeTestRule.onNodeWithText("In 2 days").assertIsDisplayed()
         composeTestRule.onNode(hasText("Overdue", substring = true)).assertDoesNotExist()
     }
@@ -117,6 +119,6 @@ class PlantCardTest {
         }
 
         composeTestRule.onNodeWithText("Overdue by 3 days").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Dormant").assertCountEquals(0)
+        composeTestRule.onNode(hasText("Dormant")).assertDoesNotExist()
     }
 }
