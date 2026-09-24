@@ -1,6 +1,6 @@
 # Product ADR-0048: Slider + flanking stepper buttons on every integer interval slider
 
-**Status**: accepted
+**Status**: accepted — Plant Detail inline card tap-commit clause amended by [ADR-0050](0050-coalesce-stepper-tap-bursts-on-plant-detail.md)
 
 **Date**: 2026-09-23
 
