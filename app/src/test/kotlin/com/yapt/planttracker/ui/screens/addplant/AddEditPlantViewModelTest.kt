@@ -241,12 +241,15 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `updateFertilizingSeasons saves the newly chosen set`() = runTest {
+    fun `toggleFertilizingSeason saves the newly chosen set`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Fern"
         vm.fertilizingIntervalEnabled = true
-        vm.updateFertilizingSeasons(setOf(FertilizingSeason.WINTER))
+        // Starts at every season (the default); toggling the other three off leaves only WINTER.
+        vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+        vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
+        vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
 
         vm.save()
         advanceUntilIdle()
@@ -257,14 +260,18 @@ class AddEditPlantViewModelTest {
     }
 
     @Test
-    fun `updateFertilizingSeasons rejects an empty set and keeps the previous selection`() = runTest {
-        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.updateFertilizingSeasons(setOf(FertilizingSeason.SUMMER))
+    fun `toggleFertilizingSeason rejects a toggle that would empty the set and keeps the previous selection`() =
+        runTest {
+            val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+            vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+            vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
+            vm.toggleFertilizingSeason(FertilizingSeason.WINTER)
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
 
-        vm.updateFertilizingSeasons(emptySet())
+            vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
 
-        assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
-    }
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+        }
 
     @Test
     fun `useLiquidFertilizer true saved in new plant mode`() = runTest {

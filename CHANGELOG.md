@@ -24,6 +24,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - **A plant's dormancy window now pauses fertilizing reminders as well as watering** — in 0.31.0, dormancy only suspended watering and fertilizing stayed on its normal schedule. A plant inside its dormancy window no longer counts as due or overdue for fertilizing: it drops out of the daily care notification's fertilizing reminders, the Plant List's Fertilizing due sort groups it under Dormant, and Calendar omits its fertilizing dates inside the window. The plant card's fertilizing label now shows Dormant in the neutral colour instead of a countdown, matching the watering label, and becomes active again once the window ends. Repotting and custom reminders are unaffected (#286, #802, product ADR-0049)
 
+### Fixed
+- **Rapid fertilizing season-chip taps on Plant Detail could silently lose a selection** — tapping two season chips in quick succession could drop the first tap's change when the second landed before Room echoed the first write back. The season selector now reports only the tapped season rather than a full replacement set, and Plant Detail applies it to a freshly read plant row inside the same lock already serializing the watering/fertilizing interval writes (product ADR-0050) — the liquid-fertilizer and pin-interval switches on the same tab share that fix too, so none of the three can undo each other or a concurrent interval edit. The "at least one season must stay selected" rule is now checked against that freshly read set rather than a possibly-stale cached one. This never reached a release — found in review on the 0.32.0 release PR before it shipped (#804)
+
 ---
 
 ## [0.31.0] - 2026-09-22
