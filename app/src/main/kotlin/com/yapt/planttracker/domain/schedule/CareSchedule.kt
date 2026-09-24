@@ -306,13 +306,17 @@ object CareSchedule {
         nowDate: LocalDate,
         hemisphere: Hemisphere
     ): DueStatus {
-        val intervalDays = SeasonalFertilizing.effectiveInterval(plant, nowDate, hemisphere)
+        val intervalDays = plant.fertilizingIntervalDays
         val nextFertilizingDueAt = if (intervalDays == null) {
             null
-        } else if (lastFertilizedAt != null) {
-            lastFertilizedAt + TimeUnit.DAYS.toMillis(intervalDays.toLong())
         } else {
-            plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+            val rawDueAt = if (lastFertilizedAt != null) {
+                lastFertilizedAt + TimeUnit.DAYS.toMillis(intervalDays.toLong())
+            } else {
+                plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+            }
+            // #795 (product ADR-0049): shift out of an inactive season, including the grace date.
+            SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere, nowDate)
         }
 
         return dueStatusFor(nextFertilizingDueAt, nowDate)

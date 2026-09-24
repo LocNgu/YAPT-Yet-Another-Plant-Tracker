@@ -46,11 +46,9 @@ class MigrationTest15To16 {
                 "wateringIntervalDays, fertilizingIntervalDays, createdAt, updatedAt, " +
                 "wateringDueDateOverride, useLiquidFertilizer, archivedAt, repottingIntervalDays, " +
                 "wateringConfidence, wateringBaseIntervalDays, pinIntervalToBase, wateringResetAt, " +
-                "wateringFreezeUntil, dormancyStartMonth, dormancyEndMonth, " +
-                "fertilizingIntervalSpring, fertilizingIntervalSummer, fertilizingIntervalAutumn, " +
-                "fertilizingIntervalWinter) VALUES " +
+                "wateringFreezeUntil, dormancyStartMonth, dormancyEndMonth, fertilizingSeasons) VALUES " +
                 "(1, 'Cactus', NULL, NULL, NULL, NULL, 7, 30, 1000, 1000, NULL, 0, NULL, NULL, " +
-                "NULL, NULL, 0, NULL, NULL, 11, 2, NULL, NULL, NULL, NULL)"
+                "NULL, NULL, 0, NULL, NULL, 11, 2, NULL)"
         )
     }
 

@@ -19,6 +19,7 @@ import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -295,6 +296,42 @@ class PlantDetailViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+    }
+
+    @Test
+    fun `setFertilizingSeasons persists a non-empty set via repo`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setFertilizingSeasons(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER))
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match { it.fertilizingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER) }
+            )
+        }
+    }
+
+    @Test
+    fun `setFertilizingSeasons rejects an empty set`() = runTest {
+        val monstera = plant()
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setFertilizingSeasons(emptySet())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test

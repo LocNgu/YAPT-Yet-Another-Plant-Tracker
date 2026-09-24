@@ -16,9 +16,11 @@ object WhatsNewContent {
         added = listOf(
             "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
                 "watering schedule. Dormant watering appears in reminders and due dates while fertilizing stays paused",
-            "Each plant can now use different fertilizing intervals in Spring, Summer, Autumn, and Winter. " +
-                "Leave any season blank to use the main interval; seasons follow your device's hemisphere, " +
-                "and a configured dormancy window pauses fertilizing reminders too",
+            "Choose which seasons a plant fertilizes in — Spring, Summer, Autumn, Winter, any combination — " +
+                "at its one existing interval. An inactive season is never due or overdue, and the plant " +
+                "becomes due again exactly on the first day of its next active season. Seasons follow your " +
+                "device's hemisphere and default to every season, so existing plants are unchanged; a " +
+                "configured dormancy window still pauses fertilizing reminders on top of this",
             "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
                 "for exact one-day (or one-week) nudges, with a light haptic tick while dragging"
         )

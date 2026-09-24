@@ -35,11 +35,8 @@ class BackupModelsTest {
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
-        dormantWateringIntervalDays = dormantWateringIntervalDays,
-        fertilizingIntervalSpring = fertilizingIntervalSpring,
-        fertilizingIntervalSummer = fertilizingIntervalSummer,
-        fertilizingIntervalAutumn = fertilizingIntervalAutumn,
-        fertilizingIntervalWinter = fertilizingIntervalWinter
+        fertilizingSeasons = fertilizingSeasons,
+        dormantWateringIntervalDays = dormantWateringIntervalDays
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -61,11 +58,8 @@ class BackupModelsTest {
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
-        dormantWateringIntervalDays = dormantWateringIntervalDays,
-        fertilizingIntervalSpring = fertilizingIntervalSpring,
-        fertilizingIntervalSummer = fertilizingIntervalSummer,
-        fertilizingIntervalAutumn = fertilizingIntervalAutumn,
-        fertilizingIntervalWinter = fertilizingIntervalWinter
+        fertilizingSeasons = fertilizingSeasons,
+        dormantWateringIntervalDays = dormantWateringIntervalDays
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -111,11 +105,8 @@ class BackupModelsTest {
         wateringFreezeUntil = 1_652_000_000_000L,
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
-        dormantWateringIntervalDays = 35,
-        fertilizingIntervalSpring = 21,
-        fertilizingIntervalSummer = 14,
-        fertilizingIntervalAutumn = 30,
-        fertilizingIntervalWinter = 45
+        fertilizingSeasons = "SPRING,SUMMER",
+        dormantWateringIntervalDays = 35
     )
 
     private val fullLog = CareLogEntity(
@@ -152,11 +143,8 @@ class BackupModelsTest {
         assertEquals(fullPlant.wateringFreezeUntil, bp.wateringFreezeUntil)
         assertEquals(fullPlant.dormancyStartMonth, bp.dormancyStartMonth)
         assertEquals(fullPlant.dormancyEndMonth, bp.dormancyEndMonth)
+        assertEquals(fullPlant.fertilizingSeasons, bp.fertilizingSeasons)
         assertEquals(fullPlant.dormantWateringIntervalDays, bp.dormantWateringIntervalDays)
-        assertEquals(fullPlant.fertilizingIntervalSpring, bp.fertilizingIntervalSpring)
-        assertEquals(fullPlant.fertilizingIntervalSummer, bp.fertilizingIntervalSummer)
-        assertEquals(fullPlant.fertilizingIntervalAutumn, bp.fertilizingIntervalAutumn)
-        assertEquals(fullPlant.fertilizingIntervalWinter, bp.fertilizingIntervalWinter)
     }
 
     @Test

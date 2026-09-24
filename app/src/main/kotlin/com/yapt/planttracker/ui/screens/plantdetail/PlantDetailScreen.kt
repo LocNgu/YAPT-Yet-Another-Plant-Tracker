@@ -98,16 +98,17 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.WateringScheduleMode
+import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.EmptyStateView
+import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
-import com.yapt.planttracker.ui.components.SeasonalFertilizingSummary
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
@@ -118,6 +119,7 @@ import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 /** Test tag on the Plant Detail scrolling `LazyColumn`, so instrumented tests can scroll it to a
  *  specific node on the small (320x640) CI emulator without ambiguity with the chart's own scroll. */
@@ -865,11 +867,35 @@ fun PlantDetailScreen(
                                     onIntervalChange = { viewModel.setFertilizingInterval(it) }
                                 ) {
                                     if (plant?.fertilizingIntervalDays != null) {
-                                        plant?.let {
-                                            SeasonalFertilizingSummary(
-                                                plant = it,
-                                                onEdit = onNavigateToEdit
+                                        plant?.let { p ->
+                                            FertilizingSeasonsSelector(
+                                                selected = p.fertilizingSeasons,
+                                                onChange = { viewModel.setFertilizingSeasons(it) }
                                             )
+                                            val fertilizingHemisphere =
+                                                remember { SeasonalWatering.currentHemisphere() }
+                                            val currentFertilizingSeason = remember(fertilizingHemisphere) {
+                                                SeasonalFertilizing.season(LocalDate.now(), fertilizingHemisphere)
+                                            }
+                                            if (currentFertilizingSeason !in p.fertilizingSeasons) {
+                                                careStatus?.nextFertilizingDueAt?.let { dueAt ->
+                                                    Text(
+                                                        text = stringResource(
+                                                            R.string.fertilizing_out_of_season,
+                                                            DateUtils.formatDate(dueAt)
+                                                        ),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                            if (p.dormancyStartMonth != null && p.dormancyEndMonth != null) {
+                                                Text(
+                                                    text = stringResource(R.string.fertilizing_dormancy_pause_note),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
