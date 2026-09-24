@@ -30,12 +30,14 @@ object WhatsNewContent {
                     "device's hemisphere and default to every season, so existing plants are unchanged; a " +
                     "configured dormancy window pauses fertilizing reminders on top of this",
                 "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
-                    "for exact one-day (or one-week) nudges, with a light haptic tick while dragging"
+                    "for exact one-step nudges — a day, week, or month depending on the setting — with a " +
+                    "light haptic tick while dragging"
             ),
             changed = listOf(
                 "A plant's dormancy window now pauses its fertilizing reminders too, not just watering. " +
-                    "While dormant it won't show as due for fertilizing on the Plant List, Calendar, or in " +
-                    "the daily reminder, and fertilizing picks back up from its normal schedule afterwards"
+                    "While dormant it's left out of the daily fertilizing reminder, grouped under Dormant when " +
+                    "sorting by fertilizing, and its fertilizing dates are left off the Calendar; fertilizing " +
+                    "picks back up from its normal schedule afterwards"
             )
         ),
         ReleaseNotes(
