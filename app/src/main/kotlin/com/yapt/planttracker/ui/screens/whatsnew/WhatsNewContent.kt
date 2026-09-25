@@ -17,8 +17,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         fixed = listOf(
-            "Fertilizing season chips now clearly show which seasons are selected — a checkmark and green " +
-                "fill instead of a muted grey that looked unselected. The last remaining active season stays " +
+            "Fertilizing season chips now clearly show which seasons are selected — a green fill instead " +
+                "of a muted grey that looked unselected. The last remaining active season stays " +
                 "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
                 "at least one season must stay active",
             "Backup exports now include archived plants and their full history (care logs, photos, custom " +

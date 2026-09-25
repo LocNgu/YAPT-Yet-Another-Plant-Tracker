@@ -24,11 +24,12 @@ deliberately out of scope here (filed as a separate follow-up, #814).
 
 ## Decision
 
-**Selection state never depends on fill color alone.** A selected chip gets a checkmark
-`leadingIcon` (Material 3's own filter-chip guidance) plus a `primaryContainer`/`onPrimaryContainer`
-fill (`FilterChipDefaults.filterChipColors(selectedContainerColor = primaryContainer,
-selectedLabelColor = onPrimaryContainer, selectedLeadingIconColor = onPrimaryContainer)`) — green in
-both themes, matching this app's "selected/active/on" convention elsewhere. This is scoped to
+**Selected chips read as on.** A selected chip gets a `primaryContainer`/`onPrimaryContainer` fill
+(`FilterChipDefaults.filterChipColors(selectedContainerColor = primaryContainer, selectedLabelColor =
+onPrimaryContainer)`) — green in both themes, matching this app's "selected/active/on" convention
+elsewhere. No checkmark `leadingIcon`: on device, a checkmark on every chip of a default all-selected
+row read as too much. The non-color cue is the outline, which an unselected `FilterChip` has and a
+selected one drops; TalkBack gets the selected state from the chip's own semantics. This is scoped to
 `FertilizingSeasonsSelector` only, not `Theme.kt`'s `secondaryContainer` role or any other
 `FilterChip` in the app (`ReasonBottomSheets.kt`, `WateringHistoryChart.kt`, `PlantListScreen.kt`,
 `AddCareLogScreen.kt`, `CareTypeChip.kt` are unaffected and keep the Material 3 default palette,
@@ -56,7 +57,7 @@ event.
 
 **The current-season marker moves out of the visible label — amending ADR-0049's visible-label
 clause.** The chip's visible text is now always the plain season name (no `%1$s · Current season`
-suffix competing with the new checkmark). The current season instead gets a small decorative
+suffix). The current season instead gets a small decorative
 trailing dot (`contentDescription = null`), and the "current season" wording moves into the chip's
 `stateDescription` semantics, so TalkBack still announces it — reusing the same string resource
 (`fertilizing_current_season`), reworded from a `%1$s · Current season` template to a plain "Current
@@ -65,7 +66,8 @@ season" state description since the season name itself is no longer part of that
 ## Consequences
 
 - With default settings (every season selected), all four chips now read unambiguously as on —
-  checkmark plus green fill — in both light and dark theme; an unselected chip shows neither. This
+  green fill with no outline — in both light and dark theme; an unselected chip is outlined with no
+  fill. This
   directly fixes the "tapped to turn on, actually turned off" confusion #813 reports.
 - The last-chip lock is now discoverable (snackbar text) rather than a silently muted control, at
   the cost of one more concept (a decorative wiggle plus a shared snackbar helper) than the disabled
