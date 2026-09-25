@@ -33,7 +33,7 @@ Alternatives considered:
 **Every `FilterChip` in the app uses one shared colour set, `yaptFilterChipColors()`**
 (`ui/components/YaptFilterChipColors.kt`): a selected chip gets a `primaryContainer`/`onPrimaryContainer`
 fill, green in both themes, exactly what ADR-0051 chose for the season chips. The season chips now call the
-same function, so the seven call-site groups cannot drift apart. Unselected colours stay at Material's
+same function, so the six files that declare a `FilterChip` cannot drift apart. Unselected colours stay at Material's
 defaults. Still no checkmark `leadingIcon`, for ADR-0051's reason; the outline an unselected chip has and
 a selected one drops remains the non-color cue, and `CareTypeChip` keeps its care-type icon (tinted
 `onPrimaryContainer` when selected).
