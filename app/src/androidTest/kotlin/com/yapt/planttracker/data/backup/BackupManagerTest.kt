@@ -850,6 +850,66 @@ class BackupManagerTest {
     }
 
     @Test
+    fun manifestReferencesNeverWrittenPhoto_restoresAsNull() = runBlocking {
+        // Simulates a backup exported by pre-#817 code (or a zip corrupted after export), where the
+        // manifest references a photo path that was never actually written into the zip — the exact
+        // dangling-URI shape #817's restore-side hardening guards against, independent of whether the
+        // export-side race that used to produce it can still occur.
+        val danglingJson = """
+            {
+              "schemaVersion": 20,
+              "exportedAt": 1000,
+              "appVersion": "1.0",
+              "plants": [
+                {
+                  "id": 1,
+                  "name": "DanglingPlant",
+                  "createdAt": 1000,
+                  "updatedAt": 1000,
+                  "coverPhotoUri": "photos/never-written-cover.jpg"
+                }
+              ],
+              "careLogs": [
+                {
+                  "id": 1,
+                  "plantId": 1,
+                  "careType": "WATER",
+                  "loggedAt": 2000,
+                  "photoUri": "photos/never-written-log.jpg"
+                }
+              ],
+              "settings": {"notificationsEnabled": true, "reminderHour": 9, "reminderMinute": 0}
+            }
+        """.trimIndent()
+
+        val zipFile = tmpFolder.newFile("dangling_manifest.yapt")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("backup.json"))
+            zip.write(danglingJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+            // Deliberately no "photos/never-written-*.jpg" entry — the manifest claims photos that
+            // were never actually copied into this zip.
+        }
+
+        val result = backupManager.importBackup(Uri.fromFile(zipFile))
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
+
+        val restoredPlants = db.plantDao().getAllPlants().first()
+        assertEquals(1, restoredPlants.size)
+        assertNull(
+            "A manifest-only photo reference with no matching zip entry must restore to null",
+            restoredPlants[0].coverPhotoUri
+        )
+
+        val restoredLogs = db.careLogDao().getAllLogs().first()
+        assertEquals(1, restoredLogs.size)
+        assertNull(
+            "A manifest-only photo reference with no matching zip entry must restore to null",
+            restoredLogs[0].photoUri
+        )
+    }
+
+    @Test
     fun exportFailure_tempFileDeleted() = runBlocking {
         val cacheFilesBefore = context.cacheDir.listFiles()?.toSet() ?: emptySet()
 

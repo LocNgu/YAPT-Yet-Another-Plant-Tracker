@@ -21,7 +21,10 @@ object WhatsNewContent {
                 "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
                 "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
                 "leaving a broken reference after restore, and the export success message reports how many " +
-                "photos were skipped"
+                "photos were skipped",
+            "Backup exports now avoid a rare dangling-photo-reference edge case and count it accurately; " +
+                "restoring an older or corrupted backup no longer writes a broken photo reference into the " +
+                "database"
         )
     )
 
