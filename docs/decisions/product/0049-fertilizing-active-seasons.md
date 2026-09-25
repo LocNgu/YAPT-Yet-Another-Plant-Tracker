@@ -1,6 +1,6 @@
 # Product ADR-0049: Fertilizing active seasons
 
-**Status**: accepted
+**Status**: accepted — disabled-last-chip enforcement and visible current-season label clauses amended by [ADR-0051](0051-fertilizing-season-chip-selection-cues.md)
 
 **Date**: 2026-09-23
 

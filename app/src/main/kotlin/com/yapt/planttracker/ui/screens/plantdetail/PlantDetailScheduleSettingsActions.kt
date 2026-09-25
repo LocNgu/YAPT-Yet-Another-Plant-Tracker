@@ -83,10 +83,19 @@ internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant
  * rejects (writes nothing) if the result would be empty, same rule as Add/Edit Plant but checked
  * against the freshly read row rather than the cached `plant` StateFlow. A prior season toggle, or
  * a liquid-fertilizer/pin-interval write sharing this lock, can still be in flight when the next
- * one starts — that race, not the "at least one season" rule itself, is what #804 fixed.
+ * one starts — that race, not the "at least one season" rule itself, is what #804 fixed. A
+ * rejection here is no longer silent (#813, product ADR-0051): it emits
+ * [PlantDetailViewModel.Event.FertilizingSeasonToggleRejected] so the screen can show the same
+ * snackbar the composable's own locked-chip tap shows — emitted **after** [withLock] releases the
+ * mutex, not from inside it: `_events` is unbuffered, so `emitEvent` suspends until the screen's
+ * collector is ready, which can itself be suspended for up to `SnackbarDuration.Long` showing an
+ * unrelated Snackbar. Emitting under the lock would hold it for that whole wait, stalling every
+ * other write sharing `intervalEditMutex` (`setPinIntervalToBase`, `setLiquidFertilizer`, another
+ * season toggle) behind it.
  */
 fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
     viewModelScope.launch {
+        var rejected = false
         intervalEditMutex.withLock {
             val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
             val newSeasons = if (season in p.fertilizingSeasons) {
@@ -94,8 +103,14 @@ fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
             } else {
                 p.fertilizingSeasons + season
             }
-            if (newSeasons.isEmpty()) return@withLock
+            if (newSeasons.isEmpty()) {
+                rejected = true
+                return@withLock
+            }
             plantRepository.updatePlant(p.copy(fertilizingSeasons = newSeasons, updatedAt = System.currentTimeMillis()))
+        }
+        if (rejected) {
+            emitEvent(PlantDetailViewModel.Event.FertilizingSeasonToggleRejected)
         }
     }
 }

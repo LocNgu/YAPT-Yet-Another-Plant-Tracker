@@ -116,6 +116,7 @@ import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.util.showSnackbarOnce
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
 import kotlinx.coroutines.launch
@@ -238,6 +239,7 @@ fun PlantDetailScreen(
     val intervalAutoAppliedTemplate = stringResource(R.string.interval_auto_applied_snackbar)
     val rescheduleRevertedMessage = stringResource(R.string.reschedule_reverted_snackbar)
     val undoLabel = stringResource(R.string.snackbar_undo)
+    val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -261,6 +263,8 @@ fun PlantDetailScreen(
                         viewModel.undoRevertReschedule(event.previousOverrideAtMillis)
                     }
                 }
+                is PlantDetailViewModel.Event.FertilizingSeasonToggleRejected ->
+                    snackbarHostState.showSnackbarOnce(lastSeasonLockedMessage)
                 else -> {}
             }
         }
@@ -874,7 +878,12 @@ fun PlantDetailScreen(
                                         plant?.let { p ->
                                             FertilizingSeasonsSelector(
                                                 selected = p.fertilizingSeasons,
-                                                onToggle = { viewModel.toggleFertilizingSeason(it) }
+                                                onToggle = { viewModel.toggleFertilizingSeason(it) },
+                                                onLastSeasonLocked = {
+                                                    coroutineScope.launch {
+                                                        snackbarHostState.showSnackbarOnce(lastSeasonLockedMessage)
+                                                    }
+                                                }
                                             )
                                             val fertilizingHemisphere =
                                                 remember { SeasonalWatering.currentHemisphere() }
