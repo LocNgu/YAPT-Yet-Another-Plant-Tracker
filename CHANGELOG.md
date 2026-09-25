@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Backup exports were missing archived plants and could silently drop unreadable photos** — an archived plant, its care history, photos, custom reminders, issues, and watering adjustments are now included in every `.yapt` export and restore archived; a photo whose source can no longer be opened (a lapsed gallery permission, a deleted image, an un-synced cloud photo) is now skipped instead of leaving a broken reference after restore, and the export success message now reports how many photos were skipped (#743)
+
 ---
 
 ## [0.32.0] - 2026-09-24

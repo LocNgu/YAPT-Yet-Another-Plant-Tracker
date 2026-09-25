@@ -8,11 +8,21 @@ data class ReleaseNotes(
     val changed: List<String> = emptyList()
 )
 
+// A growing list of release-notes string literals, not accumulated behavior — LargeClass's usual
+// "split this up" signal doesn't apply to a single append-only data table.
+@Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        fixed = listOf(
+            "Backup exports now include archived plants and their full history (care logs, photos, custom " +
+                "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
+                "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
+                "leaving a broken reference after restore, and the export success message reports how many " +
+                "photos were skipped"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut.

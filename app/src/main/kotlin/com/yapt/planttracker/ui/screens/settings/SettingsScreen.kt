@@ -211,7 +211,17 @@ fun SettingsScreen(
             when (result) {
                 is BackupResult.ExportSuccess ->
                     snackbarMessages.tryEmit(
-                        String.format(exportSuccessFormat, result.plantCount, result.logCount)
+                        if (result.skippedPhotoCount > 0) {
+                            context.resources.getQuantityString(
+                                R.plurals.backup_export_success_with_skipped_photos,
+                                result.skippedPhotoCount,
+                                result.plantCount,
+                                result.logCount,
+                                result.skippedPhotoCount
+                            )
+                        } else {
+                            String.format(exportSuccessFormat, result.plantCount, result.logCount)
+                        }
                     )
                 is BackupResult.ImportSuccess ->
                     onRestoreSuccess(result.plantCount, result.logCount)
