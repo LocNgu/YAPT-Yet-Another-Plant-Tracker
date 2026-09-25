@@ -15,29 +15,33 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased",
-        fixed = listOf(
-            "Selected filter chips now clearly read as selected across the app — a green fill instead of a " +
-                "grey-brown (light theme) or grey-purple (dark theme) that made unselected chips look more " +
-                "\"on\" than selected ones",
-            "Fertilizing season chips now clearly show which seasons are selected — a green fill instead " +
-                "of a muted grey that looked unselected. The last remaining active season stays " +
-                "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
-                "at least one season must stay active",
-            "Backup exports now include archived plants and their full history (care logs, photos, custom " +
-                "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
-                "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
-                "leaving a broken reference after restore, and the export success message reports how many " +
-                "photos were skipped",
-            "Backup exports now avoid a rare dangling-photo-reference edge case and count it accurately; " +
-                "restoring an older or corrupted backup no longer writes a broken photo reference into the " +
-                "database"
-        )
+        versionName = "Unreleased"
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 490,
+            versionName = "0.32.1",
+            fixed = listOf(
+                "Selected filter chips now clearly read as selected across the app — a green fill instead of a " +
+                    "grey-brown (light theme) or grey-purple (dark theme) that made unselected chips look more " +
+                    "\"on\" than selected ones",
+                "Fertilizing season chips now clearly show which seasons are selected — a green fill instead " +
+                    "of a muted grey that looked unselected. The last remaining active season stays " +
+                    "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
+                    "at least one season must stay active",
+                "Backup exports now include archived plants and their full history (care logs, photos, custom " +
+                    "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
+                    "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
+                    "leaving a broken reference after restore, and the export success message reports how many " +
+                    "photos were skipped",
+                "Backup exports now avoid a rare dangling-photo-reference edge case and count it accurately; " +
+                    "restoring an older or corrupted backup no longer writes a broken photo reference into the " +
+                    "database"
+            )
+        ),
         ReleaseNotes(
             versionCode = 480,
             versionName = "0.32.0",
