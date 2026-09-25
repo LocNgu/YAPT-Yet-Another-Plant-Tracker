@@ -36,10 +36,11 @@ import java.util.zip.ZipOutputStream
 // derived collection (careLogs, photos, reminders, issues, watering adjustments) is keyed off the
 // full plant list, so archiving a plant no longer silently drops its history from future backups.
 // Old backups deserialize archivedAt to null (unarchived), the correct reading of a backup written
-// before archiving round-tripped. Also (#743): the photoMapping entries populated during export are
-// now gated on a successful probe-open of the source URI, so an unreadable photo is omitted from the
-// manifest rather than left as a dangling reference after restore; BackupResult.ExportSuccess gained
-// skippedPhotoCount to surface that instead of reporting unqualified success.
+// before archiving round-tripped. Also (#743, folded into a single write-then-map pass by #817 —
+// see the Mechanics section in .claude/rules/backup.md): the photoMapping entries populated during
+// export are gated on a successful open+write of the source URI, so an unreadable photo is omitted
+// from the manifest rather than left as a dangling reference after restore; BackupResult.ExportSuccess
+// gained skippedPhotoCount to surface that instead of reporting unqualified success.
 // Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
 // the full watering pause established by product ADR-0044.
 // Schema 18 (#795, product ADR-0049, redefined in place — never released, superseding #286's
@@ -153,156 +154,166 @@ class BackupManager(
 
             val photoMapping = mutableMapOf<String, String>()
             var skippedPhotoCount = 0
-            if (includePhotos) {
-                val candidateUris = linkedSetOf<String>()
-                for (plant in plants) plant.coverPhotoUri?.let { candidateUris.add(it) }
-                for (log in careLogs) log.photoUri?.let { candidateUris.add(it) }
-                for (photo in allPlantPhotos) candidateUris.add(photo.uri)
-
-                // Probe-then-map (#743): only a URI whose source can actually be opened is added to
-                // photoMapping, so the manifest built from this map never claims a photo exists that
-                // openPhoto() (and thus writePhotosToZip()) can't produce. This makes every downstream
-                // `photoMapping[uri]` lookup naturally resolve an unreadable photo to null instead of
-                // a dangling zip path, with no change needed at those lookup sites.
-                for (uri in candidateUris) {
-                    val opened = openPhoto(uri)
-                    if (opened != null) {
-                        opened.close()
-                        photoMapping[uri] = buildZipPhotoName(uri)
-                    } else {
-                        skippedPhotoCount++
-                    }
-                }
-            }
-
-            val backupPlants = plants.map { entity ->
-                BackupPlant(
-                    id = entity.id,
-                    name = entity.name,
-                    species = entity.species,
-                    room = entity.room,
-                    coverPhotoUri = if (includePhotos) entity.coverPhotoUri?.let { photoMapping[it] } else null,
-                    notes = entity.notes,
-                    wateringIntervalDays = entity.wateringIntervalDays,
-                    fertilizingIntervalDays = entity.fertilizingIntervalDays,
-                    repottingIntervalDays = entity.repottingIntervalDays,
-                    createdAt = entity.createdAt,
-                    updatedAt = entity.updatedAt,
-                    wateringDueDateOverride = entity.wateringDueDateOverride,
-                    useLiquidFertilizer = entity.useLiquidFertilizer,
-                    wateringConfidence = entity.wateringConfidence,
-                    wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
-                    pinIntervalToBase = entity.pinIntervalToBase,
-                    wateringResetAt = entity.wateringResetAt,
-                    wateringFreezeUntil = entity.wateringFreezeUntil,
-                    dormancyStartMonth = entity.dormancyStartMonth,
-                    dormancyEndMonth = entity.dormancyEndMonth,
-                    fertilizingSeasons = SeasonalFertilizing.encode(
-                        SeasonalFertilizing.decode(entity.fertilizingSeasons)
-                    ),
-                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays,
-                    archivedAt = entity.archivedAt
-                )
-            }
-
-            val backupLogs = careLogs.map { entity ->
-                BackupCareLog(
-                    id = entity.id,
-                    plantId = entity.plantId,
-                    careType = entity.careType,
-                    loggedAt = entity.loggedAt,
-                    notes = entity.notes,
-                    photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
-                    amount = entity.amount,
-                    wateringFeedback = entity.wateringFeedback,
-                    fertilizerType = entity.fertilizerType,
-                    customReminderId = entity.customReminderId
-                )
-            }
-
-            val backupCustomReminders = customReminders.map { entity ->
-                BackupCustomReminder(
-                    id = entity.id,
-                    plantId = entity.plantId,
-                    name = entity.name,
-                    intervalDays = entity.intervalDays,
-                    lastDoneAt = entity.lastDoneAt,
-                    createdAt = entity.createdAt
-                )
-            }
-
-            val backupPlantIssues = plantIssues.map { entity ->
-                BackupPlantIssue(
-                    id = entity.id,
-                    plantId = entity.plantId,
-                    name = entity.name,
-                    startedAt = entity.startedAt,
-                    resolvedAt = entity.resolvedAt,
-                    resolutionNote = entity.resolutionNote,
-                    linkedReminderId = entity.linkedReminderId
-                )
-            }
-
-            val backupPlantPhotos = allPlantPhotos.map { entity ->
-                BackupPlantPhoto(
-                    id = entity.id,
-                    plantId = entity.plantId,
-                    uri = if (includePhotos) photoMapping[entity.uri] else entity.uri,
-                    capturedAt = entity.capturedAt
-                )
-            }
-
-            val backupWateringAdjustments = wateringAdjustments.map { entity ->
-                BackupWateringAdjustment(
-                    id = entity.id,
-                    plantId = entity.plantId,
-                    triggeredAt = entity.triggeredAt,
-                    trigger = entity.trigger,
-                    beforeIntervalDays = entity.beforeIntervalDays,
-                    afterIntervalDays = entity.afterIntervalDays
-                )
-            }
-
-            val backupRoot = BackupRoot(
-                schemaVersion = CURRENT_SCHEMA_VERSION,
-                exportedAt = System.currentTimeMillis(),
-                appVersion = runCatching {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                }.getOrNull() ?: "1.0",
-                plants = backupPlants,
-                careLogs = backupLogs,
-                plantPhotos = backupPlantPhotos,
-                customReminders = backupCustomReminders,
-                plantIssues = backupPlantIssues,
-                wateringAdjustments = backupWateringAdjustments,
-                settings = BackupSettings(
-                    notificationsEnabled = notificationsEnabled,
-                    reminderHour = reminderHour,
-                    reminderMinute = reminderMinute,
-                    keepScreenOn = keepScreenOn,
-                    combineNotifications = combineNotifications,
-                    photoReminderEnabled = photoReminderEnabled,
-                    themeMode = themeMode,
-                    fertilizingNotificationsEnabled = fertilizingNotificationsEnabled,
-                    askBeforeChangingIntervals = askBeforeChangingIntervals,
-                    seasonalAmplitude = seasonalAmplitude,
-                    postWateringReminderEnabled = postWateringReminderEnabled
-                )
-            )
-
-            val jsonString = backupJson.encodeToString(BackupRoot.serializer(), backupRoot)
 
             val tempFile = File(context.cacheDir, UUID.randomUUID().toString())
             try {
                 tempFile.outputStream().buffered().use { tempOut ->
                     ZipOutputStream(tempOut).use { zip ->
+                        // Write-then-map (#817, folding the #743 probe into the real write): each
+                        // candidate photo is opened exactly once, right where it's actually copied into
+                        // the zip, so photoMapping can never claim a photo exists that wasn't written —
+                        // there's no longer a window between "probed OK" and "written" for a photo to
+                        // become unreadable in. skippedPhotoCount counts every failure at this single
+                        // point, subsuming what used to be separate probe-stage and write-stage counts.
+                        if (includePhotos) {
+                            val candidateUris = linkedSetOf<String>()
+                            for (plant in plants) plant.coverPhotoUri?.let { candidateUris.add(it) }
+                            for (log in careLogs) log.photoUri?.let { candidateUris.add(it) }
+                            for (photo in allPlantPhotos) candidateUris.add(photo.uri)
+
+                            for (uri in candidateUris) {
+                                val input = openPhoto(uri)
+                                if (input == null) {
+                                    skippedPhotoCount++
+                                    continue
+                                }
+                                val zipPath = buildZipPhotoName(uri)
+                                input.use {
+                                    zip.putNextEntry(ZipEntry(zipPath))
+                                    if (optimizePhotos) copyOptimizedPhotoToZip(it, zip, zipPath) else it.copyTo(zip)
+                                    zip.closeEntry()
+                                }
+                                photoMapping[uri] = zipPath
+                            }
+                        }
+
+                        val backupPlants = plants.map { entity ->
+                            BackupPlant(
+                                id = entity.id,
+                                name = entity.name,
+                                species = entity.species,
+                                room = entity.room,
+                                coverPhotoUri = if (includePhotos) {
+                                    entity.coverPhotoUri?.let { photoMapping[it] }
+                                } else {
+                                    null
+                                },
+                                notes = entity.notes,
+                                wateringIntervalDays = entity.wateringIntervalDays,
+                                fertilizingIntervalDays = entity.fertilizingIntervalDays,
+                                repottingIntervalDays = entity.repottingIntervalDays,
+                                createdAt = entity.createdAt,
+                                updatedAt = entity.updatedAt,
+                                wateringDueDateOverride = entity.wateringDueDateOverride,
+                                useLiquidFertilizer = entity.useLiquidFertilizer,
+                                wateringConfidence = entity.wateringConfidence,
+                                wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
+                                pinIntervalToBase = entity.pinIntervalToBase,
+                                wateringResetAt = entity.wateringResetAt,
+                                wateringFreezeUntil = entity.wateringFreezeUntil,
+                                dormancyStartMonth = entity.dormancyStartMonth,
+                                dormancyEndMonth = entity.dormancyEndMonth,
+                                fertilizingSeasons = SeasonalFertilizing.encode(
+                                    SeasonalFertilizing.decode(entity.fertilizingSeasons)
+                                ),
+                                dormantWateringIntervalDays = entity.dormantWateringIntervalDays,
+                                archivedAt = entity.archivedAt
+                            )
+                        }
+
+                        val backupLogs = careLogs.map { entity ->
+                            BackupCareLog(
+                                id = entity.id,
+                                plantId = entity.plantId,
+                                careType = entity.careType,
+                                loggedAt = entity.loggedAt,
+                                notes = entity.notes,
+                                photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
+                                amount = entity.amount,
+                                wateringFeedback = entity.wateringFeedback,
+                                fertilizerType = entity.fertilizerType,
+                                customReminderId = entity.customReminderId
+                            )
+                        }
+
+                        val backupCustomReminders = customReminders.map { entity ->
+                            BackupCustomReminder(
+                                id = entity.id,
+                                plantId = entity.plantId,
+                                name = entity.name,
+                                intervalDays = entity.intervalDays,
+                                lastDoneAt = entity.lastDoneAt,
+                                createdAt = entity.createdAt
+                            )
+                        }
+
+                        val backupPlantIssues = plantIssues.map { entity ->
+                            BackupPlantIssue(
+                                id = entity.id,
+                                plantId = entity.plantId,
+                                name = entity.name,
+                                startedAt = entity.startedAt,
+                                resolvedAt = entity.resolvedAt,
+                                resolutionNote = entity.resolutionNote,
+                                linkedReminderId = entity.linkedReminderId
+                            )
+                        }
+
+                        val backupPlantPhotos = allPlantPhotos.map { entity ->
+                            BackupPlantPhoto(
+                                id = entity.id,
+                                plantId = entity.plantId,
+                                uri = if (includePhotos) photoMapping[entity.uri] else entity.uri,
+                                capturedAt = entity.capturedAt
+                            )
+                        }
+
+                        val backupWateringAdjustments = wateringAdjustments.map { entity ->
+                            BackupWateringAdjustment(
+                                id = entity.id,
+                                plantId = entity.plantId,
+                                triggeredAt = entity.triggeredAt,
+                                trigger = entity.trigger,
+                                beforeIntervalDays = entity.beforeIntervalDays,
+                                afterIntervalDays = entity.afterIntervalDays
+                            )
+                        }
+
+                        val backupRoot = BackupRoot(
+                            schemaVersion = CURRENT_SCHEMA_VERSION,
+                            exportedAt = System.currentTimeMillis(),
+                            appVersion = runCatching {
+                                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                            }.getOrNull() ?: "1.0",
+                            plants = backupPlants,
+                            careLogs = backupLogs,
+                            plantPhotos = backupPlantPhotos,
+                            customReminders = backupCustomReminders,
+                            plantIssues = backupPlantIssues,
+                            wateringAdjustments = backupWateringAdjustments,
+                            settings = BackupSettings(
+                                notificationsEnabled = notificationsEnabled,
+                                reminderHour = reminderHour,
+                                reminderMinute = reminderMinute,
+                                keepScreenOn = keepScreenOn,
+                                combineNotifications = combineNotifications,
+                                photoReminderEnabled = photoReminderEnabled,
+                                themeMode = themeMode,
+                                fertilizingNotificationsEnabled = fertilizingNotificationsEnabled,
+                                askBeforeChangingIntervals = askBeforeChangingIntervals,
+                                seasonalAmplitude = seasonalAmplitude,
+                                postWateringReminderEnabled = postWateringReminderEnabled
+                            )
+                        )
+
+                        val jsonString = backupJson.encodeToString(BackupRoot.serializer(), backupRoot)
+
+                        // JSON manifest is written last, after every photo has been attempted — nothing
+                        // in this codebase depends on zip entry order; import scans all entries by name
+                        // regardless of position (see the ZipInputStream loop in importBackup below).
                         zip.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
                         zip.write(jsonString.toByteArray(Charsets.UTF_8))
                         zip.closeEntry()
-
-                        if (includePhotos) {
-                            writePhotosToZip(zip, photoMapping, optimizePhotos)
-                        }
                     }
                 }
                 context.contentResolver.openOutputStream(destinationUri)?.use { out ->
@@ -405,7 +416,7 @@ class BackupManager(
                     name = bp.name,
                     species = bp.species,
                     room = bp.room,
-                    coverPhotoUri = bp.coverPhotoUri?.let { zipPathToLocalPath[it] ?: it },
+                    coverPhotoUri = bp.coverPhotoUri?.let { zipPathToLocalPath[it] },
                     notes = bp.notes,
                     wateringIntervalDays = bp.wateringIntervalDays,
                     fertilizingIntervalDays = bp.fertilizingIntervalDays,
@@ -436,7 +447,7 @@ class BackupManager(
                     careType = bl.careType,
                     loggedAt = bl.loggedAt,
                     notes = bl.notes,
-                    photoUri = bl.photoUri?.let { zipPathToLocalPath[it] ?: it },
+                    photoUri = bl.photoUri?.let { zipPathToLocalPath[it] },
                     amount = bl.amount,
                     wateringFeedback = bl.wateringFeedback,
                     fertilizerType = runCatching {
@@ -538,21 +549,6 @@ class BackupManager(
         } catch (e: Exception) {
             if (!dbCommitted) writtenFiles.forEach { it.delete() }
             throw e
-        }
-    }
-
-    private fun writePhotosToZip(
-        zip: ZipOutputStream,
-        photoMapping: Map<String, String>,
-        optimizePhotos: Boolean
-    ) {
-        for ((originalUri, zipPath) in photoMapping) {
-            val input = openPhoto(originalUri) ?: continue
-            input.use {
-                zip.putNextEntry(ZipEntry(zipPath))
-                if (optimizePhotos) copyOptimizedPhotoToZip(it, zip, zipPath) else it.copyTo(zip)
-                zip.closeEntry()
-            }
         }
     }
 
