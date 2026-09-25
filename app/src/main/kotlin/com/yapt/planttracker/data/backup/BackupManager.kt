@@ -31,6 +31,15 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 20 (#743): archivedAt added to BackupPlant, and export now sources plants from
+// PlantDao.getAllPlantsIncludingArchived() instead of the active-only getAllPlants() — every
+// derived collection (careLogs, photos, reminders, issues, watering adjustments) is keyed off the
+// full plant list, so archiving a plant no longer silently drops its history from future backups.
+// Old backups deserialize archivedAt to null (unarchived), the correct reading of a backup written
+// before archiving round-tripped. Also (#743): the photoMapping entries populated during export are
+// now gated on a successful probe-open of the source URI, so an unreadable photo is omitted from the
+// manifest rather than left as a dangling reference after restore; BackupResult.ExportSuccess gained
+// skippedPhotoCount to surface that instead of reporting unqualified success.
 // Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
 // the full watering pause established by product ADR-0044.
 // Schema 18 (#795, product ADR-0049, redefined in place — never released, superseding #286's
@@ -68,12 +77,16 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 19
+const val CURRENT_SCHEMA_VERSION = 20
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
 sealed class BackupResult {
-    data class ExportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
+    data class ExportSuccess(
+        val plantCount: Int,
+        val logCount: Int,
+        val skippedPhotoCount: Int = 0
+    ) : BackupResult()
     data class ImportSuccess(val plantCount: Int, val logCount: Int) : BackupResult()
     data class FutureSchemaWarning(
         val schemaVersion: Int,
@@ -113,11 +126,11 @@ class BackupManager(
             val plantIssueDao = database.plantIssueDao()
             val wateringAdjustmentDao = database.wateringAdjustmentDao()
 
-            val plants = plantDao.getAllPlants().first()
+            val plants = plantDao.getAllPlantsIncludingArchived().first()
             val allLogs = careLogDao.getAllLogs().first().groupBy { it.plantId }
             val careLogs = plants.flatMap { allLogs[it.id].orEmpty() }
-            val activePlantIds = plants.map { it.id }.toSet()
-            val allPlantPhotos = plantPhotoDao.getAllPhotos().first().filter { it.plantId in activePlantIds }
+            val plantIds = plants.map { it.id }.toSet()
+            val allPlantPhotos = plantPhotoDao.getAllPhotos().first().filter { it.plantId in plantIds }
             val allReminders = customReminderDao.getAllReminders().first().groupBy { it.plantId }
             val customReminders = plants.flatMap { allReminders[it.id].orEmpty() }
             val allIssues = plantIssueDao.getAllIssues().first().groupBy { it.plantId }
@@ -139,24 +152,25 @@ class BackupManager(
             val postWateringReminderEnabled = prefs[SettingsKeys.POST_WATERING_REMINDER_ENABLED] ?: true
 
             val photoMapping = mutableMapOf<String, String>()
+            var skippedPhotoCount = 0
             if (includePhotos) {
-                for (plant in plants) {
-                    plant.coverPhotoUri?.let { uri ->
-                        if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri)
-                        }
-                    }
-                }
-                for (log in careLogs) {
-                    log.photoUri?.let { uri ->
-                        if (uri !in photoMapping) {
-                            photoMapping[uri] = buildZipPhotoName(uri)
-                        }
-                    }
-                }
-                for (photo in allPlantPhotos) {
-                    if (photo.uri !in photoMapping) {
-                        photoMapping[photo.uri] = buildZipPhotoName(photo.uri)
+                val candidateUris = linkedSetOf<String>()
+                for (plant in plants) plant.coverPhotoUri?.let { candidateUris.add(it) }
+                for (log in careLogs) log.photoUri?.let { candidateUris.add(it) }
+                for (photo in allPlantPhotos) candidateUris.add(photo.uri)
+
+                // Probe-then-map (#743): only a URI whose source can actually be opened is added to
+                // photoMapping, so the manifest built from this map never claims a photo exists that
+                // openPhoto() (and thus writePhotosToZip()) can't produce. This makes every downstream
+                // `photoMapping[uri]` lookup naturally resolve an unreadable photo to null instead of
+                // a dangling zip path, with no change needed at those lookup sites.
+                for (uri in candidateUris) {
+                    val opened = openPhoto(uri)
+                    if (opened != null) {
+                        opened.close()
+                        photoMapping[uri] = buildZipPhotoName(uri)
+                    } else {
+                        skippedPhotoCount++
                     }
                 }
             }
@@ -186,7 +200,8 @@ class BackupManager(
                     fertilizingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(entity.fertilizingSeasons)
                     ),
-                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays
+                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays,
+                    archivedAt = entity.archivedAt
                 )
             }
 
@@ -297,7 +312,7 @@ class BackupManager(
                 tempFile.delete()
             }
 
-            BackupResult.ExportSuccess(plants.size, careLogs.size)
+            BackupResult.ExportSuccess(plants.size, careLogs.size, skippedPhotoCount)
         }.getOrElse { e ->
             BackupResult.Error(e.message ?: "Export failed")
         }
@@ -409,7 +424,8 @@ class BackupManager(
                     fertilizingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(bp.fertilizingSeasons)
                     ),
-                    dormantWateringIntervalDays = bp.dormantWateringIntervalDays
+                    dormantWateringIntervalDays = bp.dormantWateringIntervalDays,
+                    archivedAt = bp.archivedAt
                 )
             }
 

@@ -8,6 +8,9 @@ data class ReleaseNotes(
     val changed: List<String> = emptyList()
 )
 
+// A growing list of release-notes string literals, not accumulated behavior — LargeClass's usual
+// "split this up" signal doesn't apply to a single append-only data table.
+@Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
@@ -17,7 +20,12 @@ object WhatsNewContent {
             "Fertilizing season chips now clearly show which seasons are selected — a checkmark and green " +
                 "fill instead of a muted grey that looked unselected. The last remaining active season stays " +
                 "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
-                "at least one season must stay active"
+                "at least one season must stay active",
+            "Backup exports now include archived plants and their full history (care logs, photos, custom " +
+                "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
+                "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
+                "leaving a broken reference after restore, and the export success message reports how many " +
+                "photos were skipped"
         )
     )
 

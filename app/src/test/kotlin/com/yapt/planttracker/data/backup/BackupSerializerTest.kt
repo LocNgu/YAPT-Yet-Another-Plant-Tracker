@@ -56,7 +56,8 @@ class BackupSerializerTest {
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
         fertilizingSeasons = "SPRING,SUMMER",
-        dormantWateringIntervalDays = 42
+        dormantWateringIntervalDays = 42,
+        archivedAt = 1_693_000_000_000L
     )
 
     private val defaultCareLog = BackupCareLog(
@@ -579,5 +580,26 @@ class BackupSerializerTest {
             backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
         )
         assertEquals(false, decoded.settings.postWateringReminderEnabled)
+    }
+
+    @Test
+    fun `archivedAt round-trips its stored value`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        assertEquals(1_693_000_000_000L, decoded.plants[0].archivedAt)
+    }
+
+    @Test
+    fun `plant without archivedAt defaults to null`() {
+        val json = """
+            {"schemaVersion":19,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.archivedAt)
     }
 }

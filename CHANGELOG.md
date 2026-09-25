@@ -14,6 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Fixed
 - **Fertilizing season chips no longer read backwards** — selected seasons now show a checkmark and a green fill instead of a muted grey that looked unselected (unselected chips, which had the only green in them before, are unaffected). The last remaining selected season chip stays enabled and selected instead of greying out unexplained: tapping it wiggles, buzzes, and shows a snackbar explaining that at least one season must stay active. The current season is now marked with a small dot instead of text crowding the chip label, with the wording still available to screen readers (#813, product ADR-0051, amending product ADR-0049)
+- **Backup exports were missing archived plants and could silently drop unreadable photos** — an archived plant, its care history, photos, custom reminders, issues, and watering adjustments are now included in every `.yapt` export and restore archived; a photo whose source can no longer be opened (a lapsed gallery permission, a deleted image, an un-synced cloud photo) is now skipped instead of leaving a broken reference after restore, and the export success message now reports how many photos were skipped (#743)
 
 ---
 

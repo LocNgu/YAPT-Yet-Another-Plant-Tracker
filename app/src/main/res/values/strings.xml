@@ -61,6 +61,10 @@
     <string name="backup_restore_item_title">Restore from backup</string>
     <string name="backup_restore_item_subtitle">Replace all data from a .yapt file</string>
     <string name="backup_export_success">Backup saved (%1$d plants, %2$d logs)</string>
+    <plurals name="backup_export_success_with_skipped_photos">
+        <item quantity="one">Backup saved (%1$d plants, %2$d logs) · 1 photo skipped</item>
+        <item quantity="other">Backup saved (%1$d plants, %2$d logs) · %3$d photos skipped</item>
+    </plurals>
     <string name="backup_error">Error: %s</string>
     <string name="backup_in_progress_title">Please wait…</string>
     <string name="settings_title">Settings</string>
