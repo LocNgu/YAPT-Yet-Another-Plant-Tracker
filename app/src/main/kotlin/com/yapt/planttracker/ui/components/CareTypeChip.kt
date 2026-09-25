@@ -30,6 +30,7 @@ fun CareTypeChip(
                 modifier = Modifier.size(FilterChipDefaults.IconSize)
             )
         },
+        colors = yaptFilterChipColors(),
         modifier = modifier
     )
 }

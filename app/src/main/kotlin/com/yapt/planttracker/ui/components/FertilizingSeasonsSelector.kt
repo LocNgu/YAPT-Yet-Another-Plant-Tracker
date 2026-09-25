@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -62,8 +61,8 @@ private data class SeasonChipState(
  * Fertilize tab inline editor, so the two surfaces can never disagree on which seasons a plant
  * fertilizes in.
  *
- * Selected chips get a `primaryContainer` fill (#813, product ADR-0051 — local to this component
- * only, not `Theme.kt`; the app-wide `FilterChip` palette is a separate follow-up). No checkmark:
+ * Selected chips get a `primaryContainer` fill (#813, product ADR-0051), now supplied by the shared
+ * [yaptFilterChipColors] every app `FilterChip` uses (#814, product ADR-0052). No checkmark:
  * the unselected chip's outline, which a selected `FilterChip` drops, is the non-color cue. The currently active
  * hemisphere-aware season is marked with a small decorative trailing dot (`contentDescription =
  * null`); the "current season" wording that used to be part of the visible label instead lives in
@@ -162,10 +161,7 @@ private fun FertilizingSeasonChip(
         } else {
             null
         },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ),
+        colors = yaptFilterChipColors(),
         modifier = chipModifier
     )
 }

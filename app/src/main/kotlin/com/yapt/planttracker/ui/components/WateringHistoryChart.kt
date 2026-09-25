@@ -318,7 +318,8 @@ internal fun WateringHistoryChart(
                 FilterChip(
                     selected = range == selectedRange,
                     onClick = { onRangeSelected(range) },
-                    label = { Text(stringResource(range.labelRes)) }
+                    label = { Text(stringResource(range.labelRes)) },
+                    colors = yaptFilterChipColors()
                 )
             }
         }

@@ -82,7 +82,8 @@ fun WateringReasonBottomSheet(
                 FilterChip(
                     selected = selected == reason,
                     onClick = { selected = if (selected == reason) null else reason },
-                    label = { Text(stringResource(reason.labelRes(gapRanLong))) }
+                    label = { Text(stringResource(reason.labelRes(gapRanLong))) },
+                    colors = yaptFilterChipColors()
                 )
                 Spacer(Modifier.height(4.dp))
             }
