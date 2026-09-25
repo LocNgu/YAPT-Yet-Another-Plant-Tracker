@@ -163,8 +163,10 @@ class BackupManager(
                         // candidate photo is opened exactly once, right where it's actually copied into
                         // the zip, so photoMapping can never claim a photo exists that wasn't written —
                         // there's no longer a window between "probed OK" and "written" for a photo to
-                        // become unreadable in. skippedPhotoCount counts every failure at this single
-                        // point, subsuming what used to be separate probe-stage and write-stage counts.
+                        // become unreadable in. skippedPhotoCount counts every openPhoto() failure at this
+                        // single point, subsuming what used to be separate probe-stage and write-stage
+                        // counts (an exception thrown during the copy itself, rather than openPhoto()
+                        // returning null, still aborts the whole export — unchanged from before #817).
                         if (includePhotos) {
                             val candidateUris = linkedSetOf<String>()
                             for (plant in plants) plant.coverPhotoUri?.let { candidateUris.add(it) }

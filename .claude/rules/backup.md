@@ -41,8 +41,10 @@ gallery-owned source image.
   dangling `photos/<uuid>_name.jpg` reference in the manifest). The JSON manifest (`backupPlants`/`backupLogs`/
   `backupPlantPhotos`/`backupRoot`/`jsonString`, all built from the now-final `photoMapping`) is constructed
   *after* this photo loop and its `backup.json` zip entry is written *last*, not first — harmless, since import
-  scans all zip entries by name regardless of position. `skippedPhotoCount` therefore counts every unreadable/
-  failed photo in one unified pass, not a probe-stage-only count. `BackupResult.ExportSuccess.skippedPhotoCount`
+  scans all zip entries by name regardless of position. `skippedPhotoCount` therefore counts every
+  `openPhoto()`-stage failure in one unified pass, not a probe-stage-only count as before #817 — an exception
+  thrown during the copy itself (rather than `openPhoto()` returning `null`) still aborts the whole export
+  rather than being counted, unchanged from pre-#817 behavior. `BackupResult.ExportSuccess.skippedPhotoCount`
   (default `0`, so existing 2-arg construction still compiles) surfaces the count; `SettingsScreen` shows the
   existing `backup_export_success` string when it's `0`, and a new `backup_export_success_with_skipped_photos`
   plural (modeled on `bulk_snackbar_logged_with_skipped`) otherwise.
