@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Fertilizing season chips no longer read backwards** — selected seasons now show a checkmark and a green fill instead of a muted grey that looked unselected (unselected chips, which had the only green in them before, are unaffected). The last remaining selected season chip stays enabled and selected instead of greying out unexplained: tapping it wiggles, buzzes, and shows a snackbar explaining that at least one season must stay active. The current season is now marked with a small dot instead of text crowding the chip label, with the wording still available to screen readers (#813, product ADR-0051, amending product ADR-0049)
+
 ---
 
 ## [0.32.0] - 2026-09-24

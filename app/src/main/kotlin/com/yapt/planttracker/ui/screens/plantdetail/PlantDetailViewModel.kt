@@ -561,6 +561,17 @@ class PlantDetailViewModel(
          * never recomputed at the call site.
          */
         data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()
+
+        /**
+         * `toggleFertilizingSeason` refused a toggle that would empty the freshly read season set
+         * (#804's own race window — two fast taps on the last two selected chips can both pass the
+         * composable's own "not the last one" check before either write lands). No longer a silent
+         * no-op (#813, product ADR-0051): the caller shows the same "at least one season must stay
+         * active" snackbar `FertilizingSeasonsSelector`'s own locked-chip tap shows, without a
+         * wiggle — this fires asynchronously once the race has already resolved, not from the tap
+         * that lost it.
+         */
+        object FertilizingSeasonToggleRejected : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */

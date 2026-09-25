@@ -83,7 +83,10 @@ internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant
  * rejects (writes nothing) if the result would be empty, same rule as Add/Edit Plant but checked
  * against the freshly read row rather than the cached `plant` StateFlow. A prior season toggle, or
  * a liquid-fertilizer/pin-interval write sharing this lock, can still be in flight when the next
- * one starts — that race, not the "at least one season" rule itself, is what #804 fixed.
+ * one starts — that race, not the "at least one season" rule itself, is what #804 fixed. A
+ * rejection here is no longer silent (#813, product ADR-0051): it emits
+ * [PlantDetailViewModel.Event.FertilizingSeasonToggleRejected] so the screen can show the same
+ * snackbar the composable's own locked-chip tap shows.
  */
 fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
     viewModelScope.launch {
@@ -94,7 +97,10 @@ fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
             } else {
                 p.fertilizingSeasons + season
             }
-            if (newSeasons.isEmpty()) return@withLock
+            if (newSeasons.isEmpty()) {
+                emitEvent(PlantDetailViewModel.Event.FertilizingSeasonToggleRejected)
+                return@withLock
+            }
             plantRepository.updatePlant(p.copy(fertilizingSeasons = newSeasons, updatedAt = System.currentTimeMillis()))
         }
     }

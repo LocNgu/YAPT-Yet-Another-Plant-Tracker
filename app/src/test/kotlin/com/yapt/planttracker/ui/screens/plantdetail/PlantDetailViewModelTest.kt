@@ -337,6 +337,27 @@ class PlantDetailViewModelTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
+    // #813, product ADR-0051: the rejection above is no longer silent — it now emits an Event so
+    // the screen can show the same "at least one season must stay active" snackbar the composable's
+    // own locked-chip tap shows.
+    @Test
+    fun `toggleFertilizingSeason emits FertilizingSeasonToggleRejected when the set would empty`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.events.test {
+                vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+                assertEquals(PlantDetailViewModel.Event.FertilizingSeasonToggleRejected, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test
     fun `clearSuggestedInterval sets suggestedWateringInterval to null`() = runTest {
         val monstera = plant()
