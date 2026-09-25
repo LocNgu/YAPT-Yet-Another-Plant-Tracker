@@ -130,7 +130,7 @@ private fun FertilizingSeasonChip(
     val coroutineScope = rememberCoroutineScope()
     val shakeOffset = remember { Animatable(0f) }
     val chipModifier = Modifier
-        .graphicsLayer { translationX = shakeOffset.value }
+        .graphicsLayer { translationX = shakeOffset.value.dp.toPx() }
         .then(
             if (state.isCurrentSeason) {
                 Modifier.semantics { stateDescription = currentSeasonStateDescription }
