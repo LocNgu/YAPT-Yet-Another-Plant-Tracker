@@ -36,7 +36,8 @@ class BackupModelsTest {
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
         fertilizingSeasons = fertilizingSeasons,
-        dormantWateringIntervalDays = dormantWateringIntervalDays
+        dormantWateringIntervalDays = dormantWateringIntervalDays,
+        archivedAt = archivedAt
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -59,7 +60,8 @@ class BackupModelsTest {
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
         fertilizingSeasons = fertilizingSeasons,
-        dormantWateringIntervalDays = dormantWateringIntervalDays
+        dormantWateringIntervalDays = dormantWateringIntervalDays,
+        archivedAt = archivedAt
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -106,7 +108,8 @@ class BackupModelsTest {
         dormancyStartMonth = 11,
         dormancyEndMonth = 2,
         fertilizingSeasons = "SPRING,SUMMER",
-        dormantWateringIntervalDays = 35
+        dormantWateringIntervalDays = 35,
+        archivedAt = 1_693_000_000_000L
     )
 
     private val fullLog = CareLogEntity(
@@ -145,11 +148,20 @@ class BackupModelsTest {
         assertEquals(fullPlant.dormancyEndMonth, bp.dormancyEndMonth)
         assertEquals(fullPlant.fertilizingSeasons, bp.fertilizingSeasons)
         assertEquals(fullPlant.dormantWateringIntervalDays, bp.dormantWateringIntervalDays)
+        assertEquals(fullPlant.archivedAt, bp.archivedAt)
     }
 
     @Test
     fun `PlantEntity round-trip preserves all fields`() {
         assertEquals(fullPlant, fullPlant.toBackupPlant().toPlantEntity())
+    }
+
+    @Test
+    fun `archived PlantEntity round-trip remains archived`() {
+        val archived = fullPlant.copy(archivedAt = 1_700_000_000_000L)
+        val roundTripped = archived.toBackupPlant().toPlantEntity()
+        assertEquals(1_700_000_000_000L, roundTripped.archivedAt)
+        assertEquals(archived, roundTripped)
     }
 
     @Test

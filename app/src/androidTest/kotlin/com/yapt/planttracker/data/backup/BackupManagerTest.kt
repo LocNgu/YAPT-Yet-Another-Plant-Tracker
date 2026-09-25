@@ -741,6 +741,115 @@ class BackupManagerTest {
     }
 
     @Test
+    fun archivedPlant_roundTrip_remainsArchivedWithFullHistory() = runBlocking {
+        val activePlant = PlantEntity(
+            id = 1L,
+            name = "Monstera",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        val archivedPlant = PlantEntity(
+            id = 2L,
+            name = "Ficus",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(activePlant)
+        db.plantDao().insertPlant(archivedPlant)
+        db.plantDao().archivePlant(2L, 5000L)
+        db.careLogDao().insertLog(
+            CareLogEntity(
+                id = 1L,
+                plantId = 2L,
+                careType = "WATER",
+                loggedAt = 2000L,
+                notes = null,
+                photoUri = null,
+                amount = null,
+                wateringFeedback = null
+            )
+        )
+
+        // Confirm the archived plant is excluded from the active-only query before export, so the
+        // subsequent assertions exercise the archived-inclusive backup path, not a no-op.
+        assertEquals(1, db.plantDao().getAllPlants().first().size)
+
+        val exportFile = tmpFolder.newFile("archived_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = false)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+        assertEquals(2, (exportResult as BackupResult.ExportSuccess).plantCount)
+        assertEquals(1, exportResult.logCount)
+
+        db.careLogDao().deleteAll()
+        db.plantDao().deleteAll()
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+        assertEquals(2, (importResult as BackupResult.ImportSuccess).plantCount)
+        assertEquals(1, importResult.logCount)
+
+        val activeOnly = db.plantDao().getAllPlants().first()
+        assertEquals(1, activeOnly.size)
+        assertEquals("Monstera", activeOnly[0].name)
+
+        val archived = db.plantDao().getArchivedPlants().first()
+        assertEquals(1, archived.size)
+        assertEquals("Ficus", archived[0].name)
+        assertEquals(5000L, archived[0].archivedAt)
+
+        val archivedLogs = db.careLogDao().getAllLogs().first().filter { it.plantId == 2L }
+        assertEquals(1, archivedLogs.size)
+    }
+
+    @Test
+    fun unreadablePhoto_isSkippedWithoutDanglingUri() = runBlocking {
+        val plant = PlantEntity(
+            id = 1L,
+            name = "Cactus",
+            species = null,
+            room = null,
+            coverPhotoUri = "content://missing/authority/does-not-exist.jpg",
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant)
+
+        val exportFile = tmpFolder.newFile("unreadable_photo_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = true)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+        assertEquals(1, (exportResult as BackupResult.ExportSuccess).skippedPhotoCount)
+
+        db.plantDao().deleteAll()
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val restoredPlants = db.plantDao().getAllPlants().first()
+        assertEquals(1, restoredPlants.size)
+        assertNull(
+            "An unreadable source photo must restore to null, never the raw zip path",
+            restoredPlants[0].coverPhotoUri
+        )
+    }
+
+    @Test
     fun exportFailure_tempFileDeleted() = runBlocking {
         val cacheFilesBefore = context.cacheDir.listFiles()?.toSet() ?: emptySet()
 
