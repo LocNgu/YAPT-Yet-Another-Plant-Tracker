@@ -72,6 +72,7 @@ import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.components.yaptFilterChipColors
 import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
@@ -311,7 +312,8 @@ fun AddCareLogScreen(
                         viewModel.selectedFeedback =
                             if (viewModel.selectedFeedback == WateringFeedback.TOO_LATE) null else WateringFeedback.TOO_LATE
                     },
-                    label = { Text(stringResource(R.string.care_log_feedback_plant_needed_it)) }
+                    label = { Text(stringResource(R.string.care_log_feedback_plant_needed_it)) },
+                    colors = yaptFilterChipColors()
                 )
             }
 
@@ -334,7 +336,8 @@ fun AddCareLogScreen(
                                     viewModel.selectedFertilizerType =
                                         if (viewModel.selectedFertilizerType == type) FertilizerType.UNSPECIFIED else type
                                 },
-                                label = { Text(label) }
+                                label = { Text(label) },
+                                colors = yaptFilterChipColors()
                             )
                         }
                     }

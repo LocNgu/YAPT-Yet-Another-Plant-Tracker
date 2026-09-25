@@ -1,6 +1,6 @@
 # Product ADR-0051: Fertilizing season chip selection cues
 
-**Status**: accepted
+**Status**: accepted — scope-to-`FertilizingSeasonsSelector`-only clause amended by [ADR-0052](0052-app-wide-filterchip-selected-colours.md)
 
 **Date**: 2026-09-25
 

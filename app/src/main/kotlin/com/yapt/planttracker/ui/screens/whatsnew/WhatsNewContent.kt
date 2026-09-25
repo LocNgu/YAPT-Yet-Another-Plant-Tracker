@@ -17,6 +17,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         fixed = listOf(
+            "Selected filter chips now clearly read as selected across the app — a green fill instead of a " +
+                "grey-brown (light theme) or grey-purple (dark theme) that made unselected chips look more " +
+                "\"on\" than selected ones",
             "Fertilizing season chips now clearly show which seasons are selected — a green fill instead " +
                 "of a muted grey that looked unselected. The last remaining active season stays " +
                 "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
