@@ -226,13 +226,28 @@
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
     <string name="watering_interval_label">Water every %1$d days</string>
     <string name="watering_reminder_label">Watering reminder</string>
+    <!-- Stepper buttons flanking the watering/fertilizing/repotting interval sliders (#531, product ADR-0048) -->
+    <string name="watering_interval_decrease_cd">Decrease watering interval</string>
+    <string name="watering_interval_increase_cd">Increase watering interval</string>
     <string name="fertilizing_interval_label">Fertilize every %1$d days</string>
     <string name="fertilizing_reminder_label">Fertilizing reminder</string>
+    <string name="fertilizing_interval_decrease_cd">Decrease fertilizing interval</string>
+    <string name="fertilizing_interval_increase_cd">Increase fertilizing interval</string>
+    <string name="season_spring">Spring</string>
+    <string name="season_summer">Summer</string>
+    <string name="season_autumn">Autumn</string>
+    <string name="season_winter">Winter</string>
+    <string name="fertilizing_current_season">%1$s · Current season</string>
+    <string name="fertilizing_active_seasons_label">Active in</string>
+    <string name="fertilizing_out_of_season">Out of season — next fertilizing %1$s</string>
+    <string name="fertilizing_dormancy_pause_note">Fertilizing reminders pause during this plant’s dormancy window.</string>
     <plurals name="repotting_interval_label">
         <item quantity="one">Repot every month</item>
         <item quantity="other">Repot every %d months</item>
     </plurals>
     <string name="repotting_reminder_label">Repotting reminder</string>
+    <string name="repotting_interval_decrease_cd">Decrease repotting interval</string>
+    <string name="repotting_interval_increase_cd">Increase repotting interval</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
     <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
@@ -296,7 +311,15 @@
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
     <string name="dormancy_window_label">Dormancy window</string>
-    <string name="dormancy_window_subtitle">Pause watering reminders during these months</string>
+    <string name="dormancy_window_subtitle">Use a dormant watering schedule during these months</string>
+    <string name="dormant_watering_label">Dormancy watering interval</string>
+    <string name="dormant_watering_suspended">Paused — no watering reminders</string>
+    <plurals name="dormant_watering_every_weeks">
+        <item quantity="one">Every %1$d week</item>
+        <item quantity="other">Every %1$d weeks</item>
+    </plurals>
+    <string name="dormant_watering_interval_decrease_cd">Decrease dormant watering cadence</string>
+    <string name="dormant_watering_interval_increase_cd">Increase dormant watering cadence</string>
     <string name="dormancy_start_month">Start</string>
     <string name="dormancy_end_month">End</string>
     <string name="dormancy_month_selection_cd">%1$s: %2$s</string>
@@ -530,6 +553,8 @@
     <string name="watering_explanation_title">Why this date?</string>
     <string name="watering_explanation_next_watering">Next watering</string>
     <string name="watering_explanation_dormant">Suspended during dormancy</string>
+    <string name="watering_explanation_dormant_schedule">Dormant schedule</string>
+    <string name="watering_explanation_growing_season_schedule">Growing-season schedule</string>
     <string name="watering_explanation_base_interval">Base interval</string>
     <plurals name="watering_explanation_learned_from">
         <item quantity="one">learned from %1$d watering</item>

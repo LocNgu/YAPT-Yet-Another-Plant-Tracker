@@ -40,7 +40,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 14
+        const val DB_VERSION = 16
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -236,12 +236,31 @@ abstract class PlantDatabase : RoomDatabase() {
 
         // #759 (product ADR-0044): dormancyStartMonth/dormancyEndMonth back the per-plant dormancy
         // window (1-12, both null = no dormancy). Pure ALTER TABLE, no row iteration — every existing
-        // row is untouched and reads back null for both columns. Nothing reads these columns yet.
+        // row is untouched and reads back null for both columns.
         @Suppress("MagicNumber")
         val MIGRATION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE plants ADD COLUMN dormancyStartMonth INTEGER")
                 db.execSQL("ALTER TABLE plants ADD COLUMN dormancyEndMonth INTEGER")
+            }
+        }
+
+        // #795 (product ADR-0049), redefined in place — v15 never shipped in a release (#791 merged
+        // after 0.31.0 cut), so this rewrites the migration rather than adding a new one. A single
+        // nullable comma-separated FertilizingSeason-name column; null means every season is active,
+        // preserving every existing plant unchanged.
+        @Suppress("MagicNumber")
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN fertilizingSeasons TEXT")
+            }
+        }
+
+        // #785 (product ADR-0046): an optional fixed cadence for watering during dormancy.
+        @Suppress("MagicNumber")
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN dormantWateringIntervalDays INTEGER")
             }
         }
 
@@ -265,7 +284,9 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_10_11,
                         MIGRATION_11_12,
                         MIGRATION_12_13,
-                        MIGRATION_13_14
+                        MIGRATION_13_14,
+                        MIGRATION_14_15,
+                        MIGRATION_15_16
                     )
                     .build()
                     .also { INSTANCE = it }

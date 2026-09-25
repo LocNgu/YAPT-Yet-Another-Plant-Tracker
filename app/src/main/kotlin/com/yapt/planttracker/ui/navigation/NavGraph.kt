@@ -296,7 +296,8 @@ fun YaptNavGraph(
                         app.customReminderRepository,
                         app.plantIssueRepository,
                         app.database,
-                        app.wateringAdjustmentRepository
+                        app.wateringAdjustmentRepository,
+                        app.applicationScope
                     )
                 )
 

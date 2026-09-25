@@ -17,6 +17,8 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.DormancyWindow
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
@@ -58,6 +60,7 @@ class AddEditPlantViewModel(
     var wateringIntervalEnabled by mutableStateOf(false)
     var fertilizingIntervalDays by mutableIntStateOf(30)
     var fertilizingIntervalEnabled by mutableStateOf(false)
+    var fertilizingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
     var useLiquidFertilizer by mutableStateOf(false)
 
     /**
@@ -73,6 +76,7 @@ class AddEditPlantViewModel(
     var pinIntervalToBase by mutableStateOf(false)
     var dormancyStartMonth by mutableStateOf<Int?>(null)
     var dormancyEndMonth by mutableStateOf<Int?>(null)
+    var dormantWateringIntervalDays by mutableStateOf<Int?>(null)
 
     /**
      * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
@@ -109,6 +113,7 @@ class AddEditPlantViewModel(
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
                     }
+                    fertilizingSeasons = plant.fertilizingSeasons
                     plant.repottingIntervalDays?.let {
                         repottingIntervalMonths = daysToRepottingMonths(it)
                         repottingIntervalEnabled = true
@@ -117,6 +122,9 @@ class AddEditPlantViewModel(
                     pinIntervalToBase = plant.pinIntervalToBase
                     dormancyStartMonth = plant.dormancyStartMonth
                     dormancyEndMonth = plant.dormancyEndMonth
+                    dormantWateringIntervalDays = DormancyWindow.validWateringInterval(
+                        plant.dormantWateringIntervalDays
+                    )
                 }
             }
         }
@@ -129,13 +137,29 @@ class AddEditPlantViewModel(
         coverPhotoUri = uri
     }
 
-    fun setDormancyWindow(startMonth: Int?, endMonth: Int?) {
+    fun setDormancyWindow(startMonth: Int?, endMonth: Int?, dormantIntervalDays: Int? = null) {
         require(
             (startMonth == null && endMonth == null) ||
                 (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
         )
+        require(dormantIntervalDays == null || DormancyWindow.validWateringInterval(dormantIntervalDays) != null)
         dormancyStartMonth = startMonth
         dormancyEndMonth = endMonth
+        dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
+    }
+
+    /**
+     * [FertilizingSeasonsSelector] reports the tapped season, not a full replacement set (#804) —
+     * this applies it to the local [fertilizingSeasons] form state, which this screen never shares
+     * with another writer, so no staleness guard beyond the plain in-memory read is needed here (see
+     * `PlantDetailViewModel.toggleFertilizingSeason` for the fresh-read-under-lock equivalent). At
+     * least one season must always stay active — a toggle that would empty the set is rejected,
+     * keeping the previous selection (#795).
+     */
+    fun toggleFertilizingSeason(season: FertilizingSeason) {
+        val newSeasons = if (season in fertilizingSeasons) fertilizingSeasons - season else fertilizingSeasons + season
+        if (newSeasons.isEmpty()) return
+        fertilizingSeasons = newSeasons
     }
 
     fun save() {
@@ -166,7 +190,9 @@ class AddEditPlantViewModel(
                 useLiquidFertilizer = useLiquidFertilizer,
                 pinIntervalToBase = pinIntervalToBase,
                 dormancyStartMonth = dormancyStartMonth,
-                dormancyEndMonth = dormancyEndMonth
+                dormancyEndMonth = dormancyEndMonth,
+                fertilizingSeasons = fertilizingSeasons,
+                dormantWateringIntervalDays = dormantWateringIntervalDays
             )
             if (isEditMode) {
                 saveEdit(plant, newWateringIntervalDays, intervalChanged, now)

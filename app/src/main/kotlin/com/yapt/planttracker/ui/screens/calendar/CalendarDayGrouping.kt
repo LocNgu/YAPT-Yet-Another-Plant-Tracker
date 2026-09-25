@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.calendar
 
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
@@ -53,20 +54,21 @@ fun computePlantsByDay(
         val fertilizeDate = if (isLiquidFertilizer) null else status.nextFertilizingDueAt?.toLocalDate()
         val waterOverdue = status.isOverdue
         val fertilizeOverdue = if (isLiquidFertilizer) false else status.isFertilizingOverdue
-        val waterDateActive = waterDate != null && !isDormantOnDate(status, waterDate)
+        val waterDateActive = isWaterDateActive(status, waterDate)
+        val fertilizeDateActive = fertilizeDate != null && !isDormantOnDate(status, fertilizeDate)
 
         val landsToday = waterOverdue || fertilizeOverdue ||
-            (waterDateActive && waterDate == today) || fertilizeDate == today
+            (waterDateActive && waterDate == today) || (fertilizeDateActive && fertilizeDate == today)
 
         if (landsToday) {
             val waterDue = waterOverdue || (waterDateActive && waterDate == today)
-            val fertilizeDue = fertilizeOverdue || fertilizeDate == today
+            val fertilizeDue = fertilizeOverdue || (fertilizeDateActive && fertilizeDate == today)
             contributions += Contribution(
                 date = today,
                 info = PlantDayInfo(status, waterDue, fertilizeDue, status.isDormant),
                 overdue = waterOverdue || fertilizeOverdue
             )
-        } else if (status.isDormant) {
+        } else if (status.isDormant && status.wateringScheduleMode != WateringScheduleMode.DORMANT_CADENCE) {
             contributions += Contribution(
                 date = today,
                 info = PlantDayInfo(status, waterDue = false, fertilizeDue = false, isDormant = true),
@@ -76,7 +78,8 @@ fun computePlantsByDay(
 
         val futureDates = mutableSetOf<LocalDate>()
         waterDate?.takeIf { waterDateActive && !waterOverdue && it != today }?.let { futureDates += it }
-        if (fertilizeDate != null && !fertilizeOverdue && fertilizeDate != today) futureDates += fertilizeDate
+        fertilizeDate?.takeIf { fertilizeDateActive && !fertilizeOverdue && it != today }
+            ?.let { futureDates += it }
 
         for (date in futureDates) {
             contributions += Contribution(
@@ -84,7 +87,7 @@ fun computePlantsByDay(
                 info = PlantDayInfo(
                     status = status,
                     waterDue = waterDateActive && waterDate == date,
-                    fertilizeDue = fertilizeDate == date,
+                    fertilizeDue = fertilizeDateActive && fertilizeDate == date,
                     isDormant = isDormantOnDate(status, date)
                 ),
                 overdue = false
@@ -107,6 +110,15 @@ fun computePlantsByDay(
 
 private fun isDormantOnDate(status: PlantCareStatus, date: LocalDate): Boolean =
     DormancyWindow.isDormant(date.monthValue, status.plant.dormancyStartMonth, status.plant.dormancyEndMonth)
+
+private fun isWaterDateActive(status: PlantCareStatus, date: LocalDate?): Boolean {
+    if (date == null) return false
+    return when (status.wateringScheduleMode) {
+        WateringScheduleMode.NORMAL -> !isDormantOnDate(status, date)
+        WateringScheduleMode.DORMANT_CADENCE -> isDormantOnDate(status, date)
+        WateringScheduleMode.DORMANT_SUSPENDED -> false
+    }
+}
 
 /**
  * Whether [info] belongs in the today-sheet's "Overdue" section rather than "Today".

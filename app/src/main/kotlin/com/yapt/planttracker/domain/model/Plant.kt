@@ -1,5 +1,7 @@
 package com.yapt.planttracker.domain.model
 
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+
 data class Plant(
     val id: Long = 0,
     val name: String,
@@ -50,8 +52,18 @@ data class Plant(
      * Month-pair dormancy window (1-12, #699/#759, product ADR-0044): both `null` = no dormancy,
      * which is every plant migrated from before this column existed. `dormancyStartMonth >
      * dormancyEndMonth` wraps across the year boundary (e.g. Nov-Feb); neither value alone is ever
-     * `null` while the other is set. This slice only stores the window — nothing reads it yet.
+     * `null` while the other is set. Watering and fertilizing due flags are both suppressed inside
+     * the window (product ADR-0044/product ADR-0045).
      */
     val dormancyStartMonth: Int? = null,
-    val dormancyEndMonth: Int? = null
+    val dormancyEndMonth: Int? = null,
+    /** Optional whole-week watering cadence used only while the configured dormancy window is active (#785). */
+    val dormantWateringIntervalDays: Int? = null,
+    /**
+     * Which hemisphere-aware seasons [fertilizingIntervalDays] is active in (#795, product ADR-0049,
+     * superseding #286's four discrete per-season intervals, product ADR-0045). Defaults to every
+     * season, so every existing plant behaves exactly as before. Dormancy remains an independent,
+     * additional pause on top of this.
+     */
+    val fertilizingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet()
 )

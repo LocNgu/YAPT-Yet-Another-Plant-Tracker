@@ -19,6 +19,7 @@ import com.yapt.planttracker.domain.model.GalleryPhotoSource
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -211,13 +212,27 @@ class PlantDetailViewModelTest {
 
         vm.plant.test {
             assertEquals(current, awaitItem())
-            vm.setDormancyWindow(12, 3)
+            vm.setDormancyWindow(12, 3, 35)
             vm.setDormancyWindow(null, null)
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 &&
+                        it.dormantWateringIntervalDays == 35
+                }
+            )
+        }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == null && it.dormancyEndMonth == null &&
+                        it.dormantWateringIntervalDays == null
+                }
+            )
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -281,6 +296,45 @@ class PlantDetailViewModelTest {
         }
 
         coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+    }
+
+    @Test
+    fun `toggleFertilizingSeason persists the toggled set via repo`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER))
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.fertilizingSeasons ==
+                        setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER, FertilizingSeason.AUTUMN)
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `toggleFertilizingSeason rejects a toggle that would empty the set`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test

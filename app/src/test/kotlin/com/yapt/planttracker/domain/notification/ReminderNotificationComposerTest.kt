@@ -3,6 +3,8 @@ package com.yapt.planttracker.domain.notification
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.Hemisphere
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -103,6 +105,67 @@ class ReminderNotificationComposerTest {
             listOf(CareReminderItem.WateringDueToday, CareReminderItem.FertilizeWithWatering),
             items
         )
+    }
+
+    @Test
+    fun `liquid fertilizer wording is due when the raw due date falls in an active season`() {
+        // `now` is in northern autumn; only Autumn is active, so the raw due date (well within it) stays put.
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = 14,
+                useLiquidFertilizer = true
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.AUTUMN)),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(
+            listOf(CareReminderItem.WateringDueToday, CareReminderItem.FertilizeWithWatering),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `liquid fertilizer wording omits fertilizing when the raw due date shifts out of season`() {
+        // Only Winter is active; the raw due date (in northern autumn) shifts forward, out of "now".
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = 14,
+                useLiquidFertilizer = true
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.WINTER)),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now,
+            hemisphere = Hemisphere.NORTHERN
+        )
+
+        assertEquals(
+            listOf(CareReminderItem.WateringDueToday),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `dormancy suppresses seasonal fertilizing reminder items`() {
+        val status = CareSchedule.computeStatus(
+            plant = plantWith(
+                fertilizingIntervalDays = 30,
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2
+            ).copy(fertilizingSeasons = setOf(FertilizingSeason.AUTUMN)),
+            lastWateredAt = null,
+            lastFertilizedAt = now - TimeUnit.DAYS.toMillis(20),
+            totalLogs = 0,
+            now = now
+        )
+
+        assertTrue(ReminderNotificationComposer.computeCareReminderItems(status, now).isEmpty())
     }
 
     @Test
@@ -413,5 +476,23 @@ class ReminderNotificationComposerTest {
 
         assertEquals(1, reminders.size)
         assertEquals(2L, reminders[0].status.plant.id)
+    }
+
+    @Test
+    fun `dormant cadence due today is included in per-plant and combined reminder source list`() {
+        val dueCadence = CareSchedule.computeStatus(
+            plant = plantWith(id = 1L, wateringIntervalDays = null, dormancyStartMonth = 11, dormancyEndMonth = 2)
+                .copy(dormantWateringIntervalDays = 28),
+            lastWateredAt = now - TimeUnit.DAYS.toMillis(28),
+            lastFertilizedAt = null,
+            totalLogs = 1,
+            now = now
+        )
+
+        val items = ReminderNotificationComposer.computeCareReminderItems(dueCadence, now)
+        val reminders = ReminderNotificationComposer.computeDueReminders(listOf(dueCadence), now)
+
+        assertTrue(items.single() is CareReminderItem.WateringDueToday)
+        assertEquals(1, reminders.size)
     }
 }

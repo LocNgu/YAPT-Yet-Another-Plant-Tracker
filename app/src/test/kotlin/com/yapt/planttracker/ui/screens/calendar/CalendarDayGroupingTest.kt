@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.screens.calendar
 
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -71,7 +72,7 @@ class CalendarDayGroupingTest {
     }
 
     @Test
-    fun `watering date inside dormancy is absent but fertilizing still appears`() {
+    fun `watering and fertilizing dates inside dormancy are both absent`() {
         val dormant = dormant(
             status(
                 nextWateringDueAt = today.plusDays(2),
@@ -83,10 +84,33 @@ class CalendarDayGroupingTest {
         val entries = computePlantsByDay(listOf(dormant), visibleMonth, today)
 
         assertEquals(1, entries.getValue(today).dormantPlants.size)
-        val future = entries.getValue(today.plusDays(2)).plants.single()
-        assertFalse(future.waterDue)
-        assertTrue(future.fertilizeDue)
-        assertTrue(future.isDormant)
+        assertFalse(entries.containsKey(today.plusDays(2)))
+    }
+
+    @Test
+    fun `dormant cadence contributes its in-window watering date without a dormant-today entry`() {
+        val dueDate = today.plusDays(2)
+        val cadence = dormant(status(nextWateringDueAt = dueDate), 6, 8).copy(
+            wateringScheduleMode = WateringScheduleMode.DORMANT_CADENCE
+        )
+
+        val entries = computePlantsByDay(listOf(cadence), visibleMonth, today)
+
+        assertFalse(entries.containsKey(today))
+        assertTrue(entries.getValue(dueDate).plants.single().waterDue)
+        assertTrue(entries.getValue(dueDate).dormantPlants.isEmpty())
+    }
+
+    @Test
+    fun `dormant cadence does not leak an override date outside its window`() {
+        val outsideDate = LocalDate.of(2026, 9, 1)
+        val cadence = dormant(status(nextWateringDueAt = outsideDate), 6, 8).copy(
+            wateringScheduleMode = WateringScheduleMode.DORMANT_CADENCE
+        )
+
+        val entries = computePlantsByDay(listOf(cadence), YearMonth.from(outsideDate), today)
+
+        assertFalse(entries.containsKey(outsideDate))
     }
 
     @Test

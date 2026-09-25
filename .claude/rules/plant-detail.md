@@ -57,13 +57,40 @@ all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same 
   one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
   a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
 
-## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession)
-Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + `Slider`; Fertilize adds the
-liquid-fert toggle). Edits **auto-persist** (no Save button) via `setWateringInterval(Int?)` /
-`setFertilizingInterval(Int?)` / `setLiquidFertilizer(Boolean)` → `PlantRepository.updatePlant`; `null` clears the
-schedule. Slider commits on release (`onValueChangeFinished`). Shared `InlineIntervalSetting` composable; defaults
-`DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS` = 7/30. Add/Edit Plant stays the canonical
-editor for name/species/room/notes/cover.
+## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession; slider-control clause amended by product ADR-0048, tap-commit clause further amended by product ADR-0050)
+Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + shared `SteppedSlider`
+(`ui/components/SteppedSlider.kt`, #531, product ADR-0048) — a `Slider` flanked by −/+ `IconButton`s with a
+haptic tick on drag; Fertilize adds the liquid-fert toggle). Edits **auto-persist** (no Save button) via
+`setWateringInterval(Int?, viaButtonTap: Boolean = false)` / `setFertilizingInterval(Int?, viaButtonTap: Boolean
+= false)` / `setLiquidFertilizer(Boolean)` → `PlantRepository.updatePlant`; `null` clears the schedule. A drag
+commits on release (`onValueChangeFinished(viaButtonTap = false)`) and so does the enable `Switch`, both
+immediately. A −/+ tap (`onValueChangeFinished(viaButtonTap = true)`) instead starts (or restarts) a 1-second
+quiet-window timer — `INTERVAL_TAP_COALESCE_WINDOW_MS` in `PlantDetailIntervalEditActions.kt` — so a rapid
+burst of taps produces exactly one write and, for watering, exactly one `MANUAL_EDIT` row using the *last*
+tapped value, not one per tap (#531 review round 1, product ADR-0050). An immediate commit (release/switch)
+always cancels any pending tap first. Both write functions read the plant fresh inside a shared
+`PlantDetailViewModel.intervalEditMutex` (mirroring `dormancyEditMutex`'s existing precedent below) rather than
+the cached `plant` StateFlow, which can lag a write still in flight — the bug this fixed made a burst's audit
+row log the wrong `beforeIntervalDays`. A still-pending tap survives leaving the screen mid-window: the timer
+runs on `viewModelScope` (cancelled by AndroidX before `onCleared()` is called), but the actual write always
+executes via `PlantDetailViewModel.applicationScope` (wired from `YaptApplication.applicationScope` through
+`Factory`, defaulted for existing tests that don't exercise this path), and `onCleared()` explicitly flushes
+`pendingWateringTapDays`/`pendingFertilizingTapDays` through that same scope if the timer never got to. Shared
+`InlineIntervalSetting` composable; defaults `DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS`
+= 7/30. Add/Edit Plant stays the canonical editor for name/species/room/notes/cover — its three sliders have no
+`viaButtonTap` concept at all (every change writes straight into the VM field, persisted together on Save) but
+now also carry a `stateDescription` (the same string already shown in each interval's header label) so a screen
+reader announces the current value there too (#531 review round 1).
+
+The shared dormancy editor in Add/Edit and the Water tab also offers a "Dormancy watering interval"
+switch plus a 1–12 week `SteppedSlider` (#785, product ADR-0046/product ADR-0047; stepper buttons added
+by #531, product ADR-0048). The switch is labelled by what
+it enables, never "Pause watering" — off (null) keeps full suspension and reads as a subtitle; disabling the
+window clears the cadence. An active dormant-only cadence may expose Reschedule and “Why this date?”
+even when the ordinary watering interval is disabled. **Deliberately excluded from the tap-coalescing above
+(product ADR-0050):** this slider already has its own `dormancyEditMutex` + `pendingWindow` staleness guard and
+writes no `WateringAdjustment` audit row at all, so every −/+ tap here still commits immediately — neither
+problem the coalescing fix addresses actually applies to it.
 
 ## Per-tab insights (#436)
 `domain/insights/CareInsights.summarize(logs, careType)` → `CareTypeSummary(count, lastAt, averageIntervalDays)`

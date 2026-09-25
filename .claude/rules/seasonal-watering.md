@@ -41,10 +41,13 @@ is the single point that decides: `wateringIntervalDays` unchanged when `seasona
 `SeasonalAmplitude.OFF`) or `Plant.pinIntervalToBase`; otherwise `SeasonalWatering.effectiveInterval()`
 applied to `Plant.wateringBaseIntervalDays` (falling back to the literal `wateringIntervalDays` as the
 base when none was ever recorded — e.g. a plant created before the seasonal curve shipped). Only
-watering is seasonal; fertilizing/repotting/custom reminders are untouched. Every due-date consumer
+watering uses this curve; fertilizing uses its own single interval plus an active-season set
+(product ADR-0049), while repotting/custom reminders are untouched. Every due-date consumer
 (`ReminderWorker`, `PlantListViewModel`, `CalendarViewModel`, `PlantDetailViewModel.careStatus`) reads
 `dataStore.seasonalAmplitudeFlow()`/`.seasonalAmplitudeOnce()` and passes it through — never
-re-derive the season math at a call site.
+re-derive the season math at a call site. Fertilizing's own hemisphere-aware season bucketing lives
+in `SeasonalFertilizing` (#286/#795, product ADR-0049); it does not use this cosine or amplitude — see
+`.claude/rules/schedule.md`'s Fertilizing bullet.
 
 ## Data model
 `Plant.wateringBaseIntervalDays: Double?` (season-neutral reference, `REAL` — deliberately not rounded

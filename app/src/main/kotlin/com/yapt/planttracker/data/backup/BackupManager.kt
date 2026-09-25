@@ -16,6 +16,7 @@ import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.util.ImageUtils
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
@@ -30,9 +31,14 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 19 (#785, product ADR-0046): dormantWateringIntervalDays added to BackupPlant — null keeps
+// the full watering pause established by product ADR-0044.
+// Schema 18 (#795, product ADR-0049, redefined in place — never released, superseding #286's
+// original four-column shape from product ADR-0045): a single nullable BackupPlant.fertilizingSeasons
+// comma-separated FertilizingSeason-name string. Null means every season is active.
 // Schema 17 (#759, product ADR-0044): dormancyStartMonth and dormancyEndMonth added to BackupPlant —
 // round-trip the per-plant dormancy window unconditionally (same posture as wateringResetAt/
-// wateringFreezeUntil below). Nothing reads these columns yet; this slice is storage-only.
+// wateringFreezeUntil below).
 // Schema 16 (#519): postWateringReminderEnabled added to BackupSettings.
 // Schema 15 (#656 review): seasonalAmplitude added to BackupSettings — round-trips the user's
 // Off/Mild/Standard/Strong choice for the (now-unconditional, graduated #656) seasonal watering
@@ -62,7 +68,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 17
+const val CURRENT_SCHEMA_VERSION = 19
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -176,7 +182,11 @@ class BackupManager(
                     wateringResetAt = entity.wateringResetAt,
                     wateringFreezeUntil = entity.wateringFreezeUntil,
                     dormancyStartMonth = entity.dormancyStartMonth,
-                    dormancyEndMonth = entity.dormancyEndMonth
+                    dormancyEndMonth = entity.dormancyEndMonth,
+                    fertilizingSeasons = SeasonalFertilizing.encode(
+                        SeasonalFertilizing.decode(entity.fertilizingSeasons)
+                    ),
+                    dormantWateringIntervalDays = entity.dormantWateringIntervalDays
                 )
             }
 
@@ -395,7 +405,11 @@ class BackupManager(
                     wateringResetAt = bp.wateringResetAt,
                     wateringFreezeUntil = bp.wateringFreezeUntil,
                     dormancyStartMonth = bp.dormancyStartMonth,
-                    dormancyEndMonth = bp.dormancyEndMonth
+                    dormancyEndMonth = bp.dormancyEndMonth,
+                    fertilizingSeasons = SeasonalFertilizing.encode(
+                        SeasonalFertilizing.decode(bp.fertilizingSeasons)
+                    ),
+                    dormantWateringIntervalDays = bp.dormantWateringIntervalDays
                 )
             }
 

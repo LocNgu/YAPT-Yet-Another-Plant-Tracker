@@ -11,6 +11,7 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -132,18 +133,45 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `dormancy window loads and wrapping range saves in edit mode`() = runTest {
-        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        val existing = plant().copy(
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35
+        )
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
         assertEquals(11, vm.dormancyStartMonth)
         assertEquals(2, vm.dormancyEndMonth)
-        vm.setDormancyWindow(12, 3)
+        assertEquals(35, vm.dormantWateringIntervalDays)
+        vm.setDormancyWindow(12, 3, 56)
         vm.save()
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == 12 && it.dormancyEndMonth == 3 &&
+                        it.dormantWateringIntervalDays == 56
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `unsupported persisted dormant cadence loads as full suspension`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(
+            plant().copy(
+                dormancyStartMonth = 11,
+                dormancyEndMonth = 2,
+                dormantWateringIntervalDays = 30
+            )
+        )
+
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertEquals(null, vm.dormantWateringIntervalDays)
     }
 
     @Test
@@ -151,7 +179,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.name = "Cactus"
-        vm.setDormancyWindow(11, 2)
+        vm.setDormancyWindow(11, 2, 28)
 
         vm.save()
         advanceUntilIdle()
@@ -159,7 +187,8 @@ class AddEditPlantViewModelTest {
         coVerify {
             plantRepo.addPlant(
                 match {
-                    it.wateringIntervalDays == null && it.dormancyStartMonth == 11 && it.dormancyEndMonth == 2
+                    it.wateringIntervalDays == null && it.dormancyStartMonth == 11 && it.dormancyEndMonth == 2 &&
+                        it.dormantWateringIntervalDays == 28
                 }
             )
         }
@@ -167,7 +196,11 @@ class AddEditPlantViewModelTest {
 
     @Test
     fun `turning dormancy off clears both columns in edit mode`() = runTest {
-        val existing = plant().copy(dormancyStartMonth = 11, dormancyEndMonth = 2)
+        val existing = plant().copy(
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            dormantWateringIntervalDays = 35
+        )
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
@@ -176,8 +209,69 @@ class AddEditPlantViewModelTest {
         vm.save()
         advanceUntilIdle()
 
-        coVerify { plantRepo.updatePlant(match { it.dormancyStartMonth == null && it.dormancyEndMonth == null }) }
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.dormancyStartMonth == null && it.dormancyEndMonth == null &&
+                        it.dormantWateringIntervalDays == null
+                }
+            )
+        }
     }
+
+    @Test
+    fun `fertilizingSeasons loads and round-trips in edit mode`() = runTest {
+        val existing = plant().copy(
+            fertilizingIntervalDays = 30,
+            fertilizingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match { it.fertilizingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER) }
+            )
+        }
+    }
+
+    @Test
+    fun `toggleFertilizingSeason saves the newly chosen set`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Fern"
+        vm.fertilizingIntervalEnabled = true
+        // Starts at every season (the default); toggling the other three off leaves only WINTER.
+        vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+        vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
+        vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.addPlant(match { it.fertilizingSeasons == setOf(FertilizingSeason.WINTER) })
+        }
+    }
+
+    @Test
+    fun `toggleFertilizingSeason rejects a toggle that would empty the set and keeps the previous selection`() =
+        runTest {
+            val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+            vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+            vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
+            vm.toggleFertilizingSeason(FertilizingSeason.WINTER)
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+
+            vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
+
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+        }
 
     @Test
     fun `useLiquidFertilizer true saved in new plant mode`() = runTest {

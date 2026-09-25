@@ -119,6 +119,12 @@ action to be a dependable snooze. An earlier draft of this ADR asserted the oppo
 now" anchors to now and therefore always clears "due" — which was wrong; the correction is kept
 visible here because the false invariant would otherwise have guided the follow-up work.
 
+**Update (#741, #745):** fixed. `SkipWateringReceiver.skipWatering()` now computes
+`maxOf(wateringDueDateOverride ?: now, now) + 1 day`, so a stale past override can no longer be
+advanced to a date that is still in the past. The arithmetic quoted above and the closing "should be
+fixed" clause describe the pre-#745 state; see `.claude/rules/notifications.md` for the current
+behavior.
+
 ### The "(suggested)" deferral row
 
 Removed, along with its source `suggestedStillMoistDeferralDays()` and

@@ -2,6 +2,7 @@ package com.yapt.planttracker.domain.schedule
 
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.util.toLocalDate
 import kotlin.math.roundToInt
 
@@ -27,6 +28,9 @@ data class WateringExplanation(
     val hasDormancyWindow: Boolean = false,
     /** The current schedule is suspended; [nextWateringDueAt] remains stored for when dormancy ends. */
     val isDormant: Boolean = false,
+    val wateringScheduleMode: WateringScheduleMode = WateringScheduleMode.NORMAL,
+    val dormantWateringIntervalDays: Int? = null,
+    val hasNormalWateringSchedule: Boolean = true,
     /**
      * Display-only mirror of [com.yapt.planttracker.domain.model.PlantCareStatus.rescheduleDeltaDays]
      * (#630) — the sheet's matching read-only row for the "Rescheduled +N days" chip, taken as-is from
@@ -92,15 +96,21 @@ object WateringExplanationBuilder {
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
         now: Long = System.currentTimeMillis(),
         rescheduleDeltaDays: Int? = null,
-        isDormant: Boolean = false
+        isDormant: Boolean = false,
+        wateringScheduleMode: WateringScheduleMode = WateringScheduleMode.NORMAL
     ): WateringExplanation? {
         val nowDate = now.toLocalDate()
-        val effectiveIntervalDays = plant.wateringIntervalDays?.let {
-            CareSchedule.effectiveWateringIntervalDaysForDisplay(plant, nowDate, seasonalAmplitude, hemisphere)
+        val effectiveIntervalDays = if (wateringScheduleMode == WateringScheduleMode.DORMANT_CADENCE) {
+            plant.dormantWateringIntervalDays
+        } else {
+            plant.wateringIntervalDays?.let {
+                CareSchedule.effectiveWateringIntervalDaysForDisplay(plant, nowDate, seasonalAmplitude, hemisphere)
+            }
         } ?: return null
 
         val baseIntervalDays = (plant.wateringBaseIntervalDays ?: effectiveIntervalDays.toDouble()).roundToInt()
-        val showSeason = seasonalAmplitude != 0.0 && !plant.pinIntervalToBase
+        val showSeason = seasonalAmplitude != 0.0 && !plant.pinIntervalToBase &&
+            wateringScheduleMode == WateringScheduleMode.NORMAL
         val season = if (showSeason) {
             val multiplier = SeasonalWatering.season(nowDate, seasonalAmplitude, hemisphere)
             WateringExplanationSeason(multiplier, seasonBandFor(multiplier, seasonalAmplitude))
@@ -120,6 +130,9 @@ object WateringExplanationBuilder {
             recentAdjustments = recentAdjustments,
             hasDormancyWindow = plant.dormancyStartMonth != null && plant.dormancyEndMonth != null,
             isDormant = isDormant,
+            wateringScheduleMode = wateringScheduleMode,
+            dormantWateringIntervalDays = plant.dormantWateringIntervalDays,
+            hasNormalWateringSchedule = plant.wateringIntervalDays != null,
             rescheduleDeltaDays = rescheduleDeltaDays
         )
     }

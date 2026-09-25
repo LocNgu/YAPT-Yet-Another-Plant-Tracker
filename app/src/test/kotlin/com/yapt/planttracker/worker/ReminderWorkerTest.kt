@@ -304,6 +304,37 @@ class ReminderWorkerTest {
     }
 
     @Test
+    fun `dormant-only cadence uses latest watering before deciding notification is due`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val month = LocalDate.now().monthValue
+        val plantId = app.plantRepository.addPlant(
+            Plant(
+                name = "Dormant Cactus",
+                wateringIntervalDays = null,
+                dormancyStartMonth = month,
+                dormancyEndMonth = month,
+                dormantWateringIntervalDays = 28,
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+        app.careLogRepository.addLog(
+            CareLog(plantId = plantId, careType = CareType.WATER, loggedAt = System.currentTimeMillis())
+        )
+        // Insert an older backfill afterward: chronological recency, not insertion order, owns the cadence anchor.
+        app.careLogRepository.addLog(
+            CareLog(
+                plantId = plantId,
+                careType = CareType.WATER,
+                loggedAt = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(60)
+            )
+        )
+
+        assertEquals(ListenableWorker.Result.success(), runWorker())
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
     fun `daily cleanup preserves the independent post-watering notification`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         TestListenableWorkerBuilder<PostWateringReminderWorker>(app).build().doWork()

@@ -5,8 +5,10 @@ import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
+import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -56,8 +58,8 @@ object CareSchedule {
 
         val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
         val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
-        val (nextFertilizingDueAt, isFertilizingOverdue, isFertilizingDueSoon) =
-            computeFertilizingDue(plant, lastFertilizedAt, nowDate)
+        val (nextFertilizingDueAt, fertilizingOverdue, fertilizingDueSoon) =
+            computeFertilizingDue(plant, lastFertilizedAt, nowDate, hemisphere)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
             computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
@@ -88,11 +90,11 @@ object CareSchedule {
             lastFertilizedAt = lastFertilizedAt,
             daysSinceLastWatering = daysSinceWatering,
             nextWateringDueAt = nextDueAt,
-            isOverdue = wateringOverdue && !isDormant,
-            isDueSoon = wateringDueSoon && !isDormant,
+            isOverdue = wateringOverdue && wateringDue.mode != WateringScheduleMode.DORMANT_SUSPENDED,
+            isDueSoon = wateringDueSoon && wateringDue.mode != WateringScheduleMode.DORMANT_SUSPENDED,
             nextFertilizingDueAt = nextFertilizingDueAt,
-            isFertilizingOverdue = isFertilizingOverdue,
-            isFertilizingDueSoon = isFertilizingDueSoon,
+            isFertilizingOverdue = fertilizingOverdue && !isDormant,
+            isFertilizingDueSoon = fertilizingDueSoon && !isDormant,
             totalCareLogs = totalLogs,
             lastRepottedAt = lastRepottedAt,
             nextRepottingDueAt = nextRepottingDueAt,
@@ -104,7 +106,10 @@ object CareSchedule {
             rescheduleDeltaDays = wateringDue.rescheduleDeltaDays,
             computedNextWateringDueAt = wateringDue.computedNextDueAt,
             isDormant = isDormant,
-            isWateringGapDormancySpanning = gapDormancySpanning
+            isWateringGapDormancySpanning = gapDormancySpanning,
+            wateringScheduleMode = wateringDue.mode,
+            normalComputedNextWateringDueAt = wateringDue.normalComputedNextDueAt,
+            dormantComputedNextWateringDueAt = wateringDue.dormantComputedNextDueAt
         )
     }
 
@@ -170,7 +175,16 @@ object CareSchedule {
     private data class WateringDueStatus(
         val dueStatus: DueStatus,
         val rescheduleDeltaDays: Int?,
-        val computedNextDueAt: Long?
+        val computedNextDueAt: Long?,
+        val mode: WateringScheduleMode,
+        val normalComputedNextDueAt: Long?,
+        val dormantComputedNextDueAt: Long?
+    )
+
+    private data class ActiveWateringSchedule(
+        val mode: WateringScheduleMode,
+        val computedNextDueAt: Long?,
+        val dormantComputedNextDueAt: Long?
     )
 
     @Suppress("LongParameterList")
@@ -183,13 +197,22 @@ object CareSchedule {
         hemisphere: Hemisphere
     ): WateringDueStatus {
         val effectiveIntervalDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
-        val computedNextDueAt = if (effectiveIntervalDays == null) {
+        val normalComputedNextDueAt = if (effectiveIntervalDays == null) {
             null
         } else if (lastWateredAt != null) {
             lastWateredAt + TimeUnit.DAYS.toMillis(effectiveIntervalDays.toLong())
         } else {
             now
         }
+
+        val activeSchedule = selectActiveWateringSchedule(
+            plant,
+            lastWateredAt,
+            now,
+            nowDate,
+            normalComputedNextDueAt
+        )
+        val computedNextDueAt = activeSchedule.computedNextDueAt
 
         val override = plant.wateringDueDateOverride
         val nextDueAt = when {
@@ -206,7 +229,42 @@ object CareSchedule {
             null
         }
 
-        return WateringDueStatus(dueStatusFor(nextDueAt, nowDate), rescheduleDeltaDays, computedNextDueAt)
+        return WateringDueStatus(
+            dueStatusFor(nextDueAt, nowDate),
+            rescheduleDeltaDays,
+            computedNextDueAt,
+            activeSchedule.mode,
+            normalComputedNextDueAt,
+            activeSchedule.dormantComputedNextDueAt
+        )
+    }
+
+    private fun selectActiveWateringSchedule(
+        plant: Plant,
+        lastWateredAt: Long?,
+        now: Long,
+        nowDate: LocalDate,
+        normalComputedNextDueAt: Long?
+    ): ActiveWateringSchedule {
+        val cycleStart = DormancyWindow.currentCycleStart(
+            nowDate,
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth
+        )
+        val cadence = DormancyWindow.validWateringInterval(plant.dormantWateringIntervalDays)
+        return if (cycleStart == null) {
+            ActiveWateringSchedule(WateringScheduleMode.NORMAL, normalComputedNextDueAt, null)
+        } else if (cadence == null) {
+            ActiveWateringSchedule(WateringScheduleMode.DORMANT_SUSPENDED, normalComputedNextDueAt, null)
+        } else {
+            val dormantDueAt = if (lastWateredAt == null) {
+                now
+            } else {
+                val cycleStartMillis = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                maxOf(lastWateredAt + TimeUnit.DAYS.toMillis(cadence.toLong()), cycleStartMillis)
+            }
+            ActiveWateringSchedule(WateringScheduleMode.DORMANT_CADENCE, dormantDueAt, dormantDueAt)
+        }
     }
 
     /**
@@ -242,13 +300,23 @@ object CareSchedule {
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
     ): Int? = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
 
-    private fun computeFertilizingDue(plant: Plant, lastFertilizedAt: Long?, nowDate: LocalDate): DueStatus {
-        val nextFertilizingDueAt = if (plant.fertilizingIntervalDays == null) {
+    private fun computeFertilizingDue(
+        plant: Plant,
+        lastFertilizedAt: Long?,
+        nowDate: LocalDate,
+        hemisphere: Hemisphere
+    ): DueStatus {
+        val intervalDays = plant.fertilizingIntervalDays
+        val nextFertilizingDueAt = if (intervalDays == null) {
             null
-        } else if (lastFertilizedAt != null) {
-            lastFertilizedAt + TimeUnit.DAYS.toMillis(plant.fertilizingIntervalDays.toLong())
         } else {
-            plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+            val rawDueAt = if (lastFertilizedAt != null) {
+                lastFertilizedAt + TimeUnit.DAYS.toMillis(intervalDays.toLong())
+            } else {
+                plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+            }
+            // #795 (product ADR-0049): shift out of an inactive season, including the grace date.
+            SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere, nowDate)
         }
 
         return dueStatusFor(nextFertilizingDueAt, nowDate)

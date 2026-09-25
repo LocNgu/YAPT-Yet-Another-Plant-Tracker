@@ -23,6 +23,9 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
 ## Pure composer (`domain/notification/ReminderNotificationComposer`, JVM-testable, no Context)
 `computeCareReminderItems` / `computeDueReminders` decide due/not-due and per-plant care-item composition;
 `ReminderWorker` turns `CareReminderItem`s into localized strings.
+- Dormant plants opted into a fixed dormant watering cadence (product ADR-0046/product ADR-0047) expose ordinary
+  watering due flags and therefore notify normally. Full-pause dormant plants still expose neither
+  watering flag; fertilizing remains suppressed in both dormant watering modes (#785).
 - **Combine toggle** (`combine_notifications`, default `false`) — when on, one count-only notification under fixed
   `COMBINED_NOTIFICATION_ID = -1` (plant ids are always positive), lands on PlantList, no Skip-watering action.
   See product ADR-0020 (documents the dropped per-plant Skip in combined mode) (#474).

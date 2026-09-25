@@ -96,4 +96,28 @@ class DormancyWindowSettingTest {
         composeTestRule.onNodeWithContentDescription("Start: October").assertExists()
         composeTestRule.onNodeWithContentDescription("End: March").assertExists()
     }
+
+    @Test
+    fun dormantWatering_usesAWeekSlider_andDisablingClearsSelection() {
+        var start by mutableStateOf<Int?>(11)
+        var end by mutableStateOf<Int?>(2)
+        var cadence by mutableStateOf<Int?>(null)
+        composeTestRule.setContent {
+            DormancyWindowSetting(start, end, cadence) { nextStart, nextEnd, nextCadence ->
+                start = nextStart
+                end = nextEnd
+                cadence = nextCadence
+            }
+        }
+
+        composeTestRule.onNodeWithText("Paused — no watering reminders").assertExists()
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").assertIsOff().performClick()
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").assertIsOn()
+        composeTestRule.onNodeWithText("Every 5 weeks").assertExists()
+        composeTestRule.onNodeWithText("Paused — no watering reminders").assertDoesNotExist()
+        composeTestRule.runOnIdle { assertEquals(35, cadence) }
+
+        composeTestRule.onNodeWithContentDescription("Dormancy watering interval").performClick()
+        composeTestRule.runOnIdle { assertEquals(null, cadence) }
+    }
 }

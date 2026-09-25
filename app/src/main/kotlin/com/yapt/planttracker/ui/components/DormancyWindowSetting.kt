@@ -13,17 +13,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.schedule.DormancyWindow
 import java.time.LocalDate
 
 /** Shared editor for the two nullable month columns (#762). Every change supplies a complete pair. */
@@ -32,20 +35,32 @@ fun DormancyWindowSetting(
     startMonth: Int?,
     endMonth: Int?,
     onWindowChange: (Int?, Int?) -> Unit
+) = DormancyWindowSetting(startMonth, endMonth, null) { start, end, _ -> onWindowChange(start, end) }
+
+@Composable
+fun DormancyWindowSetting(
+    startMonth: Int?,
+    endMonth: Int?,
+    dormantWateringIntervalDays: Int?,
+    onWindowChange: (Int?, Int?, Int?) -> Unit
 ) {
-    val persistedWindow = startMonth to endMonth
+    val persistedWindow = Triple(
+        startMonth,
+        endMonth,
+        DormancyWindow.validWateringInterval(dormantWateringIntervalDays)
+    )
     // Room may re-emit an earlier selection after the user has already changed the other month.
     // Keep the most recent complete pair visible until persistence catches up.
-    var pendingWindow by remember { mutableStateOf<Pair<Int?, Int?>?>(null) }
+    var pendingWindow by remember { mutableStateOf<Triple<Int?, Int?, Int?>?>(null) }
     LaunchedEffect(persistedWindow) {
         if (pendingWindow == persistedWindow) pendingWindow = null
     }
-    val (shownStart, shownEnd) = pendingWindow ?: persistedWindow
+    val (shownStart, shownEnd, shownCadence) = pendingWindow ?: persistedWindow
     val enabled = shownStart != null && shownEnd != null && shownStart in 1..12 && shownEnd in 1..12
     val label = stringResource(R.string.dormancy_window_label)
-    fun changeWindow(nextStart: Int?, nextEnd: Int?) {
-        pendingWindow = nextStart to nextEnd
-        onWindowChange(nextStart, nextEnd)
+    fun changeWindow(nextStart: Int?, nextEnd: Int?, nextCadence: Int?) {
+        pendingWindow = Triple(nextStart, nextEnd, nextCadence)
+        onWindowChange(nextStart, nextEnd, nextCadence)
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -59,37 +74,118 @@ fun DormancyWindowSetting(
                 onCheckedChange = { on ->
                     if (on) {
                         val month = LocalDate.now().monthValue
-                        changeWindow(month, month)
+                        changeWindow(month, month, null)
                     } else {
-                        changeWindow(null, null)
+                        changeWindow(null, null, null)
                     }
                 },
                 modifier = Modifier.semantics { contentDescription = label }
             )
         }
         if (enabled) {
-            Text(
-                stringResource(R.string.dormancy_window_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonthDropdown(
-                    label = stringResource(R.string.dormancy_start_month),
-                    month = shownStart!!,
-                    onMonthChange = { changeWindow(it, shownEnd) },
-                    modifier = Modifier.weight(1f)
-                )
-                MonthDropdown(
-                    label = stringResource(R.string.dormancy_end_month),
-                    month = shownEnd!!,
-                    onMonthChange = { changeWindow(shownStart, it) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            DormancyWindowControls(shownStart!!, shownEnd!!, shownCadence, ::changeWindow)
         }
     }
 }
+
+@Composable
+private fun DormancyWindowControls(
+    startMonth: Int,
+    endMonth: Int,
+    cadence: Int?,
+    onChange: (Int?, Int?, Int?) -> Unit
+) {
+    Text(
+        stringResource(R.string.dormancy_window_subtitle),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MonthDropdown(
+            stringResource(R.string.dormancy_start_month),
+            startMonth,
+            { onChange(it, endMonth, cadence) },
+            Modifier.weight(1f)
+        )
+        MonthDropdown(
+            stringResource(R.string.dormancy_end_month),
+            endMonth,
+            { onChange(startMonth, it, cadence) },
+            Modifier.weight(1f)
+        )
+    }
+    DormantWateringIntervalControl(cadence) { onChange(startMonth, endMonth, it) }
+}
+
+/**
+ * The switch turns the dormant cadence on; its label names what it enables ("Dormancy watering
+ * interval") so switching it on reads as starting watering, not ending a pause (#785). The subtitle
+ * carries the current state and the slider only appears once a cadence exists.
+ */
+@Composable
+private fun DormantWateringIntervalControl(cadence: Int?, onCadenceChange: (Int?) -> Unit) {
+    val label = stringResource(R.string.dormant_watering_label)
+    val persistedWeeks = DormancyWindow.wateringIntervalWeeks(cadence)
+    // Local while dragging so the subtitle follows the thumb; committed on release.
+    var sliderWeeks by remember(persistedWeeks) {
+        mutableIntStateOf(persistedWeeks ?: DormancyWindow.DEFAULT_WATERING_INTERVAL_WEEKS)
+    }
+    val weeksLabel = dormantWateringIntervalLabel(sliderWeeks)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (persistedWeeks == null) stringResource(R.string.dormant_watering_suspended) else weeksLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = persistedWeeks != null,
+            onCheckedChange = { enabled ->
+                onCadenceChange(
+                    if (enabled) {
+                        DormancyWindow.wateringIntervalDays(DormancyWindow.DEFAULT_WATERING_INTERVAL_WEEKS)
+                    } else {
+                        null
+                    }
+                )
+            },
+            modifier = Modifier.semantics { contentDescription = label }
+        )
+    }
+    if (persistedWeeks != null) {
+        SteppedSlider(
+            value = sliderWeeks,
+            range = DormancyWindow.MIN_WATERING_INTERVAL_WEEKS..DormancyWindow.MAX_WATERING_INTERVAL_WEEKS,
+            // Always commits immediately, tap or release alike (#531 review round 1, product ADR-0048)
+            // — unlike the watering/fertilizing inline cards, this control has its own pre-existing
+            // mutex + `pendingWindow` staleness guard (see `DormancyWindowSetting` above) and writes
+            // no audit row, so a burst of taps has neither a stale-snapshot race nor a duplicated
+            // adjustment row to coalesce away.
+            callbacks = SteppedSliderCallbacks(
+                onValueChange = { sliderWeeks = it },
+                onValueChangeFinished = { _ -> onCadenceChange(DormancyWindow.wateringIntervalDays(sliderWeeks)) }
+            ),
+            labels = SteppedSliderLabels(
+                decreaseContentDescription = stringResource(R.string.dormant_watering_interval_decrease_cd),
+                increaseContentDescription = stringResource(R.string.dormant_watering_interval_increase_cd),
+                stateDescription = weeksLabel
+            )
+        )
+    }
+}
+
+@Composable
+private fun dormantWateringIntervalLabel(weeks: Int): String = pluralStringResource(
+    R.plurals.dormant_watering_every_weeks,
+    weeks,
+    weeks
+)
 
 @Composable
 private fun MonthDropdown(label: String, month: Int, onMonthChange: (Int) -> Unit, modifier: Modifier = Modifier) {

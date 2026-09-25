@@ -33,6 +33,10 @@ import com.yapt.planttracker.domain.schedule.WateringExplanationBuilder
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -57,11 +61,56 @@ class PlantDetailViewModel(
     internal val customReminderRepository: CustomReminderRepository,
     internal val plantIssueRepository: PlantIssueRepository,
     internal val database: PlantDatabase,
-    internal val wateringAdjustmentRepository: WateringAdjustmentRepository
+    internal val wateringAdjustmentRepository: WateringAdjustmentRepository,
+    /**
+     * A scope that outlives [viewModelScope] (#531 review round 1, product ADR-0048) — production
+     * wiring passes `YaptApplication`'s process-wide `applicationScope` via [Factory]. The watering/
+     * fertilizing interval writes in `PlantDetailIntervalEditActions.kt` always execute here, not
+     * on `viewModelScope`, so a coalesced −/+ tap edit's write is never lost to the screen being left
+     * before its debounce window elapses. Defaults to an independent scope (rather than requiring every
+     * existing test call site to supply one) — production code always gets the shared instance because
+     * [Factory] passes it explicitly.
+     */
+    internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) : ViewModel() {
 
     /** Serializes inline dormancy writes so rapid month selections commit in tap order. */
     internal val dormancyEditMutex = Mutex()
+
+    /**
+     * Serializes the watering/fertilizing interval writes in `PlantDetailIntervalEditActions.kt`
+     * (#531 review round 1, product ADR-0048), plus the fertilizing season toggle, liquid-fertilizer
+     * switch, and pin-interval switch writes in `PlantDetailScheduleSettingsActions.kt` (#804) — and
+     * forces each one to re-read the plant fresh rather than the (potentially stale) cached [plant]
+     * StateFlow snapshot — a prior write from the same burst, or a concurrent edit from another inline
+     * setting, can still be in flight when the next one starts.
+     */
+    internal val intervalEditMutex = Mutex()
+
+    /**
+     * The latest −/+ tap target still waiting out its coalescing window, and the [Job] running that
+     * wait, for watering/fertilizing respectively — `null`/`null` when no tap edit is pending (a slider
+     * release or the on/off switch always clears both immediately). [onCleared] flushes a still-pending
+     * value directly, since cancelling `viewModelScope` (which AndroidX does before calling
+     * [onCleared]) would otherwise silently cancel the debounce coroutine before it ever writes.
+     */
+    internal var pendingWateringTapDays: Int? = null
+    internal var pendingWateringTapJob: Job? = null
+    internal var pendingFertilizingTapDays: Int? = null
+    internal var pendingFertilizingTapJob: Job? = null
+
+    /**
+     * Flushes a still-pending debounced tap edit (#531 review round 1, product ADR-0048) — the screen
+     * can be left mid-window (back navigation clears this ViewModel before the coalescing delay
+     * elapses), and without this the edit would simply vanish. `viewModelScope`'s Job is already
+     * cancelled by the time AndroidX calls this, so `flushPendingIntervalEditsOnClear()` is the only
+     * path left that can still commit it — it runs on [applicationScope], which this cancellation
+     * never touches.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        flushPendingIntervalEditsOnClear()
+    }
 
     /**
      * Raw global amplitude value for the seasonal-curve preview chart (#579) shown alongside the
@@ -154,7 +203,9 @@ class PlantDetailViewModel(
             seasonalAmplitude = amplitude,
             recentAdjustments = adjustments,
             rescheduleDeltaDays = status?.rescheduleDeltaDays,
-            isDormant = status?.isDormant == true
+            isDormant = status?.isDormant == true,
+            wateringScheduleMode = status?.wateringScheduleMode
+                ?: com.yapt.planttracker.domain.model.WateringScheduleMode.NORMAL
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -533,7 +584,9 @@ class PlantDetailViewModel(
         private val customReminderRepository: CustomReminderRepository,
         private val plantIssueRepository: PlantIssueRepository,
         private val database: PlantDatabase,
-        private val wateringAdjustmentRepository: WateringAdjustmentRepository
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository,
+        /** `YaptApplication.applicationScope` (#531 review round 1, product ADR-0048) — see the matching constructor param's KDoc. */
+        private val applicationScope: CoroutineScope
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -547,7 +600,8 @@ class PlantDetailViewModel(
                 customReminderRepository,
                 plantIssueRepository,
                 database,
-                wateringAdjustmentRepository
+                wateringAdjustmentRepository,
+                applicationScope
             ) as T
     }
 }
