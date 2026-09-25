@@ -569,7 +569,10 @@ class PlantDetailViewModel(
          * no-op (#813, product ADR-0051): the caller shows the same "at least one season must stay
          * active" snackbar `FertilizingSeasonsSelector`'s own locked-chip tap shows, without a
          * wiggle — this fires asynchronously once the race has already resolved, not from the tap
-         * that lost it.
+         * that lost it. Emitted only after `intervalEditMutex` has already been released (review
+         * round 1) — `_events` is unbuffered and the screen's collector can itself be blocked inside
+         * a `SnackbarDuration.Long` Snackbar, so emitting under the lock would stall every other
+         * write sharing it.
          */
         object FertilizingSeasonToggleRejected : Event()
     }
