@@ -1,4 +1,4 @@
-# Technical ADR-0031: The implementer owns the pre-push gate; review runs concurrently with CI, joined by head SHA
+# Technical ADR-0032: The implementer owns the pre-push gate; review runs concurrently with CI, joined by head SHA
 
 **Status**: accepted
 
