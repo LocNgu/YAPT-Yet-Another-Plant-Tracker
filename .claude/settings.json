@@ -72,6 +72,8 @@
       "Bash(gh search *)",
       "Bash(gh auth status)",
       "Bash(./gradlew*)",
+      "Bash(python3 tools/check-adr-numbering.py)",
+      "Bash(python3 -m unittest discover -s tools -p 'test_*.py')",
       "Bash(java -version)",
       "Bash(find *)",
       "Bash(ls*)",

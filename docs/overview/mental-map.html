@@ -442,13 +442,13 @@ footer a{color:var(--sage-dark);}
 
 <section>
   <div class="sec-head"><span class="sec-num">07</span><h2>How a change actually ships</h2></div>
-  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec + QA only, never Review).</p>
+  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec only, never Review; QA is already on-demand). Review launches alongside CI, joined by head SHA, not after it goes green (technical ADR-0031).</p>
   <div class="pipeline">
     <div class="pstep"><div class="n">issue</div><div class="t">File it first</div><div class="d">GitHub issue before any code</div></div>
-    <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">interviews, ADR scan</div></div>
-    <div class="pstep"><div class="n">02</div><div class="t">Implement</div><div class="d">claude/* branch, PR to develop</div></div>
-    <div class="pstep"><div class="n">03</div><div class="t">Review</div><div class="d">BLOCKING findings, max 2 rounds</div></div>
-    <div class="pstep"><div class="n">04</div><div class="t">QA</div><div class="d">acceptance criteria CI can't check</div></div>
+    <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">ADR scan, batched questions</div></div>
+    <div class="pstep"><div class="n">02</div><div class="t">Implement</div><div class="d">pre-push gate, claude/* branch, PR to develop</div></div>
+    <div class="pstep"><div class="n">03</div><div class="t">Review</div><div class="d">AC checklist + BLOCKING/SMALL fixed together, max 2 rounds</div></div>
+    <div class="pstep"><div class="n">04</div><div class="t">QA</div><div class="d">on-demand, device-only findings</div></div>
     <div class="pstep"><div class="n">05</div><div class="t">Docs</div><div class="d">CHANGELOG, What's New</div></div>
     <div class="pstep"><div class="n">06</div><div class="t">Merge</div><div class="d">human only</div></div>
   </div>
