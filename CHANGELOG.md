@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-09-25
+
 ### Fixed
 - **Selected filter chips now read as "on" everywhere in the app** — the Plant List room filters, Add Care Log's care-type, fertilizer-type and "plant needed it" chips, the watering history time-range chips, and the watering reason sheet's options all now show a green fill when selected, instead of a dusty grey-brown in light theme (which made unselected chips look more "on" than selected ones) and an off-palette grey-purple in dark theme. Dark theme's plant-card and calendar badges also pick up an on-palette earth-brown instead of that grey-purple fallback (#814, product ADR-0052, amending product ADR-0051)
 - **Fertilizing season chips no longer read backwards** — selected seasons now show a green fill instead of a muted grey that looked unselected (unselected chips, which had the only green in them before, are unaffected). The last remaining selected season chip stays enabled and selected instead of greying out unexplained: tapping it wiggles, buzzes, and shows a snackbar explaining that at least one season must stay active. The current season is now marked with a small dot instead of text crowding the chip label, with the wording still available to screen readers (#813, product ADR-0051, amending product ADR-0049)
