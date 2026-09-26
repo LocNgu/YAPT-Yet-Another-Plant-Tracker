@@ -17,6 +17,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -65,6 +68,24 @@ class CameraPhotoState {
         pendingCameraFile = null
         pendingCameraUri = null
     }
+
+    companion object {
+        /**
+         * Persists only the in-flight capture target (#706). `TakePicture` returns a bare `Boolean`, so if the
+         * Activity is recreated while the camera app is in the foreground the file/URI must come back from saved
+         * instance state — otherwise a successful capture is silently dropped and a cancelled one is never deleted.
+         * Dialog flags and the launch callbacks are rebuilt by [rememberCameraPhotoState] on every composition.
+         */
+        internal val Saver: Saver<CameraPhotoState, Any> = listSaver(
+            save = { listOf(it.pendingCameraFile?.path, it.pendingCameraUri?.toString()) },
+            restore = { saved ->
+                CameraPhotoState().apply {
+                    pendingCameraFile = saved[0]?.let(::File)
+                    pendingCameraUri = saved[1]?.let(Uri::parse)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -78,7 +99,7 @@ fun rememberCameraPhotoState(
     val hasCameraHardware = remember {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
     }
-    val state = remember { CameraPhotoState() }
+    val state = rememberSaveable(saver = CameraPhotoState.Saver) { CameraPhotoState() }
     val currentOnPhotoTaken by rememberUpdatedState(onPhotoTaken)
 
     val cameraCaptureLauncher = rememberLauncherForActivityResult(
