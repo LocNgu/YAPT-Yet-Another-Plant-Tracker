@@ -269,6 +269,18 @@ class PlantRepositoryTest {
     }
 
     @Test
+    fun `deleteAllArchived fires onPhotoReferencesRemoved`() = runTest {
+        var callCount = 0
+        val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addPlant(samplePlant(name = "Fern"))
+        callbackRepo.archivePlant(id)
+
+        callbackRepo.deleteAllArchived()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
     fun `deletePlantsWithNamePrefix fires onPhotoReferencesRemoved only when it removes a row`() = runTest {
         var callCount = 0
         val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })

@@ -10,11 +10,12 @@ import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// This is a thin 1:1 wrapper around CareLogDao; splitting it purely to dodge Detekt's
-// TooManyFunctions threshold would scatter the DAO-facing API across files for no readability
-// gain (cf. the DemoData/DemoDataTime split, which exists because those really are distinct
-// concerns — anchor-time math vs. per-plant definitions).
 /**
+ * This is a thin 1:1 wrapper around CareLogDao; splitting it purely to dodge Detekt's
+ * TooManyFunctions threshold would scatter the DAO-facing API across files for no readability
+ * gain (cf. the DemoData/DemoDataTime split, which exists because those really are distinct
+ * concerns — anchor-time math vs. per-plant definitions).
+ *
  * [onPhotoReferencesRemoved] fires from [deleteLog] (when the deleted log had a `photoUri`) and from
  * [updateLog] (when a photo reference was changed or cleared) — see [com.yapt.planttracker
  * .YaptApplication.scheduleOrphanPhotoCleanup] (#736/#559). Defaulted to a no-op so every pre-existing

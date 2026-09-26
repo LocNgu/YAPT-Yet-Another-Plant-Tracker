@@ -44,14 +44,17 @@ class OrphanPhotoCleanupWorker(
 
         /**
          * Fired after a photo-reference-removing write (repository `onPhotoReferencesRemoved`
-         * callbacks) or a successful `.yapt` restore. `KEEP` — a sweep already queued (or about to
-         * run) will pick up every reference removed since it was enqueued, since the referenced set
-         * is re-read fresh inside [OrphanPhotoSweeper.sweep]'s own transaction.
+         * callbacks) or a successful `.yapt` restore. `REPLACE`, not `KEEP`: under `KEEP` a request made
+         * while a sweep is already *running* (past its referenced-set read) was dropped, so that
+         * write's orphan waited for the next periodic run. `REPLACE` guarantees one sweep starts after
+         * the latest trigger. Cancelling a running sweep is harmless — its delete loop has no suspension
+         * point, so cancellation lands before the transaction or after it, and every file it already
+         * deleted was unreferenced under the transaction's lock.
          */
         fun enqueueNow(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork(
                 ONE_SHOT_WORK_NAME,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OrphanPhotoCleanupWorker>().build()
             )
         }

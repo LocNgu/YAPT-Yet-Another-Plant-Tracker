@@ -44,12 +44,15 @@ A reconciliation sweep (`util/OrphanPhotoSweeper.kt`), not an eager per-row dele
   "read the referenced set" and "delete a file that set didn't include."
 - **Scheduling via WorkManager, never `Application.onCreate`.** `worker/OrphanPhotoCleanupWorker.kt`
   registers a `KEEP` daily periodic job (`MainActivity`, next to
-  `ExistingCameraPhotoCompressionWorker`) plus a `KEEP` one-shot job fired after any write that removes
+  `ExistingCameraPhotoCompressionWorker`) plus a `REPLACE` one-shot job fired after any write that removes
   a photo reference (`PlantRepository`/`CareLogRepository`/`PlantPhotoRepository`'s injected
   `onPhotoReferencesRemoved` callback, mirroring `QuickLogUseCase`'s existing `onWaterLogged`
   injection) and after a successful `.yapt` restore (`BackupManager.onImportCompleted`) — the latter so
   a second restore's leftover first-restore `restored_photos` files get reclaimed rather than
-  accumulating indefinitely.
+  accumulating indefinitely. The one-shot uses `REPLACE` rather than `KEEP` because `KEEP` drops a
+  request made while a sweep is already running past its referenced-set read, which would leave that
+  write's orphan for the next periodic run; `REPLACE` always leaves one sweep starting after the latest
+  trigger, and cancelling a running sweep is safe (the delete loop has no suspension point).
 
 ## Consequences
 

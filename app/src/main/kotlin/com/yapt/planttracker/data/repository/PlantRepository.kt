@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * [onPhotoReferencesRemoved] fires from [deletePlant] (cascades to care logs/photos) and
- * [deletePlantsWithNamePrefix] (demo-data cleanup, when it removes anything) — see
+ * [onPhotoReferencesRemoved] fires from [deletePlant] and [deleteAllArchived] (both cascade to care
+ * logs/photos) and [deletePlantsWithNamePrefix] (demo-data cleanup, when it removes anything) — see
  * [com.yapt.planttracker.YaptApplication.scheduleOrphanPhotoCleanup] (#736/#559). Deliberately **not**
  * hooked on [updatePlant] — it's a hot path (every field edit, every interval tap), and cover-photo
  * replacement there is already covered by the periodic sweep. Defaulted to a no-op so every
@@ -64,7 +64,10 @@ class PlantRepository(
     /** Restores every id in a single atomic statement (bulk-archive undo, #448). */
     suspend fun restorePlants(ids: List<Long>) = plantDao.restorePlants(ids)
 
-    suspend fun deleteAllArchived() = plantDao.deleteAllArchived()
+    suspend fun deleteAllArchived() {
+        plantDao.deleteAllArchived()
+        onPhotoReferencesRemoved()
+    }
 
     /** Hard-deletes every plant whose name starts with [prefix]; returns the count removed (#523). */
     suspend fun deletePlantsWithNamePrefix(prefix: String): Int =
