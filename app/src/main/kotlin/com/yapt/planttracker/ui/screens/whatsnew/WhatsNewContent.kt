@@ -15,7 +15,11 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        fixed = listOf(
+            "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
+                "background while the camera is open"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older

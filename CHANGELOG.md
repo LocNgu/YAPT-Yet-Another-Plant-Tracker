@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **A camera photo is no longer silently lost if Android recreates the app while the camera is open** — the in-flight capture target now survives Activity recreation (low memory, a configuration change, or "Don't keep activities"), so the photo still reaches Add Care Log, Add/Edit Plant, Plant Detail, and the Plant List/Calendar photo reminders, and a cancelled capture still deletes its temporary file (#706)
+
 ## [0.32.1] - 2026-09-25
 
 ### Fixed
