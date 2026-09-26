@@ -10,12 +10,22 @@ import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// This is a thin 1:1 wrapper around CareLogDao; splitting it purely to dodge Detekt's
-// TooManyFunctions threshold would scatter the DAO-facing API across files for no readability
-// gain (cf. the DemoData/DemoDataTime split, which exists because those really are distinct
-// concerns — anchor-time math vs. per-plant definitions).
+/**
+ * This is a thin 1:1 wrapper around CareLogDao; splitting it purely to dodge Detekt's
+ * TooManyFunctions threshold would scatter the DAO-facing API across files for no readability
+ * gain (cf. the DemoData/DemoDataTime split, which exists because those really are distinct
+ * concerns — anchor-time math vs. per-plant definitions).
+ *
+ * [onPhotoReferencesRemoved] fires from [deleteLog] (when the deleted log had a `photoUri`) and from
+ * [updateLog] (when a photo reference was changed or cleared) — see [com.yapt.planttracker
+ * .YaptApplication.scheduleOrphanPhotoCleanup] (#736/#559). Defaulted to a no-op so every pre-existing
+ * direct construction (tests, `DemoDataSeeder`, `SettingsViewModel`) still compiles unchanged.
+ */
 @Suppress("TooManyFunctions")
-class CareLogRepository(private val careLogDao: CareLogDao) {
+class CareLogRepository(
+    private val careLogDao: CareLogDao,
+    private val onPhotoReferencesRemoved: () -> Unit = {}
+) {
 
     val logCount: Flow<Int> = careLogDao.observeLogCount()
 
@@ -84,11 +94,23 @@ class CareLogRepository(private val careLogDao: CareLogDao) {
     suspend fun addLog(log: CareLog): Long =
         careLogDao.insertLog(log.toEntity())
 
-    suspend fun updateLog(log: CareLog) =
+    /**
+     * A cheap PK read before the write lets this fire [onPhotoReferencesRemoved] whenever a photo
+     * reference is actually changed or removed (`old.photoUri != null && old.photoUri !=
+     * log.photoUri`) — covers both the gallery "delete care-log photo" path
+     * (`PlantDetailViewModel.deletePhoto`'s `updateLog(photoUri = null)`) and a photo being replaced
+     * outright, without needing the caller to know or pass the prior value itself (#736/#559).
+     */
+    suspend fun updateLog(log: CareLog) {
+        val old = careLogDao.getLogById(log.id)
         careLogDao.updateLog(log.toEntity())
+        if (old?.photoUri != null && old.photoUri != log.photoUri) onPhotoReferencesRemoved()
+    }
 
-    suspend fun deleteLog(log: CareLog) =
+    suspend fun deleteLog(log: CareLog) {
         careLogDao.deleteLog(log.toEntity())
+        if (log.photoUri != null) onPhotoReferencesRemoved()
+    }
 }
 
 private fun CareLogEntity.toDomain() = CareLog(

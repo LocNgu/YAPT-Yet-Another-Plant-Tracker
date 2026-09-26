@@ -16,6 +16,11 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
+                "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
+                "first, once nothing in the app references them anymore"
+        ),
         fixed = listOf(
             "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
                 "background while the camera is open"

@@ -6,7 +6,15 @@ import com.yapt.planttracker.domain.model.PlantPhoto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class PlantPhotoRepository(private val plantPhotoDao: PlantPhotoDao) {
+/**
+ * [onPhotoReferencesRemoved] fires after [deletePhoto] — see [com.yapt.planttracker.YaptApplication
+ * .scheduleOrphanPhotoCleanup] (#736/#559). Defaulted to a no-op so every pre-existing direct
+ * construction (tests, `DemoDataSeeder`) still compiles unchanged.
+ */
+class PlantPhotoRepository(
+    private val plantPhotoDao: PlantPhotoDao,
+    private val onPhotoReferencesRemoved: () -> Unit = {}
+) {
 
     fun getPhotosForPlant(plantId: Long): Flow<List<PlantPhoto>> =
         plantPhotoDao.getPhotosForPlant(plantId).map { list -> list.map { it.toDomain() } }
@@ -21,8 +29,10 @@ class PlantPhotoRepository(private val plantPhotoDao: PlantPhotoDao) {
     suspend fun getPhotosForPlantOnce(plantId: Long): List<PlantPhoto> =
         plantPhotoDao.getPhotosForPlantOnce(plantId).map { it.toDomain() }
 
-    suspend fun deletePhoto(photo: PlantPhoto) =
+    suspend fun deletePhoto(photo: PlantPhoto) {
         plantPhotoDao.deletePhoto(photo.toEntity())
+        onPhotoReferencesRemoved()
+    }
 }
 
 private fun PlantPhotoEntity.toDomain() = PlantPhoto(
