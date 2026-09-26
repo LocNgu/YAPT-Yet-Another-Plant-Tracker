@@ -21,6 +21,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup
 import com.yapt.planttracker.notification.NotificationHelper
+import com.yapt.planttracker.worker.OrphanPhotoCleanupWorker
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,9 +57,15 @@ open class YaptApplication : Application() {
 
     val database by lazy { PlantDatabase.getInstance(this) }
 
-    val plantRepository by lazy { PlantRepository(database.plantDao()) }
-    val careLogRepository by lazy { CareLogRepository(database.careLogDao()) }
-    val plantPhotoRepository by lazy { PlantPhotoRepository(database.plantPhotoDao()) }
+    val plantRepository by lazy {
+        PlantRepository(database.plantDao(), onPhotoReferencesRemoved = ::scheduleOrphanPhotoCleanup)
+    }
+    val careLogRepository by lazy {
+        CareLogRepository(database.careLogDao(), onPhotoReferencesRemoved = ::scheduleOrphanPhotoCleanup)
+    }
+    val plantPhotoRepository by lazy {
+        PlantPhotoRepository(database.plantPhotoDao(), onPhotoReferencesRemoved = ::scheduleOrphanPhotoCleanup)
+    }
     val customReminderRepository by lazy { CustomReminderRepository(database.customReminderDao()) }
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
     val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
@@ -78,6 +85,17 @@ open class YaptApplication : Application() {
 
     suspend fun schedulePostWateringReminder(loggedAt: Long) {
         PostWateringReminderScheduler.scheduleIfEnabled(this, settingsDataStore, loggedAt)
+    }
+
+    /**
+     * Enqueues a one-shot [OrphanPhotoCleanupWorker] sweep (#736/#559). Wired into
+     * [PlantRepository]/[CareLogRepository]/[PlantPhotoRepository]'s `onPhotoReferencesRemoved`
+     * callback and into [com.yapt.planttracker.data.backup.BackupManager]'s post-restore hook. `open`
+     * (not `internal open fun` only) so [com.yapt.planttracker.TestYaptApplication] can override it to
+     * a no-op — Robolectric unit tests never have a real WorkManager `Configuration` installed.
+     */
+    internal open fun scheduleOrphanPhotoCleanup() {
+        OrphanPhotoCleanupWorker.enqueueNow(this)
     }
 
     /**

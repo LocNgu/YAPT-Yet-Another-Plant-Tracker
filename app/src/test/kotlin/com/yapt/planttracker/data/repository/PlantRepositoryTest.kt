@@ -241,4 +241,55 @@ class PlantRepositoryTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    // -----------------------------------------------------------------------
+    // onPhotoReferencesRemoved callback (#736/#559)
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `deletePlant fires onPhotoReferencesRemoved`() = runTest {
+        var callCount = 0
+        val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addPlant(samplePlant(name = "Orchid"))
+
+        callbackRepo.deletePlant(samplePlant(name = "Orchid").copy(id = id))
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `updatePlant never fires onPhotoReferencesRemoved`() = runTest {
+        var callCount = 0
+        val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addPlant(samplePlant(name = "Basil"))
+
+        callbackRepo.updatePlant(samplePlant(name = "Basil", coverPhotoUri = null).copy(id = id))
+
+        assertEquals(0, callCount)
+    }
+
+    @Test
+    fun `deleteAllArchived fires onPhotoReferencesRemoved`() = runTest {
+        var callCount = 0
+        val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addPlant(samplePlant(name = "Fern"))
+        callbackRepo.archivePlant(id)
+
+        callbackRepo.deleteAllArchived()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `deletePlantsWithNamePrefix fires onPhotoReferencesRemoved only when it removes a row`() = runTest {
+        var callCount = 0
+        val callbackRepo = PlantRepository(db.plantDao(), onPhotoReferencesRemoved = { callCount++ })
+
+        assertEquals(0, callbackRepo.deletePlantsWithNamePrefix("[Demo] "))
+        assertEquals(0, callCount)
+
+        callbackRepo.addPlant(samplePlant(name = "[Demo] Monstera"))
+        assertEquals(1, callbackRepo.deletePlantsWithNamePrefix("[Demo] "))
+        assertEquals(1, callCount)
+    }
 }

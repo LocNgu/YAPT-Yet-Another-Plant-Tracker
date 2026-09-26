@@ -106,10 +106,17 @@ interface BackupManagerInterface {
     suspend fun importBackup(sourceUri: Uri): BackupResult
 }
 
+/**
+ * [onImportCompleted] fires once per successful [importBackup] (after the DB transaction commits) —
+ * a second restore's leftover first-restore `restored_photos` files, and any `images`-directory files
+ * a restore's overwritten plant/care-log rows no longer reference, are only reclaimed once the sweep
+ * runs (#736). Defaulted to a no-op so the instrumented `BackupManagerTest` construction is unaffected.
+ */
 class BackupManager(
     private val context: Context,
     private val database: PlantDatabase,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val onImportCompleted: () -> Unit = {}
 ) : BackupManagerInterface {
 
     // Pre-existing export orchestration debt; photo URI opening/optimization/ZIP streaming is extracted below.
@@ -520,6 +527,7 @@ class BackupManager(
                 database.wateringAdjustmentDao().insertAll(wateringAdjustmentEntities)
             }
             dbCommitted = true
+            onImportCompleted()
 
             dataStore.edit { prefs ->
                 prefs[SettingsKeys.NOTIFICATIONS_ENABLED] = backup.settings.notificationsEnabled

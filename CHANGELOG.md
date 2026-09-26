@@ -12,6 +12,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Deleted photos now free up storage instead of leaking forever** — a background sweep now reclaims camera-capture and restore-output image files once nothing in the database references them anymore (a deleted plant's cover photo and care-log photos, a deleted gallery photo, a second `.yapt` restore's leftover files from the first). Runs daily and right after a delete or restore; in-flight captures and gallery-picked photos are never touched (#736, #559, technical ADR-0031)
+
+### Fixed
+- **A camera photo is no longer silently lost if Android recreates the app while the camera is open** — the in-flight capture target now survives Activity recreation (low memory, a configuration change, or "Don't keep activities"), so the photo still reaches Add Care Log, Add/Edit Plant, Plant Detail, and the Plant List/Calendar photo reminders, and a cancelled capture still deletes its temporary file (#706)
+
 ## [0.32.1] - 2026-09-25
 
 ### Fixed
