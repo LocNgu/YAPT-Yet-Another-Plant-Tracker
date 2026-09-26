@@ -32,7 +32,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 ```
 - Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
 - Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
-- `AdaptiveWateringObservation` is the shared adaptive WATER observation path used by `QuickLogUseCase` and `AddCareLogViewModel` (#780, technical ADR-0030). Keep dormancy, bootstrap, confidence, and adjustment writes there; the callers supply their entry-point-specific gap policy and clocks.
+- `AdaptiveWateringObservation` is the shared adaptive WATER observation path used by `QuickLogUseCase` and `AddCareLogViewModel` (#780, technical ADR-0030). Keep dormancy, bootstrap, confidence, and adjustment writes there; the callers supply their entry-point-specific gap policy and clocks. Both measure the gap from the new log's chronological predecessor (`getLastWateringBefore`), never the globally newest pair; the form alone keeps a configured-interval fallback for a plant's first-ever watering, while a log backdated before every existing watering gets no observation (#673, technical ADR-0032).
 
 ## Conventions (beyond what the linter enforces)
 - **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).

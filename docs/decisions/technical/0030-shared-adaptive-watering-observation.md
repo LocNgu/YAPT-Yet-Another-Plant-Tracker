@@ -1,6 +1,6 @@
 # Technical ADR-0030: One adaptive watering observation path
 
-**Status**: accepted
+**Status**: accepted — form gap-source clause amended by [ADR-0032](0032-add-care-log-chronological-watering-gap.md)
 
 **Date**: 2026-09-21
 

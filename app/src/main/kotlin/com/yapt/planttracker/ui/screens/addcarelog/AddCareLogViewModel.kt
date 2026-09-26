@@ -245,7 +245,7 @@ class AddCareLogViewModel(
             selectedFeedback,
             loggedAt,
             displayNow,
-            AdaptiveWateringObservation.GapSource.NEWEST_PAIR_OR_CONFIGURED,
+            AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED,
             isEditMode = isEditMode
         ) ?: return null
         return SuggestedInterval(suggestion.intervalDays, suggestion.baseIntervalDays)
