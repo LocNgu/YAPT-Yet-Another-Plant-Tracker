@@ -390,4 +390,71 @@ class CareLogRepositoryTest {
 
         assertFalse(repo.hasLogOfTypeOnDay(plantId, CareType.WATER, now, excludeLogId = id))
     }
+
+    // -----------------------------------------------------------------------
+    // onPhotoReferencesRemoved callback (#736/#559)
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `deleteLog fires onPhotoReferencesRemoved when the deleted log had a photo`() = runTest {
+        init()
+        var callCount = 0
+        val callbackRepo = CareLogRepository(db.careLogDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addLog(careLog(plantId = plantId, photoUri = "content://photo/1"))
+
+        callbackRepo.deleteLog(careLog(id = id, plantId = plantId, photoUri = "content://photo/1"))
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `deleteLog never fires onPhotoReferencesRemoved when the deleted log had no photo`() = runTest {
+        init()
+        var callCount = 0
+        val callbackRepo = CareLogRepository(db.careLogDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addLog(careLog(plantId = plantId, photoUri = null))
+
+        callbackRepo.deleteLog(careLog(id = id, plantId = plantId, photoUri = null))
+
+        assertEquals(0, callCount)
+    }
+
+    @Test
+    fun `updateLog fires onPhotoReferencesRemoved when clearing an existing photo`() = runTest {
+        init()
+        var callCount = 0
+        val callbackRepo = CareLogRepository(db.careLogDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addLog(careLog(plantId = plantId, photoUri = "content://photo/1"))
+        val existing = callbackRepo.getLogById(id)!!
+
+        callbackRepo.updateLog(existing.copy(photoUri = null))
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `updateLog fires onPhotoReferencesRemoved when replacing a photo with a different one`() = runTest {
+        init()
+        var callCount = 0
+        val callbackRepo = CareLogRepository(db.careLogDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addLog(careLog(plantId = plantId, photoUri = "content://photo/1"))
+        val existing = callbackRepo.getLogById(id)!!
+
+        callbackRepo.updateLog(existing.copy(photoUri = "content://photo/2"))
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `updateLog never fires onPhotoReferencesRemoved when no photo was ever set`() = runTest {
+        init()
+        var callCount = 0
+        val callbackRepo = CareLogRepository(db.careLogDao(), onPhotoReferencesRemoved = { callCount++ })
+        val id = callbackRepo.addLog(careLog(plantId = plantId, notes = "old", photoUri = null))
+        val existing = callbackRepo.getLogById(id)!!
+
+        callbackRepo.updateLog(existing.copy(notes = "new"))
+
+        assertEquals(0, callCount)
+    }
 }

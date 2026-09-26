@@ -30,4 +30,11 @@ interface PlantPhotoDao {
 
     @Query("DELETE FROM plant_photos")
     suspend fun deleteAll()
+
+    /**
+     * Every `uri` across all plant photos — feeds
+     * [com.yapt.planttracker.util.OrphanPhotoSweeper]'s referenced-file set (#736).
+     */
+    @Query("SELECT uri FROM plant_photos")
+    suspend fun getAllPhotoUriStrings(): List<String>
 }

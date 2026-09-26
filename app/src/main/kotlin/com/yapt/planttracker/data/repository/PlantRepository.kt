@@ -7,7 +7,18 @@ import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class PlantRepository(private val plantDao: PlantDao) {
+/**
+ * [onPhotoReferencesRemoved] fires from [deletePlant] (cascades to care logs/photos) and
+ * [deletePlantsWithNamePrefix] (demo-data cleanup, when it removes anything) — see
+ * [com.yapt.planttracker.YaptApplication.scheduleOrphanPhotoCleanup] (#736/#559). Deliberately **not**
+ * hooked on [updatePlant] — it's a hot path (every field edit, every interval tap), and cover-photo
+ * replacement there is already covered by the periodic sweep. Defaulted to a no-op so every
+ * pre-existing direct construction (tests, `SettingsViewModel`) still compiles unchanged.
+ */
+class PlantRepository(
+    private val plantDao: PlantDao,
+    private val onPhotoReferencesRemoved: () -> Unit = {}
+) {
 
     fun getAllPlants(): Flow<List<Plant>> =
         plantDao.getAllPlants().map { list -> list.map { it.toDomain() } }
@@ -23,8 +34,10 @@ class PlantRepository(private val plantDao: PlantDao) {
     suspend fun updatePlant(plant: Plant) =
         plantDao.updatePlant(plant.toEntity())
 
-    suspend fun deletePlant(plant: Plant) =
+    suspend fun deletePlant(plant: Plant) {
         plantDao.deletePlant(plant.toEntity())
+        onPhotoReferencesRemoved()
+    }
 
     fun getArchivedPlants(): Flow<List<Plant>> =
         plantDao.getArchivedPlants().map { list -> list.map { it.toDomain() } }
@@ -54,7 +67,8 @@ class PlantRepository(private val plantDao: PlantDao) {
     suspend fun deleteAllArchived() = plantDao.deleteAllArchived()
 
     /** Hard-deletes every plant whose name starts with [prefix]; returns the count removed (#523). */
-    suspend fun deletePlantsWithNamePrefix(prefix: String): Int = plantDao.deletePlantsByNamePrefix(prefix)
+    suspend fun deletePlantsWithNamePrefix(prefix: String): Int =
+        plantDao.deletePlantsByNamePrefix(prefix).also { if (it > 0) onPhotoReferencesRemoved() }
 }
 
 private fun PlantEntity.toDomain() = Plant(

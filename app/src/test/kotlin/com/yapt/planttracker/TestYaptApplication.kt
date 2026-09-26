@@ -28,7 +28,14 @@ package com.yapt.planttracker
  * have direct coverage — `SeasonalGraduationFixupTest` for the backfill, `SettingsViewModelTest` for
  * [writeDefaultReminderTimeIfAbsent]. A test that does want app-start behaviour should drive it
  * explicitly rather than race it.
+ *
+ * [scheduleOrphanPhotoCleanup] is also overridden to a no-op (#736/#559) — it's wired as the
+ * `onPhotoReferencesRemoved` callback on [com.yapt.planttracker.data.repository.PlantRepository]/
+ * [com.yapt.planttracker.data.repository.CareLogRepository]/
+ * [com.yapt.planttracker.data.repository.PlantPhotoRepository], so any test that deletes a plant,
+ * care log, or photo through those repositories would otherwise enqueue real `WorkManager` work.
  */
 class TestYaptApplication : YaptApplication() {
     override fun launchAppStartWork() = Unit
+    override fun scheduleOrphanPhotoCleanup() = Unit
 }

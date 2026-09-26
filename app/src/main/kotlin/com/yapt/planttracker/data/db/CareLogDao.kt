@@ -129,4 +129,11 @@ interface CareLogDao {
 
     @Query("SELECT COUNT(*) FROM care_logs")
     fun observeLogCount(): Flow<Int>
+
+    /**
+     * Every non-null `photoUri` across all care logs — feeds
+     * [com.yapt.planttracker.util.OrphanPhotoSweeper]'s referenced-file set (#736).
+     */
+    @Query("SELECT photoUri FROM care_logs WHERE photoUri IS NOT NULL")
+    suspend fun getAllPhotoUris(): List<String>
 }

@@ -15,7 +15,12 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        added = listOf(
+            "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
+                "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
+                "first, once nothing in the app references them anymore"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
