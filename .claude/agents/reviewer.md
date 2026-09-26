@@ -116,7 +116,12 @@ In round 2+, also tell the orchestrator which round-1 findings are now fixed so 
   commit, but that alone does not trigger another full review round.
 - **A round with BLOCKING findings → CHANGES NEEDED.** The implementer does another round, and that round
   gets a fresh review.
-- **After round 2** (two CHANGES-NEEDED rounds, implementer has responded again): do **not** auto-approve. Return a summary + recommendation and stop — the human decides. Use this template:
+- **The cap is 2 review rounds total, regardless of why round 2 was launched** — a fresh BLOCKING finding,
+  a PR-caused red CI, a fix commit that weakened or removed a test/assertion, or a fix that reached
+  outside what the SMALL findings named all count the same way (`.claude/CLAUDE.md`'s "Review on push").
+  Round 1 does not have to have ended CHANGES NEEDED for round 2 to happen — an APPROVED round 1 with a
+  SMALL-only fix that then triggers one of those four conditions still counts against the same cap.
+- **After round 2** (whatever triggered it, implementer has responded again): do **not** auto-approve. Return a summary + recommendation and stop — the human decides. Use this template:
 
 ```
 ## Reviewer — Round 2 complete — awaiting human decision
