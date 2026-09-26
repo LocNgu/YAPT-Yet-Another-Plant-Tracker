@@ -98,7 +98,9 @@ of the log into context.
 must succeed **before every push that opens or updates a PR** — round 2+ fix-round pushes are not an
 exception. This matches `AGENTS.md`'s "Before opening or updating a pull request" gate verbatim (both
 docs point agents at this shared file precisely so the two can't drift apart on this); nothing below
-proposes a per-agent or per-round carve-out from it.
+proposes a per-agent or per-round carve-out from it. This file is path-scoped and doesn't load for a
+Kotlin-only change, so `.claude/agents/implementer.md` also carries this same gate verbatim in its own
+"Before every push" section — that's the copy that actually loads on a plain Kotlin/Compose PR (#807).
 The token/time savings on a fix round come from *how* you run checks while iterating, not from skipping
 any of them before the push:
 - While chasing one specific reviewer finding, first reproduce/confirm it with a targeted run
@@ -107,6 +109,12 @@ any of them before the push:
   substitute for the full mandatory suite above, which must still run once before the push.
 - Pipe every run through `-q`/`--console=plain` and grep the output for `FAILED`/`error:`/`Exception`
   instead of reading full verbose console output — this is where the actual context savings come from.
+
+**Narrow network exception (#807):** if the gate can't complete solely because an external dependency
+service (e.g. Maven Central) is unavailable after one retry, report the failing command and the external
+error in the handoff and PR body instead of pushing unverified silently; CI remains authoritative for
+that run. A compile, test, lint, or Detekt failure caused by the change itself never qualifies for this
+exception — only a genuine external-service outage does.
 
 ## Release build (#4)
 `isMinifyEnabled = true`, `isShrinkResources = true` on the release build type. ProGuard rules keep WorkManager
