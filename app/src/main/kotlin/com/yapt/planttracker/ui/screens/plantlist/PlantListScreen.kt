@@ -70,6 +70,7 @@ import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantCard
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.components.yaptFilterChipColors
 import com.yapt.planttracker.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -312,7 +313,8 @@ fun PlantListScreen(
                         FilterChip(
                             selected = selectedRoom == null,
                             onClick = { viewModel.selectRoom(null) },
-                            label = { Text(stringResource(R.string.time_range_all)) }
+                            label = { Text(stringResource(R.string.time_range_all)) },
+                            colors = yaptFilterChipColors()
                         )
                     }
                     if (hasUnassignedPlants) {
@@ -320,7 +322,8 @@ fun PlantListScreen(
                             FilterChip(
                                 selected = selectedRoom == PlantListViewModel.UNASSIGNED_ROOM,
                                 onClick = { viewModel.selectRoom(PlantListViewModel.UNASSIGNED_ROOM) },
-                                label = { Text(stringResource(R.string.filter_unassigned)) }
+                                label = { Text(stringResource(R.string.filter_unassigned)) },
+                                colors = yaptFilterChipColors()
                             )
                         }
                     }
@@ -328,7 +331,8 @@ fun PlantListScreen(
                         FilterChip(
                             selected = selectedRoom == room,
                             onClick = { viewModel.selectRoom(room) },
-                            label = { Text(room) }
+                            label = { Text(room) },
+                            colors = yaptFilterChipColors()
                         )
                     }
                 }

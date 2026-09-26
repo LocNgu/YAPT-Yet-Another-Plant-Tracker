@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +66,8 @@ import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.util.showSnackbarOnce
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -75,9 +78,11 @@ fun AddEditPlantScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
@@ -366,7 +371,10 @@ fun AddEditPlantScreen(
                     )
                     FertilizingSeasonsSelector(
                         selected = viewModel.fertilizingSeasons,
-                        onToggle = viewModel::toggleFertilizingSeason
+                        onToggle = viewModel::toggleFertilizingSeason,
+                        onLastSeasonLocked = {
+                            coroutineScope.launch { snackbarHostState.showSnackbarOnce(lastSeasonLockedMessage) }
+                        }
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

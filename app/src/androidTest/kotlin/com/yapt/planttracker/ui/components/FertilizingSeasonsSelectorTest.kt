@@ -1,10 +1,12 @@
 package com.yapt.planttracker.ui.components
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -46,7 +48,7 @@ class FertilizingSeasonsSelectorTest {
         }
 
         FertilizingSeason.entries.forEach { season ->
-            composeTestRule.onNodeWithText(seasonLabel(season), substring = true).assertIsSelected()
+            composeTestRule.onNodeWithText(seasonLabel(season)).assertIsSelected()
         }
     }
 
@@ -62,10 +64,10 @@ class FertilizingSeasonsSelectorTest {
         }
 
         val toAdd = others.first()
-        composeTestRule.onNodeWithText(seasonLabel(toAdd), substring = true).assertIsNotSelected().performClick()
+        composeTestRule.onNodeWithText(seasonLabel(toAdd)).assertIsNotSelected().performClick()
 
         composeTestRule.runOnIdle { assertEquals(setOf(current, toAdd), selected) }
-        composeTestRule.onNodeWithText(seasonLabel(toAdd), substring = true).assertIsSelected()
+        composeTestRule.onNodeWithText(seasonLabel(toAdd)).assertIsSelected()
     }
 
     @Test
@@ -80,34 +82,68 @@ class FertilizingSeasonsSelectorTest {
             )
         }
 
-        composeTestRule.onNodeWithText(seasonLabel(toRemove), substring = true).assertIsEnabled().performClick()
+        composeTestRule.onNodeWithText(seasonLabel(toRemove)).assertIsEnabled().performClick()
 
         composeTestRule.runOnIdle { assertEquals(setOf(current), selected) }
     }
 
     @Test
-    fun lastRemainingSelectedChip_isDisabled_soATapCannotDeselectIt() {
+    fun lastRemainingSelectedChip_staysEnabledAndSelected_tapKeepsSelectionAndLocksInsteadOfToggling() {
         val (current, _) = currentSeasonAndOthers()
+        var onToggleCallCount by mutableIntStateOf(0)
+        var onLastSeasonLockedCallCount by mutableIntStateOf(0)
         composeTestRule.setContent {
-            FertilizingSeasonsSelector(selected = setOf(current), onToggle = {})
+            FertilizingSeasonsSelector(
+                selected = setOf(current),
+                onToggle = { onToggleCallCount++ },
+                onLastSeasonLocked = { onLastSeasonLockedCallCount++ }
+            )
         }
 
-        // Disabled is the user-visible (and screen-reader-announced) signal that this chip's tap
-        // is a no-op — a disabled Compose node exposes no click action at all, so there is nothing
-        // further to assert about the tap itself.
-        composeTestRule.onNodeWithText(seasonLabel(current), substring = true)
+        composeTestRule.onNodeWithText(seasonLabel(current))
+            .assertIsEnabled()
             .assertIsSelected()
-            .assertIsNotEnabled()
+            .performClick()
+
+        composeTestRule.onNodeWithText(seasonLabel(current)).assertIsSelected()
+        composeTestRule.runOnIdle {
+            assertEquals(0, onToggleCallCount)
+            assertEquals(1, onLastSeasonLockedCallCount)
+        }
     }
 
     @Test
-    fun currentSeasonChip_announcesItselfAsTheCurrentSeason() {
+    fun lastRemainingSelectedChip_repeatedTaps_eachInvokeTheLockCallback() {
+        val (current, _) = currentSeasonAndOthers()
+        var onLastSeasonLockedCallCount by mutableIntStateOf(0)
+        composeTestRule.setContent {
+            FertilizingSeasonsSelector(
+                selected = setOf(current),
+                onToggle = {},
+                onLastSeasonLocked = { onLastSeasonLockedCallCount++ }
+            )
+        }
+
+        val chip = composeTestRule.onNodeWithText(seasonLabel(current))
+        chip.performClick()
+        chip.performClick()
+        chip.performClick()
+
+        composeTestRule.runOnIdle { assertEquals(3, onLastSeasonLockedCallCount) }
+    }
+
+    @Test
+    fun currentSeasonChip_showsThePlainSeasonName_withCurrentSeasonInItsSemantics() {
         val (current, _) = currentSeasonAndOthers()
         composeTestRule.setContent {
             FertilizingSeasonsSelector(selected = FertilizingSeason.entries.toSet(), onToggle = {})
         }
 
-        val expectedLabel = targetContext().getString(R.string.fertilizing_current_season, seasonLabel(current))
-        composeTestRule.onNodeWithText(expectedLabel).assertIsSelected()
+        composeTestRule.onNodeWithText(seasonLabel(current)).assertIsSelected()
+
+        val expectedStateDescription = targetContext().getString(R.string.fertilizing_current_season)
+        composeTestRule
+            .onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, expectedStateDescription))
+            .assertIsSelected()
     }
 }

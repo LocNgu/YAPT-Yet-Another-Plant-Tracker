@@ -12,6 +12,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-09-25
+
+### Fixed
+- **Selected filter chips now read as "on" everywhere in the app** — the Plant List room filters, Add Care Log's care-type, fertilizer-type and "plant needed it" chips, the watering history time-range chips, and the watering reason sheet's options all now show a green fill when selected, instead of a dusty grey-brown in light theme (which made unselected chips look more "on" than selected ones) and an off-palette grey-purple in dark theme. Dark theme's plant-card and calendar badges also pick up an on-palette earth-brown instead of that grey-purple fallback (#814, product ADR-0052, amending product ADR-0051)
+- **Fertilizing season chips no longer read backwards** — selected seasons now show a green fill instead of a muted grey that looked unselected (unselected chips, which had the only green in them before, are unaffected). The last remaining selected season chip stays enabled and selected instead of greying out unexplained: tapping it wiggles, buzzes, and shows a snackbar explaining that at least one season must stay active. The current season is now marked with a small dot instead of text crowding the chip label, with the wording still available to screen readers (#813, product ADR-0051, amending product ADR-0049)
+- **Backup exports were missing archived plants and could silently drop unreadable photos** — an archived plant, its care history, photos, custom reminders, issues, and watering adjustments are now included in every `.yapt` export and restore archived; a photo whose source can no longer be opened (a lapsed gallery permission, a deleted image, an un-synced cloud photo) is now skipped instead of leaving a broken reference after restore, and the export success message now reports how many photos were skipped (#743)
+- **A photo readable at export time but not by the time it was actually copied into the backup could still leave a dangling reference on restore, and wasn't counted as skipped** — export now opens and copies each photo in a single pass instead of a separate probe step, so this window can no longer occur for new exports, and every failure is counted. Restoring an older backup (or a zip corrupted after export) that still has this issue now resolves the affected photo to nothing instead of writing a broken reference into the database (#817)
+
 ---
 
 ## [0.32.0] - 2026-09-24

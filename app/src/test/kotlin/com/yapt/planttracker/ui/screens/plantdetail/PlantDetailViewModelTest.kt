@@ -29,9 +29,13 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -335,6 +339,66 @@ class PlantDetailViewModelTest {
         }
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
+
+    // #813, product ADR-0051: the rejection above is no longer silent — it now emits an Event so
+    // the screen can show the same "at least one season must stay active" snackbar the composable's
+    // own locked-chip tap shows.
+    @Test
+    fun `toggleFertilizingSeason emits FertilizingSeasonToggleRejected when the set would empty`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING))
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.events.test {
+                vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+                assertEquals(PlantDetailViewModel.Event.FertilizingSeasonToggleRejected, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /**
+     * #813 review round 1: `toggleFertilizingSeason` used to call `emitEvent` from *inside*
+     * `intervalEditMutex.withLock`. `_events` is unbuffered, so `emit()` suspends until the
+     * screen's single collector is ready — which it may not be, e.g. while it's suspended inside a
+     * `SnackbarDuration.Long` Snackbar for an unrelated event. Emitting under the lock would hold
+     * `intervalEditMutex` for that whole wait, stalling every other write sharing it
+     * (`setLiquidFertilizer`, `setPinIntervalToBase`, another season toggle).
+     *
+     * Modelled here with a manual `events` collector (launched on the same `UnconfinedTestDispatcher`
+     * `viewModelScope` itself runs on, via [MainDispatcherRule], so both progress synchronously in
+     * lockstep without needing to coordinate with `runTest`'s own, separate scheduler) that accepts
+     * one event and then never returns to `collect` — standing in for a Snackbar that never
+     * resolves within this test's lifetime. A first rejection delivers straight to the
+     * already-waiting collector and completes normally; a second rejection has no ready receiver
+     * and so its own `emitEvent` call suspends forever. If the mutex were still held at that point
+     * (the bug), `setLiquidFertilizer` below would never complete either.
+     */
+    @Test
+    fun `toggleFertilizingSeason releases the mutex before emitting, even with a busy events collector`() = runTest {
+        val monstera = plant().copy(fertilizingSeasons = setOf(FertilizingSeason.SPRING), useLiquidFertilizer = false)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        val collectorScope = CoroutineScope(mainDispatcherRule.testDispatcher)
+        collectorScope.launch { vm.events.collect { awaitCancellation() } }
+
+        // Delivered straight to the collector above (actively awaiting its first value), which
+        // then hangs processing it — this is what makes the collector "busy" for the next line.
+        vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+        // No ready receiver this time, so this call's own emitEvent() suspends indefinitely.
+        vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
+
+        vm.setLiquidFertilizer(true)
+
+        coVerify { plantRepo.updatePlant(match { it.useLiquidFertilizer }) }
+        collectorScope.cancel()
     }
 
     @Test

@@ -34,6 +34,14 @@ interface PlantDao {
     @Query("SELECT * FROM plants WHERE archivedAt IS NOT NULL ORDER BY archivedAt DESC")
     fun getArchivedPlants(): Flow<List<PlantEntity>>
 
+    /**
+     * Every plant regardless of archive state, ordered like [getAllPlants] — the backup export
+     * source of truth (#743), since archiving is meant to be soft/reversible, not a silent
+     * exclusion from `.yapt` backups.
+     */
+    @Query("SELECT * FROM plants ORDER BY name ASC")
+    fun getAllPlantsIncludingArchived(): Flow<List<PlantEntity>>
+
     @Query("SELECT COUNT(*) FROM plants WHERE archivedAt IS NOT NULL")
     fun getArchivedCount(): Flow<Int>
 
