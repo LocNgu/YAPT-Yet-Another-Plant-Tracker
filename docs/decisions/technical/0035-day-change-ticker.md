@@ -134,6 +134,21 @@ suspended-mid-rebuild race; round 2's bug requires a genuine asynchronous gap in
 which the test harness could not be made to open reliably. The structural fix (one atomic `combine()`
 producing `StatusesForDay`) stands regardless — the invariant test is the practical regression guard.
 
+**The VM's `today` is public for exactly one reason: the UI layer needs the same value, not its own
+independent read of "now" (#550 review round 3).** `CalendarScreen` used to seed `val today = remember {
+LocalDate.now() }` once per composition, driving `CalendarDayCell`'s `isToday` highlight and
+`CalendarDaySheet`'s "Today" title/section header. A `remember` block never re-evaluates on its own, so a
+Calendar screen left open and foregrounded across midnight kept both highlighting and labelling
+yesterday's cell as "Today" even after `plantsByDay` had already rolled over — the same underlying gap
+(no day-change trigger) this whole ADR exists to close, just one layer further out, in the UI rather than
+a `combine()`. Fixed by making `today: StateFlow<LocalDate>` public on `CalendarViewModel` (previously
+`private`) rather than adding a second `dayChangeFlow` collection for the screen to read from — the
+screen now collects it via `collectAsStateWithLifecycle()`, same as every other VM-owned `StateFlow` it
+reads. `currentMonth = remember { YearMonth.now() }` (which only seeds the calendar's ±1200-month range
+and initial visible month) is deliberately untouched — moving the visible month out from under the user
+at midnight is not the desired behavior, unlike the highlight/label, which is expected to track the real
+current day live.
+
 Both `PlantListViewModel` and `CalendarViewModel` constructor-inject the ticker as `Flow<LocalDate>`
 defaulting to the real `dayChangeTicker()`, so `Factory` needs no change (the default applies), while a
 test can substitute a controllable `MutableSharedFlow<LocalDate>`/`MutableStateFlow<LocalDate>`.
@@ -186,3 +201,8 @@ the handful of tests that actually exercise the ticker's effect inject their own
   this app hit that shape; any future two-stage `combine()` chain sharing an upstream trigger should
   default to the same "combine once, derive twice" pattern rather than re-reading the trigger flow at
   each stage.
+- A ViewModel's day-change value is exposed publicly once the UI layer itself needs to know "what day is
+  it" for anything beyond what a derived `StateFlow` already encodes — `CalendarScreen`'s `isToday`
+  highlight and "Today" title/section label are UI-owned decisions that can't be pushed down into
+  `plantsByDay`'s `Map<LocalDate, DayEntry>` shape, so they need their own read of the same `today`
+  rather than a screen-local `remember { LocalDate.now() }`.

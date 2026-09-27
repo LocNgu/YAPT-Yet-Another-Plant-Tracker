@@ -532,4 +532,26 @@ class CalendarViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `today updates on a day-change tick (#550 review round 3)`() =
+        runTest {
+            every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+            val day1 = LocalDate.of(2026, 5, 1)
+            val day2 = LocalDate.of(2026, 5, 2)
+            val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
+            dayChangeFlow.tryEmit(day1)
+            vm = CalendarViewModel(
+                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            )
+
+            vm.today.test {
+                assertEquals(day1, awaitItem())
+
+                dayChangeFlow.emit(day2)
+
+                assertEquals(day2, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }

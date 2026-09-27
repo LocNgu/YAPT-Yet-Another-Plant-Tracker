@@ -58,9 +58,12 @@ class CalendarViewModel(
      * usage (each re-derives its own delay from its own clock read), which could otherwise show a
      * transient frame where one flow has already rolled over to the new day while another is still
      * on yesterday's date. Sharing one [today] value means every consumer can only ever see the
-     * same date.
+     * same date. Public (not just an internal combine input) so `CalendarScreen` can drive its own
+     * "today" highlight/label from the same source instead of a `remember { LocalDate.now() }` that
+     * would otherwise never advance for a Calendar screen left composed across midnight (#550 review
+     * round 3) — never add a second collection of [dayChangeFlow] for the UI layer to read from.
      */
-    private val today: StateFlow<LocalDate> =
+    val today: StateFlow<LocalDate> =
         dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
 
     /** The day a [statuses] list was computed for, travelling together as one value. */
