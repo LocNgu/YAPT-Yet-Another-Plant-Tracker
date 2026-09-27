@@ -29,7 +29,10 @@ object WhatsNewContent {
                 "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
                 "off-device copy there",
             "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
-                "watering just before it, instead of from your two most recent waterings"
+                "watering just before it, instead of from your two most recent waterings",
+            "Due dates could land a day early right after a daylight saving time change; watering, " +
+                "fertilizing, repotting, custom reminders, and reschedule/skip-watering now always land " +
+                "on the correct day"
         )
     )
 

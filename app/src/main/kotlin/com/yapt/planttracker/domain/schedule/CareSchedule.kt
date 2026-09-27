@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringScheduleMode
+import com.yapt.planttracker.util.plusCalendarDays
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
 import java.time.ZoneId
@@ -200,7 +201,7 @@ object CareSchedule {
         val normalComputedNextDueAt = if (effectiveIntervalDays == null) {
             null
         } else if (lastWateredAt != null) {
-            lastWateredAt + TimeUnit.DAYS.toMillis(effectiveIntervalDays.toLong())
+            lastWateredAt.plusCalendarDays(effectiveIntervalDays.toLong())
         } else {
             now
         }
@@ -261,7 +262,7 @@ object CareSchedule {
                 now
             } else {
                 val cycleStartMillis = cycleStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                maxOf(lastWateredAt + TimeUnit.DAYS.toMillis(cadence.toLong()), cycleStartMillis)
+                maxOf(lastWateredAt.plusCalendarDays(cadence.toLong()), cycleStartMillis)
             }
             ActiveWateringSchedule(WateringScheduleMode.DORMANT_CADENCE, dormantDueAt, dormantDueAt)
         }
@@ -311,9 +312,9 @@ object CareSchedule {
             null
         } else {
             val rawDueAt = if (lastFertilizedAt != null) {
-                lastFertilizedAt + TimeUnit.DAYS.toMillis(intervalDays.toLong())
+                lastFertilizedAt.plusCalendarDays(intervalDays.toLong())
             } else {
-                plant.createdAt + TimeUnit.DAYS.toMillis(FIRST_FERTILIZE_GRACE_DAYS.toLong())
+                plant.createdAt.plusCalendarDays(FIRST_FERTILIZE_GRACE_DAYS.toLong())
             }
             // #795 (product ADR-0049): shift out of an inactive season, including the grace date.
             SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere, nowDate)
@@ -361,7 +362,7 @@ object CareSchedule {
     private fun extendedCareDueAt(intervalDays: Int?, lastDoneAt: Long?, createdAt: Long): Long? {
         if (intervalDays == null) return null
         val base = lastDoneAt ?: createdAt
-        return base + TimeUnit.DAYS.toMillis(intervalDays.toLong())
+        return base.plusCalendarDays(intervalDays.toLong())
     }
 
     private data class DueStatus(val dueAt: Long?, val isOverdue: Boolean, val isDueSoon: Boolean)
