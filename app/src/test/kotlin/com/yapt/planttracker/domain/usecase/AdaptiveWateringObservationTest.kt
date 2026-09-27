@@ -465,7 +465,7 @@ class AdaptiveWateringObservationTest {
         coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 4 }) }
     }
 
-    // #673 (technical ADR-0032): no predecessor, but later waterings exist — the log was backdated
+    // #673 (technical ADR-0033): no predecessor, but later waterings exist — the log was backdated
     // before every one of them. There is no gap to observe, so it is skipped like quick watering.
     @Test
     fun `OR_FIRST_CONFIGURED skips a log backdated before every existing watering`() = runTest {
@@ -490,7 +490,7 @@ class AdaptiveWateringObservationTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
-    // #673 (technical ADR-0032): with a predecessor on file, the gap comes from it alone — the
+    // #673 (technical ADR-0033): with a predecessor on file, the gap comes from it alone — the
     // globally newest pair is never consulted, so a stale same-day duplicate elsewhere in history
     // can no longer zero out a genuine dormancy-spanning gap (formerly #776, P1-4).
     @Test

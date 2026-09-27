@@ -186,7 +186,7 @@ class AddCareLogViewModelTest {
      * test's own body under Detekt's `LongMethod` threshold. [predecessorLoggedAt] is the plant's true
      * chronological predecessor of [marchFirst] ([CareLogRepository.getLastWateringBefore]);
      * [lastTwoWaterings] is a separate, independently-stubbed, unrelated newest pair. Since #673
-     * (technical ADR-0032) the form never reads it while a predecessor exists; the tests below keep
+     * (technical ADR-0033) the form never reads it while a predecessor exists; the tests below keep
      * stubbing a misleading pair so a regression back to it would change their outcome.
      */
     private fun buildDormancySpanningWaterVm(
@@ -427,7 +427,7 @@ class AddCareLogViewModelTest {
     }
 
     /**
-     * #673 (technical ADR-0032): three existing waterings (Jan 1, Jan 13, Jan 27) and a forgotten
+     * #673 (technical ADR-0033): three existing waterings (Jan 1, Jan 13, Jan 27) and a forgotten
      * Jan 8 entry backdated between them. The form must measure Jan 1 -> Jan 8 (7 days), the entry's
      * own chronological predecessor, never the globally newest pair Jan 13 -> Jan 27 (14 days).
      */
@@ -460,7 +460,7 @@ class AddCareLogViewModelTest {
     }
 
     /**
-     * #673 (technical ADR-0032): a Jan 8 entry backdated before every existing watering (Jan 13,
+     * #673 (technical ADR-0033): a Jan 8 entry backdated before every existing watering (Jan 13,
      * Jan 27) has no predecessor, so there is no gap to learn from. It gets no observation at all,
      * matching quick watering; the configured-interval fallback is reserved for a plant's first-ever
      * WATER log, and this plant already has later ones on file.

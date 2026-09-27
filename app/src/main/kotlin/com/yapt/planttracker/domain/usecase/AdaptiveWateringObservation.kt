@@ -97,7 +97,7 @@ internal class AdaptiveWateringObservation(
      * Both entry points measure the gap from [loggedAt]'s chronological predecessor
      * ([CareLogRepository.getLastWateringBefore], strictly earlier), never the two globally newest
      * waterings: a backdated log may be older than both of those rows (#654 round-2 review fix for
-     * quick watering, #673 for the form, technical ADR-0032). The same predecessor drives the
+     * quick watering, #673 for the form, technical ADR-0033). The same predecessor drives the
      * dormancy check, so gap and dormancy can no longer disagree (#776, P2-d/P1-4). [gapSource] only
      * decides what happens without a predecessor. [GapSource.CHRONOLOGICAL_PREDECESSOR] skips the
      * observation. [GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED] keeps the form's

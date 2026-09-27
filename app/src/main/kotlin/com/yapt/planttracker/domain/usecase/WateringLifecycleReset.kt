@@ -115,7 +115,7 @@ object WateringLifecycleReset {
      * ever sees raw timestamps, so a late "Soil was still moist" watering (`WateringFeedback.TOO_SOON`)
      * landing on a plant's very first adaptive observation (or its first post-reset one) could
      * otherwise still bootstrap to a *shorter* interval than the plant already had, silently breaking
-     * ADR-0033's "a late watering can never shorten the interval" guarantee through this one cold-start
+     * product ADR-0033's "a late watering can never shorten the interval" guarantee through this one cold-start
      * path — the normal per-observation [CareSchedule.computeAdaptiveInterval] call this bypasses
      * enforces it via the `TOO_SOON_TARGET_MULTIPLIER`, but `maybeBootstrap` never reaches that
      * function. When [BootstrapRequest.feedback] is [WateringFeedback.TOO_SOON], the bootstrapped base

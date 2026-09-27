@@ -64,7 +64,7 @@ The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and s
 check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLogViewModel` (via the shared
 `AdaptiveWateringObservation`) computes `actualIntervalDays` from the entered log's chronological predecessor
 (`getLastWateringBefore`), never the globally newest pair — the configured interval stands in only for a plant's
-first-ever watering, and a log backdated before every existing watering is skipped (#673, technical ADR-0032) —
+first-ever watering, and a log backdated before every existing watering is skipped (#673, technical ADR-0033) —
 calls this function, and passes the result back via
 `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal editable `AlertDialog`
 (product ADR-0006 dialog shape, supersedes product ADR-0005).

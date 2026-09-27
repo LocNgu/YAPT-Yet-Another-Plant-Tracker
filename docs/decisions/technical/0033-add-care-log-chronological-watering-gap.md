@@ -1,4 +1,4 @@
-# Technical ADR-0032: Add Care Log measures the watering gap from the entered log's predecessor
+# Technical ADR-0033: Add Care Log measures the watering gap from the entered log's predecessor
 
 **Status**: accepted
 

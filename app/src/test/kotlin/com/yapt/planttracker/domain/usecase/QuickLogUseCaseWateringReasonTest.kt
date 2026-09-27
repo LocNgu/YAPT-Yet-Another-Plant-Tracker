@@ -140,7 +140,7 @@ class QuickLogUseCaseWateringReasonTest {
     // Codex review finding on #661: the #571 cold-start bootstrap computes a plain median of
     // historical WATER-log gaps, entirely blind to WateringFeedback — so a late "Soil was still
     // moist" observation landing on a plant's first-ever adaptive observation could otherwise still
-    // bootstrap to an interval *shorter* than the plant already had, breaking ADR-0033's guarantee
+    // bootstrap to an interval *shorter* than the plant already had, breaking product ADR-0033's guarantee
     // through the one path that bypasses CareSchedule.computeAdaptiveInterval's TOO_SOON multiplier.
     // History here is 3-day gaps (median 3) on a plant currently at a 7-day interval — without the
     // WateringLifecycleReset.maybeBootstrap() floor, this would bootstrap down to 3.

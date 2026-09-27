@@ -301,7 +301,7 @@ gap. Fixed by adding `CareLogRepository.getLastWateringBefore(plantId, beforeMil
 .getLastLogOfTypeBefore`, `... WHERE loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1`) and
 switching `computeSuggestion()` to look up the log strictly preceding its own `now`/`loggedAt` argument.
 `AddCareLogViewModel`'s independent `getLastTwoWaterings()` call site is untouched — out of scope for
-this fix, a pre-existing, separately-reported concern. (Since fixed by #673, technical ADR-0032: the form
+this fix, a pre-existing, separately-reported concern. (Since fixed by #673, technical ADR-0033: the form
 now measures from the same chronological predecessor via `AdaptiveWateringObservation`'s
 `CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED` gap source.)
 
