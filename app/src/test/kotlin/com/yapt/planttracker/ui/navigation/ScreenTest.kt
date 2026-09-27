@@ -22,6 +22,7 @@ class ScreenTest {
         assertEquals("add_plant", Screen.AddPlant.route)
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
+        assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
 

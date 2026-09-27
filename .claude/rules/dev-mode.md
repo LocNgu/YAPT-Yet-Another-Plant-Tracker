@@ -31,6 +31,10 @@ no schema bump).
   flags), `setFlagEnabled`.
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
+- `TODAY_GROUP_BY_PLANT` (`today_group_by_plant`, #836, product ADR-0054) is the temporary Today-layout
+  experiment. Default/off is task-first; on groups the exact same canonical task list by plant. It is
+  device-local, hot-swappable, reset with developer mode, and must be removed with the losing layout
+  when the experiment graduates.
 - `ADAPTIVE_WATERING` graduated (#655) — the multiplicative + confidence-weighted watering interval model
   (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
   no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
@@ -52,7 +56,8 @@ no schema bump).
   there is no registry entry or flag row for it anymore. Unlike the three graduations above, this one
   was user-visible on every real install — the flag-off classic single-page layout (and the `StatsRow`/
   `StatChip` quick-log chips it alone hosted, #434) was deleted entirely, not merely made permanent.
-  `FeatureFlagRegistry.all` is now a genuinely empty `listOf()` — the last remaining flag graduated, and
+  `FeatureFlagRegistry.all` became empty when that flag graduated; #836 later added the temporary Today
+  grouping experiment described above. The earlier empty-registry period was expected —
   Product ADR-0042 already anticipated this as the registry's expected steady state ("often be empty or
   near-empty in practice, not just at initial ship"), not an edge case needing special handling. Developer
   mode's `dev_mode_feature_flags_empty` rendering needed no new UI code — `SettingsScreen.kt` has

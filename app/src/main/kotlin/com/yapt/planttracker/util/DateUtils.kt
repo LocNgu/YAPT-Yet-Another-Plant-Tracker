@@ -39,6 +39,8 @@ object DateUtils {
     ): String {
         val days = ChronoUnit.DAYS.between(timestampMs.toLocalDate(), now.toLocalDate())
         return when {
+            days == -1L -> "Tomorrow"
+            days < -1L -> "In ${-days} days"
             days == 0L -> "Today"
             days == 1L -> "Yesterday"
             maxRelativeDays == null || days <= maxRelativeDays -> "$days days ago"

@@ -104,6 +104,18 @@ class DateUtilsTest {
     }
 
     @Test
+    fun `formatRelative next calendar day returns Tomorrow`() {
+        val timestamp = now + TimeUnit.HOURS.toMillis(2)
+        assertEquals("Tomorrow", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
+    fun `formatRelative multiple future calendar days returns In days`() {
+        val timestamp = now + TimeUnit.DAYS.toMillis(3)
+        assertEquals("In 3 days", DateUtils.formatRelative(timestamp, now))
+    }
+
+    @Test
     fun `formatHourMinute zero-padded`() {
         assertEquals("09:05", DateUtils.formatHourMinute(9, 5))
     }

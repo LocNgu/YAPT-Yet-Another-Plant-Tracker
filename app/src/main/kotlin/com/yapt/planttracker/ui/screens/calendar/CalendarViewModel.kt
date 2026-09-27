@@ -19,7 +19,10 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
+import com.yapt.planttracker.domain.time.LocalDayTicker
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.toStartOfDayMillis
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,31 +32,42 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 
+@Suppress("LongParameterList")
 class CalendarViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val quickLogUseCase: QuickLogUseCase
+    private val quickLogUseCase: QuickLogUseCase,
+    private val localDates: Flow<LocalDate> = flowOf(LocalDate.now())
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val currentDay = localDates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
+
+    private val scheduleContext = combine(
+        dataStore.seasonalAmplitudeFlow(),
+        currentDay
+    ) { seasonalAmplitude, day -> seasonalAmplitude to day }
+
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
-        dataStore.seasonalAmplitudeFlow()
-    ) { plants, _, seasonalAmplitude ->
+        scheduleContext
+    ) { plants, _, (seasonalAmplitude, day) ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude))
+            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, day.toStartOfDayMillis()))
         }
         statusList
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -63,9 +77,10 @@ class CalendarViewModel(
 
     val plantsByDay: StateFlow<Map<LocalDate, DayEntry>> = combine(
         plantsWithStatus,
-        _visibleMonth
-    ) { statuses, month ->
-        computePlantsByDay(statuses, month, LocalDate.now())
+        _visibleMonth,
+        currentDay
+    ) { statuses, month, day ->
+        computePlantsByDay(statuses, month, day)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _selectedDay = MutableStateFlow<LocalDate?>(null)
@@ -210,13 +225,15 @@ class CalendarViewModel(
         }
     }
 
+    @Suppress("LongParameterList")
     class Factory(
         private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>,
-        private val quickLogUseCase: QuickLogUseCase
+        private val quickLogUseCase: QuickLogUseCase,
+        private val localDayTicker: LocalDayTicker = LocalDayTicker()
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -226,7 +243,8 @@ class CalendarViewModel(
                 careLogRepository,
                 plantPhotoRepository,
                 dataStore,
-                quickLogUseCase
+                quickLogUseCase,
+                localDayTicker.dates
             ) as T
     }
 }
@@ -234,7 +252,8 @@ class CalendarViewModel(
 private suspend fun buildStatus(
     careLogRepository: CareLogRepository,
     plant: Plant,
-    seasonalAmplitude: Double
+    seasonalAmplitude: Double,
+    now: Long
 ): PlantCareStatus {
     val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
     val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
@@ -244,6 +263,7 @@ private suspend fun buildStatus(
         lastWateredAt = lastWatering?.loggedAt,
         lastFertilizedAt = lastFertilizing?.loggedAt,
         totalLogs = totalLogs,
+        now = now,
         seasonalAmplitude = seasonalAmplitude
     )
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -53,6 +54,8 @@ import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
+import com.yapt.planttracker.ui.screens.today.TodayScreen
+import com.yapt.planttracker.ui.screens.today.TodayViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -136,10 +139,13 @@ fun YaptNavGraph(
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    // Hidden while the plant list is in multi-select mode so the bulk action bar can use that space.
-    var plantListSelectionActive by remember { mutableStateOf(false) }
-    val showBottomBar = (currentRoute == Screen.PlantList.route || currentRoute == Screen.Calendar.route) &&
-        !plantListSelectionActive
+    // Hidden while a root screen is in multi-select mode so its bulk action bar can use that space.
+    var rootSelectionActive by remember { mutableStateOf(false) }
+    val showBottomBar = (
+        currentRoute == Screen.PlantList.route ||
+            currentRoute == Screen.Today.route ||
+            currentRoute == Screen.Calendar.route
+        ) && !rootSelectionActive
 
     Scaffold(
         // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
@@ -162,6 +168,18 @@ fun YaptNavGraph(
                         },
                         icon = { Icon(Icons.Filled.LocalFlorist, contentDescription = null) },
                         label = { Text(stringResource(R.string.nav_tab_plants)) }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Today.route,
+                        onClick = {
+                            navController.navigate(Screen.Today.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Filled.Checklist, contentDescription = null) },
+                        label = { Text(stringResource(R.string.nav_tab_today)) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Calendar.route,
@@ -203,7 +221,8 @@ fun YaptNavGraph(
                         app.plantPhotoRepository,
                         app.settingsDataStore,
                         app.quickLogUseCase,
-                        app.plantIssueRepository
+                        app.plantIssueRepository,
+                        app.localDayTicker
                     )
                 )
                 ApplyCaredTodayDeepLink(
@@ -233,7 +252,7 @@ fun YaptNavGraph(
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route)
                     },
-                    onSelectionModeChanged = { plantListSelectionActive = it }
+                    onSelectionModeChanged = { rootSelectionActive = it }
                 )
             }
 
@@ -417,6 +436,28 @@ fun YaptNavGraph(
                 )
             }
 
+            composable(Screen.Today.route) {
+                val vm: TodayViewModel = viewModel(
+                    factory = TodayViewModel.Factory(
+                        app,
+                        app.todayCareRepository,
+                        app.featureFlags,
+                        app.quickLogUseCase,
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.plantPhotoRepository
+                    )
+                )
+                TodayScreen(
+                    viewModel = vm,
+                    onNavigateToPlant = { plantId ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                    },
+                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
+                    onSelectionModeChanged = { rootSelectionActive = it }
+                )
+            }
+
             composable(Screen.Calendar.route) {
                 val vm: CalendarViewModel = viewModel(
                     factory = CalendarViewModel.Factory(
@@ -425,7 +466,8 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantPhotoRepository,
                         app.settingsDataStore,
-                        app.quickLogUseCase
+                        app.quickLogUseCase,
+                        app.localDayTicker
                     )
                 )
                 CalendarScreen(

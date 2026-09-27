@@ -17,11 +17,16 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "A new Today tab puts watering, fertilizing, repotting, custom reminders, linked issue " +
+                "treatments, and optional progress photos into one queue for Overdue, Today, and the " +
+                "next three days — including one batch action for selected care tasks",
             "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
                 "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
                 "first, once nothing in the app references them anymore"
         ),
         fixed = listOf(
+            "Today, Plant List, and Calendar now roll over to the new local day while YAPT stays open, " +
+                "instead of showing yesterday’s due and cared-for-today state until a restart",
             "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
                 "background while the camera is open",
             "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +

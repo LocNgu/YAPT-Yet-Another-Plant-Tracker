@@ -9,6 +9,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -22,6 +23,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -297,6 +300,37 @@ class CalendarViewModelTest {
         advanceUntilIdle()
 
         assertEquals(month, vm.visibleMonth.value)
+    }
+
+    @Test
+    fun `local day emission refreshes due status without repository changes`() = runTest {
+        val firstDay = java.time.LocalDate.of(2026, 9, 27)
+        val days = MutableStateFlow(firstDay)
+        val monstera = plant(1L, "Monstera").copy(wateringIntervalDays = 1)
+        val lastWateredAt = firstDay.minusDays(1)
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = lastWateredAt)
+        vm = CalendarViewModel(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            quickLogUseCase,
+            days
+        )
+
+        val dueToday = vm.plantsWithStatus.first { it.isNotEmpty() }
+        assertEquals(false, dueToday.single().isOverdue)
+
+        days.value = firstDay.plusDays(1)
+
+        val overdue = vm.plantsWithStatus.first { it.singleOrNull()?.isOverdue == true }
+        assertEquals(true, overdue.single().isOverdue)
     }
 
     // dismissSuggestedInterval/applySuggestedInterval are thin delegations to QuickLogUseCase's shared

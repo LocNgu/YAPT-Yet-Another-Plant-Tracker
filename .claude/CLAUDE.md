@@ -24,7 +24,7 @@ Prefer `-q` and grep for failures over dumping full build logs. Cloud/session bu
 ## Architecture
 ```
 data/{db,entity,repository}   Room DAOs, @Entity, repos (entity↔domain mapping — UI never touches entities)
-domain/{model,schedule,usecase,…}  Plant/CareLog/CareType…; CareSchedule (pure logic); QuickLogUseCase (shared quick-log)
+domain/{model,schedule,time,today,usecase,…}  CareSchedule; LocalDayTicker; TodayQueueAggregator; shared quick-log
 notification/                 channel creation + POST_NOTIFICATIONS helper (NotificationPermission)
 ui/{components,navigation,screens,theme}   5 screens; Screen sealed class; NavGraph
 util/                         DateUtils, ImageUtils
@@ -33,11 +33,21 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
 - Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
 - `AdaptiveWateringObservation` is the shared adaptive WATER observation path used by `QuickLogUseCase` and `AddCareLogViewModel` (#780, technical ADR-0030). Keep dormancy, bootstrap, confidence, and adjustment writes there; the callers supply their entry-point-specific gap policy and clocks. Both measure the gap from the new log's chronological predecessor (`getLastWateringBefore`), never the globally newest pair; the form alone keeps a configured-interval fallback for a plant's first-ever watering, while a log backdated before every existing watering gets no observation (#673, technical ADR-0033).
+- `TodayCareRepository` combines the live repositories/settings/day signal and delegates to the pure
+  `TodayQueueAggregator`; UI code never derives due tasks. Plants remains the start destination, with
+  root tabs ordered Plants · Today · Calendar (product ADR-0054).
 
 ## Conventions (beyond what the linter enforces)
 - **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).
 - **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
 - **Dates** — `DateUtils.formatRelative()` for all display; never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013). Advance a timestamp by N days via `Long.plusCalendarDays()`, never `+ TimeUnit.DAYS.toMillis(n)` — a fixed 24h span silently loses a day of calendar-date advancement across a DST fall-back transition (#733, technical ADR-0034). The one deliberate exception is a genuine duration, not a calendar-date advance — the REPOT freeze window in `WateringLifecycleReset`, documented in place.
+- **Live local-day boundaries** — Today, Plant List, and Calendar observe the shared `LocalDayTicker`,
+  which recomputes the delay to the next local midnight on every loop. Never use a fixed 24-hour delay
+  or a one-time `LocalDate.now()` for a long-lived due/cared-today flow (#550/#836, product ADR-0054).
+- **Today queue** — canonical tasks come only from `TodayQueueAggregator`; the task-first and temporary
+  plant-grouped presentations transform that same list. Multi-task completion stays inside
+  `QuickLogUseCase.completeTodayTasks()` so one Room transaction and one post-water callback cover the
+  batch (#836, product ADR-0054).
 - **Same-day WATER/FERTILIZE duplicates are rejected**, not PRUNE/REPOT/NOTE/PHOTO/MIST/CUSTOM/CHECK — `CareLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs, excludeLogId)` is the single query (DAO-level `countLogsOfTypeOnDay`, no schema change). `QuickLogUseCase` is the one choke point for all quick-log surfaces via its `isDuplicateGuarded()` set; `AddCareLogViewModel` has its own equivalent guard since it doesn't go through that use case. `CareType.CHECK` dropped out of the guard in #738 (product ADR-0039) — nothing writes it anymore, so there is nothing left to guard. Always check *before* a paired liquid-fertilizer WATER insert, never just against the sibling insert in the same call (#509).
 - **No `libs.versions.toml`** — versions inlined in `app/build.gradle.kts`; the Compose BOM governs Compose artifacts.
 - **DataStore delegate** (`val Context.settingsDataStore by preferencesDataStore(...)`) must be declared at **file top-level** in `YaptApplication.kt`, never inside a class — required by the AndroidX DataStore API (technical ADR-0009).

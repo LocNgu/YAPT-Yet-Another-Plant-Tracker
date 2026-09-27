@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.map
 
 class CustomReminderRepository(private val customReminderDao: CustomReminderDao) {
 
+    fun getAllReminders(): Flow<List<CustomReminder>> =
+        customReminderDao.getAllReminders().map { list -> list.map { it.toDomain() } }
+
     fun getRemindersForPlant(plantId: Long): Flow<List<CustomReminder>> =
         customReminderDao.getRemindersForPlant(plantId).map { list -> list.map { it.toDomain() } }
 

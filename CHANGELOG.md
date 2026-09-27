@@ -13,9 +13,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **A new Today tab turns every due care item into one queue** — work through watering, fertilizing,
+  repotting, custom reminders, linked issue treatments, and optional progress photos in Overdue,
+  Today, and the next three days. Actions reuse the existing care flows, and non-photo tasks can be
+  selected and completed atomically in one batch. Plants remains the start tab; a temporary
+  developer flag can switch the same queue to a plant-grouped layout for comparison (#836, product
+  ADR-0054)
 - **Deleted photos now free up storage instead of leaking forever** — a background sweep now reclaims camera-capture and restore-output image files once nothing in the database references them anymore (a deleted plant's cover photo and care-log photos, a deleted gallery photo, a second `.yapt` restore's leftover files from the first). Runs daily and right after a delete or restore; in-flight captures and gallery-picked photos are never touched (#736, #559, technical ADR-0031)
 
 ### Fixed
+- **Due and “cared for today” views now roll over at local midnight without restarting YAPT** — Today,
+  Plant List, and Calendar share a daylight-saving-safe day signal, so leaving the app open overnight
+  no longer leaves yesterday's state on screen (#550, #836, product ADR-0054)
 - **Due dates could land a day early right after a daylight saving time change** — watering, fertilizing, repotting, custom reminder, and reschedule/skip-watering due dates advancing by N days now always land on the correct calendar day, including across the once-a-year "fall back" transition where a local day is 25 hours long instead of 24 (#733, technical ADR-0034)
 - **Backdating a watering in Add Care Log no longer teaches the schedule from the wrong gap** — a forgotten watering entered between two existing ones is now measured from the watering just before it, instead of from the two most recent waterings on file, which had nothing to do with the entry. A watering backdated before every existing one no longer adjusts the schedule at all, the same as the Plant Detail "Log watering" picker. Entries for today and a plant's first-ever watering behave exactly as before (#673, technical ADR-0033, amending technical ADR-0030)
 - **A camera photo is no longer silently lost if Android recreates the app while the camera is open** — the in-flight capture target now survives Activity recreation (low memory, a configuration change, or "Don't keep activities"), so the photo still reaches Add Care Log, Add/Edit Plant, Plant Detail, and the Plant List/Calendar photo reminders, and a cancelled capture still deletes its temporary file (#706)

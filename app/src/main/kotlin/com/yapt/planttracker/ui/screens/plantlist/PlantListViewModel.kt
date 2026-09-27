@@ -24,9 +24,12 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
+import com.yapt.planttracker.domain.time.LocalDayTicker
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.toStartOfDayMillis
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -36,9 +39,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
@@ -50,7 +55,8 @@ class PlantListViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val plantIssueRepository: PlantIssueRepository
+    private val plantIssueRepository: PlantIssueRepository,
+    private val localDates: Flow<LocalDate> = flowOf(LocalDate.now())
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -93,13 +99,21 @@ class PlantListViewModel(
         }
     }
 
+    private val currentDay = localDates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
+
+    private val scheduleContext = combine(
+        dataStore.seasonalAmplitudeFlow(),
+        currentDay
+    ) { seasonalAmplitude, day -> seasonalAmplitude to day }
+
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
         _sortOrder,
-        dataStore.seasonalAmplitudeFlow()
-    ) { plants, _, room, sort, seasonalAmplitude ->
+        scheduleContext
+    ) { plants, _, room, sort, (seasonalAmplitude, day) ->
         val filtered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
@@ -107,10 +121,10 @@ class PlantListViewModel(
         }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            statusList.add(buildStatus(plant, seasonalAmplitude))
+            statusList.add(buildStatus(plant, seasonalAmplitude, day.toStartOfDayMillis()))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
-            val (start, end) = DateUtils.todayRangeMillis()
+            val (start, end) = DateUtils.todayRangeMillis(day.toStartOfDayMillis())
             careLogRepository.getLastCareAtBetween(start, end)
         } else {
             emptyMap()
@@ -464,7 +478,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double, now: Long): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -474,6 +488,7 @@ class PlantListViewModel(
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs,
+            now = now,
             seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = activeIssueCount)
     }
@@ -490,7 +505,8 @@ class PlantListViewModel(
         private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>,
         private val quickLogUseCase: QuickLogUseCase,
-        private val plantIssueRepository: PlantIssueRepository
+        private val plantIssueRepository: PlantIssueRepository,
+        private val localDayTicker: LocalDayTicker = LocalDayTicker()
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -501,7 +517,8 @@ class PlantListViewModel(
                 plantPhotoRepository,
                 dataStore,
                 quickLogUseCase,
-                plantIssueRepository
+                plantIssueRepository,
+                localDayTicker.dates
             ) as T
     }
 }

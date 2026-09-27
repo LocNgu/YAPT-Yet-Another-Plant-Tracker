@@ -30,6 +30,7 @@ import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -43,6 +44,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
@@ -824,6 +826,36 @@ class PlantListViewModelTest {
             assertEquals(0, items.size)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `cared for today refreshes when the local day changes`() = runTest {
+        val firstDay = LocalDate.of(2026, 9, 27)
+        val days = MutableStateFlow(firstDay)
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val firstDayStart = firstDay.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } answers {
+            if (args[0] == firstDayStart) mapOf(1L to firstDayStart) else emptyMap()
+        }
+        vm = PlantListViewModel(
+            application,
+            plantRepo,
+            careLogRepo,
+            plantPhotoRepo,
+            dataStore,
+            quickLogUseCase,
+            plantIssueRepo,
+            days
+        )
+        vm.toggleSort(SortOption.CARED_FOR_TODAY)
+
+        assertEquals(listOf(1L), vm.plantsWithStatus.first { it.isNotEmpty() }.map { it.plant.id })
+
+        days.value = firstDay.plusDays(1)
+
+        assertTrue(vm.plantsWithStatus.first { it.isEmpty() }.isEmpty())
     }
 
     @Test

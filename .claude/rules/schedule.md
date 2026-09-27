@@ -2,7 +2,11 @@
 description: CareSchedule status computation and adaptive watering-interval rules
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/time/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/today/**/*"
   - "app/src/test/**/schedule/**/*"
+  - "app/src/test/**/time/**/*"
+  - "app/src/test/**/today/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
 ---
 
@@ -16,6 +20,22 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 `lastWateredAt`/`lastFertilizedAt`/`createdAt`") goes through `Long.plusCalendarDays()`, never `+
 TimeUnit.DAYS.toMillis(n)` — a fixed 24h span silently loses a day of local calendar-date advancement
 across a DST fall-back transition (#733, technical ADR-0034).
+
+## Today queue and local-day rollover (#836/#550, product ADR-0054)
+
+`TodayQueueAggregator` is the canonical pure projection for the Today root. It receives all active
+domain plants, care logs, custom reminders, issues, photos, settings, and an explicit `LocalDate`; it
+must reuse `CareSchedule.computeStatus()` rather than reimplement due-date rules. Its horizon is local
+Overdue + Today + the next three calendar days, ordered by due instant, lowercase plant name, then task
+id. A liquid-fertilizer plant gets one combined task only when watering exists in the horizon and
+fertilizing is due no later than that watering; it never gets a standalone fertilizer task. Active
+issues relabel only their linked custom-reminder task. Photo tasks use the newest care-log photo or
+gallery photo and deliberately ignore the session-only reminder-popup suppression.
+
+`LocalDayTicker` is the shared self-correcting foreground day signal used by Today, Plant List, and
+Calendar. It emits immediately, computes the duration to the next midnight in the clock's local zone,
+delays, then recomputes from a fresh clock read. Do not replace it with a fixed 24-hour ticker: local
+days can be 23 or 25 hours, and a long-lived fixed delay drifts after lifecycle or scheduler delays.
 
 ## computeStatus()
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
