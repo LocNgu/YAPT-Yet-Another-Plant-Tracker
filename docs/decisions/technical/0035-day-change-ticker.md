@@ -78,27 +78,61 @@ value (rather than a fresh real-clock read that happens to be correct whenever t
 actually ties the recomputation to the trigger.
 
 **`CalendarViewModel` has two consumers of the ticker (`plantsWithStatus` and `plantsByDay`), and they
-must never disagree on what day it is (#550 review round 1).** The ticker (`dayChangeTicker()`, the
-constructor's `dayChangeFlow`) is cold — each `combine()` that collects it independently re-runs the
-flow builder's own `while (true) { …; delay(…) }` loop from scratch, on its own clock read, computing
-its own delay to the next midnight. Folding the raw `dayChangeFlow` into *two* separate `combine()`s
-(as the first version of this ADR did) therefore ran two independent ticker loops that could tick a
-moment apart in real usage, producing a transient frame where `plantsWithStatus` had already rolled
-over to the new day while `plantsByDay` was still grouping under yesterday's date, or vice versa —
-invisible in the original ViewModel tests because they inject one *hot* `MutableSharedFlow`, which
-naturally broadcasts one value to every collector regardless of how many `combine()`s read it. Fixed by
-hoisting a single shared, hot source: `private val today: StateFlow<LocalDate> =
-dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())`. Both
-`plantsWithStatus` and `plantsByDay` read `today` instead of `dayChangeFlow` directly, so the cold
-ticker is collected at most once regardless of how many derived flows subscribe to it, and both
-consumers can only ever see the same date. `PlantListViewModel.plantsWithStatus` has only one consumer
-of its own `dayChangeFlow` (folded into `sortOrderOrDayChanged`), so it doesn't need this same hoist —
-the two-consumer split is specific to `CalendarViewModel`.
-`CalendarViewModelTest`'s `` `plantsWithStatus and plantsByDay share one ticker collection, never two
-independent ones` `` regression test uses a cold flow that emits a *different* date on each independent
-collection specifically to catch a future regression back to two separate collections — with the shared
-`today` source, the flow's collection count stays at 1 no matter how many of the two derived
-`StateFlow`s are subscribed to.
+must never disagree on what day it is (#550 review round 1) — and a day must never be observed paired
+with a statuses list computed for a *different* day (#550 review round 2).** Two related-but-distinct
+bugs, fixed in two steps:
+
+*Round 1 — two independent ticker collections.* The ticker (`dayChangeTicker()`, the constructor's
+`dayChangeFlow`) is cold — each `combine()` that collects it independently re-runs the flow builder's
+own `while (true) { …; delay(…) }` loop from scratch, on its own clock read, computing its own delay to
+the next midnight. Folding the raw `dayChangeFlow` into *two* separate `combine()`s (as the first
+version of this ADR did) therefore ran two independent ticker loops that could tick a moment apart in
+real usage — invisible in the original ViewModel tests because they inject one *hot*
+`MutableSharedFlow`, which naturally broadcasts one value to every collector regardless of how many
+`combine()`s read it. Fixed by hoisting a single shared, hot source: `private val today:
+StateFlow<LocalDate> = dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
+LocalDate.now())`, so the cold ticker is collected at most once regardless of how many derived flows
+subscribe to it.
+
+*Round 2 — the shared `today` alone wasn't enough.* With `plantsByDay = combine(plantsWithStatus,
+_visibleMonth, today)`, that `combine()` re-runs as soon as **either** upstream flow emits — and at
+midnight, `today` ticks *before* `plantsWithStatus` finishes rebuilding (`buildStatus()`'s suspend
+`careLogRepository` calls take real time). `plantsByDay` could therefore momentarily fire with the
+*new* `today` paired with the *old*, not-yet-rebuilt `plantsWithStatus` value, grouping stale
+due/overdue statuses under the new day — the same class of inconsistency the round-1 fix was meant to
+remove, just one level further down the chain. Fixed by combining the day and its statuses into one
+atomic value that travels together: a private `StatusesForDay(day: LocalDate, statuses:
+List<PlantCareStatus>)` built by `combine(allPlants, logCount, seasonalAmplitude, today) { ... ->
+StatusesForDay(day, statusList) }`. Both public flows are now *derived* from this single
+`statusesForDay: StateFlow<StatusesForDay>` rather than each reading `today` independently:
+`plantsWithStatus = statusesForDay.map { it.statuses }.stateIn(...)`, and `plantsByDay =
+combine(statusesForDay, _visibleMonth) { forDay, month -> computePlantsByDay(forDay.statuses, month,
+forDay.day) }`. Since a day and its statuses are only ever produced together, by the same `combine()`
+invocation, they can no longer be observed out of step with each other — there is no longer a second,
+independent read of `today` anywhere downstream of `statusesForDay` to race against.
+
+`PlantListViewModel.plantsWithStatus` has only one consumer of its own `dayChangeFlow` (folded into
+`sortOrderOrDayChanged`) and no `plantsByDay`-shaped second stage reading a date derived from it, so
+neither the round-1 nor round-2 fix applies there — both are specific to `CalendarViewModel`'s two-stage
+shape.
+
+`CalendarViewModelTest` carries a regression test for each round: `` `plantsWithStatus and plantsByDay
+share one ticker collection, never two independent ones` `` (round 1) uses a cold flow that emits a
+*different* date on each independent collection to assert the ticker's collection count stays at 1 no
+matter how many of the two derived `StateFlow`s are subscribed to. Round 2's test, `` `plantsByDay's
+day key always matches the day its statuses were actually built for` ``, asserts the resulting invariant
+directly (a day tick's single `plantsByDay` emission pairs the new day with the fully-rebuilt statuses,
+never a stale day1-era pairing under the day2 key) rather than forcing the exact race window — a
+timing-based repro (gating a mocked `careLogRepository` suspend call mid-rebuild after a day tick, with
+`runTest`'s scheduler unified with `Dispatchers.Main`'s per the `PlantDetailScheduleSettingsActionsCoalescingTest`
+precedent) was tried and, empirically, could not be made to fail against the pre-round-2-fix code: MockK's
+`coEvery`/`coAnswers` resolve synchronously by default, and even with a real `delay()` standing in for
+`buildStatus()`'s asynchronous Room queries, the interleaving needed to observe the stale pairing never
+reproduced under the shared test scheduler. The round-1 bug (two independent ticker collections) *was*
+directly reproducible with a cold flow because it only requires two independent *subscriptions*, not a
+suspended-mid-rebuild race; round 2's bug requires a genuine asynchronous gap inside a single rebuild,
+which the test harness could not be made to open reliably. The structural fix (one atomic `combine()`
+producing `StatusesForDay`) stands regardless — the invariant test is the practical regression guard.
 
 Both `PlantListViewModel` and `CalendarViewModel` constructor-inject the ticker as `Flow<LocalDate>`
 defaulting to the real `dayChangeTicker()`, so `Factory` needs no change (the default applies), while a
@@ -145,3 +179,10 @@ the handful of tests that actually exercise the ticker's effect inject their own
   every pre-existing test in both files, not a design cost this pattern otherwise carries forward: a
   future ViewModel adopting `dayChangeTicker()` only needs its own tests to follow the same one-line
   `flowOf(LocalDate.now())` convention from the start.
+- A multi-stage derived-flow pipeline (a "day" value feeding a second flow that also depends on a
+  first flow built from that same day) needs the day and the derived value combined into one atomic
+  emission, not read from two independently-updating flows — the round-2 fix's general shape, not
+  specific to dates. `CalendarViewModel`'s `plantsWithStatus`/`plantsByDay` split is the first place
+  this app hit that shape; any future two-stage `combine()` chain sharing an upstream trigger should
+  default to the same "combine once, derive twice" pattern rather than re-reading the trigger flow at
+  each stage.

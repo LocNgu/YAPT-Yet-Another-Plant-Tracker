@@ -483,4 +483,53 @@ class CalendarViewModelTest {
 
             assertEquals(1, collectionCount)
         }
+
+    @Test
+    fun `plantsByDay's day key always matches the day its statuses were actually built for (#550 review round 2)`() =
+        runTest {
+            // On day1 the plant was just watered (not overdue). The very same rebuild that the day
+            // tick to day2 triggers also reports it overdue -- since plantsByDay is now derived from
+            // one atomic (day, statuses) pair rather than reading `today` independently of
+            // `plantsWithStatus`, the new day and the updated overdue status can only ever be
+            // observed together, never as an emission mixing day2 with day1-era (not yet overdue)
+            // statuses. (A timing-based repro that gates a mocked suspend call mid-rebuild was tried
+            // and, empirically, could not force the pre-fix race under MockK's synchronous stub
+            // resolution plus the shared test scheduler -- this test instead pins down the resulting
+            // invariant directly, per the reviewer's own suggested fallback.)
+            val p1 = Plant(id = 1L, name = "P1", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+            every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+            val now = System.currentTimeMillis()
+            val oneDayMs = TimeUnit.DAYS.toMillis(1)
+            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returnsMany listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now),
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - oneDayMs * 3)
+            )
+            val day1 = LocalDate.of(2026, 5, 1)
+            val day2 = LocalDate.of(2026, 5, 2)
+            val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
+            dayChangeFlow.tryEmit(day1)
+            vm = CalendarViewModel(
+                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            )
+            vm.setVisibleMonth(YearMonth.of(2026, 5))
+            advanceUntilIdle()
+
+            vm.plantsByDay.test {
+                val before = awaitItem()
+                assertNull(before[day2])
+
+                dayChangeFlow.emit(day2)
+                advanceUntilIdle()
+
+                val after = awaitItem()
+                // day2's entry, once it appears, is never anything but the fully-rebuilt (overdue)
+                // statuses -- a stale day1-era pairing under the day2 key is exactly what the
+                // round-2 fix rules out structurally.
+                assertTrue(after[day2]?.containsOverdue == true)
+                assertNull(after[day1])
+                // Exactly one emission for the tick, not a stale-then-corrected pair.
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }

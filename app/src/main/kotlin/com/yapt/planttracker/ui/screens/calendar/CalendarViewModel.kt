@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -51,46 +52,61 @@ class CalendarViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
-     * A single shared, hot source for "today" — [plantsWithStatus] and [plantsByDay] both read
-     * this rather than each collecting [dayChangeFlow] independently. Two independent cold
-     * collectors of the ticker can tick a moment apart in real usage (each re-derives its own
-     * delay from its own clock read), which could otherwise show a transient frame where
-     * [plantsWithStatus] has already rolled over to the new day while [plantsByDay] is still
-     * grouping under yesterday's date, or vice versa. Sharing one [today] value means both
-     * combines below can only ever see the same date.
+     * A single shared, hot source for "today" — [statusesForDay] (and, through it, both
+     * [plantsWithStatus] and [plantsByDay]) reads this rather than each collecting [dayChangeFlow]
+     * independently. Two independent cold collectors of the ticker can tick a moment apart in real
+     * usage (each re-derives its own delay from its own clock read), which could otherwise show a
+     * transient frame where one flow has already rolled over to the new day while another is still
+     * on yesterday's date. Sharing one [today] value means every consumer can only ever see the
+     * same date.
      */
     private val today: StateFlow<LocalDate> =
         dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
 
-    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+    /** The day a [statuses] list was computed for, travelling together as one value. */
+    private data class StatusesForDay(val day: LocalDate, val statuses: List<PlantCareStatus>)
+
+    /**
+     * Combines the plant statuses with the [today] value they were computed against, as a single
+     * emission — [plantsWithStatus] and [plantsByDay] are both derived from this rather than each
+     * reading [today] on their own. `plantsByDay` used to be `combine(plantsWithStatus,
+     * _visibleMonth, today)`, which re-ran as soon as *either* `plantsWithStatus` or `today` changed
+     * — at midnight, `today` ticks first, so that combine could momentarily fire with the *new*
+     * `today` paired with the *old*, not-yet-rebuilt `plantsWithStatus` (still mid-flight through
+     * [buildStatus]'s suspend calls), grouping stale due/overdue statuses under the new day (#550
+     * review round 2). Deriving both public flows from this one combined value means a day and its
+     * statuses can never be observed out of step with each other.
+     */
+    private val statusesForDay: StateFlow<StatusesForDay> = combine(
         allPlants,
         careLogRepository.logCount,
         dataStore.seasonalAmplitudeFlow(),
         today
-    ) { plants, _, seasonalAmplitude, _ ->
+    ) { plants, _, seasonalAmplitude, day ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
             statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude))
         }
-        statusList
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        StatusesForDay(day, statusList)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatusesForDay(LocalDate.now(), emptyList()))
+
+    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = statusesForDay
+        .map { it.statuses }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _visibleMonth = MutableStateFlow(YearMonth.now())
     val visibleMonth: StateFlow<YearMonth> = _visibleMonth.asStateFlow()
 
     /**
-     * The `today` value comes from the shared [today] flow rather than a fresh `LocalDate.now()`
-     * call inside the lambda — using the ticker's own emitted value (instead of a second,
-     * independent real-clock read) is what guarantees this combine actually re-runs at midnight
-     * (#550): a bare `LocalDate.now()` call here reads correctly whenever the block happens to
-     * run, but nothing upstream was triggering it to run again purely because the date changed.
+     * Reads [statusesForDay] rather than [plantsWithStatus] + [today] separately, so the statuses
+     * grouped here are always the ones actually computed for the `day` they're grouped under — see
+     * [statusesForDay]'s doc for the stale-pairing bug this avoids (#550 review round 2).
      */
     val plantsByDay: StateFlow<Map<LocalDate, DayEntry>> = combine(
-        plantsWithStatus,
-        _visibleMonth,
-        today
-    ) { statuses, month, todayValue ->
-        computePlantsByDay(statuses, month, todayValue)
+        statusesForDay,
+        _visibleMonth
+    ) { forDay, month ->
+        computePlantsByDay(forDay.statuses, month, forDay.day)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _selectedDay = MutableStateFlow<LocalDate?>(null)
