@@ -30,6 +30,8 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.dayChangeTicker
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,6 +44,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
@@ -53,7 +56,9 @@ class PlantListViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val plantIssueRepository: PlantIssueRepository
+    private val plantIssueRepository: PlantIssueRepository,
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -139,26 +144,42 @@ class PlantListViewModel(
         }
     }
 
+    /**
+     * Folds [dayChangeFlow]'s emission into [_sortOrder] rather than adding it as its own arg to
+     * [plantsWithStatusBeforeSearch]'s `combine()` below, which is already at the 5-flow limit of the
+     * typed `combine()` overloads (#550) — the sort order itself is unaffected by a day change, only
+     * the downstream `CARED_FOR_TODAY`/`buildStatus()` recomputation this combine drives is.
+     */
+    private val sortOrderOrDayChanged: Flow<SortOrder> = combine(
+        _sortOrder,
+        dayChangeFlow
+    ) { sort, _ -> sort }
+
     // DB-bound: room filter -> buildStatus()'s per-plant Room queries -> applySortOrder(). Search
     // (#512) is deliberately not an input here — see plantsWithStatus below.
     private val plantsWithStatusBeforeSearch: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
-        _sortOrder,
+        sortOrderOrDayChanged,
         dataStore.seasonalAmplitudeFlow()
     ) { plants, _, room, sort, seasonalAmplitude ->
-        val roomFiltered = when (room) {
+        // Captured once, up front, before any of buildStatus()'s suspend careLogRepository calls
+        // (which take real time) — so the CARED_FOR_TODAY day-range check and every status's own
+        // overdue/due math (CareSchedule.computeStatus()'s default now) agree on the same instant,
+        // even if this rebuild happens to straddle real midnight (#550 review round 4).
+        val now = nowProvider()
+        val filtered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
             else -> plants.filter { it.room == room }
         }
         val statusList = mutableListOf<PlantCareStatus>()
-        for (plant in roomFiltered) {
-            statusList.add(buildStatus(plant, seasonalAmplitude))
+        for (plant in filtered) {
+            statusList.add(buildStatus(plant, seasonalAmplitude, now))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
-            val (start, end) = DateUtils.todayRangeMillis()
+            val (start, end) = DateUtils.todayRangeMillis(now)
             careLogRepository.getLastCareAtBetween(start, end)
         } else {
             emptyMap()
@@ -530,7 +551,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double, now: Long): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -540,6 +561,7 @@ class PlantListViewModel(
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs,
+            now = now,
             seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = activeIssueCount)
     }
