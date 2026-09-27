@@ -23,7 +23,9 @@ object WhatsNewContent {
         ),
         fixed = listOf(
             "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
-                "background while the camera is open"
+                "background while the camera is open",
+            "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
+                "watering just before it, instead of from your two most recent waterings"
         )
     )
 

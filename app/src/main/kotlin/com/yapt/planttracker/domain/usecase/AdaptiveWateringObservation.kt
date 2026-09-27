@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
 
 /**
  * The one adaptive-observation write path for quick watering and the Add Care Log form (#780).
- * The form's historical newest-pair gap and its nullable test dependencies are explicit inputs;
+ * The form's first-watering fallback and its nullable test dependencies are explicit inputs;
  * dormancy, bootstrap, confidence, adjustment rows and state persistence have one implementation.
  */
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -30,7 +30,7 @@ internal class AdaptiveWateringObservation(
     private val dataStore: DataStore<Preferences>?,
     private val wateringAdjustmentRepository: WateringAdjustmentRepository?
 ) {
-    enum class GapSource { CHRONOLOGICAL_PREDECESSOR, NEWEST_PAIR_OR_CONFIGURED }
+    enum class GapSource { CHRONOLOGICAL_PREDECESSOR, CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED }
 
     data class Suggestion(
         val intervalDays: Int,
@@ -94,14 +94,17 @@ internal class AdaptiveWateringObservation(
      * clock to its `nowProvider`; the form defaults it to the real wall clock. The history bootstrap
      * has its own always-real display clock (#679), documented at [maybeApplyHistoryBootstrap].
      *
-     * [gapSource] makes the pre-existing caller difference explicit. Quick watering uses [loggedAt]'s
-     * chronological predecessor ([CareLogRepository.getLastWateringBefore], strictly earlier), not
-     * the two globally newest waterings (#654 round-2 review fix). A backdated log may be older than
-     * both of those rows. The form retains its historical newest-pair-or-configured *numeric gap*,
-     * but its dormancy check always uses this log's true predecessor (#776, P2-d). Those two lookups
-     * can disagree. A stale same-day duplicate in the newest pair may make the numeric gap zero;
-     * the `actual <= 0` guard must not skip dormancy exclusion and exit bookkeeping for a genuine
-     * spanning gap elsewhere in history (#776, P1-4).
+     * Both entry points measure the gap from [loggedAt]'s chronological predecessor
+     * ([CareLogRepository.getLastWateringBefore], strictly earlier), never the two globally newest
+     * waterings: a backdated log may be older than both of those rows (#654 round-2 review fix for
+     * quick watering, #673 for the form, technical ADR-0033). The same predecessor drives the
+     * dormancy check, so gap and dormancy can no longer disagree (#776, P2-d/P1-4). [gapSource] only
+     * decides what happens without a predecessor. [GapSource.CHRONOLOGICAL_PREDECESSOR] skips the
+     * observation. [GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED] keeps the form's
+     * historical configured-interval fallback, but only for the plant's first-ever WATER log (fewer
+     * than two on file, the just-inserted one included — the exact condition the form's old
+     * newest-pair lookup fell back on). A log backdated before every existing watering has later
+     * waterings but no earlier one; it is skipped exactly like quick watering.
      */
     @Suppress("ReturnCount")
     suspend fun observe(
@@ -116,15 +119,11 @@ internal class AdaptiveWateringObservation(
         val current = plant.wateringIntervalDays ?: return null
         val previous = careLogRepository.getLastWateringBefore(plant.id, loggedAt)?.loggedAt
         val dormancySpanning = previous != null && spansDormancy(plant, previous, loggedAt)
-        val actual = when (gapSource) {
-            GapSource.CHRONOLOGICAL_PREDECESSOR -> {
-                if (previous == null) return null
-                CareSchedule.daysBetween(previous, loggedAt)
-            }
-            GapSource.NEWEST_PAIR_OR_CONFIGURED -> {
-                val latest = careLogRepository.getLastTwoWaterings(plant.id)
-                if (latest.size >= 2) CareSchedule.daysBetween(latest[1].loggedAt, latest[0].loggedAt) else current
-            }
+        val actual = when {
+            previous != null -> CareSchedule.daysBetween(previous, loggedAt)
+            gapSource == GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED &&
+                careLogRepository.getLastTwoWaterings(plant.id).size < 2 -> current
+            else -> return null
         }
         if (actual <= 0 && !dormancySpanning) return null
         val observationFeedback = feedback.takeUnless { dormancySpanning }

@@ -118,10 +118,7 @@ class AddCareLogViewModelTest {
         val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
-            waterLog(loggedAt = sevenDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
@@ -142,10 +139,7 @@ class AddCareLogViewModelTest {
         val sevenDaysAgo = localDateUtcMillis(2026, 1, 8)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = observedAt),
-            waterLog(loggedAt = sevenDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
@@ -168,10 +162,7 @@ class AddCareLogViewModelTest {
         val threeDaysAgo = now - 3L * 24 * 60 * 60 * 1000
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
-            waterLog(loggedAt = threeDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = threeDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
@@ -194,8 +185,9 @@ class AddCareLogViewModelTest {
      * Shared setup for dormancy-exclusion regression tests below — extracted to keep each
      * test's own body under Detekt's `LongMethod` threshold. [predecessorLoggedAt] is the plant's true
      * chronological predecessor of [marchFirst] ([CareLogRepository.getLastWateringBefore]);
-     * [lastTwoWaterings] is a separate, independently-stubbed pair used only by
-     * `computeSuggestedInterval`'s unrelated `actualIntervalDays` calculation (P2-d note above).
+     * [lastTwoWaterings] is a separate, independently-stubbed, unrelated newest pair. Since #673
+     * (technical ADR-0033) the form never reads it while a predecessor exists; the tests below keep
+     * stubbing a misleading pair so a regression back to it would change their outcome.
      */
     private fun buildDormancySpanningWaterVm(
         dormantPlant: Plant,
@@ -368,10 +360,8 @@ class AddCareLogViewModelTest {
         val observedAt = localDateUtcMillis(2026, 1, 13)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(observedAt),
-            waterLog(localDateUtcMillis(2026, 1, 10))
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns
+            waterLog(loggedAt = localDateUtcMillis(2026, 1, 10))
         coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(1, 4, 7, 10, 13)
             .map { localDateUtcMillis(2026, 1, it) }
         coEvery { plantRepo.updatePlant(any()) } just runs
@@ -434,6 +424,77 @@ class AddCareLogViewModelTest {
         coVerify(exactly = 0) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
         }
+    }
+
+    /**
+     * #673 (technical ADR-0033): three existing waterings (Jan 1, Jan 13, Jan 27) and a forgotten
+     * Jan 8 entry backdated between them. The form must measure Jan 1 -> Jan 8 (7 days), the entry's
+     * own chronological predecessor, never the globally newest pair Jan 13 -> Jan 27 (14 days).
+     */
+    @Test
+    fun `a WATER log backdated between existing waterings measures the gap from its own predecessor`() = runTest {
+        val janFirst = localDateUtcMillis(2026, 1, 1)
+        val janEighth = localDateUtcMillis(2026, 1, 8)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = localDateUtcMillis(2026, 1, 27)),
+            waterLog(loggedAt = localDateUtcMillis(2026, 1, 13))
+        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, janEighth) } returns waterLog(loggedAt = janFirst)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = janEighth
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            // base=14, observed=7 (Jan 1 -> Jan 8) * JUST_RIGHT(1.00), first-ever observation gain
+            // 0.60 -> 14 + 0.60*(7-14) = 9.8 -> 10. The newest pair's 14-day gap would have agreed
+            // with base 14 and produced no suggestion at all.
+            assertEquals(10, event.suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /**
+     * #673 (technical ADR-0033): a Jan 8 entry backdated before every existing watering (Jan 13,
+     * Jan 27) has no predecessor, so there is no gap to learn from. It gets no observation at all,
+     * matching quick watering; the configured-interval fallback is reserved for a plant's first-ever
+     * WATER log, and this plant already has later ones on file.
+     */
+    @Test
+    fun `a WATER log backdated before every existing watering records no observation`() = runTest {
+        val janEighth = localDateUtcMillis(2026, 1, 8)
+        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 14))
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
+            waterLog(loggedAt = localDateUtcMillis(2026, 1, 27)),
+            waterLog(loggedAt = localDateUtcMillis(2026, 1, 13))
+        )
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = wateringAdjustmentRepo
+        )
+        vm.selectedCareType = CareType.WATER
+        vm.selectedFeedback = WateringFeedback.JUST_RIGHT
+        vm.loggedAt = janEighth
+
+        vm.events.test {
+            vm.saveLog()
+            val event = awaitItem() as AddCareLogViewModel.Event.Saved
+            assertNull(event.suggestedWateringInterval)
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify { careLogRepo.addLog(match { it.careType == CareType.WATER && it.loggedAt == janEighth }) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     // #699/#761 (product ADR-0044, Codex review round 1 on #776, P2-d): getLastTwoWaterings() returns
@@ -846,10 +907,7 @@ class AddCareLogViewModelTest {
             .copy(wateringDueDateOverride = now + 3L * 24 * 60 * 60 * 1000)
         every { plantRepo.getPlantById(1L) } returns flowOf(plantWithOverride)
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
-            waterLog(loggedAt = sevenDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
@@ -949,10 +1007,7 @@ class AddCareLogViewModelTest {
         val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
-            waterLog(loggedAt = sevenDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L)
         vm.selectedCareType = CareType.WATER
@@ -1071,10 +1126,7 @@ class AddCareLogViewModelTest {
         val sevenDaysAgo = now - 7L * 24 * 60 * 60 * 1000
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = now),
-            waterLog(loggedAt = sevenDaysAgo)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysAgo)
         coEvery { plantRepo.updatePlant(any()) } just runs
         // hasLogOfTypeOnDay defaults to false for the queried day in setup() — simulates a day
         // with no existing WATER log even though other days have one.
@@ -1189,10 +1241,7 @@ class AddCareLogViewModelTest {
         }
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 10))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = peakDay),
-            waterLog(loggedAt = twentyDaysBeforePeak)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = twentyDaysBeforePeak)
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
@@ -1237,10 +1286,7 @@ class AddCareLogViewModelTest {
         val pinnedPlant = plant(wateringIntervalDays = 10).copy(pinIntervalToBase = true)
         every { plantRepo.getPlantById(1L) } returns flowOf(pinnedPlant)
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = peakDay),
-            waterLog(loggedAt = twentyDaysBeforePeak)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = twentyDaysBeforePeak)
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
@@ -1291,10 +1337,7 @@ class AddCareLogViewModelTest {
             val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.addLog(any()) } returns 1L
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                waterLog(loggedAt = peakDay),
-                waterLog(loggedAt = eightDaysBeforePeak)
-            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = eightDaysBeforePeak)
             coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
@@ -1334,10 +1377,7 @@ class AddCareLogViewModelTest {
         val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 8.8)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = sep13),
-            waterLog(loggedAt = sevenDaysBeforeSep13)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = sevenDaysBeforeSep13)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
         vm.selectedCareType = CareType.WATER
@@ -1377,10 +1417,7 @@ class AddCareLogViewModelTest {
             }
             val monstera = plant(wateringIntervalDays = 7).copy(wateringBaseIntervalDays = 5.0)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                waterLog(loggedAt = jan1),
-                waterLog(loggedAt = elevenDaysBeforeJan1)
-            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = elevenDaysBeforeJan1)
             coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
@@ -1416,10 +1453,7 @@ class AddCareLogViewModelTest {
             }
             val monstera = plant(wateringIntervalDays = 8).copy(wateringBaseIntervalDays = 5.6)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-                waterLog(loggedAt = jan1),
-                waterLog(loggedAt = elevenDaysBeforeJan1)
-            )
+            coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = elevenDaysBeforeJan1)
             coEvery { plantRepo.updatePlant(any()) } just runs
             val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
             vm.selectedCareType = CareType.WATER
@@ -1450,10 +1484,7 @@ class AddCareLogViewModelTest {
         // current — a genuine effective-space change, so the suggestion must still surface.
         every { plantRepo.getPlantById(1L) } returns flowOf(plant(wateringIntervalDays = 7))
         coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            waterLog(loggedAt = peakDay),
-            waterLog(loggedAt = oneDayBeforePeak)
-        )
+        coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns waterLog(loggedAt = oneDayBeforePeak)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, dataStore = seasonalDataStore)
         vm.selectedCareType = CareType.WATER

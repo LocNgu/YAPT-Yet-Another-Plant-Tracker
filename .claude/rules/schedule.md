@@ -61,8 +61,11 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
 The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy
 `computeSuggestedInterval()` ±1-day nudge (product ADR-0006) it replaced has been deleted along with the flag
-check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLogViewModel` computes
-`actualIntervalDays` from the last two waterings, calls this function, and passes the result back via
+check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLogViewModel` (via the shared
+`AdaptiveWateringObservation`) computes `actualIntervalDays` from the entered log's chronological predecessor
+(`getLastWateringBefore`), never the globally newest pair — the configured interval stands in only for a plant's
+first-ever watering, and a log backdated before every existing watering is skipped (#673, technical ADR-0033).
+It then calls this function and passes the result back via
 `savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal editable `AlertDialog`
 (product ADR-0006 dialog shape, supersedes product ADR-0005).
 - `target = observed × multiplier(feedback)` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base = base +
