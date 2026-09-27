@@ -537,6 +537,34 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `typing and clearing a search query never re-queries the repositories`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, plantIssueRepo)
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            // Once per plant, from the initial buildStatus() build.
+            coVerify(exactly = 2) { careLogRepo.getLastLogOfType(any(), CareType.WATER) }
+
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            assertEquals(1, awaitItem().size)
+
+            vm.clearSearchQuery()
+            advanceUntilIdle()
+            assertEquals(2, awaitItem().size)
+
+            // Search is a pure in-memory filter downstream of the DB-bound combine — typing and
+            // clearing a query must not re-run buildStatus()'s per-plant Room queries.
+            coVerify(exactly = 2) { careLogRepo.getLastLogOfType(any(), CareType.WATER) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `search composes with the active room filter`() = runTest {
         val kitchenMonstera = plant(id = 1L, name = "Monstera", room = "Kitchen")
         val bedroomFern = plant(id = 2L, name = "Fern", room = "Bedroom")

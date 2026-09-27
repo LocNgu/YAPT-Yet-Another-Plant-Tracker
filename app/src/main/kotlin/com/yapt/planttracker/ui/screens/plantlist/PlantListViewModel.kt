@@ -139,25 +139,22 @@ class PlantListViewModel(
         }
     }
 
-    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
-        combine(allPlants, careLogRepository.logCount) { plants, _ -> plants },
+    // DB-bound: room filter -> buildStatus()'s per-plant Room queries -> applySortOrder(). Search
+    // (#512) is deliberately not an input here — see plantsWithStatus below.
+    private val plantsWithStatusBeforeSearch: StateFlow<List<PlantCareStatus>> = combine(
+        allPlants,
+        careLogRepository.logCount,
         selectedRoom,
         _sortOrder,
-        dataStore.seasonalAmplitudeFlow(),
-        searchQuery
-    ) { plants, room, sort, seasonalAmplitude, query ->
+        dataStore.seasonalAmplitudeFlow()
+    ) { plants, _, room, sort, seasonalAmplitude ->
         val roomFiltered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
             else -> plants.filter { it.room == room }
         }
-        // Search narrows whatever the room filter already produced (#512) — applied here, before
-        // buildStatus()'s per-plant suspend queries, rather than after applySortOrder() below, purely
-        // as a perf win: the two orderings are equivalent (independent boolean filters commute with
-        // sorting), but filtering first skips buildStatus() entirely for plants the query excludes.
-        val filtered = roomFiltered.filter { matchesSearchQuery(it, query) }
         val statusList = mutableListOf<PlantCareStatus>()
-        for (plant in filtered) {
+        for (plant in roomFiltered) {
             statusList.add(buildStatus(plant, seasonalAmplitude))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
@@ -167,6 +164,24 @@ class PlantListViewModel(
             emptyMap()
         }
         applySortOrder(statusList, sort, caredTodayAt)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Search (#512) is a cheap in-memory filter *downstream* of [plantsWithStatusBeforeSearch], never
+     * an input to that DB-bound combine — typing (or clearing) a query only re-runs this plain
+     * `filter{}`, never buildStatus()'s per-plant Room queries or getLastCareAtBetween(). The search
+     * predicate is per-plant and commutes with the room filter, every sort option's own filtering, and
+     * the ordering itself, so filtering here produces identical results to filtering upstream would
+     * have — the earlier upstream placement was a real, user-visible bug: every keystroke re-queried
+     * every room-filtered plant (4 Room queries each via buildStatus(), plus getLastCareAtBetween()
+     * under CARED_FOR_TODAY), and the synchronous `searchQueryText`-driven empty-state text could
+     * briefly disagree with this still-suspended, not-yet-rebuilt list on a clear/close.
+     */
+    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+        plantsWithStatusBeforeSearch,
+        searchQuery
+    ) { statuses, query ->
+        statuses.filter { matchesSearchQuery(it.plant, query) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val plantListItems: StateFlow<List<PlantListItem>> = combine(

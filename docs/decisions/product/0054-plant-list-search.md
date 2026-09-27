@@ -47,12 +47,16 @@ treated as no filter at all, same as an empty query.
 
 **Composition with existing controls:** search narrows whatever the active room-filter-chip selection
 and sort option already produce, including `BOTH_DUE`/`CARED_FOR_TODAY`/`ACTIVE_ISSUES`'s own internal
-filtering — it is one more `AND`ed predicate in `PlantListViewModel.plantsWithStatus`'s `combine`, not a
-mode that bypasses or clears the room chips/sort. The room-chip row itself stays visible and usable
-while search mode is open; only the top bar's own row swaps. Product ADR-0018's date-group dividers
-keep applying to search results — there is no flat-rendering special case for a searched list. Select-
-all while searching selects only the currently-matching plants, for free, since it already reads the
-same filtered `plantsWithStatus`.
+filtering — never a mode that bypasses or clears the room chips/sort. Because the search predicate is
+per-plant, it commutes with the room filter and every sort option's own filtering, so it can be applied
+as a second, cheap, in-memory `filter{}` stage downstream of the existing DB-bound
+`plantsWithStatusBeforeSearch` combine (room filter → per-plant Room queries → sort), rather than being
+one more input feeding that combine directly — the query is deliberately kept out of the DB-bound stage
+so that typing/clearing it never re-runs a single Room query. The room-chip row itself stays visible and
+usable while search mode is open; only the top bar's own row swaps. Product ADR-0018's date-group
+dividers keep applying to search results — there is no flat-rendering special case for a searched list.
+Select-all while searching selects only the currently-matching plants, for free, since it already reads
+the same filtered `plantsWithStatus`.
 
 **Empty state:** a dedicated "No plants match "%1$s"" message takes priority over every other empty
 state (sort-based or room-based) whenever the query is non-blank and nothing matches.
