@@ -54,7 +54,8 @@ class PlantListViewModel(
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
     private val plantIssueRepository: PlantIssueRepository,
-    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -115,6 +116,11 @@ class PlantListViewModel(
         sortOrderOrDayChanged,
         dataStore.seasonalAmplitudeFlow()
     ) { plants, _, room, sort, seasonalAmplitude ->
+        // Captured once, up front, before any of buildStatus()'s suspend careLogRepository calls
+        // (which take real time) — so the CARED_FOR_TODAY day-range check and every status's own
+        // overdue/due math (CareSchedule.computeStatus()'s default now) agree on the same instant,
+        // even if this rebuild happens to straddle real midnight (#550 review round 4).
+        val now = nowProvider()
         val filtered = when (room) {
             null -> plants
             UNASSIGNED_ROOM -> plants.filter { it.room == null }
@@ -122,10 +128,10 @@ class PlantListViewModel(
         }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            statusList.add(buildStatus(plant, seasonalAmplitude))
+            statusList.add(buildStatus(plant, seasonalAmplitude, now))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
-            val (start, end) = DateUtils.todayRangeMillis()
+            val (start, end) = DateUtils.todayRangeMillis(now)
             careLogRepository.getLastCareAtBetween(start, end)
         } else {
             emptyMap()
@@ -479,7 +485,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double, now: Long): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -489,6 +495,7 @@ class PlantListViewModel(
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs,
+            now = now,
             seasonalAmplitude = seasonalAmplitude
         ).copy(activeIssueCount = activeIssueCount)
     }

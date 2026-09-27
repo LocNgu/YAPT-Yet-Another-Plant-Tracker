@@ -149,9 +149,32 @@ and initial visible month) is deliberately untouched — moving the visible mont
 at midnight is not the desired behavior, unlike the highlight/label, which is expected to track the real
 current day live.
 
+**`statusesForDay`'s own `day` was still not fully insulated from a live clock read (#550 review round
+4).** Round 2 combined the day and its statuses into one atomic `StatusesForDay`, but the lambda read
+`day` straight from `today` (the ticker's own value) while `buildStatus()` → `CareSchedule
+.computeStatus()` separately defaults to a fresh `System.currentTimeMillis()` for its own overdue/due
+math. A rebuild triggered by something *other* than a tick — a new care log, a seasonal-amplitude change
+— firing in the narrow window after real midnight but before the ticker's own tick had arrived would
+still emit `StatusesForDay(yesterday, statusesComputedAsOfToday)`: correct on its own terms (the ticker
+genuinely hadn't ticked yet), but internally inconsistent, since `computeStatus()`'s live clock read had
+already moved on. Fixed the same way `ReminderWorker.buildStatus(app, plant, now, …)` already does it:
+capture one `now` at the very top of the combine lambda, before any suspend `careLogRepository` call, and
+thread that same `now` into both `now.toLocalDate()` (the `day`) and `buildStatus(..., now)` (which
+passes it to `computeStatus(now = now)`). `today`'s emitted value is now a pure trigger (`_` in the
+lambda) rather than the source of `day` itself. `CalendarViewModel` gained an injectable `nowProvider: ()
+-> Long = System::currentTimeMillis`, mirroring `QuickLogUseCase`'s convention, so a test can pin the
+clock independently of the injected ticker — exactly what's needed to reproduce this scenario (ticker
+says yesterday, clock already says today). `PlantListViewModel.plantsWithStatus` had the same latent gap
+between its own `buildStatus()` calls and its `DateUtils.todayRangeMillis()` call for `CARED_FOR_TODAY`
+(no `StatusesForDay`-shaped intermediate to name, but the same "two independent live-clock reads inside
+one rebuild" risk); it received the identical one-captured-`now` treatment, reusing the same
+`nowProvider` convention.
+
 Both `PlantListViewModel` and `CalendarViewModel` constructor-inject the ticker as `Flow<LocalDate>`
-defaulting to the real `dayChangeTicker()`, so `Factory` needs no change (the default applies), while a
-test can substitute a controllable `MutableSharedFlow<LocalDate>`/`MutableStateFlow<LocalDate>`.
+defaulting to the real `dayChangeTicker()`, and now also a `nowProvider: () -> Long` defaulting to
+`System::currentTimeMillis`, so `Factory` needs no change (the defaults apply) while a test can
+substitute a controllable `MutableSharedFlow<LocalDate>`/`MutableStateFlow<LocalDate>` and/or a pinned
+clock independently.
 
 **Never call `advanceUntilIdle()` in a test that collects the real ticker.** Its `while (true) { …;
 delay(…) }` always re-schedules another delayed continuation before suspending, so
@@ -206,3 +229,10 @@ the handful of tests that actually exercise the ticker's effect inject their own
   highlight and "Today" title/section label are UI-owned decisions that can't be pushed down into
   `plantsByDay`'s `Map<LocalDate, DayEntry>` shape, so they need their own read of the same `today`
   rather than a screen-local `remember { LocalDate.now() }`.
+- A day-derived value assembled inside a single rebuild must come from **one** captured clock read, not
+  a mix of the day-change ticker's own value and a separate default `System.currentTimeMillis()` read
+  buried inside a downstream pure-logic function (`CareSchedule.computeStatus()`'s default `now`) — the
+  two can disagree by a few minutes right after real midnight, in the narrow window before the next
+  ticker tick. `PlantListViewModel`/`CalendarViewModel` now both take an injectable `nowProvider`
+  alongside their `dayChangeFlow`, following the same convention `QuickLogUseCase` already established
+  for its own clock reads.

@@ -39,6 +39,8 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,6 +73,14 @@ class CalendarViewModelTest {
     private lateinit var vm: CalendarViewModel
 
     private fun plant(id: Long, name: String) = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L)
+
+    /**
+     * Midnight of [this] date in the system default zone, as epoch millis -- used to build a
+     * `nowProvider` that agrees with an injected fake `dayChangeFlow` value (#550 review round 4:
+     * the grouping day now comes from `nowProvider()`, not the ticker's own emitted value).
+     */
+    private fun LocalDate.atStartOfDayMs(): Long =
+        ZonedDateTime.of(this, java.time.LocalTime.MIDNIGHT, ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     @Before
     fun setup() {
@@ -416,7 +426,7 @@ class CalendarViewModelTest {
     @Test
     fun `plantsByDay recomputes the dormant-today bucket on a day-change tick (#550)`() = runTest {
         // Dormant year-round so isDormant is true regardless of which real-world month the test
-        // happens to run in -- only the injected `today` value should move which day key the
+        // happens to run in -- only the injected clock/ticker value should move which day key the
         // dormant-only contribution lands under.
         val dormant = Plant(
             id = 1L,
@@ -429,10 +439,15 @@ class CalendarViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(dormant))
         val day1 = LocalDate.of(2030, 6, 14)
         val day2 = LocalDate.of(2030, 6, 15)
+        // #550 review round 4: the grouping day now comes from `nowProvider()`, not the ticker's own
+        // emitted value (which is only a trigger) -- both must be moved together to control which
+        // day key a rebuild lands under.
+        var nowMs = day1.atStartOfDayMs()
         val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
         dayChangeFlow.tryEmit(day1)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+            dayChangeFlow, nowProvider = { nowMs }
         )
         vm.setVisibleMonth(YearMonth.of(2030, 6))
         advanceUntilIdle()
@@ -442,6 +457,7 @@ class CalendarViewModelTest {
             assertTrue(before[day1]?.dormantPlants?.any { it.status.plant.id == 1L } == true)
             assertNull(before[day2])
 
+            nowMs = day2.atStartOfDayMs()
             dayChangeFlow.emit(day2)
             advanceUntilIdle()
 
@@ -496,20 +512,27 @@ class CalendarViewModelTest {
             // and, empirically, could not force the pre-fix race under MockK's synchronous stub
             // resolution plus the shared test scheduler -- this test instead pins down the resulting
             // invariant directly, per the reviewer's own suggested fallback.)
-            val p1 = Plant(id = 1L, name = "P1", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+            // A long interval keeps day1's due date comfortably outside the visible month entirely
+            // (no incidental "future due" contribution to reason about) -- the second, clearly
+            // overdue log is what actually exercises the today-bucket/overdue path this test cares
+            // about.
+            val p1 = Plant(id = 1L, name = "P1", wateringIntervalDays = 100, createdAt = 0L, updatedAt = 0L)
             every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
-            val now = System.currentTimeMillis()
-            val oneDayMs = TimeUnit.DAYS.toMillis(1)
-            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returnsMany listOf(
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now),
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now - oneDayMs * 3)
-            )
             val day1 = LocalDate.of(2026, 5, 1)
             val day2 = LocalDate.of(2026, 5, 2)
+            // #550 review round 4: the grouping day now comes from `nowProvider()`, not the ticker's
+            // own emitted value (which is only a trigger) -- both must be moved together.
+            var nowMs = day1.atStartOfDayMs()
+            val oneDayMs = TimeUnit.DAYS.toMillis(1)
+            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returnsMany listOf(
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = nowMs),
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = nowMs - oneDayMs * 200)
+            )
             val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
             dayChangeFlow.tryEmit(day1)
             vm = CalendarViewModel(
-                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+                dayChangeFlow, nowProvider = { nowMs }
             )
             vm.setVisibleMonth(YearMonth.of(2026, 5))
             advanceUntilIdle()
@@ -518,6 +541,7 @@ class CalendarViewModelTest {
                 val before = awaitItem()
                 assertNull(before[day2])
 
+                nowMs = day2.atStartOfDayMs()
                 dayChangeFlow.emit(day2)
                 advanceUntilIdle()
 
@@ -551,6 +575,42 @@ class CalendarViewModelTest {
                 dayChangeFlow.emit(day2)
 
                 assertEquals(day2, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `day and statuses agree when the clock crosses midnight before the ticker (#550 review round 4)`() =
+        runTest {
+            val p1 = Plant(id = 1L, name = "P1", wateringIntervalDays = 1, createdAt = 0L, updatedAt = 0L)
+            every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+            val day1 = LocalDate.of(2026, 5, 1)
+            val day2 = LocalDate.of(2026, 5, 2)
+            // The injected clock already reads day2 (30 minutes past real midnight) even though the
+            // injected ticker still says day1 -- the exact #550 review round 4 window: an unrelated
+            // rebuild trigger firing after real midnight but before the ticker's own tick arrives.
+            val day2StartMs = ZonedDateTime.of(day2, java.time.LocalTime.of(0, 30), ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            val oneDayMs = TimeUnit.DAYS.toMillis(1)
+            coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
+                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = day2StartMs - oneDayMs * 3)
+            val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
+            dayChangeFlow.tryEmit(day1)
+            vm = CalendarViewModel(
+                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+                dayChangeFlow, nowProvider = { day2StartMs }
+            )
+            vm.setVisibleMonth(YearMonth.of(2026, 5))
+
+            vm.plantsByDay.test {
+                val entries = awaitItem()
+                // The day key must be day2 (the clock's real day, captured once and threaded into
+                // both the day and the statuses), never day1 (the ticker's stale value) -- and the
+                // overdue status grouped under it must be the one actually computed as of day2, not
+                // a mismatched pairing of one day's key with the other day's statuses.
+                assertNull(entries[day1])
+                assertTrue(entries[day2]?.containsOverdue == true)
                 cancelAndIgnoreRemainingEvents()
             }
         }

@@ -21,6 +21,7 @@ import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.dayChangeTicker
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +46,8 @@ class CalendarViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -70,25 +72,42 @@ class CalendarViewModel(
     private data class StatusesForDay(val day: LocalDate, val statuses: List<PlantCareStatus>)
 
     /**
-     * Combines the plant statuses with the [today] value they were computed against, as a single
-     * emission — [plantsWithStatus] and [plantsByDay] are both derived from this rather than each
-     * reading [today] on their own. `plantsByDay` used to be `combine(plantsWithStatus,
-     * _visibleMonth, today)`, which re-ran as soon as *either* `plantsWithStatus` or `today` changed
-     * — at midnight, `today` ticks first, so that combine could momentarily fire with the *new*
-     * `today` paired with the *old*, not-yet-rebuilt `plantsWithStatus` (still mid-flight through
-     * [buildStatus]'s suspend calls), grouping stale due/overdue statuses under the new day (#550
-     * review round 2). Deriving both public flows from this one combined value means a day and its
-     * statuses can never be observed out of step with each other.
+     * Combines the plant statuses with the day they were computed against, as a single emission —
+     * [plantsWithStatus] and [plantsByDay] are both derived from this rather than each reading
+     * [today] on their own. `plantsByDay` used to be `combine(plantsWithStatus, _visibleMonth,
+     * today)`, which re-ran as soon as *either* `plantsWithStatus` or `today` changed — at midnight,
+     * `today` ticks first, so that combine could momentarily fire with the *new* `today` paired with
+     * the *old*, not-yet-rebuilt `plantsWithStatus` (still mid-flight through [buildStatus]'s
+     * suspend calls), grouping stale due/overdue statuses under the new day (#550 review round 2).
+     * Deriving both public flows from this one combined value means a day and its statuses can never
+     * be observed out of step with each other.
+     *
+     * [today]'s own emitted value is deliberately **not** what ends up in [StatusesForDay.day] — it
+     * only *triggers* this combine (`_` below). `now` is instead captured fresh, once, right at the
+     * top of the lambda, before any of [buildStatus]'s suspend `careLogRepository` calls — those
+     * calls take real time, and `CareSchedule.computeStatus()` (via [buildStatus]) separately reads
+     * a live `System.currentTimeMillis()` by default for its own overdue/due math. If a rebuild
+     * triggered by an *unrelated* upstream (a new care log, a seasonal-amplitude change) happened to
+     * straddle real midnight, the ticker's `today` value could still read yesterday while that
+     * default live clock read inside `computeStatus()` already reads today — pairing yesterday's day
+     * key with statuses computed as of today (#550 review round 4). Capturing one `now` up front and
+     * threading it into both `now.toLocalDate()` and `buildStatus(..., now)` makes the day and the
+     * statuses agree by construction, the same way [ReminderWorker][com.yapt.planttracker.worker
+     * .ReminderWorker]'s own `buildStatus(app, plant, now, …)` already threads a single captured
+     * `now` through. Mirrors [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s injectable
+     * `nowProvider` convention so a test can pin the instant independently of the injected ticker.
      */
     private val statusesForDay: StateFlow<StatusesForDay> = combine(
         allPlants,
         careLogRepository.logCount,
         dataStore.seasonalAmplitudeFlow(),
         today
-    ) { plants, _, seasonalAmplitude, day ->
+    ) { plants, _, seasonalAmplitude, _ ->
+        val now = nowProvider()
+        val day = now.toLocalDate()
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude))
+            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, now))
         }
         StatusesForDay(day, statusList)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatusesForDay(LocalDate.now(), emptyList()))
@@ -278,7 +297,8 @@ class CalendarViewModel(
 private suspend fun buildStatus(
     careLogRepository: CareLogRepository,
     plant: Plant,
-    seasonalAmplitude: Double
+    seasonalAmplitude: Double,
+    now: Long
 ): PlantCareStatus {
     val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
     val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
@@ -288,6 +308,7 @@ private suspend fun buildStatus(
         lastWateredAt = lastWatering?.loggedAt,
         lastFertilizedAt = lastFertilizing?.loggedAt,
         totalLogs = totalLogs,
+        now = now,
         seasonalAmplitude = seasonalAmplitude
     )
 }
