@@ -20,6 +20,8 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.dayChangeTicker
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -34,13 +36,15 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 
+@Suppress("LongParameterList")
 class CalendarViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val quickLogUseCase: QuickLogUseCase
+    private val quickLogUseCase: QuickLogUseCase,
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -49,8 +53,9 @@ class CalendarViewModel(
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
-        dataStore.seasonalAmplitudeFlow()
-    ) { plants, _, seasonalAmplitude ->
+        dataStore.seasonalAmplitudeFlow(),
+        dayChangeFlow
+    ) { plants, _, seasonalAmplitude, _ ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
             statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude))
@@ -61,11 +66,19 @@ class CalendarViewModel(
     private val _visibleMonth = MutableStateFlow(YearMonth.now())
     val visibleMonth: StateFlow<YearMonth> = _visibleMonth.asStateFlow()
 
+    /**
+     * [today] comes from [dayChangeFlow] rather than a fresh `LocalDate.now()` call inside the
+     * lambda — using the ticker's own emitted value (instead of a second, independent real-clock
+     * read) is what guarantees this combine actually re-runs at midnight (#550): a bare
+     * `LocalDate.now()` call here reads correctly whenever the block happens to run, but nothing
+     * upstream was triggering it to run again purely because the date changed.
+     */
     val plantsByDay: StateFlow<Map<LocalDate, DayEntry>> = combine(
         plantsWithStatus,
-        _visibleMonth
-    ) { statuses, month ->
-        computePlantsByDay(statuses, month, LocalDate.now())
+        _visibleMonth,
+        dayChangeFlow
+    ) { statuses, month, today ->
+        computePlantsByDay(statuses, month, today)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _selectedDay = MutableStateFlow<LocalDate?>(null)

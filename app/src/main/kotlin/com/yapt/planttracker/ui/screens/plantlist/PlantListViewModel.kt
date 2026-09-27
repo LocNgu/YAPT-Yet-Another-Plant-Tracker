@@ -27,6 +27,8 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.dayChangeTicker
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private val DEFAULT_SORT = SortOrder(option = SortOption.ALPHABETICAL, direction = SortDirection.ASC)
 
@@ -50,7 +53,8 @@ class PlantListViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val plantIssueRepository: PlantIssueRepository
+    private val plantIssueRepository: PlantIssueRepository,
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -93,11 +97,22 @@ class PlantListViewModel(
         }
     }
 
+    /**
+     * Folds [dayChangeFlow]'s emission into [_sortOrder] rather than adding it as its own arg to
+     * [plantsWithStatus]'s `combine()` below, which is already at the 5-flow limit of the typed
+     * `combine()` overloads (#550) — the sort order itself is unaffected by a day change, only the
+     * downstream `CARED_FOR_TODAY`/`buildStatus()` recomputation this combine drives is.
+     */
+    private val sortOrderOrDayChanged: Flow<SortOrder> = combine(
+        _sortOrder,
+        dayChangeFlow
+    ) { sort, _ -> sort }
+
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
-        _sortOrder,
+        sortOrderOrDayChanged,
         dataStore.seasonalAmplitudeFlow()
     ) { plants, _, room, sort, seasonalAmplitude ->
         val filtered = when (room) {
