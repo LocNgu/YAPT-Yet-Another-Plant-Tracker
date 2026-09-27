@@ -18,6 +18,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Fixed
 - **Backdating a watering in Add Care Log no longer teaches the schedule from the wrong gap** — a forgotten watering entered between two existing ones is now measured from the watering just before it, instead of from the two most recent waterings on file, which had nothing to do with the entry. A watering backdated before every existing one no longer adjusts the schedule at all, the same as the Plant Detail "Log watering" picker. Entries for today and a plant's first-ever watering behave exactly as before (#673, technical ADR-0033, amending technical ADR-0030)
 - **A camera photo is no longer silently lost if Android recreates the app while the camera is open** — the in-flight capture target now survives Activity recreation (low memory, a configuration change, or "Don't keep activities"), so the photo still reaches Add Care Log, Add/Edit Plant, Plant Detail, and the Plant List/Calendar photo reminders, and a cancelled capture still deletes its temporary file (#706)
+- **Phone-to-phone transfer on Android 12+ was silently moving nothing** — a mismatched internal backup rule file meant the platform rejected the whole transfer before any of your plants, history, settings, or photos could copy over. Transfer now works fully. Google's own cloud backup stays intentionally off on Android 12+ to keep YAPT's no-cloud approach — use a `.yapt` export for an off-device copy there. Android 8–11 behavior is unchanged (#824, product ADR-0053)
 
 ## [0.32.1] - 2026-09-25
 
