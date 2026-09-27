@@ -27,7 +27,9 @@ object WhatsNewContent {
             "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +
                 "over during phone-to-phone transfer, which previously moved nothing. YAPT deliberately " +
                 "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
-                "off-device copy there"
+                "off-device copy there",
+            "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
+                "watering just before it, instead of from your two most recent waterings"
         )
     )
 
