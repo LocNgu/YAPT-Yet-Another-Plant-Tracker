@@ -17,6 +17,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Search your plants by name or species — tap the search icon on the plant list and the list " +
+                "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
+                "filters and sorting",
             "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
                 "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
                 "first, once nothing in the app references them anymore"
