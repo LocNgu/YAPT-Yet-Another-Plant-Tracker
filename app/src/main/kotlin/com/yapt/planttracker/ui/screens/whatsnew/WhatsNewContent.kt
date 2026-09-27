@@ -23,7 +23,11 @@ object WhatsNewContent {
         ),
         fixed = listOf(
             "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
-                "background while the camera is open"
+                "background while the camera is open",
+            "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +
+                "over during phone-to-phone transfer, which previously moved nothing. YAPT deliberately " +
+                "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
+                "off-device copy there"
         )
     )
 
