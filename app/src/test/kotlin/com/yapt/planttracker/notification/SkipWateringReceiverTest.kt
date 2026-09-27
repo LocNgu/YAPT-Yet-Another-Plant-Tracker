@@ -121,6 +121,7 @@ class SkipWateringReceiverTest {
      * as `PlantDetailRescheduleActions.rescheduledRelativeDueAt()`, not the old fixed-24h span. A future
      * override at 00:30 local on `America/New_York`'s 2026-11-01 fall-back day advances to Nov 2 local
      * (the fixed `+1 day` arithmetic would have landed at 23:30 local on Nov 1 — the same calendar day).
+     * `now` is pinned before the override so the test stays deterministic after that date passes.
      */
     @Test
     fun `skipWatering advances a future override across a DST fall-back day to the next calendar day`() =
@@ -136,7 +137,11 @@ class SkipWateringReceiverTest {
                         .copy(wateringDueDateOverride = futureOverride)
                 )
 
-                SkipWateringReceiver().skipWatering(app, plantId)
+                // Pinned clock a day before the override, so the override stays the `maxOf` anchor
+                // whatever the real wall-clock date is when this test runs.
+                val pinnedNow = LocalDateTime.of(2026, 10, 31, 12, 0)
+                    .atZone(newYork).toInstant().toEpochMilli()
+                SkipWateringReceiver().skipWatering(app, plantId, now = pinnedNow)
 
                 val updated = app.plantRepository.getPlantById(plantId).first()!!
                 val override = requireNotNull(updated.wateringDueDateOverride)
