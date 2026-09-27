@@ -174,7 +174,7 @@ class BackupRulesTest {
     }
 
     @Test
-    fun fullBackupContentRootIsUnchangedAndDoesNotExcludePhotoDirectories() {
+    fun fullBackupContentRootAndRulesAreUnchanged() {
         val root = resolveXmlResource(manifestApplication(), "fullBackupContent").documentElement
         assertEquals(
             "android:fullBackupContent must still resolve to a <full-backup-content> root for API 26-30",
@@ -182,16 +182,33 @@ class BackupRulesTest {
             root.tagName
         )
 
-        val excludedPaths = root.getElementsByTagName("exclude").let { nodes ->
-            (0 until nodes.length).map { (nodes.item(it) as Element).getAttribute("path") }
-        }
-        excludedPaths.forEach { path ->
-            assertTrue(
-                "backup_rules.xml must not exclude the photo directories (\"images\"/\"restored_photos\") " +
-                    "on Android 8-11, or cloud backup and device-transfer would silently stop carrying " +
-                    "photos there; found exclude path=\"$path\"",
-                !path.contains("images") && !path.contains("restored_photos")
-            )
-        }
+        val rules = elementChildren(root)
+        assertEquals(
+            "backup_rules.xml's <full-backup-content> must contain exactly one rule — an extra or " +
+                "changed rule here changes what Android 8-11 cloud backup and device-transfer include, " +
+                "e.g. by newly excluding the photo directories (\"images\"/\"restored_photos\") or the " +
+                "whole filesDir subtree",
+            1,
+            rules.size
+        )
+
+        val rule = rules.single()
+        assertEquals(
+            "backup_rules.xml's one rule must stay an <exclude>, never an <include> — an include here " +
+                "would flip the file into allow-list mode and drop everything else on Android 8-11",
+            "exclude",
+            rule.tagName
+        )
+        assertEquals(
+            "backup_rules.xml's exclude must stay domain=\"file\"",
+            "file",
+            rule.getAttribute("domain")
+        )
+        assertEquals(
+            "backup_rules.xml's exclude must stay path=\"cache\" — a broader path (e.g. \".\") would " +
+                "prune the whole filesDir subtree, photos included, instead of the no-op it is today",
+            "cache",
+            rule.getAttribute("path")
+        )
     }
 }
