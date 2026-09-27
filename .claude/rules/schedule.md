@@ -12,7 +12,10 @@ paths:
 # CareSchedule rules
 
 Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never millisecond division
-(technical ADR-0013). `daysBetween()` uses `ChronoUnit.DAYS`.
+(technical ADR-0013). `daysBetween()` uses `ChronoUnit.DAYS`. Every due-date advance ("N days from
+`lastWateredAt`/`lastFertilizedAt`/`createdAt`") goes through `Long.plusCalendarDays()`, never `+
+TimeUnit.DAYS.toMillis(n)` — a fixed 24h span silently loses a day of local calendar-date advancement
+across a DST fall-back transition (#733, technical ADR-0034).
 
 ## computeStatus()
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,

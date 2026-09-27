@@ -5,11 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.yapt.planttracker.YaptApplication
+import com.yapt.planttracker.util.plusCalendarDays
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 class SkipWateringReceiver : BroadcastReceiver() {
 
@@ -43,8 +43,7 @@ class SkipWateringReceiver : BroadcastReceiver() {
         val app = context.applicationContext as YaptApplication
         val plant = app.plantRepository.getPlantById(plantId).first() ?: return
         val now = System.currentTimeMillis()
-        val newOverride = maxOf(plant.wateringDueDateOverride ?: now, now) +
-            TimeUnit.DAYS.toMillis(1)
+        val newOverride = maxOf(plant.wateringDueDateOverride ?: now, now).plusCalendarDays(1)
         app.plantRepository.updatePlant(
             plant.copy(
                 wateringDueDateOverride = newOverride,

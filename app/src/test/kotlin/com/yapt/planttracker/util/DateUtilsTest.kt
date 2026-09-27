@@ -211,4 +211,82 @@ class DateUtilsTest {
         // Window spans exactly one day: [start, end).
         assertEquals(TimeUnit.DAYS.toMillis(1), end - start)
     }
+
+    // plusCalendarDays (#733, technical ADR-0034)
+
+    private val newYork = java.time.ZoneId.of("America/New_York")
+
+    @Test
+    fun `plusCalendarDays across a DST fall-back day lands on local date plus n, not 24h later`() {
+        // America/New_York falls back 02:00 -> 01:00 on 2026-11-01. 00:30 local on Nov 1 is a
+        // genuinely 25h calendar day; a fixed +24h would land at 23:30 local on Nov 1 (same date),
+        // one day short of what every due-date consumer expects.
+        val nov1At0030 = java.time.LocalDateTime.of(2026, 11, 1, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = nov1At0030.plusCalendarDays(1, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 11, 2), resultZoned.toLocalDate())
+        assertEquals(0, resultZoned.hour)
+        assertEquals(30, resultZoned.minute)
+    }
+
+    @Test
+    fun `plusCalendarDays across a DST fall-back day is NOT the fixed 24h result`() {
+        val nov1At0030 = java.time.LocalDateTime.of(2026, 11, 1, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+        val fixed24hResult = nov1At0030 + TimeUnit.DAYS.toMillis(1)
+
+        val result = nov1At0030.plusCalendarDays(1, newYork)
+
+        assertTrue(result != fixed24hResult)
+        // The fixed-24h arithmetic lands back on Nov 1 (23:30 local) — the exact bug this fixes.
+        val fixedZoned = java.time.Instant.ofEpochMilli(fixed24hResult).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 11, 1), fixedZoned.toLocalDate())
+    }
+
+    @Test
+    fun `plusCalendarDays across a DST spring-forward day still advances the calendar date`() {
+        // America/New_York springs forward 02:00 -> 03:00 on 2026-03-08 (a 23h calendar day).
+        val mar8At0030 = java.time.LocalDateTime.of(2026, 3, 8, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = mar8At0030.plusCalendarDays(1, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 3, 9), resultZoned.toLocalDate())
+        assertEquals(0, resultZoned.hour)
+        assertEquals(30, resultZoned.minute)
+    }
+
+    @Test
+    fun `plusCalendarDays on an ordinary day equals a fixed 24h advance`() {
+        val ordinaryDay = java.time.LocalDateTime.of(2026, 6, 15, 14, 45)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = ordinaryDay.plusCalendarDays(1, newYork)
+
+        assertEquals(ordinaryDay + TimeUnit.DAYS.toMillis(1), result)
+    }
+
+    @Test
+    fun `plusCalendarDays preserves local time-of-day`() {
+        val someInstant = java.time.LocalDateTime.of(2026, 6, 15, 14, 45, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = someInstant.plusCalendarDays(5, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(14, resultZoned.hour)
+        assertEquals(45, resultZoned.minute)
+        assertEquals(30, resultZoned.second)
+        assertEquals(LocalDate.of(2026, 6, 20), resultZoned.toLocalDate())
+    }
+
+    @Test
+    fun `plusCalendarDays defaults to the system default zone`() {
+        val timestamp = now
+        assertEquals(timestamp.plusCalendarDays(3, java.time.ZoneId.systemDefault()), timestamp.plusCalendarDays(3))
+    }
 }

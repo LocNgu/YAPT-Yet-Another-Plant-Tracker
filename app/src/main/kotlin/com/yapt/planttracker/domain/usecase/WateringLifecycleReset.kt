@@ -49,6 +49,11 @@ object WateringLifecycleReset {
             plant.copy(
                 wateringConfidence = 0,
                 wateringResetAt = resetAnchorMs,
+                // Intentionally duration-based, not a calendar-day advance (#733, technical ADR-0034):
+                // isFrozen() below is a plain `now < freezeUntil` elapsed-time check, not a calendar-date
+                // comparison, so a fixed 4-week span of real time is exactly what's wanted here — unlike
+                // every due-date/deferral site in CareSchedule/PlantDetailRescheduleActions/
+                // SkipWateringReceiver, which all route through Long.plusCalendarDays() instead.
                 wateringFreezeUntil = resetAnchorMs + TimeUnit.DAYS.toMillis(REPOT_FREEZE_WINDOW_DAYS),
                 updatedAt = now
             )
