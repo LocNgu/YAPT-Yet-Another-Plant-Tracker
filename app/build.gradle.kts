@@ -151,7 +151,7 @@ dependencies {
 
     implementation("androidx.work:work-runtime-ktx:2.11.2")
 
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.19.1")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
