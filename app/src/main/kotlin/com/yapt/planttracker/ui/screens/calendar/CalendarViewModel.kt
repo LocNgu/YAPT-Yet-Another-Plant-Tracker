@@ -50,11 +50,23 @@ class CalendarViewModel(
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * A single shared, hot source for "today" — [plantsWithStatus] and [plantsByDay] both read
+     * this rather than each collecting [dayChangeFlow] independently. Two independent cold
+     * collectors of the ticker can tick a moment apart in real usage (each re-derives its own
+     * delay from its own clock read), which could otherwise show a transient frame where
+     * [plantsWithStatus] has already rolled over to the new day while [plantsByDay] is still
+     * grouping under yesterday's date, or vice versa. Sharing one [today] value means both
+     * combines below can only ever see the same date.
+     */
+    private val today: StateFlow<LocalDate> =
+        dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
+
     val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
         dataStore.seasonalAmplitudeFlow(),
-        dayChangeFlow
+        today
     ) { plants, _, seasonalAmplitude, _ ->
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
@@ -67,18 +79,18 @@ class CalendarViewModel(
     val visibleMonth: StateFlow<YearMonth> = _visibleMonth.asStateFlow()
 
     /**
-     * [today] comes from [dayChangeFlow] rather than a fresh `LocalDate.now()` call inside the
-     * lambda — using the ticker's own emitted value (instead of a second, independent real-clock
-     * read) is what guarantees this combine actually re-runs at midnight (#550): a bare
-     * `LocalDate.now()` call here reads correctly whenever the block happens to run, but nothing
-     * upstream was triggering it to run again purely because the date changed.
+     * The `today` value comes from the shared [today] flow rather than a fresh `LocalDate.now()`
+     * call inside the lambda — using the ticker's own emitted value (instead of a second,
+     * independent real-clock read) is what guarantees this combine actually re-runs at midnight
+     * (#550): a bare `LocalDate.now()` call here reads correctly whenever the block happens to
+     * run, but nothing upstream was triggering it to run again purely because the date changed.
      */
     val plantsByDay: StateFlow<Map<LocalDate, DayEntry>> = combine(
         plantsWithStatus,
         _visibleMonth,
-        dayChangeFlow
-    ) { statuses, month, today ->
-        computePlantsByDay(statuses, month, today)
+        today
+    ) { statuses, month, todayValue ->
+        computePlantsByDay(statuses, month, todayValue)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _selectedDay = MutableStateFlow<LocalDate?>(null)

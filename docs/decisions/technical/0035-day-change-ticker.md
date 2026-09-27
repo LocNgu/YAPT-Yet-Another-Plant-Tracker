@@ -77,6 +77,29 @@ value instead of a second, independent `LocalDate.now()` call inside the lambda 
 value (rather than a fresh real-clock read that happens to be correct whenever the block runs) is what
 actually ties the recomputation to the trigger.
 
+**`CalendarViewModel` has two consumers of the ticker (`plantsWithStatus` and `plantsByDay`), and they
+must never disagree on what day it is (#550 review round 1).** The ticker (`dayChangeTicker()`, the
+constructor's `dayChangeFlow`) is cold — each `combine()` that collects it independently re-runs the
+flow builder's own `while (true) { …; delay(…) }` loop from scratch, on its own clock read, computing
+its own delay to the next midnight. Folding the raw `dayChangeFlow` into *two* separate `combine()`s
+(as the first version of this ADR did) therefore ran two independent ticker loops that could tick a
+moment apart in real usage, producing a transient frame where `plantsWithStatus` had already rolled
+over to the new day while `plantsByDay` was still grouping under yesterday's date, or vice versa —
+invisible in the original ViewModel tests because they inject one *hot* `MutableSharedFlow`, which
+naturally broadcasts one value to every collector regardless of how many `combine()`s read it. Fixed by
+hoisting a single shared, hot source: `private val today: StateFlow<LocalDate> =
+dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())`. Both
+`plantsWithStatus` and `plantsByDay` read `today` instead of `dayChangeFlow` directly, so the cold
+ticker is collected at most once regardless of how many derived flows subscribe to it, and both
+consumers can only ever see the same date. `PlantListViewModel.plantsWithStatus` has only one consumer
+of its own `dayChangeFlow` (folded into `sortOrderOrDayChanged`), so it doesn't need this same hoist —
+the two-consumer split is specific to `CalendarViewModel`.
+`CalendarViewModelTest`'s `` `plantsWithStatus and plantsByDay share one ticker collection, never two
+independent ones` `` regression test uses a cold flow that emits a *different* date on each independent
+collection specifically to catch a future regression back to two separate collections — with the shared
+`today` source, the flow's collection count stays at 1 no matter how many of the two derived
+`StateFlow`s are subscribed to.
+
 Both `PlantListViewModel` and `CalendarViewModel` constructor-inject the ticker as `Flow<LocalDate>`
 defaulting to the real `dayChangeTicker()`, so `Factory` needs no change (the default applies), while a
 test can substitute a controllable `MutableSharedFlow<LocalDate>`/`MutableStateFlow<LocalDate>`.

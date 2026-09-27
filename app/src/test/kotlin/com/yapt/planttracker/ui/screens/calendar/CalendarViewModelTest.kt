@@ -24,6 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -450,4 +451,36 @@ class CalendarViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `plantsWithStatus and plantsByDay share one ticker collection, never two independent ones (#550 review)`() =
+        runTest {
+            // A cold flow that emits a DIFFERENT date on each independent collection -- if
+            // plantsWithStatus and plantsByDay each collected the ticker separately (the bug this
+            // regression test guards against), they'd disagree on "today". With a single shared
+            // source, the ticker is collected at most once no matter how many derived flows read it.
+            var collectionCount = 0
+            val distinctDatePerCollection = flow {
+                collectionCount++
+                emit(if (collectionCount == 1) LocalDate.of(2026, 3, 1) else LocalDate.of(2026, 3, 2))
+            }
+            val p1 = plant(1L, "P1")
+            every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
+            vm = CalendarViewModel(
+                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+                quickLogUseCase, distinctDatePerCollection
+            )
+            vm.setVisibleMonth(YearMonth.of(2026, 3))
+
+            vm.plantsWithStatus.test {
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+            vm.plantsByDay.test {
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertEquals(1, collectionCount)
+        }
 }
