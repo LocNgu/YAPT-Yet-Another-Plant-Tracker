@@ -46,14 +46,40 @@ The orchestrator passes you:
 
 1. **Fetch first, then branch off the freshly-fetched `origin/develop`** (never a stale local ref): `git fetch origin develop && git checkout -b claude/<short-description> origin/develop`. Skipping the fetch starts the branch from an outdated `develop` and forces a rebase later.
 2. Make all commits for this feature/fix on that branch.
-3. Push the branch (`git push -u origin claude/<short-description>`). You cannot open the PR yourself — return the PR title and body in your response so the orchestrator opens it via `mcp__github__create_pull_request` targeting `develop`.
+3. Run the "Before every push" gate below, then push the branch (`git push -u origin claude/<short-description>`). You cannot open the PR yourself — return the PR title and body in your response so the orchestrator opens it via `mcp__github__create_pull_request` targeting `develop`.
 4. Return to `develop` before starting the next task.
 
 Branch naming: `claude/<kebab-case-description>` (e.g. `claude/fix-reminder-scheduler`, `claude/in-place-apk-upgrade`).
 
+## Before every push
+
+Run this before every push that opens or updates a PR — fix rounds included, no exceptions for round 2+.
+It matches `AGENTS.md`'s gate and `.claude/rules/ci-build.md` verbatim; the two docs point at the same
+rule precisely so they can't drift apart.
+
+```bash
+./gradlew detekt lintDebug compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin
+```
+
+- **Targeted tests**: also run the narrowest applicable `testDebugUnitTest --tests …` targets for the
+  change. Run the full `testDebugUnitTest` instead when shared foundations changed — DB/migrations,
+  `CareSchedule`, `QuickLogUseCase`/`AdaptiveWateringObservation`, or test fixtures/`TestYaptApplication`.
+  Targeted tests supplement the gate above; they never replace it.
+- **ADR check**: `git add` first (untracked files are silently skipped otherwise), then run
+  `python3 tools/check-adr-numbering.py` whenever ADR files or `ADR-NNNN` citations changed. It must pass.
+- **Docs/config-only diffs** (nothing under `app/` or a Gradle file changed): skip Gradle entirely —
+  there is nothing to compile, lint, or test.
+- **Network exception**: if the gate can't complete solely because an external dependency service (e.g.
+  Maven Central) is unavailable after one retry, report the failing command and the external error in
+  the handoff and PR body; CI becomes authoritative for that run. A compile, test, lint, or Detekt
+  failure caused by the change itself never qualifies for this exception.
+- Report in your handoff which checks ran and passed, or which couldn't run and why (network exception,
+  docs-only skip, targeted-vs-full test choice) — never silently omit a check from the report.
+
 ## Autonomy
 
-Act without prompting within these bounds (enforced by `settings.local.json`):
+Act without prompting within these bounds (enforced by the shared baseline `.claude/settings.json`,
+technical ADR-0024 — personal, machine-specific overrides live in the untracked `settings.local.json`):
 - Read any file
 - All read-only git commands (`status`, `log`, `diff`, `show`, `fetch`, `branch`, `remote`)
 - `git add`, `git commit`, `git stash`, `git cherry-pick`, `git merge`
@@ -75,12 +101,21 @@ Never (forbidden — hard-blocked by settings):
 - `git reset --hard`
 - Merging PRs by any means (`mcp__github__merge_pull_request`, GitHub UI, etc.) — human merges only
 
-## Reviewer loop
+## Fix round
 
-After pushing, the reviewer will review your code.
+When the orchestrator sends you a round of findings — the reviewer's BLOCKING findings, SMALL
+non-blocking findings, and/or a red CI job this PR caused — address all of them in **one combined
+commit**:
 
-- **Each fix round**: address every finding the reviewer labelled **BLOCKING**. You may also fix NON-BLOCKING findings at your discretion, but they do not block the PR. After fixing, push and notify the orchestrator that a new round can begin.
-- **After round 2**: the reviewer does not auto-approve — it escalates to the human with a recommendation. The human (via the orchestrator) will tell you whether to do another round or whether the PR is approved.
+- Fix every BLOCKING and SMALL finding, or explicitly decline one with a one-line reason. A LARGE
+  finding is the human's call, not yours — leave it alone unless the orchestrator tells you otherwise.
+- Fix a PR-caused red CI job the same way you would a BLOCKING finding.
+- Run the "Before every push" gate once, then push once.
+- Return per-finding status (fixed / declined + reason) and the new head SHA, so the orchestrator can
+  hand both to the next reviewer round.
+
+**After round 2**: the reviewer does not auto-approve — it escalates to the human with a recommendation.
+The human (via the orchestrator) will tell you whether to do another round or whether the PR is approved.
 
 ## Mid-implementation escalation
 
@@ -100,11 +135,17 @@ NEXT: human | reason: issue is larger than one PR — proposing a sub-task split
 
 ## When finished
 
-1. Update `.claude/CLAUDE.md` — add to "What's Been Completed" and remove the resolved item from "Known Issues / Technical Debt" if applicable.
+1. **Update docs** (mirrors `.claude/CLAUDE.md`'s Development Workflow step 5):
+   - `.claude/CLAUDE.md` and any `.claude/rules/*.md` it points to, when a convention or architecture
+     decision changed.
+   - `CHANGELOG.md` `[Unreleased]`.
+   - `WhatsNewContent.kt` — append to `WhatsNewContent.unreleased` (never `all`), for a user-visible
+     change.
+   - `chore:`/docs-only PRs may omit the `CHANGELOG.md` and What's New entries.
 2. **Write an ADR if this PR records a significant new design decision.** If the change makes a product or technical decision that would shape how a future implementer approaches the same area — a new default, a chosen framework/pattern, a non-obvious behavioural rule — create a new ADR rather than burying it in `CLAUDE.md` prose or the PR body:
    - Copy `docs/decisions/template.md` into `docs/decisions/product/` (product/UX decisions) or `docs/decisions/technical/` (implementation/framework constraints).
    - Number it sequentially within that folder (next `ADR-XXXX`), and set **Status** to `accepted`.
-   - If it supersedes an existing ADR, update that ADR's Status line to `superseded by [ADR-XXXX](filename.md)` (the only permitted edit to a finalized ADR).
+   - If it supersedes an existing ADR, update that ADR's Status line to `superseded by [ADR-XXXX](filename.md)`. If it only amends a clause rather than replacing the whole decision, use the Status-line amendment form instead (technical ADR-0029): `accepted — <clause description> amended by [ADR-NNNN](filename.md)`. Either way, namespace-qualify the citation (`product ADR-NNNN` / `technical ADR-NNNN`) whenever that number exists in both directories — these are the only permitted edits to a finalized ADR's Status line; its Context/Decision/Consequences prose otherwise stays untouched.
    Not every PR needs one — routine bug fixes and mechanical changes do not. When unsure, note it in your summary so the reviewer/human can decide.
 
 Then summarise:
@@ -112,6 +153,7 @@ Then summarise:
 - The PR title and body for the orchestrator to open the PR
 - Any new dependencies added (name + version)
 - Any DB schema changes that require a migration bump
+- Which "Before every push" checks ran (and passed), or which couldn't and why
 - Anything the reviewer should pay special attention to
 
 End your response with exactly this line so the orchestrator can parse it (it opens the PR, then runs the reviewer):

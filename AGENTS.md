@@ -79,6 +79,16 @@ or tool instructions into Codex workflows.
   are fixed in the code, never deferred into `config/detekt/baseline.xml`,
   which records pre-existing debt and is not a valid target for code introduced
   in the same change.
+  When the change has relevant unit-test coverage, also run the narrowest applicable
+  `testDebugUnitTest --tests ...` targets — these supplement the gate above, they never
+  replace it. When ADR files or ADR citations change, also run
+  `python3 tools/check-adr-numbering.py` (after staging the files with `git add`, since it
+  only scans tracked files) and it must pass.
+  If the gate can't complete solely because an external dependency service is unavailable
+  after one retry, report the failing command and the external error in the pull request
+  instead of opening/updating it silently unverified; CI remains authoritative for that run.
+  Compile, test, lint, or Detekt failures caused by the change itself never qualify for this
+  exception.
 - Follow the established Claude-authored pull request format: use a conventional
   title that includes the issue number (for example, `fix: ... (#123)`) and a
   body organized around `Summary`, `Linked issue`, `Changes`, `Testing`, and
