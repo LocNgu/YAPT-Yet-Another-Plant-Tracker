@@ -392,6 +392,16 @@
     <string name="date_group_overdue">Overdue</string>
     <string name="date_group_today">Today</string>
     <string name="date_group_tomorrow">Tomorrow</string>
+    <string name="date_relative_today">Today</string>
+    <string name="date_relative_yesterday">Yesterday</string>
+    <plurals name="date_relative_in_days">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
+    <plurals name="date_relative_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
     <string name="date_group_later">Later</string>
     <string name="date_group_dormant">Dormant</string>
     <string name="date_group_not_scheduled">Not scheduled</string>

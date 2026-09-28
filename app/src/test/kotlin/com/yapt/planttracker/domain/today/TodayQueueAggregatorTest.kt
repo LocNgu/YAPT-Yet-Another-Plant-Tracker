@@ -212,6 +212,94 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
+    fun `overdue watering whose due date was dormant returns after dormancy ends`() {
+        val september = LocalDate.of(2026, 9, 1)
+        val plant = plant(
+            wateringIntervalDays = 7,
+            dormancyStartMonth = 8,
+            dormancyEndMonth = 8
+        )
+
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(plant),
+                logs = listOf(log(plant.id, CareType.WATER, LocalDate.of(2026, 8, 10))),
+                inputToday = september
+            )
+        )
+
+        assertEquals(TodayTaskBucket.Overdue, result.tasks.single().bucket)
+        assertEquals(TodayCareKind.WATER, result.tasks.single().kind)
+    }
+
+    @Test
+    fun `overdue fertilizing whose due date was dormant returns after dormancy ends`() {
+        val september = LocalDate.of(2026, 9, 1)
+        val plant = plant(
+            fertilizingIntervalDays = 7,
+            dormancyStartMonth = 8,
+            dormancyEndMonth = 8
+        )
+
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(plant),
+                logs = listOf(log(plant.id, CareType.FERTILIZE, LocalDate.of(2026, 8, 10))),
+                inputToday = september
+            )
+        )
+
+        assertEquals(TodayTaskBucket.Overdue, result.tasks.single().bucket)
+        assertEquals(TodayCareKind.FERTILIZE, result.tasks.single().kind)
+    }
+
+    @Test
+    fun `current dormancy still suppresses watering and fertilizing`() {
+        val plant = plant(
+            wateringIntervalDays = 1,
+            fertilizingIntervalDays = 1,
+            dormancyStartMonth = 9,
+            dormancyEndMonth = 9
+        )
+
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(plant),
+                logs = listOf(
+                    log(plant.id, CareType.WATER, today.minusDays(5)),
+                    log(plant.id, CareType.FERTILIZE, today.minusDays(5))
+                )
+            )
+        )
+
+        assertTrue(result.tasks.isEmpty())
+    }
+
+    @Test
+    fun `upcoming watering and fertilizing inside dormancy stay suppressed`() {
+        val september = LocalDate.of(2026, 9, 29)
+        val plant = plant(
+            wateringIntervalDays = 2,
+            fertilizingIntervalDays = 2,
+            dormancyStartMonth = 10,
+            dormancyEndMonth = 10
+        )
+
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(plant),
+                logs = listOf(
+                    log(plant.id, CareType.WATER, september),
+                    log(plant.id, CareType.FERTILIZE, september)
+                ),
+                inputToday = september
+            )
+        )
+
+        assertTrue(result.tasks.isEmpty())
+    }
+
+    @Test
     fun `includes day three excludes day four and orders deterministically`() {
         val beta = plant(id = 1L, name = "Beta", wateringIntervalDays = 3)
         val alpha = plant(id = 2L, name = "Alpha", wateringIntervalDays = 3)
@@ -300,14 +388,15 @@ class TodayQueueAggregatorTest {
         reminders: List<CustomReminder> = emptyList(),
         issues: List<PlantIssue> = emptyList(),
         photos: List<PlantPhoto> = emptyList(),
-        photoEnabled: Boolean = false
+        photoEnabled: Boolean = false,
+        inputToday: LocalDate = today
     ) = TodayQueueInput(
         plants = plants,
         careLogs = logs,
         customReminders = reminders,
         issues = issues,
         photos = photos,
-        today = today,
+        today = inputToday,
         seasonalAmplitude = 0.0,
         photoReminderEnabled = photoEnabled,
         hemisphere = Hemisphere.NORTHERN

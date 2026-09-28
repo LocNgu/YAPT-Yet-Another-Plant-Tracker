@@ -30,6 +30,7 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.util.toStartOfDayMillis
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -40,6 +41,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
 
 @RunWith(AndroidJUnit4::class)
 class TodayScreenTest {
@@ -208,9 +210,83 @@ class TodayScreenTest {
         composeTestRule.onNodeWithTag("today_repot_date_picker").assertIsDisplayed()
     }
 
+    @Test
+    fun selectedBulkCompletionShowsResultFeedback() {
+        val fern = plant()
+        val water = task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Today)
+        queue.value = TodayQueueSnapshot(1, listOf(water))
+        coEvery { quickLogUseCase.completeTodayTasks(listOf(water)) } returns
+            QuickLogUseCase.BulkCompletionResult(completedCount = 1, skippedCount = 0, totalCount = 1)
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription("Select Water task").performClick()
+        composeTestRule.onNodeWithText("Complete selected").performClick()
+
+        composeTestRule.onNodeWithText("Completed 1 of 1 tasks · 0 skipped").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(water)) }
+    }
+
+    @Test
+    fun waterActionDispatchesAndShowsUseCaseFeedback() {
+        val fern = plant()
+        val water = task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Today)
+        queue.value = TodayQueueSnapshot(1, listOf(water))
+        coEvery { quickLogUseCase.quickWaterWithReason(fern, null, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
+        setContent()
+
+        composeTestRule.onNodeWithTag("today_task_action_${water.id}").performClick()
+
+        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
+    }
+
+    @Test
+    fun photoActionDispatchesTheLaunchTimePlantIdentity() {
+        val fern = plant()
+        val photo = task("photo:1", fern, TodayCareKind.PHOTO, TodayTaskBucket.Today)
+        queue.value = TodayQueueSnapshot(1, listOf(photo))
+        var launchedPlantId: Long? = null
+        setContent(onLaunchPhotoCapture = { launchedPlantId = it })
+
+        composeTestRule.onNodeWithTag("today_task_action_${photo.id}").performClick()
+
+        assertEquals(fern.id, launchedPlantId)
+    }
+
+    @Test
+    fun upcomingTaskUsesResourceBackedRelativeDateLabels() {
+        val fern = plant()
+        val today = LocalDate.now()
+        queue.value = TodayQueueSnapshot(
+            1,
+            listOf(
+                task(
+                    "water:1",
+                    fern,
+                    TodayCareKind.WATER,
+                    TodayTaskBucket.Upcoming(today.plusDays(1).toEpochDay()),
+                    today.plusDays(1).toStartOfDayMillis()
+                ),
+                task(
+                    "repot:1",
+                    fern,
+                    TodayCareKind.REPOT,
+                    TodayTaskBucket.Upcoming(today.plusDays(3).toEpochDay()),
+                    today.plusDays(3).toStartOfDayMillis()
+                )
+            )
+        )
+        setContent()
+
+        composeTestRule.onAllNodesWithText("Tomorrow").assertCountEquals(1)
+        composeTestRule.onNodeWithText("In 3 days").assertIsDisplayed()
+    }
+
     private fun setContent(
         onNavigateToPlant: (Long) -> Unit = {},
         onNavigateToAdd: () -> Unit = {},
+        onLaunchPhotoCapture: ((Long) -> Unit)? = null,
         stubRepository: Boolean = true
     ): TodayViewModel {
         if (stubRepository) every { repository.observeQueue() } returns queue
@@ -228,7 +304,8 @@ class TodayScreenTest {
             TodayScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = onNavigateToPlant,
-                onNavigateToAdd = onNavigateToAdd
+                onNavigateToAdd = onNavigateToAdd,
+                onLaunchPhotoCapture = onLaunchPhotoCapture
             )
         }
         return viewModel
@@ -240,12 +317,13 @@ class TodayScreenTest {
         id: String,
         plant: Plant,
         kind: TodayCareKind,
-        bucket: TodayTaskBucket
+        bucket: TodayTaskBucket,
+        dueAt: Long = 0L
     ) = TodayCareTask(
         id = id,
         plant = plant,
         kind = kind,
-        dueAt = 0L,
+        dueAt = dueAt,
         bucket = bucket
     )
 }

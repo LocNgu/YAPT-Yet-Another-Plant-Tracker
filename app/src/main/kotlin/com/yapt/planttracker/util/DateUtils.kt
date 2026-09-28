@@ -32,20 +32,30 @@ internal fun Long.plusCalendarDays(days: Long, zone: ZoneId = ZoneId.systemDefau
 
 object DateUtils {
 
-    fun formatRelative(
+    sealed interface RelativeDate {
+        data object Tomorrow : RelativeDate
+        data class InDays(val count: Long) : RelativeDate
+        data object Today : RelativeDate
+        data object Yesterday : RelativeDate
+        data class DaysAgo(val count: Long) : RelativeDate
+        data class ExactDate(val value: String) : RelativeDate
+    }
+
+    fun relativeDate(
         timestampMs: Long,
         now: Long = System.currentTimeMillis(),
         maxRelativeDays: Long? = null,
-    ): String {
+    ): RelativeDate {
         val days = ChronoUnit.DAYS.between(timestampMs.toLocalDate(), now.toLocalDate())
         return when {
-            days == -1L -> "Tomorrow"
-            days < -1L -> "In ${-days} days"
-            days == 0L -> "Today"
-            days == 1L -> "Yesterday"
-            maxRelativeDays == null || days <= maxRelativeDays -> "$days days ago"
-            else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                .format(Date(timestampMs))
+            days == -1L -> RelativeDate.Tomorrow
+            days < -1L -> RelativeDate.InDays(-days)
+            days == 0L -> RelativeDate.Today
+            days == 1L -> RelativeDate.Yesterday
+            maxRelativeDays == null || days <= maxRelativeDays -> RelativeDate.DaysAgo(days)
+            else -> RelativeDate.ExactDate(
+                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestampMs))
+            )
         }
     }
 

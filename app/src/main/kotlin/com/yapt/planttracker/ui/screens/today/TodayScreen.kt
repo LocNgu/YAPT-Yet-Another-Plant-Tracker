@@ -77,10 +77,12 @@ import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
+import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.util.DateUtils
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
+const val TODAY_TASK_LIST_TAG = "today_task_list"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -88,7 +90,8 @@ private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
 fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long) -> Unit,
-    onNavigateToAdd: () -> Unit
+    onNavigateToAdd: () -> Unit,
+    onLaunchPhotoCapture: ((Long) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
@@ -184,7 +187,7 @@ fun TodayScreen(
                             onRepot = { repotTask = it },
                             onPhoto = {
                                 pendingPhotoPlantId = it.plant.id
-                                cameraState.launch()
+                                onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
                             }
                         )
                     )
@@ -199,7 +202,7 @@ fun TodayScreen(
                             onRepot = { repotTask = it },
                             onPhoto = {
                                 pendingPhotoPlantId = it.plant.id
-                                cameraState.launch()
+                                onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
                             }
                         )
                     )
@@ -337,7 +340,7 @@ private fun TaskTodayList(
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = 16.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
         for (section in taskSections(tasks)) {
             item(key = "header-${section.bucket}") { TodaySectionHeader(section.bucket) }
@@ -359,7 +362,7 @@ private fun GroupedTodayList(
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = 16.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
         for (section in plantSections(tasks)) {
             item(key = "group-header-${section.bucket}") { TodaySectionHeader(section.bucket) }
@@ -439,7 +442,7 @@ private fun TodayTaskRow(
                 Text(task.plant.name, style = MaterialTheme.typography.bodyMedium)
             }
             Text(
-                DateUtils.formatRelative(task.dueAt),
+                relativeDateText(task.dueAt),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

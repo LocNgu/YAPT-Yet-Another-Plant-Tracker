@@ -132,7 +132,12 @@ object TodayQueueAggregator {
     private fun wateringTask(context: PlantTaskContext): TodayCareTask? =
         context.status.nextWateringDueAt
             ?.takeIf {
-                isWateringActiveOnDueDate(context.status.wateringScheduleMode, context.plant, it)
+                isWateringActiveOnDueDate(
+                    context.status.wateringScheduleMode,
+                    context.plant,
+                    it,
+                    context.input.today
+                )
             }
             ?.let { dueAt ->
                 taskForDueDate(context.input.today, dueAt) { bucket ->
@@ -155,7 +160,12 @@ object TodayQueueAggregator {
 
     private fun fertilizingTask(context: PlantTaskContext): TodayCareTask? =
         context.status.nextFertilizingDueAt
-            ?.takeIf { !context.status.isDormant && !context.plant.isDormantOn(it) }
+            ?.takeIf { dueAt ->
+                !context.status.isDormant && (
+                    dueAt.toLocalDate().isBefore(context.input.today) ||
+                        !context.plant.isDormantOn(dueAt)
+                    )
+            }
             ?.let { dueAt ->
                 taskForDueDate(context.input.today, dueAt) { bucket ->
                     TodayCareTask(
@@ -221,9 +231,11 @@ object TodayQueueAggregator {
     private fun isWateringActiveOnDueDate(
         mode: WateringScheduleMode,
         plant: Plant,
-        dueAt: Long
+        dueAt: Long,
+        today: LocalDate
     ): Boolean = when (mode) {
-        WateringScheduleMode.NORMAL -> !plant.isDormantOn(dueAt)
+        WateringScheduleMode.NORMAL ->
+            dueAt.toLocalDate().isBefore(today) || !plant.isDormantOn(dueAt)
         WateringScheduleMode.DORMANT_CADENCE -> plant.isDormantOn(dueAt)
         WateringScheduleMode.DORMANT_SUSPENDED -> false
     }

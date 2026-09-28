@@ -44,7 +44,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PlantPhoto
-import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.ui.util.relativeDateText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,7 +190,7 @@ fun GraveyardScreen(
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Text(
-                                    text = DateUtils.formatRelative(plant.archivedAt!!, maxRelativeDays = 14),
+                                    text = relativeDateText(plant.archivedAt!!, maxRelativeDays = 14),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
