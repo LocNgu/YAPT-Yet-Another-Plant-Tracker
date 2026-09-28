@@ -11,8 +11,10 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -20,12 +22,15 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.today.TodayCareKind
@@ -42,6 +47,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -279,104 +285,150 @@ class TodayScreenTest {
     }
 
     @Test
-    fun tapOpensPlant() {
+    fun tapOpensPlantAndDoesNotOpenTheMenu() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         var openedPlantId: Long? = null
         setContent(onNavigateToPlant = { openedPlantId = it })
 
-        composeTestRule.onNodeWithText("Fern").tapRowEdge()
+        composeTestRule.onNodeWithTag(careTileTag("water:1")).performClick()
         composeTestRule.waitForIdle()
 
         assertEquals(fern.id, openedPlantId)
+        composeTestRule.onNode(menuItem("Reschedule")).assertDoesNotExist()
     }
 
     @Test
-    fun errorStateRetryStartsFreshQueueCollection() {
-        var calls = 0
-        every { repository.observeQueue() } answers {
-            calls++
-            if (calls == 1) flow { throw IllegalStateException("boom") } else queue
-        }
-        queue.value = TodayQueueSnapshot(1, emptyList())
-        setContent(stubRepository = false)
+    fun longPressOpensTheMenuInsteadOfOpeningThePlant() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        var openedPlantId: Long? = null
+        setContent(onNavigateToPlant = { openedPlantId = it })
 
-        composeTestRule.onNodeWithText("The Care queue couldn’t be loaded.").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Retry").and(hasClickAction()))
-            .performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onNodeWithTag(careTileTag("water:1")).performTouchInput { longClick() }
 
-        composeTestRule.onNodeWithText("You’re all caught up for the next three days.").assertIsDisplayed()
-        assertEquals(2, calls)
+        composeTestRule.onNode(menuItem("Water")).assertIsDisplayed()
+        composeTestRule.onNode(menuItem("Reschedule")).assertIsDisplayed()
+        assertNull(openedPlantId)
     }
 
     @Test
-    fun liveQueueUpdateReplacesVisibleTaskControls() {
+    fun tileExposesALongClickLabelAndTheMenuActionsAsCustomActionsForScreenReaders() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         setContent()
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
+
+        val config = composeTestRule.onNodeWithTag(careTileTag("water:1")).fetchSemanticsNode().config
+
+        assertEquals("Show quick actions", config[SemanticsActions.OnLongClick].label)
+        assertEquals(listOf("Water", "Reschedule"), config[SemanticsActions.CustomActions].map { it.label })
+    }
+
+    @Test
+    fun customActionsDispatchTheSameHandlersAsTheMenu() {
+        val fern = plant()
+        val water = task("water:1", fern, TodayCareKind.WATER)
+        queue.value = TodayQueueSnapshot(1, listOf(water))
+        coEvery { quickLogUseCase.quickWaterWithReason(fern, null, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
+        setContent()
+
+        val actions = composeTestRule.onNodeWithTag(careTileTag("water:1")).fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+        composeTestRule.runOnUiThread { assertTrue(actions.first { it.label == "Water" }.action()) }
+
+        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
+        composeTestRule.runOnUiThread { assertTrue(actions.first { it.label == "Reschedule" }.action()) }
+        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+    }
+
+    @Test
+    fun waterMenuListsOnlyWaterAndReschedule() = assertMenuListsOnly(
+        task("water:1", plant(), TodayCareKind.WATER),
+        "Water",
+        "Reschedule"
+    )
+
+    @Test
+    fun combinedMenuListsOnlyWaterAndFertilizeAndReschedule() = assertMenuListsOnly(
+        task("water_fertilize:1", plant(), TodayCareKind.WATER_AND_FERTILIZE),
+        "Water & fertilize",
+        "Reschedule"
+    )
+
+    @Test
+    fun fertilizeMenuListsOnlyFertilize() = assertMenuListsOnly(
+        task("fertilize:1", plant(), TodayCareKind.FERTILIZE),
+        "Fertilize"
+    )
+
+    @Test
+    fun repotMenuListsOnlyRepot() = assertMenuListsOnly(task("repot:1", plant(), TodayCareKind.REPOT), "Repot…")
+
+    @Test
+    fun reminderMenuListsOnlyMarkDone() = assertMenuListsOnly(
+        task("custom:4", plant(), TodayCareKind.CUSTOM_REMINDER, customReminder = reminder()),
+        "Mark done"
+    )
+
+    @Test
+    fun treatmentMenuListsOnlyMarkDone() = assertMenuListsOnly(
+        task("custom:4", plant(), TodayCareKind.ISSUE_TREATMENT, customReminder = reminder(), issueName = "Mites"),
+        "Mark done"
+    )
+
+    @Test
+    fun photoMenuListsOnlyTakePhoto() = assertMenuListsOnly(
+        task("photo:1", plant(), TodayCareKind.PHOTO),
+        "Take photo"
+    )
+
+    @Test
+    fun liveQueueUpdateReplacesTheVisibleTile() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        setContent()
+        composeTestRule.onNodeWithContentDescription("Fern, watering").assertIsDisplayed()
 
         queue.value = TodayQueueSnapshot(1, listOf(task("repot:1", fern, TodayCareKind.REPOT)))
 
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Repot Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Fern, watering").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Fern, repotting").assertIsDisplayed()
     }
 
     @Test
-    fun waterControlsIdentifyThePlantForScreenReaders() {
+    fun everyTileDescriptionNamesThePlantAndTheTask() {
         val fern = plant()
-        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
-        setContent()
-
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Reschedule watering for Fern").assertIsDisplayed()
-    }
-
-    @Test
-    fun fertilizeControlsIdentifyThePlantForScreenReaders() {
-        val fern = plant()
-        queue.value = TodayQueueSnapshot(1, listOf(task("fertilize:1", fern, TodayCareKind.FERTILIZE)))
-        setContent()
-
-        composeTestRule.onNodeWithContentDescription("Fertilize Fern").assertIsDisplayed()
-    }
-
-    @Test
-    fun reminderControlsIdentifyThePlantAndTaskForScreenReaders() {
-        val fern = plant()
-        val reminder = CustomReminder(id = 4L, plantId = fern.id, name = "Mist leaves", intervalDays = 3)
-        queue.value = TodayQueueSnapshot(
-            1,
-            listOf(task("custom:4", fern, TodayCareKind.CUSTOM_REMINDER, customReminder = reminder))
-        )
-        setContent()
-
-        composeTestRule.onNodeWithContentDescription("Done: Mist leaves for Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Fern, Mist leaves").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Mist leaves").assertIsDisplayed()
-    }
-
-    @Test
-    fun treatmentControlsIdentifyThePlantAndTaskForScreenReaders() {
-        val fern = plant()
-        val treatment = CustomReminder(id = 5L, plantId = fern.id, name = "Neem spray", intervalDays = 7)
         queue.value = TodayQueueSnapshot(
             1,
             listOf(
+                task("water:1", fern, TodayCareKind.WATER),
+                task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE),
+                task("fertilize:1", fern, TodayCareKind.FERTILIZE),
+                task("repot:1", fern, TodayCareKind.REPOT),
+                task("photo:1", fern, TodayCareKind.PHOTO),
+                task("custom:4", fern, TodayCareKind.CUSTOM_REMINDER, customReminder = reminder()),
                 task(
                     "custom:5",
                     fern,
                     TodayCareKind.ISSUE_TREATMENT,
-                    customReminder = treatment,
+                    customReminder = reminder(5L, "Neem spray"),
                     issueName = "Spider mites"
                 )
             )
         )
-        setContent()
+        setContent(tall = true)
 
-        composeTestRule.onNodeWithContentDescription("Done: Treat Spider mites for Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Fern, Treat Spider mites").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Treat Spider mites").assertIsDisplayed()
+        listOf(
+            "Fern, watering",
+            "Fern, watering and fertilizing",
+            "Fern, fertilizing",
+            "Fern, repotting",
+            "Fern, progress photo",
+            "Fern, Mist leaves",
+            "Fern, Treat Spider mites"
+        ).forEach { composeTestRule.onNodeWithContentDescription(it).assertExists() }
     }
 
     @Test
@@ -400,55 +452,113 @@ class TodayScreenTest {
     }
 
     @Test
-    fun customActionDispatchesTheExistingFlow() {
+    fun waterMenuActionDispatchesAndShowsUseCaseFeedback() {
         val fern = plant()
-        val reminder = CustomReminder(id = 4L, plantId = fern.id, name = "Neem", intervalDays = 7)
-        val custom = task("custom:4", fern, TodayCareKind.CUSTOM_REMINDER, customReminder = reminder)
-        queue.value = TodayQueueSnapshot(1, listOf(custom))
-        coEvery { quickLogUseCase.completeCustomReminder(custom) } returns
-            QuickLogUseCase.QuickLogOutcome("done", logged = true)
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        coEvery { quickLogUseCase.quickWaterWithReason(fern, null, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
         setContent()
 
-        composeTestRule.onNodeWithContentDescription("Done: Neem for Fern").performClick()
+        chooseMenuItem("water:1", "Water")
 
-        coVerify { quickLogUseCase.completeCustomReminder(custom) }
+        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
+        composeTestRule.onNode(menuItem("Reschedule")).assertDoesNotExist()
     }
 
     @Test
-    fun repotActionOpensTheExistingDatePicker() {
+    fun combinedMenuActionDispatchesTheLiquidFertilizeFlow() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE)))
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(fern, null, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered and fertilized Fern", logged = true)
+        setContent()
+
+        chooseMenuItem("water_fertilize:1", "Water & fertilize")
+
+        composeTestRule.onNodeWithText("Watered and fertilized Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickLiquidFertilizeWithReason(fern, null, any()) }
+    }
+
+    @Test
+    fun fertilizeMenuActionDispatchesTheQuickLogFlow() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("fertilize:1", fern, TodayCareKind.FERTILIZE)))
+        coEvery { quickLogUseCase.quickLog(fern, CareType.FERTILIZE, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Fertilized Fern", logged = true)
+        setContent()
+
+        chooseMenuItem("fertilize:1", "Fertilize")
+
+        composeTestRule.onNodeWithText("Fertilized Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickLog(fern, CareType.FERTILIZE, any()) }
+    }
+
+    @Test
+    fun rescheduleMenuActionOpensTheExistingDialog() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        setContent()
+
+        chooseMenuItem("water:1", "Reschedule")
+
+        composeTestRule.onNodeWithText("Reschedule watering").assertIsDisplayed()
+    }
+
+    @Test
+    fun markDoneMenuActionDispatchesTheExistingCustomReminderFlow() {
+        val fern = plant()
+        val custom = task("custom:4", fern, TodayCareKind.CUSTOM_REMINDER, customReminder = reminder(4L, "Neem"))
+        queue.value = TodayQueueSnapshot(1, listOf(custom))
+        coEvery { quickLogUseCase.completeCustomReminder(custom) } returns
+            QuickLogUseCase.QuickLogOutcome("Neem completed", logged = true)
+        setContent()
+
+        chooseMenuItem("custom:4", "Mark done")
+
+        composeTestRule.onNodeWithText("Neem completed").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.completeCustomReminder(custom) }
+    }
+
+    @Test
+    fun treatmentMarkDoneUsesTheSameCustomReminderFlow() {
+        val fern = plant()
+        val treatment = task(
+            "custom:5",
+            fern,
+            TodayCareKind.ISSUE_TREATMENT,
+            customReminder = reminder(5L, "Neem spray"),
+            issueName = "Spider mites"
+        )
+        queue.value = TodayQueueSnapshot(1, listOf(treatment))
+        coEvery { quickLogUseCase.completeCustomReminder(treatment) } returns
+            QuickLogUseCase.QuickLogOutcome("Neem spray completed", logged = true)
+        setContent()
+
+        chooseMenuItem("custom:5", "Mark done")
+
+        coVerify(exactly = 1) { quickLogUseCase.completeCustomReminder(treatment) }
+    }
+
+    @Test
+    fun repotMenuActionOpensTheExistingDatePicker() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("repot:1", fern, TodayCareKind.REPOT)))
         setContent()
 
-        composeTestRule.onNodeWithContentDescription("Repot Fern").performClick()
+        chooseMenuItem("repot:1", "Repot…")
 
         composeTestRule.onNodeWithTag("today_repot_date_picker").assertIsDisplayed()
     }
 
     @Test
-    fun waterActionDispatchesAndShowsUseCaseFeedback() {
+    fun photoMenuActionDispatchesTheLaunchTimePlantIdentity() {
         val fern = plant()
-        val water = task("water:1", fern, TodayCareKind.WATER)
-        queue.value = TodayQueueSnapshot(1, listOf(water))
-        coEvery { quickLogUseCase.quickWaterWithReason(fern, null, any()) } returns
-            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
-        setContent()
-
-        composeTestRule.onNodeWithContentDescription("Water Fern").performClick()
-
-        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
-        coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
-    }
-
-    @Test
-    fun photoActionDispatchesTheLaunchTimePlantIdentity() {
-        val fern = plant()
-        val photo = task("photo:1", fern, TodayCareKind.PHOTO)
-        queue.value = TodayQueueSnapshot(1, listOf(photo))
+        queue.value = TodayQueueSnapshot(1, listOf(task("photo:1", fern, TodayCareKind.PHOTO)))
         var launchedPlantId: Long? = null
         setContent(onLaunchPhotoCapture = { launchedPlantId = it })
 
-        composeTestRule.onNodeWithContentDescription("Take a progress photo of Fern").performClick()
+        chooseMenuItem("photo:1", "Take photo")
 
         assertEquals(fern.id, launchedPlantId)
     }
@@ -468,7 +578,7 @@ class TodayScreenTest {
         val restoration = StateRestorationTester(composeTestRule)
         setContent(restoration = restoration)
 
-        composeTestRule.onNodeWithContentDescription("Water Fern").performClick()
+        chooseMenuItem("water:1", "Water")
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
 
         restoration.emulateSavedInstanceStateRestore()
@@ -478,8 +588,26 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText("Water Fern?").assertDoesNotExist()
 
         queue.value = TodayQueueSnapshot(1, listOf(water))
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Fern, watering").assertIsDisplayed()
         composeTestRule.onNodeWithText("Water Fern?").assertDoesNotExist()
+    }
+
+    @Test
+    fun errorStateRetryStartsFreshQueueCollection() {
+        var calls = 0
+        every { repository.observeQueue() } answers {
+            calls++
+            if (calls == 1) flow { throw IllegalStateException("boom") } else queue
+        }
+        queue.value = TodayQueueSnapshot(1, emptyList())
+        setContent(stubRepository = false)
+
+        composeTestRule.onNodeWithText("The Care queue couldn’t be loaded.").assertIsDisplayed()
+        composeTestRule.onNode(hasText("Retry").and(hasClickAction()))
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onNodeWithText("You’re all caught up for the next three days.").assertIsDisplayed()
+        assertEquals(2, calls)
     }
 
     @Test
@@ -517,6 +645,35 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText("Tomorrow").assertDoesNotExist()
         composeTestRule.onNodeWithText("In 3 days").assertDoesNotExist()
         composeTestRule.onNodeWithText("Yesterday").assertDoesNotExist()
+    }
+
+    private fun reminder(id: Long = 4L, name: String = "Mist leaves") =
+        CustomReminder(id = id, plantId = 1L, name = name, intervalDays = 3)
+
+    private fun menuItem(label: String) = hasText(label).and(hasAnyAncestor(isPopup()))
+
+    private fun openMenu(taskId: String) {
+        composeTestRule.onNodeWithTag(careTileTag(taskId)).performSemanticsAction(SemanticsActions.OnLongClick)
+    }
+
+    private fun chooseMenuItem(taskId: String, label: String) {
+        openMenu(taskId)
+        composeTestRule.onNode(menuItem(label)).performSemanticsAction(SemanticsActions.OnClick)
+    }
+
+    private fun assertMenuListsOnly(task: TodayCareTask, vararg labels: String) {
+        queue.value = TodayQueueSnapshot(1, listOf(task))
+        setContent()
+
+        openMenu(task.id)
+
+        for (label in ALL_MENU_LABELS) {
+            if (label in labels) {
+                composeTestRule.onNode(menuItem(label)).assertIsDisplayed()
+            } else {
+                composeTestRule.onNode(menuItem(label)).assertDoesNotExist()
+            }
+        }
     }
 
     private fun topOf(text: String): Float =
@@ -575,6 +732,15 @@ class TodayScreenTest {
 
     private companion object {
         val TALL_VIEWPORT = 2400.dp
+        val ALL_MENU_LABELS = listOf(
+            "Water",
+            "Water & fertilize",
+            "Fertilize",
+            "Reschedule",
+            "Repot…",
+            "Mark done",
+            "Take photo"
+        )
     }
 
     private fun plant(id: Long = 1L, name: String = "Fern") =

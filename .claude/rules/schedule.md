@@ -30,11 +30,14 @@ Overdue + Today + the next three calendar days, ordered by due instant, lowercas
 id. A liquid-fertilizer plant gets one combined task only when watering exists in the horizon and
 fertilizing is due no later than that watering; it never gets a standalone fertilizer task. Active
 issues relabel only their linked custom-reminder task. Photo tasks use the newest care-log photo or
-gallery photo and deliberately ignore the session-only reminder-popup suppression. The default screen
-layout is `careTypeSections()` (`domain/today/TodayCareTask.kt`): Watering (incl. the combined
+gallery photo and deliberately ignore the session-only reminder-popup suppression. The screen layout is
+`careTypeSections()` (`domain/today/TodayCareTask.kt`): Watering (incl. the combined
 water-and-fertilize task) → Issue treatments → Fertilizing → Custom reminders → Repotting → Photos,
-empty sections hidden, queue order kept inside a section; `plantSections()` is the developer-flag
-alternative.
+empty sections hidden, queue order kept inside a section. Watering alone carries `subGroups` (Overdue /
+Today / Next 3 days, mapped 1:1 from `TodayTaskBucket` — every `Upcoming` is inside the aggregator's
+three-day horizon, so the UI does no date math), empty sub-groups hidden; every section and sub-group
+carries a distinct-plant `plantCount`. Presentation lives in `ui/screens/today/TodayCareGrid.kt`
+(product ADR-0055).
 
 `dayChangeTicker()` is the shared self-correcting foreground day signal used by Care, Plant List,
 and Calendar. It emits immediately, computes the duration to the next midnight in the clock's local

@@ -2,9 +2,12 @@
 
 package com.yapt.planttracker.ui.screens.today
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,22 +26,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -208,101 +216,88 @@ private fun CareGroupHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CareTaskTile(task: TodayCareTask, actions: TodayTaskActions) {
+    var menuOpen by remember { mutableStateOf(false) }
     val description = tileDescription(task)
-    val secondLine = tileSecondLine(task)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button) { actions.onOpen(task.plant.id) }
-            .semantics { contentDescription = description }
-            .testTag(careTileTag(task.id))
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth().clearAndSetSemantics { testTag = careTilePhotoTag(task.id) }
-        ) {
-            PlantPhoto(
-                uri = task.plant.coverPhotoUri,
-                size = maxWidth,
-                modifier = if (task.isOverdue) {
-                    Modifier.border(CARE_OVERDUE_OUTLINE_WIDTH, OverdueRed, CARE_TILE_SHAPE)
-                } else {
-                    Modifier
-                },
-                rounded = false
-            )
+    val menuActions = careMenuActions(task.kind)
+    val menuLabels = menuActions.map { careMenuActionLabel(it) }
+    val customActions = menuActions.mapIndexed { index, action ->
+        CustomAccessibilityAction(menuLabels[index]) {
+            actions.perform(action, task)
+            true
         }
-        Text(
-            text = task.plant.name,
-            style = MaterialTheme.typography.titleSmall,
-            maxLines = CARE_NAME_MAX_LINES,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp)
-        )
-        secondLine?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = CARE_NAME_MAX_LINES,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        TodayTaskButtons(task, actions)
     }
-}
-
-@Composable
-private fun TodayTaskButtons(task: TodayCareTask, actions: TodayTaskActions) {
-    val actionDescription = taskActionDescription(task)
-    val rescheduleDescription = stringResource(R.string.today_reschedule_watering_cd, task.plant.name)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        TextButton(
-            onClick = {
-                when (task.kind) {
-                    TodayCareKind.REPOT -> actions.onRepot(task)
-                    TodayCareKind.PHOTO -> actions.onPhoto(task)
-                    else -> actions.onComplete(task)
-                }
-            },
+    Box {
+        Column(
             modifier = Modifier
-                .testTag("today_task_action_${task.id}")
-                .semantics { contentDescription = actionDescription }
+                .fillMaxWidth()
+                .clip(CARE_TILE_SHAPE)
+                .combinedClickable(
+                    onClick = { actions.onOpen(task.plant.id) },
+                    onLongClick = { menuOpen = true },
+                    onLongClickLabel = stringResource(R.string.care_tile_actions_label),
+                    role = Role.Button
+                )
+                .semantics {
+                    contentDescription = description
+                    this.customActions = customActions
+                }
+                .testTag(careTileTag(task.id))
         ) {
-            Text(taskActionLabel(task), modifier = Modifier.clearAndSetSemantics {})
+            CareTilePhoto(task)
+            CareTileLabels(task)
         }
-        if (task.kind == TodayCareKind.WATER || task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
-            IconButton(onClick = { actions.onReschedule(task) }) {
-                Icon(Icons.Filled.Schedule, rescheduleDescription)
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            menuActions.forEachIndexed { index, action ->
+                DropdownMenuItem(
+                    text = { Text(menuLabels[index]) },
+                    onClick = {
+                        menuOpen = false
+                        actions.perform(action, task)
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun taskActionLabel(task: TodayCareTask): String = when (task.kind) {
-    TodayCareKind.WATER -> stringResource(R.string.today_action_water)
-    TodayCareKind.FERTILIZE -> stringResource(R.string.today_action_fertilize)
-    TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize)
-    TodayCareKind.REPOT -> stringResource(R.string.today_action_repot)
-    TodayCareKind.CUSTOM_REMINDER,
-    TodayCareKind.ISSUE_TREATMENT -> stringResource(R.string.today_action_done)
-    TodayCareKind.PHOTO -> stringResource(R.string.today_action_photo)
+private fun CareTileLabels(task: TodayCareTask) {
+    Text(
+        text = task.plant.name,
+        style = MaterialTheme.typography.titleSmall,
+        maxLines = CARE_NAME_MAX_LINES,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 6.dp)
+    )
+    tileSecondLine(task)?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = CARE_NAME_MAX_LINES,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 @Composable
-private fun taskActionDescription(task: TodayCareTask): String {
-    val plantName = task.plant.name
-    return when (task.kind) {
-        TodayCareKind.WATER -> stringResource(R.string.today_action_water_cd, plantName)
-        TodayCareKind.FERTILIZE -> stringResource(R.string.today_action_fertilize_cd, plantName)
-        TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize_cd, plantName)
-        TodayCareKind.REPOT -> stringResource(R.string.today_action_repot_cd, plantName)
-        TodayCareKind.PHOTO -> stringResource(R.string.today_action_photo_cd, plantName)
-        TodayCareKind.CUSTOM_REMINDER,
-        TodayCareKind.ISSUE_TREATMENT ->
-            stringResource(R.string.today_action_done_cd, tileSecondLine(task).orEmpty(), plantName)
+private fun CareTilePhoto(task: TodayCareTask) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics { testTag = careTilePhotoTag(task.id) }
+    ) {
+        PlantPhoto(
+            uri = task.plant.coverPhotoUri,
+            size = maxWidth,
+            modifier = if (task.isOverdue) {
+                Modifier.border(CARE_OVERDUE_OUTLINE_WIDTH, OverdueRed, CARE_TILE_SHAPE)
+            } else {
+                Modifier
+            },
+            rounded = false
+        )
     }
 }
 

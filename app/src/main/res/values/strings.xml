@@ -481,13 +481,7 @@
     <string name="care_section_custom_reminders">Custom reminders</string>
     <string name="care_section_repotting">Repotting</string>
     <string name="care_section_photos">Photos</string>
-    <string name="today_action_water_cd">Water %1$s</string>
-    <string name="today_action_fertilize_cd">Fertilize %1$s</string>
-    <string name="today_action_water_fertilize_cd">Water and fertilize %1$s</string>
-    <string name="today_action_repot_cd">Repot %1$s</string>
-    <string name="today_action_photo_cd">Take a progress photo of %1$s</string>
-    <string name="today_action_done_cd">Done: %1$s for %2$s</string>
-    <string name="today_reschedule_watering_cd">Reschedule watering for %1$s</string>
+    <string name="care_tile_actions_label">Show quick actions</string>
     <string name="care_tile_overdue_cd">Overdue, %1$s</string>
     <string name="care_tile_water_cd">%1$s, watering</string>
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
@@ -507,8 +501,9 @@
     <string name="today_action_water">Water</string>
     <string name="today_action_fertilize">Fertilize</string>
     <string name="today_action_water_fertilize">Water &amp; fertilize</string>
-    <string name="today_action_repot">Repot</string>
-    <string name="today_action_done">Done</string>
+    <string name="today_action_repot">Repot…</string>
+    <string name="today_action_reschedule">Reschedule</string>
+    <string name="today_action_mark_done">Mark done</string>
     <string name="today_action_photo">Take photo</string>
     <string name="today_action_failed">Nothing was changed. Please try again.</string>
     <string name="today_custom_completed">%1$s completed</string>

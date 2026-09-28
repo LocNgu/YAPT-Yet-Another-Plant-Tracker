@@ -19,8 +19,12 @@ object WhatsNewContent {
         added = listOf(
             "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
                 "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
-                "and optional progress photos grouped by type with watering first. Long-press to select tasks " +
-                "and complete them together in one batch. The tab order is now Care, Plants, Calendar",
+                "and optional progress photos grouped by type with watering first. The tab order is now " +
+                "Care, Plants, Calendar",
+            "Care shows each task as a square plant tile, with watering split into Overdue, Today, and " +
+                "Next 3 days. Tap a section title to collapse it, tap a tile to open the plant, or long-press " +
+                "a tile for just that task's quick actions — water, reschedule, fertilize, repot, mark done, " +
+                "or take a photo. Overdue tiles get a thin red outline",
             "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
                 "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
                 "first, once nothing in the app references them anymore"
