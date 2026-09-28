@@ -10,18 +10,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -41,6 +47,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -52,10 +60,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,6 +104,9 @@ fun PlantListScreen(
     val selectedRoom by viewModel.selectedRoom.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val hasUnassignedPlants by viewModel.hasUnassignedPlants.collectAsStateWithLifecycle()
+    val isSearchActive by viewModel.isSearchActive.collectAsStateWithLifecycle()
+    val searchQueryText = viewModel.searchQueryText
+    val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var waterFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
@@ -172,6 +190,17 @@ fun PlantListScreen(
     // While selecting, the system back button exits selection mode instead of leaving the screen.
     BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
 
+    // Back while searching (not selecting) closes search and clears the query (#512). Selection mode
+    // takes priority when both are true — the handler above stays enabled and this one doesn't, so
+    // Back exits selection first and search is restored (still open, same query) once selection ends.
+    BackHandler(enabled = isSearchActive && !selectionMode) { viewModel.closeSearch() }
+
+    // Entering selection mode hides the keyboard — the search field (if open) is about to be replaced
+    // by the contextual selection bar (#512).
+    LaunchedEffect(selectionMode) {
+        if (selectionMode) keyboardController?.hide()
+    }
+
     // Report selection state up so the host can hide the Plants/Calendar bottom nav while selecting,
     // giving the bulk action bar (and the list above it) more room. Reset on dispose so the nav
     // never stays hidden if this screen leaves composition mid-selection.
@@ -181,96 +210,137 @@ fun PlantListScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (selectionMode) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.bulk_selected_count,
-                                selectedPlantIds.size,
-                                selectedPlantIds.size
+            when {
+                selectionMode -> {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                pluralStringResource(
+                                    R.plurals.bulk_selected_count,
+                                    selectedPlantIds.size,
+                                    selectedPlantIds.size
+                                )
                             )
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(),
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.cd_bulk_clear_selection)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.selectAll() }) {
-                            Icon(
-                                Icons.Filled.DoneAll,
-                                contentDescription = stringResource(R.string.cd_bulk_select_all)
-                            )
-                        }
-                    }
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.my_plants)) },
-                    colors = TopAppBarDefaults.topAppBarColors(),
-                    actions = {
-                        Box {
-                            IconButton(onClick = { sortMenuExpanded = true }) {
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(),
+                        navigationIcon = {
+                            IconButton(onClick = { viewModel.clearSelection() }) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = stringResource(R.string.cd_sort_plants)
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.cd_bulk_clear_selection)
                                 )
                             }
-                            DropdownMenu(
-                                expanded = sortMenuExpanded,
-                                onDismissRequest = { sortMenuExpanded = false }
-                            ) {
-                                val sortAlpha = stringResource(R.string.sort_alphabetical)
-                                val sortAlphaAsc = stringResource(R.string.sort_alphabetical_asc)
-                                val sortAlphaDesc = stringResource(R.string.sort_alphabetical_desc)
-                                val sortWatering = stringResource(R.string.sort_watering_due)
-                                val sortFertilizing = stringResource(R.string.sort_fertilizing_due)
-                                val sortRecent = stringResource(R.string.sort_recently_added)
-                                val sortBothDue = stringResource(R.string.sort_both_due)
-                                val sortCaredToday = stringResource(R.string.sort_cared_for_today)
-                                val sortActiveIssues = stringResource(R.string.sort_active_issues)
-                                SortOption.entries.forEach { option ->
-                                    val isActive = sortOrder.option == option
-                                    val label = when (option) {
-                                        SortOption.ALPHABETICAL -> if (isActive) {
-                                            if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc
-                                        } else {
-                                            sortAlpha
-                                        }
-                                        SortOption.WATERING_DUE -> sortWatering
-                                        SortOption.FERTILIZING_DUE -> sortFertilizing
-                                        SortOption.RECENTLY_ADDED -> sortRecent
-                                        SortOption.BOTH_DUE -> sortBothDue
-                                        SortOption.CARED_FOR_TODAY -> sortCaredToday
-                                        SortOption.ACTIVE_ISSUES -> sortActiveIssues
-                                    }
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = label,
-                                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        },
+                        actions = {
+                            IconButton(onClick = { viewModel.selectAll() }) {
+                                Icon(
+                                    Icons.Filled.DoneAll,
+                                    contentDescription = stringResource(R.string.cd_bulk_select_all)
+                                )
+                            }
+                        }
+                    )
+                }
+                isSearchActive -> {
+                    val searchFocusRequester = remember { FocusRequester() }
+                    // Fresh each time this branch is (re-)entered: a genuine tap of the search icon
+                    // and returning from Plant Detail with search already open both re-enter this
+                    // branch, but consumeSearchAutoFocus() only returns true for the former (#512).
+                    LaunchedEffect(Unit) {
+                        if (viewModel.consumeSearchAutoFocus()) {
+                            searchFocusRequester.requestFocus()
+                        }
+                    }
+                    val searchFieldDescription = stringResource(R.string.search_plants_placeholder)
+                    TopAppBar(
+                        title = {
+                            TextField(
+                                value = searchQueryText,
+                                onValueChange = viewModel::setSearchQuery,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(searchFocusRequester)
+                                    .semantics { contentDescription = searchFieldDescription },
+                                placeholder = { Text(searchFieldDescription) },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent
+                                ),
+                                trailingIcon = if (searchQueryText.isNotEmpty()) {
+                                    {
+                                        IconButton(
+                                            onClick = {
+                                                // Stays in search mode with focus/keyboard active (#512).
+                                                viewModel.clearSearchQuery()
+                                                searchFocusRequester.requestFocus()
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.Clear,
+                                                contentDescription = stringResource(R.string.cd_clear_search)
                                             )
-                                        },
-                                        onClick = {
-                                            viewModel.toggleSort(option)
-                                            sortMenuExpanded = false
                                         }
+                                    }
+                                } else {
+                                    null
+                                },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                // Filtering is already live as-you-type; Search just hides the keyboard (#512).
+                                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+                            )
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(),
+                        navigationIcon = {
+                            IconButton(onClick = { viewModel.closeSearch() }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.cd_back)
+                                )
+                            }
+                        },
+                        actions = {
+                            SortMenuAction(
+                                expanded = sortMenuExpanded,
+                                onExpandedChange = { sortMenuExpanded = it },
+                                sortOrder = sortOrder,
+                                onToggleSort = viewModel::toggleSort
+                            )
+                        }
+                    )
+                }
+                else -> {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.my_plants)) },
+                        colors = TopAppBarDefaults.topAppBarColors(),
+                        actions = {
+                            // Mirrors the room-chip row's own conditional visibility (#512) — both are
+                            // true exactly when the user has >= 1 active plant. Search mode, once
+                            // opened, stays open regardless of this condition (see the branch above).
+                            if (rooms.isNotEmpty() || hasUnassignedPlants) {
+                                IconButton(onClick = { viewModel.openSearch() }) {
+                                    Icon(
+                                        Icons.Filled.Search,
+                                        contentDescription = stringResource(R.string.cd_search_plants)
                                     )
                                 }
                             }
+                            SortMenuAction(
+                                expanded = sortMenuExpanded,
+                                onExpandedChange = { sortMenuExpanded = it },
+                                sortOrder = sortOrder,
+                                onToggleSort = viewModel::toggleSort
+                            )
+                            IconButton(onClick = onNavigateToSettings) {
+                                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
+                            }
                         }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                        }
-                    }
-                )
+                    )
+                }
             }
         },
         floatingActionButton = {
@@ -338,7 +408,16 @@ fun PlantListScreen(
                 }
             }
 
-            if (plantsWithStatus.isEmpty()) {
+            val trimmedSearchQuery = searchQueryText.trim()
+            if (plantsWithStatus.isEmpty() && trimmedSearchQuery.isNotEmpty()) {
+                // Dedicated "no matches" empty state takes priority over every sort/room-based
+                // message below (#512) — a non-blank query with zero results is always this state,
+                // regardless of which sort option or room filter is also active.
+                EmptyStateView(
+                    message = stringResource(R.string.empty_state_no_search_matches, trimmedSearchQuery),
+                    icon = Icons.Filled.SearchOff
+                )
+            } else if (plantsWithStatus.isEmpty()) {
                 val emptyBothDue = stringResource(R.string.empty_state_both_due)
                 val emptyCaredToday = stringResource(R.string.empty_state_cared_today)
                 val emptyActiveIssues = stringResource(R.string.empty_state_active_issues)
@@ -539,6 +618,69 @@ fun PlantListScreen(
                 },
                 onDismiss = { viewModel.dismissPhotoReminder() }
             )
+        }
+    }
+}
+
+/**
+ * The Sort icon + dropdown, shared verbatim (#512) between the normal top bar and the search top
+ * bar's `actions` — "Tapping Sort opens the same dropdown and re-sorts the still-filtered (searched)
+ * list; does not exit search mode."
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortMenuAction(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    sortOrder: SortOrder,
+    onToggleSort: (SortOption) -> Unit
+) {
+    Box {
+        IconButton(onClick = { onExpandedChange(true) }) {
+            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.cd_sort_plants))
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) }
+        ) {
+            val sortAlpha = stringResource(R.string.sort_alphabetical)
+            val sortAlphaAsc = stringResource(R.string.sort_alphabetical_asc)
+            val sortAlphaDesc = stringResource(R.string.sort_alphabetical_desc)
+            val sortWatering = stringResource(R.string.sort_watering_due)
+            val sortFertilizing = stringResource(R.string.sort_fertilizing_due)
+            val sortRecent = stringResource(R.string.sort_recently_added)
+            val sortBothDue = stringResource(R.string.sort_both_due)
+            val sortCaredToday = stringResource(R.string.sort_cared_for_today)
+            val sortActiveIssues = stringResource(R.string.sort_active_issues)
+            SortOption.entries.forEach { option ->
+                val isActive = sortOrder.option == option
+                val label = when (option) {
+                    SortOption.ALPHABETICAL -> if (isActive) {
+                        if (sortOrder.direction == SortDirection.ASC) sortAlphaAsc else sortAlphaDesc
+                    } else {
+                        sortAlpha
+                    }
+                    SortOption.WATERING_DUE -> sortWatering
+                    SortOption.FERTILIZING_DUE -> sortFertilizing
+                    SortOption.RECENTLY_ADDED -> sortRecent
+                    SortOption.BOTH_DUE -> sortBothDue
+                    SortOption.CARED_FOR_TODAY -> sortCaredToday
+                    SortOption.ACTIVE_ISSUES -> sortActiveIssues
+                }
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        onToggleSort(option)
+                        onExpandedChange(false)
+                    }
+                )
+            }
         }
     }
 }

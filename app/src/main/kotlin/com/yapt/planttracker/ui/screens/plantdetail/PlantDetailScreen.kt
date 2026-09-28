@@ -1232,8 +1232,6 @@ fun PlantDetailScreen(
     }
 }
 
-/** How many tabs stay visible in [PlantDetailTabStrip]'s collapsed (default) state — today's four. */
-
 /**
  * Bundles [PlantDetailTabStrip]'s value parameters into one so the composable stays under Detekt's
  * `LongParameterList` threshold, mirroring [IntervalSetting]/[CustomReminderActions]'s bundling.
