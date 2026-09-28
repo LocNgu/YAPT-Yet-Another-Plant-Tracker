@@ -45,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +53,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +80,7 @@ import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
 import com.yapt.planttracker.util.DateUtils
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
+private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -87,8 +88,7 @@ private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long) -> Unit,
-    onNavigateToAdd: () -> Unit,
-    onSelectionModeChanged: (Boolean) -> Unit = {}
+    onNavigateToAdd: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
@@ -97,15 +97,15 @@ fun TodayScreen(
     var reasonTask by remember { mutableStateOf<TodayCareTask?>(null) }
     var rescheduleTask by remember { mutableStateOf<TodayCareTask?>(null) }
     var repotTask by remember { mutableStateOf<TodayCareTask?>(null) }
-    var pendingPhotoTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingPhotoPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pendingSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
     var intervalText by remember(pendingSuggestion) {
         mutableStateOf(pendingSuggestion?.suggestedIntervalEffective?.toString().orEmpty())
     }
     val parsedInterval = intervalText.toIntOrNull()?.takeIf { it > 0 }
     val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
-        pendingPhotoTaskId?.let { viewModel.savePhoto(it, uri) }
-        pendingPhotoTaskId = null
+        pendingPhotoPlantId?.let { viewModel.savePhoto(it, uri) }
+        pendingPhotoPlantId = null
     }
 
     LaunchedEffect(Unit) {
@@ -124,8 +124,6 @@ fun TodayScreen(
     }
 
     BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
-    LaunchedEffect(selectionMode) { onSelectionModeChanged(selectionMode) }
-    DisposableEffect(Unit) { onDispose { onSelectionModeChanged(false) } }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -185,7 +183,7 @@ fun TodayScreen(
                             onReschedule = { rescheduleTask = it },
                             onRepot = { repotTask = it },
                             onPhoto = {
-                                pendingPhotoTaskId = it.id
+                                pendingPhotoPlantId = it.plant.id
                                 cameraState.launch()
                             }
                         )
@@ -200,7 +198,7 @@ fun TodayScreen(
                             onReschedule = { rescheduleTask = it },
                             onRepot = { repotTask = it },
                             onPhoto = {
-                                pendingPhotoTaskId = it.id
+                                pendingPhotoPlantId = it.plant.id
                                 cameraState.launch()
                             }
                         )
@@ -453,13 +451,16 @@ private fun TodayTaskRow(
 @Composable
 private fun TodayTaskButtons(task: TodayCareTask, actions: TodayTaskActions) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = {
-            when (task.kind) {
-                TodayCareKind.REPOT -> actions.onRepot(task)
-                TodayCareKind.PHOTO -> actions.onPhoto(task)
-                else -> actions.onComplete(task)
-            }
-        }) {
+        TextButton(
+            onClick = {
+                when (task.kind) {
+                    TodayCareKind.REPOT -> actions.onRepot(task)
+                    TodayCareKind.PHOTO -> actions.onPhoto(task)
+                    else -> actions.onComplete(task)
+                }
+            },
+            modifier = Modifier.testTag("today_task_action_${task.id}")
+        ) {
             Text(
                 when (task.kind) {
                     TodayCareKind.WATER -> stringResource(R.string.today_action_water)
@@ -519,7 +520,7 @@ private fun TodayFirstUseState(onAddPlant: () -> Unit) {
     ) {
         Icon(Icons.Filled.Checklist, contentDescription = null, modifier = Modifier.size(72.dp))
         Text(stringResource(R.string.today_first_use), modifier = Modifier.padding(vertical = 16.dp))
-        Button(onClick = onAddPlant) {
+        Button(onClick = onAddPlant, modifier = Modifier.testTag(TODAY_ADD_PLANT_TAG)) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.add_plant))

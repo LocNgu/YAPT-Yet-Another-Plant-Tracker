@@ -2,6 +2,8 @@ package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.domain.model.CareType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -89,5 +91,19 @@ class ScreenTest {
             "add_care_log/3?careLogId=0&careType=PHOTO",
             Screen.AddCareLog.createRoute(3L, careType = CareType.PHOTO)
         )
+    }
+
+    @Test
+    fun `bottom navigation stays visible for Today selection and all root tabs`() {
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, plantListSelectionActive = true))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, plantListSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, plantListSelectionActive = false))
+    }
+
+    @Test
+    fun `bottom navigation still hides for plant list selection and nested destinations`() {
+        assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, plantListSelectionActive = true))
+        assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, plantListSelectionActive = false))
+        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, plantListSelectionActive = false))
     }
 }

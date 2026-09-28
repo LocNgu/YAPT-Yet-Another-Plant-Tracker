@@ -35,8 +35,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface TodayUiState {
     data object Loading : TodayUiState
@@ -67,11 +69,17 @@ class TodayViewModel(
         data object Error : QueueResult
     }
 
+    private val _selectedTaskIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTaskIds: StateFlow<Set<String>> = _selectedTaskIds.asStateFlow()
+    private val bulkCompletionInFlight = AtomicBoolean(false)
+
     private val retryGeneration = MutableStateFlow(0)
     private val queueResult = retryGeneration.flatMapLatest {
         todayCareRepository.observeQueue()
             .map<TodayQueueSnapshot, QueueResult> { QueueResult.Success(it) }
             .catch { emit(QueueResult.Error) }
+    }.onEach { result ->
+        if (result is QueueResult.Success) reconcileSelection(result.snapshot.tasks)
     }
 
     val uiState: StateFlow<TodayUiState> = combine(
@@ -84,9 +92,6 @@ class TodayViewModel(
             is QueueResult.Success -> TodayUiState.Ready(result.snapshot, groupByPlant)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TodayUiState.Loading)
-
-    private val _selectedTaskIds = MutableStateFlow<Set<String>>(emptySet())
-    val selectedTaskIds: StateFlow<Set<String>> = _selectedTaskIds.asStateFlow()
 
     private val _messageEvent = MutableSharedFlow<String>()
     val messageEvent: SharedFlow<String> = _messageEvent.asSharedFlow()
@@ -135,23 +140,34 @@ class TodayViewModel(
     }
 
     fun completeSelected() {
-        val selected = _selectedTaskIds.value
-        val tasks = currentTasks().filter { it.id in selected && it.isBulkEligible }
-        if (tasks.isEmpty()) return
+        val tasks = currentTasks().filter { it.id in _selectedTaskIds.value && it.isBulkEligible }
+        if (tasks.isEmpty()) {
+            clearSelection()
+            return
+        }
+        if (!bulkCompletionInFlight.compareAndSet(false, true)) return
+        val claimedIds = tasks.mapTo(mutableSetOf()) { it.id }
+        _selectedTaskIds.value = emptySet()
         viewModelScope.launch {
-            runCatching { quickLogUseCase.completeTodayTasks(tasks) }
-                .onSuccess { result ->
-                    clearSelection()
-                    _messageEvent.emit(
-                        application.getString(
-                            R.string.today_bulk_result,
-                            result.completedCount,
-                            result.totalCount,
-                            result.skippedCount
-                        )
+            try {
+                val result = quickLogUseCase.completeTodayTasks(tasks)
+                _messageEvent.emit(
+                    application.getString(
+                        R.string.today_bulk_result,
+                        result.completedCount,
+                        result.totalCount,
+                        result.skippedCount
                     )
-                }
-                .onFailure { _messageEvent.emit(application.getString(R.string.today_action_failed)) }
+                )
+            } catch (error: CancellationException) {
+                restoreSelection(claimedIds)
+                throw error
+            } catch (_: Exception) {
+                restoreSelection(claimedIds)
+                _messageEvent.emit(application.getString(R.string.today_action_failed))
+            } finally {
+                bulkCompletionInFlight.set(false)
+            }
         }
     }
 
@@ -198,27 +214,25 @@ class TodayViewModel(
         }
     }
 
-    fun savePhoto(taskId: String, uri: Uri) {
-        val task = task(taskId) ?: return
+    fun savePhoto(plantId: Long, uri: Uri) {
         viewModelScope.launch {
             executeAction {
+                val plant = requireNotNull(plantRepository.getPlantById(plantId).first())
                 val now = System.currentTimeMillis()
                 val uriString = uri.toString()
                 plantPhotoRepository.addPhoto(
-                    PlantPhoto(plantId = task.plant.id, uri = uriString, capturedAt = now)
+                    PlantPhoto(plantId = plant.id, uri = uriString, capturedAt = now)
                 )
                 careLogRepository.addLog(
                     CareLog(
-                        plantId = task.plant.id,
+                        plantId = plant.id,
                         careType = CareType.PHOTO,
                         loggedAt = now,
                         photoUri = uriString
                     )
                 )
-                plantRepository.getPlantById(task.plant.id).first()?.let { fresh ->
-                    plantRepository.updatePlant(fresh.copy(coverPhotoUri = uriString, updatedAt = now))
-                }
-                _messageEvent.emit(application.getString(R.string.today_photo_saved, task.plant.name))
+                plantRepository.updatePlant(plant.copy(coverPhotoUri = uriString, updatedAt = now))
+                _messageEvent.emit(application.getString(R.string.today_photo_saved, plant.name))
             }
         }
     }
@@ -275,6 +289,24 @@ class TodayViewModel(
     }
 
     private fun task(taskId: String): TodayCareTask? = currentTasks().firstOrNull { it.id == taskId }
+
+    private fun reconcileSelection(tasks: List<TodayCareTask>) {
+        val eligibleIds = tasks.asSequence().filter { it.isBulkEligible }.map { it.id }.toSet()
+        _selectedTaskIds.value = _selectedTaskIds.value.intersect(eligibleIds)
+    }
+
+    private fun restoreSelection(taskIds: Set<String>) {
+        val ready = uiState.value as? TodayUiState.Ready
+        _selectedTaskIds.value = if (ready == null) {
+            taskIds
+        } else {
+            val eligibleIds = ready.snapshot.tasks.asSequence()
+                .filter { it.isBulkEligible }
+                .map { it.id }
+                .toSet()
+            taskIds.intersect(eligibleIds)
+        }
+    }
 
     private fun currentTasks(): List<TodayCareTask> =
         (uiState.value as? TodayUiState.Ready)?.snapshot?.tasks.orEmpty()

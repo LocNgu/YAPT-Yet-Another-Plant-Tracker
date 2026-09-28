@@ -95,6 +95,16 @@ private fun NavController.navigateInitialDestination(
     onConsumed()
 }
 
+@androidx.annotation.VisibleForTesting
+internal fun shouldShowBottomNavigation(
+    currentRoute: String?,
+    plantListSelectionActive: Boolean
+): Boolean = currentRoute in setOf(
+    Screen.PlantList.route,
+    Screen.Today.route,
+    Screen.Calendar.route
+) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive)
+
 @Composable
 private fun ApplyCaredTodayDeepLink(
     pending: Boolean,
@@ -139,13 +149,8 @@ fun YaptNavGraph(
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    // Hidden while a root screen is in multi-select mode so its bulk action bar can use that space.
-    var rootSelectionActive by remember { mutableStateOf(false) }
-    val showBottomBar = (
-        currentRoute == Screen.PlantList.route ||
-            currentRoute == Screen.Today.route ||
-            currentRoute == Screen.Calendar.route
-        ) && !rootSelectionActive
+    var plantListSelectionActive by remember { mutableStateOf(false) }
+    val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive)
 
     Scaffold(
         // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
@@ -252,7 +257,7 @@ fun YaptNavGraph(
                     onNavigateToSettings = {
                         navController.navigate(Screen.Settings.route)
                     },
-                    onSelectionModeChanged = { rootSelectionActive = it }
+                    onSelectionModeChanged = { plantListSelectionActive = it }
                 )
             }
 
@@ -453,8 +458,7 @@ fun YaptNavGraph(
                     onNavigateToPlant = { plantId ->
                         navController.navigate(Screen.PlantDetail.createRoute(plantId))
                     },
-                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
-                    onSelectionModeChanged = { rootSelectionActive = it }
+                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) }
                 )
             }
 
