@@ -56,7 +56,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
   exposes `stateDescription`/`heading()` for TalkBack. Tiles carry no due-date text: overdue is a thin
   `OverdueRed` outline on the photo plus "Overdue" in the tile's content description (which always names the
   plant and task). A long-press opens a `DropdownMenu` with only that kind's actions (`careMenuActions()` in
-  `CareTileMenu.kt`: Water/Reschedule, Water & fertilize/Reschedule, Fertilize, Repot…, Mark done, Take
+  `CareMenuAction.kt`: Water/Reschedule, Water & fertilize/Reschedule, Fertilize, Repot…, Mark done, Take
   photo), mirrored as semantics `customActions` plus an `onLongClickLabel`; each entry calls the same
   `TodayViewModel` handler/prompt the old inline buttons did — never add inline buttons back or reimplement a
   prompt. There is **no bulk completion or selection** on Care (the outer bottom bar never hides for Care;
