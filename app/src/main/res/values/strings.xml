@@ -392,6 +392,7 @@
     <string name="date_group_overdue">Overdue</string>
     <string name="date_group_today">Today</string>
     <string name="date_group_tomorrow">Tomorrow</string>
+    <string name="date_group_next_three_days">Next 3 days</string>
     <string name="date_relative_today">Today</string>
     <string name="date_relative_yesterday">Yesterday</string>
     <plurals name="date_relative_in_days">
@@ -487,7 +488,22 @@
     <string name="today_action_photo_cd">Take a progress photo of %1$s</string>
     <string name="today_action_done_cd">Done: %1$s for %2$s</string>
     <string name="today_reschedule_watering_cd">Reschedule watering for %1$s</string>
-    <string name="today_due_overdue_cd">Overdue, %1$s</string>
+    <string name="care_tile_overdue_cd">Overdue, %1$s</string>
+    <string name="care_tile_water_cd">%1$s, watering</string>
+    <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
+    <string name="care_tile_water_fertilize_cd">%1$s, watering and fertilizing</string>
+    <string name="care_tile_repot_cd">%1$s, repotting</string>
+    <string name="care_tile_photo_cd">%1$s, progress photo</string>
+    <string name="care_tile_reminder_cd">%1$s, %2$s</string>
+    <string name="care_group_header">%1$s · %2$d</string>
+    <plurals name="care_group_header_cd">
+        <item quantity="one">%1$s, %2$d plant</item>
+        <item quantity="other">%1$s, %2$d plants</item>
+    </plurals>
+    <string name="care_group_state_expanded">Expanded</string>
+    <string name="care_group_state_collapsed">Collapsed</string>
+    <string name="care_group_collapse_action">Collapse</string>
+    <string name="care_group_expand_action">Expand</string>
     <string name="today_action_water">Water</string>
     <string name="today_action_fertilize">Fertilize</string>
     <string name="today_action_water_fertilize">Water &amp; fertilize</string>

@@ -52,10 +52,32 @@ enum class TodayCareSection {
     PHOTOS
 }
 
+enum class TodayWateringGroup {
+    OVERDUE,
+    TODAY,
+    NEXT_THREE_DAYS
+}
+
+data class TodayWateringSubGroup(
+    val group: TodayWateringGroup,
+    val tasks: List<TodayCareTask>,
+    val plantCount: Int
+)
+
+/**
+ * [plantCount] counts distinct plants, not tasks: a plant with two custom reminders is two tiles but
+ * one plant. [subGroups] is populated for [TodayCareSection.WATERING] only and is empty for every flat
+ * section.
+ */
 data class TodayCareTypeSection(
     val section: TodayCareSection,
-    val tasks: List<TodayCareTask>
+    val tasks: List<TodayCareTask>,
+    val plantCount: Int,
+    val subGroups: List<TodayWateringSubGroup> = emptyList()
 )
+
+val TodayCareTask.isOverdue: Boolean
+    get() = bucket == TodayTaskBucket.Overdue
 
 val TodayCareKind.section: TodayCareSection
     get() = when (this) {
@@ -72,4 +94,27 @@ fun careTypeSections(tasks: List<TodayCareTask>): List<TodayCareTypeSection> =
     tasks.groupBy { it.kind.section }
         .entries
         .sortedBy { it.key.ordinal }
-        .map { TodayCareTypeSection(it.key, it.value) }
+        .map { (section, sectionTasks) ->
+            TodayCareTypeSection(
+                section = section,
+                tasks = sectionTasks,
+                plantCount = distinctPlantCount(sectionTasks),
+                subGroups = if (section == TodayCareSection.WATERING) wateringSubGroups(sectionTasks) else emptyList()
+            )
+        }
+
+private fun wateringSubGroups(tasks: List<TodayCareTask>): List<TodayWateringSubGroup> =
+    tasks.groupBy { it.bucket.wateringGroup() }
+        .entries
+        .sortedBy { it.key.ordinal }
+        .map { (group, groupTasks) -> TodayWateringSubGroup(group, groupTasks, distinctPlantCount(groupTasks)) }
+
+private fun distinctPlantCount(tasks: List<TodayCareTask>): Int = tasks.distinctBy { it.plant.id }.size
+
+// The aggregator's horizon already caps Upcoming at three local days, so every Upcoming bucket is
+// inside "Next 3 days"; no date math is repeated here.
+private fun TodayTaskBucket.wateringGroup(): TodayWateringGroup = when (this) {
+    TodayTaskBucket.Overdue -> TodayWateringGroup.OVERDUE
+    TodayTaskBucket.Today -> TodayWateringGroup.TODAY
+    is TodayTaskBucket.Upcoming -> TodayWateringGroup.NEXT_THREE_DAYS
+}
