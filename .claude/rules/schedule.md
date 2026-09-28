@@ -2,12 +2,12 @@
 description: CareSchedule status computation and adaptive watering-interval rules
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**/*"
-  - "app/src/main/kotlin/com/yapt/planttracker/domain/time/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/today/**/*"
   - "app/src/test/**/schedule/**/*"
   - "app/src/test/**/time/**/*"
   - "app/src/test/**/today/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/util/DayChangeTicker.kt"
 ---
 
 > Computed seasonal watering factor (`seasonalAmplitude`/`hemisphere` params on `computeStatus()`,
@@ -32,10 +32,11 @@ fertilizing is due no later than that watering; it never gets a standalone ferti
 issues relabel only their linked custom-reminder task. Photo tasks use the newest care-log photo or
 gallery photo and deliberately ignore the session-only reminder-popup suppression.
 
-`LocalDayTicker` is the shared self-correcting foreground day signal used by Today, Plant List, and
-Calendar. It emits immediately, computes the duration to the next midnight in the clock's local zone,
-delays, then recomputes from a fresh clock read. Do not replace it with a fixed 24-hour ticker: local
-days can be 23 or 25 hours, and a long-lived fixed delay drifts after lifecycle or scheduler delays.
+`dayChangeTicker()` is the shared self-correcting foreground day signal used by Today, Plant List,
+and Calendar. It emits immediately, computes the duration to the next midnight in the clock's local
+zone, delays for no more than its bounded poll interval, then recomputes from a fresh clock read. Do
+not replace it with a fixed 24-hour ticker: local days can be 23 or 25 hours, and a long-lived fixed
+delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
 
 ## computeStatus()
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,

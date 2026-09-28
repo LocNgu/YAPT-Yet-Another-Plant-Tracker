@@ -226,8 +226,7 @@ fun YaptNavGraph(
                         app.plantPhotoRepository,
                         app.settingsDataStore,
                         app.quickLogUseCase,
-                        app.plantIssueRepository,
-                        app.localDayTicker
+                        app.plantIssueRepository
                     )
                 )
                 ApplyCaredTodayDeepLink(
@@ -470,8 +469,7 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantPhotoRepository,
                         app.settingsDataStore,
-                        app.quickLogUseCase,
-                        app.localDayTicker
+                        app.quickLogUseCase
                     )
                 )
                 CalendarScreen(

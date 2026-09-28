@@ -48,9 +48,9 @@ it on groups the same canonical tasks under each plant and places that plant und
 task's section; it does not create a second aggregation or action path. Turning developer mode off
 resets the flag. The experiment must graduate by deleting the losing presentation and its flag.
 
-A shared local-day ticker recomputes its delay to the next local midnight after every emission. Today,
-Plant List, and Calendar observe it so due-state and “cared for today” boundaries roll over while the
-app stays open, including across daylight-saving transitions.
+Today reuses the canonical `dayChangeTicker()` introduced for Plant List and Calendar. The ticker
+recomputes its delay to the next local midnight after every emission, so due-state and “cared for
+today” boundaries roll over while the app stays open, including across daylight-saving transitions.
 
 ## Consequences
 

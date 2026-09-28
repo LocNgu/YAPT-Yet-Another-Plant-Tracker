@@ -4,13 +4,14 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
-import com.yapt.planttracker.domain.time.LocalDayTicker
 import com.yapt.planttracker.domain.today.TodayQueueAggregator
 import com.yapt.planttracker.domain.today.TodayQueueInput
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
+import com.yapt.planttracker.util.dayChangeTicker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 @Suppress("LongParameterList")
 class TodayCareRepository(
@@ -20,7 +21,7 @@ class TodayCareRepository(
     private val plantIssueRepository: PlantIssueRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val localDayTicker: LocalDayTicker
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
 ) {
 
     private data class CareData(
@@ -51,7 +52,7 @@ class TodayCareRepository(
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
         }
         val settings = combine(
-            localDayTicker.dates,
+            dayChangeFlow,
             dataStore.seasonalAmplitudeFlow(),
             photoReminderEnabled
         ) { day, seasonalAmplitude, photosEnabled ->

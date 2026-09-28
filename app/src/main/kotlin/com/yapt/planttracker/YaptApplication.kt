@@ -19,7 +19,6 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
-import com.yapt.planttracker.domain.time.LocalDayTicker
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.domain.usecase.SeasonalGraduationFixup
 import com.yapt.planttracker.notification.NotificationHelper
@@ -72,7 +71,6 @@ open class YaptApplication : Application() {
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
     val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
     val featureFlags by lazy { FeatureFlags(settingsDataStore) }
-    val localDayTicker by lazy { LocalDayTicker() }
     val todayCareRepository by lazy {
         TodayCareRepository(
             plantRepository,
@@ -80,8 +78,7 @@ open class YaptApplication : Application() {
             customReminderRepository,
             plantIssueRepository,
             plantPhotoRepository,
-            settingsDataStore,
-            localDayTicker
+            settingsDataStore
         )
     }
     val quickLogUseCase by lazy {

@@ -19,9 +19,9 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
-import com.yapt.planttracker.domain.time.LocalDayTicker
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
-import com.yapt.planttracker.util.toStartOfDayMillis
+import com.yapt.planttracker.util.dayChangeTicker
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -46,41 +46,89 @@ class CalendarViewModel(
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
-    private val localDates: Flow<LocalDate> = flowOf(LocalDate.now())
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val currentDay = localDates
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
+    /**
+     * A single shared, hot source for "today" — [statusesForDay] (and, through it, both
+     * [plantsWithStatus] and [plantsByDay]) reads this rather than each collecting [dayChangeFlow]
+     * independently. Two independent cold collectors of the ticker can tick a moment apart in real
+     * usage (each re-derives its own delay from its own clock read), which could otherwise show a
+     * transient frame where one flow has already rolled over to the new day while another is still
+     * on yesterday's date. Sharing one [today] value means every consumer can only ever see the
+     * same date. Public (not just an internal combine input) so `CalendarScreen` can drive its own
+     * "today" highlight/label from the same source instead of a `remember { LocalDate.now() }` that
+     * would otherwise never advance for a Calendar screen left composed across midnight (#550 review
+     * round 3) — never add a second collection of [dayChangeFlow] for the UI layer to read from.
+     */
+    val today: StateFlow<LocalDate> =
+        dayChangeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalDate.now())
 
-    private val scheduleContext = combine(
-        dataStore.seasonalAmplitudeFlow(),
-        currentDay
-    ) { seasonalAmplitude, day -> seasonalAmplitude to day }
+    /** The day a [statuses] list was computed for, travelling together as one value. */
+    private data class StatusesForDay(val day: LocalDate, val statuses: List<PlantCareStatus>)
 
-    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+    /**
+     * Combines the plant statuses with the day they were computed against, as a single emission —
+     * [plantsWithStatus] and [plantsByDay] are both derived from this rather than each reading
+     * [today] on their own. `plantsByDay` used to be `combine(plantsWithStatus, _visibleMonth,
+     * today)`, which re-ran as soon as *either* `plantsWithStatus` or `today` changed — at midnight,
+     * `today` ticks first, so that combine could momentarily fire with the *new* `today` paired with
+     * the *old*, not-yet-rebuilt `plantsWithStatus` (still mid-flight through [buildStatus]'s
+     * suspend calls), grouping stale due/overdue statuses under the new day (#550 review round 2).
+     * Deriving both public flows from this one combined value means a day and its statuses can never
+     * be observed out of step with each other.
+     *
+     * [today]'s own emitted value is deliberately **not** what ends up in [StatusesForDay.day] — it
+     * only *triggers* this combine (`_` below). `now` is instead captured fresh, once, right at the
+     * top of the lambda, before any of [buildStatus]'s suspend `careLogRepository` calls — those
+     * calls take real time, and `CareSchedule.computeStatus()` (via [buildStatus]) separately reads
+     * a live `System.currentTimeMillis()` by default for its own overdue/due math. If a rebuild
+     * triggered by an *unrelated* upstream (a new care log, a seasonal-amplitude change) happened to
+     * straddle real midnight, the ticker's `today` value could still read yesterday while that
+     * default live clock read inside `computeStatus()` already reads today — pairing yesterday's day
+     * key with statuses computed as of today (#550 review round 4). Capturing one `now` up front and
+     * threading it into both `now.toLocalDate()` and `buildStatus(..., now)` makes the day and the
+     * statuses agree by construction, the same way [ReminderWorker][com.yapt.planttracker.worker
+     * .ReminderWorker]'s own `buildStatus(app, plant, now, …)` already threads a single captured
+     * `now` through. Mirrors [com.yapt.planttracker.domain.usecase.QuickLogUseCase]'s injectable
+     * `nowProvider` convention so a test can pin the instant independently of the injected ticker.
+     */
+    private val statusesForDay: StateFlow<StatusesForDay> = combine(
         allPlants,
         careLogRepository.logCount,
-        scheduleContext
-    ) { plants, _, (seasonalAmplitude, day) ->
+        dataStore.seasonalAmplitudeFlow(),
+        today
+    ) { plants, _, seasonalAmplitude, _ ->
+        val now = nowProvider()
+        val day = now.toLocalDate()
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, day.toStartOfDayMillis()))
+            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, now))
         }
-        statusList
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        StatusesForDay(day, statusList)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatusesForDay(LocalDate.now(), emptyList()))
+
+    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = statusesForDay
+        .map { it.statuses }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _visibleMonth = MutableStateFlow(YearMonth.now())
     val visibleMonth: StateFlow<YearMonth> = _visibleMonth.asStateFlow()
 
+    /**
+     * Reads [statusesForDay] rather than [plantsWithStatus] + [today] separately, so the statuses
+     * grouped here are always the ones actually computed for the `day` they're grouped under — see
+     * [statusesForDay]'s doc for the stale-pairing bug this avoids (#550 review round 2).
+     */
     val plantsByDay: StateFlow<Map<LocalDate, DayEntry>> = combine(
-        plantsWithStatus,
-        _visibleMonth,
-        currentDay
-    ) { statuses, month, day ->
-        computePlantsByDay(statuses, month, day)
+        statusesForDay,
+        _visibleMonth
+    ) { forDay, month ->
+        computePlantsByDay(forDay.statuses, month, forDay.day)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _selectedDay = MutableStateFlow<LocalDate?>(null)
@@ -225,15 +273,13 @@ class CalendarViewModel(
         }
     }
 
-    @Suppress("LongParameterList")
     class Factory(
         private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>,
-        private val quickLogUseCase: QuickLogUseCase,
-        private val localDayTicker: LocalDayTicker = LocalDayTicker()
+        private val quickLogUseCase: QuickLogUseCase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -243,8 +289,7 @@ class CalendarViewModel(
                 careLogRepository,
                 plantPhotoRepository,
                 dataStore,
-                quickLogUseCase,
-                localDayTicker.dates
+                quickLogUseCase
             ) as T
     }
 }
