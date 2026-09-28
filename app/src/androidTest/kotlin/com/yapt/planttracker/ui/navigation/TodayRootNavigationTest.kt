@@ -1,11 +1,12 @@
 package com.yapt.planttracker.ui.navigation
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -60,21 +61,35 @@ class TodayRootNavigationTest {
     }
 
     @Test
-    fun todayScrollAndSelectionRestoreAcrossCalendarRootSwitch() {
+    fun careIsTheStartDestinationAndRestoresScrollAcrossRootSwitches() {
         composeTestRule.setContent { YaptNavGraph(application) }
 
-        composeTestRule.onAllNodesWithText("Plants")[0].assertIsDisplayed()
-        composeTestRule.onNode(hasText("Today").and(hasClickAction())).performClick()
+        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
         composeTestRule.onNodeWithTag(TODAY_TASK_LIST_TAG).performScrollToNode(hasText("Plant 23"))
         composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Plant 23").performTouchInput { longClick() }
-        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
 
         composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).performClick()
-        composeTestRule.onNode(hasText("Today").and(hasClickAction())).performClick()
+        composeTestRule.onNode(hasText("Plants").and(hasClickAction())).performClick()
+        composeTestRule.onNode(hasText("Plants").and(hasClickAction())).assertIsSelected()
+        composeTestRule.onNode(hasText("Care").and(hasClickAction())).performClick()
+
+        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
+        composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
+    }
+
+    @Test
+    fun careSelectionModeHidesTheBottomBarUntilSelectionEnds() {
+        composeTestRule.setContent { YaptNavGraph(application) }
+
+        composeTestRule.onNodeWithTag(TODAY_TASK_LIST_TAG).performScrollToNode(hasText("Plant 23"))
+        composeTestRule.onNodeWithText("Plant 23").performTouchInput { longClick() }
 
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
+        composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).assertDoesNotExist()
+
+        composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
+
+        composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).assertIsDisplayed()
     }
 
     private companion object {

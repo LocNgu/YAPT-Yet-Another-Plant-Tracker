@@ -22,6 +22,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,6 +30,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -93,6 +98,22 @@ class TodayViewModelTest {
             assertTrue(awaitItem() is TodayUiState.Ready)
         }
         assertEquals(2, calls)
+    }
+
+    @Test
+    fun `resubscribing after the stop timeout never flashes loading once ready was shown`() = runTest {
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(task())))
+        val viewModel = viewModel()
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        advanceTimeBy(STOP_TIMEOUT_PLUS_MS)
+        runCurrent()
+
+        viewModel.uiState.test {
+            assertTrue(awaitItem() is TodayUiState.Ready)
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -177,6 +198,47 @@ class TodayViewModelTest {
 
             completion.complete(Unit)
             assertEquals("bulk", awaitItem())
+        }
+    }
+
+    @Test
+    fun `bulk completion accepts a new batch while the previous result message is still showing`() = runTest {
+        val first = task("water:1")
+        val second = task("water:2", plant = Plant(id = 2L, name = "Aloe", createdAt = 0L, updatedAt = 0L))
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(2, listOf(first, second)))
+        coEvery { quickLogUseCase.completeTodayTasks(any()) } returns
+            QuickLogUseCase.BulkCompletionResult(1, 0, 1)
+        val viewModel = viewModel()
+        val snackbarStillShowing = CompletableDeferred<Unit>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.messageEvent.collect { snackbarStillShowing.await() }
+        }
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        viewModel.toggleTaskSelection(first.id)
+        viewModel.completeSelected()
+        viewModel.toggleTaskSelection(second.id)
+        viewModel.completeSelected()
+
+        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(first)) }
+        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(second)) }
+        assertTrue(viewModel.selectedTaskIds.value.isEmpty())
+        snackbarStillShowing.complete(Unit)
+        collector.cancel()
+    }
+
+    @Test
+    fun `cancelled custom reminder completion is not reported as a failure`() = runTest {
+        val reminder = CustomReminder(id = 9L, plantId = 1L, name = "Neem", intervalDays = 7)
+        val custom = task("custom:9", plant(), TodayCareKind.CUSTOM_REMINDER, reminder)
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(custom)))
+        coEvery { quickLogUseCase.completeCustomReminder(any()) } throws CancellationException("cancelled")
+        val viewModel = viewModel()
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        viewModel.messageEvent.test {
+            viewModel.completeCustomReminder(custom.id)
+            expectNoEvents()
         }
     }
 
@@ -356,4 +418,8 @@ class TodayViewModelTest {
 
     private fun outcome(suggestion: QuickWaterSuggestion? = null) =
         QuickLogUseCase.QuickLogOutcome("done", logged = true, suggestion = suggestion)
+
+    private companion object {
+        const val STOP_TIMEOUT_PLUS_MS = 5_001L
+    }
 }

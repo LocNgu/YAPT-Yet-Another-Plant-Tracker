@@ -45,8 +45,17 @@ data class TodayQueueSnapshot(
     val tasks: List<TodayCareTask>
 )
 
-data class TodayTaskSection(
-    val bucket: TodayTaskBucket,
+enum class TodayCareSection {
+    WATERING,
+    ISSUE_TREATMENTS,
+    FERTILIZING,
+    CUSTOM_REMINDERS,
+    REPOTTING,
+    PHOTOS
+}
+
+data class TodayCareTypeSection(
+    val section: TodayCareSection,
     val tasks: List<TodayCareTask>
 )
 
@@ -61,11 +70,22 @@ data class TodayPlantSection(
     val groups: List<TodayPlantGroup>
 )
 
-fun taskSections(tasks: List<TodayCareTask>): List<TodayTaskSection> =
-    tasks.groupBy { it.bucket }
+val TodayCareKind.section: TodayCareSection
+    get() = when (this) {
+        TodayCareKind.WATER,
+        TodayCareKind.WATER_AND_FERTILIZE -> TodayCareSection.WATERING
+        TodayCareKind.ISSUE_TREATMENT -> TodayCareSection.ISSUE_TREATMENTS
+        TodayCareKind.FERTILIZE -> TodayCareSection.FERTILIZING
+        TodayCareKind.CUSTOM_REMINDER -> TodayCareSection.CUSTOM_REMINDERS
+        TodayCareKind.REPOT -> TodayCareSection.REPOTTING
+        TodayCareKind.PHOTO -> TodayCareSection.PHOTOS
+    }
+
+fun careTypeSections(tasks: List<TodayCareTask>): List<TodayCareTypeSection> =
+    tasks.groupBy { it.kind.section }
         .entries
-        .sortedWith(compareBy({ bucketRank(it.key) }, { bucketEpochDay(it.key) }))
-        .map { TodayTaskSection(it.key, it.value) }
+        .sortedBy { it.key.ordinal }
+        .map { TodayCareTypeSection(it.key, it.value) }
 
 fun plantSections(tasks: List<TodayCareTask>): List<TodayPlantSection> {
     val groups = tasks.groupBy { it.plant.id }.values.map { plantTasks ->

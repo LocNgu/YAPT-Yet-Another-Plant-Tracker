@@ -36,81 +36,81 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatRelative 0 days returns Today`() {
+    fun `relativeDate 0 days returns Today`() {
         val timestamp = now - TimeUnit.HOURS.toMillis(1)
         assertEquals(DateUtils.RelativeDate.Today, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 1 day returns Yesterday`() {
+    fun `relativeDate 1 day returns Yesterday`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(1)
         assertEquals(DateUtils.RelativeDate.Yesterday, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 3 days returns 3 days ago`() {
+    fun `relativeDate 3 days returns 3 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(3)
         assertEquals(DateUtils.RelativeDate.DaysAgo(3), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 7 days returns 7 days ago`() {
+    fun `relativeDate 7 days returns 7 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
         assertEquals(DateUtils.RelativeDate.DaysAgo(7), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 30 days with default returns relative`() {
+    fun `relativeDate 30 days with default returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(30)
         assertEquals(DateUtils.RelativeDate.DaysAgo(30), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 14 days returns relative`() {
+    fun `relativeDate maxRelativeDays 14, 14 days returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(14)
         assertEquals(DateUtils.RelativeDate.DaysAgo(14), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 15 days returns exact date`() {
+    fun `relativeDate maxRelativeDays 14, 15 days returns exact date`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(15)
         assertEquals(DateUtils.RelativeDate.ExactDate("Oct 30, 2023"), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 7 days returns relative`() {
+    fun `relativeDate maxRelativeDays 14, 7 days returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
         assertEquals(DateUtils.RelativeDate.DaysAgo(7), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative 60 days with default returns relative`() {
+    fun `relativeDate 60 days with default returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(60)
         assertEquals(DateUtils.RelativeDate.DaysAgo(60), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative same calendar day but over 1h ago returns Today`() {
+    fun `relativeDate same calendar day but over 1h ago returns Today`() {
         // now = 2023-11-14 22:13 UTC; 6h ago = 16:13 same day
         val timestamp = now - TimeUnit.HOURS.toMillis(6)
         assertEquals(DateUtils.RelativeDate.Today, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative previous calendar day but less than 24h ago returns Yesterday`() {
+    fun `relativeDate previous calendar day but less than 24h ago returns Yesterday`() {
         // now = 2023-11-14 22:13 UTC; 23h ago = 2023-11-13 23:13 — different calendar day
         val timestamp = now - TimeUnit.HOURS.toMillis(23)
         assertEquals(DateUtils.RelativeDate.Yesterday, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative next calendar day returns Tomorrow`() {
+    fun `relativeDate next calendar day returns Tomorrow`() {
         val timestamp = now + TimeUnit.HOURS.toMillis(2)
         assertEquals(DateUtils.RelativeDate.Tomorrow, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative multiple future calendar days returns In days`() {
+    fun `relativeDate multiple future calendar days returns In days`() {
         val timestamp = now + TimeUnit.DAYS.toMillis(3)
         assertEquals(DateUtils.RelativeDate.InDays(3), DateUtils.relativeDate(timestamp, now))
     }

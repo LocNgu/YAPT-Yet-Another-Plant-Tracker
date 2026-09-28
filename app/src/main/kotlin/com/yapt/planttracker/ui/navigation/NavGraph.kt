@@ -95,15 +95,41 @@ private fun NavController.navigateInitialDestination(
     onConsumed()
 }
 
+// Care is the start destination, so Plants is not guaranteed to sit below Edit Plant on the back
+// stack (Care -> Plant Detail -> Edit). Reuse it when present; otherwise stack it above Care first.
+private fun NavController.showArchivedPlantOnPlantList(
+    editEntry: NavBackStackEntry,
+    archivedId: Long,
+    archivedName: String
+) {
+    val existing = runCatching { getBackStackEntry(Screen.PlantList.route) }.getOrNull()
+    if (existing != null) {
+        existing.savedStateHandle["archivedPlantId"] = archivedId
+        existing.savedStateHandle["archivedPlantName"] = archivedName
+        popBackStackOnce(editEntry, Screen.PlantList.route)
+        return
+    }
+    navigate(Screen.PlantList.createRoute()) {
+        popUpTo(graph.findStartDestination().id)
+        launchSingleTop = true
+    }
+    runCatching { getBackStackEntry(Screen.PlantList.route) }.getOrNull()?.savedStateHandle?.let { handle ->
+        handle["archivedPlantId"] = archivedId
+        handle["archivedPlantName"] = archivedName
+    }
+}
+
 @androidx.annotation.VisibleForTesting
 internal fun shouldShowBottomNavigation(
     currentRoute: String?,
-    plantListSelectionActive: Boolean
+    plantListSelectionActive: Boolean,
+    careSelectionActive: Boolean
 ): Boolean = currentRoute in setOf(
-    Screen.PlantList.route,
     Screen.Today.route,
+    Screen.PlantList.route,
     Screen.Calendar.route
-) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive)
+) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive) &&
+    !(currentRoute == Screen.Today.route && careSelectionActive)
 
 @Composable
 private fun ApplyCaredTodayDeepLink(
@@ -150,7 +176,8 @@ fun YaptNavGraph(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     var plantListSelectionActive by remember { mutableStateOf(false) }
-    val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive)
+    var careSelectionActive by remember { mutableStateOf(false) }
+    val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive, careSelectionActive)
 
     Scaffold(
         // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
@@ -163,18 +190,6 @@ fun YaptNavGraph(
             if (showBottomBar) {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = currentRoute == Screen.PlantList.route,
-                        onClick = {
-                            navController.navigate(Screen.PlantList.createRoute()) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Filled.LocalFlorist, contentDescription = null) },
-                        label = { Text(stringResource(R.string.nav_tab_plants)) }
-                    )
-                    NavigationBarItem(
                         selected = currentRoute == Screen.Today.route,
                         onClick = {
                             navController.navigate(Screen.Today.route) {
@@ -185,6 +200,18 @@ fun YaptNavGraph(
                         },
                         icon = { Icon(Icons.Filled.Checklist, contentDescription = null) },
                         label = { Text(stringResource(R.string.nav_tab_today)) }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.PlantList.route,
+                        onClick = {
+                            navController.navigate(Screen.PlantList.createRoute()) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Filled.LocalFlorist, contentDescription = null) },
+                        label = { Text(stringResource(R.string.nav_tab_plants)) }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Calendar.route,
@@ -204,7 +231,7 @@ fun YaptNavGraph(
     ) { scaffoldPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.PlantList.route,
+            startDestination = Screen.Today.route,
             modifier = Modifier.padding(scaffoldPadding)
         ) {
             composable(
@@ -293,11 +320,7 @@ fun YaptNavGraph(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onPlantArchived = { archivedId, archivedName ->
-                        navController.getBackStackEntry(Screen.PlantList.route)
-                            .savedStateHandle["archivedPlantId"] = archivedId
-                        navController.getBackStackEntry(Screen.PlantList.route)
-                            .savedStateHandle["archivedPlantName"] = archivedName
-                        navController.popBackStackOnce(backStackEntry, Screen.PlantList.route)
+                        navController.showArchivedPlantOnPlantList(backStackEntry, archivedId, archivedName)
                     }
                 )
             }
@@ -420,9 +443,10 @@ fun YaptNavGraph(
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onRestoreSuccess = { plantCount, logCount ->
                         val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
-                        navController.navigate(Screen.PlantList.createRoute(encodedMsg)) {
+                        navController.navigate(Screen.Today.route) {
                             popUpTo(0) { inclusive = true }
                         }
+                        navController.navigate(Screen.PlantList.createRoute(encodedMsg))
                     },
                     onShowWhatsNew = { showWhatsNew = true },
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) }
@@ -454,7 +478,8 @@ fun YaptNavGraph(
                     onNavigateToPlant = { plantId ->
                         navController.navigate(Screen.PlantDetail.createRoute(plantId))
                     },
-                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) }
+                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
+                    onSelectionModeChanged = { careSelectionActive = it }
                 )
             }
 

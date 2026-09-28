@@ -13,18 +13,20 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- **A new Today tab turns every due care item into one queue** — work through watering, fertilizing,
-  repotting, custom reminders, linked issue treatments, and optional progress photos in Overdue,
-  Today, and the next three days. Actions reuse the existing care flows, and non-photo tasks can be
-  selected and completed atomically in one batch. Plants remains the start tab; a temporary
-  developer flag can switch the same queue to a plant-grouped layout for comparison (#836, product
-  ADR-0054)
+- **A new Care tab turns every due care item into one queue, and it is now the first tab and the screen the
+  app opens on** — work through watering, fertilizing, repotting, custom reminders, linked issue
+  treatments, and optional progress photos due Overdue through the next three days. Tasks are grouped by
+  type with watering first (then issue treatments, fertilizing, reminders, repotting, photos), and every
+  row shows its own due label with overdue ones highlighted. Long-press a row to select tasks and complete
+  them together in one batch; the bottom bar steps aside while selecting, like the Plants list. Actions
+  reuse the existing care flows, and the queue rolls over at local midnight while the app stays open. The
+  tab order is now Care · Plants · Calendar; a temporary developer flag can switch the same queue to a
+  plant-grouped layout for comparison (#836, product ADR-0054)
 - **Deleted photos now free up storage instead of leaking forever** — a background sweep now reclaims camera-capture and restore-output image files once nothing in the database references them anymore (a deleted plant's cover photo and care-log photos, a deleted gallery photo, a second `.yapt` restore's leftover files from the first). Runs daily and right after a delete or restore; in-flight captures and gallery-picked photos are never touched (#736, #559, technical ADR-0031)
 
 ### Fixed
 - **The "Cared for today" plant list and Calendar's due/overdue grouping now refresh right at midnight** — previously they kept showing yesterday's snapshot (e.g. a plant watered yesterday still listed as "cared for today," or Calendar's today/overdue groupings staying stale) until some unrelated change like a new care log or switching a filter forced a recompute. A shared day-change ticker now triggers the recompute on its own, self-correcting even across a device sleeping through midnight (#550)
-- **The new Today queue also rolls over at local midnight** — it reuses the shared day-change ticker,
-  so due tasks do not retain yesterday's state while YAPT stays open (#836, product ADR-0054)
+- **Calendar's photo reminder now also records the photo in the plant's care history** — taking a photo from the Calendar reminder used to add it to the plant's gallery and cover only, while the Plants list and Plant Detail reminders also logged a Photo entry in care history; all three now save the same way, in one transaction (#836)
 - **Due dates could land a day early right after a daylight saving time change** — watering, fertilizing, repotting, custom reminder, and reschedule/skip-watering due dates advancing by N days now always land on the correct calendar day, including across the once-a-year "fall back" transition where a local day is 25 hours long instead of 24 (#733, technical ADR-0034)
 - **Backdating a watering in Add Care Log no longer teaches the schedule from the wrong gap** — a forgotten watering entered between two existing ones is now measured from the watering just before it, instead of from the two most recent waterings on file, which had nothing to do with the entry. A watering backdated before every existing one no longer adjusts the schedule at all, the same as the Plant Detail "Log watering" picker. Entries for today and a plant's first-ever watering behave exactly as before (#673, technical ADR-0033, amending technical ADR-0030)
 - **A camera photo is no longer silently lost if Android recreates the app while the camera is open** — the in-flight capture target now survives Activity recreation (low memory, a configuration change, or "Don't keep activities"), so the photo still reaches Add Care Log, Add/Edit Plant, Plant Detail, and the Plant List/Calendar photo reminders, and a cancelled capture still deletes its temporary file (#706)

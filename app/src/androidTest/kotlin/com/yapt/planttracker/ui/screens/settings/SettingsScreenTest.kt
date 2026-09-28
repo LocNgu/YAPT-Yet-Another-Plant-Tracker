@@ -586,7 +586,7 @@ class SettingsScreenTest {
         tapVersionRow(5)
         waitForDeveloperSwitch(present = true)
 
-        composeTestRule.onNodeWithText("Group Today queue by plant").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Group Care queue by plant").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Show each plant once with its due care grouped underneath")
             .assertIsDisplayed()
         composeTestRule.onNodeWithTag("feature_flag_switch_today_group_by_plant").assertIsOff()

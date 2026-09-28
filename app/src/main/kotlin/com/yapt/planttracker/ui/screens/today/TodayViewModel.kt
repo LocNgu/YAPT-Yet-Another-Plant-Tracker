@@ -69,11 +69,12 @@ class TodayViewModel(
     private val bulkCompletionInFlight = AtomicBoolean(false)
 
     private val retryGeneration = MutableStateFlow(0)
+    private val loadingAfterRetryPending = AtomicBoolean(false)
     private val queueResult = retryGeneration.flatMapLatest {
         todayCareRepository.observeQueue()
             .map<TodayQueueSnapshot, QueueResult> { QueueResult.Success(it) }
             .catch { emit(QueueResult.Error) }
-            .onStart { emit(QueueResult.Loading) }
+            .onStart { if (loadingAfterRetryPending.getAndSet(false)) emit(QueueResult.Loading) }
     }.onEach { result ->
         if (result is QueueResult.Success) reconcileSelection(result.snapshot.tasks)
     }
@@ -99,6 +100,7 @@ class TodayViewModel(
     val navigationEvent: SharedFlow<TodayNavigationEvent> = _navigationEvent.asSharedFlow()
 
     fun retry() {
+        loadingAfterRetryPending.set(true)
         retryGeneration.value += 1
     }
 
@@ -145,25 +147,24 @@ class TodayViewModel(
         val claimedIds = tasks.mapTo(mutableSetOf()) { it.id }
         _selectedTaskIds.value = emptySet()
         viewModelScope.launch {
-            try {
+            val message = try {
                 val result = quickLogUseCase.completeTodayTasks(tasks)
-                _messageEvent.emit(
-                    application.getString(
-                        R.string.today_bulk_result,
-                        result.completedCount,
-                        result.totalCount,
-                        result.skippedCount
-                    )
+                application.getString(
+                    R.string.today_bulk_result,
+                    result.completedCount,
+                    result.totalCount,
+                    result.skippedCount
                 )
             } catch (error: CancellationException) {
                 restoreSelection(claimedIds)
                 throw error
             } catch (_: Exception) {
                 restoreSelection(claimedIds)
-                _messageEvent.emit(application.getString(R.string.today_action_failed))
+                application.getString(R.string.today_action_failed)
             } finally {
                 bulkCompletionInFlight.set(false)
             }
+            _messageEvent.emit(message)
         }
     }
 
@@ -197,9 +198,7 @@ class TodayViewModel(
     fun completeCustomReminder(taskId: String) {
         val task = task(taskId) ?: return
         viewModelScope.launch {
-            runCatching { quickLogUseCase.completeCustomReminder(task) }
-                .onSuccess { _messageEvent.emit(it.message) }
-                .onFailure { _messageEvent.emit(application.getString(R.string.today_action_failed)) }
+            executeQuickAction { quickLogUseCase.completeCustomReminder(task) }
         }
     }
 

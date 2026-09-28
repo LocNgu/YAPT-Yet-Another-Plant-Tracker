@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -136,36 +137,79 @@ class TodayQueueAggregatorTest {
     @Test
     fun `photo task uses newest timestamp and ignores popup session suppression`() {
         val plant = plant(createdAt = millis(today.minusDays(90)))
-        com.yapt.planttracker.domain.reminder.PhotoReminderPolicy.shownThisSession += plant.id
+        PhotoReminderPolicy.shownThisSession += plant.id
+        try {
+            val result = TodayQueueAggregator.build(
+                input(
+                    plants = listOf(plant),
+                    logs = listOf(
+                        CareLog(
+                            plantId = plant.id,
+                            careType = CareType.PHOTO,
+                            loggedAt = millis(today.minusDays(40)),
+                            photoUri = "old.jpg"
+                        )
+                    ),
+                    photos = listOf(
+                        PlantPhoto(
+                            plantId = plant.id,
+                            uri = "new.jpg",
+                            capturedAt = millis(today.minusDays(10))
+                        )
+                    ),
+                    photoEnabled = true
+                )
+            )
+
+            assertFalse(result.tasks.any { it.kind == TodayCareKind.PHOTO })
+
+            val dueResult = TodayQueueAggregator.build(
+                input(plants = listOf(plant), photoEnabled = true)
+            )
+            assertTrue(dueResult.tasks.any { it.kind == TodayCareKind.PHOTO })
+        } finally {
+            PhotoReminderPolicy.shownThisSession -= plant.id
+        }
+    }
+
+    @Test
+    fun `photo reminders disabled produce no photo task`() {
+        val plant = plant(createdAt = millis(today.minusDays(90)))
+
+        val enabled = TodayQueueAggregator.build(input(plants = listOf(plant), photoEnabled = true))
+        val disabled = TodayQueueAggregator.build(input(plants = listOf(plant), photoEnabled = false))
+
+        assertTrue(enabled.tasks.any { it.kind == TodayCareKind.PHOTO })
+        assertFalse(disabled.tasks.any { it.kind == TodayCareKind.PHOTO })
+    }
+
+    @Test
+    fun `active watering reschedule moves the task to the override day`() {
+        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(2)))
         val result = TodayQueueAggregator.build(
             input(
-                plants = listOf(plant),
-                logs = listOf(
-                    CareLog(
-                        plantId = plant.id,
-                        careType = CareType.PHOTO,
-                        loggedAt = millis(today.minusDays(40)),
-                        photoUri = "old.jpg"
-                    )
-                ),
-                photos = listOf(
-                    PlantPhoto(
-                        plantId = plant.id,
-                        uri = "new.jpg",
-                        capturedAt = millis(today.minusDays(10))
-                    )
-                ),
-                photoEnabled = true
+                plants = listOf(rescheduled),
+                logs = listOf(log(rescheduled.id, CareType.WATER, today.minusDays(7)))
             )
         )
 
-        assertFalse(result.tasks.any { it.kind == TodayCareKind.PHOTO })
+        val task = result.tasks.single()
+        assertEquals(TodayCareKind.WATER, task.kind)
+        assertEquals(millis(today.plusDays(2)), task.dueAt)
+        assertEquals(TodayTaskBucket.Upcoming(today.plusDays(2).toEpochDay()), task.bucket)
+    }
 
-        val dueResult = TodayQueueAggregator.build(
-            input(plants = listOf(plant), photoEnabled = true)
+    @Test
+    fun `watering reschedule beyond the horizon removes the task`() {
+        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(5)))
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(rescheduled),
+                logs = listOf(log(rescheduled.id, CareType.WATER, today.minusDays(7)))
+            )
         )
-        assertTrue(dueResult.tasks.any { it.kind == TodayCareKind.PHOTO })
-        com.yapt.planttracker.domain.reminder.PhotoReminderPolicy.shownThisSession -= plant.id
+
+        assertTrue(result.tasks.isEmpty())
     }
 
     @Test
@@ -333,6 +377,70 @@ class TodayQueueAggregatorTest {
         assertEquals(tasks.map { it.id }.toSet(), sections.single().groups.single().tasks.map { it.id }.toSet())
     }
 
+    @Test
+    fun `care type sections order watering first and hide empty sections`() {
+        val fern = plant()
+        val tasks = listOf(
+            task("photo:1", fern, TodayCareKind.PHOTO, TodayTaskBucket.Today),
+            task("repot:1", fern, TodayCareKind.REPOT, TodayTaskBucket.Today),
+            task("custom:1", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today),
+            task("fertilize:1", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Today),
+            task("issue:1", fern, TodayCareKind.ISSUE_TREATMENT, TodayTaskBucket.Today),
+            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue)
+        )
+
+        val sections = careTypeSections(tasks)
+
+        assertEquals(
+            listOf(
+                TodayCareSection.WATERING,
+                TodayCareSection.ISSUE_TREATMENTS,
+                TodayCareSection.FERTILIZING,
+                TodayCareSection.CUSTOM_REMINDERS,
+                TodayCareSection.REPOTTING,
+                TodayCareSection.PHOTOS
+            ),
+            sections.map { it.section }
+        )
+        assertEquals(
+            listOf(TodayCareSection.WATERING, TodayCareSection.PHOTOS),
+            careTypeSections(tasks.filter { it.kind == TodayCareKind.WATER || it.kind == TodayCareKind.PHOTO })
+                .map { it.section }
+        )
+        assertTrue(careTypeSections(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `care type sections keep every task once and preserve queue order within a section`() {
+        val fern = plant(id = 1L, name = "Fern")
+        val aloe = plant(id = 2L, name = "Aloe")
+        val tasks = listOf(
+            task("water:2", aloe, TodayCareKind.WATER, TodayTaskBucket.Overdue),
+            task("fertilize:1", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Today),
+            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Today),
+            task("custom:1", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today)
+        )
+
+        val sections = careTypeSections(tasks)
+
+        assertEquals(tasks.map { it.id }.sorted(), sections.flatMap { it.tasks }.map { it.id }.sorted())
+        assertEquals(
+            listOf("water:2", "water:1"),
+            sections.first { it.section == TodayCareSection.WATERING }.tasks.map { it.id }
+        )
+    }
+
+    @Test
+    fun `combined water and fertilize task sits under watering only`() {
+        val fern = plant()
+        val combined = task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE, TodayTaskBucket.Today)
+
+        val sections = careTypeSections(listOf(combined))
+
+        assertEquals(listOf(TodayCareSection.WATERING), sections.map { it.section })
+        assertEquals(listOf(combined), sections.single().tasks)
+    }
+
     @Suppress("LongParameterList")
     private fun plant(
         id: Long = 1L,
@@ -345,7 +453,8 @@ class TodayQueueAggregatorTest {
         createdAt: Long = millis(today.minusDays(60)),
         dormancyStartMonth: Int? = null,
         dormancyEndMonth: Int? = null,
-        dormantWateringIntervalDays: Int? = null
+        dormantWateringIntervalDays: Int? = null,
+        wateringDueDateOverride: Long? = null
     ) = Plant(
         id = id,
         name = name,
@@ -359,6 +468,7 @@ class TodayQueueAggregatorTest {
         dormancyStartMonth = dormancyStartMonth,
         dormancyEndMonth = dormancyEndMonth,
         dormantWateringIntervalDays = dormantWateringIntervalDays,
+        wateringDueDateOverride = wateringDueDateOverride,
         pinIntervalToBase = true
     )
 

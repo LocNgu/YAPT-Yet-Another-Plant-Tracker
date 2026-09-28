@@ -4,6 +4,7 @@ package com.yapt.planttracker.ui.screens.today
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,9 +57,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,11 +74,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.today.TodayCareKind
+import com.yapt.planttracker.domain.today.TodayCareSection
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayPlantGroup
 import com.yapt.planttracker.domain.today.TodayTaskBucket
+import com.yapt.planttracker.domain.today.careTypeSections
 import com.yapt.planttracker.domain.today.plantSections
-import com.yapt.planttracker.domain.today.taskSections
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
@@ -77,11 +88,13 @@ import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
+import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.util.DateUtils
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
+private val TODAY_PHOTO_SIZE = 72.dp
 const val TODAY_TASK_LIST_TAG = "today_task_list"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,7 +104,8 @@ fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onLaunchPhotoCapture: ((Long) -> Unit)? = null
+    onLaunchPhotoCapture: ((Long) -> Unit)? = null,
+    onSelectionModeChanged: (Boolean) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
@@ -100,10 +114,11 @@ fun TodayScreen(
     var reasonTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var rescheduleTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var repotTaskId by rememberSaveable { mutableStateOf<String?>(null) }
-    val readyTasks = (uiState as? TodayUiState.Ready)?.snapshot?.tasks.orEmpty()
-    val reasonTask = reasonTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
-    val rescheduleTask = rescheduleTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
-    val repotTask = repotTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
+    val listState = rememberLazyListState()
+    val readyTasks = (uiState as? TodayUiState.Ready)?.snapshot?.tasks
+    val reasonTask = reasonTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
+    val rescheduleTask = rescheduleTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
+    val repotTask = repotTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
     var pendingPhotoPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pendingSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
     var intervalText by remember(pendingSuggestion) {
@@ -131,6 +146,31 @@ fun TodayScreen(
     }
 
     BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
+
+    LaunchedEffect(selectionMode) { onSelectionModeChanged(selectionMode) }
+    DisposableEffect(Unit) { onDispose { onSelectionModeChanged(false) } }
+
+    LaunchedEffect(readyTasks) {
+        if (readyTasks != null) {
+            val liveIds = readyTasks.mapTo(HashSet()) { it.id }
+            reasonTaskId?.let { if (it !in liveIds) reasonTaskId = null }
+            rescheduleTaskId?.let { if (it !in liveIds) rescheduleTaskId = null }
+            repotTaskId?.let { if (it !in liveIds) repotTaskId = null }
+        }
+    }
+
+    val actions = TodayTaskActions(
+        onOpen = viewModel::openPlant,
+        onToggleSelection = viewModel::toggleTaskSelection,
+        onTogglePlant = viewModel::togglePlantSelection,
+        onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
+        onReschedule = { rescheduleTaskId = it.id },
+        onRepot = { repotTaskId = it.id },
+        onPhoto = {
+            pendingPhotoPlantId = it.plant.id
+            onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
+        }
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -181,34 +221,15 @@ fun TodayScreen(
                     state.snapshot.tasks.isEmpty() -> TodayCaughtUpState()
                     state.groupByPlant -> GroupedTodayList(
                         tasks = state.snapshot.tasks,
-                        selectedTaskIds = selectedTaskIds,
-                        onTogglePlant = viewModel::togglePlantSelection,
-                        actions = TodayTaskActions(
-                            onOpen = viewModel::openPlant,
-                            onToggleSelection = viewModel::toggleTaskSelection,
-                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
-                            onReschedule = { rescheduleTaskId = it.id },
-                            onRepot = { repotTaskId = it.id },
-                            onPhoto = {
-                                pendingPhotoPlantId = it.plant.id
-                                onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
-                            }
-                        )
+                        listState = listState,
+                        selection = TodaySelection(selectionMode, selectedTaskIds),
+                        actions = actions
                     )
-                    else -> TaskTodayList(
+                    else -> CareTypeTodayList(
                         tasks = state.snapshot.tasks,
-                        selectedTaskIds = selectedTaskIds,
-                        actions = TodayTaskActions(
-                            onOpen = viewModel::openPlant,
-                            onToggleSelection = viewModel::toggleTaskSelection,
-                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
-                            onReschedule = { rescheduleTaskId = it.id },
-                            onRepot = { repotTaskId = it.id },
-                            onPhoto = {
-                                pendingPhotoPlantId = it.plant.id
-                                onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
-                            }
-                        )
+                        listState = listState,
+                        selection = TodaySelection(selectionMode, selectedTaskIds),
+                        actions = actions
                     )
                 }
             }
@@ -328,28 +349,40 @@ fun TodayScreen(
 private data class TodayTaskActions(
     val onOpen: (Long) -> Unit,
     val onToggleSelection: (String) -> Unit,
+    val onTogglePlant: (Long) -> Unit,
     val onComplete: (TodayCareTask) -> Unit,
     val onReschedule: (TodayCareTask) -> Unit,
     val onRepot: (TodayCareTask) -> Unit,
     val onPhoto: (TodayCareTask) -> Unit
 )
 
+private data class TodaySelection(val active: Boolean, val selectedTaskIds: Set<String>)
+
 @Composable
-private fun TaskTodayList(
+private fun CareTypeTodayList(
     tasks: List<TodayCareTask>,
-    selectedTaskIds: Set<String>,
+    listState: LazyListState,
+    selection: TodaySelection,
     actions: TodayTaskActions
 ) {
-    val listState = rememberLazyListState()
+    val sections = remember(tasks) { careTypeSections(tasks) }
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = 16.dp),
         modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
-        for (section in taskSections(tasks)) {
-            item(key = "header-${section.bucket}") { TodaySectionHeader(section.bucket) }
+        for (section in sections) {
+            item(key = "section-${section.section}") {
+                TodaySectionHeader(careSectionTitle(section.section))
+            }
             items(section.tasks, key = { it.id }) { task ->
-                TodayTaskRow(task, task.id in selectedTaskIds, actions, showSelection = true)
+                TodayTaskRow(
+                    task = task,
+                    selectionMode = selection.active,
+                    selected = task.id in selection.selectedTaskIds,
+                    showPlantIdentity = true,
+                    actions = actions
+                )
             }
         }
     }
@@ -358,53 +391,74 @@ private fun TaskTodayList(
 @Composable
 private fun GroupedTodayList(
     tasks: List<TodayCareTask>,
-    selectedTaskIds: Set<String>,
-    onTogglePlant: (Long) -> Unit,
+    listState: LazyListState,
+    selection: TodaySelection,
     actions: TodayTaskActions
 ) {
-    val listState = rememberLazyListState()
+    val sections = remember(tasks) { plantSections(tasks) }
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = 16.dp),
         modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
-        for (section in plantSections(tasks)) {
-            item(key = "group-header-${section.bucket}") { TodaySectionHeader(section.bucket) }
+        for (section in sections) {
+            item(key = "group-header-${section.bucket}") {
+                TodaySectionHeader(bucketTitle(section.bucket))
+            }
             items(section.groups, key = { "plant-${it.plant.id}" }) { group ->
-                TodayPlantGroupCard(group, selectedTaskIds, onTogglePlant, actions)
+                TodayPlantGroupCard(group, selection, actions)
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TodayPlantGroupCard(
     group: TodayPlantGroup,
-    selectedTaskIds: Set<String>,
-    onTogglePlant: (Long) -> Unit,
+    selection: TodaySelection,
     actions: TodayTaskActions
 ) {
     val eligibleIds = group.tasks.filter { it.isBulkEligible }.map { it.id }
+    val selectable = selection.active && eligibleIds.isNotEmpty()
+    val allSelected = eligibleIds.isNotEmpty() && eligibleIds.all { it in selection.selectedTaskIds }
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (selectable && allSelected) {
+                        Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
+                    } else {
+                        Modifier
+                    }
+                )
+                .combinedClickable(
+                    onClick = {
+                        if (selection.active) actions.onTogglePlant(group.plant.id) else actions.onOpen(group.plant.id)
+                    },
+                    onLongClick = { actions.onTogglePlant(group.plant.id) },
+                    onLongClickLabel = stringResource(R.string.today_select_plant_tasks, group.plant.name),
+                    role = Role.Button
+                )
+                .then(if (selectable) Modifier.semantics { this.selected = allSelected } else Modifier)
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PlantPhoto(group.plant.coverPhotoUri, 44.dp)
+            PlantPhoto(group.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
             Spacer(Modifier.width(12.dp))
             Text(group.plant.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (eligibleIds.isNotEmpty()) {
-                val description = stringResource(R.string.today_select_plant_tasks, group.plant.name)
-                Checkbox(
-                    checked = eligibleIds.all { it in selectedTaskIds },
-                    onCheckedChange = { onTogglePlant(group.plant.id) },
-                    modifier = Modifier.semantics { contentDescription = description }
-                )
-            }
+            if (selectable) Checkbox(checked = allSelected, onCheckedChange = null)
         }
         HorizontalDivider()
         for (task in group.tasks) {
-            TodayTaskRow(task, task.id in selectedTaskIds, actions, showSelection = false)
+            TodayTaskRow(
+                task = task,
+                selectionMode = selection.active,
+                selected = task.id in selection.selectedTaskIds,
+                showPlantIdentity = false,
+                actions = actions
+            )
         }
     }
 }
@@ -413,51 +467,92 @@ private fun TodayPlantGroupCard(
 @Composable
 private fun TodayTaskRow(
     task: TodayCareTask,
+    selectionMode: Boolean,
     selected: Boolean,
-    actions: TodayTaskActions,
-    showSelection: Boolean
+    showPlantIdentity: Boolean,
+    actions: TodayTaskActions
 ) {
-    val selectDescription = stringResource(R.string.today_select_task, taskTitle(task))
+    val selectable = selectionMode && task.isBulkEligible
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (selectable && selected) {
+                    Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
+                } else {
+                    Modifier
+                }
+            )
             .combinedClickable(
-                onClick = { actions.onOpen(task.plant.id) },
-                onLongClick = { if (task.isBulkEligible) actions.onToggleSelection(task.id) }
+                onClick = {
+                    if (selectionMode) actions.onToggleSelection(task.id) else actions.onOpen(task.plant.id)
+                },
+                onLongClick = { actions.onToggleSelection(task.id) },
+                onLongClickLabel = stringResource(R.string.today_select_task, task.plant.name),
+                role = Role.Button
             )
+            .then(if (selectable) Modifier.semantics { this.selected = selected } else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
-        if (showSelection && task.isBulkEligible) {
-            Checkbox(
-                checked = selected,
-                onCheckedChange = { actions.onToggleSelection(task.id) },
-                modifier = Modifier.semantics { contentDescription = selectDescription }
-            )
-            Spacer(Modifier.width(8.dp))
-        }
-        if (showSelection) {
-            PlantPhoto(task.plant.coverPhotoUri, 40.dp)
+        if (showPlantIdentity) {
+            Box {
+                PlantPhoto(task.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
+                if (selectable) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                    ) {
+                        Checkbox(checked = selected, onCheckedChange = null)
+                    }
+                }
+            }
             Spacer(Modifier.width(12.dp))
+        } else if (selectable) {
+            Checkbox(checked = selected, onCheckedChange = null)
+            Spacer(Modifier.width(4.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(taskTitle(task), style = MaterialTheme.typography.titleSmall)
-            if (showSelection) {
-                Text(task.plant.name, style = MaterialTheme.typography.bodyMedium)
+            if (showPlantIdentity) {
+                Text(task.plant.name, style = MaterialTheme.typography.titleMedium)
             }
-            Text(
-                relativeDateText(task.dueAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            taskName(task)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            TodayDueLabel(task)
+            TodayTaskButtons(task, selectionMode, actions)
         }
-        TodayTaskButtons(task, actions)
     }
 }
 
 @Composable
-private fun TodayTaskButtons(task: TodayCareTask, actions: TodayTaskActions) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun TodayDueLabel(task: TodayCareTask) {
+    val label = relativeDateText(task.dueAt)
+    val overdue = task.bucket == TodayTaskBucket.Overdue
+    val overdueDescription = stringResource(R.string.today_due_overdue_cd, label)
+    Text(
+        label,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (overdue) OverdueRed else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = if (overdue) {
+            Modifier.semantics { contentDescription = overdueDescription }
+        } else {
+            Modifier
+        }
+    )
+}
+
+@Composable
+private fun TodayTaskButtons(task: TodayCareTask, selectionMode: Boolean, actions: TodayTaskActions) {
+    val actionDescription = taskActionDescription(task)
+    val rescheduleDescription = stringResource(R.string.today_reschedule_watering_cd, task.plant.name)
+    // While selecting, keep the row height stable but hide the controls from sight and TalkBack
+    // so taps toggle selection instead of completing a task (mirrors PlantCard's quick-log buttons).
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = if (selectionMode) Modifier.alpha(0f).clearAndSetSemantics {} else Modifier
+    ) {
         TextButton(
             onClick = {
                 when (task.kind) {
@@ -466,55 +561,84 @@ private fun TodayTaskButtons(task: TodayCareTask, actions: TodayTaskActions) {
                     else -> actions.onComplete(task)
                 }
             },
-            modifier = Modifier.testTag("today_task_action_${task.id}")
+            enabled = !selectionMode,
+            modifier = Modifier
+                .testTag("today_task_action_${task.id}")
+                .semantics { contentDescription = actionDescription }
         ) {
-            Text(
-                when (task.kind) {
-                    TodayCareKind.WATER -> stringResource(R.string.today_action_water)
-                    TodayCareKind.FERTILIZE -> stringResource(R.string.today_action_fertilize)
-                    TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize)
-                    TodayCareKind.REPOT -> stringResource(R.string.today_action_repot)
-                    TodayCareKind.CUSTOM_REMINDER,
-                    TodayCareKind.ISSUE_TREATMENT -> stringResource(R.string.today_action_done)
-                    TodayCareKind.PHOTO -> stringResource(R.string.today_action_photo)
-                }
-            )
+            Text(taskActionLabel(task), modifier = Modifier.clearAndSetSemantics {})
         }
         if (task.kind == TodayCareKind.WATER || task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
-            IconButton(onClick = { actions.onReschedule(task) }) {
-                Icon(Icons.Filled.Schedule, stringResource(R.string.reschedule_watering_title))
+            IconButton(onClick = { actions.onReschedule(task) }, enabled = !selectionMode) {
+                Icon(Icons.Filled.Schedule, rescheduleDescription)
             }
         }
     }
 }
 
 @Composable
-private fun taskTitle(task: TodayCareTask): String = when (task.kind) {
-    TodayCareKind.WATER -> stringResource(R.string.today_task_water)
-    TodayCareKind.FERTILIZE -> stringResource(R.string.today_task_fertilize)
-    TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_task_water_fertilize)
-    TodayCareKind.REPOT -> stringResource(R.string.today_task_repot)
+private fun taskActionLabel(task: TodayCareTask): String = when (task.kind) {
+    TodayCareKind.WATER -> stringResource(R.string.today_action_water)
+    TodayCareKind.FERTILIZE -> stringResource(R.string.today_action_fertilize)
+    TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize)
+    TodayCareKind.REPOT -> stringResource(R.string.today_action_repot)
+    TodayCareKind.CUSTOM_REMINDER,
+    TodayCareKind.ISSUE_TREATMENT -> stringResource(R.string.today_action_done)
+    TodayCareKind.PHOTO -> stringResource(R.string.today_action_photo)
+}
+
+@Composable
+private fun taskActionDescription(task: TodayCareTask): String {
+    val plantName = task.plant.name
+    return when (task.kind) {
+        TodayCareKind.WATER -> stringResource(R.string.today_action_water_cd, plantName)
+        TodayCareKind.FERTILIZE -> stringResource(R.string.today_action_fertilize_cd, plantName)
+        TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize_cd, plantName)
+        TodayCareKind.REPOT -> stringResource(R.string.today_action_repot_cd, plantName)
+        TodayCareKind.PHOTO -> stringResource(R.string.today_action_photo_cd, plantName)
+        TodayCareKind.CUSTOM_REMINDER,
+        TodayCareKind.ISSUE_TREATMENT ->
+            stringResource(R.string.today_action_done_cd, taskName(task).orEmpty(), plantName)
+    }
+}
+
+@Composable
+private fun taskName(task: TodayCareTask): String? = when (task.kind) {
     TodayCareKind.CUSTOM_REMINDER -> task.customReminder?.name.orEmpty()
     TodayCareKind.ISSUE_TREATMENT -> stringResource(
         R.string.today_task_treatment,
         task.issueName ?: task.customReminder?.name.orEmpty()
     )
-    TodayCareKind.PHOTO -> stringResource(R.string.today_task_photo)
+    else -> null
 }
 
 @Composable
-private fun TodaySectionHeader(bucket: TodayTaskBucket) {
-    val title = when (bucket) {
-        TodayTaskBucket.Overdue -> stringResource(R.string.date_group_overdue)
-        TodayTaskBucket.Today -> stringResource(R.string.date_group_today)
-        is TodayTaskBucket.Upcoming -> DateUtils.formatWeekdayDate(bucket.epochDay)
-    }
+private fun careSectionTitle(section: TodayCareSection): String = when (section) {
+    TodayCareSection.WATERING -> stringResource(R.string.care_section_watering)
+    TodayCareSection.ISSUE_TREATMENTS -> stringResource(R.string.care_section_issue_treatments)
+    TodayCareSection.FERTILIZING -> stringResource(R.string.care_section_fertilizing)
+    TodayCareSection.CUSTOM_REMINDERS -> stringResource(R.string.care_section_custom_reminders)
+    TodayCareSection.REPOTTING -> stringResource(R.string.care_section_repotting)
+    TodayCareSection.PHOTOS -> stringResource(R.string.care_section_photos)
+}
+
+@Composable
+private fun bucketTitle(bucket: TodayTaskBucket): String = when (bucket) {
+    TodayTaskBucket.Overdue -> stringResource(R.string.date_group_overdue)
+    TodayTaskBucket.Today -> stringResource(R.string.date_group_today)
+    is TodayTaskBucket.Upcoming -> DateUtils.formatWeekdayDate(bucket.epochDay)
+}
+
+@Composable
+private fun TodaySectionHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp)
+        modifier = Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp)
+            .semantics { heading() }
     )
 }
 
