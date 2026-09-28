@@ -2,10 +2,7 @@
 
 package com.yapt.planttracker.ui.screens.today
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,22 +18,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,15 +47,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -76,10 +63,8 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareSection
 import com.yapt.planttracker.domain.today.TodayCareTask
-import com.yapt.planttracker.domain.today.TodayPlantGroup
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.today.careTypeSections
-import com.yapt.planttracker.domain.today.plantSections
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
@@ -90,7 +75,6 @@ import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.util.relativeDateText
-import com.yapt.planttracker.util.DateUtils
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
@@ -104,12 +88,9 @@ fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onLaunchPhotoCapture: ((Long) -> Unit)? = null,
-    onSelectionModeChanged: (Boolean) -> Unit = {}
+    onLaunchPhotoCapture: ((Long) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
-    val selectionMode = selectedTaskIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     var reasonTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var rescheduleTaskId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -145,11 +126,6 @@ fun TodayScreen(
         }
     }
 
-    BackHandler(enabled = selectionMode) { viewModel.clearSelection() }
-
-    LaunchedEffect(selectionMode) { onSelectionModeChanged(selectionMode) }
-    DisposableEffect(Unit) { onDispose { onSelectionModeChanged(false) } }
-
     LaunchedEffect(readyTasks) {
         if (readyTasks != null) {
             val liveIds = readyTasks.mapTo(HashSet()) { it.id }
@@ -161,8 +137,6 @@ fun TodayScreen(
 
     val actions = TodayTaskActions(
         onOpen = viewModel::openPlant,
-        onToggleSelection = viewModel::toggleTaskSelection,
-        onTogglePlant = viewModel::togglePlantSelection,
         onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
         onReschedule = { rescheduleTaskId = it.id },
         onRepot = { repotTaskId = it.id },
@@ -174,43 +148,7 @@ fun TodayScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (selectionMode) {
-                            stringResource(R.string.today_selected_count, selectedTaskIds.size)
-                        } else {
-                            stringResource(R.string.nav_tab_today)
-                        }
-                    )
-                },
-                navigationIcon = {
-                    if (selectionMode) {
-                        IconButton(onClick = viewModel::clearSelection) {
-                            Icon(Icons.Filled.Close, stringResource(R.string.cd_bulk_clear_selection))
-                        }
-                    }
-                },
-                actions = {
-                    if (selectionMode) {
-                        IconButton(onClick = viewModel::selectAll) {
-                            Icon(Icons.Filled.DoneAll, stringResource(R.string.cd_bulk_select_all))
-                        }
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            if (selectionMode) {
-                Button(
-                    onClick = viewModel::completeSelected,
-                    modifier = Modifier.fillMaxWidth().padding(16.dp)
-                ) {
-                    Text(stringResource(R.string.today_complete_selected))
-                }
-            }
-        }
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_tab_today)) }) }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (val state = uiState) {
@@ -219,16 +157,9 @@ fun TodayScreen(
                 is TodayUiState.Ready -> when {
                     state.snapshot.activePlantCount == 0 -> TodayFirstUseState(viewModel::addPlant)
                     state.snapshot.tasks.isEmpty() -> TodayCaughtUpState()
-                    state.groupByPlant -> GroupedTodayList(
-                        tasks = state.snapshot.tasks,
-                        listState = listState,
-                        selection = TodaySelection(selectionMode, selectedTaskIds),
-                        actions = actions
-                    )
                     else -> CareTypeTodayList(
                         tasks = state.snapshot.tasks,
                         listState = listState,
-                        selection = TodaySelection(selectionMode, selectedTaskIds),
                         actions = actions
                     )
                 }
@@ -348,21 +279,16 @@ fun TodayScreen(
 
 private data class TodayTaskActions(
     val onOpen: (Long) -> Unit,
-    val onToggleSelection: (String) -> Unit,
-    val onTogglePlant: (Long) -> Unit,
     val onComplete: (TodayCareTask) -> Unit,
     val onReschedule: (TodayCareTask) -> Unit,
     val onRepot: (TodayCareTask) -> Unit,
     val onPhoto: (TodayCareTask) -> Unit
 )
 
-private data class TodaySelection(val active: Boolean, val selectedTaskIds: Set<String>)
-
 @Composable
 private fun CareTypeTodayList(
     tasks: List<TodayCareTask>,
     listState: LazyListState,
-    selection: TodaySelection,
     actions: TodayTaskActions
 ) {
     val sections = remember(tasks) { careTypeSections(tasks) }
@@ -376,163 +302,29 @@ private fun CareTypeTodayList(
                 TodaySectionHeader(careSectionTitle(section.section))
             }
             items(section.tasks, key = { it.id }) { task ->
-                TodayTaskRow(
-                    task = task,
-                    selectionMode = selection.active,
-                    selected = task.id in selection.selectedTaskIds,
-                    showPlantIdentity = true,
-                    actions = actions
-                )
+                TodayTaskRow(task = task, actions = actions)
             }
         }
     }
 }
 
 @Composable
-private fun GroupedTodayList(
-    tasks: List<TodayCareTask>,
-    listState: LazyListState,
-    selection: TodaySelection,
-    actions: TodayTaskActions
-) {
-    val sections = remember(tasks) { plantSections(tasks) }
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(bottom = 16.dp),
-        modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
-    ) {
-        for (section in sections) {
-            item(key = "group-header-${section.bucket}") {
-                TodaySectionHeader(bucketTitle(section.bucket))
-            }
-            items(section.groups, key = { "plant-${it.plant.id}" }) { group ->
-                TodayPlantGroupCard(group, selection, actions)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun TodayPlantGroupCard(
-    group: TodayPlantGroup,
-    selection: TodaySelection,
-    actions: TodayTaskActions
-) {
-    val eligibleIds = group.tasks.filter { it.isBulkEligible }.map { it.id }
-    val selectable = selection.active && eligibleIds.isNotEmpty()
-    val allSelected = eligibleIds.isNotEmpty() && eligibleIds.all { it in selection.selectedTaskIds }
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (selectable && allSelected) {
-                        Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
-                    } else {
-                        Modifier
-                    }
-                )
-                .combinedClickable(
-                    onClick = {
-                        if (selection.active) actions.onTogglePlant(group.plant.id) else actions.onOpen(group.plant.id)
-                    },
-                    onLongClick = { actions.onTogglePlant(group.plant.id) },
-                    onLongClickLabel = stringResource(R.string.today_select_plant_tasks, group.plant.name),
-                    role = Role.Button
-                )
-                .then(if (selectable) Modifier.semantics { this.selected = allSelected } else Modifier)
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PlantPhoto(group.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
-            Spacer(Modifier.width(12.dp))
-            Text(group.plant.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (selectable) Checkbox(checked = allSelected, onCheckedChange = null)
-        }
-        HorizontalDivider()
-        for (task in group.tasks) {
-            TodayTaskRow(
-                task = task,
-                selectionMode = selection.active,
-                selected = task.id in selection.selectedTaskIds,
-                showPlantIdentity = false,
-                actions = actions
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun TodayTaskRow(
-    task: TodayCareTask,
-    selectionMode: Boolean,
-    selected: Boolean,
-    showPlantIdentity: Boolean,
-    actions: TodayTaskActions
-) {
-    val selectable = selectionMode && task.isBulkEligible
+private fun TodayTaskRow(task: TodayCareTask, actions: TodayTaskActions) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (selectable && selected) {
-                    Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
-                } else {
-                    Modifier
-                }
-            )
-            .combinedClickable(
-                onClick = {
-                    if (selectionMode) actions.onToggleSelection(task.id) else actions.onOpen(task.plant.id)
-                },
-                onLongClick = { actions.onToggleSelection(task.id) },
-                onLongClickLabel = stringResource(R.string.today_select_task, task.plant.name),
-                role = Role.Button
-            )
-            .then(if (selectable) Modifier.semantics { this.selected = selected } else Modifier)
+            .clickable(role = Role.Button) { actions.onOpen(task.plant.id) }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {
-        TodayRowLeading(task, showPlantIdentity, selectable, selected)
+        PlantPhoto(task.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            if (showPlantIdentity) {
-                Text(task.plant.name, style = MaterialTheme.typography.titleMedium)
-            }
+            Text(task.plant.name, style = MaterialTheme.typography.titleMedium)
             taskName(task)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             TodayDueLabel(task)
-            TodayTaskButtons(task, selectionMode, actions)
+            TodayTaskButtons(task, actions)
         }
-    }
-}
-
-@Composable
-private fun TodayRowLeading(
-    task: TodayCareTask,
-    showPlantIdentity: Boolean,
-    selectable: Boolean,
-    selected: Boolean
-) {
-    if (showPlantIdentity) {
-        Box {
-            PlantPhoto(task.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
-            if (selectable) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(2.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                ) {
-                    Checkbox(checked = selected, onCheckedChange = null)
-                }
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-    } else if (selectable) {
-        Checkbox(checked = selected, onCheckedChange = null)
-        Spacer(Modifier.width(4.dp))
     }
 }
 
@@ -554,15 +346,10 @@ private fun TodayDueLabel(task: TodayCareTask) {
 }
 
 @Composable
-private fun TodayTaskButtons(task: TodayCareTask, selectionMode: Boolean, actions: TodayTaskActions) {
+private fun TodayTaskButtons(task: TodayCareTask, actions: TodayTaskActions) {
     val actionDescription = taskActionDescription(task)
     val rescheduleDescription = stringResource(R.string.today_reschedule_watering_cd, task.plant.name)
-    // While selecting, keep the row height stable but hide the controls from sight and TalkBack
-    // so taps toggle selection instead of completing a task (mirrors PlantCard's quick-log buttons).
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = if (selectionMode) Modifier.alpha(0f).clearAndSetSemantics {} else Modifier
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         TextButton(
             onClick = {
                 when (task.kind) {
@@ -571,7 +358,6 @@ private fun TodayTaskButtons(task: TodayCareTask, selectionMode: Boolean, action
                     else -> actions.onComplete(task)
                 }
             },
-            enabled = !selectionMode,
             modifier = Modifier
                 .testTag("today_task_action_${task.id}")
                 .semantics { contentDescription = actionDescription }
@@ -579,7 +365,7 @@ private fun TodayTaskButtons(task: TodayCareTask, selectionMode: Boolean, action
             Text(taskActionLabel(task), modifier = Modifier.clearAndSetSemantics {})
         }
         if (task.kind == TodayCareKind.WATER || task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
-            IconButton(onClick = { actions.onReschedule(task) }, enabled = !selectionMode) {
+            IconButton(onClick = { actions.onReschedule(task) }) {
                 Icon(Icons.Filled.Schedule, rescheduleDescription)
             }
         }
@@ -630,13 +416,6 @@ private fun careSectionTitle(section: TodayCareSection): String = when (section)
     TodayCareSection.CUSTOM_REMINDERS -> stringResource(R.string.care_section_custom_reminders)
     TodayCareSection.REPOTTING -> stringResource(R.string.care_section_repotting)
     TodayCareSection.PHOTOS -> stringResource(R.string.care_section_photos)
-}
-
-@Composable
-private fun bucketTitle(bucket: TodayTaskBucket): String = when (bucket) {
-    TodayTaskBucket.Overdue -> stringResource(R.string.date_group_overdue)
-    TodayTaskBucket.Today -> stringResource(R.string.date_group_today)
-    is TodayTaskBucket.Upcoming -> DateUtils.formatWeekdayDate(bucket.epochDay)
 }
 
 @Composable

@@ -364,20 +364,6 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
-    fun `grouped presentation preserves every task and uses most urgent bucket`() {
-        val plant = plant()
-        val tasks = listOf(
-            task("photo:1", plant, TodayCareKind.PHOTO, TodayTaskBucket.Upcoming(today.plusDays(2).toEpochDay())),
-            task("custom:1", plant, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Overdue)
-        )
-
-        val sections = plantSections(tasks)
-
-        assertEquals(TodayTaskBucket.Overdue, sections.single().bucket)
-        assertEquals(tasks.map { it.id }.toSet(), sections.single().groups.single().tasks.map { it.id }.toSet())
-    }
-
-    @Test
     fun `care type sections order watering first and hide empty sections`() {
         val fern = plant()
         val tasks = listOf(

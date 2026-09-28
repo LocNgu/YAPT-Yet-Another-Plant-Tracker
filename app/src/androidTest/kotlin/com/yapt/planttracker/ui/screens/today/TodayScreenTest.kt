@@ -7,8 +7,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isSelected
-import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -20,8 +18,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.today.TodayCareKind
@@ -38,8 +34,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -53,9 +47,7 @@ class TodayScreenTest {
     val composeTestRule = createComposeRule()
 
     private val queue = MutableStateFlow(TodayQueueSnapshot(0, emptyList()))
-    private val grouped = MutableStateFlow(false)
     private val repository = mockk<TodayCareRepository>()
-    private val featureFlags = mockk<FeatureFlags>()
     private val quickLogUseCase = mockk<QuickLogUseCase>(relaxed = true)
 
     @Test
@@ -117,7 +109,7 @@ class TodayScreenTest {
     }
 
     @Test
-    fun rowsShowNoCheckboxesOrTaskLabelUntilSelectionStarts() {
+    fun rowsShowThePlantAndItsDueLabelWithoutATaskTypeLabel() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         setContent()
@@ -125,11 +117,10 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
         composeTestRule.onNodeWithText("Today").assertIsDisplayed()
         composeTestRule.onNodeWithText("Water").assertDoesNotExist()
-        composeTestRule.onNode(isToggleable()).assertDoesNotExist()
     }
 
     @Test
-    fun tapOpensPlantWhenNotSelecting() {
+    fun tapOpensPlant() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         var openedPlantId: Long? = null
@@ -139,95 +130,6 @@ class TodayScreenTest {
         composeTestRule.waitForIdle()
 
         assertEquals(fern.id, openedPlantId)
-    }
-
-    @Test
-    fun longPressEntersSelectionAndTapsThenToggleInsteadOfOpeningThePlant() {
-        val fern = plant()
-        val aloe = plant(2L, "Aloe")
-        queue.value = TodayQueueSnapshot(
-            2,
-            listOf(
-                task("water:1", fern, TodayCareKind.WATER),
-                task("water:2", aloe, TodayCareKind.WATER)
-            )
-        )
-        var openedPlantId: Long? = null
-        setContent(onNavigateToPlant = { openedPlantId = it })
-
-        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
-        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Complete selected").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Fern").and(isSelected())).assertIsDisplayed()
-        composeTestRule.onNode(hasText("Aloe").and(isSelected())).assertDoesNotExist()
-
-        composeTestRule.onNodeWithText("Aloe").tapRowEdge()
-        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Aloe").and(isSelected())).assertIsDisplayed()
-
-        composeTestRule.onNodeWithText("Fern").tapRowEdge()
-        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Fern").and(isSelected())).assertDoesNotExist()
-        assertNull(openedPlantId)
-    }
-
-    @Test
-    fun selectionModeIsReportedToTheHostAndHidesTaskControls() {
-        val fern = plant()
-        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
-        var selectionActive = false
-        setContent(onSelectionModeChanged = { selectionActive = it })
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
-
-        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
-        composeTestRule.waitForIdle()
-
-        assertTrue(selectionActive)
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertDoesNotExist()
-
-        composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
-        composeTestRule.waitForIdle()
-
-        assertFalse(selectionActive)
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
-    }
-
-    @Test
-    fun photoTasksCannotBeSelected() {
-        val fern = plant()
-        queue.value = TodayQueueSnapshot(1, listOf(task("photo:1", fern, TodayCareKind.PHOTO)))
-        setContent()
-
-        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
-
-        composeTestRule.onNodeWithText("1 selected").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Take a progress photo of Fern").assertIsDisplayed()
-    }
-
-    @Test
-    fun groupedFlagHotSwitchesToPlantSelectionWithoutChangingTaskActions() {
-        val fern = plant()
-        queue.value = TodayQueueSnapshot(
-            activePlantCount = 1,
-            tasks = listOf(
-                task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-                task("photo:1", fern, TodayCareKind.PHOTO)
-            )
-        )
-        setContent()
-        composeTestRule.onNodeWithText("Watering").assertIsDisplayed()
-
-        grouped.value = true
-
-        composeTestRule.onNodeWithText("Watering").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Overdue").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Take a progress photo of Fern").assertIsDisplayed()
-
-        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
-
-        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Fern").and(isSelected())).assertIsDisplayed()
     }
 
     @Test
@@ -339,22 +241,6 @@ class TodayScreenTest {
     }
 
     @Test
-    fun selectedBulkCompletionShowsResultFeedback() {
-        val fern = plant()
-        val water = task("water:1", fern, TodayCareKind.WATER)
-        queue.value = TodayQueueSnapshot(1, listOf(water))
-        coEvery { quickLogUseCase.completeTodayTasks(listOf(water)) } returns
-            QuickLogUseCase.BulkCompletionResult(completedCount = 1, skippedCount = 0, totalCount = 1)
-        setContent()
-
-        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
-        composeTestRule.onNodeWithText("Complete selected").performClick()
-
-        composeTestRule.onNodeWithText("Completed 1 of 1 tasks · 0 skipped").assertIsDisplayed()
-        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(water)) }
-    }
-
-    @Test
     fun waterActionDispatchesAndShowsUseCaseFeedback() {
         val fern = plant()
         val water = task("water:1", fern, TodayCareKind.WATER)
@@ -447,16 +333,13 @@ class TodayScreenTest {
         onNavigateToPlant: (Long) -> Unit = {},
         onNavigateToAdd: () -> Unit = {},
         onLaunchPhotoCapture: ((Long) -> Unit)? = null,
-        onSelectionModeChanged: (Boolean) -> Unit = {},
         stubRepository: Boolean = true,
         restoration: StateRestorationTester? = null
     ): TodayViewModel {
         if (stubRepository) every { repository.observeQueue() } returns queue
-        every { featureFlags.isEnabled(FeatureFlagRegistry.TODAY_GROUP_BY_PLANT) } returns grouped
         val viewModel = TodayViewModel(
             application = ApplicationProvider.getApplicationContext<Application>(),
             todayCareRepository = repository,
-            featureFlags = featureFlags,
             quickLogUseCase = quickLogUseCase,
             plantRepository = mockk<PlantRepository>(relaxed = true)
         )
@@ -465,8 +348,7 @@ class TodayScreenTest {
                 viewModel = viewModel,
                 onNavigateToPlant = onNavigateToPlant,
                 onNavigateToAdd = onNavigateToAdd,
-                onLaunchPhotoCapture = onLaunchPhotoCapture,
-                onSelectionModeChanged = onSelectionModeChanged
+                onLaunchPhotoCapture = onLaunchPhotoCapture
             )
         }
         if (restoration != null) restoration.setContent(content) else composeTestRule.setContent(content)

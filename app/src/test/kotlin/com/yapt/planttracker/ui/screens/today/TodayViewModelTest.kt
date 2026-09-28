@@ -6,8 +6,6 @@ import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
@@ -23,15 +21,12 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -48,17 +43,13 @@ class TodayViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = mockk<TodayCareRepository>()
-    private val featureFlags = mockk<FeatureFlags>()
     private val quickLogUseCase = mockk<QuickLogUseCase>()
     private val plantRepository = mockk<PlantRepository>()
     private val application = mockk<Application>(relaxed = true)
-    private val grouped = MutableStateFlow(false)
 
     @Before
     fun setUp() {
-        every { featureFlags.isEnabled(FeatureFlagRegistry.TODAY_GROUP_BY_PLANT) } returns grouped
         every { application.getString(R.string.today_action_failed) } returns "failed"
-        every { application.getString(R.string.today_bulk_result, any(), any(), any()) } returns "bulk"
         every { application.getString(R.string.today_photo_saved, any()) } returns "photo saved"
     }
 
@@ -117,117 +108,6 @@ class TodayViewModelTest {
     }
 
     @Test
-    fun `developer flag hot switches presentation without changing tasks`() = runTest {
-        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(task())))
-        val viewModel = viewModel()
-        val ungrouped = viewModel.uiState.first { it is TodayUiState.Ready } as TodayUiState.Ready
-
-        viewModel.uiState.test {
-            assertEquals(ungrouped, awaitItem())
-            grouped.value = true
-            val groupedState = awaitItem() as TodayUiState.Ready
-            assertEquals(ungrouped.snapshot.tasks, groupedState.snapshot.tasks)
-            assertTrue(groupedState.groupByPlant)
-        }
-    }
-
-    @Test
-    fun `group selection maps to bulk eligible canonical task ids only`() = runTest {
-        val plant = plant()
-        val water = task("water:1", plant, TodayCareKind.WATER)
-        val photo = task("photo:1", plant, TodayCareKind.PHOTO)
-        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(water, photo)))
-        val viewModel = viewModel()
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.togglePlantSelection(plant.id)
-        assertEquals(setOf(water.id), viewModel.selectedTaskIds.value)
-    }
-
-    @Test
-    fun `live queue updates reconcile removed and newly ineligible selections`() = runTest {
-        val water = task("water:1")
-        val repot = task("repot:1", kind = TodayCareKind.REPOT)
-        val queue = MutableStateFlow(TodayQueueSnapshot(1, listOf(water, repot)))
-        every { repository.observeQueue() } returns queue
-        val viewModel = viewModel()
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.selectAll()
-        assertEquals(setOf(water.id, repot.id), viewModel.selectedTaskIds.value)
-
-        queue.value = TodayQueueSnapshot(1, listOf(task(water.id, kind = TodayCareKind.PHOTO)))
-        viewModel.uiState.first {
-            it is TodayUiState.Ready && it.snapshot.tasks.single().kind == TodayCareKind.PHOTO
-        }
-        assertTrue(viewModel.selectedTaskIds.value.isEmpty())
-    }
-
-    @Test
-    fun `selection survives a stopped and restarted ui subscription`() = runTest {
-        val water = task()
-        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(water)))
-        val viewModel = viewModel()
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.toggleTaskSelection(water.id)
-
-        val restored = viewModel.uiState.first { it is TodayUiState.Ready } as TodayUiState.Ready
-        assertEquals(listOf(water), restored.snapshot.tasks)
-        assertEquals(setOf(water.id), viewModel.selectedTaskIds.value)
-    }
-
-    @Test
-    fun `bulk completion is single flight and claims the selection before work starts`() = runTest {
-        val water = task()
-        val completion = CompletableDeferred<Unit>()
-        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(water)))
-        coEvery { quickLogUseCase.completeTodayTasks(any()) } coAnswers {
-            completion.await()
-            QuickLogUseCase.BulkCompletionResult(1, 0, 1)
-        }
-        val viewModel = viewModel()
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.toggleTaskSelection(water.id)
-        viewModel.messageEvent.test {
-            viewModel.completeSelected()
-            viewModel.completeSelected()
-            assertTrue(viewModel.selectedTaskIds.value.isEmpty())
-            coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(water)) }
-
-            completion.complete(Unit)
-            assertEquals("bulk", awaitItem())
-        }
-    }
-
-    @Test
-    fun `bulk completion accepts a new batch while the previous result message is still showing`() = runTest {
-        val first = task("water:1")
-        val second = task("water:2", plant = Plant(id = 2L, name = "Aloe", createdAt = 0L, updatedAt = 0L))
-        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(2, listOf(first, second)))
-        coEvery { quickLogUseCase.completeTodayTasks(any()) } returns
-            QuickLogUseCase.BulkCompletionResult(1, 0, 1)
-        val viewModel = viewModel()
-        val snackbarStillShowing = CompletableDeferred<Unit>()
-        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
-            viewModel.messageEvent.collect { snackbarStillShowing.await() }
-        }
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.toggleTaskSelection(first.id)
-        viewModel.completeSelected()
-        viewModel.toggleTaskSelection(second.id)
-        viewModel.completeSelected()
-
-        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(first)) }
-        coVerify(exactly = 1) { quickLogUseCase.completeTodayTasks(listOf(second)) }
-        assertTrue(viewModel.selectedTaskIds.value.isEmpty())
-        snackbarStillShowing.complete(Unit)
-        collector.cancel()
-    }
-
-    @Test
     fun `cancelled custom reminder completion is not reported as a failure`() = runTest {
         val reminder = CustomReminder(id = 9L, plantId = 1L, name = "Neem", intervalDays = 7)
         val custom = task("custom:9", plant(), TodayCareKind.CUSTOM_REMINDER, reminder)
@@ -240,23 +120,6 @@ class TodayViewModelTest {
             viewModel.completeCustomReminder(custom.id)
             expectNoEvents()
         }
-    }
-
-    @Test
-    fun `failed bulk completion restores only tasks still eligible`() = runTest {
-        val water = task()
-        val queue = MutableStateFlow(TodayQueueSnapshot(1, listOf(water)))
-        every { repository.observeQueue() } returns queue
-        coEvery { quickLogUseCase.completeTodayTasks(any()) } throws IllegalStateException("boom")
-        val viewModel = viewModel()
-
-        viewModel.uiState.first { it is TodayUiState.Ready }
-        viewModel.toggleTaskSelection(water.id)
-        viewModel.messageEvent.test {
-            viewModel.completeSelected()
-            assertEquals("failed", awaitItem())
-        }
-        assertEquals(setOf(water.id), viewModel.selectedTaskIds.value)
     }
 
     @Test
@@ -395,7 +258,6 @@ class TodayViewModelTest {
     private fun viewModel() = TodayViewModel(
         application,
         repository,
-        featureFlags,
         quickLogUseCase,
         plantRepository
     )

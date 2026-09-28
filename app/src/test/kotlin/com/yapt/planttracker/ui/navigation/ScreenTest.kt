@@ -95,24 +95,22 @@ class ScreenTest {
 
     @Test
     fun `bottom navigation is visible on all three root tabs when nothing is selected`() {
-        assertTrue(shouldShowBottomNavigation(Screen.Today.route, false, careSelectionActive = false))
-        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false, careSelectionActive = false))
-        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, false, careSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, false))
+        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, false))
     }
 
     @Test
-    fun `bottom navigation hides only for the selection mode of the tab that is showing`() {
-        assertFalse(shouldShowBottomNavigation(Screen.Today.route, false, careSelectionActive = true))
-        assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, true, careSelectionActive = false))
-        assertTrue(shouldShowBottomNavigation(Screen.Today.route, true, careSelectionActive = false))
-        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false, careSelectionActive = true))
-        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, true, careSelectionActive = true))
+    fun `bottom navigation hides only for the Plant List selection mode`() {
+        assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, true))
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, true))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, true))
     }
 
     @Test
     fun `bottom navigation hides for nested destinations`() {
-        assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false, careSelectionActive = false))
-        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, false, careSelectionActive = false))
-        assertFalse(shouldShowBottomNavigation(null, false, careSelectionActive = false))
+        assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, false))
+        assertFalse(shouldShowBottomNavigation(null, false))
     }
 }

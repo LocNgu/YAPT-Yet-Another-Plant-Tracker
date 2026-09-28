@@ -8,18 +8,12 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
-import com.yapt.planttracker.domain.today.TodayCareKind
-import com.yapt.planttracker.domain.today.TodayCareTask
-import com.yapt.planttracker.domain.today.TodayTaskBucket
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,7 +41,6 @@ class QuickLogUseCaseBulkLogTest {
     private lateinit var db: PlantDatabase
     private lateinit var plantRepo: PlantRepository
     private lateinit var careLogRepo: CareLogRepository
-    private lateinit var customReminderRepo: CustomReminderRepository
     private lateinit var useCase: QuickLogUseCase
     private val scheduledWaterings = mutableListOf<Long>()
 
@@ -60,7 +53,6 @@ class QuickLogUseCaseBulkLogTest {
         ).allowMainThreadQueries().build()
         plantRepo = PlantRepository(db.plantDao())
         careLogRepo = CareLogRepository(db.careLogDao())
-        customReminderRepo = CustomReminderRepository(db.customReminderDao())
         val application: Application = mockk(relaxed = true)
         val dataStore: DataStore<Preferences> = mockk { every { data } returns flowOf(emptyPreferences()) }
         useCase = QuickLogUseCase(
@@ -71,8 +63,7 @@ class QuickLogUseCaseBulkLogTest {
             dataStore,
             db,
             WateringAdjustmentRepository(db.wateringAdjustmentDao()),
-            onWaterLogged = { scheduledWaterings.add(it) },
-            customReminderRepository = customReminderRepo
+            onWaterLogged = { scheduledWaterings.add(it) }
         )
     }
 
@@ -142,116 +133,4 @@ class QuickLogUseCaseBulkLogTest {
         val logsForId2 = db.careLogDao().getLogsForPlant(id2).first()
         assertEquals(1, logsForId2.size)
     }
-
-    @Test
-    fun `completeTodayTasks atomically completes mixed care and exact custom reminder`() = runTest {
-        val water = addPlant("Water")
-        val fertilize = addPlant("Fertilize")
-        val combined = addPlant("Combined", liquid = true)
-        val repot = addPlant("Repot")
-        val custom = addPlant("Custom")
-        val reminderId = customReminderRepo.addReminder(
-            CustomReminder(plantId = custom.id, name = "Neem", intervalDays = 7, createdAt = 1L)
-        )
-        val reminder = customReminderRepo.getReminderById(reminderId)!!
-        val customTask = task("custom", custom, TodayCareKind.CUSTOM_REMINDER, reminder)
-
-        val result = useCase.completeTodayTasks(
-            listOf(
-                task("water", water, TodayCareKind.WATER),
-                task("fertilize", fertilize, TodayCareKind.FERTILIZE),
-                task("combined", combined, TodayCareKind.WATER_AND_FERTILIZE),
-                task("repot", repot, TodayCareKind.REPOT),
-                customTask
-            )
-        )
-
-        assertEquals(5, result.completedCount)
-        assertEquals(0, result.skippedCount)
-        val logs = db.careLogDao().getAllLogs().first()
-        assertEquals(6, logs.size)
-        assertEquals(reminderId, logs.single { it.careType == CareType.CUSTOM.name }.customReminderId)
-        assertTrue(customReminderRepo.getReminderById(reminderId)!!.lastDoneAt != null)
-        assertEquals(1, scheduledWaterings.size)
-
-        val staleResult = useCase.completeTodayTasks(listOf(customTask))
-
-        assertEquals(0, staleResult.completedCount)
-        assertEquals(1, staleResult.skippedCount)
-        assertEquals(6, db.careLogDao().getAllLogs().first().size)
-    }
-
-    @Test
-    fun `completeTodayTasks skips guarded duplicate without aborting valid work`() = runTest {
-        val water = addPlant("Water")
-        val repot = addPlant("Repot")
-        careLogRepo.addLog(
-            CareLog(plantId = water.id, careType = CareType.WATER, loggedAt = System.currentTimeMillis())
-        )
-
-        val result = useCase.completeTodayTasks(
-            listOf(
-                task("water", water, TodayCareKind.WATER),
-                task("repot", repot, TodayCareKind.REPOT)
-            )
-        )
-
-        assertEquals(1, result.completedCount)
-        assertEquals(1, result.skippedCount)
-        assertEquals(1, db.careLogDao().getLogsForPlant(water.id).first().size)
-        assertEquals(CareType.REPOT.name, db.careLogDao().getLogsForPlant(repot.id).first().single().careType)
-    }
-
-    @Test
-    fun `completeTodayTasks rolls back every write when one task fails`() = runTest {
-        val repot = addPlant("Repot")
-        val custom = addPlant("Custom")
-        val reminder = CustomReminder(id = 44L, plantId = custom.id, name = "Neem", intervalDays = 7)
-        val failingRepository = mockk<CustomReminderRepository>()
-        coEvery { failingRepository.getReminderById(reminder.id) } returns reminder
-        coEvery { failingRepository.updateReminder(any()) } throws IllegalStateException("write failed")
-        val failingUseCase = QuickLogUseCase(
-            mockk(relaxed = true),
-            plantRepo,
-            careLogRepo,
-            PlantPhotoRepository(db.plantPhotoDao()),
-            mockk { every { data } returns flowOf(emptyPreferences()) },
-            db,
-            WateringAdjustmentRepository(db.wateringAdjustmentDao()),
-            customReminderRepository = failingRepository
-        )
-
-        val failure = runCatching {
-            failingUseCase.completeTodayTasks(
-                listOf(
-                    task("repot", repot, TodayCareKind.REPOT),
-                    task("custom", custom, TodayCareKind.CUSTOM_REMINDER, reminder)
-                )
-            )
-        }
-
-        assertTrue(failure.isFailure)
-        assertTrue(db.careLogDao().getAllLogs().first().isEmpty())
-    }
-
-    private suspend fun addPlant(name: String, liquid: Boolean = false): Plant {
-        val id = plantRepo.addPlant(
-            Plant(name = name, useLiquidFertilizer = liquid, createdAt = 0L, updatedAt = 0L)
-        )
-        return Plant(id = id, name = name, useLiquidFertilizer = liquid, createdAt = 0L, updatedAt = 0L)
-    }
-
-    private fun task(
-        id: String,
-        plant: Plant,
-        kind: TodayCareKind,
-        reminder: CustomReminder? = null
-    ) = TodayCareTask(
-        id = id,
-        plant = plant,
-        kind = kind,
-        dueAt = 0L,
-        bucket = TodayTaskBucket.Today,
-        customReminder = reminder
-    )
 }
