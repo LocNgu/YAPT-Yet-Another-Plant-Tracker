@@ -25,7 +25,7 @@ The orchestrator passes you:
 - **Architecture**: MVVM + Repository. ViewModels get dependencies via their inner `Factory` class. The UI never touches Room entities.
 - **State**: Use `StateFlow` for UI state, `SharedFlow` for one-shot events. Collect with `collectAsStateWithLifecycle()`, never `collectAsState()`.
 - **Suspend in Flow**: `List.map {}` takes a non-suspend lambda. If you need to call a `suspend` function inside `combine {}` or `map {}`, use a `for` loop with `mutableListOf`.
-- **Dates**: Always use `DateUtils.formatRelative()` for display. Never divide milliseconds inline.
+- **Dates**: Always use the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`) for relative-date display. Never divide milliseconds inline.
 - **Enums from DB**: Use `runCatching { Enum.valueOf(str) }.getOrDefault(fallback)`, never plain `.valueOf()`.
 - **DataStore**: The `settingsDataStore` delegate lives at file top-level in `YaptApplication.kt`, not inside the class.
 - **Images**: Use `takePersistableUriPermission` when accepting PhotoPicker URIs.

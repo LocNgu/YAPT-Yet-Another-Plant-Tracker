@@ -52,6 +52,7 @@ import com.yapt.planttracker.ui.theme.IssuePurple
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
+import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.util.DateUtils
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -217,7 +218,7 @@ fun PlantCard(
                         status.lastWateredAt == null -> neverWateredLabel
                         status.nextWateringDueAt != null ->
                             DateUtils.formatCountdown(status.nextWateringDueAt)
-                        else -> DateUtils.formatRelative(status.lastWateredAt)
+                        else -> relativeDateText(status.lastWateredAt)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +245,7 @@ fun PlantCard(
                         }
                         val fertLabelNever = stringResource(R.string.fert_label_never_fertilized)
                         val fertLabelFertilizing = status.lastFertilizedAt?.let {
-                            stringResource(R.string.fert_label_fertilizing, DateUtils.formatRelative(it))
+                            stringResource(R.string.fert_label_fertilizing, relativeDateText(it))
                         }
                         val fertLabel = when {
                             status.isDormant -> stringResource(R.string.date_group_dormant)

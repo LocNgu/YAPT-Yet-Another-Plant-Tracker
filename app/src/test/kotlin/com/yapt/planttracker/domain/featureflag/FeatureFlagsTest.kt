@@ -10,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
@@ -99,5 +100,14 @@ class FeatureFlagsTest {
 
         assertEquals(false, featureFlags.isEnabled(flagOffByDefault).first())
         assertEquals(false, featureFlags.isEnabled(flagOnByDefault).first())
+    }
+
+    @Test
+    fun `Today grouping flag is device local and off by default`() {
+        val flag = FeatureFlagRegistry.TODAY_GROUP_BY_PLANT
+
+        assertEquals("today_group_by_plant", flag.key)
+        assertFalse(flag.default)
+        assertEquals(listOf(flag), FeatureFlagRegistry.all)
     }
 }

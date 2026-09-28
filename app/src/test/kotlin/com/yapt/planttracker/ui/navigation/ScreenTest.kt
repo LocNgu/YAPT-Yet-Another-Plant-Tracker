@@ -2,6 +2,8 @@ package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.domain.model.CareType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -22,6 +24,7 @@ class ScreenTest {
         assertEquals("add_plant", Screen.AddPlant.route)
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
+        assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
 
@@ -88,5 +91,28 @@ class ScreenTest {
             "add_care_log/3?careLogId=0&careType=PHOTO",
             Screen.AddCareLog.createRoute(3L, careType = CareType.PHOTO)
         )
+    }
+
+    @Test
+    fun `bottom navigation is visible on all three root tabs when nothing is selected`() {
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, false, careSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false, careSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, false, careSelectionActive = false))
+    }
+
+    @Test
+    fun `bottom navigation hides only for the selection mode of the tab that is showing`() {
+        assertFalse(shouldShowBottomNavigation(Screen.Today.route, false, careSelectionActive = true))
+        assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, true, careSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, true, careSelectionActive = false))
+        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false, careSelectionActive = true))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, true, careSelectionActive = true))
+    }
+
+    @Test
+    fun `bottom navigation hides for nested destinations`() {
+        assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false, careSelectionActive = false))
+        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, false, careSelectionActive = false))
+        assertFalse(shouldShowBottomNavigation(null, false, careSelectionActive = false))
     }
 }

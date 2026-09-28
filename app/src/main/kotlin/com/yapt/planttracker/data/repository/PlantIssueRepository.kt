@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.map
 
 class PlantIssueRepository(private val plantIssueDao: PlantIssueDao) {
 
+    fun getAllIssues(): Flow<List<PlantIssue>> =
+        plantIssueDao.getAllIssues().map { list -> list.map { it.toDomain() } }
+
     fun getIssuesForPlant(plantId: Long): Flow<List<PlantIssue>> =
         plantIssueDao.getIssuesForPlant(plantId).map { list -> list.map { it.toDomain() } }
 

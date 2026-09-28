@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -57,7 +56,6 @@ class CalendarViewModelTest {
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
-    private val plantPhotoRepo: PlantPhotoRepository = mockk()
     private val dataStore: DataStore<Preferences> = mockk {
         every { data } returns flowOf(emptyPreferences())
     }
@@ -110,7 +108,7 @@ class CalendarViewModelTest {
         coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.quickLogEvent.test {
@@ -144,7 +142,7 @@ class CalendarViewModelTest {
                 )
             )
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.quickWaterSuggestion.test {
@@ -173,7 +171,7 @@ class CalendarViewModelTest {
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
             PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.plantsWithStatus.test {
@@ -189,6 +187,36 @@ class CalendarViewModelTest {
     }
 
     @Test
+    fun `saveReminderPhoto delegates to the shared use case and clears the reminder request`() = runTest {
+        val monstera = plant(1L, "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
+            PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
+        coEvery { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") } returns monstera
+        vm = CalendarViewModel(
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
+        )
+        val uri: android.net.Uri = mockk()
+        every { uri.toString() } returns "content://reminder.jpg"
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.quickLog(1L, CareType.FERTILIZE)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertNotNull(vm.photoReminderRequest.value)
+
+        vm.saveReminderPhoto(1L, uri)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") }
+        assertNull(vm.photoReminderRequest.value)
+    }
+
+    @Test
     fun `quickLog does not emit photo reminder when plant already reminded this session`() = runTest {
         // Simulates the plant having already been reminded on Plants tab or Plant Detail this session.
         PhotoReminderPolicy.shownThisSession.add(1L)
@@ -199,7 +227,7 @@ class CalendarViewModelTest {
         // Default @Before stub already returns null for maybeBuildPhotoReminderRequest; this test
         // documents that the gating (session suppression) lives in QuickLogUseCase, not the VM.
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.plantsWithStatus.test {
@@ -219,7 +247,7 @@ class CalendarViewModelTest {
         coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.plantsWithStatus.test {
@@ -250,7 +278,7 @@ class CalendarViewModelTest {
                 waterPaired = true
             )
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.quickWaterSuggestion.test {
@@ -298,7 +326,7 @@ class CalendarViewModelTest {
                 )
             )
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.quickWaterSuggestion.test {
@@ -318,7 +346,7 @@ class CalendarViewModelTest {
     fun `selectDay updates selectedDay and selectDay null clears it`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         val day = java.time.LocalDate.of(2026, 7, 15)
@@ -333,7 +361,7 @@ class CalendarViewModelTest {
     fun `setVisibleMonth updates plantsByDay window`() = runTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         val month = java.time.YearMonth.of(2026, 9)
@@ -361,7 +389,7 @@ class CalendarViewModelTest {
                 newEffectiveIntervalDays = 10
             )
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.applySuggestedInterval(1L, suggestedIntervalDays = 10, newInterval = 10, suggestedBaseInterval = null)
@@ -378,7 +406,7 @@ class CalendarViewModelTest {
         coEvery { quickLogUseCase.recordWateringSuggestionDismissal(monstera) } returns
             monstera.copy(wateringConfidence = 2)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.dismissSuggestedInterval(1L)
@@ -407,7 +435,7 @@ class CalendarViewModelTest {
         val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
         dayChangeFlow.tryEmit(LocalDate.of(2026, 1, 1))
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
         )
 
         vm.plantsWithStatus.test {
@@ -446,7 +474,7 @@ class CalendarViewModelTest {
         val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
         dayChangeFlow.tryEmit(day1)
         vm = CalendarViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase,
             dayChangeFlow, nowProvider = { nowMs }
         )
         vm.setVisibleMonth(YearMonth.of(2030, 6))
@@ -483,7 +511,7 @@ class CalendarViewModelTest {
             val p1 = plant(1L, "P1")
             every { plantRepo.getAllPlants() } returns flowOf(listOf(p1))
             vm = CalendarViewModel(
-                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+                application, plantRepo, careLogRepo, dataStore,
                 quickLogUseCase, distinctDatePerCollection
             )
             vm.setVisibleMonth(YearMonth.of(2026, 3))
@@ -531,7 +559,7 @@ class CalendarViewModelTest {
             val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
             dayChangeFlow.tryEmit(day1)
             vm = CalendarViewModel(
-                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+                application, plantRepo, careLogRepo, dataStore, quickLogUseCase,
                 dayChangeFlow, nowProvider = { nowMs }
             )
             vm.setVisibleMonth(YearMonth.of(2026, 5))
@@ -566,7 +594,7 @@ class CalendarViewModelTest {
             val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
             dayChangeFlow.tryEmit(day1)
             vm = CalendarViewModel(
-                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase, dayChangeFlow
+                application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
             )
 
             vm.today.test {
@@ -598,7 +626,7 @@ class CalendarViewModelTest {
             val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
             dayChangeFlow.tryEmit(day1)
             vm = CalendarViewModel(
-                application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, quickLogUseCase,
+                application, plantRepo, careLogRepo, dataStore, quickLogUseCase,
                 dayChangeFlow, nowProvider = { day2StartMs }
             )
             vm.setVisibleMonth(YearMonth.of(2026, 5))

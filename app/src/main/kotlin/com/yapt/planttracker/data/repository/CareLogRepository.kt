@@ -29,6 +29,9 @@ class CareLogRepository(
 
     val logCount: Flow<Int> = careLogDao.observeLogCount()
 
+    fun getAllLogs(): Flow<List<CareLog>> =
+        careLogDao.getAllLogs().map { list -> list.map { it.toDomain() } }
+
     fun getLogsForPlant(plantId: Long): Flow<List<CareLog>> =
         careLogDao.getLogsForPlant(plantId).map { list -> list.map { it.toDomain() } }
 

@@ -34,5 +34,7 @@ sealed class Screen(val route: String) {
 
     object Graveyard : Screen("graveyard")
 
+    object Today : Screen("today")
+
     object Calendar : Screen("calendar")
 }
