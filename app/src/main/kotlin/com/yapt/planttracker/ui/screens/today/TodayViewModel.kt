@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,7 +45,7 @@ sealed interface TodayUiState {
 }
 
 sealed interface TodayNavigationEvent {
-    data class PlantDetail(val plantId: Long) : TodayNavigationEvent
+    data class PlantDetail(val plantId: Long, val tab: PlantDetailTab?) : TodayNavigationEvent
     data object AddPlant : TodayNavigationEvent
 }
 
@@ -104,8 +105,8 @@ class TodayViewModel(
         retryGeneration.value += 1
     }
 
-    fun openPlant(plantId: Long) {
-        viewModelScope.launch { _navigationEvent.emit(TodayNavigationEvent.PlantDetail(plantId)) }
+    fun openPlant(plantId: Long, tab: PlantDetailTab? = null) {
+        viewModelScope.launch { _navigationEvent.emit(TodayNavigationEvent.PlantDetail(plantId, tab)) }
     }
 
     fun addPlant() {

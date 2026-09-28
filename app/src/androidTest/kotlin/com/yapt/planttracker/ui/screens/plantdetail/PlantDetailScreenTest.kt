@@ -1,6 +1,8 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -226,6 +228,67 @@ class PlantDetailScreenTest {
 
         // Plant name appears in the content body.
         composeTestRule.onAllNodesWithText("Ficus")[0].assertIsDisplayed()
+    }
+
+    @Test
+    fun initialTab_customReminders_expandsTabRowAndSelectsIt() {
+        val plant = Plant(id = 21L, name = "Ficus", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.CUSTOM_REMINDERS
+            )
+        }
+
+        composeTestRule.onNode(hasText(str(R.string.plant_detail_tab_custom_reminders)) and isSelectable())
+            .assertIsSelected()
+        composeTestRule.onNodeWithContentDescription(str(R.string.plant_detail_tabs_collapse_cd)).assertExists()
+    }
+
+    @Test
+    fun initialTab_issues_expandsTabRowAndSelectsIt() {
+        val plant = Plant(id = 22L, name = "Ficus", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.ISSUES
+            )
+        }
+
+        composeTestRule.onNode(hasText(str(R.string.plant_detail_tab_issues)) and isSelectable())
+            .assertIsSelected()
+    }
+
+    @Test
+    fun noInitialTab_opensOnWaterWithRowCollapsed() {
+        val plant = Plant(id = 23L, name = "Ficus", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNode(hasText(str(R.string.plant_detail_tab_water)) and isSelectable())
+            .assertIsSelected()
+        composeTestRule.onAllNodesWithText(str(R.string.plant_detail_tab_issues)).assertCountEquals(0)
     }
 
     @Test

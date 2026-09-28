@@ -13,6 +13,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Tapping a plant in the Care tab now opens its Plant Detail on the matching tab** — Watering opens Water,
+  Fertilizing and combined water-and-fertilize entries open Fertilize, and Repotting, Photos, custom reminders
+  and issue treatments open their own tabs (revealing the second tab row when needed), in both the default and
+  plant-grouped layouts. Every other entry point still opens on Water (#843)
 - **A new Care tab turns every due care item into one queue, and it is now the first tab and the screen the
   app opens on** — work through watering, fertilizing, repotting, custom reminders, linked issue
   treatments, and optional progress photos due Overdue through the next three days. Tasks are grouped by

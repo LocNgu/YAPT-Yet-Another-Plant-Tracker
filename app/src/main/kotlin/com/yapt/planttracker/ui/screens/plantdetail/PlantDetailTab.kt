@@ -26,5 +26,14 @@ enum class PlantDetailTab(@StringRes val labelRes: Int, val icon: ImageVector) {
     REPOT(R.string.plant_detail_tab_repot, Icons.Filled.LocalFlorist),
     PHOTO(R.string.plant_detail_tab_photo, Icons.Filled.PhotoLibrary),
     CUSTOM_REMINDERS(R.string.plant_detail_tab_custom_reminders, Icons.Filled.Notifications),
-    ISSUES(R.string.plant_detail_tab_issues, Icons.Filled.BugReport)
+    ISSUES(R.string.plant_detail_tab_issues, Icons.Filled.BugReport);
+
+    companion object {
+        const val COLLAPSED_TAB_COUNT = 4
+
+        fun fromRouteArg(name: String?): PlantDetailTab? =
+            name?.let { runCatching { valueOf(it) }.getOrDefault(WATER) }
+    }
+
+    val isInCollapsedRow: Boolean get() = ordinal >= COLLAPSED_TAB_COUNT
 }

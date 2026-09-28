@@ -17,6 +17,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Tapping a plant in the Care tab now opens its details on the matching tab — for example a plant " +
+                "under Photos opens the Photo tab, and a combined water-and-fertilize entry opens Fertilize",
             "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
                 "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
                 "and optional progress photos grouped by type with watering first. Long-press to select tasks " +

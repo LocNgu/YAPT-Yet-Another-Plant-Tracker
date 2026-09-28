@@ -30,6 +30,7 @@ import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.today.WateringTaskAction
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.util.toStartOfDayMillis
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -133,12 +134,39 @@ class TodayScreenTest {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         var openedPlantId: Long? = null
-        setContent(onNavigateToPlant = { openedPlantId = it })
+        setContent(onNavigateToPlant = { id, _ -> openedPlantId = id })
 
         composeTestRule.onNodeWithText("Fern").tapRowEdge()
         composeTestRule.waitForIdle()
 
         assertEquals(fern.id, openedPlantId)
+    }
+
+    @Test
+    fun tapOnPhotoSectionRowOpensPhotoTab() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("photo:1", fern, TodayCareKind.PHOTO)))
+        var openedTab: PlantDetailTab? = null
+        setContent(onNavigateToPlant = { _, tab -> openedTab = tab })
+
+        composeTestRule.onNodeWithText("Fern").tapRowEdge()
+        composeTestRule.waitForIdle()
+
+        assertEquals(PlantDetailTab.PHOTO, openedTab)
+    }
+
+    @Test
+    fun tapOnPlantGroupedCardOpensTabOfItsFirstTask() {
+        grouped.value = true
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("issue:1", fern, TodayCareKind.ISSUE_TREATMENT)))
+        var openedTab: PlantDetailTab? = null
+        setContent(onNavigateToPlant = { _, tab -> openedTab = tab })
+
+        composeTestRule.onNodeWithText("Fern").tapRowEdge()
+        composeTestRule.waitForIdle()
+
+        assertEquals(PlantDetailTab.ISSUES, openedTab)
     }
 
     @Test
@@ -153,7 +181,7 @@ class TodayScreenTest {
             )
         )
         var openedPlantId: Long? = null
-        setContent(onNavigateToPlant = { openedPlantId = it })
+        setContent(onNavigateToPlant = { id, _ -> openedPlantId = id })
 
         composeTestRule.onNodeWithText("Fern").longPressRowEdge()
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
@@ -444,7 +472,7 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
 
     private fun setContent(
-        onNavigateToPlant: (Long) -> Unit = {},
+        onNavigateToPlant: (Long, PlantDetailTab?) -> Unit = { _, _ -> },
         onNavigateToAdd: () -> Unit = {},
         onLaunchPhotoCapture: ((Long) -> Unit)? = null,
         onSelectionModeChanged: (Boolean) -> Unit = {},
