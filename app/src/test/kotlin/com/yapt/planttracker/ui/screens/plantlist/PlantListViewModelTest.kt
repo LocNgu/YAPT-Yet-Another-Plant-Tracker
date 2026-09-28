@@ -484,6 +484,277 @@ class PlantListViewModelTest {
         assertNull(vm.selectedRoom.value)
     }
 
+    // Search (#512)
+
+    @Test
+    fun `search query filters by plant name case-insensitively`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+
+            vm.setSearchQuery("MON")
+            advanceUntilIdle()
+
+            val filtered = awaitItem()
+            assertEquals(1, filtered.size)
+            assertEquals("Monstera", filtered[0].plant.name)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `search query filters by species when the name does not match`() = runTest {
+        val fig = Plant(id = 1L, name = "Fig", species = "Ficus lyrata", createdAt = 0L, updatedAt = 0L)
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(fig, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+
+            vm.setSearchQuery("lyrata")
+            advanceUntilIdle()
+
+            assertEquals(listOf(1L), awaitItem().map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `search query with no matches empties the list`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+
+            vm.setSearchQuery("nonexistent")
+            advanceUntilIdle()
+
+            assertEquals(0, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `blank query is treated as no filter`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            // Narrow first so the subsequent blank query is a real transition — StateFlow conflates
+            // equal consecutive values, so going straight from the unfiltered list to a no-op blank
+            // query would never emit a second item at all.
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            assertEquals(1, awaitItem().size)
+
+            vm.setSearchQuery("   ")
+            advanceUntilIdle()
+
+            assertEquals(2, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `clearSearchQuery restores the full list`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            assertEquals(1, awaitItem().size)
+
+            vm.clearSearchQuery()
+            advanceUntilIdle()
+
+            assertEquals(2, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `typing and clearing a search query never re-queries the repositories`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            // Once per plant, from the initial buildStatus() build.
+            coVerify(exactly = 2) { careLogRepo.getLastLogOfType(any(), CareType.WATER) }
+
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            assertEquals(1, awaitItem().size)
+
+            vm.clearSearchQuery()
+            advanceUntilIdle()
+            assertEquals(2, awaitItem().size)
+
+            // Search is a pure in-memory filter downstream of the DB-bound combine — typing and
+            // clearing a query must not re-run buildStatus()'s per-plant Room queries.
+            coVerify(exactly = 2) { careLogRepo.getLastLogOfType(any(), CareType.WATER) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `search composes with the active room filter`() = runTest {
+        val kitchenMonstera = plant(id = 1L, name = "Monstera", room = "Kitchen")
+        val bedroomFern = plant(id = 2L, name = "Fern", room = "Bedroom")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenMonstera, bedroomFern))
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+            assertEquals(listOf(1L), awaitItem().map { it.plant.id })
+
+            // A query matching the room-filtered plant that's already showing would leave the
+            // combine's output unchanged (StateFlow never re-emits an equal consecutive value), so
+            // narrow with a non-matching query first to observe a real transition before searching
+            // back to the one plant the active room filter already narrowed to.
+            vm.setSearchQuery("fern")
+            advanceUntilIdle()
+            assertEquals(0, awaitItem().size)
+
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            assertEquals(listOf(1L), awaitItem().map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `search composes with ACTIVE_ISSUES sort's own filtering`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 1
+        coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 1
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.toggleSort(SortOption.ACTIVE_ISSUES)
+        advanceUntilIdle()
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+
+            vm.setSearchQuery("fern")
+            advanceUntilIdle()
+
+            assertEquals(listOf(2L), awaitItem().map { it.plant.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `selectAll while searching selects only the currently matching plants`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        val fern = plant(id = 2L, name = "Fern")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.setSearchQuery("mon")
+            advanceUntilIdle()
+            awaitItem()
+            vm.selectAll()
+            assertEquals(setOf(1L), vm.selectedPlantIds.value)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `openSearch activates search mode and arms auto-focus exactly once`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        assertFalse(vm.isSearchActive.value)
+
+        vm.openSearch()
+
+        assertTrue(vm.isSearchActive.value)
+        assertTrue(vm.consumeSearchAutoFocus())
+        assertFalse(vm.consumeSearchAutoFocus())
+    }
+
+    @Test
+    fun `closeSearch deactivates search mode and clears the query`() = runTest {
+        val monstera = plant(id = 1L, name = "Monstera")
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.openSearch()
+        vm.setSearchQuery("mon")
+
+        vm.closeSearch()
+
+        assertFalse(vm.isSearchActive.value)
+        assertEquals("", vm.searchQueryText)
+    }
+
     // toggleSort direction tests
 
     @Test

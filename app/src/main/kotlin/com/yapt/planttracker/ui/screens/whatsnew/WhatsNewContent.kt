@@ -17,6 +17,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Search your plants by name or species — tap the search icon on the plant list and the list " +
+                "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
+                "filters and sorting",
             "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
                 "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
                 "and optional progress photos grouped by type with watering first. Long-press to select tasks " +

@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Search the plant list by name or species** — a search icon in the Plant List top bar expands into an inline field that filters the list as you type, matching accented characters folded to their plain form (e.g. "grun" matches "Grünlilie"). It composes with the active room filter and sort option, shows a dedicated "No plants match" message when nothing fits, and resets on app restart (#512, product ADR-0055)
 - **A new Care tab turns every due care item into one queue, and it is now the first tab and the screen the
   app opens on** — work through watering, fertilizing, repotting, custom reminders, linked issue
   treatments, and optional progress photos due Overdue through the next three days. Tasks are grouped by
