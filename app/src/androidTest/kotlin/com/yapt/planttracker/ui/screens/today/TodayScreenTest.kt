@@ -11,13 +11,11 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -137,7 +135,7 @@ class TodayScreenTest {
         var openedPlantId: Long? = null
         setContent(onNavigateToPlant = { openedPlantId = it })
 
-        composeTestRule.onNodeWithText("Fern").performClick()
+        composeTestRule.onNodeWithText("Fern").tapRowEdge()
         composeTestRule.waitForIdle()
 
         assertEquals(fern.id, openedPlantId)
@@ -157,17 +155,17 @@ class TodayScreenTest {
         var openedPlantId: Long? = null
         setContent(onNavigateToPlant = { openedPlantId = it })
 
-        composeTestRule.onNodeWithText("Fern").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
         composeTestRule.onNodeWithText("Complete selected").assertIsDisplayed()
         composeTestRule.onNode(hasText("Fern").and(isSelected())).assertIsDisplayed()
         composeTestRule.onNode(hasText("Aloe").and(isSelected())).assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Aloe").performClick()
+        composeTestRule.onNodeWithText("Aloe").tapRowEdge()
         composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
         composeTestRule.onNode(hasText("Aloe").and(isSelected())).assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Fern").performClick()
+        composeTestRule.onNodeWithText("Fern").tapRowEdge()
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
         composeTestRule.onNode(hasText("Fern").and(isSelected())).assertDoesNotExist()
         assertNull(openedPlantId)
@@ -181,7 +179,7 @@ class TodayScreenTest {
         setContent(onSelectionModeChanged = { selectionActive = it })
         composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Fern").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
         composeTestRule.waitForIdle()
 
         assertTrue(selectionActive)
@@ -200,7 +198,7 @@ class TodayScreenTest {
         queue.value = TodayQueueSnapshot(1, listOf(task("photo:1", fern, TodayCareKind.PHOTO)))
         setContent()
 
-        composeTestRule.onNodeWithText("Fern").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
 
         composeTestRule.onNodeWithText("1 selected").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Take a progress photo of Fern").assertIsDisplayed()
@@ -226,7 +224,7 @@ class TodayScreenTest {
         composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Take a progress photo of Fern").assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Fern").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
 
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
         composeTestRule.onNode(hasText("Fern").and(isSelected())).assertIsDisplayed()
@@ -264,15 +262,30 @@ class TodayScreenTest {
     }
 
     @Test
-    fun taskControlsIdentifyThePlantAndTaskForScreenReaders() {
+    fun waterAndFertilizeControlsIdentifyThePlantForScreenReaders() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(
+            1,
+            listOf(
+                task("water:1", fern, TodayCareKind.WATER),
+                task("fertilize:1", fern, TodayCareKind.FERTILIZE)
+            )
+        )
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Reschedule watering for Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Fertilize Fern").assertIsDisplayed()
+    }
+
+    @Test
+    fun reminderAndTreatmentControlsIdentifyThePlantAndTaskForScreenReaders() {
         val fern = plant()
         val reminder = CustomReminder(id = 4L, plantId = fern.id, name = "Mist leaves", intervalDays = 3)
         val treatment = CustomReminder(id = 5L, plantId = fern.id, name = "Neem spray", intervalDays = 7)
         queue.value = TodayQueueSnapshot(
             1,
             listOf(
-                task("water:1", fern, TodayCareKind.WATER),
-                task("fertilize:1", fern, TodayCareKind.FERTILIZE),
                 task("custom:4", fern, TodayCareKind.CUSTOM_REMINDER, customReminder = reminder),
                 task(
                     "custom:5",
@@ -285,9 +298,6 @@ class TodayScreenTest {
         )
         setContent()
 
-        composeTestRule.onNodeWithContentDescription("Water Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Reschedule watering for Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Fertilize Fern").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Done: Mist leaves for Fern").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Done: Treat Spider mites for Fern").assertIsDisplayed()
         composeTestRule.onNodeWithText("Mist leaves").assertIsDisplayed()
@@ -337,7 +347,7 @@ class TodayScreenTest {
             QuickLogUseCase.BulkCompletionResult(completedCount = 1, skippedCount = 0, totalCount = 1)
         setContent()
 
-        composeTestRule.onNodeWithText("Fern").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("Fern").longPressRowEdge()
         composeTestRule.onNodeWithText("Complete selected").performClick()
 
         composeTestRule.onNodeWithText("Completed 1 of 1 tasks · 0 skipped").assertIsDisplayed()

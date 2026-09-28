@@ -588,8 +588,8 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("Group Care queue by plant").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Show each plant once with its due care grouped underneath")
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithTag("feature_flag_switch_today_group_by_plant").assertIsOff()
+            .performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("feature_flag_switch_today_group_by_plant").performScrollTo().assertIsOff()
     }
 
     @Test

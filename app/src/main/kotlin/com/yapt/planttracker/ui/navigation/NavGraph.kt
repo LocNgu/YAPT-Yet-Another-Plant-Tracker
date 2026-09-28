@@ -97,7 +97,8 @@ private fun NavController.navigateInitialDestination(
 
 // Care is the start destination, so Plants is not guaranteed to sit below Edit Plant on the back
 // stack (Care -> Plant Detail -> Edit). Reuse it when present; otherwise stack it above Care first.
-private fun NavController.showArchivedPlantOnPlantList(
+@androidx.annotation.VisibleForTesting
+internal fun NavController.showArchivedPlantOnPlantList(
     editEntry: NavBackStackEntry,
     archivedId: Long,
     archivedName: String

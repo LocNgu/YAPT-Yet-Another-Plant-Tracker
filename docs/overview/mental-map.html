@@ -320,12 +320,17 @@ footer a{color:var(--sage-dark);}
 
 <section>
   <div class="sec-head"><span class="sec-num">02</span><h2>Screens &amp; how you get there</h2></div>
-  <p class="sec-note">Only <b>Plant List</b> and <b>Calendar</b> sit on the bottom nav bar (product ADR-0019) — everything else is a stack push from one of those two.</p>
+  <p class="sec-note">Only <b>Care</b>, <b>Plant List</b> and <b>Calendar</b> sit on the bottom nav bar, in that order, with Care as the start destination (product ADR-0019, amended by product ADR-0054) — everything else is a stack push from one of those three.</p>
   <div class="grid cols-3">
     <div class="card">
-      <div class="top"><h3>Plant List</h3><span class="tag sage">start</span></div>
+      <div class="top"><h3>Care</h3><span class="tag sage">start</span></div>
+      <div class="route">today</div>
+      <p>First tab and launch screen (internally &ldquo;Today&rdquo;). One queue of every due care task, Overdue through the next three days, grouped by care type with watering first; long-press to select and complete tasks in a batch. Built by <b>TodayQueueAggregator</b>.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Plant List</h3></div>
       <div class="route">plant_list?restoreMessage={msg}</div>
-      <p>Home screen. Sortable/filterable <b>PlantCard</b> grid, quick-log buttons per card, bulk-select action bar. Entry to Add Plant and Settings.</p>
+      <p>Second tab (the Plants tab). Sortable/filterable <b>PlantCard</b> grid, quick-log buttons per card, bulk-select action bar. Entry to Add Plant and Settings.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Calendar</h3></div>

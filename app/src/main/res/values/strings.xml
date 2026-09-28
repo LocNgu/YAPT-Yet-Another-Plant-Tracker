@@ -477,7 +477,7 @@
     <string name="care_section_watering">Watering</string>
     <string name="care_section_issue_treatments">Issue treatments</string>
     <string name="care_section_fertilizing">Fertilizing</string>
-    <string name="care_section_custom_reminders">Reminders</string>
+    <string name="care_section_custom_reminders">Custom reminders</string>
     <string name="care_section_repotting">Repotting</string>
     <string name="care_section_photos">Photos</string>
     <string name="today_action_water_cd">Water %1$s</string>

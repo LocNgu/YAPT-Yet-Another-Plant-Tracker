@@ -495,26 +495,7 @@ private fun TodayTaskRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {
-        if (showPlantIdentity) {
-            Box {
-                PlantPhoto(task.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
-                if (selectable) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(2.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                    ) {
-                        Checkbox(checked = selected, onCheckedChange = null)
-                    }
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-        } else if (selectable) {
-            Checkbox(checked = selected, onCheckedChange = null)
-            Spacer(Modifier.width(4.dp))
-        }
+        TodayRowLeading(task, showPlantIdentity, selectable, selected)
         Column(modifier = Modifier.weight(1f)) {
             if (showPlantIdentity) {
                 Text(task.plant.name, style = MaterialTheme.typography.titleMedium)
@@ -523,6 +504,35 @@ private fun TodayTaskRow(
             TodayDueLabel(task)
             TodayTaskButtons(task, selectionMode, actions)
         }
+    }
+}
+
+@Composable
+private fun TodayRowLeading(
+    task: TodayCareTask,
+    showPlantIdentity: Boolean,
+    selectable: Boolean,
+    selected: Boolean
+) {
+    if (showPlantIdentity) {
+        Box {
+            PlantPhoto(task.plant.coverPhotoUri, TODAY_PHOTO_SIZE)
+            if (selectable) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                ) {
+                    Checkbox(checked = selected, onCheckedChange = null)
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+    } else if (selectable) {
+        Checkbox(checked = selected, onCheckedChange = null)
+        Spacer(Modifier.width(4.dp))
     }
 }
 
