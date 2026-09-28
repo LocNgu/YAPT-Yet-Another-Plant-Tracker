@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -375,5 +376,81 @@ class PlantListScreenTest {
             composeTestRule.onAllNodesWithContentDescription(unexpectedDescription)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    // Search (#512)
+
+    @Test
+    fun searchIcon_typingQuery_narrowsTheListToMatchingPlants() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription("Search plants").performClick()
+        composeTestRule.onNodeWithContentDescription("Search plants").performTextInput("mon")
+
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fern").assertDoesNotExist()
+    }
+
+    @Test
+    fun searchWithNoMatches_showsDedicatedEmptyState() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Search plants").performClick()
+        composeTestRule.onNodeWithContentDescription("Search plants").performTextInput("zzz")
+
+        val expectedMessage = InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .getString(R.string.empty_state_no_search_matches, "zzz")
+        composeTestRule.onNodeWithText(expectedMessage).assertIsDisplayed()
+    }
+
+    @Test
+    fun backArrowWhileSearching_closesSearchAndRestoresNormalTopBar() {
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {},
+                onNavigateToSettings = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Search plants").performClick()
+        composeTestRule.onNodeWithContentDescription("Search plants").performTextInput("mon")
+        composeTestRule.onNodeWithText("Fern").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Settings").assertDoesNotExist()
+
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Settings").assertIsDisplayed()
     }
 }

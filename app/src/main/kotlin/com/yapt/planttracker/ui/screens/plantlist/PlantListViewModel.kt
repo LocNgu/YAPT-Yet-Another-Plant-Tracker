@@ -2,6 +2,9 @@ package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -66,6 +69,49 @@ class PlantListViewModel(
 
     val selectedRoom = MutableStateFlow<String?>(null)
 
+    // Search (#512): same in-memory lifetime as [selectedRoom] above — a plain ViewModel field
+    // survives Plant Detail -> back (same instance across the nav back-stack) and resets on process
+    // death, with no DataStore key. `searchQueryText` is a synchronous Compose value for the
+    // TextField (mirroring AddEditPlantViewModel's `var name by mutableStateOf("")` — avoids driving
+    // a TextField off an asynchronously-collected StateFlow); `searchQuery` is the StateFlow the
+    // `combine` pipeline below reads. [setSearchQuery] is the one setter that writes both so they
+    // can never drift.
+    var searchQueryText by mutableStateOf("")
+        private set
+
+    private val searchQuery = MutableStateFlow("")
+
+    fun setSearchQuery(query: String) {
+        searchQueryText = query
+        searchQuery.value = query
+    }
+
+    fun clearSearchQuery() {
+        setSearchQuery("")
+    }
+
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
+    // Plain field, not a Flow (mirrors PlantDetailViewModel's pendingNewLogCareType/
+    // consumeNewLogCareType precedent) — consumed exactly once per [openSearch] so returning from
+    // Plant Detail with search already open (isSearchActive already true, no fresh tap) does not
+    // re-trigger auto-focus.
+    private var pendingSearchAutoFocus = false
+
+    fun openSearch() {
+        _isSearchActive.value = true
+        pendingSearchAutoFocus = true
+    }
+
+    fun consumeSearchAutoFocus(): Boolean = pendingSearchAutoFocus.also { pendingSearchAutoFocus = false }
+
+    fun closeSearch() {
+        _isSearchActive.value = false
+        pendingSearchAutoFocus = false
+        setSearchQuery("")
+    }
+
     private val _sortOrder = MutableStateFlow(DEFAULT_SORT)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
     private var sortWasChangedInMemory = false
@@ -96,16 +142,18 @@ class PlantListViewModel(
 
     /**
      * Folds [dayChangeFlow]'s emission into [_sortOrder] rather than adding it as its own arg to
-     * [plantsWithStatus]'s `combine()` below, which is already at the 5-flow limit of the typed
-     * `combine()` overloads (#550) — the sort order itself is unaffected by a day change, only the
-     * downstream `CARED_FOR_TODAY`/`buildStatus()` recomputation this combine drives is.
+     * [plantsWithStatusBeforeSearch]'s `combine()` below, which is already at the 5-flow limit of the
+     * typed `combine()` overloads (#550) — the sort order itself is unaffected by a day change, only
+     * the downstream `CARED_FOR_TODAY`/`buildStatus()` recomputation this combine drives is.
      */
     private val sortOrderOrDayChanged: Flow<SortOrder> = combine(
         _sortOrder,
         dayChangeFlow
     ) { sort, _ -> sort }
 
-    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+    // DB-bound: room filter -> buildStatus()'s per-plant Room queries -> applySortOrder(). Search
+    // (#512) is deliberately not an input here — see plantsWithStatus below.
+    private val plantsWithStatusBeforeSearch: StateFlow<List<PlantCareStatus>> = combine(
         allPlants,
         careLogRepository.logCount,
         selectedRoom,
@@ -133,6 +181,24 @@ class PlantListViewModel(
             emptyMap()
         }
         applySortOrder(statusList, sort, caredTodayAt)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Search (#512) is a cheap in-memory filter *downstream* of [plantsWithStatusBeforeSearch], never
+     * an input to that DB-bound combine — typing (or clearing) a query only re-runs this plain
+     * `filter{}`, never buildStatus()'s per-plant Room queries or getLastCareAtBetween(). The search
+     * predicate is per-plant and commutes with the room filter, every sort option's own filtering, and
+     * the ordering itself, so filtering here produces identical results to filtering upstream would
+     * have — the earlier upstream placement was a real, user-visible bug: every keystroke re-queried
+     * every room-filtered plant (4 Room queries each via buildStatus(), plus getLastCareAtBetween()
+     * under CARED_FOR_TODAY), and the synchronous `searchQueryText`-driven empty-state text could
+     * briefly disagree with this still-suspended, not-yet-rebuilt list on a clear/close.
+     */
+    val plantsWithStatus: StateFlow<List<PlantCareStatus>> = combine(
+        plantsWithStatusBeforeSearch,
+        searchQuery
+    ) { statuses, query ->
+        statuses.filter { matchesSearchQuery(it.plant, query) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val plantListItems: StateFlow<List<PlantListItem>> = combine(
