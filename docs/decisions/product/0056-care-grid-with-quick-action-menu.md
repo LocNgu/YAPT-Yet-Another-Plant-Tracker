@@ -1,4 +1,4 @@
-# Product ADR-0055: Care plant grid, Watering date sub-groups, and a long-press quick-action menu
+# Product ADR-0056: Care plant grid, Watering date sub-groups, and a long-press quick-action menu
 
 **Status**: accepted
 

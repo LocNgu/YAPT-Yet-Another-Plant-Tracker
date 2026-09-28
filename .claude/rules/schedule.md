@@ -37,7 +37,7 @@ empty sections hidden, queue order kept inside a section. Watering alone carries
 Today / Next 3 days, mapped 1:1 from `TodayTaskBucket` — every `Upcoming` is inside the aggregator's
 three-day horizon, so the UI does no date math), empty sub-groups hidden; every section and sub-group
 carries a distinct-plant `plantCount`. Presentation lives in `ui/screens/today/TodayCareGrid.kt`
-(product ADR-0055).
+(product ADR-0056).
 
 `dayChangeTicker()` is the shared self-correcting foreground day signal used by Care, Plant List,
 and Calendar. It emits immediately, computes the duration to the next midnight in the clock's local

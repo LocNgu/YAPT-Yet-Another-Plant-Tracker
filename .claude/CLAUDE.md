@@ -62,7 +62,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
   prompt. There is **no bulk completion or selection** on Care (the outer bottom bar never hides for Care;
   `shouldShowBottomNavigation()` only takes Plant List's selection flag) and no plant-grouped layout or
   developer flag: `QuickLogUseCase.completeTodayTasks()`/`BulkCompletionResult`, `plantSections()` and
-  `today_group_by_plant` are deleted (#842, product ADR-0055, amending product ADR-0054), while
+  `today_group_by_plant` are deleted (#842, product ADR-0056, amending product ADR-0054), while
   `completeCustomReminder()` (single Mark done) and Plant List's `bulkLog()` stay. `TodayCareRepository`
   injects the canonical `dayChangeTicker()` flow so its queue rolls over at the same local-day boundary as
   Plant List and Calendar; Plant List, Calendar, and Care all save a reminder photo through the one

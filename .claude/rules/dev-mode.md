@@ -31,7 +31,7 @@ no schema bump).
   flags), `setFlagEnabled`.
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
-- `TODAY_GROUP_BY_PLANT` (`today_group_by_plant`, #836, product ADR-0054) graduated (#842, product ADR-0055,
+- `TODAY_GROUP_BY_PLANT` (`today_group_by_plant`, #836, product ADR-0054) graduated (#842, product ADR-0056,
   amending product ADR-0054's flag clause) — the Care grid with Watering date sub-groups and the long-press
   quick-action menu is the chosen direction, so the flag, the `plantSections()` plant-grouped renderer, their
   strings, and their tests were deleted together (product ADR-0042's lifecycle rule) and there is no registry

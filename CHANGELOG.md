@@ -28,7 +28,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   show due dates. Tap a tile to open the plant; long-press it for just that task's actions — Water,
   Reschedule, Fertilize, Repot, Mark done, or Take photo — which screen readers also get as tile actions.
   The batch "Complete selected" flow and the temporary plant-grouped layout from #836 are removed before
-  release (#842, product ADR-0055, amending product ADR-0054)
+  release (#842, product ADR-0056, amending product ADR-0054)
 - **Deleted photos now free up storage instead of leaking forever** — a background sweep now reclaims camera-capture and restore-output image files once nothing in the database references them anymore (a deleted plant's cover photo and care-log photos, a deleted gallery photo, a second `.yapt` restore's leftover files from the first). Runs daily and right after a delete or restore; in-flight captures and gallery-picked photos are never touched (#736, #559, technical ADR-0031)
 
 ### Fixed
