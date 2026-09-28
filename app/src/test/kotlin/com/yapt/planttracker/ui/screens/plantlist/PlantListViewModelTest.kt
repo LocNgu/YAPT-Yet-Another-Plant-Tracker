@@ -10,7 +10,6 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -75,7 +74,6 @@ class PlantListViewModelTest {
     }
     private val plantRepo: PlantRepository = mockk()
     private val careLogRepo: CareLogRepository = mockk()
-    private val plantPhotoRepo: PlantPhotoRepository = mockk()
     private val dataStore: DataStore<Preferences> = mockk {
         every { data } returns flowOf(emptyPreferences())
     }
@@ -128,7 +126,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -145,7 +143,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -166,7 +164,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, bedroom))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -191,7 +189,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, bedroom))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -229,7 +227,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.FERTILIZE) } returns null
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -248,7 +246,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(4L) } returns 2
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -274,7 +272,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -299,7 +297,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -324,7 +322,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
             PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -349,7 +347,7 @@ class PlantListViewModelTest {
             QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
         // Default @Before stub already returns null for maybeBuildPhotoReminderRequest.
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -371,7 +369,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -396,7 +394,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickLog(monstera, CareType.PRUNE, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Pruned Monstera", logged = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -420,7 +418,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen, unassigned))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -441,7 +439,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(unassigned))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -457,7 +455,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchen))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen"))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -473,7 +471,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns plantsFlow
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -495,7 +493,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -519,7 +517,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(fig, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -540,7 +538,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -562,7 +560,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -590,7 +588,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -615,7 +613,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -646,7 +644,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(kitchenMonstera, bedroomFern))
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -680,7 +678,7 @@ class PlantListViewModelTest {
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 1
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 1
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -705,7 +703,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera, fern))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -725,7 +723,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -744,7 +742,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -767,7 +765,6 @@ class PlantListViewModelTest {
             application,
             plantRepo,
             careLogRepo,
-            plantPhotoRepo,
             dataStore,
             quickLogUseCase,
             plantIssueRepo,
@@ -794,7 +791,6 @@ class PlantListViewModelTest {
             application,
             plantRepo,
             careLogRepo,
-            plantPhotoRepo,
             delayedDataStore,
             quickLogUseCase,
             plantIssueRepo,
@@ -819,7 +815,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -836,7 +832,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -854,7 +850,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -873,7 +869,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -889,7 +885,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -906,7 +902,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -924,7 +920,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -941,7 +937,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -957,7 +953,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -974,7 +970,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -991,7 +987,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -1008,7 +1004,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -1030,7 +1026,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(zebra, apple, monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         advanceUntilIdle()
@@ -1056,7 +1052,7 @@ class PlantListViewModelTest {
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = 100L - oneDayMs)
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1084,7 +1080,7 @@ class PlantListViewModelTest {
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = 100L - oneDayMs)
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1112,7 +1108,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = sameTs)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1134,7 +1130,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(p1, p2, p3))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1158,7 +1154,7 @@ class PlantListViewModelTest {
         // p1 cared at 300 (most recent), p2 at 100; p3 not cared today -> excluded.
         coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1180,7 +1176,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns mapOf(1L to 300L, 2L to 100L)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1202,7 +1198,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { careLogRepo.getLastCareAtBetween(any(), any()) } returns emptyMap()
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1227,7 +1223,7 @@ class PlantListViewModelTest {
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 0
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(3L) } returns 1
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1248,7 +1244,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 0
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1271,7 +1267,7 @@ class PlantListViewModelTest {
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(1L) } returns 1
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(2L) } returns 1
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1291,7 +1287,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1319,7 +1315,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1355,7 +1351,7 @@ class PlantListViewModelTest {
                 )
             )
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1384,7 +1380,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickWaterWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered Monstera", logged = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1417,7 +1413,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(monstera, null, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Watered and fertilized Monstera", logged = true, waterPaired = true)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1466,7 +1462,7 @@ class PlantListViewModelTest {
                 )
             )
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1489,7 +1485,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { plantRepo.restorePlant(any()) } just runs
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1506,7 +1502,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1524,7 +1520,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(a, b))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1547,7 +1543,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } returns
             QuickLogUseCase.BulkLogResult(loggedCount = 2, skippedCount = 0, totalCount = 2)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1573,7 +1569,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.bulkLog(any(), CareType.FERTILIZE) } returns
             QuickLogUseCase.BulkLogResult(loggedCount = 2, skippedCount = 0, totalCount = 2)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1599,7 +1595,7 @@ class PlantListViewModelTest {
         coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } returns
             QuickLogUseCase.BulkLogResult(loggedCount = 1, skippedCount = 1, totalCount = 2)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1624,7 +1620,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(emptyList())
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1642,7 +1638,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { plantRepo.archivePlants(any(), any()) } just runs
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1670,7 +1666,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         coEvery { plantRepo.restorePlants(any()) } just runs
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1688,7 +1684,7 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1729,7 +1725,7 @@ class PlantListViewModelTest {
         }
         coEvery { careLogRepo.getLastLogOfType(7L, CareType.WATER) } returns null
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1771,7 +1767,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns
             CareLog(plantId = 3L, careType = CareType.WATER, loggedAt = now + (9 * oneDayMs))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1823,7 +1819,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getLastLogOfType(2L, CareType.WATER) } returns
             CareLog(plantId = 2L, careType = CareType.WATER, loggedAt = now - oneDayMs)
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 
@@ -1854,37 +1850,34 @@ class PlantListViewModelTest {
     }
 
     @Test
-    fun `saveReminderPhoto adds a PHOTO care log, plant_photos row, and updates cover`() = runTest {
+    fun `saveReminderPhoto delegates to the shared use case and clears the reminder request`() = runTest {
         val monstera = plant(id = 1L, name = "Monstera")
         every { plantRepo.getAllPlants() } returns flowOf(listOf(monstera))
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
-        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.FERTILIZE, any()) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Fertilized Monstera", logged = true)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns
+            PhotoReminderRequest(plantId = 1L, plantName = "Monstera", daysSince = 45L)
+        coEvery { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") } returns monstera
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         val uri: android.net.Uri = mockk()
         every { uri.toString() } returns "content://reminder.jpg"
 
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.quickLog(1L, CareType.FERTILIZE)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertNotNull(vm.photoReminderRequest.value)
+
         vm.saveReminderPhoto(1L, uri)
         advanceUntilIdle()
 
-        coVerify {
-            plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
-        }
-        coVerify {
-            careLogRepo.addLog(
-                match {
-                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-                }
-            )
-        }
-        coVerify {
-            plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
-        }
+        coVerify(exactly = 1) { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") }
         assertNull(vm.photoReminderRequest.value)
     }
 
@@ -1911,7 +1904,6 @@ class PlantListViewModelTest {
                 application,
                 plantRepo,
                 careLogRepo,
-                plantPhotoRepo,
                 dataStore,
                 quickLogUseCase,
                 plantIssueRepo,
@@ -1946,7 +1938,6 @@ class PlantListViewModelTest {
             application,
             plantRepo,
             careLogRepo,
-            plantPhotoRepo,
             enabledDataStore,
             quickLogUseCase,
             plantIssueRepo,
@@ -1979,7 +1970,7 @@ class PlantListViewModelTest {
         val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
         dayChangeFlow.tryEmit(LocalDate.of(2026, 1, 1))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
         vm.toggleSort(SortOption.CARED_FOR_TODAY)
@@ -2014,7 +2005,7 @@ class PlantListViewModelTest {
         val dayChangeFlow = MutableSharedFlow<LocalDate>(replay = 1)
         dayChangeFlow.tryEmit(LocalDate.of(2026, 1, 1))
         vm = PlantListViewModel(
-            application, plantRepo, careLogRepo, plantPhotoRepo, dataStore,
+            application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
         )
 

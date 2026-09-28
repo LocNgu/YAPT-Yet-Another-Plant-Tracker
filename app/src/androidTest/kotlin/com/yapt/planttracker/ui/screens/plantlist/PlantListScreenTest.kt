@@ -71,7 +71,6 @@ class PlantListScreenTest {
             application,
             plantRepo,
             careLogRepo,
-            plantPhotoRepo,
             dataStore,
             quickLogUseCase,
             plantIssueRepo

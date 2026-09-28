@@ -14,6 +14,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -70,6 +71,16 @@ open class YaptApplication : Application() {
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
     val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
     val featureFlags by lazy { FeatureFlags(settingsDataStore) }
+    val todayCareRepository by lazy {
+        TodayCareRepository(
+            plantRepository,
+            careLogRepository,
+            customReminderRepository,
+            plantIssueRepository,
+            plantPhotoRepository,
+            settingsDataStore
+        )
+    }
     val quickLogUseCase by lazy {
         QuickLogUseCase(
             this,
@@ -79,7 +90,8 @@ open class YaptApplication : Application() {
             settingsDataStore,
             database,
             wateringAdjustmentRepository,
-            onWaterLogged = ::schedulePostWateringReminder
+            onWaterLogged = ::schedulePostWateringReminder,
+            customReminderRepository = customReminderRepository
         )
     }
 

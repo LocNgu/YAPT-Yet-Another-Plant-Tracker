@@ -71,7 +71,6 @@ class CalendarScreenTest {
             application,
             plantRepo,
             careLogRepo,
-            plantPhotoRepo,
             dataStore,
             quickLogUseCase
         )

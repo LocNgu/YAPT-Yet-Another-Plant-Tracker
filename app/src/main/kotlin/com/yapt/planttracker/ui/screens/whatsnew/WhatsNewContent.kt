@@ -20,6 +20,10 @@ object WhatsNewContent {
             "Search your plants by name or species — tap the search icon on the plant list and the list " +
                 "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
                 "filters and sorting",
+            "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
+                "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
+                "and optional progress photos grouped by type with watering first. Long-press to select tasks " +
+                "and complete them together in one batch. The tab order is now Care, Plants, Calendar",
             "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
                 "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
                 "first, once nothing in the app references them anymore"

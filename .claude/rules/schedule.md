@@ -2,8 +2,12 @@
 description: CareSchedule status computation and adaptive watering-interval rules
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/today/**/*"
   - "app/src/test/**/schedule/**/*"
+  - "app/src/test/**/time/**/*"
+  - "app/src/test/**/today/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/util/DayChangeTicker.kt"
 ---
 
 > Computed seasonal watering factor (`seasonalAmplitude`/`hemisphere` params on `computeStatus()`,
@@ -16,6 +20,27 @@ Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never
 `lastWateredAt`/`lastFertilizedAt`/`createdAt`") goes through `Long.plusCalendarDays()`, never `+
 TimeUnit.DAYS.toMillis(n)` — a fixed 24h span silently loses a day of local calendar-date advancement
 across a DST fall-back transition (#733, technical ADR-0034).
+
+## Care queue (internally "Today") and local-day rollover (#836/#550, product ADR-0054)
+
+`TodayQueueAggregator` is the canonical pure projection for the Care root (user-facing "Care"; internal identifiers keep "Today"). It receives all active
+domain plants, care logs, custom reminders, issues, photos, settings, and an explicit `LocalDate`; it
+must reuse `CareSchedule.computeStatus()` rather than reimplement due-date rules. Its horizon is local
+Overdue + Today + the next three calendar days, ordered by due instant, lowercase plant name, then task
+id. A liquid-fertilizer plant gets one combined task only when watering exists in the horizon and
+fertilizing is due no later than that watering; it never gets a standalone fertilizer task. Active
+issues relabel only their linked custom-reminder task. Photo tasks use the newest care-log photo or
+gallery photo and deliberately ignore the session-only reminder-popup suppression. The default screen
+layout is `careTypeSections()` (`domain/today/TodayCareTask.kt`): Watering (incl. the combined
+water-and-fertilize task) → Issue treatments → Fertilizing → Custom reminders → Repotting → Photos,
+empty sections hidden, queue order kept inside a section; `plantSections()` is the developer-flag
+alternative.
+
+`dayChangeTicker()` is the shared self-correcting foreground day signal used by Care, Plant List,
+and Calendar. It emits immediately, computes the duration to the next midnight in the clock's local
+zone, delays for no more than its bounded poll interval, then recomputes from a fresh clock read. Do
+not replace it with a fixed 24-hour ticker: local days can be 23 or 25 hours, and a long-lived fixed
+delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
 
 ## computeStatus()
 - **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
@@ -186,7 +211,8 @@ It then calls this function and passes the result back via
   see `.claude/rules/watering-transparency.md`. Every reschedule option, "I can't right now" included,
   writes the override only and nothing else, same posture product ADR-0029 originally established.
 
-## DateUtils.formatRelative()
+## DateUtils.relativeDate() / relativeDateText()
+`DateUtils.relativeDate()` returns a `RelativeDate` sealed type; the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`) renders it from string resources.
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window
 (#351). History list + Graveyard show exact dates (e.g. "Jun 10, 2026") for events > 14 days old; PlantCard chips
 and Detail stats always show the relative form (#387).

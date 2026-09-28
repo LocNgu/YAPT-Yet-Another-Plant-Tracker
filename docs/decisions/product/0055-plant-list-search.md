@@ -1,4 +1,4 @@
-# Product ADR-0054: Plant list search — top-bar icon, name+species scope, accent-folded matching
+# Product ADR-0055: Plant list search — top-bar icon, name+species scope, accent-folded matching
 
 **Status**: accepted
 

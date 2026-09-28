@@ -16,6 +16,9 @@ class PlantPhotoRepository(
     private val onPhotoReferencesRemoved: () -> Unit = {}
 ) {
 
+    fun getAllPhotos(): Flow<List<PlantPhoto>> =
+        plantPhotoDao.getAllPhotos().map { list -> list.map { it.toDomain() } }
+
     fun getPhotosForPlant(plantId: Long): Flow<List<PlantPhoto>> =
         plantPhotoDao.getPhotosForPlant(plantId).map { list -> list.map { it.toDomain() } }
 

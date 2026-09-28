@@ -1,6 +1,6 @@
 # Product ADR-0019: Bottom navigation as top-level surface
 
-**Status**: accepted
+**Status**: accepted — root destination set and start destination amended by [ADR-0054](0054-unified-today-care-queue.md)
 
 **Date**: 2026-07-12
 

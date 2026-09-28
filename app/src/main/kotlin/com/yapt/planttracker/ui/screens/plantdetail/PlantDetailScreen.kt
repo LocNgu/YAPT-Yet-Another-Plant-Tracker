@@ -116,6 +116,7 @@ import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.ui.util.showSnackbarOnce
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
@@ -1464,7 +1465,7 @@ private fun careTypeInsightItems(
     val items = mutableListOf(countLabel to summary.count.toString())
     val lastAt = summary.lastAt
     if (lastAtLabel != null && lastAt != null) {
-        items += lastAtLabel to DateUtils.formatRelative(lastAt)
+        items += lastAtLabel to relativeDateText(lastAt)
     }
     val average = summary.averageIntervalDays
     if (average != null) {

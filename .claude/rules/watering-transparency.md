@@ -362,7 +362,7 @@ are always populated now; there is no flag-off degraded state to gate on anymore
   0-1/2-3/4-5) is the sheet's accessible content for confidence — the dots (`ConfidenceDots`) are
   decorative Compose `Box`es with no semantics of their own; the label `Text` is what a Compose UI test
   must assert (#420 — never dot count via tree structure).
-- Recent adjustments: date via `DateUtils.formatRelative()`, trigger via `WateringAdjustmentTrigger
+- Recent adjustments: date via `relativeDateText()`, trigger via `WateringAdjustmentTrigger
   .labelRes()` (`ui/util/EnumResources.kt`), and `before → after` (or "unchanged" when equal).
 - Deliberately textual/numeric only — does not embed `SeasonalWateringCurveChart` (#579), which lives
   one card away in the same inline-settings card and shows only the multiplier curve, no day-based

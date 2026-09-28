@@ -26,5 +26,12 @@ data class FeatureFlag(
  */
 object FeatureFlagRegistry {
 
-    val all: List<FeatureFlag> = listOf()
+    val TODAY_GROUP_BY_PLANT = FeatureFlag(
+        key = "today_group_by_plant",
+        titleRes = com.yapt.planttracker.R.string.dev_flag_today_group_title,
+        descriptionRes = com.yapt.planttracker.R.string.dev_flag_today_group_description,
+        default = false
+    )
+
+    val all: List<FeatureFlag> = listOf(TODAY_GROUP_BY_PLANT)
 }
