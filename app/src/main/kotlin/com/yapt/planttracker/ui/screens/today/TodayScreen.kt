@@ -97,9 +97,13 @@ fun TodayScreen(
     val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
     val selectionMode = selectedTaskIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
-    var reasonTask by remember { mutableStateOf<TodayCareTask?>(null) }
-    var rescheduleTask by remember { mutableStateOf<TodayCareTask?>(null) }
-    var repotTask by remember { mutableStateOf<TodayCareTask?>(null) }
+    var reasonTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var rescheduleTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var repotTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    val readyTasks = (uiState as? TodayUiState.Ready)?.snapshot?.tasks.orEmpty()
+    val reasonTask = reasonTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
+    val rescheduleTask = rescheduleTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
+    val repotTask = repotTaskId?.let { id -> readyTasks.firstOrNull { it.id == id } }
     var pendingPhotoPlantId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pendingSuggestion by remember { mutableStateOf<QuickWaterSuggestion?>(null) }
     var intervalText by remember(pendingSuggestion) {
@@ -182,9 +186,9 @@ fun TodayScreen(
                         actions = TodayTaskActions(
                             onOpen = viewModel::openPlant,
                             onToggleSelection = viewModel::toggleTaskSelection,
-                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTask = task } },
-                            onReschedule = { rescheduleTask = it },
-                            onRepot = { repotTask = it },
+                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
+                            onReschedule = { rescheduleTaskId = it.id },
+                            onRepot = { repotTaskId = it.id },
                             onPhoto = {
                                 pendingPhotoPlantId = it.plant.id
                                 onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
@@ -197,9 +201,9 @@ fun TodayScreen(
                         actions = TodayTaskActions(
                             onOpen = viewModel::openPlant,
                             onToggleSelection = viewModel::toggleTaskSelection,
-                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTask = task } },
-                            onReschedule = { rescheduleTask = it },
-                            onRepot = { repotTask = it },
+                            onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
+                            onReschedule = { rescheduleTaskId = it.id },
+                            onRepot = { repotTaskId = it.id },
                             onPhoto = {
                                 pendingPhotoPlantId = it.plant.id
                                 onLaunchPhotoCapture?.invoke(it.plant.id) ?: cameraState.launch()
@@ -220,14 +224,14 @@ fun TodayScreen(
             } else {
                 stringResource(R.string.water_feedback_sheet_title, task.plant.name)
             },
-            onDismiss = { reasonTask = null },
+            onDismiss = { reasonTaskId = null },
             onLog = { reason ->
                 if (task.kind == TodayCareKind.WATER) {
                     viewModel.completeWater(task.id, reason)
                 } else {
                     viewModel.completeFertilizing(task.id, reason)
                 }
-                reasonTask = null
+                reasonTaskId = null
             }
         )
     }
@@ -239,18 +243,18 @@ fun TodayScreen(
             computedNextWateringDueAt = watering?.computedDueAt,
             effectiveNextWateringDueAt = watering?.effectiveDueAt,
             actions = RescheduleDialogActions(
-                onDismiss = { rescheduleTask = null },
+                onDismiss = { rescheduleTaskId = null },
                 onToday = {
                     viewModel.rescheduleWatering(task.id, System.currentTimeMillis())
-                    rescheduleTask = null
+                    rescheduleTaskId = null
                 },
                 onRelativeDate = {
                     viewModel.rescheduleWatering(task.id, it)
-                    rescheduleTask = null
+                    rescheduleTaskId = null
                 },
                 onCustomDate = {
                     viewModel.rescheduleWatering(task.id, it)
-                    rescheduleTask = null
+                    rescheduleTaskId = null
                 }
             )
         )
@@ -259,10 +263,10 @@ fun TodayScreen(
     repotTask?.let { task ->
         CareDatePickerBottomSheet(
             testTag = TODAY_REPOT_DATE_PICKER_TAG,
-            onDismiss = { repotTask = null },
+            onDismiss = { repotTaskId = null },
             onConfirm = {
                 viewModel.completeRepotting(task.id, it)
-                repotTask = null
+                repotTaskId = null
             }
         )
     }

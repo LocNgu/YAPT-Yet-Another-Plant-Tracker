@@ -223,7 +223,6 @@ fun YaptNavGraph(
                         app,
                         app.plantRepository,
                         app.careLogRepository,
-                        app.plantPhotoRepository,
                         app.settingsDataStore,
                         app.quickLogUseCase,
                         app.plantIssueRepository
@@ -447,9 +446,7 @@ fun YaptNavGraph(
                         app.todayCareRepository,
                         app.featureFlags,
                         app.quickLogUseCase,
-                        app.plantRepository,
-                        app.careLogRepository,
-                        app.plantPhotoRepository
+                        app.plantRepository
                     )
                 )
                 TodayScreen(
@@ -467,7 +464,6 @@ fun YaptNavGraph(
                         app,
                         app.plantRepository,
                         app.careLogRepository,
-                        app.plantPhotoRepository,
                         app.settingsDataStore,
                         app.quickLogUseCase
                     )

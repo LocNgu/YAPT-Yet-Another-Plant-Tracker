@@ -4,8 +4,6 @@ import android.app.Application
 import android.net.Uri
 import app.cash.turbine.test
 import com.yapt.planttracker.R
-import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
@@ -31,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -48,8 +47,6 @@ class TodayViewModelTest {
     private val featureFlags = mockk<FeatureFlags>()
     private val quickLogUseCase = mockk<QuickLogUseCase>()
     private val plantRepository = mockk<PlantRepository>()
-    private val careLogRepository = mockk<CareLogRepository>()
-    private val plantPhotoRepository = mockk<PlantPhotoRepository>()
     private val application = mockk<Application>(relaxed = true)
     private val grouped = MutableStateFlow(false)
 
@@ -77,21 +74,25 @@ class TodayViewModelTest {
     }
 
     @Test
-    fun `aggregation failure shows error and retry starts a fresh collection`() = runTest {
+    fun `aggregation failure shows error and retry shows loading then ready`() = runTest {
         var calls = 0
+        val failing = MutableSharedFlow<TodayQueueSnapshot>(replay = 1)
+        val recovered = MutableSharedFlow<TodayQueueSnapshot>(replay = 1)
         every { repository.observeQueue() } answers {
             calls++
-            if (calls == 1) {
-                flow { throw IllegalStateException("boom") }
-            } else {
-                flowOf(TodayQueueSnapshot(0, emptyList()))
-            }
+            if (calls == 1) failing.map { throw IllegalStateException("boom") } else recovered
         }
         val viewModel = viewModel()
 
-        assertEquals(TodayUiState.Error, viewModel.uiState.first { it is TodayUiState.Error })
-        viewModel.retry()
-        assertTrue(viewModel.uiState.first { it is TodayUiState.Ready } is TodayUiState.Ready)
+        viewModel.uiState.test {
+            assertEquals(TodayUiState.Loading, awaitItem())
+            failing.emit(TodayQueueSnapshot(0, emptyList()))
+            assertEquals(TodayUiState.Error, awaitItem())
+            viewModel.retry()
+            assertEquals(TodayUiState.Loading, awaitItem())
+            recovered.emit(TodayQueueSnapshot(0, emptyList()))
+            assertTrue(awaitItem() is TodayUiState.Ready)
+        }
         assertEquals(2, calls)
     }
 
@@ -277,10 +278,7 @@ class TodayViewModelTest {
         val uri = mockk<Uri>(relaxed = true)
         val uriString = uri.toString()
         every { repository.observeQueue() } returns queue
-        every { plantRepository.getPlantById(plant.id) } returns flowOf(plant)
-        coEvery { plantPhotoRepository.addPhoto(any()) } returns 1L
-        coEvery { careLogRepository.addLog(any()) } returns 1L
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
+        coEvery { quickLogUseCase.saveReminderPhoto(plant.id, uriString) } returns plant
         val viewModel = viewModel()
 
         viewModel.uiState.first { it is TodayUiState.Ready }
@@ -291,25 +289,20 @@ class TodayViewModelTest {
             assertEquals("photo saved", awaitItem())
         }
 
-        coVerify { plantPhotoRepository.addPhoto(match { it.plantId == plant.id }) }
-        coVerify { careLogRepository.addLog(match { it.plantId == plant.id && it.photoUri == uriString }) }
-        coVerify { plantRepository.updatePlant(match { it.id == plant.id && it.coverPhotoUri == uriString }) }
+        coVerify(exactly = 1) { quickLogUseCase.saveReminderPhoto(plant.id, uriString) }
     }
 
     @Test
     fun `photo completion reports failure when launch time plant no longer exists`() = runTest {
         val uri = mockk<Uri>()
         every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(0, emptyList()))
-        every { plantRepository.getPlantById(1L) } returns flowOf(null)
+        coEvery { quickLogUseCase.saveReminderPhoto(1L, any()) } returns null
         val viewModel = viewModel()
 
         viewModel.messageEvent.test {
             viewModel.savePhoto(1L, uri)
             assertEquals("failed", awaitItem())
         }
-        coVerify(exactly = 0) { plantPhotoRepository.addPhoto(any()) }
-        coVerify(exactly = 0) { careLogRepository.addLog(any()) }
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
     }
 
     @Test
@@ -343,9 +336,7 @@ class TodayViewModelTest {
         repository,
         featureFlags,
         quickLogUseCase,
-        plantRepository,
-        careLogRepository,
-        plantPhotoRepository
+        plantRepository
     )
 
     private fun plant() = Plant(id = 1L, name = "Fern", createdAt = 0L, updatedAt = 0L)

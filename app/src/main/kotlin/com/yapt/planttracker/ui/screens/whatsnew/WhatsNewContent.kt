@@ -17,6 +17,10 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "A new Today tab turns every due care item into one queue — watering, fertilizing, repotting, " +
+                "custom reminders, linked issue treatments, and optional progress photos across Overdue, " +
+                "Today, and the next three days. Actions reuse the existing care flows, and non-photo tasks " +
+                "can be selected and completed together in one batch",
             "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
                 "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
                 "first, once nothing in the app references them anymore"

@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
@@ -86,6 +87,20 @@ class QuickLogUseCase(
     data class BulkLogResult(val loggedCount: Int, val skippedCount: Int, val totalCount: Int)
 
     data class BulkCompletionResult(val completedCount: Int, val skippedCount: Int, val totalCount: Int)
+
+    suspend fun saveReminderPhoto(plantId: Long, uri: String): Plant? {
+        val now = nowProvider()
+        return database.withTransaction {
+            val plant = plantRepository.getPlantById(plantId).first() ?: return@withTransaction null
+            plantPhotoRepository.addPhoto(PlantPhoto(plantId = plant.id, uri = uri, capturedAt = now))
+            careLogRepository.addLog(
+                CareLog(plantId = plant.id, careType = CareType.PHOTO, loggedAt = now, photoUri = uri)
+            )
+            val updated = plant.copy(coverPhotoUri = uri, updatedAt = now)
+            plantRepository.updatePlant(updated)
+            updated
+        }
+    }
 
     suspend fun completeCustomReminder(task: TodayCareTask): QuickLogOutcome {
         val reminder = requireNotNull(task.customReminder)

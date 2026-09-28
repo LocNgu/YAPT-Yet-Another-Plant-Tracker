@@ -8,13 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
-import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.CareSchedule
@@ -43,7 +41,6 @@ class CalendarViewModel(
     private val application: Application,
     private val plantRepository: PlantRepository,
     private val careLogRepository: CareLogRepository,
-    private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
     private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
@@ -217,11 +214,7 @@ class CalendarViewModel(
 
     fun saveReminderPhoto(plantId: Long, uri: Uri) {
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            plantPhotoRepository.addPhoto(PlantPhoto(plantId = plantId, uri = uri.toString(), capturedAt = now))
-            plantRepository.getPlantById(plantId).first()?.let { p ->
-                plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
-            }
+            quickLogUseCase.saveReminderPhoto(plantId, uri.toString())
             _photoReminderRequest.value = null
         }
     }
@@ -277,7 +270,6 @@ class CalendarViewModel(
         private val application: Application,
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
-        private val plantPhotoRepository: PlantPhotoRepository,
         private val dataStore: DataStore<Preferences>,
         private val quickLogUseCase: QuickLogUseCase
     ) : ViewModelProvider.Factory {
@@ -287,7 +279,6 @@ class CalendarViewModel(
                 application,
                 plantRepository,
                 careLogRepository,
-                plantPhotoRepository,
                 dataStore,
                 quickLogUseCase
             ) as T

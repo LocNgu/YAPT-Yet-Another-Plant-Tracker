@@ -207,7 +207,8 @@ It then calls this function and passes the result back via
   see `.claude/rules/watering-transparency.md`. Every reschedule option, "I can't right now" included,
   writes the override only and nothing else, same posture product ADR-0029 originally established.
 
-## DateUtils.formatRelative()
+## DateUtils.relativeDate() / relativeDateText()
+`DateUtils.relativeDate()` returns a `RelativeDate` sealed type; the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`) renders it from string resources.
 Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window
 (#351). History list + Graveyard show exact dates (e.g. "Jun 10, 2026") for events > 14 days old; PlantCard chips
 and Detail stats always show the relative form (#387).

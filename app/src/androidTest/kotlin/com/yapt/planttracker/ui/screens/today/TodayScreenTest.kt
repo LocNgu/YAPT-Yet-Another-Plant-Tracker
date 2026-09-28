@@ -17,8 +17,6 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
@@ -296,9 +294,7 @@ class TodayScreenTest {
             todayCareRepository = repository,
             featureFlags = featureFlags,
             quickLogUseCase = quickLogUseCase,
-            plantRepository = mockk<PlantRepository>(relaxed = true),
-            careLogRepository = mockk<CareLogRepository>(relaxed = true),
-            plantPhotoRepository = mockk<PlantPhotoRepository>(relaxed = true)
+            plantRepository = mockk<PlantRepository>(relaxed = true)
         )
         composeTestRule.setContent {
             TodayScreen(

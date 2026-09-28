@@ -6,15 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
-import com.yapt.planttracker.data.repository.CareLogRepository
-import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
-import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
-import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.today.TodayCareKind
@@ -36,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -58,9 +55,7 @@ class TodayViewModel(
     private val todayCareRepository: TodayCareRepository,
     featureFlags: FeatureFlags,
     private val quickLogUseCase: QuickLogUseCase,
-    private val plantRepository: PlantRepository,
-    private val careLogRepository: CareLogRepository,
-    private val plantPhotoRepository: PlantPhotoRepository
+    private val plantRepository: PlantRepository
 ) : ViewModel() {
 
     private sealed interface QueueResult {
@@ -78,6 +73,7 @@ class TodayViewModel(
         todayCareRepository.observeQueue()
             .map<TodayQueueSnapshot, QueueResult> { QueueResult.Success(it) }
             .catch { emit(QueueResult.Error) }
+            .onStart { emit(QueueResult.Loading) }
     }.onEach { result ->
         if (result is QueueResult.Success) reconcileSelection(result.snapshot.tasks)
     }
@@ -217,21 +213,7 @@ class TodayViewModel(
     fun savePhoto(plantId: Long, uri: Uri) {
         viewModelScope.launch {
             executeAction {
-                val plant = requireNotNull(plantRepository.getPlantById(plantId).first())
-                val now = System.currentTimeMillis()
-                val uriString = uri.toString()
-                plantPhotoRepository.addPhoto(
-                    PlantPhoto(plantId = plant.id, uri = uriString, capturedAt = now)
-                )
-                careLogRepository.addLog(
-                    CareLog(
-                        plantId = plant.id,
-                        careType = CareType.PHOTO,
-                        loggedAt = now,
-                        photoUri = uriString
-                    )
-                )
-                plantRepository.updatePlant(plant.copy(coverPhotoUri = uriString, updatedAt = now))
+                val plant = requireNotNull(quickLogUseCase.saveReminderPhoto(plantId, uri.toString()))
                 _messageEvent.emit(application.getString(R.string.today_photo_saved, plant.name))
             }
         }
@@ -317,9 +299,7 @@ class TodayViewModel(
         private val todayCareRepository: TodayCareRepository,
         private val featureFlags: FeatureFlags,
         private val quickLogUseCase: QuickLogUseCase,
-        private val plantRepository: PlantRepository,
-        private val careLogRepository: CareLogRepository,
-        private val plantPhotoRepository: PlantPhotoRepository
+        private val plantRepository: PlantRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = TodayViewModel(
@@ -327,9 +307,7 @@ class TodayViewModel(
             todayCareRepository,
             featureFlags,
             quickLogUseCase,
-            plantRepository,
-            careLogRepository,
-            plantPhotoRepository
+            plantRepository
         ) as T
     }
 }
