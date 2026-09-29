@@ -575,9 +575,9 @@ class SettingsScreenTest {
     /**
      * Same rendering as [featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty], but against the
      * real [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.all] via the default
-     * [viewModel] built in [setUp] (no injected flag list) — `PLANT_DETAIL_TABS` graduating (#704)
-     * left the registry genuinely empty, which is now every real install's developer mode, not just
-     * an injected test case.
+     * [viewModel] built in [setUp] (no injected flag list) - the Care grouping experiment graduating
+     * (#842) left the registry genuinely empty, which is every real install's developer mode, not
+     * just an injected test case.
      */
     @Test
     fun featureFlagsEmptyState_isDisplayed_withRealRegistry() {

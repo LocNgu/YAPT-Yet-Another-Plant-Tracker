@@ -320,12 +320,17 @@ footer a{color:var(--sage-dark);}
 
 <section>
   <div class="sec-head"><span class="sec-num">02</span><h2>Screens &amp; how you get there</h2></div>
-  <p class="sec-note">Only <b>Plant List</b> and <b>Calendar</b> sit on the bottom nav bar (product ADR-0019) — everything else is a stack push from one of those two.</p>
+  <p class="sec-note">Only <b>Care</b>, <b>Plant List</b> and <b>Calendar</b> sit on the bottom nav bar, in that order, with Care as the start destination (product ADR-0019, amended by product ADR-0054) — everything else is a stack push from one of those three.</p>
   <div class="grid cols-3">
     <div class="card">
-      <div class="top"><h3>Plant List</h3><span class="tag sage">start</span></div>
+      <div class="top"><h3>Care</h3><span class="tag sage">start</span></div>
+      <div class="route">today</div>
+      <p>First tab and launch screen (internally &ldquo;Today&rdquo;). One queue of every due care task, Overdue through the next three days, shown as a grid of plant tiles grouped by care type with watering first (split into Overdue / Today / Next 3 days); tap a tile to open the plant, long-press for that task&rsquo;s quick actions. Built by <b>TodayQueueAggregator</b>.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h3>Plant List</h3></div>
       <div class="route">plant_list?restoreMessage={msg}</div>
-      <p>Home screen. Sortable/filterable <b>PlantCard</b> grid, quick-log buttons per card, bulk-select action bar. Entry to Add Plant and Settings.</p>
+      <p>Second tab (the Plants tab). Sortable/filterable <b>PlantCard</b> grid, quick-log buttons per card, bulk-select action bar. Entry to Add Plant and Settings.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Calendar</h3></div>
@@ -442,13 +447,13 @@ footer a{color:var(--sage-dark);}
 
 <section>
   <div class="sec-head"><span class="sec-num">07</span><h2>How a change actually ships</h2></div>
-  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec + QA only, never Review).</p>
+  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec only, never Review; QA is already on-demand). Review launches alongside CI, joined by head SHA, not after it goes green (technical ADR-0032).</p>
   <div class="pipeline">
     <div class="pstep"><div class="n">issue</div><div class="t">File it first</div><div class="d">GitHub issue before any code</div></div>
-    <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">interviews, ADR scan</div></div>
-    <div class="pstep"><div class="n">02</div><div class="t">Implement</div><div class="d">claude/* branch, PR to develop</div></div>
-    <div class="pstep"><div class="n">03</div><div class="t">Review</div><div class="d">BLOCKING findings, max 2 rounds</div></div>
-    <div class="pstep"><div class="n">04</div><div class="t">QA</div><div class="d">acceptance criteria CI can't check</div></div>
+    <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">ADR scan, batched questions</div></div>
+    <div class="pstep"><div class="n">02</div><div class="t">Implement</div><div class="d">pre-push gate, claude/* branch, PR to develop</div></div>
+    <div class="pstep"><div class="n">03</div><div class="t">Review</div><div class="d">AC checklist + BLOCKING/SMALL fixed together, max 2 rounds</div></div>
+    <div class="pstep"><div class="n">04</div><div class="t">QA</div><div class="d">on-demand, device-only findings</div></div>
     <div class="pstep"><div class="n">05</div><div class="t">Docs</div><div class="d">CHANGELOG, What's New</div></div>
     <div class="pstep"><div class="n">06</div><div class="t">Merge</div><div class="d">human only</div></div>
   </div>

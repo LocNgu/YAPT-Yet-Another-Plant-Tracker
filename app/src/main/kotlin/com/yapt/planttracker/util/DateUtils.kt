@@ -15,20 +15,47 @@ internal fun Long.toLocalDate(): LocalDate =
 internal fun LocalDate.toStartOfDayMillis(): Long =
     atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
+/**
+ * Advances [this] instant by [days] **calendar** days in [zone], preserving local wall-clock
+ * time-of-day — the local date always moves by exactly [days], the local time-of-day never changes.
+ * This is deliberately not `this + TimeUnit.DAYS.toMillis(days)`: a fixed-24h-per-day span is correct
+ * for a *duration* (e.g. the REPOT freeze window in `WateringLifecycleReset`, which really is "28 real
+ * days from now"), but every due-date/deferral site in the scheduling path means "the same time of day,
+ * N calendar days from now" — and local calendar days are not always 24 hours. A DST fall-back day
+ * (e.g. `America/New_York`'s 02:00 -> 01:00 transition) is 25 hours long, so adding a fixed 24h on such
+ * a day can leave the result on the *same* local calendar date, one day short of what every downstream
+ * consumer expects when it compares dates via [toLocalDate] (technical ADR-0013). See #733 and
+ * technical ADR-0034.
+ */
+internal fun Long.plusCalendarDays(days: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+    Instant.ofEpochMilli(this).atZone(zone).plusDays(days).toInstant().toEpochMilli()
+
 object DateUtils {
 
-    fun formatRelative(
+    sealed interface RelativeDate {
+        data object Tomorrow : RelativeDate
+        data class InDays(val count: Long) : RelativeDate
+        data object Today : RelativeDate
+        data object Yesterday : RelativeDate
+        data class DaysAgo(val count: Long) : RelativeDate
+        data class ExactDate(val value: String) : RelativeDate
+    }
+
+    fun relativeDate(
         timestampMs: Long,
         now: Long = System.currentTimeMillis(),
         maxRelativeDays: Long? = null,
-    ): String {
+    ): RelativeDate {
         val days = ChronoUnit.DAYS.between(timestampMs.toLocalDate(), now.toLocalDate())
         return when {
-            days == 0L -> "Today"
-            days == 1L -> "Yesterday"
-            maxRelativeDays == null || days <= maxRelativeDays -> "$days days ago"
-            else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                .format(Date(timestampMs))
+            days == -1L -> RelativeDate.Tomorrow
+            days < -1L -> RelativeDate.InDays(-days)
+            days == 0L -> RelativeDate.Today
+            days == 1L -> RelativeDate.Yesterday
+            maxRelativeDays == null || days <= maxRelativeDays -> RelativeDate.DaysAgo(days)
+            else -> RelativeDate.ExactDate(
+                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestampMs))
+            )
         }
     }
 

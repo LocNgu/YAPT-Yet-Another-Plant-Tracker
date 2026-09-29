@@ -633,7 +633,7 @@ class CareScheduleAdaptiveTest {
 
     /**
      * Pins the #738/ADR-0039 defect: a `TOO_SOON` observation taken well *before* the interval has
-     * elapsed still shortens the base, exactly the mirror-image bug ADR-0033 already fixed for the
+     * elapsed still shortens the base, exactly the mirror-image bug product ADR-0033 already fixed for the
      * late direction ("a late gap never shortens"). This was reachable via the "Soil still moist"
      * Reschedule flow (`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, itself removed in the
      * PR 2 follow-up to #738) — checking a 14-day plant on day 8 (well before it was due) and

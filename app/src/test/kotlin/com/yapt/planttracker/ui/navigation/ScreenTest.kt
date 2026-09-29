@@ -1,7 +1,10 @@
 package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -22,6 +25,7 @@ class ScreenTest {
         assertEquals("add_plant", Screen.AddPlant.route)
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
+        assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
 
@@ -39,7 +43,7 @@ class ScreenTest {
 
     @Test
     fun `plantDetail route template declares plantId path argument`() {
-        assertEquals("plant_detail/{plantId}", Screen.PlantDetail.route)
+        assertEquals("plant_detail/{plantId}?tab={tab}", Screen.PlantDetail.route)
     }
 
     @Test
@@ -73,6 +77,27 @@ class ScreenTest {
     }
 
     @Test
+    fun `plantDetail createRoute appends tab only when given`() {
+        assertEquals("plant_detail/7?tab=PHOTO", Screen.PlantDetail.createRoute(7L, PlantDetailTab.PHOTO))
+        assertEquals("plant_detail/7?tab=ISSUES", Screen.PlantDetail.createRoute(7L, PlantDetailTab.ISSUES))
+    }
+
+    @Test
+    fun `plantDetail tab arg parses defensively`() {
+        assertEquals(null, PlantDetailTab.fromRouteArg(null))
+        assertEquals(PlantDetailTab.FERTILIZE, PlantDetailTab.fromRouteArg("FERTILIZE"))
+        assertEquals(PlantDetailTab.WATER, PlantDetailTab.fromRouteArg("bogus"))
+    }
+
+    @Test
+    fun `only the second-row tabs need the tab row expanded`() {
+        assertEquals(
+            setOf(PlantDetailTab.CUSTOM_REMINDERS, PlantDetailTab.ISSUES),
+            PlantDetailTab.entries.filter { it.isInCollapsedRow }.toSet()
+        )
+    }
+
+    @Test
     fun `addCareLog createRoute defaults careLogId to 0`() {
         assertEquals("add_care_log/3?careLogId=0&careType=WATER", Screen.AddCareLog.createRoute(3L))
     }
@@ -88,5 +113,26 @@ class ScreenTest {
             "add_care_log/3?careLogId=0&careType=PHOTO",
             Screen.AddCareLog.createRoute(3L, careType = CareType.PHOTO)
         )
+    }
+
+    @Test
+    fun `bottom navigation is visible on all three root tabs when nothing is selected`() {
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, false))
+        assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, false))
+    }
+
+    @Test
+    fun `bottom navigation hides only for the Plant List selection mode`() {
+        assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, true))
+        assertTrue(shouldShowBottomNavigation(Screen.Today.route, true))
+        assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, true))
+    }
+
+    @Test
+    fun `bottom navigation hides for nested destinations`() {
+        assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, false))
+        assertFalse(shouldShowBottomNavigation(null, false))
     }
 }

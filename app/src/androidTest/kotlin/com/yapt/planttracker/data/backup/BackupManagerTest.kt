@@ -171,6 +171,52 @@ class BackupManagerTest {
         assertArrayEquals("Restored photo bytes must match originals", photoBytes, restoredBytes)
     }
 
+    /**
+     * #736: a successful import schedules an orphan-photo sweep so a second restore's leftover
+     * `restored_photos` files from the first restore get reclaimed.
+     */
+    @Test
+    fun successfulImport_firesOnImportCompleted() = runBlocking {
+        var callCount = 0
+        val callbackBackupManager = BackupManager(context, db, dataStore, onImportCompleted = { callCount++ })
+        db.plantDao().insertPlant(
+            PlantEntity(
+                id = 1L,
+                name = "Pothos",
+                species = null,
+                room = null,
+                coverPhotoUri = null,
+                notes = null,
+                wateringIntervalDays = null,
+                fertilizingIntervalDays = null,
+                createdAt = 1000L,
+                updatedAt = 1000L
+            )
+        )
+        val exportFile = tmpFolder.newFile("import_callback.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        callbackBackupManager.exportBackup(exportUri, includePhotos = false)
+        assertEquals(0, callCount)
+
+        val importResult = callbackBackupManager.importBackup(exportUri)
+
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun failedImport_neverFiresOnImportCompleted() = runBlocking {
+        var callCount = 0
+        val callbackBackupManager = BackupManager(context, db, dataStore, onImportCompleted = { callCount++ })
+        val corruptFile = tmpFolder.newFile("corrupt.yapt")
+        corruptFile.writeBytes(byteArrayOf(0, 1, 2, 3))
+
+        val importResult = callbackBackupManager.importBackup(Uri.fromFile(corruptFile))
+
+        assertTrue("Expected Error", importResult is BackupResult.Error)
+        assertEquals(0, callCount)
+    }
+
     @Test
     fun roundTrip_withOptimizedPhotos_reducesDimensionsWithoutChangingSource() = runBlocking {
         val photoFile = tmpFolder.newFile("large-cover.jpg")

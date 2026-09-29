@@ -120,6 +120,16 @@ kotlin {
     }
 }
 
+// Informational unit-test benchmarks (#841) print one `YAPT_BENCH` line; promote just those lines to
+// the console so CI logs carry the numbers without dumping every test's stdout.
+tasks.withType<Test>().configureEach {
+    addTestOutputListener(
+        TestOutputListener { _, event ->
+            if (event.message.startsWith("YAPT_BENCH")) logger.lifecycle(event.message.trimEnd())
+        }
+    )
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
@@ -140,7 +150,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
 
-    implementation("androidx.navigation:navigation-compose:2.10.1")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
 
     implementation("com.patrykandpatrick.vico:compose-m3:2.5.2")
     implementation("com.kizitonwose.calendar:compose:2.10.1")
@@ -149,9 +159,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
 
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.19.1")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
@@ -167,7 +177,7 @@ dependencies {
     testImplementation("androidx.room:room-testing:2.8.5")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.work:work-testing:2.11.2")
+    testImplementation("androidx.work:work-testing:2.12.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

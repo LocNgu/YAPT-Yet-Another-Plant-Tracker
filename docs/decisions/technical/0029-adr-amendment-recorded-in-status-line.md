@@ -16,7 +16,7 @@ That contradiction was not hypothetical. Three different conventions for recordi
 already accumulated across the tree, each looking equally "correct" against some part of the rule:
 
 - **A one-line note under Consequences.** Technical ADR-0018 (Edit button scroll fade → ADR-0022),
-  product ADR-0029 and product ADR-0030 (visibility gate → ADR-0031) all did this. This is the pattern
+  product ADR-0029 and product ADR-0030 (visibility gate → product ADR-0031) all did this. This is the pattern
   the "Amended by ADR-XXXX" citation guidance was implicitly written for.
 - **A dedicated back-reference left off entirely**, "per CLAUDE.md's rule that the only permitted edit
   to a finalized ADR is its Status line." Product ADR-0040's own Consequences section says exactly this
@@ -41,8 +41,8 @@ ADR-0021's own line, which already used this shape before this ADR made it a rul
 record more than one relationship (a supersession and an amendment, or more than one amendment), they
 are combined in the same Status line — product ADR-0016's multi-clause, comma-separated Status line is
 the in-repo precedent for that shape, and the migrations this ADR lands alongside follow it: product
-ADR-0029 chains its ADR-0030 supersession with its ADR-0031 amendment, and product ADR-0030 folds the
-ADR-0031 amendment into a Status line that already recorded two partial supersessions.
+ADR-0029 chains its product ADR-0030 supersession with its product ADR-0031 amendment, and product ADR-0030 folds the
+product ADR-0031 amendment into a Status line that already recorded two partial supersessions.
 
 A Consequences-section note recording the same fact is removed once its Status-line equivalent exists —
 the two must not both exist, or a future edit to one silently leaves the other stale. This resolves the
@@ -77,23 +77,23 @@ loosening the rule to explicitly permit a Consequences-section note:
   below legal under the very rule it amends — and the citation-resolution example is re-anchored to a
   Status-line amendment note instead of a Consequences-section one.
 - Three existing ADRs are migrated in the same PR: technical ADR-0018 (Edit button scroll fade →
-  ADR-0022), product ADR-0029 and product ADR-0030 (due-status visibility gate → ADR-0031) each lose
+  ADR-0022), product ADR-0029 and product ADR-0030 (due-status visibility gate → product ADR-0031) each lose
   their Consequences-section "Amended by ADR-XXXX" note and gain the equivalent Status-line clause.
   Product ADR-0031 gains a new Status-line back-reference to product ADR-0040 that did not exist before
   under any convention (ADR-0040 deliberately omitted one, per the old rule's own contradiction).
 - **Technical ADR-0022 and product ADR-0040 are deliberately left byte-for-byte unchanged by this
-  migration, as is product ADR-0031's Consequences prose** — ADR-0031's Status line does change, to
+  migration, as is product ADR-0031's Consequences prose** — product ADR-0031's Status line does change, to
   gain the ADR-0040 back-reference described above, but nothing below it does. All three keep
-  Consequences prose that now describes an arrangement which is no longer true: ADR-0022 and ADR-0031
+  Consequences prose that now describes an arrangement which is no longer true: ADR-0022 and product ADR-0031
   each say the ADR they amend "now carries a one-line 'Amended by ADR-XXXX' note under its own
   Consequences section" (no longer the case after this PR's migration), and ADR-0040 says no
-  back-reference is added to ADR-0031 "per CLAUDE.md's rule" (a back-reference is added, by this same
+  back-reference is added to product ADR-0031 "per CLAUDE.md's rule" (a back-reference is added, by this same
   PR). This is intentional, not an oversight: those sentences are
   accurate **historical records of what those PRs actually did** at the time they merged, under the
   convention that existed then. Editing them to match the new convention would itself be the forbidden
   kind of retroactive Consequences-prose edit — describing a later revert as if it were the original
   fact is exactly what this project's ADR-editing discipline exists to prevent. A reader who lands on
-  ADR-0022, ADR-0031, or ADR-0040 first and follows its stated back-reference description will find it
+  ADR-0022, product ADR-0031, or ADR-0040 first and follows its stated back-reference description will find it
   stale relative to the amended ADR's current Status line; the amended ADR's Status line is the
   authoritative, current statement of the relationship, not the older ADR's prose.
 - `docs/decisions/template.md` gains no new field by this ADR — it still has no `**Amends**:` or

@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
+import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
@@ -45,7 +46,12 @@ class SettingsViewModel(
     private val database: PlantDatabase,
     private val plantRepository: PlantRepository,
     private val featureFlags: FeatureFlags = FeatureFlags(dataStore),
-    private val backupManager: BackupManagerInterface = BackupManager(context, database, dataStore)
+    private val backupManager: BackupManagerInterface = BackupManager(
+        context,
+        database,
+        dataStore,
+        onImportCompleted = { (context.applicationContext as? YaptApplication)?.scheduleOrphanPhotoCleanup() }
+    )
 ) : ViewModel() {
 
     val flags: List<FeatureFlag> get() = featureFlags.flags

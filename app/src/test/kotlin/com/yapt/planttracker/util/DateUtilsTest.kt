@@ -36,71 +36,83 @@ class DateUtilsTest {
     }
 
     @Test
-    fun `formatRelative 0 days returns Today`() {
+    fun `relativeDate 0 days returns Today`() {
         val timestamp = now - TimeUnit.HOURS.toMillis(1)
-        assertEquals("Today", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.Today, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 1 day returns Yesterday`() {
+    fun `relativeDate 1 day returns Yesterday`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(1)
-        assertEquals("Yesterday", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.Yesterday, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 3 days returns 3 days ago`() {
+    fun `relativeDate 3 days returns 3 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(3)
-        assertEquals("3 days ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(3), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 7 days returns 7 days ago`() {
+    fun `relativeDate 7 days returns 7 days ago`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
-        assertEquals("7 days ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(7), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative 30 days with default returns relative`() {
+    fun `relativeDate 30 days with default returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(30)
-        assertEquals("30 days ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(30), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 14 days returns relative`() {
+    fun `relativeDate maxRelativeDays 14, 14 days returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(14)
-        assertEquals("14 days ago", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(14), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 15 days returns exact date`() {
+    fun `relativeDate maxRelativeDays 14, 15 days returns exact date`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(15)
-        assertEquals("Oct 30, 2023", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
+        assertEquals(DateUtils.RelativeDate.ExactDate("Oct 30, 2023"), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative maxRelativeDays 14, 7 days returns relative`() {
+    fun `relativeDate maxRelativeDays 14, 7 days returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(7)
-        assertEquals("7 days ago", DateUtils.formatRelative(timestamp, now, maxRelativeDays = 14))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(7), DateUtils.relativeDate(timestamp, now, 14))
     }
 
     @Test
-    fun `formatRelative 60 days with default returns relative`() {
+    fun `relativeDate 60 days with default returns relative`() {
         val timestamp = now - TimeUnit.DAYS.toMillis(60)
-        assertEquals("60 days ago", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.DaysAgo(60), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative same calendar day but over 1h ago returns Today`() {
+    fun `relativeDate same calendar day but over 1h ago returns Today`() {
         // now = 2023-11-14 22:13 UTC; 6h ago = 16:13 same day
         val timestamp = now - TimeUnit.HOURS.toMillis(6)
-        assertEquals("Today", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.Today, DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
-    fun `formatRelative previous calendar day but less than 24h ago returns Yesterday`() {
+    fun `relativeDate previous calendar day but less than 24h ago returns Yesterday`() {
         // now = 2023-11-14 22:13 UTC; 23h ago = 2023-11-13 23:13 — different calendar day
         val timestamp = now - TimeUnit.HOURS.toMillis(23)
-        assertEquals("Yesterday", DateUtils.formatRelative(timestamp, now))
+        assertEquals(DateUtils.RelativeDate.Yesterday, DateUtils.relativeDate(timestamp, now))
+    }
+
+    @Test
+    fun `relativeDate next calendar day returns Tomorrow`() {
+        val timestamp = now + TimeUnit.HOURS.toMillis(2)
+        assertEquals(DateUtils.RelativeDate.Tomorrow, DateUtils.relativeDate(timestamp, now))
+    }
+
+    @Test
+    fun `relativeDate multiple future calendar days returns In days`() {
+        val timestamp = now + TimeUnit.DAYS.toMillis(3)
+        assertEquals(DateUtils.RelativeDate.InDays(3), DateUtils.relativeDate(timestamp, now))
     }
 
     @Test
@@ -210,5 +222,83 @@ class DateUtilsTest {
         assertTrue(now >= start && now < end)
         // Window spans exactly one day: [start, end).
         assertEquals(TimeUnit.DAYS.toMillis(1), end - start)
+    }
+
+    // plusCalendarDays (#733, technical ADR-0034)
+
+    private val newYork = java.time.ZoneId.of("America/New_York")
+
+    @Test
+    fun `plusCalendarDays across a DST fall-back day lands on local date plus n, not 24h later`() {
+        // America/New_York falls back 02:00 -> 01:00 on 2026-11-01. 00:30 local on Nov 1 is a
+        // genuinely 25h calendar day; a fixed +24h would land at 23:30 local on Nov 1 (same date),
+        // one day short of what every due-date consumer expects.
+        val nov1At0030 = java.time.LocalDateTime.of(2026, 11, 1, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = nov1At0030.plusCalendarDays(1, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 11, 2), resultZoned.toLocalDate())
+        assertEquals(0, resultZoned.hour)
+        assertEquals(30, resultZoned.minute)
+    }
+
+    @Test
+    fun `plusCalendarDays across a DST fall-back day is NOT the fixed 24h result`() {
+        val nov1At0030 = java.time.LocalDateTime.of(2026, 11, 1, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+        val fixed24hResult = nov1At0030 + TimeUnit.DAYS.toMillis(1)
+
+        val result = nov1At0030.plusCalendarDays(1, newYork)
+
+        assertTrue(result != fixed24hResult)
+        // The fixed-24h arithmetic lands back on Nov 1 (23:30 local) — the exact bug this fixes.
+        val fixedZoned = java.time.Instant.ofEpochMilli(fixed24hResult).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 11, 1), fixedZoned.toLocalDate())
+    }
+
+    @Test
+    fun `plusCalendarDays across a DST spring-forward day still advances the calendar date`() {
+        // America/New_York springs forward 02:00 -> 03:00 on 2026-03-08 (a 23h calendar day).
+        val mar8At0030 = java.time.LocalDateTime.of(2026, 3, 8, 0, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = mar8At0030.plusCalendarDays(1, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(LocalDate.of(2026, 3, 9), resultZoned.toLocalDate())
+        assertEquals(0, resultZoned.hour)
+        assertEquals(30, resultZoned.minute)
+    }
+
+    @Test
+    fun `plusCalendarDays on an ordinary day equals a fixed 24h advance`() {
+        val ordinaryDay = java.time.LocalDateTime.of(2026, 6, 15, 14, 45)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = ordinaryDay.plusCalendarDays(1, newYork)
+
+        assertEquals(ordinaryDay + TimeUnit.DAYS.toMillis(1), result)
+    }
+
+    @Test
+    fun `plusCalendarDays preserves local time-of-day`() {
+        val someInstant = java.time.LocalDateTime.of(2026, 6, 15, 14, 45, 30)
+            .atZone(newYork).toInstant().toEpochMilli()
+
+        val result = someInstant.plusCalendarDays(5, newYork)
+
+        val resultZoned = java.time.Instant.ofEpochMilli(result).atZone(newYork)
+        assertEquals(14, resultZoned.hour)
+        assertEquals(45, resultZoned.minute)
+        assertEquals(30, resultZoned.second)
+        assertEquals(LocalDate.of(2026, 6, 20), resultZoned.toLocalDate())
+    }
+
+    @Test
+    fun `plusCalendarDays defaults to the system default zone`() {
+        val timestamp = now
+        assertEquals(timestamp.plusCalendarDays(3, java.time.ZoneId.systemDefault()), timestamp.plusCalendarDays(3))
     }
 }

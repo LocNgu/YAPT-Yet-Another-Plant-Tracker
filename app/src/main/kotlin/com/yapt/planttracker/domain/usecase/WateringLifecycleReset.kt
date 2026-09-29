@@ -49,6 +49,11 @@ object WateringLifecycleReset {
             plant.copy(
                 wateringConfidence = 0,
                 wateringResetAt = resetAnchorMs,
+                // Intentionally duration-based, not a calendar-day advance (#733, technical ADR-0034):
+                // isFrozen() below is a plain `now < freezeUntil` elapsed-time check, not a calendar-date
+                // comparison, so a fixed 4-week span of real time is exactly what's wanted here — unlike
+                // every due-date/deferral site in CareSchedule/PlantDetailRescheduleActions/
+                // SkipWateringReceiver, which all route through Long.plusCalendarDays() instead.
                 wateringFreezeUntil = resetAnchorMs + TimeUnit.DAYS.toMillis(REPOT_FREEZE_WINDOW_DAYS),
                 updatedAt = now
             )
@@ -115,7 +120,7 @@ object WateringLifecycleReset {
      * ever sees raw timestamps, so a late "Soil was still moist" watering (`WateringFeedback.TOO_SOON`)
      * landing on a plant's very first adaptive observation (or its first post-reset one) could
      * otherwise still bootstrap to a *shorter* interval than the plant already had, silently breaking
-     * ADR-0033's "a late watering can never shorten the interval" guarantee through this one cold-start
+     * product ADR-0033's "a late watering can never shorten the interval" guarantee through this one cold-start
      * path — the normal per-observation [CareSchedule.computeAdaptiveInterval] call this bypasses
      * enforces it via the `TOO_SOON_TARGET_MULTIPLIER`, but `maybeBootstrap` never reaches that
      * function. When [BootstrapRequest.feedback] is [WateringFeedback.TOO_SOON], the bootstrapped base

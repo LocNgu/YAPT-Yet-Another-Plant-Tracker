@@ -29,7 +29,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.emojiRes
 import com.yapt.planttracker.ui.util.icon
 import com.yapt.planttracker.ui.util.labelRes
-import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.ui.util.relativeDateText
 
 @Composable
 fun CareLogItem(
@@ -89,7 +89,7 @@ fun CareLogItem(
                 }
             }
             Text(
-                text = DateUtils.formatRelative(log.loggedAt, maxRelativeDays = 14),
+                text = relativeDateText(log.loggedAt, maxRelativeDays = 14),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

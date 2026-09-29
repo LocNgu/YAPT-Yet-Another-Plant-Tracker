@@ -93,6 +93,10 @@ fun CalendarScreen(
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val selectedDayPlants by viewModel.selectedDayPlants.collectAsStateWithLifecycle()
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
+    // The VM's shared day-change-ticker value, not a one-shot `remember { LocalDate.now() }` — a
+    // Calendar screen left composed across midnight would otherwise keep highlighting/labelling
+    // yesterday as "Today" even after plantsByDay has already moved on (#550 review round 3).
+    val today by viewModel.today.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var waterFeedbackPlant by remember { mutableStateOf<PlantCareStatus?>(null) }
@@ -118,7 +122,6 @@ fun CalendarScreen(
         viewModel.quickWaterSuggestion.collect { suggestion -> pendingIntervalSuggestion = suggestion }
     }
 
-    val today = remember { LocalDate.now() }
     val currentMonth = remember { YearMonth.now() }
     val calendarState = rememberCalendarState(
         startMonth = currentMonth.minusMonths(1200),

@@ -202,6 +202,9 @@
     <string name="filter_unassigned">Unassigned</string>
     <string name="cd_sort_plants">Sort plants</string>
     <string name="cd_settings">Settings</string>
+    <string name="cd_search_plants">Search plants</string>
+    <string name="search_plants_placeholder">Search plants</string>
+    <string name="cd_clear_search">Clear search</string>
     <string name="field_plant_name">Plant Name *</string>
     <string name="field_species">Species</string>
     <string name="field_location">Location / Room</string>
@@ -380,6 +383,7 @@
     <string name="empty_state_all_assigned">All plants are assigned to a room.</string>
     <string name="empty_state_cared_today">No plants cared for yet today</string>
     <string name="empty_state_active_issues">No plants have active issues</string>
+    <string name="empty_state_no_search_matches">No plants match \"%1$s\"</string>
     <string name="sort_alphabetical">Alphabetical</string>
     <string name="sort_alphabetical_asc">Alphabetical (A→Z)</string>
     <string name="sort_alphabetical_desc">Alphabetical (Z→A)</string>
@@ -392,6 +396,17 @@
     <string name="date_group_overdue">Overdue</string>
     <string name="date_group_today">Today</string>
     <string name="date_group_tomorrow">Tomorrow</string>
+    <string name="date_group_next_three_days">Next 3 days</string>
+    <string name="date_relative_today">Today</string>
+    <string name="date_relative_yesterday">Yesterday</string>
+    <plurals name="date_relative_in_days">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
+    <plurals name="date_relative_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
     <string name="date_group_later">Later</string>
     <string name="date_group_dormant">Dormant</string>
     <string name="date_group_not_scheduled">Not scheduled</string>
@@ -457,7 +472,46 @@
     <string name="photo_reminder_dialog_text">No photo in %1$d days — take one?</string>
 
     <string name="nav_tab_plants">Plants</string>
+    <string name="nav_tab_today">Care</string>
     <string name="nav_tab_calendar">Calendar</string>
+    <string name="today_first_use">Add your first plant to see its care plan here.</string>
+    <string name="today_caught_up">You’re all caught up for the next three days.</string>
+    <string name="today_error">The Care queue couldn’t be loaded.</string>
+    <string name="retry">Retry</string>
+    <string name="today_task_treatment">Treat %1$s</string>
+    <string name="care_section_watering">Watering</string>
+    <string name="care_section_issue_treatments">Issue treatments</string>
+    <string name="care_section_fertilizing">Fertilizing</string>
+    <string name="care_section_custom_reminders">Custom reminders</string>
+    <string name="care_section_repotting">Repotting</string>
+    <string name="care_section_photos">Photos</string>
+    <string name="care_tile_actions_label">Show quick actions</string>
+    <string name="care_tile_water_cd">%1$s, watering</string>
+    <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
+    <string name="care_tile_water_fertilize_cd">%1$s, watering and fertilizing</string>
+    <string name="care_tile_repot_cd">%1$s, repotting</string>
+    <string name="care_tile_photo_cd">%1$s, progress photo</string>
+    <string name="care_tile_reminder_cd">%1$s, %2$s</string>
+    <string name="care_group_header">%1$s · %2$d</string>
+    <plurals name="care_group_header_cd">
+        <item quantity="one">%1$s, %2$d plant</item>
+        <item quantity="other">%1$s, %2$d plants</item>
+    </plurals>
+    <string name="care_group_state_expanded">Expanded</string>
+    <string name="care_group_state_collapsed">Collapsed</string>
+    <string name="care_group_collapse_action">Collapse</string>
+    <string name="care_group_expand_action">Expand</string>
+    <string name="today_action_water">Water</string>
+    <string name="today_action_fertilize">Fertilize</string>
+    <string name="today_action_water_fertilize">Water &amp; fertilize</string>
+    <string name="today_action_repot">Repot…</string>
+    <string name="today_action_reschedule">Reschedule</string>
+    <string name="today_action_mark_done">Mark done</string>
+    <string name="today_action_photo">Take photo</string>
+    <string name="today_action_failed">Nothing was changed. Please try again.</string>
+    <string name="today_custom_completed">%1$s completed</string>
+    <string name="today_custom_already_completed">%1$s was already completed</string>
+    <string name="today_photo_saved">Photo saved for %1$s</string>
     <string name="calendar_empty_state">No care scheduled this month.</string>
     <string name="calendar_prev_month_cd">Previous month</string>
     <string name="calendar_next_month_cd">Next month</string>

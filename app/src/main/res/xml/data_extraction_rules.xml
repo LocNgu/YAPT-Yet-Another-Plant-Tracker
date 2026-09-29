@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     API 31+ backup/transfer rules (product ADR-0053). backup_rules.xml (root <full-backup-content>)
+     stays the API 26-30 fullBackupContent target, unchanged; this file is the dataExtractionRules
+     target and must keep the <data-extraction-rules> root the platform expects there, or
+     verifyTopLevelTag() throws and both cloud backup and device-transfer are disabled entirely.
+-->
+<data-extraction-rules>
+    <!--
+         Cloud backup is deliberately OFF on API 31+ — YAPT stays out of Google's cloud backup rather
+         than start silently uploading plant data to Drive from these devices for the first time.
+         Every domain below must be excluded individually: per AOSP
+         BackupAgent.manifestExcludesContainFilePath(), each domain is walked from its own root and
+         pruned by exact canonical-path match, not by prefix, so excluding "root" alone would NOT also
+         stop "file"/"database"/"sharedpref" (etc.) from being backed up. Do not add an <include> here —
+         that flips this section into allow-list mode, the opposite of what we want.
+    -->
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+    <!--
+         Empty on purpose: no include/exclude rule means everything transfers phone-to-phone, photos
+         included — this is the fix for the root-tag bug that used to reject every file here. The
+         legacy no-op <exclude domain="file" path="cache"/> from backup_rules.xml is deliberately not
+         mirrored: it targets filesDir/cache, which nothing in the app ever writes to, and the platform
+         already auto-excludes getCacheDir()/getCodeCacheDir()/getNoBackupFilesDir() regardless of any
+         rule file, so copying it forward would just be a no-op here too.
+    -->
+    <device-transfer />
+</data-extraction-rules>

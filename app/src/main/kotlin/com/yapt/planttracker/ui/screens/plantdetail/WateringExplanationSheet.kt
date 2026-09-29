@@ -32,6 +32,7 @@ import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.util.DateUtils
 
 /**
@@ -123,7 +124,7 @@ private fun WateringExplanationIntervalRows(explanation: WateringExplanation) {
 
     ExplanationRow(
         label = stringResource(R.string.watering_explanation_last_watered),
-        value = explanation.lastWateredAt?.let { DateUtils.formatRelative(it) }
+        value = explanation.lastWateredAt?.let { relativeDateText(it) }
             ?: stringResource(R.string.water_label_never_watered)
     )
 }
@@ -230,7 +231,7 @@ private fun AdjustmentRow(adjustment: WateringAdjustment) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
-            Text(text = DateUtils.formatRelative(adjustment.triggeredAt), style = MaterialTheme.typography.bodySmall)
+            Text(text = relativeDateText(adjustment.triggeredAt), style = MaterialTheme.typography.bodySmall)
             Text(text = stringResource(adjustment.trigger.labelRes()), style = MaterialTheme.typography.bodyMedium)
         }
         Text(text = change, style = MaterialTheme.typography.bodyMedium)

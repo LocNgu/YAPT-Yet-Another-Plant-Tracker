@@ -97,4 +97,13 @@ interface PlantDao {
      */
     @Query("DELETE FROM plants WHERE name LIKE :prefix || '%'")
     suspend fun deletePlantsByNamePrefix(prefix: String): Int
+
+    /**
+     * Every non-null `coverPhotoUri`, **including archived plants** — feeds
+     * [com.yapt.planttracker.util.OrphanPhotoSweeper]'s referenced-file set (#736). Deliberately not
+     * filtered by `archivedAt`, unlike [getAllPlants] — an archived plant's cover photo is still
+     * referenced and must never be swept.
+     */
+    @Query("SELECT coverPhotoUri FROM plants WHERE coverPhotoUri IS NOT NULL")
+    suspend fun getAllCoverPhotoUris(): List<String>
 }

@@ -31,6 +31,13 @@ no schema bump).
   flags), `setFlagEnabled`.
 - `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
   shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
+- `TODAY_GROUP_BY_PLANT` (`today_group_by_plant`, #836, product ADR-0054) graduated (#842, product ADR-0056,
+  amending product ADR-0054's flag clause) — the Care grid with Watering date sub-groups and the long-press
+  quick-action menu is the chosen direction, so the flag, the `plantSections()` plant-grouped renderer, their
+  strings, and their tests were deleted together (product ADR-0042's lifecycle rule) and there is no registry
+  entry or flag row for it anymore. `FeatureFlagRegistry.all` is empty again. A device that ran the flag build
+  keeps an orphan `feature_flag_today_group_by_plant` DataStore boolean that nothing reads; flags never touch
+  the database schema, so no migration or cleanup is needed.
 - `ADAPTIVE_WATERING` graduated (#655) — the multiplicative + confidence-weighted watering interval model
   (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
   no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
@@ -52,7 +59,8 @@ no schema bump).
   there is no registry entry or flag row for it anymore. Unlike the three graduations above, this one
   was user-visible on every real install — the flag-off classic single-page layout (and the `StatsRow`/
   `StatChip` quick-log chips it alone hosted, #434) was deleted entirely, not merely made permanent.
-  `FeatureFlagRegistry.all` is now a genuinely empty `listOf()` — the last remaining flag graduated, and
+  `FeatureFlagRegistry.all` became empty when that flag graduated; #836 later added the temporary Care
+  grouping experiment described above, which #842 removed again. The empty-registry period was expected —
   Product ADR-0042 already anticipated this as the registry's expected steady state ("often be empty or
   near-empty in practice, not just at initial ship"), not an edge case needing special handling. Developer
   mode's `dev_mode_feature_flags_empty` rendering needed no new UI code — `SettingsScreen.kt` has

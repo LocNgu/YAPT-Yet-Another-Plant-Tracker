@@ -5,11 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.yapt.planttracker.YaptApplication
+import com.yapt.planttracker.util.plusCalendarDays
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 class SkipWateringReceiver : BroadcastReceiver() {
 
@@ -37,14 +37,17 @@ class SkipWateringReceiver : BroadcastReceiver() {
      * Anchors to `maxOf(existing override, now) + 1 day`, mirroring
      * `rescheduledRelativeDueAt()` on Plant Detail — never to the existing override alone,
      * which could already be in the past and would then advance a stale date by only one day,
-     * leaving the plant still overdue (#741).
+     * leaving the plant still overdue (#741). [now] is injectable so a test can pin the clock
+     * relative to a fixed-date override (#733).
      */
-    internal suspend fun skipWatering(context: Context, plantId: Long) {
+    internal suspend fun skipWatering(
+        context: Context,
+        plantId: Long,
+        now: Long = System.currentTimeMillis(),
+    ) {
         val app = context.applicationContext as YaptApplication
         val plant = app.plantRepository.getPlantById(plantId).first() ?: return
-        val now = System.currentTimeMillis()
-        val newOverride = maxOf(plant.wateringDueDateOverride ?: now, now) +
-            TimeUnit.DAYS.toMillis(1)
+        val newOverride = maxOf(plant.wateringDueDateOverride ?: now, now).plusCalendarDays(1)
         app.plantRepository.updatePlant(
             plant.copy(
                 wateringDueDateOverride = newOverride,

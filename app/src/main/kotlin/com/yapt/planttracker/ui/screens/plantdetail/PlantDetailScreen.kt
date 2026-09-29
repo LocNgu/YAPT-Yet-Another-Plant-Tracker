@@ -116,6 +116,7 @@ import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.ui.util.showSnackbarOnce
 import com.yapt.planttracker.util.DateUtils
 import com.yapt.planttracker.util.ImageUtils
@@ -132,7 +133,8 @@ fun PlantDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
     onNavigateToAddLog: () -> Unit,
-    onNavigateToEditLog: (careLogId: Long) -> Unit
+    onNavigateToEditLog: (careLogId: Long) -> Unit,
+    initialTab: PlantDetailTab? = null
 ) {
     val plant by viewModel.plant.collectAsStateWithLifecycle()
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
@@ -217,8 +219,8 @@ fun PlantDetailScreen(
     val listState = rememberLazyListState()
     val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
-    var selectedTab by rememberSaveable { mutableStateOf(PlantDetailTab.WATER) }
-    var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.WATER) }
+    var isTabRowExpanded by rememberSaveable { mutableStateOf(initialTab?.isInCollapsedRow == true) }
 
     // #644: the field mirrors what the "Suggested: ... days" sentence below shows — the effective
     // (seasonally-converted) value, not the raw base-space suggestion — so the two numbers in the
@@ -1230,9 +1232,6 @@ fun PlantDetailScreen(
     }
 }
 
-/** How many tabs stay visible in [PlantDetailTabStrip]'s collapsed (default) state — today's four. */
-private const val COLLAPSED_TAB_COUNT = 4
-
 /**
  * Bundles [PlantDetailTabStrip]'s value parameters into one so the composable stays under Detekt's
  * `LongParameterList` threshold, mirroring [IntervalSetting]/[CustomReminderActions]'s bundling.
@@ -1248,7 +1247,7 @@ private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
 
 /**
  * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
- * (product ADR-0043, #590). Collapsed (default) shows only the first [COLLAPSED_TAB_COUNT] entries
+ * (product ADR-0043, #590). Collapsed (default) shows only the first [PlantDetailTab.COLLAPSED_TAB_COUNT] entries
  * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
  * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
  * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
@@ -1275,7 +1274,7 @@ private fun PlantDetailTabStrip(
     val visibleTabs = if (state.isExpanded) {
         PlantDetailTab.entries
     } else {
-        PlantDetailTab.entries.take(COLLAPSED_TAB_COUNT)
+        PlantDetailTab.entries.take(PlantDetailTab.COLLAPSED_TAB_COUNT)
     }
     Column(modifier = modifier.fillMaxWidth()) {
         FlowRow(modifier = Modifier.fillMaxWidth()) {
@@ -1464,7 +1463,7 @@ private fun careTypeInsightItems(
     val items = mutableListOf(countLabel to summary.count.toString())
     val lastAt = summary.lastAt
     if (lastAtLabel != null && lastAt != null) {
-        items += lastAtLabel to DateUtils.formatRelative(lastAt)
+        items += lastAtLabel to relativeDateText(lastAt)
     }
     val average = summary.averageIntervalDays
     if (average != null) {

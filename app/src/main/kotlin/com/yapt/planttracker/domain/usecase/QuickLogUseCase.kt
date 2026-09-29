@@ -9,6 +9,7 @@ import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
+import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
@@ -17,6 +18,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
@@ -26,6 +28,7 @@ import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
+import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
@@ -53,7 +56,8 @@ class QuickLogUseCase(
     private val database: PlantDatabase,
     private val wateringAdjustmentRepository: WateringAdjustmentRepository,
     private val nowProvider: () -> Long = System::currentTimeMillis,
-    private val onWaterLogged: suspend (Long) -> Unit = {}
+    private val onWaterLogged: suspend (Long) -> Unit = {},
+    private val customReminderRepository: CustomReminderRepository? = null
 ) {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
@@ -80,6 +84,48 @@ class QuickLogUseCase(
 
     /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */
     data class BulkLogResult(val loggedCount: Int, val skippedCount: Int, val totalCount: Int)
+
+    suspend fun saveReminderPhoto(plantId: Long, uri: String): Plant? {
+        val now = nowProvider()
+        return database.withTransaction {
+            val plant = plantRepository.getPlantById(plantId).first() ?: return@withTransaction null
+            plantPhotoRepository.addPhoto(PlantPhoto(plantId = plant.id, uri = uri, capturedAt = now))
+            careLogRepository.addLog(
+                CareLog(plantId = plant.id, careType = CareType.PHOTO, loggedAt = now, photoUri = uri)
+            )
+            val updated = plant.copy(coverPhotoUri = uri, updatedAt = now)
+            plantRepository.updatePlant(updated)
+            updated
+        }
+    }
+
+    suspend fun completeCustomReminder(task: TodayCareTask): QuickLogOutcome {
+        val reminder = requireNotNull(task.customReminder)
+        val repository = requireNotNull(customReminderRepository)
+        val loggedAt = nowProvider()
+        var completed = false
+        database.withTransaction {
+            val freshReminder = repository.getReminderById(reminder.id) ?: return@withTransaction
+            if (freshReminder.lastDoneAt != reminder.lastDoneAt) return@withTransaction
+            careLogRepository.addLog(
+                CareLog(
+                    plantId = freshReminder.plantId,
+                    careType = CareType.CUSTOM,
+                    loggedAt = loggedAt,
+                    customReminderId = freshReminder.id
+                )
+            )
+            repository.updateReminder(freshReminder.copy(lastDoneAt = loggedAt))
+            completed = true
+        }
+        return QuickLogOutcome(
+            message = application.getString(
+                if (completed) R.string.today_custom_completed else R.string.today_custom_already_completed,
+                reminder.name
+            ),
+            logged = completed
+        )
+    }
 
     /**
      * Result of [applyWateringIntervalSuggestion] — the plant's actual prior

@@ -1,8 +1,8 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.util.plusCalendarDays
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 /**
  * Opens [PlantDetailViewModel.showRescheduleDialog] directly (#738, product ADR-0039) — a
@@ -34,7 +34,7 @@ fun PlantDetailViewModel.confirmRescheduleRelativeDate(shownDueAt: Long) = apply
 
 /** The dialog's due-date-anchored +N calculation; its result is both previewed and committed. */
 internal fun rescheduledRelativeDueAt(effectiveDueAt: Long?, now: Long, days: Int): Long =
-    maxOf(effectiveDueAt ?: 0L, now) + TimeUnit.DAYS.toMillis(days.toLong())
+    maxOf(effectiveDueAt ?: 0L, now).plusCalendarDays(days.toLong())
 
 /**
  * Reschedule "Custom date…" option (#508, product ADR-0029) — [newDueAtMillis] is the user-picked
