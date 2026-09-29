@@ -120,6 +120,16 @@ kotlin {
     }
 }
 
+// Informational unit-test benchmarks (#841) print one `YAPT_BENCH` line; promote just those lines to
+// the console so CI logs carry the numbers without dumping every test's stdout.
+tasks.withType<Test>().configureEach {
+    addTestOutputListener(
+        TestOutputListener { _, event ->
+            if (event.message.startsWith("YAPT_BENCH")) logger.lifecycle(event.message.trimEnd())
+        }
+    )
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
