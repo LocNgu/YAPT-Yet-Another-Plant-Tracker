@@ -123,8 +123,10 @@ surfaces second; the Repot tab and Add/Edit Plant UI, changelog, and What's New 
   care date; consumers must read `repottingPlanSeasonEndAt` rather than assume "past due date means
   overdue" for repotting.
 - Accepted trade-off: because of the minimum gap, a plant whose nearest preferred stretch falls too soon
-  after its last repot can wait up to a further season — repotted Jan 15 2026 with spring preferred it
-  waits 13.5 months, not 6, for its repot reminder.
+  after its last repot (or `createdAt`) waits for the first stretch after its raw interval date instead —
+  up to about a year later than the nearest stretch, though never more than about nine months after the
+  raw date itself. Repotted Jan 15 2026 with a 6-month interval and spring preferred, it waits 13.5
+  months, not 6, for its repot reminder.
 - Accepted trade-off: because the shift is time-stable, a long-neglected plant reads overdue since an old
   preferred season even during an off-season — e.g. overdue since last March while it is now October —
   rather than being pushed to the next stretch. This is deliberately unlike product ADR-0049's fertilizing
