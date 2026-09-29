@@ -39,6 +39,7 @@ import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.today.WateringTaskAction
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.util.toStartOfDayMillis
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -289,7 +290,7 @@ class TodayScreenTest {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         var openedPlantId: Long? = null
-        setContent(onNavigateToPlant = { openedPlantId = it })
+        setContent(onNavigateToPlant = { id, _ -> openedPlantId = id })
 
         composeTestRule.onNodeWithTag(careTileTag("water:1")).performClick()
         composeTestRule.waitForIdle()
@@ -299,11 +300,37 @@ class TodayScreenTest {
     }
 
     @Test
+    fun tapOnPhotoTileOpensPhotoTab() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("photo:1", fern, TodayCareKind.PHOTO)))
+        var openedTab: PlantDetailTab? = null
+        setContent(onNavigateToPlant = { _, tab -> openedTab = tab })
+
+        composeTestRule.onNodeWithTag(careTileTag("photo:1")).performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(PlantDetailTab.PHOTO, openedTab)
+    }
+
+    @Test
+    fun tapOnIssueTreatmentTileOpensIssuesTab() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("issue:1", fern, TodayCareKind.ISSUE_TREATMENT)))
+        var openedTab: PlantDetailTab? = null
+        setContent(onNavigateToPlant = { _, tab -> openedTab = tab })
+
+        composeTestRule.onNodeWithTag(careTileTag("issue:1")).performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(PlantDetailTab.ISSUES, openedTab)
+    }
+
+    @Test
     fun longPressOpensTheMenuInsteadOfOpeningThePlant() {
         val fern = plant()
         queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
         var openedPlantId: Long? = null
-        setContent(onNavigateToPlant = { openedPlantId = it })
+        setContent(onNavigateToPlant = { id, _ -> openedPlantId = id })
 
         composeTestRule.onNodeWithTag(careTileTag("water:1")).performTouchInput { longClick() }
 
@@ -429,26 +456,6 @@ class TodayScreenTest {
             "Fern, Mist leaves",
             "Fern, Treat Spider mites"
         ).forEach { composeTestRule.onNodeWithContentDescription(it).assertExists() }
-    }
-
-    @Test
-    fun overdueTilesAreAnnouncedAsOverdueInEverySection() {
-        val fern = plant()
-        val aloe = plant(2L, "Aloe")
-        queue.value = TodayQueueSnapshot(
-            2,
-            listOf(
-                task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-                task("water:2", aloe, TodayCareKind.WATER),
-                task("fertilize:1", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Overdue)
-            )
-        )
-        setContent(tall = true)
-
-        composeTestRule.onNodeWithContentDescription("Overdue, Fern, watering").assertExists()
-        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertExists()
-        composeTestRule.onNodeWithContentDescription("Overdue, Aloe, watering").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Overdue, Fern, fertilizing").assertExists()
     }
 
     @Test
@@ -694,7 +701,7 @@ class TodayScreenTest {
     }
 
     private fun setContent(
-        onNavigateToPlant: (Long) -> Unit = {},
+        onNavigateToPlant: (Long, PlantDetailTab?) -> Unit = { _, _ -> },
         onNavigateToAdd: () -> Unit = {},
         onLaunchPhotoCapture: ((Long) -> Unit)? = null,
         stubRepository: Boolean = true,

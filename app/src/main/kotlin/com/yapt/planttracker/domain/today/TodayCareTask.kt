@@ -76,9 +76,6 @@ data class TodayCareTypeSection(
     val subGroups: List<TodayWateringSubGroup> = emptyList()
 )
 
-val TodayCareTask.isOverdue: Boolean
-    get() = bucket == TodayTaskBucket.Overdue
-
 val TodayCareKind.section: TodayCareSection
     get() = when (this) {
         TodayCareKind.WATER,

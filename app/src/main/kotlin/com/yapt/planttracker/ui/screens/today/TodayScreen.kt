@@ -48,6 +48,7 @@ import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
@@ -60,7 +61,7 @@ private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
 @Composable
 fun TodayScreen(
     viewModel: TodayViewModel,
-    onNavigateToPlant: (Long) -> Unit,
+    onNavigateToPlant: (Long, PlantDetailTab?) -> Unit,
     onNavigateToAdd: () -> Unit,
     onLaunchPhotoCapture: ((Long) -> Unit)? = null
 ) {
@@ -96,7 +97,7 @@ fun TodayScreen(
         viewModel.navigationEvent.collect { event ->
             when (event) {
                 TodayNavigationEvent.AddPlant -> onNavigateToAdd()
-                is TodayNavigationEvent.PlantDetail -> onNavigateToPlant(event.plantId)
+                is TodayNavigationEvent.PlantDetail -> onNavigateToPlant(event.plantId, event.tab)
             }
         }
     }

@@ -38,7 +38,7 @@ class CareMenuActionTest {
     fun `every menu entry routes to the handler the removed inline button used`() {
         val calls = mutableListOf<String>()
         val actions = TodayTaskActions(
-            onOpen = { calls += "open" },
+            onOpen = { _, _ -> calls += "open" },
             onComplete = { calls += "complete" },
             onReschedule = { calls += "reschedule" },
             onRepot = { calls += "repot" },

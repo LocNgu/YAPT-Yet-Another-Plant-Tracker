@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -42,7 +43,7 @@ class ScreenTest {
 
     @Test
     fun `plantDetail route template declares plantId path argument`() {
-        assertEquals("plant_detail/{plantId}", Screen.PlantDetail.route)
+        assertEquals("plant_detail/{plantId}?tab={tab}", Screen.PlantDetail.route)
     }
 
     @Test
@@ -73,6 +74,27 @@ class ScreenTest {
     @Test
     fun `plantDetail createRoute substitutes plantId`() {
         assertEquals("plant_detail/7", Screen.PlantDetail.createRoute(7L))
+    }
+
+    @Test
+    fun `plantDetail createRoute appends tab only when given`() {
+        assertEquals("plant_detail/7?tab=PHOTO", Screen.PlantDetail.createRoute(7L, PlantDetailTab.PHOTO))
+        assertEquals("plant_detail/7?tab=ISSUES", Screen.PlantDetail.createRoute(7L, PlantDetailTab.ISSUES))
+    }
+
+    @Test
+    fun `plantDetail tab arg parses defensively`() {
+        assertEquals(null, PlantDetailTab.fromRouteArg(null))
+        assertEquals(PlantDetailTab.FERTILIZE, PlantDetailTab.fromRouteArg("FERTILIZE"))
+        assertEquals(PlantDetailTab.WATER, PlantDetailTab.fromRouteArg("bogus"))
+    }
+
+    @Test
+    fun `only the second-row tabs need the tab row expanded`() {
+        assertEquals(
+            setOf(PlantDetailTab.CUSTOM_REMINDERS, PlantDetailTab.ISSUES),
+            PlantDetailTab.entries.filter { it.isInCollapsedRow }.toSet()
+        )
     }
 
     @Test

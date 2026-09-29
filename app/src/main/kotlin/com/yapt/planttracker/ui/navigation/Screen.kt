@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 
 sealed class Screen(val route: String) {
     object PlantList : Screen("plant_list?restoreMessage={restoreMessage}") {
@@ -20,8 +21,11 @@ sealed class Screen(val route: String) {
         fun createRoute(plantId: Long) = "edit_plant/$plantId"
     }
 
-    object PlantDetail : Screen("plant_detail/{plantId}") {
-        fun createRoute(plantId: Long) = "plant_detail/$plantId"
+    object PlantDetail : Screen("plant_detail/{plantId}?tab={tab}") {
+        const val TAB_ARG = "tab"
+
+        fun createRoute(plantId: Long, tab: PlantDetailTab? = null) =
+            if (tab != null) "plant_detail/$plantId?tab=${tab.name}" else "plant_detail/$plantId"
     }
 
     object AddCareLog : Screen("add_care_log/{plantId}?careLogId={careLogId}&careType={careType}") {

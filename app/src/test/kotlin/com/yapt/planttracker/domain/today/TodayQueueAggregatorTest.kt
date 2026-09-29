@@ -511,17 +511,6 @@ class TodayQueueAggregatorTest {
         )
     }
 
-    @Test
-    fun `a task is overdue exactly when its bucket is overdue`() {
-        val fern = plant()
-
-        assertTrue(task("a", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Overdue).isOverdue)
-        assertFalse(task("b", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Today).isOverdue)
-        assertFalse(
-            task("c", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Upcoming(today.plusDays(1).toEpochDay())).isOverdue
-        )
-    }
-
     @Suppress("LongParameterList")
     private fun plant(
         id: Long = 1L,

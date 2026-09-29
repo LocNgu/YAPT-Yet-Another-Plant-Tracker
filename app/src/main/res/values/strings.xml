@@ -486,7 +486,6 @@
     <string name="care_section_repotting">Repotting</string>
     <string name="care_section_photos">Photos</string>
     <string name="care_tile_actions_label">Show quick actions</string>
-    <string name="care_tile_overdue_cd">Overdue, %1$s</string>
     <string name="care_tile_water_cd">%1$s, watering</string>
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
     <string name="care_tile_water_fertilize_cd">%1$s, watering and fertilizing</string>

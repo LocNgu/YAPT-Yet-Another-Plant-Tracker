@@ -53,9 +53,11 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
   `label · N` with N = **distinct plants** (`TodayCareTypeSection.plantCount`/`TodayWateringSubGroup.plantCount`)
   and collapse on tap; the collapsed set is `rememberSaveable` in `TodayScreen`, so it survives tab switches and
   rotation but resets on restart (a forgotten collapse must never hide next day's due care), and each header
-  exposes `stateDescription`/`heading()` for TalkBack. Tiles carry no due-date text: overdue is a thin
-  `OverdueRed` outline on the photo plus "Overdue" in the tile's content description (which always names the
-  plant and task). A long-press opens a `DropdownMenu` with only that kind's actions (`careMenuActions()` in
+  exposes `stateDescription`/`heading()` for TalkBack. Tiles carry no due-date text and no overdue styling
+  (a red outline was tried and dropped, #842); the tile's content description always names the plant and
+  task. Tapping a tile opens Plant Detail on the tab matching the task kind via the optional `tab` route arg
+  (`TodayCareKind.plantDetailTab()`; combined water-and-fertilize → Fertilize; seeds only the initial tab,
+  #843). A long-press opens a `DropdownMenu` with only that kind's actions (`careMenuActions()` in
   `CareMenuAction.kt`: Water/Reschedule, Water & fertilize/Reschedule, Fertilize, Repot…, Mark done, Take
   photo), mirrored as semantics `customActions` plus an `onLongClickLabel`; each entry calls the same
   `TodayViewModel` handler/prompt the old inline buttons did — never add inline buttons back or reimplement a

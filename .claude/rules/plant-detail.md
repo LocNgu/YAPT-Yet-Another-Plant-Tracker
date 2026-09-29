@@ -37,6 +37,15 @@ horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `T
 (`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
 `PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, same width/layout as before; expanded shows
 all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
+- **Initial tab from the Care tab (#843):** `Screen.PlantDetail` is `plant_detail/{plantId}?tab={tab}` (nullable
+  `StringType`, default null); `createRoute(plantId, tab: PlantDetailTab? = null)` omits the query when null, so
+  Plant List/Calendar/notifications/deep links are unchanged. `NavGraph` parses it with
+  `PlantDetailTab.fromRouteArg()` (`runCatching { valueOf }.getOrDefault(WATER)`, null stays null) and passes
+  `PlantDetailScreen(initialTab = …)`, which seeds only the *initial* value of the `rememberSaveable`
+  `selectedTab` — rotation/back-stack restore keeps the user's later tab. `initialTab?.isInCollapsedRow`
+  (`CUSTOM_REMINDERS`/`ISSUES`) also seeds `isTabRowExpanded` true. Care's mapping lives in
+  `TodayCareKind.plantDetailTab()` (`ui/screens/today/TodayCareKindTab.kt`; `WATER_AND_FERTILIZE` → `FERTILIZE`);
+  a Care grid tile passes its own task's kind (the plant-grouped layout is gone, #842).
 - `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
   and the care-history `isExpanded` chip, **not** a `DataStore` setting; resets to collapsed on every fresh visit.
 - Toggle reuses the care-history `AssistChip`'s exact chevron-rotate pattern (`animateFloatAsState` rotating

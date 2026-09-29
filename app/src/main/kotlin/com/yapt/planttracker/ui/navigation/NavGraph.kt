@@ -48,6 +48,7 @@ import com.yapt.planttracker.ui.screens.calendar.CalendarViewModel
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
@@ -325,9 +326,19 @@ fun YaptNavGraph(
 
             composable(
                 route = Screen.PlantDetail.route,
-                arguments = listOf(navArgument("plantId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("plantId") { type = NavType.LongType },
+                    navArgument(Screen.PlantDetail.TAB_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
             ) { backStackEntry ->
                 val plantId = backStackEntry.arguments!!.getLong("plantId")
+                val initialTab = PlantDetailTab.fromRouteArg(
+                    backStackEntry.arguments?.getString(Screen.PlantDetail.TAB_ARG)
+                )
                 val vm: PlantDetailViewModel = viewModel(
                     factory = PlantDetailViewModel.Factory(
                         app.plantRepository,
@@ -357,6 +368,7 @@ fun YaptNavGraph(
 
                 PlantDetailScreen(
                     viewModel = vm,
+                    initialTab = initialTab,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onNavigateToEdit = {
                         navController.navigate(Screen.EditPlant.createRoute(plantId))
@@ -472,8 +484,8 @@ fun YaptNavGraph(
                 )
                 TodayScreen(
                     viewModel = vm,
-                    onNavigateToPlant = { plantId ->
-                        navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                    onNavigateToPlant = { plantId, tab ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
                     },
                     onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) }
                 )

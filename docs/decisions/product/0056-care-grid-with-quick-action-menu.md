@@ -25,7 +25,8 @@ Alternatives considered:
 - **Persist collapsed sections across restarts.** Rejected. A group collapsed once and forgotten
   would hide due care on a later day, the exact failure the queue exists to prevent.
 - **Show a due date on every tile.** Rejected. The Watering sub-groups already carry the date bucket,
-  and overdue is carried by the outline; per-tile text competes with the photo for a small square.
+  and overdue is carried by that sub-group and the due-date sort; per-tile text competes with the photo for a
+  small square.
 
 ## Decision
 
@@ -52,12 +53,13 @@ one plant.
 header exposes its state to TalkBack through `stateDescription` (Expanded/Collapsed), `heading()`, and an
 Expand/Collapse click label.
 
-**Overdue.** Tiles carry no due-date text. An overdue tile, in any section, gets a thin `OverdueRed`
-outline around its photo and "Overdue" at the start of its content description. Every tile's content
-description names the plant and the task ("Fern, watering"; "Overdue, Fern, watering").
+**No overdue styling.** Tiles carry no due-date text and no overdue styling. A thin `OverdueRed` outline
+on overdue tiles was prototyped and dropped: it looked noisy on photo tiles and added little beyond the
+Watering Overdue sub-group and the queue's due-date order. Every tile's content description names the
+plant and the task ("Fern, watering").
 
-**Long-press quick-action menu.** Tapping a tile opens the plant (Plant Detail's default tab until the
-Care-to-tab mapping in #843 lands). Long-pressing a tile opens a `DropdownMenu` anchored to it with only
+**Long-press quick-action menu.** Tapping a tile opens the plant on the Plant Detail tab matching the
+task (#843). Long-pressing a tile opens a `DropdownMenu` anchored to it with only
 that task's actions:
 
 | Task kind | Menu items |
@@ -91,7 +93,7 @@ product ADR-0042.
   Plants only;
 - the row description (each row shows its own relative due label with overdue rows highlighted, a
   larger photo, action buttons, long-press selection with tinted rows and hidden controls) is replaced by
-  the tile, outline, sub-group, and long-press menu decisions above;
+  the tile, sub-group, and long-press menu decisions above;
 - the bounded bulk completion paragraph and the matching Consequences bullet are removed;
 - the `today_group_by_plant` paragraph is settled: the experiment graduated and the flag is deleted.
 
@@ -110,5 +112,5 @@ ticker, and the absence of a Room or backup schema change.
   DataStore. It is never read again and needs no migration (flags never touch the database schema).
 - No Room schema or `.yapt` backup change. `TodayQueueAggregator` is untouched.
 - Tests that covered selection and bulk completion are removed with the behaviour rather than weakened;
-  menu, sub-group, collapse, overdue, and accessibility tests replace them, and the single "Mark done"
+  menu, sub-group, collapse, and accessibility tests replace them, and the single "Mark done"
   write gained a direct test.

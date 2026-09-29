@@ -3,7 +3,6 @@
 package com.yapt.planttracker.ui.screens.today
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,23 +61,21 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayCareTypeSection
 import com.yapt.planttracker.domain.today.TodayWateringGroup
 import com.yapt.planttracker.domain.today.careTypeSections
-import com.yapt.planttracker.domain.today.isOverdue
 import com.yapt.planttracker.ui.components.PlantPhoto
-import com.yapt.planttracker.ui.theme.OverdueRed
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 
 const val TODAY_TASK_LIST_TAG = "today_task_list"
 
 private val CARE_TILE_MIN_WIDTH = 140.dp
 private val CARE_GRID_SPACING = 12.dp
 private val CARE_TILE_SHAPE = RoundedCornerShape(12.dp)
-private val CARE_OVERDUE_OUTLINE_WIDTH = 2.dp
 private val CARE_HEADER_MIN_HEIGHT = 48.dp
 private const val CARE_GRID_MIN_COLUMNS = 2
 private const val CARE_GRID_MAX_COLUMNS = 4
 private const val CARE_NAME_MAX_LINES = 2
 
 internal data class TodayTaskActions(
-    val onOpen: (Long) -> Unit,
+    val onOpen: (Long, PlantDetailTab?) -> Unit,
     val onComplete: (TodayCareTask) -> Unit,
     val onReschedule: (TodayCareTask) -> Unit,
     val onRepot: (TodayCareTask) -> Unit,
@@ -235,7 +232,7 @@ private fun CareTaskTile(task: TodayCareTask, actions: TodayTaskActions) {
                 .fillMaxWidth()
                 .clip(CARE_TILE_SHAPE)
                 .combinedClickable(
-                    onClick = { actions.onOpen(task.plant.id) },
+                    onClick = { actions.onOpen(task.plant.id, task.kind.plantDetailTab()) },
                     onLongClick = { menuOpen = true },
                     onLongClickLabel = stringResource(R.string.care_tile_actions_label),
                     role = Role.Button
@@ -291,11 +288,6 @@ private fun CareTilePhoto(task: TodayCareTask) {
         PlantPhoto(
             uri = task.plant.coverPhotoUri,
             size = maxWidth,
-            modifier = if (task.isOverdue) {
-                Modifier.border(CARE_OVERDUE_OUTLINE_WIDTH, OverdueRed, CARE_TILE_SHAPE)
-            } else {
-                Modifier
-            },
             rounded = false
         )
     }
@@ -304,7 +296,7 @@ private fun CareTilePhoto(task: TodayCareTask) {
 @Composable
 private fun tileDescription(task: TodayCareTask): String {
     val plantName = task.plant.name
-    val description = when (task.kind) {
+    return when (task.kind) {
         TodayCareKind.WATER -> stringResource(R.string.care_tile_water_cd, plantName)
         TodayCareKind.FERTILIZE -> stringResource(R.string.care_tile_fertilize_cd, plantName)
         TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.care_tile_water_fertilize_cd, plantName)
@@ -314,7 +306,6 @@ private fun tileDescription(task: TodayCareTask): String {
         TodayCareKind.ISSUE_TREATMENT ->
             stringResource(R.string.care_tile_reminder_cd, plantName, tileSecondLine(task).orEmpty())
     }
-    return if (task.isOverdue) stringResource(R.string.care_tile_overdue_cd, description) else description
 }
 
 @Composable
