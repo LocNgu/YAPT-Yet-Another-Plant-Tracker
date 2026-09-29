@@ -85,18 +85,18 @@ delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
     the whole season, `isRepottingOverdue` only once the season has ended, and
     `PlantCareStatus.repottingPlanSeasonEndAt` is non-null exactly for a plan (`isRepottingPlanned`).
   - **Preferred seasons for the interval** — without a plan, the raw date goes through
-    `SeasonalRepotting.nextPreferredDueAtMillis(raw, repottingSeasons, hemisphere, nowDate, anchor)` where
+    `SeasonalRepotting.nextPreferredDueAtMillis(raw, repottingSeasons, hemisphere, anchor)` where
     `anchor = lastRepottedAt ?: createdAt`. Every season preferred (or an empty set) returns raw
-    untouched. Otherwise: raw already in a preferred season → unchanged (past or future, so an overdue
-    plant stays overdue); raw on or before `nowDate` outside one → forward rule from today (today's
-    start of day if today is preferred, else the first day of the next preferred stretch); raw in the
-    future outside one → the first day of the *nearest* preferred stretch (a contiguous run of preferred
-    seasons, year-wrapping ones included; distance is measured to the stretch's first day, tie → later),
-    with a candidate at or before the anchor's day replaced by the next stretch forward. That last
-    branch is a pure function of the raw date (it doesn't drift daily), so a shifted date reads due on
-    its first day and overdue after it — until the raw date passes outside a preferred season, when the
-    forward rule from today takes over (the same "never due in a season you excluded" posture as
-    fertilizing, product ADR-0049).
+    untouched; raw already in a preferred season → unchanged; any other raw date, **past or future**, →
+    the first day of the *nearest* preferred stretch (a contiguous run of preferred seasons,
+    year-wrapping ones included; distance is measured to the stretch's first day, tie → later), with a
+    candidate at or before the anchor's day replaced by the next stretch forward. The result is
+    **time-stable** — a pure function of raw/seasons/hemisphere/anchor with no `nowDate` parameter,
+    unlike fertilizing's today-relative shift — so a shifted date reads due on its first day and overdue
+    after it, and can legitimately lie in the past: an overdue plant stays overdue until repotted (or the
+    plan/seasons change) rather than jumping to a later stretch once its raw date passes. The trade-off:
+    a long-neglected plant reads overdue since an old preferred season even in an off-season (product
+    ADR-0057).
   Tests: `SeasonalRepottingTest` (pure), `CareScheduleSeasonalRepottingTest` (status integration).
 - **Custom reminders** — unbounded per plant, so unlike repotting they're a `List<CustomReminderStatus>`
   (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:

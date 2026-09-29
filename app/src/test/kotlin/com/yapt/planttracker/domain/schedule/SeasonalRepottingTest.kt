@@ -37,10 +37,9 @@ class SeasonalRepottingTest {
     private fun shifted(
         raw: LocalDate,
         preferred: Set<FertilizingSeason>,
-        now: LocalDate,
         anchor: LocalDate,
         hemisphere: Hemisphere = north
-    ): Long = SeasonalRepotting.nextPreferredDueAtMillis(noon(raw), preferred, hemisphere, now, noon(anchor))
+    ): Long = SeasonalRepotting.nextPreferredDueAtMillis(noon(raw), preferred, hemisphere, noon(anchor))
 
     // --- nextPreferredDueAtMillis: guards and early-outs ---
 
@@ -51,7 +50,6 @@ class SeasonalRepottingTest {
             rawDueAtMillis = raw,
             preferredSeasons = FertilizingSeason.entries.toSet(),
             hemisphere = north,
-            nowDate = day(2026, 9, 29),
             anchorAtMillis = noon(day(2019, 1, 15))
         )
         assertEquals(raw, result)
@@ -64,7 +62,6 @@ class SeasonalRepottingTest {
             rawDueAtMillis = raw,
             preferredSeasons = emptySet(),
             hemisphere = north,
-            nowDate = day(2026, 9, 29),
             anchorAtMillis = noon(day(2025, 1, 15))
         )
         assertEquals(raw, result)
@@ -73,35 +70,35 @@ class SeasonalRepottingTest {
     @Test
     fun `a raw date already inside a preferred season is unchanged`() {
         val raw = day(2027, 4, 20)
-        assertEquals(noon(raw), shifted(raw, spring, now = day(2026, 9, 29), anchor = day(2025, 4, 20)))
+        assertEquals(noon(raw), shifted(raw, spring, anchor = day(2025, 4, 20)))
     }
 
     @Test
     fun `a past raw date inside a preferred season stays overdue, never moved`() {
         val raw = day(2026, 4, 5)
-        assertEquals(noon(raw), shifted(raw, spring, now = day(2026, 10, 5), anchor = day(2024, 4, 5)))
+        assertEquals(noon(raw), shifted(raw, spring, anchor = day(2024, 4, 5)))
     }
 
-    // --- nearest preferred stretch (future raw dates) ---
+    // --- nearest preferred stretch (raw dates outside a preferred season) ---
 
     @Test
     fun `the issue example snaps to the nearest spring, March 2027, not March 2028`() {
         val anchor = day(2025, 6, 15)
         val raw = anchor.plusDays(730)
         assertEquals(day(2027, 6, 15), raw)
-        assertEquals(startOfDay(day(2027, 3, 1)), shifted(raw, spring, now = day(2026, 9, 29), anchor = anchor))
+        assertEquals(startOfDay(day(2027, 3, 1)), shifted(raw, spring, anchor = anchor))
     }
 
     @Test
     fun `a raw date closer to the next stretch snaps forward`() {
-        val result = shifted(day(2026, 12, 20), spring, now = day(2026, 9, 29), anchor = day(2025, 12, 20))
+        val result = shifted(day(2026, 12, 20), spring, anchor = day(2025, 12, 20))
         assertEquals(startOfDay(day(2027, 3, 1)), result)
     }
 
     @Test
     fun `an equidistant raw date goes to the later stretch`() {
         // 2027-03-01 to 2027-08-31 and 2027-08-31 to 2028-03-01 are both 183 days.
-        val result = shifted(day(2027, 8, 31), spring, now = day(2026, 9, 29), anchor = day(2025, 8, 31))
+        val result = shifted(day(2027, 8, 31), spring, anchor = day(2025, 8, 31))
         assertEquals(startOfDay(day(2028, 3, 1)), result)
     }
 
@@ -109,15 +106,15 @@ class SeasonalRepottingTest {
     fun `an equidistant raw date between two stretches goes to the later one`() {
         // Spring + autumn preferred: Mar 1 to Jun 1 and Jun 1 to Sep 1 are both 92 days.
         val both = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
-        val result = shifted(day(2027, 6, 1), both, now = day(2026, 9, 29), anchor = day(2025, 6, 1))
+        val result = shifted(day(2027, 6, 1), both, anchor = day(2025, 6, 1))
         assertEquals(startOfDay(day(2027, 9, 1)), result)
     }
 
     @Test
     fun `non-adjacent preferred seasons pick the nearest of their stretch starts`() {
         val both = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
-        val summer = shifted(day(2027, 7, 15), both, now = day(2026, 9, 29), anchor = day(2025, 7, 15))
-        val winter = shifted(day(2027, 1, 20), both, now = day(2026, 9, 29), anchor = day(2025, 1, 20))
+        val summer = shifted(day(2027, 7, 15), both, anchor = day(2025, 7, 15))
+        val winter = shifted(day(2027, 1, 20), both, anchor = day(2025, 1, 20))
         assertEquals(startOfDay(day(2027, 9, 1)), summer)
         assertEquals(startOfDay(day(2027, 3, 1)), winter)
     }
@@ -125,7 +122,7 @@ class SeasonalRepottingTest {
     @Test
     fun `a winter-only preference snaps back across the year boundary to December 1`() {
         val winter = setOf(FertilizingSeason.WINTER)
-        val result = shifted(day(2027, 4, 15), winter, now = day(2026, 9, 29), anchor = day(2025, 4, 15))
+        val result = shifted(day(2027, 4, 15), winter, anchor = day(2025, 4, 15))
         assertEquals(startOfDay(day(2026, 12, 1)), result)
     }
 
@@ -133,13 +130,13 @@ class SeasonalRepottingTest {
     fun `a raw date inside a stretch that wraps the year boundary is unchanged`() {
         val autumnWinter = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
         val raw = day(2027, 1, 15)
-        assertEquals(noon(raw), shifted(raw, autumnWinter, now = day(2026, 9, 29), anchor = day(2025, 1, 15)))
+        assertEquals(noon(raw), shifted(raw, autumnWinter, anchor = day(2025, 1, 15)))
     }
 
     @Test
     fun `a stretch spanning the year boundary is measured to its first day, September 1`() {
         val autumnWinter = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
-        val result = shifted(day(2027, 5, 10), autumnWinter, now = day(2026, 9, 29), anchor = day(2025, 5, 10))
+        val result = shifted(day(2027, 5, 10), autumnWinter, anchor = day(2025, 5, 10))
         assertEquals(startOfDay(day(2027, 9, 1)), result)
     }
 
@@ -148,7 +145,6 @@ class SeasonalRepottingTest {
         val result = shifted(
             raw = day(2027, 6, 15),
             preferred = spring,
-            now = day(2026, 9, 29),
             anchor = day(2025, 6, 15),
             hemisphere = Hemisphere.SOUTHERN
         )
@@ -162,43 +158,50 @@ class SeasonalRepottingTest {
         // Repotted Apr 10 2026 with a 91-day interval: raw Jul 10 2026. The nearest spring start is
         // Mar 1 2026, before the repot itself, so the next spring is used.
         val anchor = day(2026, 4, 10)
-        val result = shifted(anchor.plusDays(91), spring, now = day(2026, 4, 20), anchor = anchor)
+        val result = shifted(anchor.plusDays(91), spring, anchor = anchor)
         assertEquals(startOfDay(day(2027, 3, 1)), result)
     }
 
     @Test
     fun `a nearest candidate on the repot day itself also falls back forward`() {
         val anchor = day(2026, 3, 1)
-        val result = shifted(day(2026, 7, 10), spring, now = day(2026, 4, 20), anchor = anchor)
+        val result = shifted(day(2026, 7, 10), spring, anchor = anchor)
         assertEquals(startOfDay(day(2027, 3, 1)), result)
     }
 
     @Test
-    fun `a future raw date keeps a nearest stretch start that has already begun, so it reads overdue not due-today`() {
-        // The shift is a pure function of the raw date: it neither drifts with today nor becomes due
-        // "today" every day. Mar 1 2026 stays the due date while raw (Jul 10 2026) is still ahead.
-        val onApril = shifted(day(2026, 7, 10), spring, now = day(2026, 4, 20), anchor = day(2024, 7, 10))
-        val onMay = shifted(day(2026, 7, 10), spring, now = day(2026, 5, 20), anchor = day(2024, 7, 10))
-        assertEquals(startOfDay(day(2026, 3, 1)), onApril)
-        assertEquals(onApril, onMay)
+    fun `a nearest stretch start before the raw date is kept, so the date reads overdue not due-today`() {
+        // Raw Jul 10 2026 is outside spring; the nearest spring start is Mar 1 2026, which precedes it.
+        // The shift doesn't push that forward — a date in the past is simply the overdue state.
+        val result = shifted(day(2026, 7, 10), spring, anchor = day(2024, 7, 10))
+        assertEquals(startOfDay(day(2026, 3, 1)), result)
     }
 
     @Test
-    fun `a past raw date outside a preferred season is due today when today is preferred`() {
-        val result = shifted(day(2026, 2, 10), spring, now = day(2026, 3, 20), anchor = day(2024, 2, 10))
-        assertEquals(startOfDay(day(2026, 3, 20)), result)
+    fun `a raw date just before a preferred season snaps forward to it`() {
+        val result = shifted(day(2026, 2, 10), spring, anchor = day(2024, 2, 10))
+        assertEquals(startOfDay(day(2026, 3, 1)), result)
     }
 
     @Test
-    fun `a past raw date outside a preferred season waits for the next stretch when today is not preferred`() {
-        val result = shifted(day(2026, 7, 1), spring, now = day(2026, 10, 5), anchor = day(2024, 7, 1))
+    fun `a raw date after a preferred season snaps back to it, not forward to the next year`() {
+        val result = shifted(day(2026, 7, 1), spring, anchor = day(2024, 7, 1))
+        assertEquals(startOfDay(day(2026, 3, 1)), result)
+    }
+
+    @Test
+    fun `a raw date in autumn is nearer next spring than the one just gone`() {
+        val result = shifted(day(2026, 10, 5), spring, anchor = day(2024, 10, 5))
         assertEquals(startOfDay(day(2027, 3, 1)), result)
     }
 
     @Test
-    fun `a raw date of today outside a preferred season is not moved earlier`() {
-        val result = shifted(day(2026, 7, 1), spring, now = day(2026, 7, 1), anchor = day(2024, 7, 1))
-        assertEquals(startOfDay(day(2027, 3, 1)), result)
+    fun `an old anchor with a nearest candidate at or before it still falls forward`() {
+        // Repotted Apr 10 2024, raw Jul 10 2024: the nearest spring start (Mar 1 2024) precedes the repot,
+        // so the next spring (Mar 1 2025) is used even though that is long past by now.
+        val anchor = day(2024, 4, 10)
+        val result = shifted(anchor.plusDays(91), spring, anchor = anchor)
+        assertEquals(startOfDay(day(2025, 3, 1)), result)
     }
 
     // --- upcomingSeasons ---

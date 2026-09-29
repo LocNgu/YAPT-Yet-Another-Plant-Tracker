@@ -82,16 +82,19 @@ Alternatives considered:
   preferred-season stretch** — a contiguous run of preferred seasons, which may wrap the year boundary.
   Nearest is measured to the stretch's first day, and an equidistant tie goes to the later stretch.
   Guards:
-  - A raw date already inside a preferred season is unchanged, past or future — a genuinely overdue plant
-    is never quietly un-overdue'd.
+  - A raw date already inside a preferred season is unchanged, past or future.
   - A nearest candidate on or before the last repot (or `createdAt`) day falls back to the next stretch
     forward.
-  - A raw date on or before today that lies outside a preferred season is never moved earlier: the
-    forward rule from today applies — due today when today is in a preferred season, otherwise the first
-    day of the next preferred stretch.
+- **Time-stable.** The shifted date depends only on the raw date, the preferred seasons, the hemisphere and
+  the anchor — never on today's date, so the function takes no clock. A raw date already in the past that
+  lies outside a preferred season goes through the same nearest-stretch rule as a future one; it is not
+  re-evaluated forward from today. The shifted date can therefore land in the past, and that is the overdue
+  state: an overdue plant stays overdue until it is repotted (or the plan or preferred seasons change),
+  and never drops out of the Care queue or the notification because a raw date slipped past. Last repot
+  June 2025, two-year interval, spring preferred is March 1 2027, overdue from March 2 2027 — and still
+  March 1 2027 on June 16 2027, when the raw date (June 15) has passed, rather than jumping to March 2028.
 - **Ordinary due-then-overdue rule.** An interval date shifted into a preferred season is due on its first
-  day and overdue after it, like any interval date; the shift is a function of the raw date, so it does
-  not drift from day to day.
+  day and overdue after it, like any interval date; the shift doesn't drift from day to day.
 - **UI.** Season chips on Add/Edit Plant appear only while the repotting reminder is enabled, all four
   selected by default, reusing `FertilizingSeasonsSelector`; the last chip cannot be deselected and
   shows repotting-specific snackbar copy. No inline chips on the Repot tab (product ADR-0023).
@@ -112,10 +115,11 @@ surfaces second; the Repot tab and Add/Edit Plant UI, changelog, and What's New 
 - A repot plan is the first due date in the app that is stored intent rather than computed from a last
   care date; consumers must read `repottingPlanSeasonEndAt` rather than assume "past due date means
   overdue" for repotting.
-- Accepted trade-off: because the shift is re-evaluated against today, a plant whose shifted interval date
-  went unactioned reverts to "wait for the next preferred stretch" once its raw date passes outside a
-  preferred season — the same "never due in a season you excluded" posture as product ADR-0049's
-  fertilizing rule. Revisit if it proves surprising.
+- Accepted trade-off: because the shift is time-stable, a long-neglected plant reads overdue since an old
+  preferred season even during an off-season — e.g. overdue since last March while it is now October —
+  rather than being pushed to the next stretch. This is deliberately unlike product ADR-0049's fertilizing
+  rule, which re-evaluates against today: for a rare, deliberate repot, silently dropping an overdue plant
+  from the reminders for months is the worse failure. Revisit if an off-season overdue reads as nagging.
 - A plan made for a season is not cleared by time passing; it stays overdue after its season ends until
   the owner repots or clears it, so a forgotten plan keeps nagging rather than silently disappearing.
 - Follow-ups: the Plant List chip, a Calendar entry, bulk planning, month or date plans, a plan note, and

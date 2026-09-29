@@ -49,15 +49,25 @@ class CareScheduleSeasonalRepottingTest {
         repotPlanMadeAt = repotPlanMadeAt
     )
 
-    private fun status(plant: Plant, now: Long, lastRepottedAt: Long? = null) = CareSchedule.computeStatus(
+    private fun status(
+        plant: Plant,
+        now: Long,
+        lastRepottedAt: Long? = null,
+        hemisphere: Hemisphere = Hemisphere.NORTHERN
+    ) = CareSchedule.computeStatus(
         plant = plant,
         lastWateredAt = null,
         lastFertilizedAt = null,
         totalLogs = 0,
         now = now,
         lastRepottedAt = lastRepottedAt,
-        hemisphere = Hemisphere.NORTHERN
+        hemisphere = hemisphere
     )
+
+    private fun noon(date: LocalDate): Long = noon(date.year, date.monthValue, date.dayOfMonth)
+
+    private fun datesFrom(first: LocalDate, last: LocalDate, stepDays: Long = 1): Sequence<LocalDate> =
+        generateSequence(first) { it.plusDays(stepDays) }.takeWhile { !it.isAfter(last) }
 
     // --- unchanged behaviour with the new columns unset ---
 
@@ -139,7 +149,7 @@ class CareScheduleSeasonalRepottingTest {
     }
 
     @Test
-    fun `a genuinely overdue interval date outside a preferred season waits for the next preferred stretch`() {
+    fun `a genuinely overdue interval date outside a preferred season stays overdue, not deferred`() {
         val lastRepotted = noon(2024, 7, 1)
         val status = status(
             plant(repottingIntervalDays = 365, repottingSeasons = spring),
@@ -147,8 +157,156 @@ class CareScheduleSeasonalRepottingTest {
             lastRepottedAt = lastRepotted
         )
 
-        assertEquals(startOfDay(2027, 3, 1), status.nextRepottingDueAt)
-        assertFalse(status.isRepottingOverdue)
+        assertEquals(startOfDay(2025, 3, 1), status.nextRepottingDueAt)
+        assertTrue(status.isRepottingOverdue)
+        assertFalse(status.isRepottingDueSoon)
+    }
+
+    // --- the shifted date is time-stable (#809): a function of the raw date, never of today ---
+
+    @Test
+    fun `the issue example keeps March 2027 through and after its raw date of June 15 2027`() {
+        val plant = plant(repottingIntervalDays = 730, repottingSeasons = spring)
+        val lastRepotted = noon(2025, 6, 15)
+        val expected = startOfDay(2027, 3, 1)
+
+        for (now in listOf(
+            noon(2026, 9, 29),
+            noon(2027, 2, 28),
+            noon(2027, 3, 1),
+            noon(2027, 3, 2),
+            noon(2027, 6, 14),
+            noon(2027, 6, 15),
+            noon(2027, 6, 16),
+            noon(2027, 8, 15),
+            noon(2028, 8, 15)
+        )) {
+            assertEquals(expected, status(plant, now, lastRepotted).nextRepottingDueAt)
+        }
+    }
+
+    @Test
+    fun `the issue example is not due before March 1, due on it, and overdue from March 2 for good`() {
+        val plant = plant(repottingIntervalDays = 730, repottingSeasons = spring)
+        val lastRepotted = noon(2025, 6, 15)
+
+        val before = status(plant, noon(2027, 2, 28), lastRepotted)
+        assertFalse(before.isRepottingDueSoon)
+        assertFalse(before.isRepottingOverdue)
+
+        val on = status(plant, noon(2027, 3, 1), lastRepotted)
+        assertTrue(on.isRepottingDueSoon)
+        assertFalse(on.isRepottingOverdue)
+
+        for (date in datesFrom(LocalDate.of(2027, 3, 2), LocalDate.of(2029, 3, 1))) {
+            val status = status(plant, noon(date), lastRepotted)
+            assertTrue("overdue on $date", status.isRepottingOverdue)
+            assertFalse("not due-today on $date", status.isRepottingDueSoon)
+        }
+    }
+
+    @Test
+    fun `a never-repotted plant's createdAt anchor is equally time-stable across its raw date`() {
+        val plant = plant(createdAt = noon(2025, 6, 15), repottingIntervalDays = 730, repottingSeasons = spring)
+
+        for (now in listOf(noon(2027, 6, 14), noon(2027, 6, 16), noon(2027, 11, 1))) {
+            val status = status(plant, now)
+            assertEquals(startOfDay(2027, 3, 1), status.nextRepottingDueAt)
+            assertTrue(status.isRepottingOverdue)
+        }
+    }
+
+    @Test
+    fun `southern hemisphere spring stays September 1 across its raw date and is overdue from the day after`() {
+        // Spring is Sep-Nov in the south. Raw Dec 20 2027 is nearer Sep 1 2027 (110 days) than Sep 1 2028.
+        val plant = plant(repottingIntervalDays = 730, repottingSeasons = spring)
+        val lastRepotted = noon(2025, 12, 20)
+        val south = Hemisphere.SOUTHERN
+
+        val nows = listOf(noon(2027, 8, 15), noon(2027, 9, 1), noon(2027, 12, 19), noon(2027, 12, 21), noon(2028, 8, 1))
+        for (now in nows) {
+            assertEquals(startOfDay(2027, 9, 1), status(plant, now, lastRepotted, south).nextRepottingDueAt)
+        }
+        assertTrue(status(plant, noon(2027, 9, 1), lastRepotted, south).isRepottingDueSoon)
+        for (date in datesFrom(LocalDate.of(2027, 9, 2), LocalDate.of(2029, 1, 1), stepDays = 3)) {
+            assertTrue("overdue on $date", status(plant, noon(date), lastRepotted, south).isRepottingOverdue)
+        }
+    }
+
+    @Test
+    fun `a stretch that wraps the year boundary keeps its first day across the raw date`() {
+        // Autumn+Winter preferred (north: Sep-Feb). Raw Mar 2 2027 is 182 days after Sep 1 2026 and 183
+        // before Sep 1 2027, so it snaps back to Sep 1 2026 and the plant reads overdue from Sep 2 2026.
+        val autumnWinter = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+        val plant = plant(repottingIntervalDays = 730, repottingSeasons = autumnWinter)
+        val lastRepotted = noon(2025, 3, 2)
+
+        val nows = listOf(noon(2026, 8, 31), noon(2026, 9, 1), noon(2027, 3, 1), noon(2027, 3, 3), noon(2027, 10, 1))
+        for (now in nows) {
+            assertEquals(startOfDay(2026, 9, 1), status(plant, now, lastRepotted).nextRepottingDueAt)
+        }
+        assertTrue(status(plant, noon(2026, 9, 1), lastRepotted).isRepottingDueSoon)
+        for (date in datesFrom(LocalDate.of(2026, 9, 2), LocalDate.of(2028, 9, 1), stepDays = 3)) {
+            assertTrue("overdue on $date", status(plant, noon(date), lastRepotted).isRepottingOverdue)
+        }
+    }
+
+    @Test
+    fun `the shifted date never changes with today for any preferred set, hemisphere or raw date`() {
+        val preferredSets = listOf(
+            spring,
+            setOf(FertilizingSeason.SUMMER),
+            setOf(FertilizingSeason.WINTER),
+            setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN),
+            setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+        )
+        val lastRepotted = LocalDate.of(2025, 6, 15)
+        val cases = preferredSets.flatMap { preferred ->
+            Hemisphere.entries.flatMap { hemisphere ->
+                listOf(200, 400, 730, 1000).map { intervalDays -> Triple(preferred, hemisphere, intervalDays) }
+            }
+        }
+
+        for ((preferred, hemisphere, intervalDays) in cases) {
+            val plant = plant(repottingIntervalDays = intervalDays, repottingSeasons = preferred)
+            val expected = SeasonalRepotting.nextPreferredDueAtMillis(
+                rawDueAtMillis = noon(lastRepotted.plusDays(intervalDays.toLong())),
+                preferredSeasons = preferred,
+                hemisphere = hemisphere,
+                anchorAtMillis = noon(lastRepotted)
+            )
+            for (date in datesFrom(lastRepotted, LocalDate.of(2031, 12, 31), stepDays = 7)) {
+                assertEquals(
+                    "$preferred $hemisphere interval $intervalDays on $date",
+                    expected,
+                    status(plant, noon(date), noon(lastRepotted), hemisphere).nextRepottingDueAt
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `the anchor guard still falls forward, and stays put, however long ago the anchor was`() {
+        // Repotted Apr 10 2024 with a 91-day interval: raw Jul 10 2024. Mar 1 2024 precedes the repot, so
+        // the date falls forward to Mar 1 2025 and, once past, is overdue rather than pushed to 2026.
+        val plant = plant(repottingIntervalDays = 91, repottingSeasons = spring)
+        val lastRepotted = noon(2024, 4, 10)
+
+        val nows = listOf(noon(2024, 5, 1), noon(2024, 7, 11), noon(2025, 3, 1), noon(2025, 3, 2), noon(2026, 9, 29))
+        for (now in nows) {
+            assertEquals(startOfDay(2025, 3, 1), status(plant, now, lastRepotted).nextRepottingDueAt)
+        }
+        assertTrue(status(plant, noon(2026, 9, 29), lastRepotted).isRepottingOverdue)
+    }
+
+    @Test
+    fun `every season preferred still returns the raw date untouched at any date`() {
+        val plant = plant(repottingIntervalDays = 730, repottingSeasons = FertilizingSeason.entries.toSet())
+        val lastRepotted = noon(2025, 6, 15)
+
+        for (now in listOf(noon(2026, 1, 1), noon(2027, 6, 15), noon(2028, 1, 1))) {
+            assertEquals(noon(2027, 6, 15), status(plant, now, lastRepotted).nextRepottingDueAt)
+        }
     }
 
     // --- one-off plan ---

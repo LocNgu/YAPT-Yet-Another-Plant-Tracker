@@ -363,7 +363,6 @@ object CareSchedule {
                 rawDueAtMillis = it,
                 preferredSeasons = plant.repottingSeasons,
                 hemisphere = hemisphere,
-                nowDate = nowDate,
                 anchorAtMillis = lastRepottedAt ?: plant.createdAt
             )
         }

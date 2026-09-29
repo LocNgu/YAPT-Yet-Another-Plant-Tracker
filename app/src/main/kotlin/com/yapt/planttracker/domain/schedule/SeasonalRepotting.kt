@@ -32,7 +32,8 @@ data class RepotPlan(
 /**
  * Seasonal repotting rules (#809, product ADR-0057, amending product ADR-0022's due-date rule): the
  * nearest-preferred-season shift for the recurring interval date, the picker's upcoming seasons, plan
- * resolution, and the plan-clear rule. Pure — every caller passes its own clock and hemisphere. Seasons
+ * resolution, and the plan-clear rule. Pure — every caller passes its own hemisphere and, where a rule
+ * needs one, its own clock. Seasons
  * reuse [FertilizingSeason] and [SeasonalFertilizing.season]; a season is always a whole calendar quarter
  * (Mar/Jun/Sep/Dec 1 starts), which the boundary walks below derive from `season()` rather than restate.
  */
@@ -46,34 +47,32 @@ object SeasonalRepotting {
      * moved into a preferred season. Every season preferred is an unconditional early-out: the raw date is
      * returned unchanged, so every existing plant stays bit-for-bit identical.
      *
-     * - A raw date already inside a preferred season is unchanged, past or future — a genuinely overdue
-     *   plant is never quietly un-overdue'd.
-     * - A raw date **on or before** [nowDate] that lies outside a preferred season is never moved earlier:
-     *   the forward rule from today applies — due today if today is in a preferred season, else the first
-     *   day of the next preferred stretch.
-     * - A **future** raw date outside a preferred season snaps to the first day of the *nearest* preferred
-     *   stretch (contiguous run of preferred seasons, wrapping the year boundary), measured to the stretch's
-     *   first day; equidistant goes to the later one. A nearest candidate at or before [anchorAtMillis]'s
-     *   day (the last repot, or `createdAt`) falls back to the next stretch forward. The result is a pure
-     *   function of the raw date, so it doesn't drift day to day: a shifted date reads due on its first day
-     *   and overdue after it, the ordinary due-then-overdue rule, until the raw date itself passes.
+     * The result is **time-stable**: a pure function of the raw date, the preferred seasons, the hemisphere
+     * and the anchor — never of today's date, so there is deliberately no clock parameter. An overdue plant
+     * therefore stays overdue until it is repotted (or the plan or preferred seasons change), and the date
+     * never jumps to a later stretch just because the raw date slipped into the past.
+     *
+     * - A raw date already inside a preferred season is unchanged, past or future.
+     * - Any other raw date, past or future, snaps to the first day of the *nearest* preferred stretch
+     *   (contiguous run of preferred seasons, wrapping the year boundary), measured to the stretch's first
+     *   day; equidistant goes to the later one. A nearest candidate at or before [anchorAtMillis]'s day
+     *   (the last repot, or `createdAt`) falls back to the next stretch forward.
+     *
+     * The shifted date can therefore land in the past: that is the overdue state, the ordinary
+     * due-then-overdue rule (due on its first day, overdue after it).
      */
     fun nextPreferredDueAtMillis(
         rawDueAtMillis: Long,
         preferredSeasons: Set<FertilizingSeason>,
         hemisphere: Hemisphere,
-        nowDate: LocalDate,
         anchorAtMillis: Long
     ): Long {
-        if (preferredSeasons.isEmpty() || preferredSeasons.containsAll(FertilizingSeason.entries)) {
-            return rawDueAtMillis
-        }
+        val unrestricted = preferredSeasons.isEmpty() || preferredSeasons.containsAll(FertilizingSeason.entries)
         val rawDate = rawDueAtMillis.toLocalDate()
-        return when {
-            SeasonalFertilizing.season(rawDate, hemisphere) in preferredSeasons -> rawDueAtMillis
-            rawDate.isAfter(nowDate) -> shiftToNearestStretch(rawDate, preferredSeasons, hemisphere, anchorAtMillis)
-            SeasonalFertilizing.season(nowDate, hemisphere) in preferredSeasons -> nowDate.toStartOfDayMillis()
-            else -> stretchStartAfter(nowDate, preferredSeasons, hemisphere).toStartOfDayMillis()
+        return if (unrestricted || SeasonalFertilizing.season(rawDate, hemisphere) in preferredSeasons) {
+            rawDueAtMillis
+        } else {
+            shiftToNearestStretch(rawDate, preferredSeasons, hemisphere, anchorAtMillis)
         }
     }
 
