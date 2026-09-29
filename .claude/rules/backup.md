@@ -79,6 +79,7 @@ gallery-owned source image.
 | v18 | `BackupPlant.fertilizingSeasons: String?` (comma-separated `FertilizingSeason` names; redefined in place from #286's original four nullable interval fields — never released) | `null` = every season (#795, product ADR-0049) |
 | v19 | `BackupPlant.dormantWateringIntervalDays` | `null` (#785, product ADR-0046) |
 | v20 | `BackupPlant.archivedAt: Long? = null` | `null` (unarchived) (#743) |
+| v21 | `BackupPlant.repotPlanSeasonStartAt: Long?` + `BackupPlant.repotPlanMadeAt: Long?` + `BackupPlant.repottingSeasons: String?` (comma-separated `FertilizingSeason` names via `SeasonalFertilizing.encode`/`decode`) | `null` / `null` / `null` = no plan, every season (#809, product ADR-0057) |
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.

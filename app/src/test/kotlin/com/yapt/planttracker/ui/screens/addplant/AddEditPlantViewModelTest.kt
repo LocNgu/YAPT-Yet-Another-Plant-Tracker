@@ -240,6 +240,36 @@ class AddEditPlantViewModelTest {
         }
     }
 
+    // #809 (product ADR-0057): saveEdit() builds a fresh Plant, so the repot plan and preferred
+    // repotting seasons — not edited on this screen yet — must be carried over or any edit wipes them.
+    @Test
+    fun `edit mode save carries over the repot plan and preferred repotting seasons`() = runTest {
+        val existing = plant().copy(
+            repottingIntervalDays = 360,
+            repotPlanSeasonStartAt = 1_804_032_000_000L,
+            repotPlanMadeAt = 1_790_000_000_000L,
+            repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        vm.name = "Renamed"
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.name == "Renamed" &&
+                        it.repotPlanSeasonStartAt == 1_804_032_000_000L &&
+                        it.repotPlanMadeAt == 1_790_000_000_000L &&
+                        it.repottingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+                }
+            )
+        }
+    }
+
     @Test
     fun `toggleFertilizingSeason saves the newly chosen set`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L

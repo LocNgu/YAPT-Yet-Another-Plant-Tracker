@@ -6,7 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -291,5 +293,81 @@ class PlantRepositoryTest {
         callbackRepo.addPlant(samplePlant(name = "[Demo] Monstera"))
         assertEquals(1, callbackRepo.deletePlantsWithNamePrefix("[Demo] "))
         assertEquals(1, callCount)
+    }
+
+    // -----------------------------------------------------------------------
+    // Seasonal repot planning (#809, product ADR-0057)
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `a plant with no plan and no preferred seasons reads back as unset and every season`() = runTest {
+        val id = repo.addPlant(samplePlant())
+
+        val plant = repo.getPlantById(id).first()!!
+
+        assertNull(plant.repotPlanSeasonStartAt)
+        assertNull(plant.repotPlanMadeAt)
+        assertEquals(FertilizingSeason.entries.toSet(), plant.repottingSeasons)
+    }
+
+    @Test
+    fun `plan and preferred repotting seasons round-trip through updatePlant`() = runTest {
+        val id = repo.addPlant(samplePlant())
+        val seasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+
+        repo.updatePlant(
+            samplePlant().copy(
+                id = id,
+                repotPlanSeasonStartAt = 1_804_032_000_000L,
+                repotPlanMadeAt = 1_790_000_000_000L,
+                repottingSeasons = seasons
+            )
+        )
+
+        val plant = repo.getPlantById(id).first()!!
+        assertEquals(1_804_032_000_000L, plant.repotPlanSeasonStartAt)
+        assertEquals(1_790_000_000_000L, plant.repotPlanMadeAt)
+        assertEquals(seasons, plant.repottingSeasons)
+    }
+
+    @Test
+    fun `setRepotPlan writes both plan columns and updatedAt without touching other columns`() = runTest {
+        val id = repo.addPlant(
+            samplePlant(name = "Basil").copy(
+                repottingSeasons = setOf(FertilizingSeason.SPRING),
+                wateringConfidence = 3
+            )
+        )
+
+        repo.setRepotPlan(id, seasonStartAt = 1_804_032_000_000L, madeAt = 1_790_000_000_000L, updatedAt = 3_000_000L)
+
+        val plant = repo.getPlantById(id).first()!!
+        assertEquals(1_804_032_000_000L, plant.repotPlanSeasonStartAt)
+        assertEquals(1_790_000_000_000L, plant.repotPlanMadeAt)
+        assertEquals(3_000_000L, plant.updatedAt)
+        assertEquals("Basil", plant.name)
+        assertEquals(3, plant.wateringConfidence)
+        assertEquals(setOf(FertilizingSeason.SPRING), plant.repottingSeasons)
+    }
+
+    @Test
+    fun `clearRepotPlan nulls both plan columns and leaves everything else`() = runTest {
+        val id = repo.addPlant(
+            samplePlant().copy(
+                repotPlanSeasonStartAt = 1_804_032_000_000L,
+                repotPlanMadeAt = 1_790_000_000_000L,
+                repottingIntervalDays = 360,
+                repottingSeasons = setOf(FertilizingSeason.SPRING)
+            )
+        )
+
+        repo.clearRepotPlan(id, updatedAt = 4_000_000L)
+
+        val plant = repo.getPlantById(id).first()!!
+        assertNull(plant.repotPlanSeasonStartAt)
+        assertNull(plant.repotPlanMadeAt)
+        assertEquals(4_000_000L, plant.updatedAt)
+        assertEquals(360, plant.repottingIntervalDays)
+        assertEquals(setOf(FertilizingSeason.SPRING), plant.repottingSeasons)
     }
 }

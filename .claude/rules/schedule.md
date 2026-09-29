@@ -74,7 +74,30 @@ delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
 - **Repotting** — first-due for a never-repotted plant is `createdAt + interval` (private generic
   `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
   `nextRepottingDueAt`/`isRepottingOverdue`/`isRepottingDueSoon`/`lastRepottedAt` (all defaulted, existing
-  callers unaffected). See product ADR-0022 (#232).
+  callers unaffected). See product ADR-0022 (#232). `computeRepottingDue()` (#809, product ADR-0057)
+  layers two things on top, both unset by default:
+  - **A one-off plan wins outright** — `Plant.repotPlanSeasonStartAt` (start of day of the target
+    season's first day; no interval needed) *replaces* the interval date, even when earlier (unlike
+    watering's defer-only `maxOf` override, product ADR-0039). `SeasonalRepotting.resolvePlan()` derives
+    the season and its end (the first day *after* the season, from the nearest season boundary to the
+    stored timestamp, hemisphere-independent) and `RepotPlan.stateOn(nowDate)` gives UPCOMING /
+    IN_SEASON / SEASON_ENDED: `nextRepottingDueAt` is the stored start, `isRepottingDueSoon` is true for
+    the whole season, `isRepottingOverdue` only once the season has ended, and
+    `PlantCareStatus.repottingPlanSeasonEndAt` is non-null exactly for a plan (`isRepottingPlanned`).
+  - **Preferred seasons for the interval** — without a plan, the raw date goes through
+    `SeasonalRepotting.nextPreferredDueAtMillis(raw, repottingSeasons, hemisphere, nowDate, anchor)` where
+    `anchor = lastRepottedAt ?: createdAt`. Every season preferred (or an empty set) returns raw
+    untouched. Otherwise: raw already in a preferred season → unchanged (past or future, so an overdue
+    plant stays overdue); raw on or before `nowDate` outside one → forward rule from today (today's
+    start of day if today is preferred, else the first day of the next preferred stretch); raw in the
+    future outside one → the first day of the *nearest* preferred stretch (a contiguous run of preferred
+    seasons, year-wrapping ones included; distance is measured to the stretch's first day, tie → later),
+    with a candidate at or before the anchor's day replaced by the next stretch forward. That last
+    branch is a pure function of the raw date (it doesn't drift daily), so a shifted date reads due on
+    its first day and overdue after it — until the raw date passes outside a preferred season, when the
+    forward rule from today takes over (the same "never due in a season you excluded" posture as
+    fertilizing, product ADR-0049).
+  Tests: `SeasonalRepottingTest` (pure), `CareScheduleSeasonalRepottingTest` (status integration).
 - **Custom reminders** — unbounded per plant, so unlike repotting they're a `List<CustomReminderStatus>`
   (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:
   List<CustomReminder> = emptyList()` param; each reminder reuses `extendedCareDueAt()` independently, but

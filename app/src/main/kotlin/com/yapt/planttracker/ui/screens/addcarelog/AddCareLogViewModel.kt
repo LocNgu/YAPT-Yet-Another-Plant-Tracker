@@ -18,6 +18,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.usecase.AdaptiveWateringObservation
+import com.yapt.planttracker.domain.usecase.RepotPlanReset
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -136,6 +137,8 @@ class AddCareLogViewModel(
                         plantRepository = plantRepository,
                         wateringAdjustmentRepository = wateringAdjustmentRepository
                     )
+                    // After the reset, whose full-row write of this snapshot would put a stale plan back (#809).
+                    RepotPlanReset.clearIfSuperseded(plant.id, loggedAt, plantRepository)
                 }
             }
             if (willPairWater) insertPairedWaterLog()

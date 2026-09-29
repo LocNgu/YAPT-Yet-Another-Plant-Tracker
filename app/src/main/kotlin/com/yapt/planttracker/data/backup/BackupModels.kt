@@ -26,7 +26,10 @@ data class BackupPlant(
     val dormancyEndMonth: Int? = null,
     val fertilizingSeasons: String? = null,
     val dormantWateringIntervalDays: Int? = null,
-    val archivedAt: Long? = null
+    val archivedAt: Long? = null,
+    val repotPlanSeasonStartAt: Long? = null,
+    val repotPlanMadeAt: Long? = null,
+    val repottingSeasons: String? = null
 )
 
 @Serializable

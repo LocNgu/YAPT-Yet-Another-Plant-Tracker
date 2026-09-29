@@ -57,7 +57,10 @@ class BackupSerializerTest {
         dormancyEndMonth = 2,
         fertilizingSeasons = "SPRING,SUMMER",
         dormantWateringIntervalDays = 42,
-        archivedAt = 1_693_000_000_000L
+        archivedAt = 1_693_000_000_000L,
+        repotPlanSeasonStartAt = 1_804_032_000_000L,
+        repotPlanMadeAt = 1_790_000_000_000L,
+        repottingSeasons = "SPRING,AUTUMN"
     )
 
     private val defaultCareLog = BackupCareLog(
@@ -601,5 +604,31 @@ class BackupSerializerTest {
         """.trimIndent()
         val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
         assertNull(plant.archivedAt)
+    }
+
+    @Test
+    fun `repot plan and preferred repotting seasons round-trip their stored values`() {
+        val decoded = backupJson.decodeFromString(
+            BackupRoot.serializer(),
+            backupJson.encodeToString(BackupRoot.serializer(), fullRoot())
+        )
+        val plant = decoded.plants[0]
+        assertEquals(1_804_032_000_000L, plant.repotPlanSeasonStartAt)
+        assertEquals(1_790_000_000_000L, plant.repotPlanMadeAt)
+        assertEquals("SPRING,AUTUMN", plant.repottingSeasons)
+    }
+
+    @Test
+    fun `plant from a backup without repot fields defaults to no plan and every season`() {
+        val json = """
+            {"schemaVersion":20,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1000000000000,"updatedAt":1100000000000}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+        assertNull(plant.repotPlanSeasonStartAt)
+        assertNull(plant.repotPlanMadeAt)
+        assertNull(plant.repottingSeasons)
     }
 }

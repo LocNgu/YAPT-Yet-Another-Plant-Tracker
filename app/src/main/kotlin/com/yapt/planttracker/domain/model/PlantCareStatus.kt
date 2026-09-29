@@ -98,7 +98,21 @@ data class PlantCareStatus(
     /** Ordinary seasonal/adaptive due date before an override, even when dormancy selects another mode. */
     val normalComputedNextWateringDueAt: Long? = null,
     /** Fixed-cadence dormant due date before an override; populated only in [WateringScheduleMode.DORMANT_CADENCE]. */
-    val dormantComputedNextWateringDueAt: Long? = null
-)
+    val dormantComputedNextWateringDueAt: Long? = null,
+    /**
+     * Start of day of the first day *after* the planned repot's season (#809, product ADR-0057);
+     * non-null exactly when [nextRepottingDueAt] comes from a [Plant.repotPlanSeasonStartAt] plan rather
+     * than the recurring interval, `null` otherwise. A plan is due for its whole season and overdue only
+     * once the season has ended, so consumers use this — never the due date alone — to tell "due, in
+     * season" ([isRepottingDueSoon] with a past [nextRepottingDueAt]) from "overdue, season ended"
+     * ([isRepottingOverdue]). Computed once in
+     * [com.yapt.planttracker.domain.schedule.CareSchedule.computeStatus] via
+     * [com.yapt.planttracker.domain.schedule.SeasonalRepotting.resolvePlan]. Defaulted `null` so a status
+     * built by hand in a test is unaffected.
+     */
+    val repottingPlanSeasonEndAt: Long? = null
+) {
+    val isRepottingPlanned: Boolean get() = repottingPlanSeasonEndAt != null
+}
 
 enum class WateringScheduleMode { NORMAL, DORMANT_CADENCE, DORMANT_SUSPENDED }

@@ -744,11 +744,14 @@ class QuickLogUseCase(
     /**
      * The #571 REPOT-triggered lifecycle reset, reached from [quickLog]'s bulk-action REPOT path
      * (`BulkActionBar`) — extracted out of [quickLog] to stay under Detekt's
-     * `CyclomaticComplexMethod` threshold.
+     * `CyclomaticComplexMethod` threshold. Also where a newly inserted REPOT log clears a planned repot
+     * (#809, product ADR-0057), *after* the reset: the reset's full-row write of [plant] would otherwise
+     * put a stale plan back.
      */
     private suspend fun maybeApplyRepotReset(plant: Plant, careType: CareType, now: Long) {
         if (careType == CareType.REPOT) {
             WateringLifecycleReset.applyRepotReset(plant, now, plantRepository, wateringAdjustmentRepository)
+            RepotPlanReset.clearIfSuperseded(plant.id, now, plantRepository, nowProvider())
         }
     }
 

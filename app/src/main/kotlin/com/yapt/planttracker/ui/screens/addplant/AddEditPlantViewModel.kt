@@ -240,6 +240,11 @@ class AddEditPlantViewModel(
             plant.copy(
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
+                // The plan and preferred repotting seasons aren't edited on this screen yet: carry the
+                // stored values over so an unrelated edit can't silently wipe them (#809).
+                repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,
+                repotPlanMadeAt = existing?.repotPlanMadeAt,
+                repottingSeasons = existing?.repottingSeasons ?: plant.repottingSeasons,
                 wateringConfidence = wateringConfidence,
                 wateringBaseIntervalDays = wateringBaseIntervalDays,
                 // Room-change reset (#571): a fresh wateringResetAt anchor for the post-reset bootstrap
