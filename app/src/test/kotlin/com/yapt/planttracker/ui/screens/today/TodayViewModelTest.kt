@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -266,8 +267,25 @@ class TodayViewModelTest {
 
         viewModel.navigationEvent.test {
             viewModel.openPlant(7L)
-            assertEquals(TodayNavigationEvent.PlantDetail(7L), awaitItem())
+            assertEquals(TodayNavigationEvent.PlantDetail(7L, null), awaitItem())
+            viewModel.openPlant(7L, PlantDetailTab.PHOTO)
+            assertEquals(TodayNavigationEvent.PlantDetail(7L, PlantDetailTab.PHOTO), awaitItem())
         }
+    }
+
+    @Test
+    fun `care task kinds map to the matching plant detail tab`() {
+        val expected = mapOf(
+            TodayCareKind.WATER to PlantDetailTab.WATER,
+            TodayCareKind.WATER_AND_FERTILIZE to PlantDetailTab.FERTILIZE,
+            TodayCareKind.FERTILIZE to PlantDetailTab.FERTILIZE,
+            TodayCareKind.REPOT to PlantDetailTab.REPOT,
+            TodayCareKind.PHOTO to PlantDetailTab.PHOTO,
+            TodayCareKind.CUSTOM_REMINDER to PlantDetailTab.CUSTOM_REMINDERS,
+            TodayCareKind.ISSUE_TREATMENT to PlantDetailTab.ISSUES
+        )
+        assertEquals(TodayCareKind.entries.toSet(), expected.keys)
+        expected.forEach { (kind, tab) -> assertEquals(tab, kind.plantDetailTab()) }
     }
 
     @Test

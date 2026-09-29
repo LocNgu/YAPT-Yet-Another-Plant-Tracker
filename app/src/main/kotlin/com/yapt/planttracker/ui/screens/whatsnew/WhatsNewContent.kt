@@ -20,6 +20,8 @@ object WhatsNewContent {
             "Search your plants by name or species — tap the search icon on the plant list and the list " +
                 "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
                 "filters and sorting",
+            "Tapping a plant in the Care tab now opens its details on the matching tab — for example a plant " +
+                "under Photos opens the Photo tab, and a combined water-and-fertilize entry opens Fertilize",
             "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
                 "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
                 "and optional progress photos grouped by type with watering first. Long-press to select tasks " +

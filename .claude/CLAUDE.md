@@ -54,7 +54,9 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
   over at the same local-day boundary as Plant List and Calendar. Multi-task completion stays inside
   `QuickLogUseCase.completeTodayTasks()` so one Room transaction and one post-water callback cover the
   batch; Plant List, Calendar, and Care all save a reminder photo through the one transactional
-  `QuickLogUseCase.saveReminderPhoto()`. Because Care is the start destination, Plants may not be on the back
+  `QuickLogUseCase.saveReminderPhoto()`. Tapping a Care row/card opens Plant Detail on the tab matching the task kind via the optional
+  `tab` route arg (`TodayCareKind.plantDetailTab()`; combined water-and-fertilize → Fertilize; seeds only the initial
+  tab, #843). Because Care is the start destination, Plants may not be on the back
   stack — never `getBackStackEntry(Screen.PlantList.route)` unguarded (#836, product ADR-0054).
 - **Same-day WATER/FERTILIZE duplicates are rejected**, not PRUNE/REPOT/NOTE/PHOTO/MIST/CUSTOM/CHECK — `CareLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs, excludeLogId)` is the single query (DAO-level `countLogsOfTypeOnDay`, no schema change). `QuickLogUseCase` is the one choke point for all quick-log surfaces via its `isDuplicateGuarded()` set; `AddCareLogViewModel` has its own equivalent guard since it doesn't go through that use case. `CareType.CHECK` dropped out of the guard in #738 (product ADR-0039) — nothing writes it anymore, so there is nothing left to guard. Always check *before* a paired liquid-fertilizer WATER insert, never just against the sibling insert in the same call (#509).
 - **No `libs.versions.toml`** — versions inlined in `app/build.gradle.kts`; the Compose BOM governs Compose artifacts.

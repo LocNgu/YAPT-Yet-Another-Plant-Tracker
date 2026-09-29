@@ -85,6 +85,7 @@ import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
@@ -102,7 +103,7 @@ const val TODAY_TASK_LIST_TAG = "today_task_list"
 @Composable
 fun TodayScreen(
     viewModel: TodayViewModel,
-    onNavigateToPlant: (Long) -> Unit,
+    onNavigateToPlant: (Long, PlantDetailTab?) -> Unit,
     onNavigateToAdd: () -> Unit,
     onLaunchPhotoCapture: ((Long) -> Unit)? = null,
     onSelectionModeChanged: (Boolean) -> Unit = {}
@@ -140,7 +141,7 @@ fun TodayScreen(
         viewModel.navigationEvent.collect { event ->
             when (event) {
                 TodayNavigationEvent.AddPlant -> onNavigateToAdd()
-                is TodayNavigationEvent.PlantDetail -> onNavigateToPlant(event.plantId)
+                is TodayNavigationEvent.PlantDetail -> onNavigateToPlant(event.plantId, event.tab)
             }
         }
     }
@@ -347,7 +348,7 @@ fun TodayScreen(
 }
 
 private data class TodayTaskActions(
-    val onOpen: (Long) -> Unit,
+    val onOpen: (Long, PlantDetailTab?) -> Unit,
     val onToggleSelection: (String) -> Unit,
     val onTogglePlant: (Long) -> Unit,
     val onComplete: (TodayCareTask) -> Unit,
@@ -435,7 +436,11 @@ private fun TodayPlantGroupCard(
                 )
                 .combinedClickable(
                     onClick = {
-                        if (selection.active) actions.onTogglePlant(group.plant.id) else actions.onOpen(group.plant.id)
+                        if (selection.active) {
+                            actions.onTogglePlant(group.plant.id)
+                        } else {
+                            actions.onOpen(group.plant.id, group.tasks.firstOrNull()?.kind?.plantDetailTab())
+                        }
                     },
                     onLongClick = { actions.onTogglePlant(group.plant.id) },
                     onLongClickLabel = stringResource(R.string.today_select_plant_tasks, group.plant.name),
@@ -485,7 +490,11 @@ private fun TodayTaskRow(
             )
             .combinedClickable(
                 onClick = {
-                    if (selectionMode) actions.onToggleSelection(task.id) else actions.onOpen(task.plant.id)
+                    if (selectionMode) {
+                        actions.onToggleSelection(task.id)
+                    } else {
+                        actions.onOpen(task.plant.id, task.kind.plantDetailTab())
+                    }
                 },
                 onLongClick = { actions.onToggleSelection(task.id) },
                 onLongClickLabel = stringResource(R.string.today_select_task, task.plant.name),
