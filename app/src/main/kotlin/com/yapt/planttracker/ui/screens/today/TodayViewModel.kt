@@ -8,8 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.TodayCareRepository
-import com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry
-import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringReason
@@ -26,13 +24,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -40,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface TodayUiState {
     data object Loading : TodayUiState
-    data class Ready(val snapshot: TodayQueueSnapshot, val groupByPlant: Boolean) : TodayUiState
+    data class Ready(val snapshot: TodayQueueSnapshot) : TodayUiState
     data object Error : TodayUiState
 }
 
@@ -49,12 +44,11 @@ sealed interface TodayNavigationEvent {
     data object AddPlant : TodayNavigationEvent
 }
 
-@Suppress("LongParameterList", "TooManyFunctions")
+@Suppress("TooManyFunctions")
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModel(
     private val application: Application,
     private val todayCareRepository: TodayCareRepository,
-    featureFlags: FeatureFlags,
     private val quickLogUseCase: QuickLogUseCase,
     private val plantRepository: PlantRepository
 ) : ViewModel() {
@@ -65,10 +59,6 @@ class TodayViewModel(
         data object Error : QueueResult
     }
 
-    private val _selectedTaskIds = MutableStateFlow<Set<String>>(emptySet())
-    val selectedTaskIds: StateFlow<Set<String>> = _selectedTaskIds.asStateFlow()
-    private val bulkCompletionInFlight = AtomicBoolean(false)
-
     private val retryGeneration = MutableStateFlow(0)
     private val loadingAfterRetryPending = AtomicBoolean(false)
     private val queueResult = retryGeneration.flatMapLatest {
@@ -76,18 +66,13 @@ class TodayViewModel(
             .map<TodayQueueSnapshot, QueueResult> { QueueResult.Success(it) }
             .catch { emit(QueueResult.Error) }
             .onStart { if (loadingAfterRetryPending.getAndSet(false)) emit(QueueResult.Loading) }
-    }.onEach { result ->
-        if (result is QueueResult.Success) reconcileSelection(result.snapshot.tasks)
     }
 
-    val uiState: StateFlow<TodayUiState> = combine(
-        queueResult,
-        featureFlags.isEnabled(FeatureFlagRegistry.TODAY_GROUP_BY_PLANT)
-    ) { result, groupByPlant ->
+    val uiState: StateFlow<TodayUiState> = queueResult.map { result ->
         when (result) {
             QueueResult.Loading -> TodayUiState.Loading
             QueueResult.Error -> TodayUiState.Error
-            is QueueResult.Success -> TodayUiState.Ready(result.snapshot, groupByPlant)
+            is QueueResult.Success -> TodayUiState.Ready(result.snapshot)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TodayUiState.Loading)
 
@@ -111,62 +96,6 @@ class TodayViewModel(
 
     fun addPlant() {
         viewModelScope.launch { _navigationEvent.emit(TodayNavigationEvent.AddPlant) }
-    }
-
-    fun toggleTaskSelection(taskId: String) {
-        val task = currentTasks().firstOrNull { it.id == taskId && it.isBulkEligible } ?: return
-        _selectedTaskIds.value = _selectedTaskIds.value.let { selected ->
-            if (task.id in selected) selected - task.id else selected + task.id
-        }
-    }
-
-    fun togglePlantSelection(plantId: Long) {
-        val ids = currentTasks().filter { it.plant.id == plantId && it.isBulkEligible }.map { it.id }.toSet()
-        if (ids.isEmpty()) return
-        _selectedTaskIds.value = if (ids.all { it in _selectedTaskIds.value }) {
-            _selectedTaskIds.value - ids
-        } else {
-            _selectedTaskIds.value + ids
-        }
-    }
-
-    fun selectAll() {
-        _selectedTaskIds.value = currentTasks().filter { it.isBulkEligible }.map { it.id }.toSet()
-    }
-
-    fun clearSelection() {
-        _selectedTaskIds.value = emptySet()
-    }
-
-    fun completeSelected() {
-        val tasks = currentTasks().filter { it.id in _selectedTaskIds.value && it.isBulkEligible }
-        if (tasks.isEmpty()) {
-            clearSelection()
-            return
-        }
-        if (!bulkCompletionInFlight.compareAndSet(false, true)) return
-        val claimedIds = tasks.mapTo(mutableSetOf()) { it.id }
-        _selectedTaskIds.value = emptySet()
-        viewModelScope.launch {
-            val message = try {
-                val result = quickLogUseCase.completeTodayTasks(tasks)
-                application.getString(
-                    R.string.today_bulk_result,
-                    result.completedCount,
-                    result.totalCount,
-                    result.skippedCount
-                )
-            } catch (error: CancellationException) {
-                restoreSelection(claimedIds)
-                throw error
-            } catch (_: Exception) {
-                restoreSelection(claimedIds)
-                application.getString(R.string.today_action_failed)
-            } finally {
-                bulkCompletionInFlight.set(false)
-            }
-            _messageEvent.emit(message)
-        }
     }
 
     fun completeWater(taskId: String, reason: WateringReason?) {
@@ -272,32 +201,12 @@ class TodayViewModel(
 
     private fun task(taskId: String): TodayCareTask? = currentTasks().firstOrNull { it.id == taskId }
 
-    private fun reconcileSelection(tasks: List<TodayCareTask>) {
-        val eligibleIds = tasks.asSequence().filter { it.isBulkEligible }.map { it.id }.toSet()
-        _selectedTaskIds.value = _selectedTaskIds.value.intersect(eligibleIds)
-    }
-
-    private fun restoreSelection(taskIds: Set<String>) {
-        val ready = uiState.value as? TodayUiState.Ready
-        _selectedTaskIds.value = if (ready == null) {
-            taskIds
-        } else {
-            val eligibleIds = ready.snapshot.tasks.asSequence()
-                .filter { it.isBulkEligible }
-                .map { it.id }
-                .toSet()
-            taskIds.intersect(eligibleIds)
-        }
-    }
-
     private fun currentTasks(): List<TodayCareTask> =
         (uiState.value as? TodayUiState.Ready)?.snapshot?.tasks.orEmpty()
 
-    @Suppress("LongParameterList")
     class Factory(
         private val application: Application,
         private val todayCareRepository: TodayCareRepository,
-        private val featureFlags: FeatureFlags,
         private val quickLogUseCase: QuickLogUseCase,
         private val plantRepository: PlantRepository
     ) : ViewModelProvider.Factory {
@@ -305,7 +214,6 @@ class TodayViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T = TodayViewModel(
             application,
             todayCareRepository,
-            featureFlags,
             quickLogUseCase,
             plantRepository
         ) as T

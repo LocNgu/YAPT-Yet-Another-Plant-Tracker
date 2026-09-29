@@ -16,17 +16,20 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - **Search the plant list by name or species** — a search icon in the Plant List top bar expands into an inline field that filters the list as you type, matching accented characters folded to their plain form (e.g. "grun" matches "Grünlilie"). It composes with the active room filter and sort option, shows a dedicated "No plants match" message when nothing fits, and resets on app restart (#512, product ADR-0055)
 - **Tapping a plant in the Care tab now opens its Plant Detail on the matching tab** — Watering opens Water,
   Fertilizing and combined water-and-fertilize entries open Fertilize, and Repotting, Photos, custom reminders
-  and issue treatments open their own tabs (revealing the second tab row when needed), in both the default and
-  plant-grouped layouts. Every other entry point still opens on Water (#843)
+  and issue treatments open their own tabs (revealing the second tab row when needed). Every other entry point still opens on Water (#843)
 - **A new Care tab turns every due care item into one queue, and it is now the first tab and the screen the
   app opens on** — work through watering, fertilizing, repotting, custom reminders, linked issue
   treatments, and optional progress photos due Overdue through the next three days. Tasks are grouped by
-  type with watering first (then issue treatments, fertilizing, reminders, repotting, photos), and every
-  row shows its own due label with overdue ones highlighted. Long-press a row to select tasks and complete
-  them together in one batch; the bottom bar steps aside while selecting, like the Plants list. Actions
+  type with watering first (then issue treatments, fertilizing, reminders, repotting, photos). Actions
   reuse the existing care flows, and the queue rolls over at local midnight while the app stays open. The
-  tab order is now Care · Plants · Calendar; a temporary developer flag can switch the same queue to a
-  plant-grouped layout for comparison (#836, product ADR-0054)
+  tab order is now Care · Plants · Calendar (#836, product ADR-0054)
+- **Care is now a grid of plant photos, with watering split by date and a long-press menu for quick
+  actions** — every task is a square plant tile, two to four per row depending on the screen width, and
+  Watering is split into Overdue, Today, and Next 3 days. Section headers show how many plants they cover
+  and collapse when tapped; they reopen when the app restarts, so a forgotten collapse can never hide
+  tomorrow's care. Tiles no longer show due dates. Tap a tile to open the plant; long-press it for just
+  that task's actions — Water, Reschedule, Fertilize, Repot, Mark done, or Take photo — which screen readers also get as tile actions
+  (#842, product ADR-0056, amending product ADR-0054)
 - **Deleted photos now free up storage instead of leaking forever** — a background sweep now reclaims camera-capture and restore-output image files once nothing in the database references them anymore (a deleted plant's cover photo and care-log photos, a deleted gallery photo, a second `.yapt` restore's leftover files from the first). Runs daily and right after a delete or restore; in-flight captures and gallery-picked photos are never touched (#736, #559, technical ADR-0031)
 
 ### Fixed

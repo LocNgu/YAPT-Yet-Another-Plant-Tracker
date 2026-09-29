@@ -28,7 +28,6 @@ import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
-import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
@@ -86,8 +85,6 @@ class QuickLogUseCase(
     /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */
     data class BulkLogResult(val loggedCount: Int, val skippedCount: Int, val totalCount: Int)
 
-    data class BulkCompletionResult(val completedCount: Int, val skippedCount: Int, val totalCount: Int)
-
     suspend fun saveReminderPhoto(plantId: Long, uri: String): Plant? {
         val now = nowProvider()
         return database.withTransaction {
@@ -128,83 +125,6 @@ class QuickLogUseCase(
             ),
             logged = completed
         )
-    }
-
-    suspend fun completeTodayTasks(tasks: List<TodayCareTask>): BulkCompletionResult {
-        val repository = requireNotNull(customReminderRepository)
-        val loggedAt = nowProvider()
-        var completedCount = 0
-        var latestWaterLoggedAt: Long? = null
-        database.withTransaction {
-            for (task in tasks) {
-                val freshPlant = plantRepository.getPlantById(task.plant.id).first() ?: continue
-                val outcome = when (task.kind) {
-                    TodayCareKind.WATER -> quickWaterWithReasonInternal(
-                        freshPlant,
-                        reason = null,
-                        loggedAt = loggedAt,
-                        schedulePostWateringReminder = false
-                    )
-                    TodayCareKind.FERTILIZE -> quickLogInternal(
-                        freshPlant,
-                        CareType.FERTILIZE,
-                        loggedAt,
-                        schedulePostWateringReminder = false
-                    )
-                    TodayCareKind.WATER_AND_FERTILIZE -> quickLiquidFertilizeWithReasonInternal(
-                        freshPlant,
-                        reason = null,
-                        loggedAt = loggedAt,
-                        schedulePostWateringReminder = false
-                    )
-                    TodayCareKind.REPOT -> quickLogInternal(
-                        freshPlant,
-                        CareType.REPOT,
-                        loggedAt,
-                        schedulePostWateringReminder = false
-                    )
-                    TodayCareKind.CUSTOM_REMINDER,
-                    TodayCareKind.ISSUE_TREATMENT -> completeCustomReminderInTransaction(
-                        task,
-                        repository,
-                        loggedAt
-                    )
-                    TodayCareKind.PHOTO -> QuickLogOutcome(message = "", logged = false)
-                }
-                if (outcome.logged) completedCount++
-                outcome.waterLoggedAt?.let { waterAt ->
-                    latestWaterLoggedAt = maxOf(latestWaterLoggedAt ?: Long.MIN_VALUE, waterAt)
-                }
-            }
-        }
-        latestWaterLoggedAt?.let { onWaterLogged(it) }
-        return BulkCompletionResult(
-            completedCount = completedCount,
-            skippedCount = tasks.size - completedCount,
-            totalCount = tasks.size
-        )
-    }
-
-    private suspend fun completeCustomReminderInTransaction(
-        task: TodayCareTask,
-        repository: CustomReminderRepository,
-        loggedAt: Long
-    ): QuickLogOutcome {
-        val expectedLastDoneAt = task.customReminder?.lastDoneAt
-        val reminder = task.customReminder?.id?.let { repository.getReminderById(it) }
-        val isCurrent = reminder != null && reminder.lastDoneAt == expectedLastDoneAt
-        if (reminder != null && isCurrent) {
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = reminder.plantId,
-                    careType = CareType.CUSTOM,
-                    loggedAt = loggedAt,
-                    customReminderId = reminder.id
-                )
-            )
-            repository.updateReminder(reminder.copy(lastDoneAt = loggedAt))
-        }
-        return QuickLogOutcome(message = "", logged = isCurrent)
     }
 
     /**

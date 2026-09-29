@@ -5,7 +5,6 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -19,7 +18,6 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.today.TODAY_TASK_LIST_TAG
-import com.yapt.planttracker.ui.screens.today.longPressRowEdge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -74,21 +72,6 @@ class TodayRootNavigationTest {
 
         composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
         composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
-    }
-
-    @Test
-    fun careSelectionModeHidesTheBottomBarUntilSelectionEnds() {
-        composeTestRule.setContent { YaptNavGraph(application) }
-
-        composeTestRule.onNodeWithTag(TODAY_TASK_LIST_TAG).performScrollToNode(hasText("Plant 23"))
-        composeTestRule.onNodeWithText("Plant 23").longPressRowEdge()
-
-        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).assertDoesNotExist()
-
-        composeTestRule.onNodeWithContentDescription("Clear selection").performClick()
-
-        composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).assertIsDisplayed()
     }
 
     private companion object {

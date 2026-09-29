@@ -1,6 +1,6 @@
 # Product ADR-0054: Unified Care queue with care-type sections
 
-**Status**: accepted
+**Status**: accepted — bulk-completion, selection and bottom-bar-hiding clauses, the row presentation and long-press selection clauses, and the plant-grouping developer-flag clause amended by [ADR-0056](0056-care-grid-with-quick-action-menu.md)
 
 **Date**: 2026-09-27
 

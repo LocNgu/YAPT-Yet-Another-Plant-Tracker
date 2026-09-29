@@ -45,7 +45,7 @@ all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same 
   `selectedTab` — rotation/back-stack restore keeps the user's later tab. `initialTab?.isInCollapsedRow`
   (`CUSTOM_REMINDERS`/`ISSUES`) also seeds `isTabRowExpanded` true. Care's mapping lives in
   `TodayCareKind.plantDetailTab()` (`ui/screens/today/TodayCareKindTab.kt`; `WATER_AND_FERTILIZE` → `FERTILIZE`);
-  a plant-grouped card uses its first task's kind.
+  a Care grid tile passes its own task's kind (the plant-grouped layout is gone, #842).
 - `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
   and the care-history `isExpanded` chip, **not** a `DataStore` setting; resets to collapsed on every fresh visit.
 - Toggle reuses the care-history `AssistChip`'s exact chevron-rotate pattern (`animateFloatAsState` rotating

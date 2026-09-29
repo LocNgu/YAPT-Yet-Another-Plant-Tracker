@@ -555,7 +555,7 @@ class SettingsScreenTest {
     fun featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty() {
         // Inject an explicitly empty flag list rather than relying on FeatureFlagRegistry so this
         // case keeps asserting empty-registry rendering on purpose, independent of whether the real
-        // registry currently has the Today grouping experiment.
+        // registry (see featureFlagsEmptyState_isDisplayed_withRealRegistry) happens to be empty too.
         val emptyFlagsViewModel = buildViewModelWithFlags(emptyList())
         composeTestRule.setContent {
             SettingsScreen(
@@ -572,8 +572,15 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("No feature flags in this build").performScrollTo().assertIsDisplayed()
     }
 
+    /**
+     * Same rendering as [featureFlagsEmptyState_isDisplayed_whenRegistryIsEmpty], but against the
+     * real [com.yapt.planttracker.domain.featureflag.FeatureFlagRegistry.all] via the default
+     * [viewModel] built in [setUp] (no injected flag list) - the Care grouping experiment graduating
+     * (#842) left the registry genuinely empty, which is every real install's developer mode, not
+     * just an injected test case.
+     */
     @Test
-    fun realRegistry_displaysTodayGroupingFlag() {
+    fun featureFlagsEmptyState_isDisplayed_withRealRegistry() {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
@@ -586,10 +593,7 @@ class SettingsScreenTest {
         tapVersionRow(5)
         waitForDeveloperSwitch(present = true)
 
-        composeTestRule.onNodeWithText("Group Care queue by plant").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Show each plant once with its due care grouped underneath")
-            .performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithTag("feature_flag_switch_today_group_by_plant").performScrollTo().assertIsOff()
+        composeTestRule.onNodeWithText("No feature flags in this build").performScrollTo().assertIsDisplayed()
     }
 
     @Test

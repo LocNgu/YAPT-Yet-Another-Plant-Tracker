@@ -124,14 +124,12 @@ internal fun NavController.showArchivedPlantOnPlantList(
 @androidx.annotation.VisibleForTesting
 internal fun shouldShowBottomNavigation(
     currentRoute: String?,
-    plantListSelectionActive: Boolean,
-    careSelectionActive: Boolean
+    plantListSelectionActive: Boolean
 ): Boolean = currentRoute in setOf(
     Screen.Today.route,
     Screen.PlantList.route,
     Screen.Calendar.route
-) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive) &&
-    !(currentRoute == Screen.Today.route && careSelectionActive)
+) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive)
 
 @Composable
 private fun ApplyCaredTodayDeepLink(
@@ -178,8 +176,7 @@ fun YaptNavGraph(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     var plantListSelectionActive by remember { mutableStateOf(false) }
-    var careSelectionActive by remember { mutableStateOf(false) }
-    val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive, careSelectionActive)
+    val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive)
 
     Scaffold(
         // No topBar on this outer Scaffold: without zeroing contentWindowInsets, Scaffold would
@@ -481,7 +478,6 @@ fun YaptNavGraph(
                     factory = TodayViewModel.Factory(
                         app,
                         app.todayCareRepository,
-                        app.featureFlags,
                         app.quickLogUseCase,
                         app.plantRepository
                     )
@@ -491,8 +487,7 @@ fun YaptNavGraph(
                     onNavigateToPlant = { plantId, tab ->
                         navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
                     },
-                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
-                    onSelectionModeChanged = { careSelectionActive = it }
+                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) }
                 )
             }
 

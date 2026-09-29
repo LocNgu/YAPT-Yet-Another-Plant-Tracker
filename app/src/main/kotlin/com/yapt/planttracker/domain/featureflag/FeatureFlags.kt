@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.map
  *
  * @param flags the flag list this instance manages, injectable so a Compose test can supply a
  *   test-only registry entry (see #521 AC10/AC33) — production code takes the default,
- *   [FeatureFlagRegistry.all], which currently contains the temporary Today grouping experiment.
+ *   [FeatureFlagRegistry.all], which ships empty.
  */
 class FeatureFlags(
     private val dataStore: DataStore<Preferences>,
