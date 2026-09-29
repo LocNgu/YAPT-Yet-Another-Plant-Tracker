@@ -187,8 +187,11 @@ class TodayScreenTest {
         )
         setContent()
 
-        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water_fertilize:1")).assertIsDisplayed()
-        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water:2")).assertDoesNotExist()
+        // The badge is decorative, so it lives only in the unmerged tree (like the photo container).
+        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water_fertilize:1"), useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water:2"), useUnmergedTree = true)
+            .assertDoesNotExist()
         composeTestRule.onNodeWithText("Water & fertilize").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Fern, watering and fertilizing").assertIsDisplayed()
     }
