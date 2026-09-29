@@ -55,8 +55,15 @@ object SeasonalRepotting {
      * - A raw date already inside a preferred season is unchanged, past or future.
      * - Any other raw date, past or future, snaps to the first day of the *nearest* preferred stretch
      *   (contiguous run of preferred seasons, wrapping the year boundary), measured to the stretch's first
-     *   day; equidistant goes to the later one. A nearest candidate at or before [anchorAtMillis]'s day
-     *   (the last repot, or `createdAt`) falls back to the next stretch forward.
+     *   day; equidistant goes to the later one.
+     * - **Minimum gap:** a nearest candidate must fall at least half the interval after [anchorAtMillis]'s
+     *   day (the last repot, or `createdAt`) — the interval being the calendar days from the anchor to
+     *   [rawDueAtMillis], halved with integer division, and never less than one day, so a candidate on or
+     *   before the anchor is always rejected. A rejected candidate falls forward to the next stretch. That
+     *   is the stretch after the raw date, which can never be rejected: the only candidates are the stretch
+     *   on or before the raw date and the one after it, and the latter is at least the whole interval
+     *   after the anchor. So a plant repotted shortly before a preferred stretch waits for the next one
+     *   rather than coming due far sooner than its interval.
      *
      * The shifted date can therefore land in the past: that is the overdue state, the ordinary
      * due-then-overdue rule (due on its first day, overdue after it).
@@ -89,7 +96,9 @@ object SeasonalRepotting {
         } else {
             forward
         }
-        val candidate = if (nearest.isAfter(anchorAtMillis.toLocalDate())) nearest else forward
+        val anchorDate = anchorAtMillis.toLocalDate()
+        val minGapDays = (ChronoUnit.DAYS.between(anchorDate, rawDate) / 2).coerceAtLeast(1)
+        val candidate = if (ChronoUnit.DAYS.between(anchorDate, nearest) >= minGapDays) nearest else forward
         return candidate.toStartOfDayMillis()
     }
 

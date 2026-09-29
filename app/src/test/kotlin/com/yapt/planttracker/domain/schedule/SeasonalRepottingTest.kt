@@ -204,6 +204,92 @@ class SeasonalRepottingTest {
         assertEquals(startOfDay(day(2025, 3, 1)), result)
     }
 
+    // --- minimum gap: a candidate must fall at least half the interval after the anchor ---
+
+    @Test
+    fun `a plant repotted just before a preferred stretch waits for the next one, not 45 days later`() {
+        // Repotted Jan 15 2026, 180 days: raw Jul 14 2026. The nearest spring start is Mar 1 2026, only 45
+        // days after the repot (< 90), so the next spring is used.
+        val anchor = day(2026, 1, 15)
+        val raw = anchor.plusDays(180)
+        assertEquals(day(2026, 7, 14), raw)
+        assertEquals(startOfDay(day(2027, 3, 1)), shifted(raw, spring, anchor = anchor))
+    }
+
+    @Test
+    fun `the minimum-gap example mirrors in the southern hemisphere`() {
+        // Southern spring starts Sep 1: repotted Jul 15 2026 (48 days before it), raw Jan 11 2027.
+        val anchor = day(2026, 7, 15)
+        val raw = anchor.plusDays(180)
+        assertEquals(day(2027, 1, 11), raw)
+        val result = shifted(raw, spring, anchor = anchor, hemisphere = Hemisphere.SOUTHERN)
+        assertEquals(startOfDay(day(2027, 9, 1)), result)
+    }
+
+    @Test
+    fun `a candidate exactly half the interval after the anchor is accepted`() {
+        // Anchor Nov 21 2025, 200 days: raw Jun 9 2026; Mar 1 2026 is exactly 100 days after the anchor.
+        val anchor = day(2025, 11, 21)
+        val raw = anchor.plusDays(200)
+        assertEquals(day(2026, 6, 9), raw)
+        assertEquals(startOfDay(day(2026, 3, 1)), shifted(raw, spring, anchor = anchor))
+    }
+
+    @Test
+    fun `a candidate one day short of half the interval after the anchor is rejected`() {
+        // One day later: Mar 1 2026 is now 99 days after the anchor, short of 200 / 2 = 100.
+        val anchor = day(2025, 11, 22)
+        val raw = anchor.plusDays(200)
+        assertEquals(day(2026, 6, 10), raw)
+        assertEquals(startOfDay(day(2027, 3, 1)), shifted(raw, spring, anchor = anchor))
+    }
+
+    @Test
+    fun `half the interval uses integer division, so an odd interval rounds the minimum down`() {
+        // 201 days: minimum 100, and Mar 1 2026 is exactly 100 days after the anchor.
+        val anchor = day(2025, 11, 21)
+        val raw = anchor.plusDays(201)
+        assertEquals(startOfDay(day(2026, 3, 1)), shifted(raw, spring, anchor = anchor))
+    }
+
+    @Test
+    fun `a rejected candidate in a two-stretch year falls forward to the next stretch`() {
+        // Summer + Winter preferred (stretch starts Jun 1 and Dec 1). Anchor Oct 1 2026, 151 days: raw
+        // Mar 1 2027. The nearest start is Dec 1 2026, only 61 days after the repot (< 75), so it falls
+        // forward to Jun 1 2027 — the only other candidate, which is always far enough.
+        val summerWinter = setOf(FertilizingSeason.SUMMER, FertilizingSeason.WINTER)
+        val anchor = day(2026, 10, 1)
+        val raw = anchor.plusDays(151)
+        assertEquals(day(2027, 3, 1), raw)
+        assertEquals(startOfDay(day(2027, 6, 1)), shifted(raw, summerWinter, anchor = anchor))
+    }
+
+    @Test
+    fun `a nearest candidate comfortably past half the interval is kept in a two-stretch year`() {
+        val both = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+        val anchor = day(2026, 1, 15)
+        assertEquals(startOfDay(day(2026, 9, 1)), shifted(anchor.plusDays(180), both, anchor = anchor))
+    }
+
+    @Test
+    fun `a year-wrapping stretch rejected for being too close falls forward a full year`() {
+        // Autumn + Winter preferred (stretch start Sep 1). Anchor Jul 1 2026, 244 days: raw Mar 2 2027,
+        // nearest Sep 1 2026 (182 days back vs 183 forward) is only 62 days after the repot (< 122).
+        val autumnWinter = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+        val anchor = day(2026, 7, 1)
+        val raw = anchor.plusDays(244)
+        assertEquals(day(2027, 3, 2), raw)
+        assertEquals(startOfDay(day(2027, 9, 1)), shifted(raw, autumnWinter, anchor = anchor))
+    }
+
+    @Test
+    fun `the minimum gap never moves a raw date that is already in a preferred season`() {
+        // Repotted Jan 15, raw Mar 16 is in spring: unchanged even though it is only 60 days after the repot.
+        val anchor = day(2026, 1, 15)
+        val raw = anchor.plusDays(60)
+        assertEquals(noon(raw), shifted(raw, spring, anchor = anchor))
+    }
+
     // --- upcomingSeasons ---
 
     @Test

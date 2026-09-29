@@ -83,8 +83,15 @@ Alternatives considered:
   Nearest is measured to the stretch's first day, and an equidistant tie goes to the later stretch.
   Guards:
   - A raw date already inside a preferred season is unchanged, past or future.
-  - A nearest candidate on or before the last repot (or `createdAt`) day falls back to the next stretch
-    forward.
+  - **Minimum gap of half the interval.** A nearest candidate must fall at least half the interval after
+    the last repot (or `createdAt`) day — the interval being the calendar days from that anchor to the raw
+    date, halved with integer division (never less than one day, so a candidate on or before the anchor is
+    always rejected). A rejected candidate falls forward to the next stretch, which is the stretch after
+    the raw date and is always far enough away. Without it a plant repotted shortly before a preferred
+    stretch would come due far sooner than its interval: repotted Jan 15 2026 with a 6-month interval and
+    spring preferred has a raw date of Jul 14 2026, and the nearest spring start, Mar 1 2026, is only 45
+    days after the repot (under the 90-day minimum) — so it is due Mar 1 2027 instead. The last repot
+    June 2025 with a two-year interval is unaffected: Mar 1 2027 is 624 days after it, over the 365 needed.
 - **Time-stable.** The shifted date depends only on the raw date, the preferred seasons, the hemisphere and
   the anchor — never on today's date, so the function takes no clock. A raw date already in the past that
   lies outside a preferred season goes through the same nearest-stretch rule as a future one; it is not
@@ -115,6 +122,9 @@ surfaces second; the Repot tab and Add/Edit Plant UI, changelog, and What's New 
 - A repot plan is the first due date in the app that is stored intent rather than computed from a last
   care date; consumers must read `repottingPlanSeasonEndAt` rather than assume "past due date means
   overdue" for repotting.
+- Accepted trade-off: because of the minimum gap, a plant whose nearest preferred stretch falls too soon
+  after its last repot can wait up to a further season — repotted Jan 15 2026 with spring preferred it
+  waits 13.5 months, not 6, for its repot reminder.
 - Accepted trade-off: because the shift is time-stable, a long-neglected plant reads overdue since an old
   preferred season even during an off-season — e.g. overdue since last March while it is now October —
   rather than being pushed to the next stretch. This is deliberately unlike product ADR-0049's fertilizing

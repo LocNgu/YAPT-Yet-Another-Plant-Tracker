@@ -260,30 +260,39 @@ class CareScheduleSeasonalRepottingTest {
             setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN),
             setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
         )
-        val lastRepotted = LocalDate.of(2025, 6, 15)
+        val schedules = listOf(LocalDate.of(2025, 6, 15), LocalDate.of(2026, 1, 15)).flatMap { anchor ->
+            listOf(60, 180, 400, 730, 1000).map { intervalDays -> anchor to intervalDays }
+        }
         val cases = preferredSets.flatMap { preferred ->
             Hemisphere.entries.flatMap { hemisphere ->
-                listOf(200, 400, 730, 1000).map { intervalDays -> Triple(preferred, hemisphere, intervalDays) }
+                schedules.map { (anchor, intervalDays) -> RepotCase(preferred, hemisphere, anchor, intervalDays) }
             }
         }
 
-        for ((preferred, hemisphere, intervalDays) in cases) {
-            val plant = plant(repottingIntervalDays = intervalDays, repottingSeasons = preferred)
+        for (case in cases) {
+            val plant = plant(repottingIntervalDays = case.intervalDays, repottingSeasons = case.preferred)
             val expected = SeasonalRepotting.nextPreferredDueAtMillis(
-                rawDueAtMillis = noon(lastRepotted.plusDays(intervalDays.toLong())),
-                preferredSeasons = preferred,
-                hemisphere = hemisphere,
-                anchorAtMillis = noon(lastRepotted)
+                rawDueAtMillis = noon(case.anchor.plusDays(case.intervalDays.toLong())),
+                preferredSeasons = case.preferred,
+                hemisphere = case.hemisphere,
+                anchorAtMillis = noon(case.anchor)
             )
-            for (date in datesFrom(lastRepotted, LocalDate.of(2031, 12, 31), stepDays = 7)) {
+            for (date in datesFrom(case.anchor, LocalDate.of(2031, 12, 31), stepDays = 7)) {
                 assertEquals(
-                    "$preferred $hemisphere interval $intervalDays on $date",
+                    "$case on $date",
                     expected,
-                    status(plant, noon(date), noon(lastRepotted), hemisphere).nextRepottingDueAt
+                    status(plant, noon(date), noon(case.anchor), case.hemisphere).nextRepottingDueAt
                 )
             }
         }
     }
+
+    private data class RepotCase(
+        val preferred: Set<FertilizingSeason>,
+        val hemisphere: Hemisphere,
+        val anchor: LocalDate,
+        val intervalDays: Int
+    )
 
     @Test
     fun `the anchor guard still falls forward, and stays put, however long ago the anchor was`() {
@@ -297,6 +306,73 @@ class CareScheduleSeasonalRepottingTest {
             assertEquals(startOfDay(2025, 3, 1), status(plant, now, lastRepotted).nextRepottingDueAt)
         }
         assertTrue(status(plant, noon(2026, 9, 29), lastRepotted).isRepottingOverdue)
+    }
+
+    // --- minimum gap (#809): a candidate must fall at least half the interval after the anchor ---
+
+    @Test
+    fun `a plant repotted Jan 15 with a 180-day interval is due March 2027, not March 2026, at every date`() {
+        val plant = plant(repottingIntervalDays = 180, repottingSeasons = spring)
+        val lastRepotted = noon(2026, 1, 15)
+
+        for (now in listOf(
+            noon(2026, 2, 1),
+            noon(2026, 3, 1),
+            noon(2026, 3, 2),
+            noon(2026, 7, 14),
+            noon(2026, 7, 15),
+            noon(2026, 11, 1),
+            noon(2027, 2, 28)
+        )) {
+            val status = status(plant, now, lastRepotted)
+            assertEquals(startOfDay(2027, 3, 1), status.nextRepottingDueAt)
+            assertFalse(status.isRepottingOverdue)
+            assertFalse(status.isRepottingDueSoon)
+        }
+        assertTrue(status(plant, noon(2027, 3, 1), lastRepotted).isRepottingDueSoon)
+        assertTrue(status(plant, noon(2027, 3, 2), lastRepotted).isRepottingOverdue)
+        assertEquals(startOfDay(2027, 3, 1), status(plant, noon(2028, 8, 1), lastRepotted).nextRepottingDueAt)
+    }
+
+    @Test
+    fun `the too-close guard applies to a never-repotted plant's createdAt anchor`() {
+        val plant = plant(createdAt = noon(2026, 1, 15), repottingIntervalDays = 180, repottingSeasons = spring)
+
+        for (now in listOf(noon(2026, 3, 1), noon(2026, 7, 15), noon(2027, 2, 28))) {
+            val status = status(plant, now)
+            assertEquals(startOfDay(2027, 3, 1), status.nextRepottingDueAt)
+            assertFalse(status.isRepottingOverdue)
+        }
+    }
+
+    @Test
+    fun `the too-close guard mirrors in the southern hemisphere`() {
+        val plant = plant(repottingIntervalDays = 180, repottingSeasons = spring)
+        val lastRepotted = noon(2026, 7, 15)
+        val south = Hemisphere.SOUTHERN
+
+        for (now in listOf(noon(2026, 9, 1), noon(2027, 1, 11), noon(2027, 8, 31))) {
+            val status = status(plant, now, lastRepotted, south)
+            assertEquals(startOfDay(2027, 9, 1), status.nextRepottingDueAt)
+            assertFalse(status.isRepottingOverdue)
+        }
+        assertTrue(status(plant, noon(2027, 9, 1), lastRepotted, south).isRepottingDueSoon)
+        assertTrue(status(plant, noon(2027, 9, 2), lastRepotted, south).isRepottingOverdue)
+    }
+
+    @Test
+    fun `a year-wrapping stretch rejected for being too close waits a full year`() {
+        val autumnWinter = setOf(FertilizingSeason.AUTUMN, FertilizingSeason.WINTER)
+        val plant = plant(repottingIntervalDays = 244, repottingSeasons = autumnWinter)
+        val lastRepotted = noon(2026, 7, 1)
+
+        for (now in listOf(noon(2026, 9, 1), noon(2027, 3, 2), noon(2027, 8, 31))) {
+            val status = status(plant, now, lastRepotted)
+            assertEquals(startOfDay(2027, 9, 1), status.nextRepottingDueAt)
+            assertFalse(status.isRepottingOverdue)
+        }
+        assertTrue(status(plant, noon(2027, 9, 1), lastRepotted).isRepottingDueSoon)
+        assertTrue(status(plant, noon(2027, 9, 2), lastRepotted).isRepottingOverdue)
     }
 
     @Test

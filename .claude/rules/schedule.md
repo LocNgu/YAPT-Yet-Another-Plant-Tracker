@@ -89,8 +89,12 @@ delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
     `anchor = lastRepottedAt ?: createdAt`. Every season preferred (or an empty set) returns raw
     untouched; raw already in a preferred season → unchanged; any other raw date, **past or future**, →
     the first day of the *nearest* preferred stretch (a contiguous run of preferred seasons,
-    year-wrapping ones included; distance is measured to the stretch's first day, tie → later), with a
-    candidate at or before the anchor's day replaced by the next stretch forward. The result is
+    year-wrapping ones included; distance is measured to the stretch's first day, tie → later). A
+    candidate must fall at least **half the interval** after the anchor's day (`(raw − anchor) / 2`
+    calendar days, integer division, floored at 1 so a candidate on or before the anchor never passes);
+    a rejected one is replaced by the next stretch forward — the stretch after raw, which always
+    satisfies the gap, so there is at most one fall-forward — so a plant repotted Jan 15 2026 with a
+    180-day interval and spring preferred is due Mar 1 2027, not Mar 1 2026. The result is
     **time-stable** — a pure function of raw/seasons/hemisphere/anchor with no `nowDate` parameter,
     unlike fertilizing's today-relative shift — so a shifted date reads due on its first day and overdue
     after it, and can legitimately lie in the past: an overdue plant stays overdue until repotted (or the
