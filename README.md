@@ -23,7 +23,7 @@ An offline-first Android app for tracking your houseplants and their care histor
 - **New-plant scheduling** — A plant with a watering interval but no waterings yet is due today from the start; a never-fertilized plant gets a 30-day grace period after being added before fertilizing comes due
 - **Calendar view** — A bottom-nav Calendar tab shows a month view with a count badge on every day that has plants due (overdue plants roll onto today); tap a day to see the plants and quick-log water/fertilize straight from the list
 - **Photo reminder** — Optional Settings toggle prompts you to photograph a plant you haven't pictured in 30 days; a one-tap "Take photo" button opens the in-app camera and saves straight to the plant's gallery
-- **Room grouping** — Assign plants to rooms and filter the home screen by room; an "Unassigned" chip filters to plants with no room yet
+- **Room grouping** — Assign plants to rooms and filter the plant list by room; an "Unassigned" chip filters to plants with no room yet
 - **Location suggestion chips** — Previously used room names appear as tappable chips on the Add/Edit Plant screen; tap to fill the field instantly
 - **Countdown labels** — Each plant card shows "In X days", "Due today", or "Overdue by X days" for watering and fertilizing, colour-coded green/orange/red
 - **Quick log buttons** — One-tap water and fertilize buttons on each plant card; no need to open the detail screen. On the plant detail screen, the Water and Fertilize tabs have always-visible Water/Fertilize buttons

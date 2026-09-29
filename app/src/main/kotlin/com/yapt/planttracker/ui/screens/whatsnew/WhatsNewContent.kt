@@ -30,8 +30,7 @@ object WhatsNewContent {
                 "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
                     "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue " +
                     "treatments, and optional progress photos grouped by type with watering first. The tab " +
-                    "order is now " +
-                    "Care, Plants, Calendar",
+                    "order is now Care, Plants, Calendar",
                 "Care shows each task as a square plant tile, with watering split into Overdue, Today, and " +
                     "Next 3 days. Tap a section title to collapse it, tap a tile to open the plant, or long-press " +
                     "a tile for just that task's quick actions — water, reschedule, fertilize, repot, mark done, " +
