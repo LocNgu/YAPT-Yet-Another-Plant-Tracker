@@ -67,6 +67,7 @@ import com.yapt.planttracker.domain.today.TodayWateringGroup
 import com.yapt.planttracker.domain.today.careTypeSections
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
+import com.yapt.planttracker.ui.util.repotPlannedTileRes
 
 const val TODAY_TASK_LIST_TAG = "today_task_list"
 
@@ -339,7 +340,9 @@ private fun tileDescription(task: TodayCareTask): String {
         TodayCareKind.WATER -> stringResource(R.string.care_tile_water_cd, plantName)
         TodayCareKind.FERTILIZE -> stringResource(R.string.care_tile_fertilize_cd, plantName)
         TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.care_tile_water_fertilize_cd, plantName)
-        TodayCareKind.REPOT -> stringResource(R.string.care_tile_repot_cd, plantName)
+        TodayCareKind.REPOT -> tileSecondLine(task)
+            ?.let { stringResource(R.string.care_tile_repot_planned_cd, plantName, it) }
+            ?: stringResource(R.string.care_tile_repot_cd, plantName)
         TodayCareKind.PHOTO -> stringResource(R.string.care_tile_photo_cd, plantName)
         TodayCareKind.CUSTOM_REMINDER,
         TodayCareKind.ISSUE_TREATMENT ->
@@ -354,10 +357,10 @@ private fun tileSecondLine(task: TodayCareTask): String? = when (task.kind) {
         R.string.today_task_treatment,
         task.issueName ?: task.customReminder?.name.orEmpty()
     )
+    TodayCareKind.REPOT -> task.repotPlanSeason?.let { stringResource(it.repotPlannedTileRes()) }
     TodayCareKind.WATER_AND_FERTILIZE,
     TodayCareKind.WATER,
     TodayCareKind.FERTILIZE,
-    TodayCareKind.REPOT,
     TodayCareKind.PHOTO -> null
 }
 

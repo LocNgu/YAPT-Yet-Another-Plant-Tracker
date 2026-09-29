@@ -38,6 +38,15 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   goes straight into the body (no icon/category), joined with the same `" · "` separator. `ReminderWorker` fetches
   each plant's reminders via `CustomReminderRepository.getRemindersForPlantOnce()` before calling `computeStatus()`.
   See technical ADR-0019 (#232).
+- **Planned repot** (#809, product ADR-0057) — a plan in season composes `RepottingPlannedThisSeason(season)`
+  ("Repot planned this spring", one whole string per season via `FertilizingSeason.repotPlannedNotificationRes()`
+  in `EnumResources.kt`); a plan whose season has ended composes `RepottingPlanOverdue(days)` ("Planned repot
+  overdue by N days"), with N counted from the season's last day (`repottingPlanSeasonEndAt` − 1 day, so the first
+  day after the season reads 1) — never from `nextRepottingDueAt`, which for a plan is the season's first day. An
+  upcoming plan composes nothing, and suppresses the interval date (the plan wins outright). Interval repots keep
+  `RepottingOverdue`/`RepottingDueToday`. `ReminderWorker` loads the last REPOT log when the plant has an interval
+  **or** a plan, so a plan-only plant's status is as complete as the Care queue's. A repot-only reminder never
+  takes the watering "Check" reframe.
 
 ## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
 `SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" since
@@ -115,7 +124,7 @@ paths all route through the same callback. Backdated logs, edits, and rejected d
 - Daily reminder cleanup explicitly preserves ID `-2` (technical ADR-0026, superseding technical ADR-0007's `cancelAll()`).
 
 ## Tests
-`ReminderNotificationComposerTest` (both toggle branches), `ReminderWorkerTest` (Robolectric — denied/ due/ not-due
-+ fertilizing-only suppression), `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`,
+`ReminderNotificationComposerTest` (both toggle branches, planned repot), `ReminderWorkerTest` (Robolectric — denied/
+due/ not-due + fertilizing-only suppression + plan-only repot), `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`,
 `PhotoReminderTest`, `PostWateringReminderNotificationComposerTest`, `PostWateringReminderSchedulerTest`,
 `PostWateringReminderPresentationTest`, `PostWateringReminderWorkerTest`, and `PostWateringReminderDialogTest`.

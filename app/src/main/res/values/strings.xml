@@ -183,6 +183,14 @@
         <item quantity="one">Repotting overdue by 1 day</item>
         <item quantity="other">Repotting overdue by %d days</item>
     </plurals>
+    <string name="notification_repotting_planned_spring">Repot planned this spring</string>
+    <string name="notification_repotting_planned_summer">Repot planned this summer</string>
+    <string name="notification_repotting_planned_autumn">Repot planned this autumn</string>
+    <string name="notification_repotting_planned_winter">Repot planned this winter</string>
+    <plurals name="notification_repotting_plan_overdue">
+        <item quantity="one">Planned repot overdue by 1 day</item>
+        <item quantity="other">Planned repot overdue by %d days</item>
+    </plurals>
     <plurals name="notification_custom_reminder_overdue">
         <item quantity="one">%1$s overdue by 1 day</item>
         <item quantity="other">%1$s overdue by %2$d days</item>
@@ -490,6 +498,11 @@
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
     <string name="care_tile_water_fertilize_cd">%1$s, watering and fertilizing</string>
     <string name="care_tile_repot_cd">%1$s, repotting</string>
+    <string name="care_tile_repot_planned_cd">%1$s, repotting, %2$s</string>
+    <string name="care_tile_repot_planned_spring">Planned for spring</string>
+    <string name="care_tile_repot_planned_summer">Planned for summer</string>
+    <string name="care_tile_repot_planned_autumn">Planned for autumn</string>
+    <string name="care_tile_repot_planned_winter">Planned for winter</string>
     <string name="care_tile_photo_cd">%1$s, progress photo</string>
     <string name="care_tile_reminder_cd">%1$s, %2$s</string>
     <string name="care_group_header">%1$s · %2$d</string>

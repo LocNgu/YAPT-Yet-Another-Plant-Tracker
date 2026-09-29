@@ -1,5 +1,7 @@
 package com.yapt.planttracker.domain.model
 
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+
 data class PlantCareStatus(
     val plant: Plant,
     val lastWateredAt: Long?,
@@ -110,7 +112,14 @@ data class PlantCareStatus(
      * [com.yapt.planttracker.domain.schedule.SeasonalRepotting.resolvePlan]. Defaulted `null` so a status
      * built by hand in a test is unaffected.
      */
-    val repottingPlanSeasonEndAt: Long? = null
+    val repottingPlanSeasonEndAt: Long? = null,
+    /**
+     * The planned repot's season (#809, product ADR-0057), resolved with the same hemisphere as
+     * [repottingPlanSeasonEndAt] so the "planned this spring" copy of the daily notification and the Care
+     * tile can never name a different season from the one the due state was computed for. Non-null
+     * exactly when [repottingPlanSeasonEndAt] is.
+     */
+    val repottingPlanSeason: FertilizingSeason? = null
 ) {
     val isRepottingPlanned: Boolean get() = repottingPlanSeasonEndAt != null
 }

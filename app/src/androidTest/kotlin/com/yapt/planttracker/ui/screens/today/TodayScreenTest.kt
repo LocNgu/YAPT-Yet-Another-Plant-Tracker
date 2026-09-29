@@ -33,6 +33,7 @@ import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
@@ -283,7 +284,7 @@ class TodayScreenTest {
     }
 
     @Test
-    fun secondLineAppearsForRemindersAndTreatmentsOnly() {
+    fun secondLineAppearsForRemindersAndTreatments() {
         val fern = plant()
         val reminder = CustomReminder(id = 4L, plantId = fern.id, name = "Mist leaves", intervalDays = 3)
         val treatment = CustomReminder(id = 5L, plantId = fern.id, name = "Neem spray", intervalDays = 7)
@@ -304,6 +305,24 @@ class TodayScreenTest {
 
         composeTestRule.onNodeWithText("Mist leaves").assertExists()
         composeTestRule.onNodeWithText("Treat Spider mites").assertExists()
+    }
+
+    @Test
+    fun plannedRepotTileNamesItsSeasonAndAnIntervalRepotDoesNot() {
+        val fern = plant()
+        val aloe = plant(id = 2L, name = "Aloe")
+        queue.value = TodayQueueSnapshot(
+            2,
+            listOf(
+                task("repot:1", fern, TodayCareKind.REPOT, repotPlanSeason = FertilizingSeason.SPRING),
+                task("repot:2", aloe, TodayCareKind.REPOT)
+            )
+        )
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription("Fern, repotting, Planned for spring").assertExists()
+        composeTestRule.onNodeWithText("Planned for spring").assertExists()
+        composeTestRule.onNodeWithContentDescription("Aloe, repotting").assertExists()
     }
 
     @Test
@@ -783,7 +802,8 @@ class TodayScreenTest {
         dueAt: Long = System.currentTimeMillis(),
         wateringAction: WateringTaskAction? = null,
         customReminder: CustomReminder? = null,
-        issueName: String? = null
+        issueName: String? = null,
+        repotPlanSeason: FertilizingSeason? = null
     ) = TodayCareTask(
         id = id,
         plant = plant,
@@ -792,6 +812,7 @@ class TodayScreenTest {
         bucket = bucket,
         wateringAction = wateringAction,
         customReminder = customReminder,
-        issueName = issueName
+        issueName = issueName,
+        repotPlanSeason = repotPlanSeason
     )
 }
