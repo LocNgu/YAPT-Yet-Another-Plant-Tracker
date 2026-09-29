@@ -20,8 +20,9 @@ object RepotPlanReset {
      * Reads the plant fresh (the caller's snapshot may predate the plan) and, if a plan exists and
      * [repotLoggedAt] supersedes it, clears it with the column-specific [PlantRepository.clearRepotPlan]
      * — never a full-row `updatePlant()`, so it can't revert a concurrent write to any other column.
-     * Must run after `WateringLifecycleReset.applyRepotReset()`, whose full-row write of the caller's
-     * snapshot would otherwise put a stale plan back.
+     * Must run after `WateringLifecycleReset.applyRepotReset()`: that reset is a full-row write of the plant
+     * it was given (which both callers re-read fresh first, so it carries the current plan), so clearing
+     * first would let it put the plan straight back.
      */
     suspend fun clearIfSuperseded(
         plantId: Long,

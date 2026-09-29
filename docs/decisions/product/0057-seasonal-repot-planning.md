@@ -63,9 +63,12 @@ Alternatives considered:
   (`Long.toLocalDate()`, technical ADR-0013) is on or after the plan-made local day; a REPOT backdated to
   before that day leaves it alone (the same idea as #679). Both write paths do this —
   `QuickLogUseCase` (Plant Detail, Care "Repot…", bulk) and `AddCareLogViewModel` — through one shared
-  `RepotPlanReset`, after the lifecycle reset so its full-row write cannot resurrect a stale plan, using
+  `RepotPlanReset`, after the lifecycle reset so its full-row write cannot put a cleared plan back, using
   a column-specific update (`PlantDao.updateRepotPlan`) so it cannot revert a concurrent write to any
-  other column. Editing or deleting a REPOT log never clears or resurrects a plan.
+  other column. The reset is a full-row write, so both paths build it from a fresh read of the plant
+  rather than the caller's snapshot (the quick-log callers pass possibly stale ones); otherwise a stale
+  snapshot would resurrect a cleared plan, wipe a newly set one, or revert any other column. Editing or
+  deleting a REPOT log never clears or resurrects a plan.
 - **Where it shows (v1).** The Repot tab, the Care tab (via `TodayQueueAggregator`), and the daily
   notification. A Plant List chip, a Calendar entry, and bulk planning from Plant List multi-select are
   follow-ups, as are month or exact-date plans and a note on the plan.
