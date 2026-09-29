@@ -158,7 +158,9 @@ class TodayCareRepositoryBenchmarkTest {
         val samples = ArrayList<Double>()
         repeat(WARMUP_RUNS + RUNS) { run ->
             delay(SETTLE_MS)
-            while (channel.tryReceive().isSuccess) Unit
+            do {
+                val drained = channel.tryReceive().isSuccess
+            } while (drained)
             val start = System.nanoTime()
             db.careLogDao().insertLog(
                 CareLogEntity(
