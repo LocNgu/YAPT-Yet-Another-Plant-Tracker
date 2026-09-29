@@ -3,6 +3,7 @@
 package com.yapt.planttracker.ui.screens.today
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,16 +16,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -73,6 +77,10 @@ private val CARE_HEADER_MIN_HEIGHT = 48.dp
 private const val CARE_GRID_MIN_COLUMNS = 2
 private const val CARE_GRID_MAX_COLUMNS = 4
 private const val CARE_NAME_MAX_LINES = 2
+private const val CARE_BADGE_ALPHA = 0.85f
+private val CARE_BADGE_SIZE = 28.dp
+private val CARE_BADGE_ICON_SIZE = 18.dp
+private val CARE_BADGE_INSET = 6.dp
 
 internal data class TodayTaskActions(
     val onOpen: (Long, PlantDetailTab?) -> Unit,
@@ -99,6 +107,8 @@ private object CareGridCells : GridCells {
 internal fun careTileTag(taskId: String): String = "care_tile_$taskId"
 
 internal fun careTilePhotoTag(taskId: String): String = "care_tile_photo_$taskId"
+
+internal fun careTileFertilizeBadgeTag(taskId: String): String = "care_tile_fertilize_badge_$taskId"
 
 internal fun sectionCollapseKey(section: TodayCareSection): String = "section:${section.name}"
 
@@ -282,13 +292,42 @@ private fun CareTileLabels(task: TodayCareTask) {
 
 @Composable
 private fun CareTilePhoto(task: TodayCareTask) {
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth().clearAndSetSemantics { testTag = careTilePhotoTag(task.id) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth().clearAndSetSemantics { testTag = careTilePhotoTag(task.id) }
+        ) {
+            PlantPhoto(
+                uri = task.plant.coverPhotoUri,
+                size = maxWidth,
+                rounded = false
+            )
+        }
+        if (task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
+            CareFertilizeBadge(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(CARE_BADGE_INSET)
+                    .clearAndSetSemantics { testTag = careTileFertilizeBadgeTag(task.id) }
+            )
+        }
+    }
+}
+
+// Decorative: the tile's content description already says "watering and fertilizing".
+@Composable
+private fun CareFertilizeBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(CARE_BADGE_SIZE)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = CARE_BADGE_ALPHA)),
+        contentAlignment = Alignment.Center
     ) {
-        PlantPhoto(
-            uri = task.plant.coverPhotoUri,
-            size = maxWidth,
-            rounded = false
+        Icon(
+            imageVector = Icons.Filled.Spa,
+            contentDescription = null,
+            modifier = Modifier.size(CARE_BADGE_ICON_SIZE),
+            tint = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -315,7 +354,7 @@ private fun tileSecondLine(task: TodayCareTask): String? = when (task.kind) {
         R.string.today_task_treatment,
         task.issueName ?: task.customReminder?.name.orEmpty()
     )
-    TodayCareKind.WATER_AND_FERTILIZE -> stringResource(R.string.today_action_water_fertilize)
+    TodayCareKind.WATER_AND_FERTILIZE,
     TodayCareKind.WATER,
     TodayCareKind.FERTILIZE,
     TodayCareKind.REPOT,

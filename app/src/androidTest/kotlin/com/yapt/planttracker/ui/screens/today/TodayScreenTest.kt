@@ -172,7 +172,25 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText("Watering · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilizing", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Fern, watering and fertilizing").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Water & fertilize").assertIsDisplayed()
+    }
+
+    @Test
+    fun combinedTileShowsAFertilizeBadgeOnThePhotoInsteadOfATextLabel() {
+        val fern = plant()
+        val aloe = plant(2L, "Aloe")
+        queue.value = TodayQueueSnapshot(
+            2,
+            listOf(
+                task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE),
+                task("water:2", aloe, TodayCareKind.WATER)
+            )
+        )
+        setContent()
+
+        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water_fertilize:1")).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(careTileFertilizeBadgeTag("water:2")).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Water & fertilize").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Fern, watering and fertilizing").assertIsDisplayed()
     }
 
     @Test
@@ -262,7 +280,7 @@ class TodayScreenTest {
     }
 
     @Test
-    fun secondLineAppearsForRemindersTreatmentsAndCombinedTilesOnly() {
+    fun secondLineAppearsForRemindersAndTreatmentsOnly() {
         val fern = plant()
         val reminder = CustomReminder(id = 4L, plantId = fern.id, name = "Mist leaves", intervalDays = 3)
         val treatment = CustomReminder(id = 5L, plantId = fern.id, name = "Neem spray", intervalDays = 7)

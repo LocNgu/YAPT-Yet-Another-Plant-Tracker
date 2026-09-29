@@ -35,9 +35,12 @@ its name underneath, at most two lines with an ellipsis. Width decides the colum
 four per row (140dp minimum tile width, capped at four so a tablet does not pack five or more small
 tiles); a 320dp screen shows two. Section and sub-group headers span the full width.
 
-**Second line.** Only custom-reminder tiles (the reminder name), issue-treatment tiles ("Treat …") and
-the combined water-and-fertilize tile ("Water & fertilize") carry a second line; every other tile is
-just the photo and the plant name.
+**Second line.** Only custom-reminder tiles (the reminder name) and issue-treatment tiles ("Treat …")
+carry a second line; every other tile is just the photo and the plant name.
+
+**Combined tile.** The combined water-and-fertilize tile has no text label. A small fertilize icon
+(`Icons.Filled.Spa`, the app's fertilize icon) sits on the photo's top-end corner as a decorative
+indicator; the tile's content description still says "watering and fertilizing".
 
 **Watering sub-groups.** Watering, and only Watering, splits into **Overdue / Today / Next 3 days**,
 taken directly from the aggregator's `TodayTaskBucket` (every `Upcoming` bucket is already inside the
