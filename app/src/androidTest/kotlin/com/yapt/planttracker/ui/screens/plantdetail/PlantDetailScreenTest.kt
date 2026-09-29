@@ -2,7 +2,6 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
