@@ -102,10 +102,8 @@ class ReminderWorker(
         } else {
             null
         }
-        // A plan-only plant (#809, product ADR-0057) has no interval but still has a repotting schedule;
-        // loading its last REPOT keeps the status as complete as the Care queue's.
-        val hasRepottingSchedule = plant.repottingIntervalDays != null || plant.repotPlanSeasonStartAt != null
-        val lastRepotting = if (hasRepottingSchedule) {
+        // A plan-only plant (#809, product ADR-0057) needs no REPOT log: the plan never reads lastRepottedAt.
+        val lastRepotting = if (plant.repottingIntervalDays != null) {
             app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
         } else {
             null

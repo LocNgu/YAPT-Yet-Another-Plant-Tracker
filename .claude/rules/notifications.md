@@ -44,9 +44,9 @@ No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `pla
   overdue by N days"), with N counted from the season's last day (`repottingPlanSeasonEndAt` − 1 day, so the first
   day after the season reads 1) — never from `nextRepottingDueAt`, which for a plan is the season's first day. An
   upcoming plan composes nothing, and suppresses the interval date (the plan wins outright). Interval repots keep
-  `RepottingOverdue`/`RepottingDueToday`. `ReminderWorker` loads the last REPOT log when the plant has an interval
-  **or** a plan, so a plan-only plant's status is as complete as the Care queue's. A repot-only reminder never
-  takes the watering "Check" reframe.
+  `RepottingOverdue`/`RepottingDueToday`. A plan-only plant (no interval) needs nothing extra from `ReminderWorker`:
+  it still loads the last REPOT log only when an interval is set, since the plan path never reads `lastRepottedAt`.
+  A repot-only reminder never takes the watering "Check" reframe.
 
 ## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
 `SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" since

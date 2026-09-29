@@ -81,16 +81,18 @@ object ReminderNotificationComposer {
      */
     private fun repottingItem(status: PlantCareStatus, nowDate: LocalDate): CareReminderItem? {
         val planSeasonEndAt = status.repottingPlanSeasonEndAt
-        val planSeason = status.repottingPlanSeason
         return when {
-            planSeasonEndAt != null && planSeason != null -> when {
+            planSeasonEndAt != null -> when {
                 status.isRepottingOverdue -> {
                     val lastDayOfSeason = planSeasonEndAt.toLocalDate().minusDays(1)
                     CareReminderItem.RepottingPlanOverdue(
                         ChronoUnit.DAYS.between(lastDayOfSeason, nowDate).toInt()
                     )
                 }
-                status.isRepottingDueSoon -> CareReminderItem.RepottingPlannedThisSeason(planSeason)
+                // The season is always set alongside the season end; the fallback only guards a hand-built status.
+                status.isRepottingDueSoon ->
+                    status.repottingPlanSeason?.let(CareReminderItem::RepottingPlannedThisSeason)
+                        ?: CareReminderItem.RepottingDueToday
                 else -> null
             }
             status.isRepottingOverdue -> CareReminderItem.RepottingOverdue(

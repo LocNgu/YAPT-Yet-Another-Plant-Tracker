@@ -563,6 +563,20 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
+    fun `a plan's task names the season of the input's hemisphere`() {
+        // Sep 1 opens spring in the southern hemisphere.
+        val start = LocalDate.of(2027, 9, 1)
+        val plant = plant().copy(repotPlanSeasonStartAt = millis(start), repotPlanMadeAt = millis(today))
+        val input = input(plants = listOf(plant), inputToday = start.plusDays(10))
+            .copy(hemisphere = Hemisphere.SOUTHERN)
+
+        val task = TodayQueueAggregator.build(input).tasks.single { it.kind == TodayCareKind.REPOT }
+
+        assertEquals(TodayTaskBucket.Today, task.bucket)
+        assertEquals(FertilizingSeason.SPRING, task.repotPlanSeason)
+    }
+
+    @Test
     fun `an interval repot carries no plan season and keeps its own overdue date`() {
         val plant = plant(repottingIntervalDays = 30)
         val dueDate = today.minusDays(30)

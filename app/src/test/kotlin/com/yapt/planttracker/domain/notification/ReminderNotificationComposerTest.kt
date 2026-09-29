@@ -432,6 +432,17 @@ class ReminderNotificationComposerTest {
     }
 
     @Test
+    fun `a lapsed plan counts from its season end even on a hand-built status with no season`() {
+        val now = noonUtc(2027, 6, 3)
+        val status = springPlanStatus(now).copy(repottingPlanSeason = null)
+
+        assertEquals(
+            listOf(CareReminderItem.RepottingPlanOverdue(3)),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
     fun `a plan-only plant is notified even with fertilizing notifications off`() {
         val now = noonUtc(2027, 4, 1)
 
