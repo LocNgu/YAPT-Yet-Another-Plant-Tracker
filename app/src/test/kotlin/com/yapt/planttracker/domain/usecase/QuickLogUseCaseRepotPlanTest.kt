@@ -154,6 +154,76 @@ class QuickLogUseCaseRepotPlanTest {
         assertEquals(7, after.wateringIntervalDays)
     }
 
+    // The caller's Plant is often a stale snapshot (Care tile, cached Plant Detail state, list statuses):
+    // the reset must build its full-row write from a fresh read, not from that snapshot.
+
+    @Test
+    fun `a stale snapshot still carrying a cleared plan does not resurrect it on a backdated REPOT`() = runTest {
+        val snapshot = plannedPlant()
+        plantRepo.clearRepotPlan(snapshot.id, updatedAt = 1L)
+
+        useCase.quickLog(snapshot, CareType.REPOT, utcMillis(LocalDate.of(2026, 9, 28), 20))
+
+        val after = reload(snapshot)
+        assertNull("the plan cleared elsewhere must stay cleared", after.repotPlanSeasonStartAt)
+        assertNull(after.repotPlanMadeAt)
+        assertEquals("the lifecycle reset still applies", 0, after.wateringConfidence)
+    }
+
+    @Test
+    fun `a stale snapshot without a plan does not wipe a plan set since on a backdated REPOT`() = runTest {
+        val id = plantRepo.addPlant(
+            Plant(name = "Fern", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 7, wateringConfidence = 3)
+        )
+        val snapshot = plantRepo.getPlantById(id).first()!!
+        plantRepo.updatePlant(
+            snapshot.copy(repotPlanSeasonStartAt = planStart, repotPlanMadeAt = planMadeAt, updatedAt = 1L)
+        )
+
+        useCase.quickLog(snapshot, CareType.REPOT, utcMillis(LocalDate.of(2026, 9, 28), 20))
+
+        val after = reload(snapshot)
+        assertEquals(planStart, after.repotPlanSeasonStartAt)
+        assertEquals(planMadeAt, after.repotPlanMadeAt)
+        assertEquals("the lifecycle reset still applies", 0, after.wateringConfidence)
+    }
+
+    @Test
+    fun `a stale snapshot does not revert columns changed since it was read`() = runTest {
+        val snapshot = plannedPlant()
+        plantRepo.updatePlant(
+            reload(snapshot).copy(
+                repottingSeasons = setOf(FertilizingSeason.AUTUMN),
+                repottingIntervalDays = 180,
+                wateringIntervalDays = 10,
+                updatedAt = 1L
+            )
+        )
+
+        useCase.quickLog(snapshot, CareType.REPOT, utcMillis(LocalDate.of(2026, 10, 1), 9))
+
+        val after = reload(snapshot)
+        assertEquals(setOf(FertilizingSeason.AUTUMN), after.repottingSeasons)
+        assertEquals(180, after.repottingIntervalDays)
+        assertEquals(10, after.wateringIntervalDays)
+        assertEquals(0, after.wateringConfidence)
+    }
+
+    @Test
+    fun `a stale snapshot without a plan still lets a same-day REPOT clear a plan set since`() = runTest {
+        val id = plantRepo.addPlant(Plant(name = "Fern", createdAt = 0L, updatedAt = 0L))
+        val snapshot = plantRepo.getPlantById(id).first()!!
+        plantRepo.updatePlant(
+            snapshot.copy(repotPlanSeasonStartAt = planStart, repotPlanMadeAt = planMadeAt, updatedAt = 1L)
+        )
+
+        useCase.quickLog(snapshot, CareType.REPOT, utcMillis(LocalDate.of(2026, 10, 1), 9))
+
+        val after = reload(snapshot)
+        assertNull(after.repotPlanSeasonStartAt)
+        assertNull(after.repotPlanMadeAt)
+    }
+
     @Test
     fun `a REPOT on a plant with no plan changes nothing about plans`() = runTest {
         val id = plantRepo.addPlant(Plant(name = "Cactus", createdAt = 0L, updatedAt = 0L))

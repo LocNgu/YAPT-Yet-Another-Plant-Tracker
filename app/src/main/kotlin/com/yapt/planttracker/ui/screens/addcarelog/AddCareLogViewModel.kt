@@ -137,7 +137,7 @@ class AddCareLogViewModel(
                         plantRepository = plantRepository,
                         wateringAdjustmentRepository = wateringAdjustmentRepository
                     )
-                    // After the reset, whose full-row write of this snapshot would put a stale plan back (#809).
+                    // After the reset, whose full-row write of the plan it just read would put a cleared plan back (#809).
                     RepotPlanReset.clearIfSuperseded(plant.id, loggedAt, plantRepository)
                 }
             }
