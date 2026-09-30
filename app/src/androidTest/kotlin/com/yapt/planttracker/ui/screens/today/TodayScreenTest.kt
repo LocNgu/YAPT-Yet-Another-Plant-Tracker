@@ -343,7 +343,7 @@ class TodayScreenTest {
         setContent(widthDp = 468.dp, fontScale = 1.3f)
 
         for (label in listOf("Planned for spring", "Planned for summer", "Planned for autumn", "Planned for winter")) {
-            assertFalse("\"$label\" is cut off", textLayout(label).hasVisualOverflow)
+            assertShownInFull(label)
         }
     }
 
@@ -748,13 +748,19 @@ class TodayScreenTest {
     private fun topOf(text: String): Float =
         composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
 
-    // The Text's own layout, from the unmerged tree: the tile merges its children's semantics, so the
-    // merged node would report whichever text line it saw first.
-    private fun textLayout(text: String): TextLayoutResult {
+    // Reads the Text's own layout from the unmerged tree (the tile merges its children's semantics, so
+    // the merged node would report whichever text line it saw first). "Shown in full" means every
+    // character is laid out and the last line isn't ellipsized — not `hasVisualOverflow`, whose
+    // width half reports true for a line that fits whenever the whole-pixel layout width rounds just
+    // below the text's fractional measured width.
+    private fun assertShownInFull(text: String) {
         val layouts = mutableListOf<TextLayoutResult>()
         composeTestRule.onNodeWithText(text, useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        return layouts.single()
+        val layout = layouts.single()
+        val lastLine = layout.lineCount - 1
+        assertFalse("\"$text\" is ellipsized", layout.isLineEllipsized(lastLine))
+        assertEquals("\"$text\" is cut short", text.length, layout.getLineEnd(lastLine))
     }
 
     private fun hasStateDescription(value: String) =
