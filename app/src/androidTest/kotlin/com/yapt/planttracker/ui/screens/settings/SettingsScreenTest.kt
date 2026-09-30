@@ -51,6 +51,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Collections
 
 @RunWith(AndroidJUnit4::class)
 class SettingsScreenTest {
@@ -133,7 +134,7 @@ class SettingsScreenTest {
 
     @Test
     fun backupInProgress_isReportedWhileAnOperationRunsAndClearedWhenItEnds() {
-        val reported = mutableListOf<Boolean>()
+        val reported = Collections.synchronizedList(mutableListOf<Boolean>())
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
@@ -147,15 +148,15 @@ class SettingsScreenTest {
 
         val release = CompletableDeferred<BackupResult>()
         composeTestRule.runOnUiThread { viewModel.proceedWithFutureSchemaImport { release.await() } }
-        composeTestRule.waitUntil(TIMEOUT_MS) { reported.last() }
+        composeTestRule.waitUntil(TIMEOUT_MS) { reported.lastOrNull() == true }
 
         release.complete(BackupResult.Error("done"))
-        composeTestRule.waitUntil(TIMEOUT_MS) { !reported.last() }
+        composeTestRule.waitUntil(TIMEOUT_MS) { reported.lastOrNull() == false }
     }
 
     @Test
     fun leavingSettingsMidOperation_reportsNotInProgress() {
-        val reported = mutableListOf<Boolean>()
+        val reported = Collections.synchronizedList(mutableListOf<Boolean>())
         var showSettings by mutableStateOf(true)
         composeTestRule.setContent {
             if (showSettings) {

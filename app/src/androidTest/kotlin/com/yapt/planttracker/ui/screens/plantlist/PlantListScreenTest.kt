@@ -447,12 +447,13 @@ class PlantListScreenTest {
         composeTestRule.onNodeWithContentDescription("Search plants").performClick()
         composeTestRule.onNodeWithContentDescription("Search plants").performTextInput("mon")
         composeTestRule.onNodeWithText("Fern").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Settings").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Settings").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Back").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
     }
 }
