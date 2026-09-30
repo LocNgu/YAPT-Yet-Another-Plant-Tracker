@@ -1,13 +1,17 @@
 package com.yapt.planttracker.ui.navigation
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
@@ -72,6 +76,30 @@ class TodayRootNavigationTest {
 
         composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
         composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsIsARootTabAndGraveyardRoundTripsBackToIt() {
+        composeTestRule.setContent { YaptNavGraph(application) }
+
+        composeTestRule.onNode(hasText("Settings").and(hasClickAction())).performClick()
+        composeTestRule.onNode(hasText("Settings").and(hasClickAction())).assertIsSelected()
+        composeTestRule.onNodeWithContentDescription("Back").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
+        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+
+        composeTestRule.onNode(hasText("Settings").and(hasClickAction())).assertIsSelected()
+    }
+
+    @Test
+    fun plantsTopBarNoLongerOffersASettingsShortcut() {
+        composeTestRule.setContent { YaptNavGraph(application) }
+
+        composeTestRule.onNode(hasText("Plants").and(hasClickAction())).performClick()
+
+        composeTestRule.onAllNodesWithContentDescription("Settings").assertCountEquals(0)
     }
 
     private companion object {
