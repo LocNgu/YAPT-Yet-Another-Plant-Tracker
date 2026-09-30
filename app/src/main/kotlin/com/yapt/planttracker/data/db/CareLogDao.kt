@@ -87,6 +87,16 @@ interface CareLogDao {
     )
     suspend fun getLastCareBetween(startMillis: Long, endMillis: Long): List<PlantLastCare>
 
+    /**
+     * The most recent [careType] log timestamp per plant, re-emitting whenever a log of any type is
+     * inserted, edited, or deleted. One row per plant with ≥ 1 such log; a plant with none has no row.
+     */
+    @Query(
+        "SELECT plantId, MAX(loggedAt) AS lastCareAt FROM care_logs " +
+            "WHERE careType = :careType GROUP BY plantId"
+    )
+    fun observeLastCareOfType(careType: String): Flow<List<PlantLastCare>>
+
     @Query("SELECT * FROM care_logs WHERE photoUri IS NOT NULL AND plantId = :plantId ORDER BY loggedAt DESC")
     fun getPhotoLogsForPlant(plantId: Long): Flow<List<CareLogEntity>>
 
