@@ -17,6 +17,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Settings now lives in the bottom bar, next to Care, Plants, and Calendar — the gear icon on the " +
+                "plant list is gone. While a backup or restore is running, the bar's tabs are disabled until it " +
+                "finishes",
             "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
                 "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
                 "tab and the daily notification. The plan is due for the whole season and clears itself when " +
