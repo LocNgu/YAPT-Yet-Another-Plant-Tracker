@@ -8,7 +8,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalRepotting
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
 
-/** The Repotting overview's chip row (#525, product ADR-0058); [years] is `null` for [NEVER]. */
+/** The Repotting overview's chip row (#525, product ADR-0059); [years] is `null` for [NEVER]. */
 @Suppress("MagicNumber")
 enum class RepottingOverviewThreshold(val years: Int?) {
     NEVER(null),
@@ -50,7 +50,7 @@ data class RepottingOverview(
 
 /**
  * The single source for the Repotting overview page and Settings' count subtitle (#525, product
- * ADR-0058), so the two can't drift. Pure: [today] and [hemisphere] are supplied by the caller.
+ * ADR-0059), so the two can't drift. Pure: [today] and [hemisphere] are supplied by the caller.
  */
 object RepottingOverviewBuilder {
 

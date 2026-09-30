@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 /**
- * The Repotting overview's remembered chip (#525, product ADR-0058). A view preference like
+ * The Repotting overview's remembered chip (#525, product ADR-0059). A view preference like
  * `SORT_OPTION`, so it is deliberately not part of `.yapt` backups.
  */
 class RepottingOverviewPreferences(private val dataStore: DataStore<Preferences>) {

@@ -1,4 +1,4 @@
-# Product ADR-0058: Repotting overview — an audit page for plants not repotted in a long time
+# Product ADR-0059: Repotting overview — an audit page for plants not repotted in a long time
 
 **Status**: accepted
 
