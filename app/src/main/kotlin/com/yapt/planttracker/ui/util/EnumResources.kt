@@ -156,6 +156,15 @@ fun FertilizingSeason.repotPlannedNotificationRes(): Int = when (this) {
     FertilizingSeason.WINTER -> R.string.notification_repotting_planned_winter
 }
 
+/** Repot tab line naming a plan's season, taking the season's year (#809, product ADR-0057). One sentence per season for the same reason as [repotPlannedNotificationRes]. */
+@StringRes
+fun FertilizingSeason.repotPlanLabelRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.repot_plan_planned_spring
+    FertilizingSeason.SUMMER -> R.string.repot_plan_planned_summer
+    FertilizingSeason.AUTUMN -> R.string.repot_plan_planned_autumn
+    FertilizingSeason.WINTER -> R.string.repot_plan_planned_winter
+}
+
 /** Care tile line for a planned repot (#809, product ADR-0057), in season or after it has ended. */
 @StringRes
 fun FertilizingSeason.repotPlannedTileRes(): Int = when (this) {

@@ -41,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -161,6 +162,7 @@ fun PlantDetailScreen(
     var showWaterSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
     var showLiquidFertilizeSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
     var showRepotDatePicker by remember { mutableStateOf(false) }
+    var showRepotPlanDialog by remember { mutableStateOf(false) }
     // #694: null hides the Add-photo sheet; non-null is both "sheet visible" and the currently
     // picked date. pendingPhotoLoggedAt is rememberSaveable because the camera app can kill this
     // Activity while a capture is in flight — the picked date has to survive to the result callback.
@@ -527,6 +529,16 @@ fun PlantDetailScreen(
                 showRepotDatePicker = false
                 viewModel.quickRepot(loggedAt)
             }
+        )
+    }
+
+    if (showRepotPlanDialog) {
+        RepotPlanSeasonDialog(
+            onSelect = { season ->
+                showRepotPlanDialog = false
+                viewModel.setRepotPlan(season)
+            },
+            onDismiss = { showRepotPlanDialog = false }
         )
     }
 
@@ -970,9 +982,31 @@ fun PlantDetailScreen(
                                     labelRes = R.string.bulk_action_repot,
                                     icon = Icons.Filled.LocalFlorist,
                                     testTag = REPOT_TAB_ACTION_BUTTON_TEST_TAG,
-                                    onClick = { showRepotDatePicker = true }
+                                    onClick = { showRepotDatePicker = true },
+                                    secondary = if (plant?.repotPlanSeasonStartAt == null) {
+                                        TabSecondaryAction(
+                                            labelRes = R.string.repot_plan_action,
+                                            icon = Icons.Filled.Event,
+                                            testTag = REPOT_PLAN_BUTTON_TEST_TAG,
+                                            onClick = { showRepotPlanDialog = true }
+                                        )
+                                    } else {
+                                        null
+                                    }
                                 )
                                 Spacer(Modifier.height(16.dp))
+                            }
+                            item {
+                                plant?.let { p ->
+                                    RepotPlanSummary(
+                                        plant = p,
+                                        status = careStatus,
+                                        actions = RepotPlanSummaryActions(
+                                            onEdit = { showRepotPlanDialog = true },
+                                            onClear = { viewModel.clearRepotPlan() }
+                                        )
+                                    )
+                                }
                             }
                             item {
                                 val insights = careTypeInsightItems(

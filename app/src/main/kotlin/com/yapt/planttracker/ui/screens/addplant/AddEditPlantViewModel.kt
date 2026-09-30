@@ -72,6 +72,14 @@ class AddEditPlantViewModel(
     var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
     var repottingIntervalEnabled by mutableStateOf(false)
 
+    /**
+     * Preferred seasons for the recurring repotting date (#809, product ADR-0057), all four by default.
+     * Persisted as-is even while [repottingIntervalEnabled] is off: with no interval there is no date to
+     * shift so the value is inert, and keeping it means toggling the reminder off and on again doesn't
+     * silently forget the owner's choice. The chip row is only shown while the reminder is enabled.
+     */
+    var repottingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
+
     /** Per-plant opt-out from the seasonal curve (#569) — always surfaced now that seasonal watering ships unconditionally (#656). */
     var pinIntervalToBase by mutableStateOf(false)
     var dormancyStartMonth by mutableStateOf<Int?>(null)
@@ -118,6 +126,7 @@ class AddEditPlantViewModel(
                         repottingIntervalMonths = daysToRepottingMonths(it)
                         repottingIntervalEnabled = true
                     }
+                    repottingSeasons = plant.repottingSeasons
                     useLiquidFertilizer = plant.useLiquidFertilizer
                     pinIntervalToBase = plant.pinIntervalToBase
                     dormancyStartMonth = plant.dormancyStartMonth
@@ -157,9 +166,17 @@ class AddEditPlantViewModel(
      * keeping the previous selection (#795).
      */
     fun toggleFertilizingSeason(season: FertilizingSeason) {
-        val newSeasons = if (season in fertilizingSeasons) fertilizingSeasons - season else fertilizingSeasons + season
-        if (newSeasons.isEmpty()) return
-        fertilizingSeasons = newSeasons
+        fertilizingSeasons = toggledSeasons(fertilizingSeasons, season)
+    }
+
+    /** Same toggle contract as [toggleFertilizingSeason], for the repotting reminder's preferred seasons (#809). */
+    fun toggleRepottingSeason(season: FertilizingSeason) {
+        repottingSeasons = toggledSeasons(repottingSeasons, season)
+    }
+
+    private fun toggledSeasons(current: Set<FertilizingSeason>, season: FertilizingSeason): Set<FertilizingSeason> {
+        val newSeasons = if (season in current) current - season else current + season
+        return if (newSeasons.isEmpty()) current else newSeasons
     }
 
     fun save() {
@@ -192,6 +209,7 @@ class AddEditPlantViewModel(
                 dormancyStartMonth = dormancyStartMonth,
                 dormancyEndMonth = dormancyEndMonth,
                 fertilizingSeasons = fertilizingSeasons,
+                repottingSeasons = repottingSeasons,
                 dormantWateringIntervalDays = dormantWateringIntervalDays
             )
             if (isEditMode) {
@@ -240,11 +258,10 @@ class AddEditPlantViewModel(
             plant.copy(
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
-                // The plan and preferred repotting seasons aren't edited on this screen yet: carry the
-                // stored values over so an unrelated edit can't silently wipe them (#809).
+                // The one-off repot plan isn't edited on this screen (Plant Detail's Repot tab owns it):
+                // carry the stored values over so an unrelated edit can't silently wipe it (#809).
                 repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,
                 repotPlanMadeAt = existing?.repotPlanMadeAt,
-                repottingSeasons = existing?.repottingSeasons ?: plant.repottingSeasons,
                 wateringConfidence = wateringConfidence,
                 wateringBaseIntervalDays = wateringBaseIntervalDays,
                 // Room-change reset (#571): a fresh wateringResetAt anchor for the post-reset bootstrap

@@ -17,6 +17,12 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
+            "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
+                "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
+                "tab and the daily notification. The plan is due for the whole season and clears itself when " +
+                "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
+                "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
+                "of coming due in the middle of winter",
             "Search your plants by name or species — tap the search icon on the plant list and the list " +
                 "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
                 "filters and sorting",
