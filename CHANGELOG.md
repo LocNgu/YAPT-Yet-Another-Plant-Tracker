@@ -12,6 +12,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Plan a repot for a season, and choose the seasons your recurring repotting should land in** — the
+  Repot tab has a new Plan repot button: pick one of the next four seasons (for example Winter 2026, Spring
+  2027, Summer 2027, Autumn 2027) and the plant reads "Planned: spring 2027" with Edit and Clear. A plan
+  needs no repotting reminder, wins over the recurring date even when that is earlier, is due for the
+  whole season and overdue only once the season has ended, and clears itself when you log a repot. It
+  also appears in the Care tab and the daily notification. With the repotting reminder on, Add/Edit Plant
+  gains season chips (all four selected by default): the recurring date then snaps to the first day of the
+  nearest preferred season instead of an off-season month — last repot June 2025, every 2 years, spring
+  only reads March 2027. Without a plan the Repot tab also shows the next repot date and any preferred
+  seasons. Both are unset by default, so every existing repotting date stays exactly as it was (#809,
+  product ADR-0057)
+
 ## [0.33.0] - 2026-09-29
 
 ### Added

@@ -142,6 +142,36 @@ before). Cancelling the sheet or abandoning image selection creates no log — `
 (`rememberSaveable`, since the camera app can kill this Activity mid-capture) is only consumed by the
 camera/gallery result callbacks, never by the sheet's own dismissal.
 
+### Repot tab: plan a repot (#809, product ADR-0057)
+
+Beside the filled **Repot** quick-log the tab has an outlined **Plan repot** button
+(`REPOT_PLAN_BUTTON_TEST_TAG`) — `PlantDetailTabActionRow`'s optional `secondary: TabSecondaryAction`, sharing
+the row's width equally. It is shown only while no plan exists; with a plan, the plan line's **Edit**
+reopens the same picker, so the two never sit side by side. The picker is `RepotPlanSeasonDialog`
+(`RepotPlanSection.kt`, `REPOT_PLAN_DIALOG_TEST_TAG`), an `AlertDialog` of full-width text options — the
+`RescheduleWateringDialog` presentation — listing `SeasonalRepotting.upcomingSeasons(LocalDate.now(),
+SeasonalWatering.currentHemisphere())` as "Winter 2026", "Spring 2027", …; the current season is never
+offered (it is "repot now"), and there are **no inline season chips on this tab** (product ADR-0023).
+Picking one commits immediately via `PlantDetailViewModel.setRepotPlan(season, now)`.
+
+Below the action row `RepotPlanSummary` renders: with a plan, "Planned: spring 2027"
+(`FertilizingSeason.repotPlanLabelRes()` — one whole sentence per season, filled with the year from
+`SeasonalRepotting.resolvePlan(plant.repotPlanSeasonStartAt, hemisphere)`, so the label is always derived
+from the stored timestamp) plus **Edit** and **Clear** text buttons whose semantics carry the fuller
+"Edit repot plan"/"Clear repot plan" descriptions (the screen has other Edit/Clear-ish controls); with no
+plan, "Next repot due <date>" from `PlantCareStatus.nextRepottingDueAt` (`DateUtils.formatDate`, so it
+already includes the preferred-season shift) when an interval is set, and "Repots in Spring, Summer" when
+the preferred seasons aren't all four. A plant with neither a plan nor an interval shows nothing here
+beyond the Plan action. Clear is immediate, with no confirmation or undo.
+
+`setRepotPlan()`/`clearRepotPlan()` (`PlantDetailRepotPlanActions.kt`) call the column-specific
+`PlantRepository.setRepotPlan`/`clearRepotPlan` (never a full-row `updatePlant()`), but do so inside
+`intervalEditMutex`: every other writer sharing that lock re-reads the plant fresh inside it and writes the
+whole row back, so a plan write outside the lock could land between that read and write and be reverted.
+`repotPlanMadeAt` = the `now` parameter (defaults to `System.currentTimeMillis()` — this ViewModel has no
+injectable clock). A plan needs no repotting interval. Tests: `PlantDetailViewModelRepotPlanTest` (plain JVM),
+`PlantDetailScreenTest`'s `repotTab_*` cases (instrumented; text/contentDescription only).
+
 ### The shared date-picker sheet (`CareDatePicker.kt`, #654/#675/#694)
 
 `LogWateringDatePickerDialog`'s body is split three ways so ADR-0037's two load-bearing structural

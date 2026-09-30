@@ -13,7 +13,18 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        added = listOf(
+            "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
+                "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
+                "tab and the daily notification. The plan is due for the whole season and clears itself when " +
+                "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
+                "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
+                "of coming due in the middle of winter"
+        )
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).

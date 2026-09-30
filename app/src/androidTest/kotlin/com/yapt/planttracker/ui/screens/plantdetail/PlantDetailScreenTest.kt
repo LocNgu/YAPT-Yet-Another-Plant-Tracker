@@ -51,9 +51,13 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalRepotting
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.ui.util.repotPlanLabelRes
 import com.yapt.planttracker.util.DateUtils
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -2714,6 +2718,147 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithText("Rescheduled", substring = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    // ---- Repot tab: plan a repot (#809, product ADR-0057) ----
+
+    private fun reactivePlantRepoWithRepotPlan(initial: Plant): PlantRepository {
+        val state = MutableStateFlow(initial)
+        val repo = mockk<PlantRepository>()
+        every { repo.getPlantById(initial.id) } returns state
+        coEvery { repo.updatePlant(any()) } answers { state.value = it.invocation.args[0] as Plant }
+        coEvery { repo.setRepotPlan(any(), any(), any(), any()) } answers {
+            state.value = state.value.copy(
+                repotPlanSeasonStartAt = it.invocation.args[1] as Long,
+                repotPlanMadeAt = it.invocation.args[2] as Long
+            )
+        }
+        coEvery { repo.clearRepotPlan(any(), any()) } answers {
+            state.value = state.value.copy(repotPlanSeasonStartAt = null, repotPlanMadeAt = null)
+        }
+        return repo
+    }
+
+    private fun openRepotTab(viewModel: PlantDetailViewModel) {
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {}
+            )
+        }
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Repot"))
+        composeTestRule.onNodeWithText("Repot").performClick()
+    }
+
+    @Test
+    fun repotTab_planRepot_offersTheUpcomingSeasonsAndShowsThePlanWithEditAndClear() {
+        val plant = Plant(id = 90L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        val plantRepo = reactivePlantRepoWithRepotPlan(plant)
+        val upcoming = SeasonalRepotting.upcomingSeasons(LocalDate.now(), SeasonalWatering.currentHemisphere())
+        val chosen = upcoming[1]
+        openRepotTab(makeViewModelWithPlantRepo(plant, plantRepo))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(REPOT_PLAN_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithText(str(R.string.repot_plan_action)).assertIsDisplayed().performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_PLAN_DIALOG_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        upcoming.forEach { option ->
+            composeTestRule.onNodeWithText("${str(option.season.labelRes())} ${option.year}").assertIsDisplayed()
+        }
+        coVerify(exactly = 0) { plantRepo.setRepotPlan(any(), any(), any(), any()) }
+
+        composeTestRule.onNodeWithText("${str(chosen.season.labelRes())} ${chosen.year}").performClick()
+
+        coVerify(timeout = 5000) { plantRepo.setRepotPlan(90L, chosen.startAtMillis, any(), any()) }
+        val plannedText = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(chosen.season.repotPlanLabelRes(), chosen.year)
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText(plannedText))
+        composeTestRule.onNodeWithText(plannedText).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.repot_plan_edit_cd)).assertHasClickAction()
+
+        composeTestRule.onNodeWithContentDescription(str(R.string.repot_plan_clear_cd)).performClick()
+
+        coVerify(timeout = 5000) { plantRepo.clearRepotPlan(90L, any()) }
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(plannedText)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+    }
+
+    @Test
+    fun repotTab_planEdit_reopensThePickerAndReplacesThePlan() {
+        val upcoming = SeasonalRepotting.upcomingSeasons(LocalDate.now(), SeasonalWatering.currentHemisphere())
+        val plant = Plant(
+            id = 91L,
+            name = "Yucca",
+            createdAt = 0L,
+            updatedAt = 0L,
+            repotPlanSeasonStartAt = upcoming[0].startAtMillis,
+            repotPlanMadeAt = 1L
+        )
+        val plantRepo = reactivePlantRepoWithRepotPlan(plant)
+        val replacement = upcoming[2]
+        openRepotTab(makeViewModelWithPlantRepo(plant, plantRepo))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasContentDescription(str(R.string.repot_plan_edit_cd)))
+        composeTestRule.onNodeWithContentDescription(str(R.string.repot_plan_edit_cd)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(REPOT_PLAN_DIALOG_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("${str(replacement.season.labelRes())} ${replacement.year}").performClick()
+
+        coVerify(timeout = 5000) { plantRepo.setRepotPlan(91L, replacement.startAtMillis, any(), any()) }
+    }
+
+    @Test
+    fun repotTab_withoutPlan_showsNextIntervalDueDateAndPreferredSeasonsWhenNotAllFour() {
+        val plant = Plant(
+            id = 92L,
+            name = "Yucca",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = 0L,
+            repottingIntervalDays = 360,
+            repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+        )
+        openRepotTab(makeViewModelWithPlantRepo(plant, reactivePlantRepoWithRepotPlan(plant)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Next repot due", substring = true))
+        composeTestRule.onNodeWithText("Next repot due", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(
+                R.string.repot_plan_preferred_seasons,
+                "${str(R.string.season_spring)}, ${str(R.string.season_summer)}"
+            )
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun repotTab_withNeitherPlanNorInterval_showsOnlyThePlanAction() {
+        val plant = Plant(id = 93L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        openRepotTab(makeViewModelWithPlantRepo(plant, reactivePlantRepoWithRepotPlan(plant)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(REPOT_PLAN_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithText(str(R.string.repot_plan_action)).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Next repot due", substring = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Planned:", substring = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
     }

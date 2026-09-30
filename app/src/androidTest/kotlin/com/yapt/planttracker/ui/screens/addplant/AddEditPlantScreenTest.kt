@@ -12,8 +12,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,8 +25,10 @@ import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -31,6 +36,7 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,6 +68,8 @@ class AddEditPlantScreenTest {
             override val activityResultRegistry = registry
         }
     }
+
+    private fun str(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
     @After
     fun tearDown() {
@@ -230,5 +238,58 @@ class AddEditPlantScreenTest {
         composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
 
         composeTestRule.onNodeWithText("Repot every 12 months").performScrollTo().assertIsDisplayed()
+    }
+
+    // ---- Preferred repotting seasons (#809, product ADR-0057) ----
+
+    @Test
+    fun repottingSeasonChips_areHiddenWhileTheRepottingReminderIsOff() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).performScrollTo().assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(str(R.string.repotting_preferred_seasons_label))
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    @Test
+    fun repottingSeasonChips_showAllFourSelectedByDefaultWhileTheReminderIsOn() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
+
+        composeTestRule.onNodeWithText(str(R.string.repotting_preferred_seasons_label)).performScrollTo()
+            .assertIsDisplayed()
+        listOf(R.string.season_spring, R.string.season_summer, R.string.season_autumn, R.string.season_winter)
+            .forEach { season ->
+                composeTestRule.onNodeWithText(str(season)).performScrollTo().assertIsSelected()
+            }
+    }
+
+    @Test
+    fun repottingSeasonChip_tapDeselectsIt_andTheLastOneShowsTheRepottingSnackbar() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.runOnIdle {
+            viewModel.repottingIntervalEnabled = true
+            viewModel.repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+        }
+
+        composeTestRule.onNodeWithText(str(R.string.season_summer)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(str(R.string.season_summer)).assertIsNotSelected()
+
+        composeTestRule.onNodeWithText(str(R.string.season_spring)).performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText(str(R.string.repotting_last_season_locked_snackbar)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.season_spring)).assertIsSelected()
     }
 }

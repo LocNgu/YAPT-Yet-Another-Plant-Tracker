@@ -83,6 +83,7 @@ fun AddEditPlantScreen(
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
     val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
+    val repottingLastSeasonLockedMessage = stringResource(R.string.repotting_last_season_locked_snackbar)
 
     var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
@@ -431,6 +432,16 @@ fun AddEditPlantScreen(
                             increaseContentDescription = stringResource(R.string.repotting_interval_increase_cd),
                             stateDescription = repottingIntervalLabel
                         )
+                    )
+                    FertilizingSeasonsSelector(
+                        selected = viewModel.repottingSeasons,
+                        onToggle = viewModel::toggleRepottingSeason,
+                        onLastSeasonLocked = {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbarOnce(repottingLastSeasonLockedMessage)
+                            }
+                        },
+                        labelRes = R.string.repotting_preferred_seasons_label
                     )
                 }
             }

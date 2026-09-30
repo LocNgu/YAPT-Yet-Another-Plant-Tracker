@@ -262,6 +262,8 @@
         <item quantity="other">Repot every %d months</item>
     </plurals>
     <string name="repotting_reminder_label">Repotting reminder</string>
+    <string name="repotting_preferred_seasons_label">Prefer repotting in</string>
+    <string name="repotting_last_season_locked_snackbar">At least one season must stay selected. To stop repotting reminders, turn off the repotting reminder.</string>
     <string name="repotting_interval_decrease_cd">Decrease repotting interval</string>
     <string name="repotting_interval_increase_cd">Increase repotting interval</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
@@ -362,6 +364,19 @@
     <string name="plant_detail_misting_section">Recent misting</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="repot_plan_action">Plan repot</string>
+    <string name="repot_plan_dialog_title">Plan repot for</string>
+    <string name="repot_plan_season_option">%1$s %2$d</string>
+    <string name="repot_plan_planned_spring">Planned: spring %1$d</string>
+    <string name="repot_plan_planned_summer">Planned: summer %1$d</string>
+    <string name="repot_plan_planned_autumn">Planned: autumn %1$d</string>
+    <string name="repot_plan_planned_winter">Planned: winter %1$d</string>
+    <string name="repot_plan_edit">Edit</string>
+    <string name="repot_plan_edit_cd">Edit repot plan</string>
+    <string name="repot_plan_clear">Clear</string>
+    <string name="repot_plan_clear_cd">Clear repot plan</string>
+    <string name="repot_plan_next_due">Next repot due %1$s</string>
+    <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
     <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
