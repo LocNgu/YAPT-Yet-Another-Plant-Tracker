@@ -22,44 +22,50 @@ object WhatsNewContent {
                 "tab and the daily notification. The plan is due for the whole season and clears itself when " +
                 "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
                 "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
-                "of coming due in the middle of winter",
-            "Search your plants by name or species — tap the search icon on the plant list and the list " +
-                "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
-                "filters and sorting",
-            "Tapping a plant in the Care tab now opens its details on the matching tab — for example a plant " +
-                "under Photos opens the Photo tab, and a combined water-and-fertilize entry opens Fertilize",
-            "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
-                "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue treatments, " +
-                "and optional progress photos grouped by type with watering first. The tab order is now " +
-                "Care, Plants, Calendar",
-            "Care shows each task as a square plant tile, with watering split into Overdue, Today, and " +
-                "Next 3 days. Tap a section title to collapse it, tap a tile to open the plant, or long-press " +
-                "a tile for just that task's quick actions — water, reschedule, fertilize, repot, mark done, " +
-                "or take a photo",
-            "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
-                "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
-                "first, once nothing in the app references them anymore"
-        ),
-        fixed = listOf(
-            "\"Cared for today\" and Calendar's due groupings now refresh right at midnight instead of " +
-                "showing yesterday's snapshot until something else happened to change",
-            "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
-                "background while the camera is open",
-            "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +
-                "over during phone-to-phone transfer, which previously moved nothing. YAPT deliberately " +
-                "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
-                "off-device copy there",
-            "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
-                "watering just before it, instead of from your two most recent waterings",
-            "Due dates could land a day early right after a daylight saving time change; watering, " +
-                "fertilizing, repotting, custom reminders, and reschedule/skip-watering now always land " +
-                "on the correct day"
+                "of coming due in the middle of winter"
         )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 500,
+            versionName = "0.33.0",
+            added = listOf(
+                "Search your plants by name or species — tap the search icon on the plant list and the list " +
+                    "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
+                    "filters and sorting",
+                "Tapping a plant in the Care tab now opens its details on the matching tab — for example a plant " +
+                    "under Photos opens the Photo tab, and a combined water-and-fertilize entry opens Fertilize",
+                "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
+                    "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue " +
+                    "treatments, and optional progress photos grouped by type with watering first. The tab " +
+                    "order is now Care, Plants, Calendar",
+                "Care shows each task as a square plant tile, with watering split into Overdue, Today, and " +
+                    "Next 3 days. Tap a section title to collapse it, tap a tile to open the plant, or long-press " +
+                    "a tile for just that task's quick actions — water, reschedule, fertilize, repot, mark done, " +
+                    "or take a photo",
+                "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
+                    "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
+                    "first, once nothing in the app references them anymore"
+            ),
+            fixed = listOf(
+                "\"Cared for today\" and Calendar's due groupings now refresh right at midnight instead of " +
+                    "showing yesterday's snapshot until something else happened to change",
+                "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
+                    "background while the camera is open",
+                "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +
+                    "over during phone-to-phone transfer, which previously moved nothing. YAPT deliberately " +
+                    "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
+                    "off-device copy there",
+                "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
+                    "watering just before it, instead of from your two most recent waterings",
+                "Due dates could land a day early right after a daylight saving time change; watering, " +
+                    "fertilizing, repotting, custom reminders, and reschedule/skip-watering now always land " +
+                    "on the correct day"
+            )
+        ),
         ReleaseNotes(
             versionCode = 490,
             versionName = "0.32.1",
