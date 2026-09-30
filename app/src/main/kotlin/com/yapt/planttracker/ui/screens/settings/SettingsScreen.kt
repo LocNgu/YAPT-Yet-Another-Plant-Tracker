@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.BugReport
@@ -46,7 +45,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -61,6 +59,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -103,10 +102,10 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit,
     onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit,
     onShowWhatsNew: () -> Unit,
-    onNavigateToGraveyard: () -> Unit = {}
+    onNavigateToGraveyard: () -> Unit = {},
+    onBackupInProgressChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val versionName = remember {
@@ -129,6 +128,11 @@ fun SettingsScreen(
     val askBeforeChangingIntervals by viewModel.askBeforeChangingIntervals.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
+    // Settings is a bottom-bar tab, so the bar must be disabled while an operation runs or the user
+    // could switch away from its progress dialog. Reset on dispose so the bar never stays disabled
+    // if this screen leaves composition mid-operation.
+    LaunchedEffect(isBackupInProgress) { onBackupInProgressChanged(isBackupInProgress) }
+    DisposableEffect(Unit) { onDispose { onBackupInProgressChanged(false) } }
     var showTimePicker by remember { mutableStateOf(false) }
     // Screen-scoped: a fresh remember{} on every entry into Settings, so leaving the screen
     // and returning always starts the countdown over (#520 AC3 — no wall-clock timeout).
@@ -426,14 +430,7 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !isBackupInProgress && !showFutureSchemaDialog) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                }
-            )
+            TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
         }
     ) { padding ->
         Column(

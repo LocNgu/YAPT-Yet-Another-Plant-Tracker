@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -85,14 +86,30 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
         composeTestRule
             .onNode(hasText("No plants yet!", substring = true))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun topBar_hasNoSettingsShortcut() {
+        val plant = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(plant))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {}
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
+        composeTestRule.onAllNodesWithContentDescription("Settings").assertCountEquals(0)
     }
 
     @Test
@@ -104,8 +121,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -121,8 +137,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -146,7 +161,7 @@ class PlantListScreenTest {
         )
         val viewModel = makeViewModel(plants = listOf(plant))
         composeTestRule.setContent {
-            PlantListScreen(viewModel, onNavigateToPlant = {}, onNavigateToAdd = {}, onNavigateToSettings = {})
+            PlantListScreen(viewModel, onNavigateToPlant = {}, onNavigateToAdd = {})
         }
 
         composeTestRule.onNodeWithText("Dormant").assertIsDisplayed()
@@ -164,8 +179,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -181,8 +195,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -204,8 +217,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -226,8 +238,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -248,8 +259,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -280,8 +290,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -306,8 +315,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -329,8 +337,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -346,8 +353,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -365,8 +371,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -390,8 +395,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -414,8 +418,7 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
@@ -437,20 +440,20 @@ class PlantListScreenTest {
             PlantListScreen(
                 viewModel = viewModel,
                 onNavigateToPlant = {},
-                onNavigateToAdd = {},
-                onNavigateToSettings = {}
+                onNavigateToAdd = {}
             )
         }
 
         composeTestRule.onNodeWithContentDescription("Search plants").performClick()
         composeTestRule.onNodeWithContentDescription("Search plants").performTextInput("mon")
         composeTestRule.onNodeWithText("Fern").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Settings").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Settings").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Back").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Sort plants").assertIsDisplayed()
     }
 }

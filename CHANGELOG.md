@@ -12,6 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **Settings is now a tab in the bottom bar** — the bar reads Care · Plants · Calendar · Settings, so Settings
+  is one tap away from every tab, including Care, which had no way to reach it. The gear icon on the Plants top
+  bar is gone, and Settings no longer has a back arrow (system Back from it returns to Care). While a backup
+  or restore is running the bar's tabs are disabled so you can't leave the progress dialog; they come back
+  when it finishes. Restoring a backup still lands on Plants with its message (#855, product ADR-0058)
+
 ### Added
 - **Plan a repot for a season, and choose the seasons your recurring repotting should land in** — the
   Repot tab has a new Plan repot button: pick one of the next four seasons (for example Winter 2026, Spring

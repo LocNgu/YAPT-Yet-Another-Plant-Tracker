@@ -2,6 +2,10 @@ package com.yapt.planttracker.ui.screens.settings
 
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -9,6 +13,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,12 +31,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -44,6 +51,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Collections
 
 @RunWith(AndroidJUnit4::class)
 class SettingsScreenTest {
@@ -58,6 +66,10 @@ class SettingsScreenTest {
     private lateinit var context: Context
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var plantRepository: PlantRepository
+
+    private companion object {
+        const val TIMEOUT_MS = 5_000L
+    }
 
     private val testFlag = FeatureFlag(
         key = "test_flag",
@@ -99,7 +111,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -109,11 +120,70 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun settingsTopBar_hasNoBackArrow() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onAllNodesWithContentDescription("Back").assertCountEquals(0)
+    }
+
+    @Test
+    fun backupInProgress_isReportedWhileAnOperationRunsAndClearedWhenItEnds() {
+        val reported = Collections.synchronizedList(mutableListOf<Boolean>())
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {},
+                onBackupInProgressChanged = { reported += it }
+            )
+        }
+        composeTestRule.waitForIdle()
+        assertEquals(false, reported.last())
+
+        val release = CompletableDeferred<BackupResult>()
+        composeTestRule.runOnUiThread { viewModel.proceedWithFutureSchemaImport { release.await() } }
+        composeTestRule.waitUntil(TIMEOUT_MS) { reported.lastOrNull() == true }
+
+        release.complete(BackupResult.Error("done"))
+        composeTestRule.waitUntil(TIMEOUT_MS) { reported.lastOrNull() == false }
+    }
+
+    @Test
+    fun leavingSettingsMidOperation_reportsNotInProgress() {
+        val reported = Collections.synchronizedList(mutableListOf<Boolean>())
+        var showSettings by mutableStateOf(true)
+        composeTestRule.setContent {
+            if (showSettings) {
+                SettingsScreen(
+                    viewModel = viewModel,
+                    onRestoreSuccess = { _, _ -> },
+                    onShowWhatsNew = {},
+                    onBackupInProgressChanged = { reported += it }
+                )
+            }
+        }
+        val release = CompletableDeferred<BackupResult>()
+        composeTestRule.runOnUiThread { viewModel.proceedWithFutureSchemaImport { release.await() } }
+        composeTestRule.waitUntil(TIMEOUT_MS) { reported.lastOrNull() == true }
+
+        composeTestRule.runOnUiThread { showSettings = false }
+        composeTestRule.waitForIdle()
+
+        assertEquals(false, reported.last())
+        release.complete(BackupResult.Error("done"))
+    }
+
+    @Test
     fun restoreFromBackupButton_isDisplayed() {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -127,7 +197,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -142,7 +211,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = { called = true }
             )
@@ -162,7 +230,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -191,7 +258,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -220,7 +286,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -234,7 +299,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -251,7 +315,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -270,7 +333,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -284,7 +346,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -301,7 +362,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -321,7 +381,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -338,7 +397,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -352,7 +410,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -375,7 +432,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -389,7 +445,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -412,7 +467,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -427,7 +481,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {},
                 onNavigateToGraveyard = { called = true }
@@ -486,7 +539,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -500,7 +552,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -516,7 +567,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -533,7 +583,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -560,7 +609,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = emptyFlagsViewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -584,7 +632,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -602,7 +649,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = flagViewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -629,7 +675,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = flagViewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -655,7 +700,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -672,7 +716,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -700,7 +743,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -721,7 +763,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
@@ -738,7 +779,6 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
-                onNavigateBack = {},
                 onRestoreSuccess = { _, _ -> },
                 onShowWhatsNew = {}
             )
