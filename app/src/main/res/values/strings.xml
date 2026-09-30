@@ -484,6 +484,49 @@
         <item quantity="other">%d plants archived</item>
     </plurals>
 
+    <!-- Repotting overview (#525, product ADR-0059) -->
+    <string name="repotting_overview_title">Repotting overview</string>
+    <string name="repotting_overview_chip_never">Never</string>
+    <string name="repotting_overview_chip_one_year">1+ yr</string>
+    <string name="repotting_overview_chip_two_years">2+ yr</string>
+    <string name="repotting_overview_chip_three_years">3+ yr</string>
+    <string name="repotting_overview_header_never">Never repotted</string>
+    <string name="repotting_overview_header_one_year">Not repotted in 1+ year</string>
+    <string name="repotting_overview_header_two_years">Not repotted in 2+ years</string>
+    <string name="repotting_overview_header_three_years">Not repotted in 3+ years</string>
+    <string name="repotting_overview_planned_header">Planned</string>
+    <string name="repotting_overview_last_repotted">Last repotted %1$s</string>
+    <string name="repotting_overview_never_repotted">Never repotted · added %1$s</string>
+    <string name="repotting_overview_plan_overdue">%1$s · Overdue</string>
+    <string name="repotting_overview_no_plants">No plants yet. Add a plant and it will show up here.</string>
+    <string name="repotting_overview_nothing_here">Nothing to repot here — nice work</string>
+    <string name="repotting_overview_no_other_matches">No other plants match.</string>
+    <string name="repotting_overview_row_actions_label">Show actions</string>
+    <string name="repotting_overview_action_repot">Repot…</string>
+    <string name="repotting_overview_action_plan">Plan repot…</string>
+    <string name="repotting_overview_action_change_plan">Change plan…</string>
+    <string name="repotting_overview_action_clear_plan">Clear plan</string>
+    <string name="repotting_overview_plan_saved">Repot planned for %1$s</string>
+    <string name="repotting_overview_plan_cleared">Repot plan cleared for %1$s</string>
+    <string name="repotting_overview_action_failed">Nothing was changed. Please try again.</string>
+    <string name="repotting_overview_settings_subtitle_none">No plants to review</string>
+    <plurals name="repotting_overview_settings_subtitle_never">
+        <item quantity="one">%d plant never repotted</item>
+        <item quantity="other">%d plants never repotted</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_one_year">
+        <item quantity="one">%d plant not repotted in 1+ year</item>
+        <item quantity="other">%d plants not repotted in 1+ year</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_two_years">
+        <item quantity="one">%d plant not repotted in 2+ years</item>
+        <item quantity="other">%d plants not repotted in 2+ years</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_three_years">
+        <item quantity="one">%d plant not repotted in 3+ years</item>
+        <item quantity="other">%d plants not repotted in 3+ years</item>
+    </plurals>
+
     <string name="photo_reminder_setting_title">Photo reminder</string>
     <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
     <string name="combine_notifications_title">Combine reminders</string>

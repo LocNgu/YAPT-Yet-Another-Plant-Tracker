@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -90,6 +91,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.ui.util.settingsSubtitleRes
 import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -99,12 +101,14 @@ import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongParameterList")
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit,
     onShowWhatsNew: () -> Unit,
     onNavigateToGraveyard: () -> Unit = {},
+    onNavigateToRepottingOverview: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -119,6 +123,7 @@ fun SettingsScreen(
     val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
     val postWateringReminderEnabled by viewModel.postWateringReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
+    val repottingOverviewSummary by viewModel.repottingOverviewSummary.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
@@ -672,6 +677,13 @@ fun SettingsScreen(
                 onClick = onNavigateToGraveyard
             )
 
+            SettingsItemRow(
+                icon = Icons.Filled.LocalFlorist,
+                title = stringResource(R.string.repotting_overview_title),
+                subtitle = repottingOverviewSubtitle(repottingOverviewSummary),
+                onClick = onNavigateToRepottingOverview
+            )
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
@@ -866,6 +878,15 @@ fun SettingsScreen(
         }
     }
 }
+
+// A zero count gets one neutral line whatever the chip, rather than a threshold-specific "0 plants ...".
+@Composable
+private fun repottingOverviewSubtitle(summary: RepottingOverviewSummary): String =
+    if (summary.count == 0) {
+        stringResource(R.string.repotting_overview_settings_subtitle_none)
+    } else {
+        pluralStringResource(summary.threshold.settingsSubtitleRes(), summary.count, summary.count)
+    }
 
 @Composable
 private fun SettingsItemRow(

@@ -20,6 +20,17 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   when it finishes. Restoring a backup still lands on Plants with its message (#855, product ADR-0058)
 
 ### Added
+- **Repotting overview — see which plants haven't been repotted in a long time** — a new Settings row, right after
+  Plant Graveyard, opens a page listing your active plants by how long ago they were last repotted. Pick Never,
+  1+ yr, 2+ yr, or 3+ yr (2+ yr to start, and the page remembers your last choice); a plant that was never
+  repotted is measured from the day you added it, so a new plant doesn't read as neglected, while Never lists
+  every plant with no repot logged. Plants with a planned repot sit in their own Planned group on top under every
+  chip (an ended plan is marked Overdue) and are left out of the list. Each row shows the photo, name, room, and
+  "Last repotted March 2023" or "Never repotted · added March 2023". Tap a row to open its Repot tab; long-press
+  (or use TalkBack's actions) for Repot… / Plan repot… — or Repot… / Change plan… / Clear plan on a planned
+  plant — and the page updates in place. The Settings row counts the plants your saved chip matches. It works
+  whether or not a plant has a repotting reminder, and it never adds anything to Care or notifications (#525,
+  product ADR-0059)
 - **Plan a repot for a season, and choose the seasons your recurring repotting should land in** — the
   Repot tab has a new Plan repot button: pick one of the next four seasons (for example Winter 2026, Spring
   2027, Summer 2027, Autumn 2027) and the plant reads "Planned: spring 2027" with Edit and Clear. A plan

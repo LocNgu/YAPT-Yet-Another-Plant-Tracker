@@ -25,6 +25,7 @@ class ScreenTest {
         assertEquals("add_plant", Screen.AddPlant.route)
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
+        assertEquals("repotting_overview", Screen.RepottingOverview.route)
         assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
@@ -135,6 +136,7 @@ class ScreenTest {
     fun `bottom navigation hides for nested destinations`() {
         assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false))
         assertFalse(shouldShowBottomNavigation(Screen.Graveyard.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.RepottingOverview.route, false))
         assertFalse(shouldShowBottomNavigation(null, false))
     }
 }

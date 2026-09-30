@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.RepottingOverviewPreferences
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
@@ -71,6 +72,7 @@ open class YaptApplication : Application() {
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
     val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
     val featureFlags by lazy { FeatureFlags(settingsDataStore) }
+    val repottingOverviewPreferences by lazy { RepottingOverviewPreferences(settingsDataStore) }
     val todayCareRepository by lazy {
         TodayCareRepository(
             plantRepository,
