@@ -37,7 +37,10 @@ class BackupModelsTest {
         dormancyEndMonth = dormancyEndMonth,
         fertilizingSeasons = fertilizingSeasons,
         dormantWateringIntervalDays = dormantWateringIntervalDays,
-        archivedAt = archivedAt
+        archivedAt = archivedAt,
+        repotPlanSeasonStartAt = repotPlanSeasonStartAt,
+        repotPlanMadeAt = repotPlanMadeAt,
+        repottingSeasons = repottingSeasons
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -61,7 +64,10 @@ class BackupModelsTest {
         dormancyEndMonth = dormancyEndMonth,
         fertilizingSeasons = fertilizingSeasons,
         dormantWateringIntervalDays = dormantWateringIntervalDays,
-        archivedAt = archivedAt
+        archivedAt = archivedAt,
+        repotPlanSeasonStartAt = repotPlanSeasonStartAt,
+        repotPlanMadeAt = repotPlanMadeAt,
+        repottingSeasons = repottingSeasons
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -109,7 +115,10 @@ class BackupModelsTest {
         dormancyEndMonth = 2,
         fertilizingSeasons = "SPRING,SUMMER",
         dormantWateringIntervalDays = 35,
-        archivedAt = 1_693_000_000_000L
+        archivedAt = 1_693_000_000_000L,
+        repotPlanSeasonStartAt = 1_804_032_000_000L,
+        repotPlanMadeAt = 1_790_000_000_000L,
+        repottingSeasons = "SPRING,AUTUMN"
     )
 
     private val fullLog = CareLogEntity(
@@ -149,6 +158,9 @@ class BackupModelsTest {
         assertEquals(fullPlant.fertilizingSeasons, bp.fertilizingSeasons)
         assertEquals(fullPlant.dormantWateringIntervalDays, bp.dormantWateringIntervalDays)
         assertEquals(fullPlant.archivedAt, bp.archivedAt)
+        assertEquals(fullPlant.repotPlanSeasonStartAt, bp.repotPlanSeasonStartAt)
+        assertEquals(fullPlant.repotPlanMadeAt, bp.repotPlanMadeAt)
+        assertEquals(fullPlant.repottingSeasons, bp.repottingSeasons)
     }
 
     @Test

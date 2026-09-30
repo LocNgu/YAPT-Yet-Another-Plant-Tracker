@@ -110,6 +110,9 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } returns Unit
+        // #809: a REPOT log reads the plant fresh to decide whether it clears a planned repot; none of
+        // these tests set up a plan, so an absent plant is the "nothing to clear" default.
+        every { plantRepo.getPlantById(any()) } returns flowOf(null)
         // Default: plant has no log of any type today; individual tests override to true to
         // exercise the duplicate-rejection paths (#509).
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false

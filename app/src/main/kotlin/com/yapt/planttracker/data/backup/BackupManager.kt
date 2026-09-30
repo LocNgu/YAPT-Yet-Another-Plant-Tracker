@@ -31,6 +31,11 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 21 (#809, product ADR-0057): repotPlanSeasonStartAt, repotPlanMadeAt, and repottingSeasons added
+// to BackupPlant — the one-off planned-repot target (season first day + when it was made) and the
+// recurring repotting interval's preferred seasons (same comma-separated FertilizingSeason encoding
+// as fertilizingSeasons; null = every season). Old backups deserialize all three to null: no plan,
+// every season — exactly a plant that never used the feature.
 // Schema 20 (#743): archivedAt added to BackupPlant, and export now sources plants from
 // PlantDao.getAllPlantsIncludingArchived() instead of the active-only getAllPlants() — every
 // derived collection (careLogs, photos, reminders, issues, watering adjustments) is keyed off the
@@ -78,7 +83,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 20
+const val CURRENT_SCHEMA_VERSION = 21
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -226,7 +231,12 @@ class BackupManager(
                                     SeasonalFertilizing.decode(entity.fertilizingSeasons)
                                 ),
                                 dormantWateringIntervalDays = entity.dormantWateringIntervalDays,
-                                archivedAt = entity.archivedAt
+                                archivedAt = entity.archivedAt,
+                                repotPlanSeasonStartAt = entity.repotPlanSeasonStartAt,
+                                repotPlanMadeAt = entity.repotPlanMadeAt,
+                                repottingSeasons = SeasonalFertilizing.encode(
+                                    SeasonalFertilizing.decode(entity.repottingSeasons)
+                                )
                             )
                         }
 
@@ -445,7 +455,12 @@ class BackupManager(
                         SeasonalFertilizing.decode(bp.fertilizingSeasons)
                     ),
                     dormantWateringIntervalDays = bp.dormantWateringIntervalDays,
-                    archivedAt = bp.archivedAt
+                    archivedAt = bp.archivedAt,
+                    repotPlanSeasonStartAt = bp.repotPlanSeasonStartAt,
+                    repotPlanMadeAt = bp.repotPlanMadeAt,
+                    repottingSeasons = SeasonalFertilizing.encode(
+                        SeasonalFertilizing.decode(bp.repottingSeasons)
+                    )
                 )
             }
 
