@@ -413,7 +413,7 @@ class CareLogDaoTest {
     fun `observeLastCareOfType emits the newest log of that type per plant`() = runTest {
         val a = insertParentPlant("A")
         val b = insertParentPlant("B")
-        val c = insertParentPlant("C")
+        insertParentPlant("C")
         careLogDao.insertLog(log(a, CareType.REPOT.name, loggedAt = 100L))
         careLogDao.insertLog(log(a, CareType.REPOT.name, loggedAt = 300L))
         careLogDao.insertLog(log(a, CareType.WATER.name, loggedAt = 900L))
@@ -422,7 +422,6 @@ class CareLogDaoTest {
         careLogDao.observeLastCareOfType(CareType.REPOT.name).test {
             val rows = awaitItem()
             assertEquals(listOf(PlantLastCare(a, 300L)), rows)
-            assertEquals(emptyList<PlantLastCare>(), rows.filter { it.plantId == b || it.plantId == c })
             cancelAndConsumeRemainingEvents()
         }
     }

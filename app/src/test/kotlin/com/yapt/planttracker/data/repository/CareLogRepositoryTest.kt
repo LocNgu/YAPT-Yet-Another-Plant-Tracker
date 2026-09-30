@@ -480,6 +480,8 @@ class CareLogRepositoryTest {
 
         repo.observeLastCareAtByPlant(CareType.REPOT).test {
             assertEquals(mapOf(first to 300L), awaitItem())
+            repo.addLog(careLog(plantId = second, careType = CareType.WATER, loggedAt = 950L))
+            expectNoEvents()
             cancelAndConsumeRemainingEvents()
         }
     }

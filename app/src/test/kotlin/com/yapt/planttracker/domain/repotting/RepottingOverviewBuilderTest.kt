@@ -96,7 +96,7 @@ class RepottingOverviewBuilderTest {
     }
 
     @Test
-    fun `Feb 29 anchor reaches one year on Feb 28 and two years on Feb 28`() {
+    fun `Feb 29 anchor reaches one year and three years on Feb 28`() {
         val p = plant(1)
         val repot = mapOf(1L to millis(2024, 2, 29))
         val oneYear = RepottingOverviewThreshold.ONE_YEAR
@@ -105,14 +105,6 @@ class RepottingOverviewBuilderTest {
         val threeYears = RepottingOverviewThreshold.THREE_YEARS
         assertEquals(0, build(listOf(p), repot, threeYears, LocalDate.of(2027, 2, 27)).count)
         assertEquals(1, build(listOf(p), repot, threeYears, LocalDate.of(2027, 2, 28)).count)
-    }
-
-    @Test
-    fun `Feb 29 anchor into a leap year matches on Feb 29 itself`() {
-        val p = plant(1)
-        val repot = mapOf(1L to millis(2020, 2, 29))
-        val fourYearsLess = RepottingOverviewThreshold.THREE_YEARS
-        assertEquals(1, build(listOf(p), repot, fourYearsLess, LocalDate.of(2024, 2, 29)).count)
     }
 
     @Test

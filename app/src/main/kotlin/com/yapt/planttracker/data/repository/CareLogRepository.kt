@@ -8,6 +8,7 @@ import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 /**
@@ -78,7 +79,9 @@ class CareLogRepository(
 
     /** Plant id to the timestamp of its newest [careType] log; plants with none are absent (#525). */
     fun observeLastCareAtByPlant(careType: CareType): Flow<Map<Long, Long>> =
-        careLogDao.observeLastCareOfType(careType.name).map { rows -> rows.associate { it.plantId to it.lastCareAt } }
+        careLogDao.observeLastCareOfType(careType.name)
+            .map { rows -> rows.associate { it.plantId to it.lastCareAt } }
+            .distinctUntilChanged()
 
     suspend fun getLogById(id: Long): CareLog? =
         careLogDao.getLogById(id)?.toDomain()
