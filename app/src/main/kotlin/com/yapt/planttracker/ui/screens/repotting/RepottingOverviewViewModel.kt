@@ -100,7 +100,7 @@ class RepottingOverviewViewModel(
     }
 
     // The plant is re-read inside the lock: the row the user tapped may be a snapshot older than a
-    // write that just finished, and a plant archived or deleted meanwhile is simply skipped.
+    // write that just finished, and a plant deleted meanwhile is simply skipped.
     private fun perform(plantId: Long, action: suspend (Plant) -> Event) {
         viewModelScope.launch {
             val event = actionMutex.withLock {

@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -220,7 +221,7 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
-        assert(called)
+        assertTrue(called)
     }
 
     /**
@@ -491,7 +492,7 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
-        assert(called)
+        assertTrue(called)
     }
 
     @Test
@@ -507,7 +508,7 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Repotting overview").performScrollTo().assertIsDisplayed()
         val graveyardTop = composeTestRule.onNodeWithText("Plant Graveyard").fetchSemanticsNode().positionInRoot.y
         val repottingTop = composeTestRule.onNodeWithText("Repotting overview").fetchSemanticsNode().positionInRoot.y
-        assert(graveyardTop < repottingTop)
+        assertTrue(graveyardTop < repottingTop)
     }
 
     @Test
@@ -523,7 +524,7 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Repotting overview").performScrollTo().performClick()
-        assert(called)
+        assertTrue(called)
     }
 
     @Test

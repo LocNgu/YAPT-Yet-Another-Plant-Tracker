@@ -498,7 +498,7 @@
     <string name="repotting_overview_last_repotted">Last repotted %1$s</string>
     <string name="repotting_overview_never_repotted">Never repotted · added %1$s</string>
     <string name="repotting_overview_plan_overdue">%1$s · Overdue</string>
-    <string name="repotting_overview_no_plants">No plants yet. Add a plant and it will show up here.</string>
+    <string name="repotting_overview_no_plants">No plants yet. Add a plant to start tracking repots.</string>
     <string name="repotting_overview_nothing_here">Nothing to repot here — nice work</string>
     <string name="repotting_overview_no_other_matches">No other plants match.</string>
     <string name="repotting_overview_row_actions_label">Show actions</string>

@@ -54,8 +54,6 @@ import com.yapt.planttracker.ui.util.headerRes
 import com.yapt.planttracker.ui.util.repotPlanLabelRes
 import com.yapt.planttracker.util.DateUtils
 
-internal const val REPOTTING_OVERVIEW_LIST_TAG = "repotting_overview_list"
-
 private const val ROW_NAME_MAX_LINES = 2
 
 internal fun repottingRowTag(plantId: Long): String = "repotting_overview_row_$plantId"
@@ -109,7 +107,7 @@ internal fun RepottingOverviewList(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize().testTag(REPOTTING_OVERVIEW_LIST_TAG),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
