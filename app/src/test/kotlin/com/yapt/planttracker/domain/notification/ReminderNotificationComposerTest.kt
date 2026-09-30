@@ -9,6 +9,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
@@ -348,6 +350,109 @@ class ReminderNotificationComposerTest {
         val items = ReminderNotificationComposer.computeCareReminderItems(status, now)
         assertTrue(items.any { it is CareReminderItem.WateringOverdue })
         assertTrue(items.any { it is CareReminderItem.RepottingOverdue })
+    }
+
+    // ---- Planned repot (#809, product ADR-0057) ----
+
+    private fun startOfDayUtc(year: Int, month: Int, day: Int): Long =
+        LocalDate.of(year, month, day).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+    private fun noonUtc(year: Int, month: Int, day: Int): Long =
+        LocalDate.of(year, month, day).atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+
+    /** A spring 2027 plan made on 2026-09-29, with no repotting interval configured. */
+    private fun springPlanStatus(
+        now: Long,
+        hemisphere: Hemisphere = Hemisphere.NORTHERN,
+        planSeasonStartAt: Long = startOfDayUtc(2027, 3, 1),
+        repottingIntervalDays: Int? = null,
+        lastRepottedAt: Long? = null
+    ) = CareSchedule.computeStatus(
+        plant = plantWith(repottingIntervalDays = repottingIntervalDays, createdAt = noonUtc(2025, 1, 1))
+            .copy(repotPlanSeasonStartAt = planSeasonStartAt, repotPlanMadeAt = noonUtc(2026, 9, 29)),
+        lastWateredAt = null,
+        lastFertilizedAt = null,
+        totalLogs = 0,
+        now = now,
+        lastRepottedAt = lastRepottedAt,
+        hemisphere = hemisphere
+    )
+
+    @Test
+    fun `a planned repot says planned this season for its whole season, never overdue`() {
+        for (now in listOf(noonUtc(2027, 3, 1), noonUtc(2027, 4, 15), noonUtc(2027, 5, 31))) {
+            val items = ReminderNotificationComposer.computeCareReminderItems(springPlanStatus(now), now)
+
+            assertEquals(listOf(CareReminderItem.RepottingPlannedThisSeason(FertilizingSeason.SPRING)), items)
+        }
+    }
+
+    @Test
+    fun `a planned repot counts its overdue days from the season end, not the plan start`() {
+        // The first day after spring reads 1 day overdue — counting from the Mar 1 plan start would read 92.
+        val firstDayAfter = noonUtc(2027, 6, 1)
+        val tenDaysAfter = noonUtc(2027, 6, 10)
+
+        assertEquals(
+            listOf(CareReminderItem.RepottingPlanOverdue(1)),
+            ReminderNotificationComposer.computeCareReminderItems(springPlanStatus(firstDayAfter), firstDayAfter)
+        )
+        assertEquals(
+            listOf(CareReminderItem.RepottingPlanOverdue(10)),
+            ReminderNotificationComposer.computeCareReminderItems(springPlanStatus(tenDaysAfter), tenDaysAfter)
+        )
+    }
+
+    @Test
+    fun `an upcoming planned repot is not notified`() {
+        val now = noonUtc(2027, 2, 28)
+
+        assertTrue(ReminderNotificationComposer.computeCareReminderItems(springPlanStatus(now), now).isEmpty())
+    }
+
+    @Test
+    fun `an upcoming plan suppresses an overdue interval date`() {
+        // The plan wins outright (product ADR-0057): the interval date, overdue since 2026-01-01, stays silent.
+        val now = noonUtc(2026, 10, 1)
+        val status = springPlanStatus(now, repottingIntervalDays = 365, lastRepottedAt = noonUtc(2025, 1, 1))
+
+        assertTrue(ReminderNotificationComposer.computeCareReminderItems(status, now).isEmpty())
+    }
+
+    @Test
+    fun `a planned repot names the season of the plant's hemisphere`() {
+        // Sep 1 opens spring in the southern hemisphere.
+        val now = noonUtc(2027, 9, 10)
+        val status = springPlanStatus(now, Hemisphere.SOUTHERN, planSeasonStartAt = startOfDayUtc(2027, 9, 1))
+
+        assertEquals(
+            listOf(CareReminderItem.RepottingPlannedThisSeason(FertilizingSeason.SPRING)),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `a lapsed plan counts from its season end even on a hand-built status with no season`() {
+        val now = noonUtc(2027, 6, 3)
+        val status = springPlanStatus(now).copy(repottingPlanSeason = null)
+
+        assertEquals(
+            listOf(CareReminderItem.RepottingPlanOverdue(3)),
+            ReminderNotificationComposer.computeCareReminderItems(status, now)
+        )
+    }
+
+    @Test
+    fun `a plan-only plant is notified even with fertilizing notifications off`() {
+        val now = noonUtc(2027, 4, 1)
+
+        val reminders = ReminderNotificationComposer.computeDueReminders(
+            listOf(springPlanStatus(now)),
+            now,
+            fertilizingNotificationsEnabled = false
+        )
+
+        assertEquals(1, reminders.size)
     }
 
     // ---- Custom reminders (#232) ----

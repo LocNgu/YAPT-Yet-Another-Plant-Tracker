@@ -7,6 +7,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -508,6 +509,103 @@ class TodayQueueAggregatorTest {
         assertTrue(sections.first { it.section == TodayCareSection.WATERING }.subGroups.isNotEmpty())
         assertTrue(
             sections.filter { it.section != TodayCareSection.WATERING }.all { it.subGroups.isEmpty() }
+        )
+    }
+
+    // ---- Planned repot (#809, product ADR-0057) ----
+
+    private val springStart = LocalDate.of(2027, 3, 1)
+
+    private fun springPlanPlant(id: Long = 1L, name: String = "Plant", repottingIntervalDays: Int? = null) =
+        plant(id = id, name = name, repottingIntervalDays = repottingIntervalDays)
+            .copy(repotPlanSeasonStartAt = millis(springStart), repotPlanMadeAt = millis(today))
+
+    private fun repotTaskOn(day: LocalDate, plant: Plant = springPlanPlant()): TodayCareTask? =
+        TodayQueueAggregator.build(input(plants = listOf(plant), inputToday = day))
+            .tasks.singleOrNull { it.kind == TodayCareKind.REPOT }
+
+    @Test
+    fun `an in-season plan is due today for its whole season, never overdue`() {
+        for (day in listOf(springStart, LocalDate.of(2027, 4, 15), LocalDate.of(2027, 5, 31))) {
+            val task = repotTaskOn(day)!!
+
+            assertEquals(TodayTaskBucket.Today, task.bucket)
+            assertEquals(millis(day), task.dueAt)
+            assertEquals(FertilizingSeason.SPRING, task.repotPlanSeason)
+        }
+    }
+
+    @Test
+    fun `a plan whose season has ended is overdue since the season's last day`() {
+        for (day in listOf(LocalDate.of(2027, 6, 1), LocalDate.of(2027, 11, 20))) {
+            val task = repotTaskOn(day)!!
+
+            assertEquals(TodayTaskBucket.Overdue, task.bucket)
+            assertEquals(millis(LocalDate.of(2027, 5, 31)), task.dueAt)
+            assertEquals(FertilizingSeason.SPRING, task.repotPlanSeason)
+        }
+    }
+
+    @Test
+    fun `an upcoming plan enters the three day horizon from its season start`() {
+        val task = repotTaskOn(springStart.minusDays(3))!!
+
+        assertEquals(TodayTaskBucket.Upcoming(springStart.toEpochDay()), task.bucket)
+        assertEquals(millis(springStart), task.dueAt)
+        assertEquals(null, repotTaskOn(springStart.minusDays(4)))
+    }
+
+    @Test
+    fun `an upcoming plan suppresses an overdue interval repot`() {
+        val plant = springPlanPlant(repottingIntervalDays = 30)
+
+        assertEquals(null, repotTaskOn(LocalDate.of(2026, 10, 1), plant))
+    }
+
+    @Test
+    fun `a plan's task names the season of the input's hemisphere`() {
+        // Sep 1 opens spring in the southern hemisphere.
+        val start = LocalDate.of(2027, 9, 1)
+        val plant = plant().copy(repotPlanSeasonStartAt = millis(start), repotPlanMadeAt = millis(today))
+        val input = input(plants = listOf(plant), inputToday = start.plusDays(10))
+            .copy(hemisphere = Hemisphere.SOUTHERN)
+
+        val task = TodayQueueAggregator.build(input).tasks.single { it.kind == TodayCareKind.REPOT }
+
+        assertEquals(TodayTaskBucket.Today, task.bucket)
+        assertEquals(FertilizingSeason.SPRING, task.repotPlanSeason)
+    }
+
+    @Test
+    fun `an interval repot carries no plan season and keeps its own overdue date`() {
+        val plant = plant(repottingIntervalDays = 30)
+        val dueDate = today.minusDays(30)
+        val result = TodayQueueAggregator.build(
+            input(plants = listOf(plant), logs = listOf(log(plant.id, CareType.REPOT, today.minusDays(60))))
+        )
+
+        val task = result.tasks.single { it.kind == TodayCareKind.REPOT }
+        assertEquals(TodayTaskBucket.Overdue, task.bucket)
+        assertEquals(millis(dueDate), task.dueAt)
+        assertEquals(null, task.repotPlanSeason)
+    }
+
+    @Test
+    fun `an in-season plan sorts after an overdue interval repot`() {
+        val day = LocalDate.of(2027, 4, 15)
+        val planned = springPlanPlant(id = 1L, name = "Aloe")
+        val overdue = plant(id = 2L, name = "Zamia", repottingIntervalDays = 30)
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(planned, overdue),
+                logs = listOf(log(overdue.id, CareType.REPOT, day.minusDays(40))),
+                inputToday = day
+            )
+        )
+
+        assertEquals(
+            listOf("repot:2", "repot:1"),
+            result.tasks.filter { it.kind == TodayCareKind.REPOT }.map { it.id }
         )
     }
 

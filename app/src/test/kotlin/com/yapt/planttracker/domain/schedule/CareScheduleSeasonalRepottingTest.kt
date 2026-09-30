@@ -394,9 +394,23 @@ class CareScheduleSeasonalRepottingTest {
 
         assertEquals(startOfDay(2027, 3, 1), status.nextRepottingDueAt)
         assertEquals(startOfDay(2027, 6, 1), status.repottingPlanSeasonEndAt)
+        assertEquals(FertilizingSeason.SPRING, status.repottingPlanSeason)
         assertTrue(status.isRepottingPlanned)
         assertFalse(status.isRepottingDueSoon)
         assertFalse(status.isRepottingOverdue)
+    }
+
+    @Test
+    fun `a plan's season is resolved with the status's own hemisphere`() {
+        // Sep 1 opens autumn in the north and spring in the south — the copy must name the season the
+        // due state was computed for.
+        val plant = plant(repotPlanSeasonStartAt = startOfDay(2027, 9, 1), repotPlanMadeAt = noon(2027, 1, 10))
+
+        assertEquals(FertilizingSeason.AUTUMN, status(plant, now = noon(2027, 9, 5)).repottingPlanSeason)
+        assertEquals(
+            FertilizingSeason.SPRING,
+            status(plant, now = noon(2027, 9, 5), hemisphere = Hemisphere.SOUTHERN).repottingPlanSeason
+        )
     }
 
     @Test
@@ -463,6 +477,7 @@ class CareScheduleSeasonalRepottingTest {
 
         assertEquals(noon(2027, 1, 1), status.nextRepottingDueAt)
         assertNull(status.repottingPlanSeasonEndAt)
+        assertNull(status.repottingPlanSeason)
     }
 
     @Test

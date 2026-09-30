@@ -1,7 +1,9 @@
 package com.yapt.planttracker.domain.notification
 
 import com.yapt.planttracker.domain.model.PlantCareStatus
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.util.toLocalDate
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 sealed class CareReminderItem {
@@ -12,6 +14,16 @@ sealed class CareReminderItem {
     data object FertilizeWithWatering : CareReminderItem()
     data class RepottingOverdue(val days: Int) : CareReminderItem()
     data object RepottingDueToday : CareReminderItem()
+
+    /** A one-off planned repot whose season is under way (#809, product ADR-0057): "Repot planned this spring". */
+    data class RepottingPlannedThisSeason(val season: FertilizingSeason) : CareReminderItem()
+
+    /**
+     * A one-off planned repot whose season has ended (#809, product ADR-0057). [days] counts from the
+     * season's last day, so the first day after the season reads "overdue by 1 day" — never from the
+     * plan's start, which would read months overdue on the day the season ends.
+     */
+    data class RepottingPlanOverdue(val days: Int) : CareReminderItem()
     data class CustomReminderOverdue(val name: String, val days: Int) : CareReminderItem()
     data class CustomReminderDueToday(val name: String) : CareReminderItem()
 }
@@ -47,12 +59,7 @@ object ReminderNotificationComposer {
             }
         }
 
-        if (status.isRepottingOverdue) {
-            val days = ChronoUnit.DAYS.between(status.nextRepottingDueAt!!.toLocalDate(), nowDate).toInt()
-            items.add(CareReminderItem.RepottingOverdue(days))
-        } else if (status.isRepottingDueSoon) {
-            items.add(CareReminderItem.RepottingDueToday)
-        }
+        repottingItem(status, nowDate)?.let(items::add)
 
         for (reminderStatus in status.customReminderStatuses) {
             if (reminderStatus.isOverdue) {
@@ -64,6 +71,36 @@ object ReminderNotificationComposer {
         }
 
         return items
+    }
+
+    /**
+     * A plan (#809, product ADR-0057) is due for its whole season and overdue only once it has ended, so
+     * its overdue days count from [PlantCareStatus.repottingPlanSeasonEndAt] (the first day after the
+     * season reads 1) rather than from [PlantCareStatus.nextRepottingDueAt], which for a plan is the
+     * season's first day.
+     */
+    private fun repottingItem(status: PlantCareStatus, nowDate: LocalDate): CareReminderItem? {
+        val planSeasonEndAt = status.repottingPlanSeasonEndAt
+        return when {
+            planSeasonEndAt != null -> when {
+                status.isRepottingOverdue -> {
+                    val lastDayOfSeason = planSeasonEndAt.toLocalDate().minusDays(1)
+                    CareReminderItem.RepottingPlanOverdue(
+                        ChronoUnit.DAYS.between(lastDayOfSeason, nowDate).toInt()
+                    )
+                }
+                // The season is always set alongside the season end; the fallback only guards a hand-built status.
+                status.isRepottingDueSoon ->
+                    status.repottingPlanSeason?.let(CareReminderItem::RepottingPlannedThisSeason)
+                        ?: CareReminderItem.RepottingDueToday
+                else -> null
+            }
+            status.isRepottingOverdue -> CareReminderItem.RepottingOverdue(
+                ChronoUnit.DAYS.between(status.nextRepottingDueAt!!.toLocalDate(), nowDate).toInt()
+            )
+            status.isRepottingDueSoon -> CareReminderItem.RepottingDueToday
+            else -> null
+        }
     }
 
     /**

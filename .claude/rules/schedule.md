@@ -83,7 +83,11 @@ delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
     stored timestamp, hemisphere-independent) and `RepotPlan.stateOn(nowDate)` gives UPCOMING /
     IN_SEASON / SEASON_ENDED: `nextRepottingDueAt` is the stored start, `isRepottingDueSoon` is true for
     the whole season, `isRepottingOverdue` only once the season has ended, and
-    `PlantCareStatus.repottingPlanSeasonEndAt` is non-null exactly for a plan (`isRepottingPlanned`).
+    `PlantCareStatus.repottingPlanSeasonEndAt` is non-null exactly for a plan (`isRepottingPlanned`),
+    as is `repottingPlanSeason` (the resolved season, for "planned this spring" copy). Consumers never
+    read "past `nextRepottingDueAt`" as overdue for a plan: `ReminderNotificationComposer` counts a lapsed
+    plan's overdue days from the season's last day, and `TodayQueueAggregator` buckets its task by the
+    season state (Today while in season, Overdue once ended).
   - **Preferred seasons for the interval** — without a plan, the raw date goes through
     `SeasonalRepotting.nextPreferredDueAtMillis(raw, repottingSeasons, hemisphere, anchor)` where
     `anchor = lastRepottedAt ?: createdAt`. Every season preferred (or an empty set) returns raw

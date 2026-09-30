@@ -115,18 +115,42 @@ object TodayQueueAggregator {
             watering?.let(tasks::add)
             fertilizing?.let(tasks::add)
         }
-        context.status.nextRepottingDueAt?.let { dueAt ->
-            taskForDueDate(context.input.today, dueAt) { bucket ->
-                TodayCareTask(
-                    id = "repot:${context.plant.id}",
-                    plant = context.plant,
-                    kind = TodayCareKind.REPOT,
-                    dueAt = dueAt,
-                    bucket = bucket
-                )
-            }?.let(tasks::add)
-        }
+        repottingTask(context)?.let(tasks::add)
         return tasks
+    }
+
+    private fun repottingTask(context: PlantTaskContext): TodayCareTask? {
+        val dueAt = repottingTaskDueAt(context.status, context.input.today) ?: return null
+        return taskForDueDate(context.input.today, dueAt) { bucket ->
+            TodayCareTask(
+                id = "repot:${context.plant.id}",
+                plant = context.plant,
+                kind = TodayCareKind.REPOT,
+                dueAt = dueAt,
+                bucket = bucket,
+                repotPlanSeason = context.status.repottingPlanSeason
+            )
+        }
+    }
+
+    /**
+     * The date a repotting task is bucketed and ordered by. An interval date is used as is. A one-off plan
+     * (#809, product ADR-0057) is due for its whole season and overdue only once it has ended, so its
+     * season start — [PlantCareStatus.nextRepottingDueAt] — can't be used once the season is under way,
+     * or an in-season plan would land in Overdue from its second day on. Instead: its season start while
+     * upcoming (so it enters the next-three-days horizon like any date), today while in season (Today),
+     * and the season's last day once it has ended (Overdue from the first day after the season), which
+     * keeps every task's bucket a plain function of its [TodayCareTask.dueAt].
+     */
+    private fun repottingTaskDueAt(status: PlantCareStatus, today: LocalDate): Long? {
+        val dueAt = status.nextRepottingDueAt
+        val seasonEnd = status.repottingPlanSeasonEndAt?.toLocalDate()
+        return when {
+            dueAt == null || seasonEnd == null -> dueAt
+            today.isBefore(dueAt.toLocalDate()) -> dueAt
+            today.isBefore(seasonEnd) -> today.toStartOfDayMillis()
+            else -> seasonEnd.minusDays(1).toStartOfDayMillis()
+        }
     }
 
     private fun wateringTask(context: PlantTaskContext): TodayCareTask? =

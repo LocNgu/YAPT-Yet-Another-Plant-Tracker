@@ -2,6 +2,7 @@ package com.yapt.planttracker.domain.today
 
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
 
 enum class TodayCareKind {
     WATER,
@@ -35,7 +36,9 @@ data class TodayCareTask(
     val bucket: TodayTaskBucket,
     val wateringAction: WateringTaskAction? = null,
     val customReminder: CustomReminder? = null,
-    val issueName: String? = null
+    val issueName: String? = null,
+    /** The planned season of a [TodayCareKind.REPOT] task that comes from a one-off plan (#809); else `null`. */
+    val repotPlanSeason: FertilizingSeason? = null
 )
 
 data class TodayQueueSnapshot(

@@ -48,9 +48,7 @@ object CareSchedule {
         seasonalAmplitude: Double = 0.0,
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
     ): PlantCareStatus {
-        val daysSinceWatering = lastWateredAt?.let {
-            (now - it) / ONE_DAY_MS
-        }
+        val daysSinceWatering = lastWateredAt?.let { (now - it) / ONE_DAY_MS }
         val nowDate = now.toLocalDate()
         // #699/#760 (product ADR-0044): evaluated once, right alongside nowDate, so every downstream
         // consumer of PlantCareStatus inherits suppression through isOverdue/isDueSoon rather than
@@ -111,7 +109,8 @@ object CareSchedule {
             wateringScheduleMode = wateringDue.mode,
             normalComputedNextWateringDueAt = wateringDue.normalComputedNextDueAt,
             dormantComputedNextWateringDueAt = wateringDue.dormantComputedNextDueAt,
-            repottingPlanSeasonEndAt = repottingDue.planSeasonEndAt
+            repottingPlanSeasonEndAt = repottingDue.plan?.seasonEndAtMillis,
+            repottingPlanSeason = repottingDue.plan?.season
         )
     }
 
@@ -326,9 +325,10 @@ object CareSchedule {
 
     /**
      * [computeRepottingDue]'s result: the usual [DueStatus] plus, when the due date is a one-off plan
-     * (#809), the plan's season end for [PlantCareStatus.repottingPlanSeasonEndAt].
+     * (#809), the resolved plan for [PlantCareStatus.repottingPlanSeasonEndAt] and
+     * [PlantCareStatus.repottingPlanSeason].
      */
-    private data class RepottingDueStatus(val dueStatus: DueStatus, val planSeasonEndAt: Long?)
+    private data class RepottingDueStatus(val dueStatus: DueStatus, val plan: RepotPlan?)
 
     /**
      * Repotting due status (product ADR-0022, amended by product ADR-0057). A one-off plan wins outright
@@ -354,7 +354,7 @@ object CareSchedule {
                     isOverdue = state == RepotPlanState.SEASON_ENDED,
                     isDueSoon = state == RepotPlanState.IN_SEASON
                 ),
-                plan.seasonEndAtMillis
+                plan
             )
         }
         val rawDueAt = extendedCareDueAt(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt)

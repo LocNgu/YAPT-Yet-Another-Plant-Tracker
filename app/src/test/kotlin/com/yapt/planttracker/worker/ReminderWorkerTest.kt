@@ -8,13 +8,17 @@ import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.settingsDataStore
+import com.yapt.planttracker.ui.util.repotPlannedNotificationRes
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,6 +29,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -51,6 +57,8 @@ class ReminderWorkerTest {
             app.settingsDataStore.edit {
                 it.remove(SettingsKeys.FERTILIZING_NOTIFICATIONS_ENABLED)
                 it.remove(SettingsKeys.COMBINE_NOTIFICATIONS)
+                it.remove(SettingsKeys.NOTIFICATIONS_ENABLED)
+                it.remove(SettingsKeys.POST_WATERING_REMINDER_ENABLED)
             }
         }
     }
@@ -266,6 +274,81 @@ class ReminderWorkerTest {
         assertEquals(0, notification.actions.orEmpty().size)
     }
 
+    // ---- Planned repot (#809, product ADR-0057) ----
+
+    /** The first day of the season today is in, in the hemisphere the worker itself resolves. */
+    private fun currentSeasonStart(): LocalDate {
+        val hemisphere = SeasonalWatering.currentHemisphere()
+        val today = LocalDate.now()
+        val season = SeasonalFertilizing.season(today, hemisphere)
+        var start = today.withDayOfMonth(1)
+        while (SeasonalFertilizing.season(start.minusMonths(1), hemisphere) == season) start = start.minusMonths(1)
+        return start
+    }
+
+    private fun startOfDayMillis(date: LocalDate): Long =
+        date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private suspend fun addPlanOnlyPlant(name: String, planSeasonStart: LocalDate) {
+        app.plantRepository.addPlant(
+            Plant(
+                name = name,
+                wateringIntervalDays = null,
+                repottingIntervalDays = null,
+                repotPlanSeasonStartAt = startOfDayMillis(planSeasonStart),
+                repotPlanMadeAt = startOfDayMillis(planSeasonStart.minusMonths(6)),
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+        )
+    }
+
+    @Test
+    fun `doWork notifies a plan-only plant with no interval while its season is under way`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setFertilizingNotificationsEnabled(false)
+        val seasonStart = currentSeasonStart()
+        addPlanOnlyPlant("Bonsai", seasonStart)
+
+        runWorker()
+
+        val season = SeasonalFertilizing.season(seasonStart, SeasonalWatering.currentHemisphere())
+        val notification = notificationManager.activeNotifications.single().notification
+        assertEquals("Bonsai", notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertEquals(
+            app.getString(season.repotPlannedNotificationRes()),
+            notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
+        )
+        assertEquals(0, notification.actions.orEmpty().size)
+    }
+
+    @Test
+    fun `doWork counts a lapsed plan's overdue days from its season end`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val currentStart = currentSeasonStart()
+        addPlanOnlyPlant("Bonsai", currentStart.minusMonths(3))
+
+        runWorker()
+
+        // The previous season's last day is the day before the current one started.
+        val days = ChronoUnit.DAYS.between(currentStart.minusDays(1), LocalDate.now()).toInt()
+        val notification = notificationManager.activeNotifications.single().notification
+        assertEquals(
+            app.resources.getQuantityString(R.plurals.notification_repotting_plan_overdue, days, days),
+            notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString()
+        )
+    }
+
+    @Test
+    fun `doWork posts nothing for a plan-only plant whose season is still ahead`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        addPlanOnlyPlant("Bonsai", currentSeasonStart().plusMonths(3))
+
+        runWorker()
+
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
     @Test
     fun `doWork posts nothing when no plant is due`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
@@ -337,6 +420,12 @@ class ReminderWorkerTest {
     @Test
     fun `daily cleanup preserves the independent post-watering notification`() = runBlocking {
         shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        // The settings DataStore is a process-wide singleton, so another test class (e.g. BootReceiverTest)
+        // can leave either switch off; the post-watering worker posts nothing then, so set both explicitly.
+        app.settingsDataStore.edit {
+            it[SettingsKeys.NOTIFICATIONS_ENABLED] = true
+            it[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
+        }
         TestListenableWorkerBuilder<PostWateringReminderWorker>(app).build().doWork()
         app.plantRepository.addPlant(
             Plant(name = "Cactus", wateringIntervalDays = null, createdAt = 0L, updatedAt = 0L)
