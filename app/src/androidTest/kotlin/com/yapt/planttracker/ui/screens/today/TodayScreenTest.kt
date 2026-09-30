@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -24,6 +26,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -49,6 +53,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -323,6 +328,23 @@ class TodayScreenTest {
         composeTestRule.onNodeWithContentDescription("Fern, repotting, Planned for spring").assertExists()
         composeTestRule.onNodeWithText("Planned for spring").assertExists()
         composeTestRule.onNodeWithContentDescription("Aloe, repotting").assertExists()
+    }
+
+    @Test
+    fun plannedRepotLineIsNotCutOffOnTheNarrowestTileAtLargerFontScale() {
+        // 468dp is the narrowest window that fits three columns, so every tile sits at its 140dp
+        // minimum width — the tightest a tile ever gets. At 1.3x font each season's line must render
+        // in full (it may wrap within its two lines, but never ellipsize).
+        val tasks = FertilizingSeason.entries.mapIndexed { index, season ->
+            val id = index + 1L
+            task("repot:$id", plant(id, "Monstera deliciosa $id"), TodayCareKind.REPOT, repotPlanSeason = season)
+        }
+        queue.value = TodayQueueSnapshot(tasks.size, tasks)
+        setContent(widthDp = 468.dp, fontScale = 1.3f)
+
+        for (label in listOf("Planned for spring", "Planned for summer", "Planned for autumn", "Planned for winter")) {
+            assertFalse("\"$label\" is cut off", textLayout(label).hasVisualOverflow)
+        }
     }
 
     @Test
@@ -726,6 +748,15 @@ class TodayScreenTest {
     private fun topOf(text: String): Float =
         composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
 
+    // The Text's own layout, from the unmerged tree: the tile merges its children's semantics, so the
+    // merged node would report whichever text line it saw first.
+    private fun textLayout(text: String): TextLayoutResult {
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeTestRule.onNodeWithText(text, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        return layouts.single()
+    }
+
     private fun hasStateDescription(value: String) =
         SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, value)
 
@@ -747,7 +778,8 @@ class TodayScreenTest {
         stubRepository: Boolean = true,
         restoration: StateRestorationTester? = null,
         widthDp: Dp? = null,
-        tall: Boolean = false
+        tall: Boolean = false,
+        fontScale: Float? = null
     ): TodayViewModel {
         if (stubRepository) every { repository.observeQueue() } returns queue
         val viewModel = TodayViewModel(
@@ -764,13 +796,18 @@ class TodayScreenTest {
             var frame: Modifier = Modifier
             if (widthDp != null) frame = frame.requiredWidth(widthDp)
             if (tall) frame = frame.requiredHeight(TALL_VIEWPORT)
-            Box(frame) {
-                TodayScreen(
-                    viewModel = viewModel,
-                    onNavigateToPlant = onNavigateToPlant,
-                    onNavigateToAdd = onNavigateToAdd,
-                    onLaunchPhotoCapture = onLaunchPhotoCapture
-                )
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale ?: density.fontScale)
+            ) {
+                Box(frame) {
+                    TodayScreen(
+                        viewModel = viewModel,
+                        onNavigateToPlant = onNavigateToPlant,
+                        onNavigateToAdd = onNavigateToAdd,
+                        onLaunchPhotoCapture = onLaunchPhotoCapture
+                    )
+                }
             }
         }
         if (restoration != null) restoration.setContent(content) else composeTestRule.setContent(content)
