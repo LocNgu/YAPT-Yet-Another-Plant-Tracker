@@ -76,6 +76,10 @@ class CareLogRepository(
     suspend fun getLastCareAtBetween(startMillis: Long, endMillis: Long): Map<Long, Long> =
         careLogDao.getLastCareBetween(startMillis, endMillis).associate { it.plantId to it.lastCareAt }
 
+    /** Plant id to the timestamp of its newest [careType] log; plants with none are absent (#525). */
+    fun observeLastCareAtByPlant(careType: CareType): Flow<Map<Long, Long>> =
+        careLogDao.observeLastCareOfType(careType.name).map { rows -> rows.associate { it.plantId to it.lastCareAt } }
+
     suspend fun getLogById(id: Long): CareLog? =
         careLogDao.getLogById(id)?.toDomain()
 

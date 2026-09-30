@@ -457,4 +457,30 @@ class CareLogRepositoryTest {
 
         assertEquals(0, callCount)
     }
+
+    @Test
+    fun `observeLastCareAtByPlant maps plant id to newest log of the type`() = runTest {
+        val first = init()
+        val second = db.plantDao().insertPlant(
+            PlantEntity(
+                name = "Second",
+                species = null,
+                room = null,
+                coverPhotoUri = null,
+                notes = null,
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = null,
+                createdAt = 1_000_000L,
+                updatedAt = 1_000_000L
+            )
+        )
+        repo.addLog(careLog(plantId = first, careType = CareType.REPOT, loggedAt = 100L))
+        repo.addLog(careLog(plantId = first, careType = CareType.REPOT, loggedAt = 300L))
+        repo.addLog(careLog(plantId = second, careType = CareType.WATER, loggedAt = 900L))
+
+        repo.observeLastCareAtByPlant(CareType.REPOT).test {
+            assertEquals(mapOf(first to 300L), awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }
