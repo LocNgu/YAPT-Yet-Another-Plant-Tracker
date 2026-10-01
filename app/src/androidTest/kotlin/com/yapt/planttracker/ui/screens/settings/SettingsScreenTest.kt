@@ -36,8 +36,10 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.util.toStartOfDayMillis
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,11 +48,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.time.LocalDate
 import java.util.Collections
 
 @RunWith(AndroidJUnit4::class)
@@ -217,7 +221,7 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("What's New").performScrollTo().performClick()
-        assert(called)
+        assertTrue(called)
     }
 
     /**
@@ -488,7 +492,81 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
-        assert(called)
+        assertTrue(called)
+    }
+
+    @Test
+    fun repottingOverviewRow_sitsDirectlyAfterThePlantGraveyardRow() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Repotting overview").performScrollTo().assertIsDisplayed()
+        val graveyardTop = composeTestRule.onNodeWithText("Plant Graveyard").fetchSemanticsNode().positionInRoot.y
+        val repottingTop = composeTestRule.onNodeWithText("Repotting overview").fetchSemanticsNode().positionInRoot.y
+        assertTrue(graveyardTop < repottingTop)
+    }
+
+    @Test
+    fun repottingOverviewRow_onClick_invokesCallback() {
+        var called = false
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {},
+                onNavigateToRepottingOverview = { called = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Repotting overview").performScrollTo().performClick()
+        assertTrue(called)
+    }
+
+    @Test
+    fun repottingOverviewRow_saysNothingToReviewWhenNoPlantMatches() {
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("No plants to review").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun repottingOverviewRow_countsThePlantsTheSavedThresholdMatches() {
+        val longAgo = LocalDate.of(2020, 1, 1).toStartOfDayMillis()
+        runBlocking {
+            plantRepository.addPlant(Plant(name = "Old fern", createdAt = longAgo, updatedAt = longAgo))
+            plantRepository.addPlant(Plant(name = "Old aloe", createdAt = longAgo, updatedAt = longAgo))
+            plantRepository.addPlant(Plant(name = "New cactus"))
+        }
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {}
+            )
+        }
+
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithText("2 plants not repotted in 2+ years")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+
+        runBlocking { dataStore.edit { it[SettingsKeys.REPOTTING_OVERVIEW_THRESHOLD] = "NEVER" } }
+
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithText("3 plants never repotted")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
     }
 
     /**

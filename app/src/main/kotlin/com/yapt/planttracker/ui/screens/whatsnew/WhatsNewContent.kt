@@ -25,7 +25,11 @@ object WhatsNewContent {
                 "tab and the daily notification. The plan is due for the whole season and clears itself when " +
                 "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
                 "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
-                "of coming due in the middle of winter"
+                "of coming due in the middle of winter",
+            "A new Repotting overview in Settings, right after Plant Graveyard, lists the plants you haven't " +
+                "repotted in a long time — choose Never, 1+, 2+, or 3+ years (plants you've never repotted count " +
+                "from the day you added them). Planned repots sit on top, tapping a plant opens its Repot tab, and " +
+                "long-pressing offers Repot… or Plan repot… right from the list"
         )
     )
 

@@ -14,6 +14,7 @@ import com.yapt.planttracker.data.backup.BackupManager
 import com.yapt.planttracker.data.backup.BackupManagerInterface
 import com.yapt.planttracker.data.backup.BackupResult
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.RepottingOverviewPreferences
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
@@ -21,10 +22,14 @@ import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.devmode.DemoDataSeeder
 import com.yapt.planttracker.domain.featureflag.FeatureFlag
 import com.yapt.planttracker.domain.featureflag.FeatureFlags
+import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.repotting.RepottingOverviewThreshold
+import com.yapt.planttracker.domain.repotting.observeRepottingOverview
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.ui.theme.ThemeMode
+import com.yapt.planttracker.util.dayChangeTicker
 import com.yapt.planttracker.worker.PostWateringReminderScheduler
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,6 +44,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** What the Repotting overview row's subtitle needs: the saved chip and how many plants it matches. */
+data class RepottingOverviewSummary(val threshold: RepottingOverviewThreshold, val count: Int)
 
 class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
@@ -60,8 +68,10 @@ class SettingsViewModel(
     // this class (plantRepository, database), and adding it as a 7th constructor parameter would
     // trip Detekt's LongParameterList.constructorThreshold — the same tradeoff #521 made for the
     // feature-flag list (see product ADR-0042's "Deliberate deviation from #521 AC10" section).
+    private val careLogRepository: CareLogRepository by lazy { CareLogRepository(database.careLogDao()) }
+
     private val demoDataSeeder: DemoDataSeeder by lazy {
-        DemoDataSeeder(plantRepository, CareLogRepository(database.careLogDao()), database)
+        DemoDataSeeder(plantRepository, careLogRepository, database)
     }
 
     val notificationsEnabled: StateFlow<Boolean> = dataStore.data
@@ -117,6 +127,23 @@ class SettingsViewModel(
 
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /**
+     * The Repotting overview row's subtitle (#525, product ADR-0059). Built from the same
+     * [observeRepottingOverview] pipeline the page uses, so the count can't drift from its list.
+     */
+    val repottingOverviewSummary: StateFlow<RepottingOverviewSummary> = observeRepottingOverview(
+        plants = plantRepository.getAllPlants(),
+        lastRepotAtByPlantId = careLogRepository.observeLastCareAtByPlant(CareType.REPOT),
+        threshold = RepottingOverviewPreferences(dataStore).threshold,
+        today = dayChangeTicker()
+    )
+        .map { RepottingOverviewSummary(it.threshold, it.overview.count) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            RepottingOverviewSummary(RepottingOverviewThreshold.DEFAULT, 0)
+        )
 
     val developerModeEnabled: StateFlow<Boolean> = dataStore.data
         .map { it[SettingsKeys.DEVELOPER_MODE_ENABLED] ?: false }

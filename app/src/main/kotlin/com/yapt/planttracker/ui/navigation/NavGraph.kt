@@ -56,6 +56,8 @@ import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
+import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewScreen
+import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.today.TodayScreen
@@ -478,6 +480,7 @@ fun YaptNavGraph(
                     onRestoreSuccess = navController::showRestoredPlantList,
                     onShowWhatsNew = { showWhatsNew = true },
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
+                    onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
                     onBackupInProgressChanged = { backupInProgress = it }
                 )
             }
@@ -489,6 +492,24 @@ fun YaptNavGraph(
                 GraveyardScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
+                )
+            }
+
+            composable(Screen.RepottingOverview.route) { backStackEntry ->
+                val vm: RepottingOverviewViewModel = viewModel(
+                    factory = RepottingOverviewViewModel.Factory(
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.repottingOverviewPreferences,
+                        app.quickLogUseCase
+                    )
+                )
+                RepottingOverviewScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToPlant = { plantId, tab ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
+                    }
                 )
             }
 
