@@ -297,6 +297,19 @@ class PlantDetailPlantEditLockTest {
             assertEquals(OVERRIDE_AT, stored.value?.wateringDueDateOverride)
         }
 
+    @Test
+    fun `an interval write right after a reschedule keeps the new override`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = makeVm(plant())
+
+            vm.confirmRescheduleCustomDate(OVERRIDE_AT)
+            vm.setWateringInterval(12)
+            advanceUntilIdle()
+
+            assertEquals(12, stored.value?.wateringIntervalDays)
+            assertEquals(OVERRIDE_AT, stored.value?.wateringDueDateOverride)
+        }
+
     // ---- Cover photo ----
 
     @Test

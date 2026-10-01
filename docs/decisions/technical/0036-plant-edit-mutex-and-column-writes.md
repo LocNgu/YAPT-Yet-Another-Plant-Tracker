@@ -35,9 +35,10 @@ transaction began).
 ## Decision
 
 1. **One lock, renamed `plantEditMutex`.** `intervalEditMutex` becomes `plantEditMutex` and absorbs
-   `dormancyEditMutex`. It serializes every Plant Detail write to the plant row: interval, season, pin,
-   liquid-fertilizer, dormancy, repot plan, suggestion apply/dismiss/undo, reschedule revert/undo, and the
-   cover-photo writes.
+   `dormancyEditMutex`. It serializes the Plant Detail ViewModel's own writes to the plant row: interval,
+   season, pin, liquid-fertilizer, dormancy, repot plan, suggestion apply/dismiss/undo, reschedule
+   apply/revert/undo, and the cover-photo writes. The writes inside `QuickLogUseCase` behind `quickWater`,
+   `quickFertilize`, `quickRepot` and `quickLiquidFertilize` are not covered (see Consequences, #872).
 2. **Multi-column and audit-row writes read fresh inside the lock.** Each takes `plantEditMutex`, reads
    `getPlantById(plantId).first()` inside it, and passes that plant to the use case (or copies it for the
    write) — never `plant.value`. Undo still restores its captured values unconditionally; the guarantee is
@@ -69,9 +70,9 @@ transaction began).
   ADR (its Status line carries the amendment).
 - The dormancy and interval controls can no longer interleave, at the cost of dormancy writes waiting behind
   an in-flight interval write (milliseconds).
-- Out of scope, tracked as a follow-up: full-row writes inside `QuickLogUseCase` that take a caller's
-  snapshot (`persistAdaptiveState`, `clearWateringOverrideIfActive`, the backdated branch), and the Calendar
-  and Plant List copies of apply/dismiss. They run outside `plantEditMutex`, so they remain exposed to the
-  same race against a Plant Detail write.
+- Out of scope, tracked as a follow-up (#872): full-row writes inside `QuickLogUseCase` that take a caller's
+  snapshot (`persistAdaptiveState`, `clearWateringOverrideIfActive`, the backdated branch) behind
+  `quickWater`/`quickFertilize`/`quickRepot`, and the Calendar and Plant List copies of apply/dismiss. They run
+  outside `plantEditMutex`, so they remain exposed to the same race against a Plant Detail write.
 - `QuickLogUseCase.saveReminderPhoto()` now writes only the cover column, which also hardens its Plant List,
   Calendar and Care callers against the same race.

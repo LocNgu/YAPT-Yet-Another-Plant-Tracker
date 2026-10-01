@@ -77,12 +77,13 @@ class PlantDetailViewModel(
 ) : ViewModel() {
 
     /**
-     * Serializes every Plant Detail write to the plant row that is not a plain insert elsewhere (technical
-     * ADR-0036, widening product ADR-0050's interval-only lock): the watering/fertilizing interval writes
-     * in `PlantDetailIntervalEditActions.kt` (#531 review round 1), the season toggle, liquid-fertilizer
-     * switch, pin-interval switch and dormancy writes in `PlantDetailScheduleSettingsActions.kt` (#804,
-     * #808), the repot-plan writes, the suggestion apply/dismiss/undo writes in
-     * `PlantDetailIntervalActions.kt`, the reschedule revert/undo, and the cover-photo writes (#808).
+     * Serializes the Plant Detail writes to the plant row (technical ADR-0036, widening product ADR-0050's
+     * interval-only lock): the watering/fertilizing interval writes in `PlantDetailIntervalEditActions.kt`
+     * (#531 review round 1), the season toggle, liquid-fertilizer switch, pin-interval switch and dormancy
+     * writes in `PlantDetailScheduleSettingsActions.kt` (#804, #808), the repot-plan writes, the suggestion
+     * apply/dismiss/undo writes in `PlantDetailIntervalActions.kt`, the reschedule apply/revert/undo, and
+     * the cover-photo writes (#808). Not covered: `QuickLogUseCase`'s own caller-snapshot writes behind
+     * `quickWater`/`quickFertilize`/`quickRepot`/`quickLiquidFertilize`, which stay lockless (#872).
      * Every full-row writer re-reads the plant fresh inside it rather than the (potentially stale) cached
      * [plant] StateFlow snapshot, and every single-column writer takes it too so a full-row writer that
      * already read the row can't put an older value of that column back. Not reentrant: never hold it
@@ -380,6 +381,7 @@ class PlantDetailViewModel(
     fun savePhotoLog(uri: Uri, loggedAt: Long) {
         viewModelScope.launch {
             plantEditMutex.withLock {
+                // Deliberate existence guard: no care log is written for a plant that no longer exists.
                 val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
                 careLogRepository.addLog(
                     CareLog(

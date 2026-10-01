@@ -174,9 +174,9 @@ injectable clock). A plan needs no repotting interval. Tests: `PlantDetailViewMo
 
 ### One lock for every plant-row write (#808, technical ADR-0036)
 
-`plantEditMutex` serializes every Plant Detail write to the plant row, not just the interval ones: interval,
-season, pin, liquid-fertilizer, dormancy (no separate lock), repot plan, suggestion apply/dismiss/undo,
-reschedule revert/undo, and the cover-photo writes. A full-row writer takes the lock and reads
+`plantEditMutex` serializes the Plant Detail ViewModel's own plant-row writes, not just the interval ones:
+interval, season, pin, liquid-fertilizer, dormancy (no separate lock), repot plan, suggestion apply/dismiss/undo,
+reschedule apply/revert/undo, and the cover-photo writes. A full-row writer takes the lock and reads
 `getPlantById(plantId).first()` inside it, never `plant.value` (which lags Room's echo). A single-column writer
 uses a column-specific DAO `UPDATE` (`updateWateringDueDateOverride`, `updateRepotPlan`, `updateCoverPhotoUri`)
 and still takes the lock, so a full-row writer that already read the row can't write the old value back.
@@ -185,8 +185,10 @@ never hold it (`Mutex` isn't reentrant), and events are emitted after it is rele
 captures the previous override from the fresh read; `deletePhoto()` decides "was it the cover" from the fresh
 read; `saveReminderPhoto()` delegates to `QuickLogUseCase.saveReminderPhoto()`. `updateCoverPhotoUri` does not
 fire `onPhotoReferencesRemoved`, like `updatePlant` (the daily orphan sweep covers a replaced cover). Tests:
-`PlantDetailPlantEditLockTest` (overlapping-`delay` writes plus an echo-lagged `plant` flow). Not covered yet:
-`QuickLogUseCase`'s own caller-snapshot full-row writes and the Calendar/Plant List apply/dismiss copies.
+`PlantDetailPlantEditLockTest` (overlapping-`delay` writes plus an echo-lagged `plant` flow). Not covered yet (#872):
+`QuickLogUseCase`'s own caller-snapshot full-row writes behind `quickWater`/`quickFertilize`/`quickRepot`
+(`persistAdaptiveState`, `clearWateringOverrideIfActive`, the backdated branch, all lockless) and the
+Calendar/Plant List apply/dismiss copies.
 
 ### The shared date-picker sheet (`CareDatePicker.kt`, #654/#675/#694)
 
