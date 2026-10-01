@@ -45,10 +45,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Suppress("LongParameterList", "TooManyFunctions")
 class PlantDetailViewModel(
@@ -74,18 +76,20 @@ class PlantDetailViewModel(
     internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) : ViewModel() {
 
-    /** Serializes inline dormancy writes so rapid month selections commit in tap order. */
-    internal val dormancyEditMutex = Mutex()
-
     /**
-     * Serializes the watering/fertilizing interval writes in `PlantDetailIntervalEditActions.kt`
-     * (#531 review round 1, product ADR-0048), plus the fertilizing season toggle, liquid-fertilizer
-     * switch, and pin-interval switch writes in `PlantDetailScheduleSettingsActions.kt` (#804) — and
-     * forces each one to re-read the plant fresh rather than the (potentially stale) cached [plant]
-     * StateFlow snapshot — a prior write from the same burst, or a concurrent edit from another inline
-     * setting, can still be in flight when the next one starts.
+     * Serializes every Plant Detail write to the plant row that is not a plain insert elsewhere (technical
+     * ADR-0036, widening product ADR-0050's interval-only lock): the watering/fertilizing interval writes
+     * in `PlantDetailIntervalEditActions.kt` (#531 review round 1), the season toggle, liquid-fertilizer
+     * switch, pin-interval switch and dormancy writes in `PlantDetailScheduleSettingsActions.kt` (#804,
+     * #808), the repot-plan writes, the suggestion apply/dismiss/undo writes in
+     * `PlantDetailIntervalActions.kt`, the reschedule revert/undo, and the cover-photo writes (#808).
+     * Every full-row writer re-reads the plant fresh inside it rather than the (potentially stale) cached
+     * [plant] StateFlow snapshot, and every single-column writer takes it too so a full-row writer that
+     * already read the row can't put an older value of that column back. Not reentrant: never hold it
+     * across a `quickWater*`/`quickLiquidFertilize*` call, which goes on to take it again via
+     * `applySuggestionOrPrompt`.
      */
-    internal val intervalEditMutex = Mutex()
+    internal val plantEditMutex = Mutex()
 
     /**
      * The latest −/+ tap target still waiting out its coalescing window, and the [Job] running that
@@ -349,27 +353,24 @@ class PlantDetailViewModel(
         pendingNewLogCareType = CareType.WATER
     }
 
+    /**
+     * Delegates to the shared transactional [QuickLogUseCase.saveReminderPhoto] (technical ADR-0036 —
+     * Plant List, Calendar and Care already did; this screen used to carry its own non-transactional copy
+     * that wrote the whole row from the cached [plant] snapshot). Runs inside [plantEditMutex] because the
+     * use case writes only the cover column, and the lock keeps a full-row writer that already read the row
+     * from putting the old cover back (#808). The use case never calls back into this lock. Emits nothing,
+     * as before.
+     */
     fun saveReminderPhoto(uri: Uri) {
         viewModelScope.launch {
-            val p = plant.value ?: return@launch
-            val now = System.currentTimeMillis()
-            plantPhotoRepository.addPhoto(PlantPhoto(plantId = p.id, uri = uri.toString(), capturedAt = now))
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = p.id,
-                    careType = CareType.PHOTO,
-                    loggedAt = now,
-                    photoUri = uri.toString()
-                )
-            )
-            plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = now))
+            plantEditMutex.withLock { quickLogUseCase.saveReminderPhoto(plantId, uri.toString()) }
         }
     }
 
     /**
      * The Photo tab's Add-photo sheet (#694) writes its PHOTO [CareLog] directly here rather than
      * navigating to `AddCareLogScreen` — see the issue's spec-clarification comment (in place, not a
-     * navigation). Modelled on [saveReminderPhoto] but deliberately diverges on two points: [loggedAt]
+     * navigation). Modelled on the use case's reminder-photo save but deliberately diverges on two points: [loggedAt]
      * is the date picked in the sheet (not always "now"), and there is **no**
      * [plantPhotoRepository.addPhoto] call — the unified `PhotoGallery` already merges `plant_photos`
      * with care-log photos (technical ADR-0015), so writing both would list the same image twice in the
@@ -378,16 +379,18 @@ class PlantDetailViewModel(
      */
     fun savePhotoLog(uri: Uri, loggedAt: Long) {
         viewModelScope.launch {
-            val p = plant.value ?: return@launch
-            careLogRepository.addLog(
-                CareLog(
-                    plantId = p.id,
-                    careType = CareType.PHOTO,
-                    loggedAt = loggedAt,
-                    photoUri = uri.toString()
+            plantEditMutex.withLock {
+                val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
+                careLogRepository.addLog(
+                    CareLog(
+                        plantId = p.id,
+                        careType = CareType.PHOTO,
+                        loggedAt = loggedAt,
+                        photoUri = uri.toString()
+                    )
                 )
-            )
-            plantRepository.updatePlant(p.copy(coverPhotoUri = uri.toString(), updatedAt = System.currentTimeMillis()))
+                plantRepository.updateCoverPhotoUri(p.id, uri.toString(), System.currentTimeMillis())
+            }
         }
     }
 
@@ -510,12 +513,15 @@ class PlantDetailViewModel(
             when (val src = photo.source) {
                 is GalleryPhotoSource.FromPlant -> {
                     plantPhotoRepository.deletePhoto(src.photo)
-                    val currentPlant = plant.value ?: return@launch
-                    if (photo.uri == currentPlant.coverPhotoUri) {
-                        val nextCover = plantPhotoRepository.getPhotosForPlantOnce(plantId).firstOrNull()
-                        plantRepository.updatePlant(
-                            currentPlant.copy(coverPhotoUri = nextCover?.uri, updatedAt = System.currentTimeMillis())
-                        )
+                    // Whether the deleted photo is the cover is decided from a fresh read inside the lock
+                    // (#808): a cover just set by another photo action may not have reached the cached
+                    // plant yet. The clear is a column write, so it can't revert any other column.
+                    plantEditMutex.withLock {
+                        val currentPlant = plantRepository.getPlantById(plantId).first() ?: return@withLock
+                        if (photo.uri == currentPlant.coverPhotoUri) {
+                            val nextCover = plantPhotoRepository.getPhotosForPlantOnce(plantId).firstOrNull()
+                            plantRepository.updateCoverPhotoUri(plantId, nextCover?.uri, System.currentTimeMillis())
+                        }
                     }
                 }
                 is GalleryPhotoSource.FromCareLog -> {
@@ -569,7 +575,7 @@ class PlantDetailViewModel(
          * no-op (#813, product ADR-0051): the caller shows the same "at least one season must stay
          * active" snackbar `FertilizingSeasonsSelector`'s own locked-chip tap shows, without a
          * wiggle — this fires asynchronously once the race has already resolved, not from the tap
-         * that lost it. Emitted only after `intervalEditMutex` has already been released (review
+         * that lost it. Emitted only after `plantEditMutex` has already been released (review
          * round 1) — `_events` is unbuffered and the screen's collector can itself be blocked inside
          * a `SnackbarDuration.Long` Snackbar, so emitting under the lock would stall every other
          * write sharing it.

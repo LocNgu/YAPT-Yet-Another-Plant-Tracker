@@ -82,7 +82,7 @@ private data class SeasonChipState(
  * set from [selected] here raced a second tap against Plant Detail's `plant` StateFlow, which can
  * still hold the pre-first-tap snapshot when the second tap lands. Each caller now applies the
  * toggle to its own freshest source of truth: Add/Edit Plant's local form state, Plant Detail's
- * plant row re-read inside `PlantDetailViewModel.intervalEditMutex`.
+ * plant row re-read inside `PlantDetailViewModel.plantEditMutex`.
  *
  * Also the seasons chip row for the repotting reminder's preferred seasons on Add/Edit Plant (#809,
  * product ADR-0057) — same [Set] of [FertilizingSeason], same chips and last-chip lock; only the

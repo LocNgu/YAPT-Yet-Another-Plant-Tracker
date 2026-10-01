@@ -9,6 +9,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.components.TimeRange
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Plain reset of the raw suggestion with no confidence side effect — as opposed to
@@ -31,11 +32,17 @@ fun PlantDetailViewModel.clearSuggestedInterval() {
  * .recordWateringSuggestionDismissal] (#674) — the same choke point the Calendar/Plant List dismiss
  * actions now share — so the confidence bump and the matching
  * [WateringAdjustmentTrigger.DIALOG_DISMISSAL] row can't drift between screens; this wrapper only
- * handles the ViewModel-scoped bits (reading the current [plant], clearing the pending suggestion).
+ * handles the ViewModel-scoped bits (clearing the pending suggestion). The plant is read fresh inside
+ * [PlantDetailViewModel.plantEditMutex] (#808, technical ADR-0036) — the use case writes the whole row
+ * back, so a cached [plant] snapshot lagging an interval/pin write would silently revert it.
  */
 fun PlantDetailViewModel.dismissSuggestedInterval() {
     viewModelScope.launch {
-        plant.value?.let { p -> quickLogUseCase.recordWateringSuggestionDismissal(p) }
+        plantEditMutex.withLock {
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                quickLogUseCase.recordWateringSuggestionDismissal(p)
+            }
+        }
         suggestedWateringInterval.value = null
         suggestedWateringBaseInterval.value = null
     }
@@ -58,29 +65,38 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
         suggestedWateringBaseInterval.value = suggestedBaseInterval
         return
     }
-    val p = plant.value ?: return
-    // #644: applyWateringIntervalSuggestion's newInterval is effective-space now — convert the raw
-    // (base-space) suggestedInterval the same way pendingWateringSuggestion does, so a silent apply
-    // commits the same number the dialog would have shown/pre-filled had it been shown.
-    val amplitude = dataStore.seasonalAmplitudeOnce()
-    val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-        plant = p.copy(
-            wateringBaseIntervalDays = suggestedBaseInterval,
-            wateringIntervalDays = suggestedInterval
-        ),
-        seasonalAmplitude = amplitude
-    ) ?: suggestedInterval
-    // Always hand the precise base across, never only when it differs from the rounded value: the
-    // no-base overload re-derives it as deseasonalize(effectiveInterval), and since effectiveInterval
-    // is already round(base x season), that round-trip loses the fraction and ratchets the base --
-    // the very defect this path exists to fix (#718, technical ADR-0027). An exactly-whole base is
-    // still an exact base and must be committed as-is.
-    val result = quickLogUseCase.applyWateringIntervalSuggestion(
-        p,
-        suggestedInterval,
-        effectiveInterval,
-        suggestedBaseInterval
-    )
+    // Read fresh inside the lock, never plant.value (#808, technical ADR-0036): the quickWater*/
+    // quickLiquidFertilize* call that produced this suggestion has just written the plant row (cleared
+    // override, new confidence), and the cached snapshot usually still predates that write — the use
+    // case's full-row apply would restore the override and the old confidence. The lock is taken here,
+    // never by the callers around quickWater*, because Mutex is not reentrant.
+    val result = plantEditMutex.withLock {
+        val p = plantRepository.getPlantById(plantId).first() ?: return@withLock null
+        // #644: applyWateringIntervalSuggestion's newInterval is effective-space now — convert the raw
+        // (base-space) suggestedInterval the same way pendingWateringSuggestion does, so a silent apply
+        // commits the same number the dialog would have shown/pre-filled had it been shown.
+        val amplitude = dataStore.seasonalAmplitudeOnce()
+        val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+            plant = p.copy(
+                wateringBaseIntervalDays = suggestedBaseInterval,
+                wateringIntervalDays = suggestedInterval
+            ),
+            seasonalAmplitude = amplitude
+        ) ?: suggestedInterval
+        // Always hand the precise base across, never only when it differs from the rounded value: the
+        // no-base overload re-derives it as deseasonalize(effectiveInterval), and since effectiveInterval
+        // is already round(base x season), that round-trip loses the fraction and ratchets the base --
+        // the very defect this path exists to fix (#718, technical ADR-0027). An exactly-whole base is
+        // still an exact base and must be committed as-is.
+        quickLogUseCase.applyWateringIntervalSuggestion(
+            p,
+            suggestedInterval,
+            effectiveInterval,
+            suggestedBaseInterval
+        )
+    } ?: return
+    // After the lock is released: _events is unbuffered, so emitting under it could stall every other
+    // write behind a collector blocked in a Snackbar (same posture as toggleFertilizingSeason).
     emitEvent(
         PlantDetailViewModel.Event.SilentIntervalApplied(
             beforeIntervalDays = result.previousEffectiveIntervalDays,
@@ -117,12 +133,14 @@ fun PlantDetailViewModel.applySuggestedInterval(newInterval: Int) {
         val preciseSuggestion = suggestedWateringBaseInterval.value.takeIf {
             pendingWateringSuggestion.value?.effectiveIntervalDays == newInterval
         }
-        plant.value?.let { p ->
-            // preciseSuggestion is deliberately null when the user retyped the field: that number is a
-            // manual effective-space value with no model base behind it, so it must be de-seasonalized
-            // normally (technical ADR-0027). Passed explicitly rather than by omission so the two cases
-            // read as a decision instead of a forgotten argument.
-            quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
+        plantEditMutex.withLock {
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                // preciseSuggestion is deliberately null when the user retyped the field: that number is a
+                // manual effective-space value with no model base behind it, so it must be de-seasonalized
+                // normally (technical ADR-0027). Passed explicitly rather than by omission so the two cases
+                // read as a decision instead of a forgotten argument.
+                quickLogUseCase.applyWateringIntervalSuggestion(p, originalSuggestion, newInterval, preciseSuggestion)
+            }
         }
         suggestedWateringInterval.value = null
         suggestedWateringBaseInterval.value = null
@@ -145,25 +163,30 @@ fun PlantDetailViewModel.applySuggestedInterval(newInterval: Int) {
  */
 fun PlantDetailViewModel.undoSilentIntervalApply(beforeIntervalDays: Int, beforeBaseIntervalDays: Double?) {
     viewModelScope.launch {
-        plant.value?.let { p ->
-            val silentlyAppliedInterval = p.wateringIntervalDays ?: beforeIntervalDays
-            val now = System.currentTimeMillis()
-            plantRepository.updatePlant(
-                p.copy(
-                    wateringIntervalDays = beforeIntervalDays,
-                    wateringBaseIntervalDays = beforeBaseIntervalDays,
-                    updatedAt = now
+        // Fresh read inside the lock (#808, technical ADR-0036): the two interval columns are restored
+        // unconditionally, but every other column on the row must keep whatever a concurrent write
+        // (pin, season, dormancy, ...) just stored — the cached plant StateFlow may not show it yet.
+        plantEditMutex.withLock {
+            plantRepository.getPlantById(plantId).first()?.let { p ->
+                val silentlyAppliedInterval = p.wateringIntervalDays ?: beforeIntervalDays
+                val now = System.currentTimeMillis()
+                plantRepository.updatePlant(
+                    p.copy(
+                        wateringIntervalDays = beforeIntervalDays,
+                        wateringBaseIntervalDays = beforeBaseIntervalDays,
+                        updatedAt = now
+                    )
                 )
-            )
-            wateringAdjustmentRepository.addAdjustment(
-                WateringAdjustment(
-                    plantId = p.id,
-                    triggeredAt = now,
-                    trigger = WateringAdjustmentTrigger.SILENT_APPLY_UNDONE,
-                    beforeIntervalDays = silentlyAppliedInterval,
-                    afterIntervalDays = beforeIntervalDays
+                wateringAdjustmentRepository.addAdjustment(
+                    WateringAdjustment(
+                        plantId = p.id,
+                        triggeredAt = now,
+                        trigger = WateringAdjustmentTrigger.SILENT_APPLY_UNDONE,
+                        beforeIntervalDays = silentlyAppliedInterval,
+                        afterIntervalDays = beforeIntervalDays
+                    )
                 )
-            )
+            }
         }
     }
 }

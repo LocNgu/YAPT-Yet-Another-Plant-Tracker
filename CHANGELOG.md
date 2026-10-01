@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **A quick second action on Plant Detail could silently undo the first** — applying, dismissing or undoing a suggested watering interval, reverting a reschedule (and undoing that), changing the cover photo (taking, adding or deleting one), and editing the dormancy window each saved the whole plant from a snapshot that could still predate a change made a moment earlier, so tapping one right after another setting (the pin switch, an interval edit, a watering that cleared a reschedule) could quietly put the older value back. Those actions now share one lock with the interval, season, pin and liquid-fertilizer settings and read the plant fresh inside it, and the single-field ones (reschedule revert, cover photo) update only their own field. Plant Detail's reminder photo now goes through the same all-or-nothing save as the Plants, Calendar and Care reminders. The same race can still affect the adaptive watering-interval bookkeeping inside quick-water and the Calendar/Plant List copies of apply/dismiss, tracked as a follow-up (#808, technical ADR-0036, amending product ADR-0050)
+
 ## [0.34.0] - 2026-10-01
 
 ### Changed

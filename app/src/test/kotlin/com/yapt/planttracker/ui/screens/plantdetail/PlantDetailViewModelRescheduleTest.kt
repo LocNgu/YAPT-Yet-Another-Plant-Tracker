@@ -232,7 +232,7 @@ class PlantDetailViewModelRescheduleTest {
         runTest {
             val monstera = plant().copy(wateringIntervalDays = 7, wateringDueDateOverride = 1_800_000_000_000L)
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
+            coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } just runs
             val vm = makeVm()
 
             vm.plant.test {
@@ -246,7 +246,8 @@ class PlantDetailViewModelRescheduleTest {
                 cancelAndIgnoreRemainingEvents()
             }
 
-            coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+            coVerify { plantRepo.updateWateringDueDateOverride(1L, null, any()) }
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         }
 
     @Test
@@ -259,7 +260,7 @@ class PlantDetailViewModelRescheduleTest {
                 wateringDueDateOverride = 1_800_000_000_000L
             )
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-            coEvery { plantRepo.updatePlant(any()) } just runs
+            coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } just runs
             val vm = makeVm()
 
             vm.plant.test {
@@ -268,15 +269,10 @@ class PlantDetailViewModelRescheduleTest {
                 cancelAndIgnoreRemainingEvents()
             }
 
-            coVerify {
-                plantRepo.updatePlant(
-                    match {
-                        it.wateringIntervalDays == 7 &&
-                            it.wateringBaseIntervalDays == 7.0 &&
-                            it.wateringConfidence == 3
-                    }
-                )
-            }
+            // A column-specific write names only the override, so interval, base and confidence can't
+            // change by construction — a full-row updatePlant() must never be used here (#808).
+            coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(1L, null, any()) }
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
             coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
         }
 
@@ -296,13 +292,14 @@ class PlantDetailViewModelRescheduleTest {
         }
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepo.updateWateringDueDateOverride(any(), any(), any()) }
     }
 
     @Test
     fun `undoRevertReschedule restores the prior wateringDueDateOverride as-is`() = runTest {
         val monstera = plant().copy(wateringIntervalDays = 7, wateringDueDateOverride = null)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } just runs
         val vm = makeVm()
 
         vm.plant.test {
@@ -311,6 +308,7 @@ class PlantDetailViewModelRescheduleTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == 1_800_000_000_000L }) }
+        coVerify { plantRepo.updateWateringDueDateOverride(1L, 1_800_000_000_000L, any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 }

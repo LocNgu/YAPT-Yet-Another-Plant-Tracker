@@ -390,35 +390,28 @@ class PlantDetailViewModelQuickActionsTest {
     }
 
     @Test
-    fun `saveReminderPhoto adds a PHOTO care log, plant_photos row, and updates cover`() = runTest {
+    fun `saveReminderPhoto delegates to the shared transactional use case and emits nothing`() = runTest {
         val monstera = plant()
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
-        coEvery { plantPhotoRepo.addPhoto(any()) } returns 1L
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") } returns
+            monstera.copy(coverPhotoUri = "content://reminder.jpg")
         val vm = makeVm()
         val uri: Uri = mockk()
         every { uri.toString() } returns "content://reminder.jpg"
 
         vm.plant.test {
             assertEquals(monstera, awaitItem())
-            vm.saveReminderPhoto(uri)
+            vm.events.test {
+                vm.saveReminderPhoto(uri)
+                expectNoEvents()
+            }
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify {
-            plantPhotoRepo.addPhoto(match { it.uri == "content://reminder.jpg" && it.plantId == 1L })
-        }
-        coVerify {
-            careLogRepo.addLog(
-                match {
-                    it.careType == CareType.PHOTO && it.photoUri == "content://reminder.jpg" && it.plantId == 1L
-                }
-            )
-        }
-        coVerify {
-            plantRepo.updatePlant(match { it.coverPhotoUri == "content://reminder.jpg" })
-        }
+        coVerify(exactly = 1) { quickLogUseCase.saveReminderPhoto(1L, "content://reminder.jpg") }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        coVerify(exactly = 0) { plantPhotoRepo.addPhoto(any()) }
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
     }
 
     // #694: the Photo tab's Add-photo sheet logs in place rather than navigating to
@@ -432,7 +425,7 @@ class PlantDetailViewModelQuickActionsTest {
             val pickedLoggedAt = 111_222_333L
             every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
             coEvery { careLogRepo.addLog(any()) } returns 1L
-            coEvery { plantRepo.updatePlant(any()) } just runs
+            coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } just runs
             val vm = makeVm()
             val uri: Uri = mockk()
             every { uri.toString() } returns "content://add-photo.jpg"
@@ -453,9 +446,8 @@ class PlantDetailViewModelQuickActionsTest {
                     }
                 )
             }
-            coVerify {
-                plantRepo.updatePlant(match { it.coverPhotoUri == "content://add-photo.jpg" })
-            }
+            coVerify { plantRepo.updateCoverPhotoUri(1L, "content://add-photo.jpg", any()) }
+            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
             coVerify(exactly = 0) { plantPhotoRepo.addPhoto(any()) }
         }
 }

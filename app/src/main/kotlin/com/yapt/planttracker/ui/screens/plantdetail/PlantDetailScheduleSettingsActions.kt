@@ -13,20 +13,25 @@ import kotlin.math.roundToInt
 
 /**
  * "Pin interval" switch on the inline Water tab settings card (#569), always visible (#656). Reads
- * the plant fresh inside [PlantDetailViewModel.intervalEditMutex] (#804) rather than the cached
+ * the plant fresh inside [PlantDetailViewModel.plantEditMutex] (#804) rather than the cached
  * `plant` StateFlow, which a season-toggle or liquid-fertilizer write sharing this lock can still
  * have in flight.
  */
 fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
     viewModelScope.launch {
-        intervalEditMutex.withLock {
+        plantEditMutex.withLock {
             val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
             plantRepository.updatePlant(p.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
         }
     }
 }
 
-/** Persist a complete window, or clear both columns together, from the Water tab (#762). */
+/**
+ * Persist a complete window, or clear both columns together, from the Water tab (#762). Shares
+ * [PlantDetailViewModel.plantEditMutex] with every other full-row writer on this screen (#808,
+ * technical ADR-0036) — it used to hold its own lock, so a dormancy edit could interleave with an
+ * interval, season, pin or liquid-fertilizer write and silently revert it, or be reverted by it.
+ */
 fun PlantDetailViewModel.setDormancyWindow(
     startMonth: Int?,
     endMonth: Int?,
@@ -41,7 +46,7 @@ fun PlantDetailViewModel.setDormancyWindow(
             DormancyWindow.validWateringInterval(dormantWateringIntervalDays) != null
     )
     viewModelScope.launch {
-        dormancyEditMutex.withLock {
+        plantEditMutex.withLock {
             // Read inside the lock: a previous selection may have committed while the screen's
             // StateFlow still holds its older Plant snapshot.
             plantRepository.getPlantById(plantId).first()?.let { current ->
@@ -79,7 +84,7 @@ internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant
 /**
  * Inline auto-save for the Fertilize tab's season selector (#795). [FertilizingSeasonsSelector]
  * reports the tapped [season] rather than a full replacement set (#804) — this reads the plant
- * fresh inside [PlantDetailViewModel.intervalEditMutex], applies the toggle to *that* set, and
+ * fresh inside [PlantDetailViewModel.plantEditMutex], applies the toggle to *that* set, and
  * rejects (writes nothing) if the result would be empty, same rule as Add/Edit Plant but checked
  * against the freshly read row rather than the cached `plant` StateFlow. A prior season toggle, or
  * a liquid-fertilizer/pin-interval write sharing this lock, can still be in flight when the next
@@ -90,13 +95,13 @@ internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant
  * mutex, not from inside it: `_events` is unbuffered, so `emitEvent` suspends until the screen's
  * collector is ready, which can itself be suspended for up to `SnackbarDuration.Long` showing an
  * unrelated Snackbar. Emitting under the lock would hold it for that whole wait, stalling every
- * other write sharing `intervalEditMutex` (`setPinIntervalToBase`, `setLiquidFertilizer`, another
+ * other write sharing `plantEditMutex` (`setPinIntervalToBase`, `setLiquidFertilizer`, another
  * season toggle) behind it.
  */
 fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
     viewModelScope.launch {
         var rejected = false
-        intervalEditMutex.withLock {
+        plantEditMutex.withLock {
             val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
             val newSeasons = if (season in p.fertilizingSeasons) {
                 p.fertilizingSeasons - season
@@ -117,12 +122,12 @@ fun PlantDetailViewModel.toggleFertilizingSeason(season: FertilizingSeason) {
 
 /**
  * Liquid-fertilizer switch on the Fertilize tab's inline settings card. Reads the plant fresh
- * inside [PlantDetailViewModel.intervalEditMutex] (#804) rather than the cached `plant` StateFlow,
+ * inside [PlantDetailViewModel.plantEditMutex] (#804) rather than the cached `plant` StateFlow,
  * which a season-toggle or pin-interval write sharing this lock can still have in flight.
  */
 fun PlantDetailViewModel.setLiquidFertilizer(enabled: Boolean) {
     viewModelScope.launch {
-        intervalEditMutex.withLock {
+        plantEditMutex.withLock {
             val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
             plantRepository.updatePlant(p.copy(useLiquidFertilizer = enabled, updatedAt = System.currentTimeMillis()))
         }

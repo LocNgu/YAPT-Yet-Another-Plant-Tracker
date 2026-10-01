@@ -34,7 +34,7 @@ import org.junit.Test
  * straight from the cached `plant` StateFlow snapshot (or, for the season selector, a full
  * replacement set built by the UI from that same stale snapshot). A second tap landing before Room
  * echoed the first write back could silently discard it. Fixed by moving all three onto
- * [PlantDetailViewModel.intervalEditMutex], reading the plant fresh
+ * [PlantDetailViewModel.plantEditMutex], reading the plant fresh
  * (`plantRepository.getPlantById(plantId).first()`) inside the lock — same fix as the watering/
  * fertilizing interval writes (#531 review round 1, product ADR-0050).
  *
@@ -131,7 +131,7 @@ class PlantDetailScheduleSettingsActionsFreshReadTest {
             // `plant.value` or re-reads the repository fresh — that shape doesn't actually exercise
             // the fix (#804 review round 1). Modelled instead with two *separate* stubbed flows:
             // `getPlantById` is called exactly once to build the VM's own `plant` StateFlow (at
-            // construction) and once more per fresh read inside `intervalEditMutex` (this test's one
+            // construction) and once more per fresh read inside `plantEditMutex` (this test's one
             // `toggleFertilizingSeason` call) — `returnsMany` hands back a different, independent
             // flow for each, so `plant.value` genuinely cannot see the second one.
             val staleTwoSeasonRow =
