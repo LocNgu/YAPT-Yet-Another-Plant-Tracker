@@ -1470,12 +1470,9 @@ class AddCareLogViewModelTest {
             vm.selectedFeedback = WateringFeedback.TOO_LATE
             vm.loggedAt = peakDay
 
-            vm.events.test {
-                vm.saveLog()
-                val event = awaitItem() as AddCareLogViewModel.Event.Saved
-                assertNull(event.suggestedWateringInterval)
-                cancelAndIgnoreRemainingEvents()
-            }
+            // displayNow pinned to peakDay, the "today" the arithmetic above assumes: saveLog() would read the
+            // real clock for the display-day gate (#716 rr1), and on some days the rounding crosses (#869).
+            assertNull(vm.computeSuggestedInterval(displayNow = peakDay))
 
             // technical ADR-0027: silently persists the moved base even though nothing is surfaced.
             coVerify {
@@ -1510,12 +1507,9 @@ class AddCareLogViewModelTest {
         vm.selectedFeedback = null
         vm.loggedAt = sep13
 
-        vm.events.test {
-            vm.saveLog()
-            val event = awaitItem() as AddCareLogViewModel.Event.Saved
-            assertNull(event.suggestedWateringInterval)
-            cancelAndIgnoreRemainingEvents()
-        }
+        // displayNow pinned to the worked example's own day, as the QuickLogUseCase twin pins nowProvider:
+        // saveLog() reads the real clock for the display-day gate (#716 rr1), so today's season decided this (#869).
+        assertNull(vm.computeSuggestedInterval(displayNow = sep13))
     }
 
     /**
