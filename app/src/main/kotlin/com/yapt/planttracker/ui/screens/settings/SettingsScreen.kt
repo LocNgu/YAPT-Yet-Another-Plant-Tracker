@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.BugReport
@@ -31,6 +30,7 @@ import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -46,7 +46,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -61,6 +60,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -91,6 +91,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.ui.util.settingsSubtitleRes
 import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -100,13 +101,15 @@ import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongParameterList")
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit,
     onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit,
     onShowWhatsNew: () -> Unit,
-    onNavigateToGraveyard: () -> Unit = {}
+    onNavigateToGraveyard: () -> Unit = {},
+    onNavigateToRepottingOverview: () -> Unit = {},
+    onBackupInProgressChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val versionName = remember {
@@ -120,6 +123,7 @@ fun SettingsScreen(
     val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
     val postWateringReminderEnabled by viewModel.postWateringReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
+    val repottingOverviewSummary by viewModel.repottingOverviewSummary.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
     val isBackupInProgress by viewModel.isBackupInProgress.collectAsStateWithLifecycle()
@@ -129,6 +133,11 @@ fun SettingsScreen(
     val askBeforeChangingIntervals by viewModel.askBeforeChangingIntervals.collectAsStateWithLifecycle()
 
     BackHandler(enabled = isBackupInProgress) { /* consume back press while operation is running */ }
+    // Settings is a bottom-bar tab, so the bar must be disabled while an operation runs or the user
+    // could switch away from its progress dialog. Reset on dispose so the bar never stays disabled
+    // if this screen leaves composition mid-operation.
+    LaunchedEffect(isBackupInProgress) { onBackupInProgressChanged(isBackupInProgress) }
+    DisposableEffect(Unit) { onDispose { onBackupInProgressChanged(false) } }
     var showTimePicker by remember { mutableStateOf(false) }
     // Screen-scoped: a fresh remember{} on every entry into Settings, so leaving the screen
     // and returning always starts the countdown over (#520 AC3 — no wall-clock timeout).
@@ -426,14 +435,7 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !isBackupInProgress && !showFutureSchemaDialog) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                }
-            )
+            TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
         }
     ) { padding ->
         Column(
@@ -675,6 +677,13 @@ fun SettingsScreen(
                 onClick = onNavigateToGraveyard
             )
 
+            SettingsItemRow(
+                icon = Icons.Filled.LocalFlorist,
+                title = stringResource(R.string.repotting_overview_title),
+                subtitle = repottingOverviewSubtitle(repottingOverviewSummary),
+                onClick = onNavigateToRepottingOverview
+            )
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
@@ -869,6 +878,15 @@ fun SettingsScreen(
         }
     }
 }
+
+// A zero count gets one neutral line whatever the chip, rather than a threshold-specific "0 plants ...".
+@Composable
+private fun repottingOverviewSubtitle(summary: RepottingOverviewSummary): String =
+    if (summary.count == 0) {
+        stringResource(R.string.repotting_overview_settings_subtitle_none)
+    } else {
+        pluralStringResource(summary.threshold.settingsSubtitleRes(), summary.count, summary.count)
+    }
 
 @Composable
 private fun SettingsItemRow(

@@ -22,6 +22,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -984,6 +985,131 @@ class AddCareLogViewModelTest {
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
+    // #809 (product ADR-0057): a new REPOT log clears a planned repot when its local calendar day is on
+    // or after the plan-made day — this VM's own copy of the pattern QuickLogUseCase also implements.
+    private val planMadeAt = localDateUtcMillis(2026, 9, 29)
+    private val planStart = localDateUtcMillis(2027, 3, 1)
+
+    private fun plannedPlant() = plant(wateringIntervalDays = 7)
+        .copy(repotPlanSeasonStartAt = planStart, repotPlanMadeAt = planMadeAt)
+
+    private fun repotVm(plant: Plant = plannedPlant(), loggedAt: Long): AddCareLogViewModel {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant)
+        coEvery { careLogRepo.addLog(any()) } returns 1L
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantRepo.clearRepotPlan(any(), any()) } just runs
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            wateringAdjustmentRepository = mockk(relaxed = true)
+        )
+        vm.selectedCareType = CareType.REPOT
+        vm.loggedAt = loggedAt
+        return vm
+    }
+
+    @Test
+    fun `save new REPOT log after the plan-made day clears the plan after the reset write`() = runTest {
+        val vm = repotVm(loggedAt = localDateUtcMillis(2026, 10, 1))
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerifyOrder {
+            plantRepo.updatePlant(match { it.wateringConfidence == 0 })
+            plantRepo.clearRepotPlan(1L, any())
+        }
+    }
+
+    @Test
+    fun `save new REPOT log on the plan-made day clears the plan`() = runTest {
+        val vm = repotVm(loggedAt = planMadeAt)
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { plantRepo.clearRepotPlan(1L, any()) }
+    }
+
+    @Test
+    fun `save new REPOT log backdated to before the plan-made day keeps the plan`() = runTest {
+        val vm = repotVm(loggedAt = localDateUtcMillis(2026, 9, 28))
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.clearRepotPlan(any(), any()) }
+        coVerify(exactly = 1) { plantRepo.updatePlant(match { it.wateringConfidence == 0 }) }
+    }
+
+    @Test
+    fun `save new REPOT log on a plant with no plan never writes the plan columns`() = runTest {
+        val vm = repotVm(plant = plant(wateringIntervalDays = 7), loggedAt = localDateUtcMillis(2026, 10, 1))
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.clearRepotPlan(any(), any()) }
+    }
+
+    @Test
+    fun `save a non-REPOT log never clears the plan`() = runTest {
+        val vm = repotVm(loggedAt = localDateUtcMillis(2026, 10, 1))
+        vm.selectedCareType = CareType.PRUNE
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.clearRepotPlan(any(), any()) }
+    }
+
+    @Test
+    fun `editing an existing REPOT log never clears the plan`() = runTest {
+        val existingLog = CareLog(
+            id = 99L,
+            plantId = 1L,
+            careType = CareType.REPOT,
+            loggedAt = localDateUtcMillis(2026, 1, 5)
+        )
+        coEvery { careLogRepo.getLogById(99L) } returns existingLog
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        coEvery { plantRepo.clearRepotPlan(any(), any()) } just runs
+        every { plantRepo.getPlantById(1L) } returns flowOf(plannedPlant())
+        val vm = AddCareLogViewModel(
+            careLogRepo,
+            plantRepo,
+            plantId = 1L,
+            careLogId = 99L,
+            wateringAdjustmentRepository = mockk(relaxed = true)
+        )
+        advanceUntilIdle()
+        vm.loggedAt = localDateUtcMillis(2026, 11, 5)
+
+        vm.events.test {
+            vm.saveLog()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { plantRepo.clearRepotPlan(any(), any()) }
+    }
+
     @Test
     fun `save PHOTO log with photoUri updates plant coverPhotoUri`() = runTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(plant())
@@ -1344,12 +1470,9 @@ class AddCareLogViewModelTest {
             vm.selectedFeedback = WateringFeedback.TOO_LATE
             vm.loggedAt = peakDay
 
-            vm.events.test {
-                vm.saveLog()
-                val event = awaitItem() as AddCareLogViewModel.Event.Saved
-                assertNull(event.suggestedWateringInterval)
-                cancelAndIgnoreRemainingEvents()
-            }
+            // displayNow pinned to peakDay, the "today" the arithmetic above assumes: saveLog() would read the
+            // real clock for the display-day gate (#716 rr1), and on some days the rounding crosses (#869).
+            assertNull(vm.computeSuggestedInterval(displayNow = peakDay))
 
             // technical ADR-0027: silently persists the moved base even though nothing is surfaced.
             coVerify {
@@ -1384,12 +1507,9 @@ class AddCareLogViewModelTest {
         vm.selectedFeedback = null
         vm.loggedAt = sep13
 
-        vm.events.test {
-            vm.saveLog()
-            val event = awaitItem() as AddCareLogViewModel.Event.Saved
-            assertNull(event.suggestedWateringInterval)
-            cancelAndIgnoreRemainingEvents()
-        }
+        // displayNow pinned to the worked example's own day, as the QuickLogUseCase twin pins nowProvider:
+        // saveLog() reads the real clock for the display-day gate (#716 rr1), so today's season decided this (#869).
+        assertNull(vm.computeSuggestedInterval(displayNow = sep13))
     }
 
     /**

@@ -183,6 +183,14 @@
         <item quantity="one">Repotting overdue by 1 day</item>
         <item quantity="other">Repotting overdue by %d days</item>
     </plurals>
+    <string name="notification_repotting_planned_spring">Repot planned this spring</string>
+    <string name="notification_repotting_planned_summer">Repot planned this summer</string>
+    <string name="notification_repotting_planned_autumn">Repot planned this autumn</string>
+    <string name="notification_repotting_planned_winter">Repot planned this winter</string>
+    <plurals name="notification_repotting_plan_overdue">
+        <item quantity="one">Planned repot overdue by 1 day</item>
+        <item quantity="other">Planned repot overdue by %d days</item>
+    </plurals>
     <plurals name="notification_custom_reminder_overdue">
         <item quantity="one">%1$s overdue by 1 day</item>
         <item quantity="other">%1$s overdue by %2$d days</item>
@@ -201,7 +209,6 @@
     <string name="fert_label_due_with_watering">Due with next watering</string>
     <string name="filter_unassigned">Unassigned</string>
     <string name="cd_sort_plants">Sort plants</string>
-    <string name="cd_settings">Settings</string>
     <string name="cd_search_plants">Search plants</string>
     <string name="search_plants_placeholder">Search plants</string>
     <string name="cd_clear_search">Clear search</string>
@@ -254,6 +261,8 @@
         <item quantity="other">Repot every %d months</item>
     </plurals>
     <string name="repotting_reminder_label">Repotting reminder</string>
+    <string name="repotting_preferred_seasons_label">Prefer repotting in</string>
+    <string name="repotting_last_season_locked_snackbar">At least one season must stay selected. To stop repotting reminders, turn off the repotting reminder.</string>
     <string name="repotting_interval_decrease_cd">Decrease repotting interval</string>
     <string name="repotting_interval_increase_cd">Increase repotting interval</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
@@ -354,6 +363,19 @@
     <string name="plant_detail_misting_section">Recent misting</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="repot_plan_action">Plan repot</string>
+    <string name="repot_plan_dialog_title">Plan repot for</string>
+    <string name="repot_plan_season_option">%1$s %2$d</string>
+    <string name="repot_plan_planned_spring">Planned: spring %1$d</string>
+    <string name="repot_plan_planned_summer">Planned: summer %1$d</string>
+    <string name="repot_plan_planned_autumn">Planned: autumn %1$d</string>
+    <string name="repot_plan_planned_winter">Planned: winter %1$d</string>
+    <string name="repot_plan_edit">Edit</string>
+    <string name="repot_plan_edit_cd">Edit repot plan</string>
+    <string name="repot_plan_clear">Clear</string>
+    <string name="repot_plan_clear_cd">Clear repot plan</string>
+    <string name="repot_plan_next_due">Next repot due %1$s</string>
+    <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
     <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
@@ -462,6 +484,49 @@
         <item quantity="other">%d plants archived</item>
     </plurals>
 
+    <!-- Repotting overview (#525, product ADR-0059) -->
+    <string name="repotting_overview_title">Repotting overview</string>
+    <string name="repotting_overview_chip_never">Never</string>
+    <string name="repotting_overview_chip_one_year">1+ yr</string>
+    <string name="repotting_overview_chip_two_years">2+ yr</string>
+    <string name="repotting_overview_chip_three_years">3+ yr</string>
+    <string name="repotting_overview_header_never">Never repotted</string>
+    <string name="repotting_overview_header_one_year">Not repotted in 1+ year</string>
+    <string name="repotting_overview_header_two_years">Not repotted in 2+ years</string>
+    <string name="repotting_overview_header_three_years">Not repotted in 3+ years</string>
+    <string name="repotting_overview_planned_header">Planned</string>
+    <string name="repotting_overview_last_repotted">Last repotted %1$s</string>
+    <string name="repotting_overview_never_repotted">Never repotted · added %1$s</string>
+    <string name="repotting_overview_plan_overdue">%1$s · Overdue</string>
+    <string name="repotting_overview_no_plants">No plants yet. Add a plant to start tracking repots.</string>
+    <string name="repotting_overview_nothing_here">Nothing to repot here — nice work</string>
+    <string name="repotting_overview_no_other_matches">No other plants match.</string>
+    <string name="repotting_overview_row_actions_label">Show actions</string>
+    <string name="repotting_overview_action_repot">Repot…</string>
+    <string name="repotting_overview_action_plan">Plan repot…</string>
+    <string name="repotting_overview_action_change_plan">Change plan…</string>
+    <string name="repotting_overview_action_clear_plan">Clear plan</string>
+    <string name="repotting_overview_plan_saved">Repot planned for %1$s</string>
+    <string name="repotting_overview_plan_cleared">Repot plan cleared for %1$s</string>
+    <string name="repotting_overview_action_failed">Nothing was changed. Please try again.</string>
+    <string name="repotting_overview_settings_subtitle_none">No plants to review</string>
+    <plurals name="repotting_overview_settings_subtitle_never">
+        <item quantity="one">%d plant never repotted</item>
+        <item quantity="other">%d plants never repotted</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_one_year">
+        <item quantity="one">%d plant not repotted in 1+ year</item>
+        <item quantity="other">%d plants not repotted in 1+ year</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_two_years">
+        <item quantity="one">%d plant not repotted in 2+ years</item>
+        <item quantity="other">%d plants not repotted in 2+ years</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_three_years">
+        <item quantity="one">%d plant not repotted in 3+ years</item>
+        <item quantity="other">%d plants not repotted in 3+ years</item>
+    </plurals>
+
     <string name="photo_reminder_setting_title">Photo reminder</string>
     <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
     <string name="combine_notifications_title">Combine reminders</string>
@@ -474,6 +539,7 @@
     <string name="nav_tab_plants">Plants</string>
     <string name="nav_tab_today">Care</string>
     <string name="nav_tab_calendar">Calendar</string>
+    <string name="nav_tab_settings">Settings</string>
     <string name="today_first_use">Add your first plant to see its care plan here.</string>
     <string name="today_caught_up">You’re all caught up for the next three days.</string>
     <string name="today_error">The Care queue couldn’t be loaded.</string>
@@ -490,6 +556,11 @@
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>
     <string name="care_tile_water_fertilize_cd">%1$s, watering and fertilizing</string>
     <string name="care_tile_repot_cd">%1$s, repotting</string>
+    <string name="care_tile_repot_planned_cd">%1$s, repotting, %2$s</string>
+    <string name="care_tile_repot_planned_spring">Planned for spring</string>
+    <string name="care_tile_repot_planned_summer">Planned for summer</string>
+    <string name="care_tile_repot_planned_autumn">Planned for autumn</string>
+    <string name="care_tile_repot_planned_winter">Planned for winter</string>
     <string name="care_tile_photo_cd">%1$s, progress photo</string>
     <string name="care_tile_reminder_cd">%1$s, %2$s</string>
     <string name="care_group_header">%1$s · %2$d</string>

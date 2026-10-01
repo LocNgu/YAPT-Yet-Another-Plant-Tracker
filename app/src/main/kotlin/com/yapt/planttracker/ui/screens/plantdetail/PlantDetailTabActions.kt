@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -22,9 +23,21 @@ internal const val PHOTO_TAB_ACTION_BUTTON_TEST_TAG = "photo_tab_action_button"
 /** Locates the Repot tab's date-picker sheet ([CareDatePickerBottomSheet], #694) in Compose UI tests. */
 internal const val REPOT_DATE_PICKER_TEST_TAG = "repot_date_picker_dialog"
 
+/** Locates the Repot tab's "Plan repot" button (#809) in Compose UI tests. */
+internal const val REPOT_PLAN_BUTTON_TEST_TAG = "repot_plan_button"
+
+/** An outlined button beside a [PlantDetailTabActionRow]'s primary action (the Repot tab's "Plan repot", #809). */
+internal data class TabSecondaryAction(
+    @StringRes val labelRes: Int,
+    val icon: ImageVector,
+    val testTag: String,
+    val onClick: () -> Unit
+)
+
 /**
  * Primary, always-visible action for a Plant Detail tab (#658). Repot and Photo use the same filled
- * button, leading-icon, and 16dp horizontal-padding treatment as the Water tab's primary action.
+ * button, leading-icon, and 16dp horizontal-padding treatment as the Water tab's primary action. An
+ * optional [secondary] action sits beside it, sharing the row's width equally.
  */
 @Composable
 internal fun PlantDetailTabActionRow(
@@ -32,10 +45,10 @@ internal fun PlantDetailTabActionRow(
     icon: ImageVector,
     testTag: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    secondary: TabSecondaryAction? = null
 ) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
@@ -46,6 +59,17 @@ internal fun PlantDetailTabActionRow(
             Icon(icon, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(labelRes))
+        }
+        if (secondary != null) {
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = secondary.onClick,
+                modifier = Modifier.weight(1f).testTag(secondary.testTag)
+            ) {
+                Icon(secondary.icon, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(secondary.labelRes))
+            }
         }
     }
 }

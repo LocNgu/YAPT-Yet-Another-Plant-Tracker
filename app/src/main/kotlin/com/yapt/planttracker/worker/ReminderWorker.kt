@@ -26,6 +26,7 @@ import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.settingsDataStore
+import com.yapt.planttracker.ui.util.repotPlannedNotificationRes
 import kotlinx.coroutines.flow.first
 
 class ReminderWorker(
@@ -101,6 +102,7 @@ class ReminderWorker(
         } else {
             null
         }
+        // A plan-only plant (#809, product ADR-0057) needs no REPOT log: the plan never reads lastRepottedAt.
         val lastRepotting = if (plant.repottingIntervalDays != null) {
             app.careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
         } else {
@@ -242,6 +244,14 @@ class ReminderWorker(
                     )
                 CareReminderItem.RepottingDueToday ->
                     context.getString(R.string.notification_repotting_due_today)
+                is CareReminderItem.RepottingPlannedThisSeason ->
+                    context.getString(item.season.repotPlannedNotificationRes())
+                is CareReminderItem.RepottingPlanOverdue ->
+                    context.resources.getQuantityString(
+                        R.plurals.notification_repotting_plan_overdue,
+                        item.days,
+                        item.days
+                    )
                 is CareReminderItem.CustomReminderOverdue ->
                     context.resources.getQuantityString(
                         R.plurals.notification_custom_reminder_overdue,

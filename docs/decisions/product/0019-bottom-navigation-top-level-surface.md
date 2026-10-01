@@ -1,6 +1,6 @@
 # Product ADR-0019: Bottom navigation as top-level surface
 
-**Status**: accepted — root destination set and start destination amended by [ADR-0054](0054-unified-today-care-queue.md)
+**Status**: accepted — root destination set and start destination amended by [ADR-0054](0054-unified-today-care-queue.md); Settings-as-tab exception to the Q2 rule and the Q3 Settings placement amended by [ADR-0058](0058-settings-root-tab.md)
 
 **Date**: 2026-07-12
 

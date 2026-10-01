@@ -22,6 +22,9 @@ object SettingsKeys {
     val DEVELOPER_MODE_ENABLED = booleanPreferencesKey("developer_mode_enabled")
     val SEASONAL_AMPLITUDE = stringPreferencesKey("seasonal_amplitude")
 
+    /** Repotting overview chip (#525): a view preference like [SORT_OPTION], not in `.yapt` backups. */
+    val REPOTTING_OVERVIEW_THRESHOLD = stringPreferencesKey("repotting_overview_threshold")
+
     /**
      * "Ask before changing intervals" (#572) — a plain user setting, not a [com.yapt.planttracker
      * .domain.featureflag.FeatureFlagRegistry] entry, so it survives disabling developer mode.

@@ -48,9 +48,7 @@ object CareSchedule {
         seasonalAmplitude: Double = 0.0,
         hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
     ): PlantCareStatus {
-        val daysSinceWatering = lastWateredAt?.let {
-            (now - it) / ONE_DAY_MS
-        }
+        val daysSinceWatering = lastWateredAt?.let { (now - it) / ONE_DAY_MS }
         val nowDate = now.toLocalDate()
         // #699/#760 (product ADR-0044): evaluated once, right alongside nowDate, so every downstream
         // consumer of PlantCareStatus inherits suppression through isOverdue/isDueSoon rather than
@@ -61,8 +59,8 @@ object CareSchedule {
         val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
         val (nextFertilizingDueAt, fertilizingOverdue, fertilizingDueSoon) =
             computeFertilizingDue(plant, lastFertilizedAt, nowDate, hemisphere)
-        val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) =
-            computeExtendedCareDue(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt, nowDate)
+        val repottingDue = computeRepottingDue(plant, lastRepottedAt, nowDate, hemisphere)
+        val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) = repottingDue.dueStatus
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
         val effectiveWateringDays = effectiveWateringIntervalDays(plant, nowDate, seasonalAmplitude, hemisphere)
         val onSchedule = wateringOnScheduleNow(
@@ -110,7 +108,9 @@ object CareSchedule {
             isWateringGapDormancySpanning = gapDormancySpanning,
             wateringScheduleMode = wateringDue.mode,
             normalComputedNextWateringDueAt = wateringDue.normalComputedNextDueAt,
-            dormantComputedNextWateringDueAt = wateringDue.dormantComputedNextDueAt
+            dormantComputedNextWateringDueAt = wateringDue.dormantComputedNextDueAt,
+            repottingPlanSeasonEndAt = repottingDue.plan?.seasonEndAtMillis,
+            repottingPlanSeason = repottingDue.plan?.season
         )
     }
 
@@ -323,12 +323,51 @@ object CareSchedule {
         return dueStatusFor(nextFertilizingDueAt, nowDate)
     }
 
-    private fun computeExtendedCareDue(
-        intervalDays: Int?,
-        lastDoneAt: Long?,
-        createdAt: Long,
-        nowDate: LocalDate
-    ): DueStatus = dueStatusFor(extendedCareDueAt(intervalDays, lastDoneAt, createdAt), nowDate)
+    /**
+     * [computeRepottingDue]'s result: the usual [DueStatus] plus, when the due date is a one-off plan
+     * (#809), the resolved plan for [PlantCareStatus.repottingPlanSeasonEndAt] and
+     * [PlantCareStatus.repottingPlanSeason].
+     */
+    private data class RepottingDueStatus(val dueStatus: DueStatus, val plan: RepotPlan?)
+
+    /**
+     * Repotting due status (product ADR-0022, amended by product ADR-0057). A one-off plan wins outright
+     * — even over an earlier interval date, and with no interval configured at all: it is due for its
+     * whole season (`isDueSoon`, never overdue while in season) and overdue only once the season has
+     * ended, so [PlantCareStatus.nextRepottingDueAt] is the plan's season start. Without a plan, the
+     * interval date (`(lastRepottedAt ?: createdAt) + interval`, via [extendedCareDueAt]) goes through
+     * [SeasonalRepotting.nextPreferredDueAtMillis] — a no-op for the default every-season set — and keeps
+     * the ordinary due-then-overdue rule.
+     */
+    private fun computeRepottingDue(
+        plant: Plant,
+        lastRepottedAt: Long?,
+        nowDate: LocalDate,
+        hemisphere: Hemisphere
+    ): RepottingDueStatus {
+        val plan = SeasonalRepotting.resolvePlan(plant.repotPlanSeasonStartAt, hemisphere)
+        if (plan != null) {
+            val state = plan.stateOn(nowDate)
+            return RepottingDueStatus(
+                DueStatus(
+                    dueAt = plan.startAtMillis,
+                    isOverdue = state == RepotPlanState.SEASON_ENDED,
+                    isDueSoon = state == RepotPlanState.IN_SEASON
+                ),
+                plan
+            )
+        }
+        val rawDueAt = extendedCareDueAt(plant.repottingIntervalDays, lastRepottedAt, plant.createdAt)
+        val dueAt = rawDueAt?.let {
+            SeasonalRepotting.nextPreferredDueAtMillis(
+                rawDueAtMillis = it,
+                preferredSeasons = plant.repottingSeasons,
+                hemisphere = hemisphere,
+                anchorAtMillis = lastRepottedAt ?: plant.createdAt
+            )
+        }
+        return RepottingDueStatus(dueStatusFor(dueAt, nowDate), null)
+    }
 
     /**
      * Per-reminder due status for every [CustomReminder] on a plant (#232). Each reminder always has

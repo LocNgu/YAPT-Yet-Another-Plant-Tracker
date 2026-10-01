@@ -1,12 +1,14 @@
 package com.yapt.planttracker.ui.navigation
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
@@ -53,6 +56,8 @@ import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
+import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewScreen
+import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.today.TodayScreen
@@ -77,6 +82,14 @@ internal fun NavController.popBackStackOnce(
     return if (route != null) popBackStack(route, inclusive) else popBackStack()
 }
 
+internal fun NavController.navigateToRootTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 private fun NavController.navigateInitialDestination(
     initialPlantId: Long?,
     onShowCaredToday: () -> Unit,
@@ -85,11 +98,7 @@ private fun NavController.navigateInitialDestination(
     if (initialPlantId == null) return
     if (initialPlantId == Screen.PlantList.CARED_TODAY_DEEP_LINK_ID) {
         onShowCaredToday()
-        navigate(Screen.PlantList.createRoute()) {
-            popUpTo(graph.findStartDestination().id) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
+        navigateToRootTab(Screen.PlantList.createRoute())
     } else {
         navigate(Screen.PlantDetail.createRoute(initialPlantId))
     }
@@ -128,8 +137,61 @@ internal fun shouldShowBottomNavigation(
 ): Boolean = currentRoute in setOf(
     Screen.Today.route,
     Screen.PlantList.route,
-    Screen.Calendar.route
+    Screen.Calendar.route,
+    Screen.Settings.route
 ) && !(currentRoute == Screen.PlantList.route && plantListSelectionActive)
+
+// A restore replaces every table, so nothing already on the back stack is trustworthy: reset to
+// Care, then stack Plants above it carrying the result message.
+@androidx.annotation.VisibleForTesting
+internal fun NavController.showRestoredPlantList(plantCount: Int, logCount: Int) {
+    val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
+    navigate(Screen.Today.route) {
+        popUpTo(0) { inclusive = true }
+    }
+    navigate(Screen.PlantList.createRoute(encodedMsg))
+}
+
+private data class BottomTab(
+    val screenRoute: String,
+    val navigateRoute: String,
+    val icon: ImageVector,
+    @StringRes val labelRes: Int
+)
+
+private val bottomTabs = listOf(
+    BottomTab(Screen.Today.route, Screen.Today.route, Icons.Filled.Checklist, R.string.nav_tab_today),
+    BottomTab(
+        Screen.PlantList.route,
+        Screen.PlantList.createRoute(),
+        Icons.Filled.LocalFlorist,
+        R.string.nav_tab_plants
+    ),
+    BottomTab(Screen.Calendar.route, Screen.Calendar.route, Icons.Filled.CalendarMonth, R.string.nav_tab_calendar),
+    BottomTab(Screen.Settings.route, Screen.Settings.route, Icons.Filled.Settings, R.string.nav_tab_settings)
+)
+
+// Items are disabled, not hidden, while a backup/restore runs so its progress dialog can't be
+// abandoned by switching tabs (product ADR-0058).
+@Composable
+@androidx.annotation.VisibleForTesting
+internal fun YaptBottomNavigationBar(
+    currentRoute: String?,
+    enabled: Boolean,
+    onNavigate: (String) -> Unit
+) {
+    NavigationBar {
+        bottomTabs.forEach { tab ->
+            NavigationBarItem(
+                selected = currentRoute == tab.screenRoute,
+                enabled = enabled,
+                onClick = { onNavigate(tab.navigateRoute) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(stringResource(tab.labelRes)) }
+            )
+        }
+    }
+}
 
 @Composable
 private fun ApplyCaredTodayDeepLink(
@@ -176,6 +238,7 @@ fun YaptNavGraph(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     var plantListSelectionActive by remember { mutableStateOf(false) }
+    var backupInProgress by remember { mutableStateOf(false) }
     val showBottomBar = shouldShowBottomNavigation(currentRoute, plantListSelectionActive)
 
     Scaffold(
@@ -187,44 +250,11 @@ fun YaptNavGraph(
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Today.route,
-                        onClick = {
-                            navController.navigate(Screen.Today.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Filled.Checklist, contentDescription = null) },
-                        label = { Text(stringResource(R.string.nav_tab_today)) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.PlantList.route,
-                        onClick = {
-                            navController.navigate(Screen.PlantList.createRoute()) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Filled.LocalFlorist, contentDescription = null) },
-                        label = { Text(stringResource(R.string.nav_tab_plants)) }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Screen.Calendar.route,
-                        onClick = {
-                            navController.navigate(Screen.Calendar.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
-                        label = { Text(stringResource(R.string.nav_tab_calendar)) }
-                    )
-                }
+                YaptBottomNavigationBar(
+                    currentRoute = currentRoute,
+                    enabled = !backupInProgress,
+                    onNavigate = navController::navigateToRootTab
+                )
             }
         }
     ) { scaffoldPadding ->
@@ -277,9 +307,6 @@ fun YaptNavGraph(
                     },
                     onNavigateToAdd = {
                         navController.navigate(Screen.AddPlant.route)
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
                     },
                     onSelectionModeChanged = { plantListSelectionActive = it }
                 )
@@ -438,7 +465,7 @@ fun YaptNavGraph(
                 )
             }
 
-            composable(Screen.Settings.route) { backStackEntry ->
+            composable(Screen.Settings.route) {
                 val vm: SettingsViewModel = viewModel(
                     factory = SettingsViewModel.Factory(
                         app.settingsDataStore,
@@ -450,16 +477,11 @@ fun YaptNavGraph(
                 )
                 SettingsScreen(
                     viewModel = vm,
-                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
-                    onRestoreSuccess = { plantCount, logCount ->
-                        val encodedMsg = Uri.encode("Restored $plantCount plants and $logCount logs")
-                        navController.navigate(Screen.Today.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                        navController.navigate(Screen.PlantList.createRoute(encodedMsg))
-                    },
+                    onRestoreSuccess = navController::showRestoredPlantList,
                     onShowWhatsNew = { showWhatsNew = true },
-                    onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) }
+                    onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
+                    onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
+                    onBackupInProgressChanged = { backupInProgress = it }
                 )
             }
 
@@ -470,6 +492,24 @@ fun YaptNavGraph(
                 GraveyardScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
+                )
+            }
+
+            composable(Screen.RepottingOverview.route) { backStackEntry ->
+                val vm: RepottingOverviewViewModel = viewModel(
+                    factory = RepottingOverviewViewModel.Factory(
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.repottingOverviewPreferences,
+                        app.quickLogUseCase
+                    )
+                )
+                RepottingOverviewScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToPlant = { plantId, tab ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
+                    }
                 )
             }
 

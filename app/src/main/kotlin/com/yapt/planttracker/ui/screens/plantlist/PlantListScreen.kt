@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -95,7 +94,6 @@ fun PlantListScreen(
     restoreMessage: String? = null,
     onNavigateToPlant: (Long) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit = {}
 ) {
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
@@ -335,9 +333,6 @@ fun PlantListScreen(
                                 sortOrder = sortOrder,
                                 onToggleSort = viewModel::toggleSort
                             )
-                            IconButton(onClick = onNavigateToSettings) {
-                                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                            }
                         }
                     )
                 }

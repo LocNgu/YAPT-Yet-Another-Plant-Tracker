@@ -311,4 +311,33 @@ class PlantDaoTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `updateRepotPlan sets and clears only the plan columns and updatedAt`() = runTest {
+        val id = dao.insertPlant(
+            plant(name = "Fern").copy(repottingIntervalDays = 360, repottingSeasons = "SPRING", wateringConfidence = 2)
+        )
+
+        dao.updateRepotPlan(id, 1_804_032_000_000L, 1_790_000_000_000L, 5_000L)
+        dao.getPlantById(id).test {
+            val planned = awaitItem()!!
+            assertEquals(1_804_032_000_000L, planned.repotPlanSeasonStartAt)
+            assertEquals(1_790_000_000_000L, planned.repotPlanMadeAt)
+            assertEquals(5_000L, planned.updatedAt)
+            assertEquals(360, planned.repottingIntervalDays)
+            assertEquals("SPRING", planned.repottingSeasons)
+            assertEquals(2, planned.wateringConfidence)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        dao.updateRepotPlan(id, null, null, 6_000L)
+        dao.getPlantById(id).test {
+            val cleared = awaitItem()!!
+            assertNull(cleared.repotPlanSeasonStartAt)
+            assertNull(cleared.repotPlanMadeAt)
+            assertEquals(6_000L, cleared.updatedAt)
+            assertEquals("SPRING", cleared.repottingSeasons)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }

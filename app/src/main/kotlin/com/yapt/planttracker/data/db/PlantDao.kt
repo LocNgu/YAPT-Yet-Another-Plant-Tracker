@@ -78,6 +78,24 @@ interface PlantDao {
     )
     suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long)
 
+    /**
+     * Column-specific update touching only `repotPlanSeasonStartAt`/`repotPlanMadeAt`/`updatedAt` (#809,
+     * product ADR-0057), same rationale as [updateWateringDueDateOverride]: a REPOT log clears a plan
+     * from `QuickLogUseCase`/`AddCareLogViewModel` while other writers may be mid-flight, and a
+     * statement that can't touch a column it doesn't name can't revert one. Both plan columns move
+     * together — `null, null` clears the plan; a set-plan write always supplies both.
+     */
+    @Query(
+        "UPDATE plants SET repotPlanSeasonStartAt = :repotPlanSeasonStartAt, " +
+            "repotPlanMadeAt = :repotPlanMadeAt, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateRepotPlan(
+        id: Long,
+        repotPlanSeasonStartAt: Long?,
+        repotPlanMadeAt: Long?,
+        updatedAt: Long
+    )
+
     // Single-statement batch variants so bulk archive/restore apply atomically — a killed
     // process can't leave some of the selected plants archived and others not (#448).
     @Query("UPDATE plants SET archivedAt = :timestamp WHERE id IN (:ids)")

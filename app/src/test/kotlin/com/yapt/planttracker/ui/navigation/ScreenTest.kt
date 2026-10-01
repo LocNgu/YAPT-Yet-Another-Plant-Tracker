@@ -25,6 +25,7 @@ class ScreenTest {
         assertEquals("add_plant", Screen.AddPlant.route)
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
+        assertEquals("repotting_overview", Screen.RepottingOverview.route)
         assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
@@ -116,10 +117,11 @@ class ScreenTest {
     }
 
     @Test
-    fun `bottom navigation is visible on all three root tabs when nothing is selected`() {
+    fun `bottom navigation is visible on every root tab when nothing is selected`() {
         assertTrue(shouldShowBottomNavigation(Screen.Today.route, false))
         assertTrue(shouldShowBottomNavigation(Screen.PlantList.route, false))
         assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, false))
+        assertTrue(shouldShowBottomNavigation(Screen.Settings.route, false))
     }
 
     @Test
@@ -127,12 +129,14 @@ class ScreenTest {
         assertFalse(shouldShowBottomNavigation(Screen.PlantList.route, true))
         assertTrue(shouldShowBottomNavigation(Screen.Today.route, true))
         assertTrue(shouldShowBottomNavigation(Screen.Calendar.route, true))
+        assertTrue(shouldShowBottomNavigation(Screen.Settings.route, true))
     }
 
     @Test
     fun `bottom navigation hides for nested destinations`() {
         assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false))
-        assertFalse(shouldShowBottomNavigation(Screen.Settings.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.Graveyard.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.RepottingOverview.route, false))
         assertFalse(shouldShowBottomNavigation(null, false))
     }
 }

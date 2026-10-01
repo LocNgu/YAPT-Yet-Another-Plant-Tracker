@@ -65,5 +65,24 @@ data class Plant(
      * season, so every existing plant behaves exactly as before. Dormancy remains an independent,
      * additional pause on top of this.
      */
-    val fertilizingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet()
+    val fertilizingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet(),
+    /**
+     * One-off planned repot (#809, product ADR-0057): start of day, in the system zone, of the target
+     * season's first day. `null` = no plan. Stored as a timestamp rather than season + year so the due
+     * date stays fixed if the timezone or hemisphere later changes — the season label is derived from
+     * it by [com.yapt.planttracker.domain.schedule.SeasonalRepotting.resolvePlan]. A plan stands on its
+     * own (no [repottingIntervalDays] needed) and wins outright over the interval date.
+     */
+    val repotPlanSeasonStartAt: Long? = null,
+    /**
+     * When [repotPlanSeasonStartAt] was set. `updatedAt` can't serve — it changes on every edit. A
+     * REPOT log clears the plan only when its local calendar day is on or after this one's, so a repot
+     * backdated to before the plan was made leaves it alone (#679-style).
+     */
+    val repotPlanMadeAt: Long? = null,
+    /**
+     * Which hemisphere-aware seasons the recurring [repottingIntervalDays] date may land in (#809,
+     * product ADR-0057). Defaults to every season, which keeps every due date exactly as it was.
+     */
+    val repottingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet()
 )

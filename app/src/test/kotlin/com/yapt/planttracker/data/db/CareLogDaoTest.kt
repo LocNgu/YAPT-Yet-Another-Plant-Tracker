@@ -408,4 +408,54 @@ class CareLogDaoTest {
 
         assertEquals(1, count)
     }
+
+    @Test
+    fun `observeLastCareOfType emits the newest log of that type per plant`() = runTest {
+        val a = insertParentPlant("A")
+        val b = insertParentPlant("B")
+        insertParentPlant("C")
+        careLogDao.insertLog(log(a, CareType.REPOT.name, loggedAt = 100L))
+        careLogDao.insertLog(log(a, CareType.REPOT.name, loggedAt = 300L))
+        careLogDao.insertLog(log(a, CareType.WATER.name, loggedAt = 900L))
+        careLogDao.insertLog(log(b, CareType.WATER.name, loggedAt = 500L))
+
+        careLogDao.observeLastCareOfType(CareType.REPOT.name).test {
+            val rows = awaitItem()
+            assertEquals(listOf(PlantLastCare(a, 300L)), rows)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeLastCareOfType re-emits when a REPOT log is inserted edited and deleted`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.observeLastCareOfType(CareType.REPOT.name).test {
+            assertEquals(emptyList<PlantLastCare>(), awaitItem())
+
+            val id = careLogDao.insertLog(log(plantId, CareType.REPOT.name, loggedAt = 100L))
+            assertEquals(listOf(PlantLastCare(plantId, 100L)), awaitItem())
+
+            val inserted = careLogDao.getLogById(id)!!
+            careLogDao.updateLog(inserted.copy(loggedAt = 700L))
+            assertEquals(listOf(PlantLastCare(plantId, 700L)), awaitItem())
+
+            careLogDao.deleteLog(careLogDao.getLogById(id)!!)
+            assertEquals(emptyList<PlantLastCare>(), awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeLastCareOfType falls back to the older REPOT when the newest is deleted`() = runTest {
+        val plantId = insertParentPlant()
+        careLogDao.insertLog(log(plantId, CareType.REPOT.name, loggedAt = 100L))
+        val newest = careLogDao.insertLog(log(plantId, CareType.REPOT.name, loggedAt = 400L))
+
+        careLogDao.observeLastCareOfType(CareType.REPOT.name).test {
+            assertEquals(listOf(PlantLastCare(plantId, 400L)), awaitItem())
+            careLogDao.deleteLog(careLogDao.getLogById(newest)!!)
+            assertEquals(listOf(PlantLastCare(plantId, 100L)), awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }

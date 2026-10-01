@@ -12,6 +12,39 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-01
+
+### Changed
+- **Settings is now a tab in the bottom bar** — the bar reads Care · Plants · Calendar · Settings, so Settings
+  is one tap away from every tab, including Care, which had no way to reach it. The gear icon on the Plants top
+  bar is gone, and Settings no longer has a back arrow (system Back from it returns to Care). While a backup
+  or restore is running the bar's tabs are disabled so you can't leave the progress dialog; they come back
+  when it finishes. Restoring a backup still lands on Plants with its message (#855, product ADR-0058)
+
+### Added
+- **Repotting overview — see which plants haven't been repotted in a long time** — a new Settings row, right after
+  Plant Graveyard, opens a page listing your active plants by how long ago they were last repotted. Pick Never,
+  1+ yr, 2+ yr, or 3+ yr (2+ yr to start, and the page remembers your last choice); a plant that was never
+  repotted is measured from the day you added it, so a new plant doesn't read as neglected, while Never lists
+  every plant with no repot logged. Plants with a planned repot sit in their own Planned group on top under every
+  chip (an ended plan is marked Overdue) and are left out of the list. Each row shows the photo, name, room, and
+  "Last repotted March 2023" or "Never repotted · added March 2023". Tap a row to open its Repot tab; long-press
+  (or use TalkBack's actions) for Repot… / Plan repot… — or Repot… / Change plan… / Clear plan on a planned
+  plant — and the page updates in place. The Settings row counts the plants your saved chip matches. It works
+  whether or not a plant has a repotting reminder, and it never adds anything to Care or notifications (#525,
+  product ADR-0059)
+- **Plan a repot for a season, and choose the seasons your recurring repotting should land in** — the
+  Repot tab has a new Plan repot button: pick one of the next four seasons (for example Winter 2026, Spring
+  2027, Summer 2027, Autumn 2027) and the plant reads "Planned: spring 2027" with Edit and Clear. A plan
+  needs no repotting reminder, wins over the recurring date even when that is earlier, is due for the
+  whole season and overdue only once the season has ended, and clears itself when you log a repot. It
+  also appears in the Care tab and the daily notification. With the repotting reminder on, Add/Edit Plant
+  gains season chips (all four selected by default): the recurring date then snaps to the first day of the
+  nearest preferred season instead of an off-season month — last repot June 2025, every 2 years, spring
+  only reads March 2027. Without a plan the Repot tab also shows the next repot date and any preferred
+  seasons. Both are unset by default, so every existing repotting date stays exactly as it was (#809,
+  product ADR-0057)
+
 ## [0.33.0] - 2026-09-29
 
 ### Added

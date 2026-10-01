@@ -89,7 +89,10 @@ class BackupManagerTest {
             dormancyStartMonth = 11,
             dormancyEndMonth = 2,
             dormantWateringIntervalDays = 35,
-            fertilizingSeasons = "SPRING,SUMMER"
+            fertilizingSeasons = "SPRING,SUMMER",
+            repotPlanSeasonStartAt = 1_804_032_000_000L,
+            repotPlanMadeAt = 1_790_000_000_000L,
+            repottingSeasons = "SPRING,AUTUMN"
         )
         db.plantDao().insertPlant(plant)
         val log = CareLogEntity(
@@ -128,6 +131,41 @@ class BackupManagerTest {
         assertEquals(2, restoredPlants[0].dormancyEndMonth)
         assertEquals(35, restoredPlants[0].dormantWateringIntervalDays)
         assertEquals("SPRING,SUMMER", restoredPlants[0].fertilizingSeasons)
+        assertEquals(1_804_032_000_000L, restoredPlants[0].repotPlanSeasonStartAt)
+        assertEquals(1_790_000_000_000L, restoredPlants[0].repotPlanMadeAt)
+        assertEquals("SPRING,AUTUMN", restoredPlants[0].repottingSeasons)
+    }
+
+    @Test
+    fun olderBackupWithoutRepotFields_restoresPlanAndSeasonsAsUnset() = runBlocking {
+        // A schema-20 backup predates the repot plan and preferred seasons (#809): they must restore as
+        // "no plan, every season" — exactly a plant that never used the feature.
+        val olderJson = """
+            {
+              "schemaVersion": 20,
+              "exportedAt": 1000,
+              "appVersion": "1.0",
+              "plants": [{"id": 1, "name": "OlderPlant", "createdAt": 1000, "updatedAt": 1000,
+                          "repottingIntervalDays": 360}],
+              "careLogs": [],
+              "settings": {"notificationsEnabled": true, "reminderHour": 9, "reminderMinute": 0}
+            }
+        """.trimIndent()
+        val zipFile = tmpFolder.newFile("older_schema.yapt")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("backup.json"))
+            zip.write(olderJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+
+        val result = backupManager.importBackup(Uri.fromFile(zipFile))
+        assertTrue("Expected ImportSuccess", result is BackupResult.ImportSuccess)
+
+        val restored = db.plantDao().getAllPlants().first().single()
+        assertEquals(360, restored.repottingIntervalDays)
+        assertNull(restored.repotPlanSeasonStartAt)
+        assertNull(restored.repotPlanMadeAt)
+        assertNull(restored.repottingSeasons)
     }
 
     @Test

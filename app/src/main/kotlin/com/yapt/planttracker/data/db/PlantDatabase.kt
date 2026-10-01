@@ -40,7 +40,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 16
+        const val DB_VERSION = 17
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -264,6 +264,18 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #809 (product ADR-0057): the one-off planned-repot target season start, the instant the plan
+        // was made, and the recurring repotting interval's preferred seasons. Pure ALTER TABLE — every
+        // existing row reads back null for all three (no plan, every season), so nothing changes.
+        @Suppress("MagicNumber")
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN repotPlanSeasonStartAt INTEGER")
+                db.execSQL("ALTER TABLE plants ADD COLUMN repotPlanMadeAt INTEGER")
+                db.execSQL("ALTER TABLE plants ADD COLUMN repottingSeasons TEXT")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -286,7 +298,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_12_13,
                         MIGRATION_13_14,
                         MIGRATION_14_15,
-                        MIGRATION_15_16
+                        MIGRATION_15_16,
+                        MIGRATION_16_17
                     )
                     .build()
                     .also { INSTANCE = it }

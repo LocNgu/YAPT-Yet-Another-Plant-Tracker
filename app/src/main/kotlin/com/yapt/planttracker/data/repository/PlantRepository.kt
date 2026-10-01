@@ -57,6 +57,18 @@ class PlantRepository(
     suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long) =
         plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)
 
+    /**
+     * Sets the one-off planned repot (#809, product ADR-0057): [seasonStartAt] is the target season's
+     * first day at start of day, [madeAt] is when the plan was made. Column-specific — see
+     * [PlantDao.updateRepotPlan]'s doc for why this never round-trips through a full-row `updatePlant()`.
+     */
+    suspend fun setRepotPlan(id: Long, seasonStartAt: Long, madeAt: Long, updatedAt: Long) =
+        plantDao.updateRepotPlan(id, seasonStartAt, madeAt, updatedAt)
+
+    /** Clears the one-off planned repot (#809); the recurring interval date, if any, takes over again. */
+    suspend fun clearRepotPlan(id: Long, updatedAt: Long) =
+        plantDao.updateRepotPlan(id, null, null, updatedAt)
+
     /** Archives every id in a single atomic statement (bulk graveyard action, #448). */
     suspend fun archivePlants(ids: List<Long>, timestamp: Long = System.currentTimeMillis()) =
         plantDao.archivePlants(ids, timestamp)
@@ -97,7 +109,10 @@ private fun PlantEntity.toDomain() = Plant(
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
     fertilizingSeasons = SeasonalFertilizing.decode(fertilizingSeasons),
-    dormantWateringIntervalDays = dormantWateringIntervalDays
+    dormantWateringIntervalDays = dormantWateringIntervalDays,
+    repotPlanSeasonStartAt = repotPlanSeasonStartAt,
+    repotPlanMadeAt = repotPlanMadeAt,
+    repottingSeasons = SeasonalFertilizing.decode(repottingSeasons)
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -123,5 +138,8 @@ private fun Plant.toEntity() = PlantEntity(
     dormancyStartMonth = dormancyStartMonth,
     dormancyEndMonth = dormancyEndMonth,
     fertilizingSeasons = SeasonalFertilizing.encode(fertilizingSeasons),
-    dormantWateringIntervalDays = dormantWateringIntervalDays
+    dormantWateringIntervalDays = dormantWateringIntervalDays,
+    repotPlanSeasonStartAt = repotPlanSeasonStartAt,
+    repotPlanMadeAt = repotPlanMadeAt,
+    repottingSeasons = SeasonalFertilizing.encode(repottingSeasons)
 )

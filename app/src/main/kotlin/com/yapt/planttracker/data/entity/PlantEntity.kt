@@ -29,5 +29,11 @@ data class PlantEntity(
     val dormancyEndMonth: Int? = null,
     /** Comma-separated [com.yapt.planttracker.domain.schedule.FertilizingSeason] names; `null` = every season (#795). */
     val fertilizingSeasons: String? = null,
-    val dormantWateringIntervalDays: Int? = null
+    val dormantWateringIntervalDays: Int? = null,
+    /** Start of day (system zone) of the planned repot's target season's first day; `null` = no plan (#809). */
+    val repotPlanSeasonStartAt: Long? = null,
+    /** Instant the plan was made — `updatedAt` can't stand in, it changes on every edit (#809). */
+    val repotPlanMadeAt: Long? = null,
+    /** Comma-separated [com.yapt.planttracker.domain.schedule.FertilizingSeason] names; `null` = every season. */
+    val repottingSeasons: String? = null
 )

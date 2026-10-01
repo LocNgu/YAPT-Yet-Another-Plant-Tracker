@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.keyframes
@@ -82,6 +83,10 @@ private data class SeasonChipState(
  * still hold the pre-first-tap snapshot when the second tap lands. Each caller now applies the
  * toggle to its own freshest source of truth: Add/Edit Plant's local form state, Plant Detail's
  * plant row re-read inside `PlantDetailViewModel.intervalEditMutex`.
+ *
+ * Also the seasons chip row for the repotting reminder's preferred seasons on Add/Edit Plant (#809,
+ * product ADR-0057) — same [Set] of [FertilizingSeason], same chips and last-chip lock; only the
+ * caption ([labelRes]) and the caller's [onLastSeasonLocked] snackbar copy differ.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -89,14 +94,15 @@ fun FertilizingSeasonsSelector(
     selected: Set<FertilizingSeason>,
     onToggle: (FertilizingSeason) -> Unit,
     modifier: Modifier = Modifier,
-    onLastSeasonLocked: () -> Unit = {}
+    onLastSeasonLocked: () -> Unit = {},
+    @StringRes labelRes: Int = R.string.fertilizing_active_seasons_label
 ) {
     val hemisphere = remember { SeasonalWatering.currentHemisphere() }
     val currentSeason = remember(hemisphere) { SeasonalFertilizing.season(LocalDate.now(), hemisphere) }
     val currentSeasonStateDescription = stringResource(R.string.fertilizing_current_season)
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = stringResource(R.string.fertilizing_active_seasons_label),
+            text = stringResource(labelRes),
             style = MaterialTheme.typography.bodyMedium
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

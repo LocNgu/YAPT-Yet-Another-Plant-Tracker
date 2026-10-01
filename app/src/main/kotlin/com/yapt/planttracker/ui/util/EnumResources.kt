@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.util
 
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
@@ -17,6 +18,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
+import com.yapt.planttracker.domain.repotting.RepottingOverviewThreshold
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
@@ -141,4 +143,62 @@ fun FertilizingSeason.labelRes(): Int = when (this) {
     FertilizingSeason.SUMMER -> R.string.season_summer
     FertilizingSeason.AUTUMN -> R.string.season_autumn
     FertilizingSeason.WINTER -> R.string.season_winter
+}
+
+/**
+ * Daily-notification line for a planned repot whose season is under way (#809, product ADR-0057). One
+ * whole sentence per season rather than a season name spliced into a template, so a translation can
+ * inflect or reorder it freely.
+ */
+@StringRes
+fun FertilizingSeason.repotPlannedNotificationRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.notification_repotting_planned_spring
+    FertilizingSeason.SUMMER -> R.string.notification_repotting_planned_summer
+    FertilizingSeason.AUTUMN -> R.string.notification_repotting_planned_autumn
+    FertilizingSeason.WINTER -> R.string.notification_repotting_planned_winter
+}
+
+/** Repot tab line naming a plan's season, taking the season's year (#809, product ADR-0057). One sentence per season for the same reason as [repotPlannedNotificationRes]. */
+@StringRes
+fun FertilizingSeason.repotPlanLabelRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.repot_plan_planned_spring
+    FertilizingSeason.SUMMER -> R.string.repot_plan_planned_summer
+    FertilizingSeason.AUTUMN -> R.string.repot_plan_planned_autumn
+    FertilizingSeason.WINTER -> R.string.repot_plan_planned_winter
+}
+
+/** Care tile line for a planned repot (#809, product ADR-0057), in season or after it has ended. */
+@StringRes
+fun FertilizingSeason.repotPlannedTileRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.care_tile_repot_planned_spring
+    FertilizingSeason.SUMMER -> R.string.care_tile_repot_planned_summer
+    FertilizingSeason.AUTUMN -> R.string.care_tile_repot_planned_autumn
+    FertilizingSeason.WINTER -> R.string.care_tile_repot_planned_winter
+}
+
+/** Chip label on the Repotting overview (#525, product ADR-0059). */
+@StringRes
+fun RepottingOverviewThreshold.chipLabelRes(): Int = when (this) {
+    RepottingOverviewThreshold.NEVER -> R.string.repotting_overview_chip_never
+    RepottingOverviewThreshold.ONE_YEAR -> R.string.repotting_overview_chip_one_year
+    RepottingOverviewThreshold.TWO_YEARS -> R.string.repotting_overview_chip_two_years
+    RepottingOverviewThreshold.THREE_YEARS -> R.string.repotting_overview_chip_three_years
+}
+
+/** Header over the threshold list, naming the selected chip. */
+@StringRes
+fun RepottingOverviewThreshold.headerRes(): Int = when (this) {
+    RepottingOverviewThreshold.NEVER -> R.string.repotting_overview_header_never
+    RepottingOverviewThreshold.ONE_YEAR -> R.string.repotting_overview_header_one_year
+    RepottingOverviewThreshold.TWO_YEARS -> R.string.repotting_overview_header_two_years
+    RepottingOverviewThreshold.THREE_YEARS -> R.string.repotting_overview_header_three_years
+}
+
+/** Settings row subtitle ("4 plants not repotted in 2+ years"), pluralised on the plant count. */
+@PluralsRes
+fun RepottingOverviewThreshold.settingsSubtitleRes(): Int = when (this) {
+    RepottingOverviewThreshold.NEVER -> R.plurals.repotting_overview_settings_subtitle_never
+    RepottingOverviewThreshold.ONE_YEAR -> R.plurals.repotting_overview_settings_subtitle_one_year
+    RepottingOverviewThreshold.TWO_YEARS -> R.plurals.repotting_overview_settings_subtitle_two_years
+    RepottingOverviewThreshold.THREE_YEARS -> R.plurals.repotting_overview_settings_subtitle_three_years
 }

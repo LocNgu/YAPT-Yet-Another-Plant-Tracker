@@ -744,11 +744,19 @@ class QuickLogUseCase(
     /**
      * The #571 REPOT-triggered lifecycle reset, reached from [quickLog]'s bulk-action REPOT path
      * (`BulkActionBar`) — extracted out of [quickLog] to stay under Detekt's
-     * `CyclomaticComplexMethod` threshold.
+     * `CyclomaticComplexMethod` threshold. The reset is a full-row write, so it is built from a fresh read
+     * of the plant rather than the caller's [plant] — every caller passes a possibly stale snapshot (a Care
+     * tile, cached Plant Detail state, a list status), and writing that back would silently revert any
+     * column changed since it was read, a repot plan above all (#809, product ADR-0057). Falls back to
+     * [plant] only if the row is gone, mirroring [clearWateringOverrideIfActive]. Also where a newly
+     * inserted REPOT log clears a planned repot, *after* the reset, so the reset's full-row write of the
+     * plan it just read can't put a cleared plan back.
      */
     private suspend fun maybeApplyRepotReset(plant: Plant, careType: CareType, now: Long) {
         if (careType == CareType.REPOT) {
-            WateringLifecycleReset.applyRepotReset(plant, now, plantRepository, wateringAdjustmentRepository)
+            val fresh = plantRepository.getPlantById(plant.id).first() ?: plant
+            WateringLifecycleReset.applyRepotReset(fresh, now, plantRepository, wateringAdjustmentRepository)
+            RepotPlanReset.clearIfSuperseded(plant.id, now, plantRepository, nowProvider())
         }
     }
 

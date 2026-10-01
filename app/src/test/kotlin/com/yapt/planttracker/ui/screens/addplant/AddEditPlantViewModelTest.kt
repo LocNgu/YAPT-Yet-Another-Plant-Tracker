@@ -240,6 +240,128 @@ class AddEditPlantViewModelTest {
         }
     }
 
+    // #809 (product ADR-0057): saveEdit() builds a fresh Plant, so the repot plan (set on Plant Detail's
+    // Repot tab, never on this screen) must be carried over or any edit wipes it; the preferred seasons
+    // travel through the form's own state.
+    @Test
+    fun `edit mode save carries over the repot plan and preferred repotting seasons`() = runTest {
+        val existing = plant().copy(
+            repottingIntervalDays = 360,
+            repotPlanSeasonStartAt = 1_804_032_000_000L,
+            repotPlanMadeAt = 1_790_000_000_000L,
+            repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        vm.name = "Renamed"
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.name == "Renamed" &&
+                        it.repotPlanSeasonStartAt == 1_804_032_000_000L &&
+                        it.repotPlanMadeAt == 1_790_000_000_000L &&
+                        it.repottingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+                }
+            )
+        }
+    }
+
+    // #809 (product ADR-0057): the preferred repotting seasons are now edited on this screen.
+    @Test
+    fun `new plant defaults the preferred repotting seasons to every season`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Fern"
+        vm.repottingIntervalEnabled = true
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.addPlant(match { it.repottingSeasons == FertilizingSeason.entries.toSet() }) }
+    }
+
+    @Test
+    fun `toggleRepottingSeason saves the newly chosen set for a new plant`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 42L
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+        vm.name = "Fern"
+        vm.repottingIntervalEnabled = true
+        vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
+        vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
+        vm.toggleRepottingSeason(FertilizingSeason.WINTER)
+
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify { plantRepo.addPlant(match { it.repottingSeasons == setOf(FertilizingSeason.SPRING) }) }
+        assertEquals(FertilizingSeason.entries.toSet(), vm.fertilizingSeasons)
+    }
+
+    @Test
+    fun `toggleRepottingSeason rejects a toggle that would empty the set and keeps the previous selection`() =
+        runTest {
+            val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
+            vm.toggleRepottingSeason(FertilizingSeason.SPRING)
+            vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
+            vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
+            assertEquals(setOf(FertilizingSeason.WINTER), vm.repottingSeasons)
+
+            vm.toggleRepottingSeason(FertilizingSeason.WINTER)
+
+            assertEquals(setOf(FertilizingSeason.WINTER), vm.repottingSeasons)
+        }
+
+    @Test
+    fun `preferred repotting seasons load and an edit persists the changed set`() = runTest {
+        val existing = plant().copy(
+            repottingIntervalDays = 360,
+            repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN)
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN), vm.repottingSeasons)
+
+        vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
+        vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match { it.repottingSeasons == setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER) }
+            )
+        }
+    }
+
+    @Test
+    fun `turning the repotting reminder off keeps the stored preferred seasons and drops the interval`() = runTest {
+        val existing = plant().copy(
+            repottingIntervalDays = 360,
+            repottingSeasons = setOf(FertilizingSeason.SPRING)
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(existing)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
+
+        vm.repottingIntervalEnabled = false
+        vm.save()
+        advanceUntilIdle()
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    it.repottingIntervalDays == null && it.repottingSeasons == setOf(FertilizingSeason.SPRING)
+                }
+            )
+        }
+    }
+
     @Test
     fun `toggleFertilizingSeason saves the newly chosen set`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
