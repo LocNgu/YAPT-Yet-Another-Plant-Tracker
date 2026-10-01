@@ -13,29 +13,32 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(
-        versionCode = 0,
-        versionName = "Unreleased",
-        added = listOf(
-            "Settings now lives in the bottom bar, next to Care, Plants, and Calendar — the gear icon on the " +
-                "plant list is gone. While a backup or restore is running, the bar's tabs are disabled until it " +
-                "finishes",
-            "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
-                "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
-                "tab and the daily notification. The plan is due for the whole season and clears itself when " +
-                "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
-                "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
-                "of coming due in the middle of winter",
-            "A new Repotting overview in Settings, right after Plant Graveyard, lists the plants you haven't " +
-                "repotted in a long time — choose Never, 1+, 2+, or 3+ years (plants you've never repotted count " +
-                "from the day you added them). Planned repots sit on top, tapping a plant opens its Repot tab, and " +
-                "long-pressing offers Repot… or Plan repot… right from the list"
-        )
-    )
+    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 510,
+            versionName = "0.34.0",
+            added = listOf(
+                "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
+                    "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
+                    "tab and the daily notification. The plan is due for the whole season and clears itself when " +
+                    "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
+                    "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
+                    "of coming due in the middle of winter",
+                "A new Repotting overview in Settings, right after Plant Graveyard, lists the plants you haven't " +
+                    "repotted in a long time — choose Never, 1+, 2+, or 3+ years (plants you've never repotted " +
+                    "count from the day you added them). Planned repots sit on top, tapping a plant opens its " +
+                    "Repot tab, and long-pressing offers Repot… or Plan repot… right from the list"
+            ),
+            changed = listOf(
+                "Settings now lives in the bottom bar, next to Care, Plants, and Calendar — the gear icon on the " +
+                    "plant list is gone. While a backup or restore is running, the bar's tabs are disabled until it " +
+                    "finishes"
+            )
+        ),
         ReleaseNotes(
             versionCode = 500,
             versionName = "0.33.0",

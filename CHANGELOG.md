@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-01
+
 ### Changed
 - **Settings is now a tab in the bottom bar** — the bar reads Care · Plants · Calendar · Settings, so Settings
   is one tap away from every tab, including Care, which had no way to reach it. The gear icon on the Plants top
