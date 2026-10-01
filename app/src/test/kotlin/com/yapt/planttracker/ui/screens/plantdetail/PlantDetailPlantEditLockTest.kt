@@ -44,8 +44,8 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * #808 (technical ADR-0036): every Plant Detail write to the plant row shares
- * [PlantDetailViewModel.plantEditMutex] and reads the plant fresh inside it (or writes one column
+ * #808 (technical ADR-0036): the Plant Detail ViewModel's own plant-row writes share
+ * [PlantDetailViewModel.plantEditMutex] and read the plant fresh inside it (or writes one column
  * through a column-specific UPDATE), so none of them can undo a concurrent write to a column it doesn't
  * change. Same technique as [PlantDetailScheduleSettingsActionsFreshReadTest]: every repository write
  * is mocked with a real [delay], so two back-to-back calls genuinely overlap under

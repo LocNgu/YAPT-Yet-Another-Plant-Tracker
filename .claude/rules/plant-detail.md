@@ -78,7 +78,7 @@ quiet-window timer — `INTERVAL_TAP_COALESCE_WINDOW_MS` in `PlantDetailInterval
 burst of taps produces exactly one write and, for watering, exactly one `MANUAL_EDIT` row using the *last*
 tapped value, not one per tap (#531 review round 1, product ADR-0050). An immediate commit (release/switch)
 always cancels any pending tap first. Both write functions read the plant fresh inside a shared
-`PlantDetailViewModel.plantEditMutex` (formerly `intervalEditMutex`; see "One lock for every plant-row write" below) rather than
+`PlantDetailViewModel.plantEditMutex` (formerly `intervalEditMutex`; see "One lock for the Plant Detail ViewModel's plant-row writes" below) rather than
 the cached `plant` StateFlow, which can lag a write still in flight — the bug this fixed made a burst's audit
 row log the wrong `beforeIntervalDays`. A still-pending tap survives leaving the screen mid-window: the timer
 runs on `viewModelScope` (cancelled by AndroidX before `onCleared()` is called), but the actual write always
@@ -172,7 +172,7 @@ whole row back, so a plan write outside the lock could land between that read an
 injectable clock). A plan needs no repotting interval. Tests: `PlantDetailViewModelRepotPlanTest` (plain JVM),
 `PlantDetailScreenTest`'s `repotTab_*` cases (instrumented; text/contentDescription only).
 
-### One lock for every plant-row write (#808, technical ADR-0036)
+### One lock for the Plant Detail ViewModel's plant-row writes (#808, technical ADR-0036)
 
 `plantEditMutex` serializes the Plant Detail ViewModel's own plant-row writes, not just the interval ones:
 interval, season, pin, liquid-fertilizer, dormancy (no separate lock), repot plan, suggestion apply/dismiss/undo,
