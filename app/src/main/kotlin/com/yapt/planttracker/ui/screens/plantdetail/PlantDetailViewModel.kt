@@ -167,10 +167,12 @@ class PlantDetailViewModel(
         p ?: return@combine null
         val lastWatering = logs.firstOrNull { it.careType == CareType.WATER }
         val lastFertilizing = logs.firstOrNull { it.careType == CareType.FERTILIZE }
+        val lastRepotting = logs.firstOrNull { it.careType == CareType.REPOT }
         CareSchedule.computeStatus(
             plant = p,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
+            lastRepottedAt = lastRepotting?.loggedAt,
             totalLogs = logs.size,
             customReminders = reminders,
             seasonalAmplitude = seasonalAmplitude

@@ -2042,12 +2042,16 @@ class PlantDetailScreenTest {
         )
         showDetail(makeViewModel(plant, logs))
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(str(R.string.home_summary_next_fertilizing)))
-        composeTestRule.onNodeWithText(str(R.string.insight_last_watered)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.home_summary_next_watering)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.insight_last_fertilized)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.home_summary_next_fertilizing)).assertIsDisplayed()
+        listOf(
+            R.string.insight_last_watered,
+            R.string.home_summary_next_watering,
+            R.string.insight_last_fertilized,
+            R.string.home_summary_next_fertilizing
+        ).forEach { labelRes ->
+            composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+                .performScrollToNode(hasText(str(labelRes)))
+            composeTestRule.onNodeWithText(str(labelRes)).assertIsDisplayed()
+        }
     }
 
     @Test
