@@ -355,6 +355,7 @@
         <item>December</item>
     </string-array>
     <!-- Plant Detail per-action tabs (#436) -->
+    <string name="plant_detail_tab_home">Home</string>
     <string name="plant_detail_tab_water">Water</string>
     <string name="plant_detail_tab_fertilize">Fertilize</string>
     <string name="plant_detail_tab_repot">Repot</string>
@@ -393,6 +394,10 @@
     <string name="insight_last_watered">Last watered</string>
     <string name="insight_last_fertilized">Last fertilized</string>
     <string name="insight_last_repotted">Last repotted</string>
+    <!-- #530: Home tab summary card -->
+    <string name="home_summary_next_watering">Next watering</string>
+    <string name="home_summary_next_fertilizing">Next fertilizing</string>
+    <string name="home_summary_date_with_relative">%1$s · %2$s</string>
     <string name="insight_first_photo">First photo</string>
     <string name="insight_latest_photo">Latest photo</string>
     <plurals name="insight_interval_days">

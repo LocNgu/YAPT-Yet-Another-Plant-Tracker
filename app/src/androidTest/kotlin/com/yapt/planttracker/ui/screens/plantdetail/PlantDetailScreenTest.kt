@@ -275,7 +275,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun noInitialTab_opensOnWaterWithRowCollapsed() {
+    fun noInitialTab_opensOnHomeWithRowCollapsed() {
         val plant = Plant(id = 23L, name = "Ficus", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -289,7 +289,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        composeTestRule.onNode(hasText(str(R.string.plant_detail_tab_water)) and isSelectable())
+        composeTestRule.onNode(hasText(str(R.string.plant_detail_tab_home)) and isSelectable())
             .assertIsSelected()
         composeTestRule.onAllNodesWithText(str(R.string.plant_detail_tab_issues)).assertCountEquals(0)
     }
@@ -355,7 +355,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -401,7 +402,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -440,7 +442,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -557,7 +560,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -590,7 +594,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -633,7 +638,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -661,7 +667,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -701,7 +708,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -842,7 +850,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -871,7 +880,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -954,7 +964,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -974,7 +985,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1008,7 +1020,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1040,7 +1053,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1075,7 +1089,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1117,7 +1132,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1158,7 +1174,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1199,7 +1216,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1246,7 +1264,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1279,7 +1298,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1321,15 +1341,13 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.FERTILIZE
             )
         }
 
         // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
         // the equivalent action now lives under the Fertilize tab.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
         // #652 round 2: the button is relabeled "Water + Fertilize" for a liquid-fertilizer plant.
@@ -1368,15 +1386,13 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.FERTILIZE
             )
         }
 
         // #603/#704: the fertilizing StatChip is gone (StatsRow was deleted with the classic layout) —
         // the equivalent action now lives under the Fertilize tab.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
         // #652 round 2: a non-liquid-fertilizer plant keeps the plain "Fertilize" label, unchanged.
@@ -1414,10 +1430,12 @@ class PlantDetailScreenTest {
         // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(waterTabMatcher)
+        composeTestRule.onNode(homeTabMatcher).assertIsDisplayed()
         composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Repot").assertIsDisplayed()
         composeTestRule.onNode(photoTabMatcher).assertIsDisplayed()
+        // Repot sits behind the chevron since #530 (product ADR-0060).
+        composeTestRule.onAllNodesWithText("Repot").assertCountEquals(0)
     }
 
     // Standalone Tab()s inside PlantDetailTabStrip's FlowRow draw no indicator of their own
@@ -1439,14 +1457,14 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(waterTabMatcher)
-        composeTestRule.onNode(waterTabMatcher).assertIsSelected()
+            .performScrollToNode(homeTabMatcher)
+        composeTestRule.onNode(homeTabMatcher).assertIsSelected()
         composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
 
         composeTestRule.onNodeWithText("Fertilize").performClick()
 
         composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
-        composeTestRule.onNode(waterTabMatcher).assertIsNotSelected()
+        composeTestRule.onNode(homeTabMatcher).assertIsNotSelected()
     }
 
     @Test
@@ -1519,7 +1537,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1541,7 +1560,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -1610,7 +1630,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.REPOT
             )
         }
 
@@ -1618,9 +1639,6 @@ class PlantDetailScreenTest {
         // The hero/name-header sections push the tab strip below the fold on CI's 320x640
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0043), so they no longer push this any further.
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Repot"))
-        composeTestRule.onNodeWithText("Repot").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Repottings"))
         composeTestRule.onNodeWithText("Repottings").assertIsDisplayed()
@@ -1641,13 +1659,11 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.REPOT
             )
         }
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Repot"))
-        composeTestRule.onNodeWithText("Repot").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG)
@@ -1679,13 +1695,11 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.REPOT
             )
         }
 
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Repot"))
-        composeTestRule.onNodeWithText("Repot").performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG))
         composeTestRule.onNodeWithTag(REPOT_TAB_ACTION_BUTTON_TEST_TAG).performClick()
@@ -1799,7 +1813,7 @@ class PlantDetailScreenTest {
     // ---- Tab row collapse/expand + attention badge (#590, product ADR-0043) ----
 
     @Test
-    fun tabRow_collapsedByDefault_hidesCustomRemindersAndIssuesTabs() {
+    fun tabRow_collapsedByDefault_hidesRepotRemindersAndIssuesTabs() {
         val plant = Plant(id = 90L, name = "Peperomia", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -1816,6 +1830,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
         composeTestRule.onNodeWithContentDescription(tabsExpandCd()).assertIsDisplayed()
+        assertTrue(
+            composeTestRule.onAllNodesWithText(repotTabLabel())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
         assertTrue(
             composeTestRule.onAllNodesWithText(customRemindersTabLabel())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -1850,6 +1868,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText(customRemindersTabLabel()))
         composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(issuesTabLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(repotTabLabel()).assertIsDisplayed()
     }
 
     @Test
@@ -1954,7 +1973,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun tabRow_collapsingWhileOnHiddenTab_resetsSelectionToWater() {
+    fun tabRow_collapsingWhileOnHiddenTab_resetsSelectionToHome() {
         val plant = Plant(id = 94L, name = "ZZ Plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModelWithReminderRepo(plant, reactiveCustomReminderRepo())
 
@@ -1982,12 +2001,149 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Water every 7 days"))
-        composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()
+            .performScrollToNode(homeTabMatcher)
+        composeTestRule.onNode(homeTabMatcher).assertIsSelected()
         assertTrue(
             composeTestRule.onAllNodesWithText(customRemindersSectionLabel())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    // ---- Home tab (#530, product ADR-0060) ----
+
+    private fun showDetail(viewModel: PlantDetailViewModel, initialTab: PlantDetailTab? = null) {
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = {},
+                initialTab = initialTab
+            )
+        }
+    }
+
+    @Test
+    fun homeTab_showsLastAndNextWateringAndFertilizingRows() {
+        val day = 24 * 60 * 60 * 1000L
+        val plant = Plant(
+            id = 110L,
+            name = "Fern",
+            wateringIntervalDays = 7,
+            fertilizingIntervalDays = 30,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val now = System.currentTimeMillis()
+        val logs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.WATER, loggedAt = now - 2 * day),
+            CareLog(id = 2L, plantId = plant.id, careType = CareType.FERTILIZE, loggedAt = now - 3 * day)
+        )
+        showDetail(makeViewModel(plant, logs))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.home_summary_next_fertilizing)))
+        composeTestRule.onNodeWithText(str(R.string.insight_last_watered)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.home_summary_next_watering)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.insight_last_fertilized)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.home_summary_next_fertilizing)).assertIsDisplayed()
+    }
+
+    @Test
+    fun homeTab_neverWatered_readsNeverWatered() {
+        val plant = Plant(id = 111L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.water_label_never_watered)))
+        composeTestRule.onNodeWithText(str(R.string.water_label_never_watered)).assertIsDisplayed()
+    }
+
+    @Test
+    fun homeTab_withoutFertilizingInterval_hidesFertilizingRowsAndButton() {
+        val plant = Plant(id = 112L, name = "Cactus", wateringIntervalDays = 14, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.home_summary_next_watering)))
+        composeTestRule.onAllNodesWithText(str(R.string.insight_last_fertilized)).assertCountEquals(0)
+        composeTestRule.onAllNodesWithText(str(R.string.home_summary_next_fertilizing)).assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun homeTab_liquidFertilizerPlant_showsExactlyOneWaterAndFertilizeButton() {
+        val plant = Plant(
+            id = 113L,
+            name = "Ivy",
+            wateringIntervalDays = 7,
+            fertilizingIntervalDays = 30,
+            useLiquidFertilizer = true,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        showDetail(makeViewModel(plant))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onAllNodesWithText(str(R.string.water_fertilize_combined_button)).assertCountEquals(1)
+        composeTestRule.onAllNodesWithTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun homeTab_waterButton_opensTheLogWateringDatePicker() {
+        val plant = Plant(id = 114L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    @Test
+    fun tabRow_attentionBadge_visibleWithOverdueRepot() {
+        val day = 24 * 60 * 60 * 1000L
+        val plant = Plant(id = 115L, name = "Yucca", repottingIntervalDays = 30, createdAt = 0L, updatedAt = 0L)
+        val repottedAt = System.currentTimeMillis() - 100 * day
+        val logs = listOf(CareLog(id = 1L, plantId = plant.id, careType = CareType.REPOT, loggedAt = repottedAt))
+        showDetail(makeViewModel(plant, logs))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandAttentionCd()).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("plant_detail_tabs_toggle").performClick()
+
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertIsDisplayed()
+    }
+
+    @Test
+    fun tabRow_noAttentionBadge_whenRepotIsNotOverdue() {
+        val plant = Plant(id = 116L, name = "Yucca", repottingIntervalDays = 365, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            CareLog(id = 1L, plantId = plant.id, careType = CareType.REPOT, loggedAt = System.currentTimeMillis())
+        )
+        showDetail(makeViewModel(plant, logs))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("plant_detail_tabs_toggle"))
+        composeTestRule.onNodeWithContentDescription(tabsExpandCd()).assertIsDisplayed()
+        composeTestRule.onAllNodesWithContentDescription(tabsExpandAttentionCd()).assertCountEquals(0)
+    }
+
+    @Test
+    fun initialTab_repot_expandsTabRowAndSelectsIt() {
+        val plant = Plant(id = 117L, name = "Yucca", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.REPOT)
+
+        composeTestRule.onNode(hasText(repotTabLabel()) and isSelectable()).assertIsSelected()
+        composeTestRule.onNodeWithContentDescription(tabsCollapseCd()).assertExists()
     }
 
     private fun customRemindersSectionLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
@@ -2047,6 +2203,9 @@ class PlantDetailScreenTest {
     private fun customRemindersTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tab_custom_reminders)
 
+    private fun repotTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tab_repot)
+
     private fun issuesTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tab_issues)
 
@@ -2067,6 +2226,8 @@ class PlantDetailScreenTest {
      * user-visible semantics, never tree structure).
      */
     private val waterTabMatcher = hasText("Water") and isSelectable()
+
+    private val homeTabMatcher = hasText("Home") and isSelectable()
 
     /**
      * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see
@@ -2587,7 +2748,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -2618,7 +2780,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -2659,7 +2822,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -2696,7 +2860,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -2721,7 +2886,8 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 
@@ -2774,12 +2940,10 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToAddLog = {},
-                onNavigateToEditLog = {}
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.REPOT
             )
         }
-        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Repot"))
-        composeTestRule.onNodeWithText("Repot").performClick()
     }
 
     @Test

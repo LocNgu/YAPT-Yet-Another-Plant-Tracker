@@ -16,6 +16,16 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "A plant's detail page now opens on a new Home tab: Water, Reschedule and Fertilize (or Water + " +
+                "Fertilize) buttons up top, then when it was last watered and fertilized and when each is next " +
+                "due, then its care history"
+        ),
+        changed = listOf(
+            "On a plant's detail page the Repot tab now sits behind the arrow with Reminders and Issues, so the " +
+                "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
+                "is overdue, as it already does for an active issue or an overdue reminder"
+        ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +
                 "applying, dismissing or undoing a suggested watering interval, reverting a reschedule, " +
