@@ -934,6 +934,10 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText(str(R.string.care_history)))
         composeTestRule.onNodeWithText(String.format(str(R.string.plant_detail_care_logs_count), 1))
             .assertIsDisplayed()
+        // Home's actions and summary sit above the log, so scrolling to the header alone can leave the
+        // first row below the fold on a short viewport.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.care_type_watered)))
         composeTestRule.onNodeWithText(str(R.string.care_type_watered)).assertIsDisplayed()
         assertTrue(
             composeTestRule.onAllNodesWithText(str(R.string.care_type_check))
@@ -1269,7 +1273,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // Default tab is Water — no tab switch needed to reach these buttons.
+        // The test opens on the Water tab (initialTab = WATER) — no tab switch needed to reach these buttons.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag(WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG))
         // Regression guard: the plain Water button is still present, not removed or repurposed.
@@ -1542,7 +1546,7 @@ class PlantDetailScreenTest {
             )
         }
 
-        // The inline watering-interval header sits on the default Water tab, below the always-visible
+        // The inline watering-interval header sits on the Water tab (opened via initialTab), below the always-visible
         // Water/Reschedule actions row (#603 round-3: the actions row now renders first).
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Water every 7 days"))
