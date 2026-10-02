@@ -13,7 +13,17 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        fixed = listOf(
+            "A quick second action on a plant's detail page can no longer silently undo the first — " +
+                "applying, dismissing or undoing a suggested watering interval, reverting a reschedule, " +
+                "changing the cover photo, or editing the dormancy window right after another setting " +
+                "(the pin switch, an interval edit, a watering that cleared a reschedule) used to quietly put " +
+                "the older value back"
+        )
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).

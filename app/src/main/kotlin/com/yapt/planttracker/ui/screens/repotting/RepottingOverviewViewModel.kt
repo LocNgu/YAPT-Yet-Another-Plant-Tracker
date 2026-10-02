@@ -70,7 +70,7 @@ class RepottingOverviewViewModel(
 
     // Serializes this page's own writes. A repot's lifecycle reset is a full-row write of a plant it read
     // just before, so a plan write landing in between would be overwritten with the old plan; one at a
-    // time per page keeps them ordered. Plant Detail does the same with its own intervalEditMutex.
+    // time per page keeps them ordered. Plant Detail does the same with its own plantEditMutex.
     private val actionMutex = Mutex()
 
     fun selectThreshold(threshold: RepottingOverviewThreshold) {

@@ -2156,6 +2156,20 @@ class PlantDetailScreenTest {
         coEvery { repo.updatePlant(any()) } answers {
             state.value = it.invocation.args[0] as Plant
         }
+        // Column-specific writes (#808): the reschedule revert/undo and the cover-photo actions no longer
+        // round-trip through a full-row updatePlant().
+        coEvery { repo.updateWateringDueDateOverride(any(), any(), any()) } answers {
+            state.value = state.value.copy(
+                wateringDueDateOverride = it.invocation.args[1] as Long?,
+                updatedAt = it.invocation.args[2] as Long
+            )
+        }
+        coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {
+            state.value = state.value.copy(
+                coverPhotoUri = it.invocation.args[1] as String?,
+                updatedAt = it.invocation.args[2] as Long
+            )
+        }
         return repo
     }
 
@@ -2729,6 +2743,18 @@ class PlantDetailScreenTest {
         val repo = mockk<PlantRepository>()
         every { repo.getPlantById(initial.id) } returns state
         coEvery { repo.updatePlant(any()) } answers { state.value = it.invocation.args[0] as Plant }
+        coEvery { repo.updateWateringDueDateOverride(any(), any(), any()) } answers {
+            state.value = state.value.copy(
+                wateringDueDateOverride = it.invocation.args[1] as Long?,
+                updatedAt = it.invocation.args[2] as Long
+            )
+        }
+        coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {
+            state.value = state.value.copy(
+                coverPhotoUri = it.invocation.args[1] as String?,
+                updatedAt = it.invocation.args[2] as Long
+            )
+        }
         coEvery { repo.setRepotPlan(any(), any(), any(), any()) } answers {
             state.value = state.value.copy(
                 repotPlanSeasonStartAt = it.invocation.args[1] as Long,

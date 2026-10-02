@@ -364,10 +364,10 @@ class PlantDetailViewModelTest {
 
     /**
      * #813 review round 1: `toggleFertilizingSeason` used to call `emitEvent` from *inside*
-     * `intervalEditMutex.withLock`. `_events` is unbuffered, so `emit()` suspends until the
+     * `plantEditMutex.withLock`. `_events` is unbuffered, so `emit()` suspends until the
      * screen's single collector is ready — which it may not be, e.g. while it's suspended inside a
      * `SnackbarDuration.Long` Snackbar for an unrelated event. Emitting under the lock would hold
-     * `intervalEditMutex` for that whole wait, stalling every other write sharing it
+     * `plantEditMutex` for that whole wait, stalling every other write sharing it
      * (`setLiquidFertilizer`, `setPinIntervalToBase`, another season toggle).
      *
      * Modelled here with a manual `events` collector (launched on the same `UnconfinedTestDispatcher`
@@ -548,7 +548,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns emptyList()
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } just runs
         val vm = makeVm()
 
         val photo =
@@ -571,7 +571,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns listOf(nextPhoto)
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } just runs
         val vm = makeVm()
 
         val photo =
@@ -586,7 +586,8 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == nextPhoto.uri }) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, nextPhoto.uri, any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -597,7 +598,7 @@ class PlantDetailViewModelTest {
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(listOf(plantPhoto))
         coEvery { plantPhotoRepo.deletePhoto(plantPhoto) } just runs
         coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns emptyList()
-        coEvery { plantRepo.updatePlant(any()) } just runs
+        coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } just runs
         val vm = makeVm()
 
         val photo =
@@ -612,7 +613,8 @@ class PlantDetailViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify { plantRepo.updatePlant(match { it.coverPhotoUri == null }) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, null, any()) }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     // saveReminderPhoto/savePhotoLog coverage lives in PlantDetailViewModelQuickActionsTest

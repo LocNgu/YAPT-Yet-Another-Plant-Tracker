@@ -79,6 +79,16 @@ interface PlantDao {
     suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long)
 
     /**
+     * Column-specific update touching only `coverPhotoUri`/`updatedAt` (#808), same rationale as
+     * [updateWateringDueDateOverride]: a cover change from Plant Detail's photo actions or the shared
+     * photo-reminder save can't revert a concurrent write to any other column, because the statement
+     * never names one. Like `updatePlant()` it deliberately does not fire the repository's
+     * `onPhotoReferencesRemoved` hook — the daily sweep reclaims a replaced cover (technical ADR-0031).
+     */
+    @Query("UPDATE plants SET coverPhotoUri = :coverPhotoUri, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateCoverPhotoUri(id: Long, coverPhotoUri: String?, updatedAt: Long)
+
+    /**
      * Column-specific update touching only `repotPlanSeasonStartAt`/`repotPlanMadeAt`/`updatedAt` (#809,
      * product ADR-0057), same rationale as [updateWateringDueDateOverride]: a REPOT log clears a plan
      * from `QuickLogUseCase`/`AddCareLogViewModel` while other writers may be mid-flight, and a

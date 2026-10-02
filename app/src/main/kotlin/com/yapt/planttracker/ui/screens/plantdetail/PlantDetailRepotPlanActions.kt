@@ -12,14 +12,14 @@ import kotlinx.coroutines.sync.withLock
  * decides which REPOT logs clear it. A plan needs no repotting interval.
  *
  * Writes only the plan columns through [com.yapt.planttracker.data.repository.PlantRepository.setRepotPlan]
- * — never a full-row `updatePlant()`. It still takes [PlantDetailViewModel.intervalEditMutex]: that lock
+ * — never a full-row `updatePlant()`. It still takes [PlantDetailViewModel.plantEditMutex]: that lock
  * serializes the full-row writers on this screen (each re-reads the plant fresh inside it), and running
  * the plan write inside it means none of them can read the plant just before this write and put the old
  * plan straight back.
  */
 fun PlantDetailViewModel.setRepotPlan(season: RepotPlanSeason, now: Long = System.currentTimeMillis()) {
     viewModelScope.launch {
-        intervalEditMutex.withLock {
+        plantEditMutex.withLock {
             plantRepository.setRepotPlan(plantId, season.startAtMillis, now, now)
         }
     }
@@ -28,7 +28,7 @@ fun PlantDetailViewModel.setRepotPlan(season: RepotPlanSeason, now: Long = Syste
 /** Clears the planned repot (#809); the recurring interval date, if any, takes over again. See [setRepotPlan]. */
 fun PlantDetailViewModel.clearRepotPlan(now: Long = System.currentTimeMillis()) {
     viewModelScope.launch {
-        intervalEditMutex.withLock {
+        plantEditMutex.withLock {
             plantRepository.clearRepotPlan(plantId, now)
         }
     }
