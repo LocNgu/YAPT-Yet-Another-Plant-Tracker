@@ -23,14 +23,16 @@ sit behind `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default
 single-page layout as the flag-off alternative); the flag graduated in #704 per product ADR-0042's
 flag-lifecycle rule — the registry entry, `PlantDetailViewModel.tabsEnabled`, and the classic-layout
 branch (chart + gallery + care history on one page, plus the tappable `StatsRow`/`StatChip` quick-log
-chips, #434) were all deleted in that PR. The shared care-history list and `+` FAB are unaffected —
-they always rendered outside either branch.
+chips, #434) were all deleted in that PR. The `+` FAB is unaffected — it always rendered outside either
+branch. The combined care-history list used to render under every tab; since #530 (product ADR-0060, amending
+technical ADR-0018's placement clause) it renders only at the bottom of Home — see "Care history" below.
 
 - `PlantDetailTab` enum (7 entries: `HOME, WATER, FERTILIZE, PHOTO, REPOT, CUSTOM_REMINDERS, ISSUES`) = per-tab
   `labelRes` + icon; `selectedTab` is `rememberSaveable` (defaults to `PlantDetailTab.DEFAULT` = `HOME`, #530,
   product ADR-0060, amending product ADR-0043's tab set/order). See "Home tab" below.
-- Per-tab filtered log lists use prefixed keys (`"fert-"`/`"repot-"`/`"mist-"` + id) so they never collide with the
-  shared list's `it.id` keys. Misting is folded into the Water tab.
+- Per-tab filtered log lists use prefixed keys (`"water-"`/`"fert-"`/`"repot-"` + id) so they never collide with the
+  combined list's `it.id` keys. There is no misting list any more (#530): existing MIST logs show only in Home's
+  combined log, like Prune/Note.
 
 ### Tab row collapse/expand + attention badge (product ADR-0043, #590)
 Seven tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
@@ -69,9 +71,10 @@ all 7, with `REPOT`/`CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at th
   one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
   a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
 
-### Home tab (#530, product ADR-0060; PR 1 of 2)
-Home is the first and landing tab. Its items, top to bottom, all in `PlantDetailScreen.kt`'s `HOME` branch, gated on
-`careStatus != null`, with its composables in `PlantDetailHomePane.kt`:
+### Home tab (#530, product ADR-0060)
+Home is the first and landing tab (delivered as two PRs: the tab, then the history relocation). Its items, top to
+bottom, all in `PlantDetailScreen.kt`'s `HOME` branch, with its composables in `PlantDetailHomePane.kt`; items 1-3
+are gated on `careStatus != null`:
 1. `RescheduleChipAndWateringActions` — the Reschedule delta chip (gate: `rescheduleDeltaDays != null` and mode not
    `DORMANT_SUSPENDED`) above `WateringDueActionsRow`. **Shared with the Water tab**, which now calls the same
    composable, so Home adds no second code path; both tabs pass the same `showWaterDatePicker`/`requestReschedule()`/
@@ -88,8 +91,11 @@ Home is the first and landing tab. Its items, top to bottom, all in `PlantDetail
    (no interval) hides its row; the out-of-season shifted date comes straight from `nextFertilizingDueAt`. No
    settings controls here (product ADR-0023). Tests: `HomeSummaryRowsTest` (JVM) + `PlantDetailScreenTest`'s
    `homeTab_*` cases.
-4. The combined care history below it. **In PR 1 it still renders under every tab**; PR 2 moves it to Home only and
-   adds the Water tab's own WATER list.
+4. The combined care history, last (`combinedCareHistoryItems()` in `CareHistorySection.kt`, called from the
+   `HOME` branch *after* the `careStatus` items, so it renders even before `careStatus` loads). **No other tab
+   shows it**: a brand-new plant therefore has one `no_care_logs_detail` empty state, on Home, while Water,
+   Fertilize, Repot and Photo keep only their own. PRUNE/NOTE/PHOTO/MIST/reminder-done (CUSTOM) entries appear only
+   here. See "Care history" below.
 `PlantDetailScreenTest` no longer opens on Water: tests of Water/Fertilize/Repot-pane controls pass
 `initialTab = PlantDetailTab.WATER`/`FERTILIZE`/`REPOT` (the last also expands the row, so no tab click is needed).
 
@@ -652,8 +658,26 @@ capture date chip (`cd_photo_viewer_date`); trash icon + long-press delete indiv
 next-most-recent) (#306/#308/#444/#445).
 
 ## Care history
-Collapses to 5 most recent by default; `AssistChip` with animated chevron expands; hidden when ≤ 5; expanded state
-resets on screen open (#253).
+Two collapsible lists share one `LazyListScope` helper, `collapsibleCareLogItems()` (`CareHistorySection.kt`, so
+`PlantDetailScreen.kt` stays under Detekt's per-file thresholds): rows `CareLogItem` (edit/delete via the
+`CareLogRowActions` bundle, `customReminderName` for CUSTOM entries), the first `CARE_HISTORY_COLLAPSED_COUNT` (5)
+by default, then an `AssistChip` ("Show N more"/"Show less", `animateFloatAsState` chevron living inside the chip)
+that is hidden when ≤ 5 rows. Parameters are bundled in `CareHistoryCollapse` (state, toggle, the chevron's expand/
+collapse descriptions) per Detekt's `LongParameterList`.
+- **Home's combined log** (`combinedCareHistoryItems()`, keys = `it.id`): "Care History" header with a count, every
+  care type, existing `CareType.CHECK` rows hidden from rows *and* count (#738, product ADR-0039 — a display filter,
+  never a filter on `viewModel.careLogs`, which feeds `CareSchedule.computeStatus`), the `no_care_logs_detail` empty
+  state. Chevron descriptions `care_history_expand_cd`/`care_history_collapse_cd`.
+- **The Water tab's WATER list** (#530, product ADR-0060): after the chart, "Recent watering"
+  (`plant_detail_watering_section`) header, then `careLogs.filter { it.careType == CareType.WATER }` (newest first),
+  keys `"water-${id}"`, chevron descriptions `watering_history_expand_cd`/`watering_history_collapse_cd`. With no WATER
+  logs it renders **nothing** — no header, no empty state of its own: the chart above already says "Need at least 2
+  watering logs…", and a second message would reintroduce the duplicated empty state this split removed. The old
+  "Recent misting" list is gone (maintainer decision on #530; `CareType.MIST` itself and its other surfaces are
+  untouched).
+- **Each list owns its expanded state** — two screen-level `remember { mutableStateOf(false) }` flags
+  (`isCareHistoryExpanded`/`isWaterHistoryExpanded`), hoisted because the chip's lazy item leaves composition when
+  scrolled away. Neither is saved: both reset on every screen open (#253), and expanding one never expands the other.
 
 ## Custom reminders (technical ADR-0019, #232)
 `CustomRemindersCard`'s **placement** (product ADR-0043, #590): renders only when `selectedTab ==
