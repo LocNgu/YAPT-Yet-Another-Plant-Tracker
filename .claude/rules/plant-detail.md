@@ -26,24 +26,25 @@ branch (chart + gallery + care history on one page, plus the tappable `StatsRow`
 chips, #434) were all deleted in that PR. The shared care-history list and `+` FAB are unaffected —
 they always rendered outside either branch.
 
-- `PlantDetailTab` enum (6 entries: `WATER, FERTILIZE, REPOT, PHOTO, CUSTOM_REMINDERS, ISSUES`) = per-tab `labelRes`
-  + icon; `selectedTab` is `rememberSaveable` (defaults Water).
+- `PlantDetailTab` enum (7 entries: `HOME, WATER, FERTILIZE, PHOTO, REPOT, CUSTOM_REMINDERS, ISSUES`) = per-tab
+  `labelRes` + icon; `selectedTab` is `rememberSaveable` (defaults to `PlantDetailTab.DEFAULT` = `HOME`, #530,
+  product ADR-0060, amending product ADR-0043's tab set/order). See "Home tab" below.
 - Per-tab filtered log lists use prefixed keys (`"fert-"`/`"repot-"`/`"mist-"` + id) so they never collide with the
   shared list's `it.id` keys. Misting is folded into the Water tab.
 
 ### Tab row collapse/expand + attention badge (product ADR-0043, #590)
-Six tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
+Seven tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
 horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `Tab` composables
 (`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
-`PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, same width/layout as before; expanded shows
-all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
+`PlantDetailTab.entries.take(4)` — Home/Water/Fertilize/Photo, same width/layout as before; expanded shows
+all 7, with `REPOT`/`CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
 - **Initial tab from the Care tab (#843):** `Screen.PlantDetail` is `plant_detail/{plantId}?tab={tab}` (nullable
   `StringType`, default null); `createRoute(plantId, tab: PlantDetailTab? = null)` omits the query when null, so
   Plant List/Calendar/notifications/deep links are unchanged. `NavGraph` parses it with
-  `PlantDetailTab.fromRouteArg()` (`runCatching { valueOf }.getOrDefault(WATER)`, null stays null) and passes
+  `PlantDetailTab.fromRouteArg()` (`runCatching { valueOf }.getOrDefault(DEFAULT)`, null stays null) and passes
   `PlantDetailScreen(initialTab = …)`, which seeds only the *initial* value of the `rememberSaveable`
   `selectedTab` — rotation/back-stack restore keeps the user's later tab. `initialTab?.isInCollapsedRow`
-  (`CUSTOM_REMINDERS`/`ISSUES`) also seeds `isTabRowExpanded` true. Care's mapping lives in
+  (`REPOT`/`CUSTOM_REMINDERS`/`ISSUES`) also seeds `isTabRowExpanded` true. Care's mapping lives in
   `TodayCareKind.plantDetailTab()` (`ui/screens/today/TodayCareKindTab.kt`; `WATER_AND_FERTILIZE` → `FERTILIZE`);
   a Care grid tile passes its own task's kind (the plant-grouped layout is gone, #842).
 - `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
@@ -54,9 +55,11 @@ all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same 
   **and** `hasAttention` — folds the "something needs attention" signal into the announced text since the badge
   itself, a bare `Badge` dot, carries no `contentDescription` of its own, #591).
 - Attention `Badge` on the toggle when **collapsed** and (`activeIssues.isNotEmpty()` or any
-  `CustomReminderStatus.isOverdue`) — both already-collected in `PlantDetailScreen.kt`, no new queries. Hidden once
-  expanded.
-- Collapsing while `selectedTab` is `CUSTOM_REMINDERS`/`ISSUES` (now hidden) resets `selectedTab` to `WATER`.
+  `CustomReminderStatus.isOverdue` or `careStatus?.isRepottingOverdue == true`, the last added by #530 now that Repot
+  is hidden — overdue only, no due-soon state; a repot plan whose season has ended counts as overdue) — all
+  already-collected in `PlantDetailScreen.kt`, no new queries. Hidden once expanded.
+- Collapsing while `selectedTab.isInCollapsedRow` (`REPOT`/`CUSTOM_REMINDERS`/`ISSUES`, now hidden) resets
+  `selectedTab` to `PlantDetailTab.DEFAULT` (Home).
 - **Selection indicator (#591):** a standalone `Tab()` outside `TabRow`/`PrimaryTabRow` draws no indicator of its
   own — `PrimaryIndicator` is drawn by `TabRow` itself as a separate overlay positioned from real `TabPosition`s,
   unavailable here — and `Tab()`'s `unselectedContentColor` defaults to `selectedContentColor` when neither is
@@ -65,6 +68,30 @@ all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same 
   `colorScheme.primaryContainer` rounded-background (`RoundedCornerShape(12.dp)`, else transparent) scoped to that
   one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
   a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
+
+### Home tab (#530, product ADR-0060; PR 1 of 2)
+Home is the first and landing tab. Its items, top to bottom, all in `PlantDetailScreen.kt`'s `HOME` branch, gated on
+`careStatus != null`, with its composables in `PlantDetailHomePane.kt`:
+1. `RescheduleChipAndWateringActions` — the Reschedule delta chip (gate: `rescheduleDeltaDays != null` and mode not
+   `DORMANT_SUSPENDED`) above `WateringDueActionsRow`. **Shared with the Water tab**, which now calls the same
+   composable, so Home adds no second code path; both tabs pass the same `showWaterDatePicker`/`requestReschedule()`/
+   `revertReschedule()` handlers and share the screen-level dialog state.
+2. One `FertilizeDueActionRow`, gated on `fertilizingIntervalDays != null`; its click is one local `onFertilizeClick`
+   lambda shared with the Fertilize tab (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).
+   For a liquid-fertilizer plant this is the one "Water + Fertilize" button on Home; the Water tab has none (#530).
+3. `HomeSummaryCard` — `TabInsightsCard` (now `internal`) rows from the pure `homeSummaryRows(status)`:
+   Last watered, Next watering, and only with a fertilizing interval Last fertilized / Next fertilizing. Values are
+   `HomeSummaryValue.At` ("Tomorrow · Oct 3, 2026", `relativeDateText()` + `DateUtils.formatDate()`), `Never`
+   ("Never watered"/"Never fertilized") or `Dormant`. Watering is "Dormant" only for
+   `WateringScheduleMode.DORMANT_SUSPENDED` with an interval (`isDormant` alone is also true during a dormant
+   *cadence*, which shows its live due date); fertilizing is "Dormant" whenever `isDormant`; a missing next date
+   (no interval) hides its row; the out-of-season shifted date comes straight from `nextFertilizingDueAt`. No
+   settings controls here (product ADR-0023). Tests: `HomeSummaryRowsTest` (JVM) + `PlantDetailScreenTest`'s
+   `homeTab_*` cases.
+4. The combined care history below it. **In PR 1 it still renders under every tab**; PR 2 moves it to Home only and
+   adds the Water tab's own WATER list.
+`PlantDetailScreenTest` no longer opens on Water: tests of Water/Fertilize/Repot-pane controls pass
+`initialTab = PlantDetailTab.WATER`/`FERTILIZE`/`REPOT` (the last also expands the row, so no tab click is needed).
 
 ## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession; slider-control clause amended by product ADR-0048, tap-commit clause further amended by product ADR-0050)
 Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + shared `SteppedSlider`
@@ -288,18 +315,15 @@ per-tab insights card.
   tab, this "Water" button **always** calls plain `requestWater()`, regardless of
   `Plant.useLiquidFertilizer` — it never branches (#652).
 
-**Combined Water + Fertilize action on the Water tab (#652):** for a liquid-fertilizer plant
-(`plant?.useLiquidFertilizer == true`), a second, visually distinct `OutlinedButton`
-(`CombinedWaterFertilizeActionRow`, `WateringDueActions.kt`,
-`WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG`) renders directly below
-`WateringDueActionsRow`, wired to `requestLiquidFertilize()`/`showLiquidFertilizeSheet` — the same
-combined path `FertilizeDueActionRow` uses — so a liquid-fertilizer plant owner doesn't have to switch
-to the Fertilize tab to log the one action they take every time they water. It is additive, not a
-replacement: the plain "Water" button stays present and unchanged next to it. Absent entirely for a
-non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "Water + Fertilize"
-(shared string `R.string.water_fertilize_combined_button`) under the same `useLiquidFertilizer`
-condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
-and unchanged.
+**Combined Water + Fertilize action (#652, moved by #530):** for a liquid-fertilizer plant
+(`plant?.useLiquidFertilizer == true`), `FertilizeDueActionRow`'s button is relabeled "Water + Fertilize"
+(shared string `R.string.water_fertilize_combined_button`) and wired to
+`requestLiquidFertilize()`/`showLiquidFertilizeSheet` (via the screen's one `onFertilizeClick`). It appears on the
+**Home and Fertilize tabs**, gated on `fertilizingIntervalDays != null` — never widen that gate. #652 originally
+also gave the Water tab a second button, `CombinedWaterFertilizeActionRow`; #530 (product ADR-0060) deleted it and
+its test tag, so the Water tab shows only the chip and `WateringDueActionsRow`, whose plain "Water" button never
+branches on `useLiquidFertilizer`. A liquid plant with no fertilizing interval therefore has no combined button
+anywhere (accepted; the `+` FAB → Add Care Log remains).
 - **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
   asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
   `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put
@@ -308,8 +332,8 @@ and unchanged.
 
 **Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
 on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
-the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s
-liquid-fert path) first opens `LogWateringDatePickerDialog` (`LogWateringDatePicker.kt`, not-future-only
+the classic-layout watering `StatChip`, and `FertilizeDueActionRow`'s liquid-fert path;
+`CombinedWaterFertilizeActionRow` was deleted by #530) first opens `LogWateringDatePickerDialog` (`LogWateringDatePicker.kt`, not-future-only
 via `SelectableDates`, pre-selected to today, distinct from `RescheduleWateringDialog`'s custom date —
 that one sets `wateringDueDateOverride` on the *next due date*, this one backdates the *logged event*
 itself). Confirming with today selected reproduces the old instant-log fast path in one extra confirm

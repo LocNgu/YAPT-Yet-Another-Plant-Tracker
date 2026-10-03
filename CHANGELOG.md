@@ -12,7 +12,30 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **A Home tab on Plant Detail** — a plant now opens on Home, the first tab, instead of Water. It carries the
+  same Water and Reschedule buttons as the Water tab (with the Rescheduled chip that reverts a deferral), one
+  Fertilize button (labelled "Water + Fertilize" for a liquid-fertilizer plant, never two combined buttons), and a
+  summary of Last watered, Next watering and, when fertilizing is on, Last fertilized and Next fertilizing, with
+  relative text plus the date. Suspended or dormant schedules read "Dormant" instead of a stale date, a dormant
+  watering cadence shows its due date, and a plant that was never watered or fertilized says so. The care history
+  still shows below every tab; moving it to Home only is the second half of #530. Every button runs through the
+  Water and Fertilize tabs' own handlers, so duplicate guards, date pickers and reason prompts behave the same
+  (#530, product ADR-0060, amending product ADR-0043 and technical ADR-0018)
+
+### Changed
+- **Repot moved behind the tab-row arrow** — the collapsed row reads Home · Water · Fertilize · Photo and the
+  expanded row adds Repot · Reminders · Issues, at the same tab width. Opening a plant from a Care Repot task or the
+  Repotting overview still lands on Repot with the row expanded; collapsing while on a hidden tab now returns to
+  Home. The arrow's attention dot also appears for an overdue repot (a plan whose season has ended counts), as it
+  already did for an active issue or an overdue reminder (#530, product ADR-0060)
+- **The Water tab no longer has its own "Water + Fertilize" button** — for a liquid-fertilizer plant that button now
+  lives on Home and the Fertilize tab only, so each tab shows one combined button at most; the Water tab keeps just
+  Water and Reschedule. A liquid-fertilizer plant with no fertilizing schedule has no combined button; use the + button
+  to log it (#530, product ADR-0060)
+
 ### Fixed
+- **The Repot tab's "Next repot due" date ignored your repots** — Plant Detail worked out the next repot from the day the plant was added instead of from its latest Repot log, so after repotting it kept showing the old date (and, with the new tab-row attention dot, could flag a freshly repotted plant as overdue). It now counts from the latest repot, like Care, Plant List and the daily notification (#530)
 - **A quick second action on Plant Detail could silently undo the first** — applying, dismissing or undoing a suggested watering interval, reverting or applying a reschedule (and undoing that), changing the cover photo (taking, adding or deleting one), and editing the dormancy window each saved the whole plant from a snapshot that could still predate a change made a moment earlier, so tapping one right after another setting (the pin switch, an interval edit, a watering that cleared a reschedule) could quietly put the older value back. Those actions now share one lock with the interval, season, pin and liquid-fertilizer settings and read the plant fresh inside it, and the single-field ones (reschedule revert, cover photo) update only their own field. Plant Detail's reminder photo now goes through the same all-or-nothing save as the Plants, Calendar and Care reminders. The same race can still affect the adaptive watering-interval bookkeeping inside quick-water, quick-fertilize and quick-repot and the Calendar/Plant List copies of apply/dismiss, tracked as a follow-up (#872) (#808, technical ADR-0036, amending product ADR-0050)
 
 ## [0.34.0] - 2026-10-01

@@ -98,7 +98,6 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
-import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -194,8 +193,11 @@ fun PlantDetailScreen(
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
     // Signals something is hidden behind the collapsed tab row (#590) — reuses the same
-    // already-collected activeIssues/customReminderStatuses the always-visible cards use.
-    val tabRowHasAttention = activeIssues.isNotEmpty() || customReminderStatuses.any { it.isOverdue }
+    // already-collected activeIssues/customReminderStatuses the always-visible cards use. An overdue
+    // repot joins them now that Repot sits behind the chevron (#530, product ADR-0060); overdue only.
+    val tabRowHasAttention = activeIssues.isNotEmpty() ||
+        customReminderStatuses.any { it.isOverdue } ||
+        careStatus?.isRepottingOverdue == true
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
@@ -221,7 +223,7 @@ fun PlantDetailScreen(
     val listState = rememberLazyListState()
     val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
-    var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.WATER) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.DEFAULT) }
     var isTabRowExpanded by rememberSaveable { mutableStateOf(initialTab?.isInCollapsedRow == true) }
 
     // #644: the field mirrors what the "Suggested: ... days" sentence below shows — the effective
@@ -708,44 +710,57 @@ fun PlantDetailScreen(
                             onToggleExpanded = {
                                 val expanding = !isTabRowExpanded
                                 isTabRowExpanded = expanding
-                                val onHiddenTab = selectedTab == PlantDetailTab.CUSTOM_REMINDERS ||
-                                    selectedTab == PlantDetailTab.ISSUES
-                                if (!expanding && onHiddenTab) {
-                                    selectedTab = PlantDetailTab.WATER
+                                if (!expanding && selectedTab.isInCollapsedRow) {
+                                    selectedTab = PlantDetailTab.DEFAULT
                                 }
                             }
                         )
                         Spacer(Modifier.height(8.dp))
                     }
 
+                    val onFertilizeClick: () -> Unit = {
+                        if (plant?.useLiquidFertilizer == true) {
+                            showLiquidFertilizeDatePicker = true
+                        } else {
+                            viewModel.quickFertilize()
+                        }
+                    }
+
                     when (selectedTab) {
+                        PlantDetailTab.HOME -> {
+                            careStatus?.let { status ->
+                                item {
+                                    RescheduleChipAndWateringActions(
+                                        status = status,
+                                        onRevertReschedule = { viewModel.revertReschedule() },
+                                        onWaterClick = { showWaterDatePicker = true },
+                                        onRescheduleClick = { viewModel.requestReschedule() }
+                                    )
+                                    if (plant?.fertilizingIntervalDays != null) {
+                                        Spacer(Modifier.height(8.dp))
+                                        FertilizeDueActionRow(
+                                            useLiquidFertilizer = plant?.useLiquidFertilizer == true,
+                                            onFertilizeClick = onFertilizeClick
+                                        )
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                item {
+                                    HomeSummaryCard(status)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
+                        }
+
                         PlantDetailTab.WATER -> {
                             careStatus?.let { status ->
                                 item {
-                                    status.rescheduleDeltaDays?.takeUnless {
-                                        status.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED
-                                    }?.let { delta ->
-                                        RescheduleDeltaChip(
-                                            deltaDays = delta,
-                                            onClick = { viewModel.revertReschedule() },
-                                            modifier = Modifier.padding(horizontal = 16.dp)
-                                        )
-                                        Spacer(Modifier.height(8.dp))
-                                    }
-                                    WateringDueActionsRow(
+                                    RescheduleChipAndWateringActions(
+                                        status = status,
+                                        onRevertReschedule = { viewModel.revertReschedule() },
                                         onWaterClick = { showWaterDatePicker = true },
-                                        onRescheduleClick = if (status.computedNextWateringDueAt != null) {
-                                            { viewModel.requestReschedule() }
-                                        } else {
-                                            null
-                                        }
+                                        onRescheduleClick = { viewModel.requestReschedule() }
                                     )
-                                    if (plant?.wateringIntervalDays != null && plant?.useLiquidFertilizer == true) {
-                                        Spacer(Modifier.height(8.dp))
-                                        CombinedWaterFertilizeActionRow(
-                                            onClick = { showLiquidFertilizeDatePicker = true }
-                                        )
-                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
@@ -860,13 +875,7 @@ fun PlantDetailScreen(
                                     item {
                                         FertilizeDueActionRow(
                                             useLiquidFertilizer = plant?.useLiquidFertilizer == true,
-                                            onFertilizeClick = {
-                                                if (plant?.useLiquidFertilizer == true) {
-                                                    showLiquidFertilizeDatePicker = true
-                                                } else {
-                                                    viewModel.quickFertilize()
-                                                }
-                                            }
+                                            onFertilizeClick = onFertilizeClick
                                         )
                                         Spacer(Modifier.height(16.dp))
                                     }
@@ -1282,11 +1291,11 @@ private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
 /**
  * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
  * (product ADR-0043, #590). Collapsed (default) shows only the first [PlantDetailTab.COLLAPSED_TAB_COUNT] entries
- * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
+ * of [PlantDetailTab] — Home/Water/Fertilize/Photo (#530, product ADR-0060), same width and appearance;
  * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
  * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
  * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
- * (identical to today), and expanding to 6 wraps the extra 2 onto a second row at that same width,
+ * (identical to today), and expanding to 7 wraps the extra 3 onto a second row at that same width,
  * rather than shrinking every tab or scrolling horizontally.
  *
  * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned
@@ -1509,7 +1518,7 @@ private fun careTypeInsightItems(
 
 /** Presentational card listing label -> value insight rows for a Plant Detail tab (#436). */
 @Composable
-private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+internal fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .fillMaxWidth()
