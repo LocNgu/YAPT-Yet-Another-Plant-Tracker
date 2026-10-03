@@ -1,6 +1,8 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
@@ -28,6 +30,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -78,6 +82,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
+
+/** Upper bound for [PlantDetailScreenTest.scrollDetailToEnd]'s swipes; a few viewports tall at most on a 320x640 screen. */
+private const val MAX_END_SWIPES = 10
 
 @RunWith(AndroidJUnit4::class)
 class PlantDetailScreenTest {
@@ -960,6 +967,28 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(matcher)
     }
 
+    /**
+     * Swipes the detail list up until its scroll position stops changing, i.e. to the very end.
+     * `performScrollToNode` pages a viewport at a time and then scrolls the *minimum* needed to make the
+     * target fully visible, so a target first composed while cut off at the bottom lands flush with the
+     * viewport's bottom edge and anything rendered after it stays below the fold, uncomposed. An "absent"
+     * assertion made at that point passes vacuously; call this first so whatever would follow the tab's
+     * content is on screen. Also parks the last item above the bottom content padding that clears the
+     * "+" FAB, which sits over the row's trailing Edit/Delete icons on a 320dp-wide screen.
+     */
+    private fun scrollDetailToEnd() {
+        val content = composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+        var previousPosition: Float? = null
+        repeat(MAX_END_SWIPES) {
+            content.performTouchInput { swipeUp(startY = height * 0.85f, endY = height * 0.15f) }
+            composeTestRule.waitForIdle()
+            val position = content.fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.value?.invoke()
+            if (position != null && position == previousPosition) return
+            previousPosition = position
+        }
+    }
+
     private fun assertNoNodeWithText(text: String) {
         assertTrue(
             composeTestRule.onAllNodesWithText(text).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
@@ -971,8 +1000,9 @@ class PlantDetailScreenTest {
 
     /**
      * A lazy list only composes what is on screen, so "absent" is only meaningful once the list is
-     * scrolled to the tab's own last item: anything rendered after it (the combined log, if it
-     * leaked back under this tab) then lands right below it, inside the viewport.
+     * scrolled to its very end ([scrollDetailToEnd]): scrolling to the tab's own last item is not enough,
+     * because it can land flush with the bottom edge with the combined log (if it leaked back under this
+     * tab) still below the fold.
      */
     private fun assertCombinedCareHistoryAbsentOn(tab: PlantDetailTab, lastTabItem: SemanticsMatcher, plantId: Long) {
         val plant = Plant(id = plantId, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
@@ -984,6 +1014,7 @@ class PlantDetailScreenTest {
         showDetail(makeViewModel(plant, logs), initialTab = tab)
 
         scrollDetailTo(lastTabItem)
+        scrollDetailToEnd()
         assertNoNodeWithText(str(R.string.care_history))
         assertNoNodeWithText(str(R.string.care_type_pruned))
         assertNoNodeWithText(str(R.string.care_type_note))
@@ -1064,6 +1095,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(str(R.string.plant_detail_watering_section)).assertIsDisplayed()
         scrollDetailTo(hasText(str(R.string.care_type_watered)))
         composeTestRule.onNodeWithText(str(R.string.care_type_watered)).assertIsDisplayed()
+        scrollDetailToEnd()
         assertNoNodeWithText(str(R.string.care_type_pruned))
         assertNoNodeWithText(str(R.string.care_type_fertilized))
         assertNoNodeWithText(str(R.string.care_type_note))
@@ -1082,6 +1114,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(showMoreLabel(2)).assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(str(R.string.watering_history_expand_cd)).assertIsDisplayed()
         composeTestRule.onNodeWithText("water note 5").assertIsDisplayed()
+        scrollDetailToEnd()
         assertNoNodeWithText("water note 6")
         assertNoNodeWithText("water note 7")
 
@@ -1101,6 +1134,7 @@ class PlantDetailScreenTest {
 
         scrollDetailTo(hasText("water note 5"))
         composeTestRule.onNodeWithText("water note 5").assertIsDisplayed()
+        scrollDetailToEnd()
         composeTestRule.onAllNodesWithContentDescription(str(R.string.watering_history_expand_cd)).assertCountEquals(0)
     }
 
@@ -1145,6 +1179,7 @@ class PlantDetailScreenTest {
         }
 
         scrollDetailTo(hasContentDescription(str(R.string.cd_edit_log)))
+        scrollDetailToEnd()
         composeTestRule.onNodeWithContentDescription(str(R.string.cd_edit_log)).performClick()
 
         assertEquals(7L, editedLogId)
@@ -1166,6 +1201,7 @@ class PlantDetailScreenTest {
         )
 
         scrollDetailTo(hasContentDescription(str(R.string.cd_delete_log)))
+        scrollDetailToEnd()
         composeTestRule.onNodeWithContentDescription(str(R.string.cd_delete_log)).performClick()
 
         coVerify(timeout = 5000) { careLogRepo.deleteLog(waterLog) }
@@ -1188,6 +1224,7 @@ class PlantDetailScreenTest {
         // The chart's own message is the Water tab's empty state; nothing may follow it.
         scrollDetailTo(hasText(str(R.string.insufficient_watering_logs)))
         composeTestRule.onNodeWithText(str(R.string.insufficient_watering_logs)).assertIsDisplayed()
+        scrollDetailToEnd()
         assertNoNodeWithText(str(R.string.no_care_logs_detail))
         assertNoNodeWithText(str(R.string.care_history))
         assertNoNodeWithText(str(R.string.plant_detail_watering_section))
@@ -1200,6 +1237,7 @@ class PlantDetailScreenTest {
 
         scrollDetailTo(hasText(str(R.string.plant_detail_tab_fertilize_empty)))
         composeTestRule.onNodeWithText(str(R.string.plant_detail_tab_fertilize_empty)).assertIsDisplayed()
+        scrollDetailToEnd()
         assertNoNodeWithText(str(R.string.no_care_logs_detail))
         assertNoNodeWithText(str(R.string.care_history))
     }
