@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,7 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
@@ -47,7 +45,6 @@ import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -212,11 +209,9 @@ fun PlantDetailScreen(
         }
     }
 
-    var isExpanded by remember { mutableStateOf(false) }
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
-        label = "chevronRotation"
-    )
+    // Each collapsible care-log list owns its expanded state (#253); neither survives leaving the screen.
+    var isCareHistoryExpanded by remember { mutableStateOf(false) }
+    var isWaterHistoryExpanded by remember { mutableStateOf(false) }
 
     // Edit fades out once the hero photo (the LazyColumn's item index 0) has fully scrolled past —
     // Back and the FAB stay pinned regardless of scroll (technical ADR-0022).
@@ -726,6 +721,12 @@ fun PlantDetailScreen(
                         }
                     }
 
+                    val careLogRowActions = CareLogRowActions(
+                        onEdit = { onNavigateToEditLog(it.id) },
+                        onDelete = { viewModel.deleteLog(it) },
+                        customReminderName = { log -> log.customReminderId?.let { customReminderNameById[it] } }
+                    )
+
                     when (selectedTab) {
                         PlantDetailTab.HOME -> {
                             careStatus?.let { status ->
@@ -750,6 +751,18 @@ fun PlantDetailScreen(
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
+                            // The combined log renders on Home only (#530, product ADR-0060); the other tabs
+                            // list just their own type.
+                            combinedCareHistoryItems(
+                                careLogs = careLogs,
+                                collapse = CareHistoryCollapse(
+                                    isExpanded = isCareHistoryExpanded,
+                                    onToggleExpanded = { isCareHistoryExpanded = !isCareHistoryExpanded },
+                                    expandDescriptionRes = R.string.care_history_expand_cd,
+                                    collapseDescriptionRes = R.string.care_history_collapse_cd
+                                ),
+                                rowActions = careLogRowActions
+                            )
                         }
 
                         PlantDetailTab.WATER -> {
@@ -848,24 +861,28 @@ fun PlantDetailScreen(
                                     onRangeSelected = { viewModel.setTimeRange(it) }
                                 )
                             }
-                            // Misting is folded into the Water tab (#436): a recent-mists list.
-                            val mistLogs = careLogs.filter { it.careType == CareType.MIST }
-                            if (mistLogs.isNotEmpty()) {
+                            // The Water tab's own WATER list (#530, product ADR-0060). No header and no empty state
+                            // of its own with no WATER logs: the chart above already says there is nothing to plot.
+                            val waterLogs = careLogs.filter { it.careType == CareType.WATER }
+                            if (waterLogs.isNotEmpty()) {
                                 item {
                                     Text(
-                                        text = stringResource(R.string.plant_detail_misting_section),
+                                        text = stringResource(R.string.plant_detail_watering_section),
                                         style = MaterialTheme.typography.titleMedium,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                     )
                                 }
-                                items(mistLogs, key = { "mist-${it.id}" }) { log ->
-                                    CareLogItem(
-                                        log = log,
-                                        onEdit = { onNavigateToEditLog(log.id) },
-                                        onDelete = { viewModel.deleteLog(log) },
-                                        customReminderName = log.customReminderId?.let { customReminderNameById[it] }
-                                    )
-                                }
+                                collapsibleCareLogItems(
+                                    logs = waterLogs,
+                                    key = { "water-${it.id}" },
+                                    collapse = CareHistoryCollapse(
+                                        isExpanded = isWaterHistoryExpanded,
+                                        onToggleExpanded = { isWaterHistoryExpanded = !isWaterHistoryExpanded },
+                                        expandDescriptionRes = R.string.watering_history_expand_cd,
+                                        collapseDescriptionRes = R.string.watering_history_collapse_cd
+                                    ),
+                                    rowActions = careLogRowActions
+                                )
                             }
                         }
 
@@ -1127,87 +1144,6 @@ fun PlantDetailScreen(
                             }
                         }
                     }
-
-                    // #738 (product ADR-0039): existing CareType.CHECK rows are kept on disk but
-                    // hidden from this care-history list — a screen-local display filter, not a
-                    // filter on viewModel.careLogs (which also feeds CareSchedule.computeStatus's
-                    // totalLogs and must not change).
-                    val displayedCareLogs = careLogs.filter { it.careType != CareType.CHECK }
-
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.care_history),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.plant_detail_care_logs_count, displayedCareLogs.size),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    if (displayedCareLogs.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.height(200.dp)) {
-                                EmptyStateView(
-                                    message = stringResource(R.string.no_care_logs_detail),
-                                    icon = Icons.AutoMirrored.Filled.Notes
-                                )
-                            }
-                        }
-                    } else {
-                        val visibleLogs = if (isExpanded) displayedCareLogs else displayedCareLogs.take(5)
-                        items(visibleLogs, key = { it.id }) { log ->
-                            CareLogItem(
-                                log = log,
-                                onEdit = { onNavigateToEditLog(log.id) },
-                                onDelete = { viewModel.deleteLog(log) },
-                                customReminderName = log.customReminderId?.let { customReminderNameById[it] }
-                            )
-                        }
-
-                        if (displayedCareLogs.size > 5) {
-                            item {
-                                val remaining = displayedCareLogs.size - 5
-                                AssistChip(
-                                    onClick = { isExpanded = !isExpanded },
-                                    label = {
-                                        Text(
-                                            if (isExpanded) {
-                                                stringResource(R.string.care_history_show_less)
-                                            } else {
-                                                pluralStringResource(
-                                                    R.plurals.care_history_show_more,
-                                                    remaining,
-                                                    remaining
-                                                )
-                                            }
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Filled.ExpandMore,
-                                            contentDescription = if (isExpanded) {
-                                                stringResource(R.string.care_history_collapse_cd)
-                                            } else {
-                                                stringResource(R.string.care_history_expand_cd)
-                                            },
-                                            modifier = Modifier.rotate(chevronRotation)
-                                        )
-                                    },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1355,7 +1291,7 @@ private fun PlantDetailTabStrip(
 
 /**
  * Chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
- * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
+ * chevron-rotate pattern the care-history `AssistChip` uses (`CareHistorySection.kt`, #253) rather than
  * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
  * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
  * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own

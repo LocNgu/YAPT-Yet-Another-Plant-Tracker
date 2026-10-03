@@ -22,6 +22,10 @@ object WhatsNewContent {
                 "due, then its care history"
         ),
         changed = listOf(
+            "A plant's full care history now appears only on its Home tab instead of repeating under every " +
+                "tab, and the Water tab lists just its own waterings (five, then Show more) with edit and " +
+                "delete. The Water tab no longer has its own misting list — misting entries show in the Home " +
+                "tab's care history",
             "On a plant's detail page the Repot tab now sits behind the arrow with Reminders and Issues, so the " +
                 "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
                 "is overdue, as it already does for an active issue or an overdue reminder",
