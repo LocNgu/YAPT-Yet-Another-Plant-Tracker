@@ -123,9 +123,8 @@
          #649, product ADR-0033) — two options per prompt, phrased the way a user would say them; the
          answer alone decides whether the model learns. The option *set*, not just the wording, now
          differs by direction: the late direction never offers a shorten attribution. -->
-    <!-- #652 round 2: shared label for the liquid-fertilizer combined action, used both by the Water
-         tab's second button (CombinedWaterFertilizeActionRow) and the Fertilize tab's button when
-         the plant uses liquid fertilizer (FertilizeDueActionRow). -->
+    <!-- #652 round 2: label for the liquid-fertilizer combined action, shown by FertilizeDueActionRow
+         (the Home and Fertilize tabs) when the plant uses liquid fertilizer. -->
     <string name="water_fertilize_combined_button">Water + Fertilize</string>
     <!-- Off-schedule reason prompts (#586, product ADR-0030) — two options per prompt, phrased the
          way a user would say them; the answer alone decides whether the model learns. -->

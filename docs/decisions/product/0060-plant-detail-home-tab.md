@@ -54,8 +54,7 @@ ended), alongside an active issue or an overdue custom reminder. Overdue only: t
 2. The same `WateringDueActionsRow` (Water unconditional per product ADR-0040; Reschedule only when a
    schedule-computed due date exists).
 3. One `FertilizeDueActionRow`, gated on a fertilizing interval. It already relabels to "Water + Fertilize"
-   for a liquid-fertilizer plant, and Home never renders `CombinedWaterFertilizeActionRow`, so a liquid
-   plant never sees two combined buttons.
+   for a liquid-fertilizer plant, so Home is the combined action's entry point.
 4. A summary card in the per-tab insights style with Last watered and Next watering, plus Last fertilized
    and Next fertilizing only when a fertilizing interval is set. Values read as relative text followed by the
    absolute date. Suspended watering and dormant fertilizing read "Dormant" (never a stale due date); a
@@ -63,6 +62,15 @@ ended), alongside an active issue or an overdue custom reminder. Overdue only: t
    a plant that was never watered or fertilized reads "Never watered" / "Never fertilized"; a plant with no
    watering interval has no Next watering row. The card hosts no settings controls (product ADR-0023).
 5. The combined care history.
+
+**The Water tab no longer carries the combined button.** #652 gave a liquid-fertilizer plant's Water tab a
+second "Water + Fertilize" button (`CombinedWaterFertilizeActionRow`) so the combined action was reachable
+without switching tabs. With Home and the Fertilize tab both hosting that action through
+`FertilizeDueActionRow`, the Water tab keeps only the chip and the plain Water/Reschedule row: one combined
+entry point per pane, and no pane showing two combined buttons. The component and its test tag are deleted. The
+accepted edge case: a liquid-fertilizer plant with no fertilizing interval now has no combined button anywhere
+(`FertilizeDueActionRow` stays gated on the interval), the same as a non-liquid plant without a schedule; the
+`+` FAB and Add Care Log remain.
 
 **Home duplicates the Water entry point, knowingly.** Product ADR-0031 removed the old watering chip because
 it duplicated the Water tab's button. Home re-adds a Water button, but the two are never on screen at once
@@ -84,7 +92,8 @@ Technical ADR-0018's "StatsRow stays above the tab strip" and `PrimaryTabRow` wo
 - Plant Detail opens on a plant overview rather than on the Water settings, and the next watering date is
   visible again without opening "Why this date?".
 - Repot is one extra tap away, but cannot go unnoticed when overdue (badge) and keeps its deep links.
-- A second Water button exists, in a different tab from the first. The cost is a few extra lines of screen
+- A second Water button exists, in a different tab from the first; the Water tab's liquid-fertilizer second
+  button is gone (see above). The cost is a few extra lines of screen
   wiring, not logic.
 - `PlantDetailScreenTest`'s default tab is no longer Water; tests that exercise Water-pane controls open on
   that tab explicitly.

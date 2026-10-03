@@ -78,8 +78,7 @@ Home is the first and landing tab. Its items, top to bottom, all in `PlantDetail
    `revertReschedule()` handlers and share the screen-level dialog state.
 2. One `FertilizeDueActionRow`, gated on `fertilizingIntervalDays != null`; its click is one local `onFertilizeClick`
    lambda shared with the Fertilize tab (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).
-   Home **never** renders `CombinedWaterFertilizeActionRow` (a liquid plant would see two combined buttons; the Water
-   tab keeps its own).
+   For a liquid-fertilizer plant this is the one "Water + Fertilize" button on Home; the Water tab has none (#530).
 3. `HomeSummaryCard` — `TabInsightsCard` (now `internal`) rows from the pure `homeSummaryRows(status)`:
    Last watered, Next watering, and only with a fertilizing interval Last fertilized / Next fertilizing. Values are
    `HomeSummaryValue.At` ("Tomorrow · Oct 3, 2026", `relativeDateText()` + `DateUtils.formatDate()`), `Never`
@@ -316,18 +315,15 @@ per-tab insights card.
   tab, this "Water" button **always** calls plain `requestWater()`, regardless of
   `Plant.useLiquidFertilizer` — it never branches (#652).
 
-**Combined Water + Fertilize action on the Water tab (#652):** for a liquid-fertilizer plant
-(`plant?.useLiquidFertilizer == true`), a second, visually distinct `OutlinedButton`
-(`CombinedWaterFertilizeActionRow`, `WateringDueActions.kt`,
-`WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG`) renders directly below
-`WateringDueActionsRow`, wired to `requestLiquidFertilize()`/`showLiquidFertilizeSheet` — the same
-combined path `FertilizeDueActionRow` uses — so a liquid-fertilizer plant owner doesn't have to switch
-to the Fertilize tab to log the one action they take every time they water. It is additive, not a
-replacement: the plain "Water" button stays present and unchanged next to it. Absent entirely for a
-non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "Water + Fertilize"
-(shared string `R.string.water_fertilize_combined_button`) under the same `useLiquidFertilizer`
-condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
-and unchanged.
+**Combined Water + Fertilize action (#652, moved by #530):** for a liquid-fertilizer plant
+(`plant?.useLiquidFertilizer == true`), `FertilizeDueActionRow`'s button is relabeled "Water + Fertilize"
+(shared string `R.string.water_fertilize_combined_button`) and wired to
+`requestLiquidFertilize()`/`showLiquidFertilizeSheet` (via the screen's one `onFertilizeClick`). It appears on the
+**Home and Fertilize tabs**, gated on `fertilizingIntervalDays != null` — never widen that gate. #652 originally
+also gave the Water tab a second button, `CombinedWaterFertilizeActionRow`; #530 (product ADR-0060) deleted it and
+its test tag, so the Water tab shows only the chip and `WateringDueActionsRow`, whose plain "Water" button never
+branches on `useLiquidFertilizer`. A liquid plant with no fertilizing interval therefore has no combined button
+anywhere (accepted; the `+` FAB → Add Care Log remains).
 - **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
   asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
   `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put

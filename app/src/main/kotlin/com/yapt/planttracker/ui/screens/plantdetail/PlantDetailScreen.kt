@@ -761,12 +761,6 @@ fun PlantDetailScreen(
                                         onWaterClick = { showWaterDatePicker = true },
                                         onRescheduleClick = { viewModel.requestReschedule() }
                                     )
-                                    if (plant?.wateringIntervalDays != null && plant?.useLiquidFertilizer == true) {
-                                        Spacer(Modifier.height(8.dp))
-                                        CombinedWaterFertilizeActionRow(
-                                            onClick = { showLiquidFertilizeDatePicker = true }
-                                        )
-                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }

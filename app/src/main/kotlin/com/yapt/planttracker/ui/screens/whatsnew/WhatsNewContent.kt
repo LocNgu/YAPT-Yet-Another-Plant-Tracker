@@ -24,7 +24,9 @@ object WhatsNewContent {
         changed = listOf(
             "On a plant's detail page the Repot tab now sits behind the arrow with Reminders and Issues, so the " +
                 "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
-                "is overdue, as it already does for an active issue or an overdue reminder"
+                "is overdue, as it already does for an active issue or an overdue reminder",
+            "The Water + Fertilize button for liquid-fertilizer plants now lives on Home and the Fertilize tab " +
+                "instead of the Water tab"
         ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +
