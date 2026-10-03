@@ -1,6 +1,6 @@
 # Product ADR-0040: Water button renders whenever the watering-due row does, not just when a schedule exists
 
-**Status**: accepted
+**Status**: accepted — CombinedWaterFertilizeActionRow gating clause amended by [ADR-0060](0060-plant-detail-home-tab.md)
 
 **Date**: 2026-09-18
 

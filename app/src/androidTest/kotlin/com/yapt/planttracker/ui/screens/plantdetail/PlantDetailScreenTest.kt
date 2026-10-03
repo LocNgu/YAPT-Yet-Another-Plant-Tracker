@@ -2085,6 +2085,24 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun homeTab_liquidPlantWithoutFertilizingInterval_showsNoCombinedButton() {
+        val plant = Plant(
+            id = 119L,
+            name = "Ivy",
+            useLiquidFertilizer = true,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        showDetail(makeViewModel(plant))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.home_summary_next_watering)))
+        composeTestRule.onAllNodesWithText(str(R.string.water_fertilize_combined_button)).assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(0)
+    }
+
+    @Test
     fun homeTab_liquidFertilizerPlant_showsExactlyOneWaterAndFertilizeButton() {
         val plant = Plant(
             id = 113L,
