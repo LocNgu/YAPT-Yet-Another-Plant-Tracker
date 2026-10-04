@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
@@ -85,11 +86,14 @@ class AddCareLogScreenTest {
     private fun careTypeLabel(careType: CareType): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(careType.labelRes())
 
-    // Mist used to sit right after Prune, so scroll the chip row there before asserting it is gone:
-    // an unscrolled row on a narrow or large-font device would not have composed it either way.
+    // Mist used to sit between Prune and Repot. A LazyRow places only the chips in view, and placed chips form
+    // one contiguous run, so with Prune scrolled to the row's start and Repot placed beside it, an old Mist chip
+    // between them would be placed too. performScrollToNode would only scroll the minimum, which can leave
+    // Repot unplaced; an unscrolled row on a narrow or large-font device proves nothing either way.
     private fun assertPickerHasNoMistChip() {
         composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
-            .performScrollToNode(hasText(careTypeLabel(CareType.PRUNE)))
+            .performScrollToIndex(CareType.entries.indexOf(CareType.PRUNE))
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.PRUNE)).assertIsDisplayed()
         composeTestRule.onNodeWithText(careTypeLabel(CareType.REPOT)).assertIsDisplayed()
         composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
     }
