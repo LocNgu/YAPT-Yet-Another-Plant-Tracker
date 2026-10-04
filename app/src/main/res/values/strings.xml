@@ -200,6 +200,8 @@
     </plurals>
     <string name="care_history_expand_cd">Expand care history</string>
     <string name="care_history_collapse_cd">Collapse care history</string>
+    <string name="watering_history_expand_cd">Expand watering history</string>
+    <string name="watering_history_collapse_cd">Collapse watering history</string>
     <string name="interval_suggestion_title">Adjust watering interval?</string>
     <string name="interval_suggestion_body">Suggested: water every %1$d days (currently %2$d days)</string>
     <string name="interval_suggestion_field_label">Days</string>
@@ -360,7 +362,7 @@
     <string name="plant_detail_tab_repot">Repot</string>
     <string name="plant_detail_tab_photo">Photo</string>
     <string name="plant_detail_action_add_photo">Add photo</string>
-    <string name="plant_detail_misting_section">Recent misting</string>
+    <string name="plant_detail_watering_section">Recent watering</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
     <string name="repot_plan_action">Plan repot</string>

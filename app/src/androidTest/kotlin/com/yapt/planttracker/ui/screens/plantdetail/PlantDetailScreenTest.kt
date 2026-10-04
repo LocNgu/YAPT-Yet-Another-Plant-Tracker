@@ -1,6 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -27,6 +30,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -77,6 +82,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
+
+/** Upper bound for [PlantDetailScreenTest.scrollDetailToEnd]'s swipes; a few viewports tall at most on a 320x640 screen. */
+private const val MAX_END_SWIPES = 10
 
 @RunWith(AndroidJUnit4::class)
 class PlantDetailScreenTest {
@@ -901,7 +909,7 @@ class PlantDetailScreenTest {
     // ---- Care history CHECK-row filter (#738, product ADR-0039) ----
 
     /**
-     * Existing `CareType.CHECK` rows are hidden, not deleted, from Plant Detail's shared
+     * Existing `CareType.CHECK` rows are hidden, not deleted, from Home's combined
      * care-history list — a display filter, since new code no longer writes them but old rows
      * persist on disk. The count text, the visible rows, and the "N more" arithmetic must all agree:
      * only the WATER row is visible and counted, even though two logs exist.
@@ -943,6 +951,295 @@ class PlantDetailScreenTest {
             composeTestRule.onAllNodesWithText(str(R.string.care_type_check))
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
+    }
+
+    // ---- History relocation: combined log on Home only, the Water tab's own WATER list (#530) ----
+
+    private fun historyLog(id: Long, plantId: Long, type: CareType, note: String? = null) = CareLog(
+        id = id,
+        plantId = plantId,
+        careType = type,
+        loggedAt = System.currentTimeMillis() - id * TimeUnit.DAYS.toMillis(1),
+        notes = note
+    )
+
+    private fun scrollDetailTo(matcher: SemanticsMatcher) {
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(matcher)
+    }
+
+    /**
+     * Swipes the detail list up until its scroll position stops changing, i.e. to the very end.
+     * `performScrollToNode` pages a viewport at a time and then scrolls the *minimum* needed to make the
+     * target fully visible, so a target first composed while cut off at the bottom lands flush with the
+     * viewport's bottom edge and anything rendered after it stays below the fold, uncomposed. An "absent"
+     * assertion made at that point passes vacuously; call this first so whatever would follow the tab's
+     * content is on screen. Also parks the last item above the bottom content padding that clears the
+     * "+" FAB, which sits over the row's trailing Edit/Delete icons on a 320dp-wide screen.
+     */
+    private fun scrollDetailToEnd() {
+        val content = composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+        var previousPosition: Float? = null
+        repeat(MAX_END_SWIPES) {
+            content.performTouchInput { swipeUp(startY = height * 0.85f, endY = height * 0.15f) }
+            composeTestRule.waitForIdle()
+            val position = content.fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.VerticalScrollAxisRange)?.value?.invoke()
+            if (position != null && position == previousPosition) return
+            previousPosition = position
+        }
+    }
+
+    private fun assertNoNodeWithText(text: String) {
+        assertTrue(
+            composeTestRule.onAllNodesWithText(text).fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+    }
+
+    private fun showMoreLabel(hidden: Int): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .resources.getQuantityString(R.plurals.care_history_show_more, hidden, hidden)
+
+    /**
+     * A lazy list only composes what is on screen, so "absent" is only meaningful once the list is
+     * scrolled to its very end ([scrollDetailToEnd]): scrolling to the tab's own last item is not enough,
+     * because it can land flush with the bottom edge with the combined log (if it leaked back under this
+     * tab) still below the fold.
+     */
+    private fun assertCombinedCareHistoryAbsentOn(tab: PlantDetailTab, lastTabItem: SemanticsMatcher, plantId: Long) {
+        val plant = Plant(id = plantId, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(1L, plant.id, CareType.WATER),
+            historyLog(2L, plant.id, CareType.PRUNE),
+            historyLog(3L, plant.id, CareType.NOTE)
+        )
+        showDetail(makeViewModel(plant, logs), initialTab = tab)
+
+        scrollDetailTo(lastTabItem)
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.care_history))
+        assertNoNodeWithText(str(R.string.care_type_pruned))
+        assertNoNodeWithText(str(R.string.care_type_note))
+    }
+
+    @Test
+    fun careHistory_home_showsTheCombinedLogWithEveryCareTypeIncludingMist() {
+        val plant = Plant(id = 130L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(1L, plant.id, CareType.WATER),
+            historyLog(2L, plant.id, CareType.PRUNE),
+            historyLog(3L, plant.id, CareType.NOTE),
+            historyLog(4L, plant.id, CareType.MIST)
+        )
+        showDetail(makeViewModel(plant, logs))
+
+        scrollDetailTo(hasText(str(R.string.care_history)))
+        composeTestRule.onNodeWithText(str(R.string.care_history)).assertIsDisplayed()
+        listOf(
+            R.string.care_type_pruned,
+            R.string.care_type_note,
+            R.string.care_type_misted
+        ).forEach { labelRes ->
+            scrollDetailTo(hasText(str(labelRes)))
+            composeTestRule.onNodeWithText(str(labelRes)).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun careHistory_waterTab_hasNoCombinedLog() {
+        assertCombinedCareHistoryAbsentOn(
+            PlantDetailTab.WATER,
+            hasText(str(R.string.care_type_watered)),
+            plantId = 131L
+        )
+    }
+
+    @Test
+    fun careHistory_fertilizeTab_hasNoCombinedLog() {
+        assertCombinedCareHistoryAbsentOn(
+            PlantDetailTab.FERTILIZE,
+            hasText(str(R.string.plant_detail_tab_fertilize_empty)),
+            plantId = 132L
+        )
+    }
+
+    @Test
+    fun careHistory_photoTab_hasNoCombinedLog() {
+        assertCombinedCareHistoryAbsentOn(
+            PlantDetailTab.PHOTO,
+            hasText(str(R.string.plant_detail_tab_photo_empty)),
+            plantId = 133L
+        )
+    }
+
+    @Test
+    fun careHistory_repotTab_hasNoCombinedLog() {
+        assertCombinedCareHistoryAbsentOn(
+            PlantDetailTab.REPOT,
+            hasText(str(R.string.plant_detail_tab_repot_empty)),
+            plantId = 134L
+        )
+    }
+
+    @Test
+    fun waterTab_listsOnlyItsOwnWateringEntries_andNoMistingList() {
+        val plant = Plant(id = 135L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(1L, plant.id, CareType.WATER),
+            historyLog(2L, plant.id, CareType.PRUNE),
+            historyLog(3L, plant.id, CareType.FERTILIZE),
+            historyLog(4L, plant.id, CareType.NOTE),
+            historyLog(5L, plant.id, CareType.MIST)
+        )
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.WATER)
+
+        scrollDetailTo(hasText(str(R.string.plant_detail_watering_section)))
+        composeTestRule.onNodeWithText(str(R.string.plant_detail_watering_section)).assertIsDisplayed()
+        scrollDetailTo(hasText(str(R.string.care_type_watered)))
+        composeTestRule.onNodeWithText(str(R.string.care_type_watered)).assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.care_type_pruned))
+        assertNoNodeWithText(str(R.string.care_type_fertilized))
+        assertNoNodeWithText(str(R.string.care_type_note))
+        // The Water tab's "Recent misting" list was retired (#530); misting entries live in Home's log only.
+        assertNoNodeWithText(str(R.string.care_type_misted))
+        assertNoNodeWithText("Recent misting")
+    }
+
+    @Test
+    fun waterTab_waterList_collapsesToFiveAndExpandsWithShowMore() {
+        val plant = Plant(id = 136L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = (1L..7L).map { historyLog(it, plant.id, CareType.WATER, note = "water note $it") }
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.WATER)
+
+        scrollDetailTo(hasText(showMoreLabel(2)))
+        composeTestRule.onNodeWithText(showMoreLabel(2)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.watering_history_expand_cd)).assertIsDisplayed()
+        composeTestRule.onNodeWithText("water note 5").assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText("water note 6")
+        assertNoNodeWithText("water note 7")
+
+        composeTestRule.onNodeWithText(showMoreLabel(2)).performClick()
+
+        scrollDetailTo(hasText(str(R.string.care_history_show_less)))
+        composeTestRule.onNodeWithText(str(R.string.care_history_show_less)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.watering_history_collapse_cd)).assertIsDisplayed()
+        composeTestRule.onNodeWithText("water note 7").assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTab_waterList_atFiveEntries_hasNoShowMoreChip() {
+        val plant = Plant(id = 137L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = (1L..5L).map { historyLog(it, plant.id, CareType.WATER, note = "water note $it") }
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.WATER)
+
+        scrollDetailTo(hasText("water note 5"))
+        composeTestRule.onNodeWithText("water note 5").assertIsDisplayed()
+        scrollDetailToEnd()
+        composeTestRule.onAllNodesWithContentDescription(str(R.string.watering_history_expand_cd)).assertCountEquals(0)
+    }
+
+    @Test
+    fun waterTab_expandingTheWaterList_doesNotExpandHomesCombinedLog() {
+        val plant = Plant(id = 138L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = (1L..7L).map { historyLog(it, plant.id, CareType.WATER, note = "water note $it") }
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.WATER)
+
+        scrollDetailTo(hasText(showMoreLabel(2)))
+        composeTestRule.onNodeWithText(showMoreLabel(2)).performClick()
+        scrollDetailTo(hasText(str(R.string.care_history_show_less)))
+        composeTestRule.onNodeWithText(str(R.string.care_history_show_less)).assertIsDisplayed()
+
+        scrollDetailTo(homeTabMatcher)
+        composeTestRule.onNode(homeTabMatcher).performClick()
+
+        scrollDetailTo(hasText(showMoreLabel(2)))
+        composeTestRule.onNodeWithText(showMoreLabel(2)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.care_history_expand_cd)).assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTab_waterRow_editOpensThatLogInTheEditor() {
+        val plant = Plant(id = 139L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(7L, plant.id, CareType.WATER),
+            historyLog(8L, plant.id, CareType.FERTILIZE)
+        )
+        val viewModel = makeViewModel(plant, logs)
+        var editedLogId: Long? = null
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = { editedLogId = it },
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        scrollDetailTo(hasContentDescription(str(R.string.cd_edit_log)))
+        scrollDetailToEnd()
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_edit_log)).performClick()
+
+        assertEquals(7L, editedLogId)
+    }
+
+    @Test
+    fun waterTab_waterRow_deleteRemovesThatLogThroughTheRepository() {
+        val plant = Plant(id = 140L, name = "History plant", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val waterLog = historyLog(7L, plant.id, CareType.WATER)
+        val careLogRepo = mockk<CareLogRepository>().also {
+            every { it.getLogsForPlant(plant.id) } returns flowOf(listOf(waterLog))
+            every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+            coEvery { it.getLastWateringBefore(any(), any()) } returns null
+            coEvery { it.deleteLog(any()) } returns Unit
+        }
+        showDetail(
+            makeViewModelWithReminderRepo(plant, mockCustomReminderRepo, careLogRepo),
+            initialTab = PlantDetailTab.WATER
+        )
+
+        scrollDetailTo(hasContentDescription(str(R.string.cd_delete_log)))
+        scrollDetailToEnd()
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_delete_log)).performClick()
+
+        coVerify(timeout = 5000) { careLogRepo.deleteLog(waterLog) }
+    }
+
+    @Test
+    fun brandNewPlant_home_showsTheCareHistoryEmptyState() {
+        val plant = Plant(id = 141L, name = "Brand new", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant))
+
+        scrollDetailTo(hasText(str(R.string.no_care_logs_detail)))
+        composeTestRule.onNodeWithText(str(R.string.no_care_logs_detail)).assertIsDisplayed()
+    }
+
+    @Test
+    fun brandNewPlant_waterTab_hasNoCareHistoryEmptyStateAndNoWateringList() {
+        val plant = Plant(id = 142L, name = "Brand new", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.WATER)
+
+        // The chart's own message is the Water tab's empty state; nothing may follow it.
+        scrollDetailTo(hasText(str(R.string.insufficient_watering_logs)))
+        composeTestRule.onNodeWithText(str(R.string.insufficient_watering_logs)).assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.no_care_logs_detail))
+        assertNoNodeWithText(str(R.string.care_history))
+        assertNoNodeWithText(str(R.string.plant_detail_watering_section))
+    }
+
+    @Test
+    fun brandNewPlant_fertilizeTab_showsOnlyItsOwnEmptyState() {
+        val plant = Plant(id = 143L, name = "Brand new", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.FERTILIZE)
+
+        scrollDetailTo(hasText(str(R.string.plant_detail_tab_fertilize_empty)))
+        composeTestRule.onNodeWithText(str(R.string.plant_detail_tab_fertilize_empty)).assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.no_care_logs_detail))
+        assertNoNodeWithText(str(R.string.care_history))
     }
 
     // ---- Reschedule delta chip + revert (#630) ----
@@ -2286,7 +2583,7 @@ class PlantDetailScreenTest {
      * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see
      * [waterTabMatcher]'s KDoc): the Photo tab ([R.string.plant_detail_tab_photo]) and
      * [R.string.care_type_photo] (rendered as a standalone `Text` by `CareLogItem` for any
-     * `CareType.PHOTO` entry in the always-visible shared care-history list) are both the literal
+     * `CareType.PHOTO` entry in Home's combined care-history list, #530) are both the literal
      * text "Photo". Not a live bug in the fixtures these tests use today — none carries a PHOTO
      * log — but preemptive hardening against the same class of collision, matched by the
      * selected/not-selected semantics rather than by text alone (#420).

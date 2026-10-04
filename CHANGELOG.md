@@ -19,11 +19,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   summary of Last watered, Next watering and, when fertilizing is on, Last fertilized and Next fertilizing, with
   relative text plus the date. Suspended or dormant schedules read "Dormant" instead of a stale date, a dormant
   watering cadence shows its due date, and a plant that was never watered or fertilized says so. The care history
-  still shows below every tab; moving it to Home only is the second half of #530. Every button runs through the
-  Water and Fertilize tabs' own handlers, so duplicate guards, date pickers and reason prompts behave the same
-  (#530, product ADR-0060, amending product ADR-0043 and technical ADR-0018)
+  sits at the bottom of Home. Every button runs through the Water and Fertilize tabs' own handlers, so duplicate
+  guards, date pickers and reason prompts behave the same (#530, product ADR-0060, amending product ADR-0043 and
+  technical ADR-0018)
 
 ### Changed
+- **The full care history now appears only on a plant's Home tab, and the Water tab lists its own waterings** —
+  the combined care history used to repeat under every tab. It now sits at the bottom of Home alone, where Pruned,
+  Note, Photo, Misted and reminder entries still appear. The Water tab shows a "Recent watering" list of just its
+  waterings (five, then "Show more"), with the same edit and delete buttons; with no waterings it shows nothing
+  extra, since the chart already says so. The Water tab no longer has its own misting list; misting entries show in
+  the Home tab's care history. A brand-new plant now shows its "No care logged yet" message once, on Home, instead
+  of under every tab (#530, product ADR-0060, amending technical ADR-0018)
 - **Repot moved behind the tab-row arrow** — the collapsed row reads Home · Water · Fertilize · Photo and the
   expanded row adds Repot · Reminders · Issues, at the same tab width. Opening a plant from a Care Repot task or the
   Repotting overview still lands on Repot with the row expanded; collapsing while on a hidden tab now returns to
