@@ -432,7 +432,7 @@ fun YaptNavGraph(
                 val careLogId = backStackEntry.arguments!!.getLong("careLogId")
                 val initialCareType = runCatching {
                     CareType.valueOf(backStackEntry.arguments!!.getString("careType")!!)
-                }.getOrDefault(CareType.WATER)
+                }.getOrDefault(CareType.WATER).takeUnless { it == CareType.MIST } ?: CareType.WATER
                 val vm: AddCareLogViewModel = viewModel(
                     factory = AddCareLogViewModel.Factory(
                         app.careLogRepository,

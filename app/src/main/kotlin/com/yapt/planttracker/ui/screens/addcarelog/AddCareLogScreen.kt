@@ -79,6 +79,11 @@ import java.util.TimeZone
 
 internal const val CARE_TYPE_PICKER_TEST_TAG = "care_type_picker"
 
+// CUSTOM is only loggable from a plant's Custom reminders card (mark-done ties the log back to a
+// specific reminder via customReminderId); CHECK and MIST are retired for new logs (#738, #875).
+internal fun careTypePickerOptions(includeMist: Boolean): List<CareType> =
+    CareType.entries.filter { it != CareType.CUSTOM && it != CareType.CHECK && (includeMist || it != CareType.MIST) }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
@@ -275,11 +280,7 @@ fun AddCareLogScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                // CUSTOM is only loggable from a plant's Custom reminders card (mark-done ties the
-                // log back to a specific reminder via customReminderId), never from this generic picker.
-                // CHECK is only ever written by the check-reminders notification's Still-moist action
-                // (#570), never manually from this picker.
-                items(CareType.entries.filter { it != CareType.CUSTOM && it != CareType.CHECK }) { type ->
+                items(careTypePickerOptions(includeMist = viewModel.offersMistType)) { type ->
                     CareTypeChip(
                         careType = type,
                         selected = viewModel.selectedCareType == type,

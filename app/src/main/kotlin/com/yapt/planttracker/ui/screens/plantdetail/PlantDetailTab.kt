@@ -14,9 +14,10 @@ import com.yapt.planttracker.R
 
 /**
  * Per-action tabs on Plant Detail (#436). The tab strip lives inside the Box overlay's scrolling
- * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Prune, Note and Mist have no
- * tab and appear only in the combined care-history list at the bottom of [HOME] (#530, product ADR-0060); the
- * Water tab lists just its own WATER entries.
+ * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Prune and Note have no
+ * tab and appear only in the combined care-history list at the bottom of [HOME] (#530, product ADR-0060), as do
+ * historical Mist entries (misting can no longer be logged, #875, product ADR-0061); the Water tab lists just its
+ * own WATER entries.
  * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot sits behind the
  * collapsed row's chevron.
  * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0043) fold what used to be the always-visible

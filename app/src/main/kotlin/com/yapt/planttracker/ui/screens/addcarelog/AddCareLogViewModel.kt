@@ -66,6 +66,12 @@ class AddCareLogViewModel(
     private var customReminderId: Long? = null
     private var initialCareTypeApplied = false
 
+    // MIST is retired for new logs (#875, product ADR-0061), so the picker shows its chip only for an
+    // edit session that opened on a stored MIST log. Set once at load and never cleared, so the user can
+    // switch away and back before saving.
+    var offersMistType by mutableStateOf(false)
+        private set
+
     // false until async load completes in edit mode; used to key DatePickerState
     var isLoaded by mutableStateOf(!isEditMode)
 
@@ -85,6 +91,7 @@ class AddCareLogViewModel(
                     return@launch
                 }
                 selectedCareType = log.careType
+                offersMistType = log.careType == CareType.MIST
                 notes = log.notes ?: ""
                 amount = log.amount ?: ""
                 photoUri = log.photoUri
@@ -110,10 +117,11 @@ class AddCareLogViewModel(
 
     /**
      * Applies a navigation-requested care type once when creating a new log (#658). The one-shot
-     * guard preserves a user's later chip selection if the screen composition is recreated.
+     * guard preserves a user's later chip selection if the screen composition is recreated. A
+     * retired MIST request keeps the default instead (#875, product ADR-0061).
      */
     fun preselectCareType(careType: CareType) {
-        if (!isEditMode && !initialCareTypeApplied) selectedCareType = careType
+        if (!isEditMode && !initialCareTypeApplied && careType != CareType.MIST) selectedCareType = careType
         initialCareTypeApplied = true
     }
 
