@@ -5,6 +5,9 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/**/BackupManager*.kt"
   - "app/src/androidTest/**/backup/**/*"
   - "app/src/test/**/backup/**/*"
+  - "app/src/main/res/xml/*rules*.xml"
+  - "app/src/main/AndroidManifest.xml"
+  - "app/src/test/**/BackupRulesTest*.kt"
 ---
 
 # Backup / Restore rules
@@ -91,3 +94,6 @@ photo SHA-256, an archived plant's full history round-tripping and remaining arc
 photo URI restoring to `null` rather than a dangling zip path while incrementing `skippedPhotoCount` (#743), and
 (#817) a hand-built zip whose manifest references a `photos/...` path with no matching zip entry restoring
 `coverPhotoUri`/`CareLogEntity.photoUri` as `null` rather than the raw path.
+
+## Backup-rule XML files (#824, product ADR-0053)
+**Two distinct backup-rule XML files, not one** (#824, product ADR-0053) — `data_extraction_rules.xml` (root `<data-extraction-rules>`, wired via `android:dataExtractionRules`) governs API 31+: cloud backup is deliberately off (nine-domain exclude-all, no `<include>`) and device-transfer is left empty, meaning it carries everything, photos included. `backup_rules.xml` (root `<full-backup-content>`, wired via `android:fullBackupContent`) governs API 26-30 only and stays byte-for-byte unchanged, photos included. **The root tag must match the manifest attribute pointing at it** — pointing `dataExtractionRules` at a `<full-backup-content>`-rooted file makes the platform's `verifyTopLevelTag()` throw, which silently disables both cloud backup and device-transfer on API 31+ with no fallback to `fullBackupContent`; that was the pre-#824 bug. `BackupRulesTest` (plain JVM, no Robolectric) parses the manifest and both files as the regression guard.

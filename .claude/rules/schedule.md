@@ -254,3 +254,9 @@ and Detail stats always show the relative form (#387).
 ## Convention reminder
 Suspend `buildStatus()` runs inside a `combine {}` block — `List.map {}` takes a non-suspend lambda, so it uses a
 `for` loop with `mutableListOf`. Don't refactor to `.map {}` (technical ADR-0003).
+
+## Dormancy display (#763/#286/#802, product ADR-0044/product ADR-0049)
+`PlantCareStatus.isDormant` marks suspended watering and fertilizing schedules. Plant List watering/fertilizing due groupings and the watering *and fertilizing* chips say Dormant; Calendar shows dormant plants separately on today without counting them as due and suppresses both care dates inside the window. "Why this date?" shows suspension in place of a live watering due date, while adjustment history remains visible.
+
+## Dormant watering cadence (#785, product ADR-0046/product ADR-0047)
+A valid dormancy window may opt into a fixed whole-week watering cadence from 1 to 12 weeks; null keeps full suspension. The cadence ignores seasonal/adaptive state, while fertilizing stays suspended and dormancy-spanning waterings remain excluded from learning and reason prompts.

@@ -136,8 +136,10 @@ NEXT: human | reason: issue is larger than one PR — proposing a sub-task split
 ## When finished
 
 1. **Update docs** (mirrors `.claude/CLAUDE.md`'s Development Workflow step 5):
-   - `.claude/CLAUDE.md` and any `.claude/rules/*.md` it points to, when a convention or architecture
-     decision changed.
+   - The relevant path-scoped `.claude/rules/*.md` when a feature's behaviour or internals changed
+     (create one with `paths:` frontmatter if none fits). Touch `.claude/CLAUDE.md` only for a rule that
+     applies repo-wide, as a one- or two-line bullet — it loads into every session, so never put
+     feature detail, issue/review history, or test minutiae there.
    - `CHANGELOG.md` `[Unreleased]`.
    - `WhatsNewContent.kt` — append to `WhatsNewContent.unreleased` (never `all`), for a user-visible
      change.

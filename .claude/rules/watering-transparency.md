@@ -1,5 +1,5 @@
 ---
-description: "Why this date?" sheet, watering_adjustments table, ask-before-changing-intervals toggle
+description: '"Why this date?" sheet, watering_adjustments table, ask-before-changing-intervals toggle'
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/WateringExplanation.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/data/entity/WateringAdjustmentEntity.kt"
