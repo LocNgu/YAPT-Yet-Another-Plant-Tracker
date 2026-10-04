@@ -79,7 +79,7 @@ are gated on `careStatus != null`:
    `DORMANT_SUSPENDED`) above `WateringDueActionsRow`. **Shared with the Water tab**, which now calls the same
    composable, so Home adds no second code path; both tabs pass the same `showWaterDatePicker`/`requestReschedule()`/
    `revertReschedule()` handlers and share the screen-level dialog state.
-2. One `FertilizeDueActionRow`, gated on `fertilizingIntervalDays != null`; its click is one local `onFertilizeClick`
+2. One `FertilizeDueActionRow`, always shown with `careStatus` whatever `fertilizingIntervalDays` is (#532, ungated); its click is one local `onFertilizeClick`
    lambda shared with the Fertilize tab (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).
    For a liquid-fertilizer plant this is the one "Water + Fertilize" button on Home; the Water tab has none (#530).
 3. `HomeSummaryCard` — `TabInsightsCard` (now `internal`) rows from the pure `homeSummaryRows(status)`:
@@ -248,8 +248,9 @@ sheet's date-edit state uses this to preselect whatever date the sheet is curren
 
 ## Fertilize tab action (#434, #603; `StatsRow`/`StatChip` deleted #704)
 `FertilizeDueActionRow` (`WateringDueActions.kt`) is a single always-visible `OutlinedButton` rendered
-under the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring
-`WateringDueActionsRow`'s own `wateringIntervalDays` gate) — not on due status. It has no "reschedule"
+under the Fertilize tab, shown with `careStatus` whatever `fertilizingIntervalDays` is (#532 removed the
+`fertilizingIntervalDays != null` gate; the row, its handlers and the duplicate guard never read an interval, and it
+shows no due text) — not on due status. It has no "reschedule"
 counterpart since fertilizing has no equivalent concept. Fertilize logs directly via `quickFertilize()`
 (regular) or a reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log
 follows the same rule); both delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into
@@ -325,11 +326,11 @@ per-tab insights card.
 (`plant?.useLiquidFertilizer == true`), `FertilizeDueActionRow`'s button is relabeled "Water + Fertilize"
 (shared string `R.string.water_fertilize_combined_button`) and wired to
 `requestLiquidFertilize()`/`showLiquidFertilizeSheet` (via the screen's one `onFertilizeClick`). It appears on the
-**Home and Fertilize tabs**, gated on `fertilizingIntervalDays != null` — never widen that gate. #652 originally
+**Home and Fertilize tabs**, whether or not a fertilizing interval is set (#532 removed the interval gate). #652 originally
 also gave the Water tab a second button, `CombinedWaterFertilizeActionRow`; #530 (product ADR-0060) deleted it and
 its test tag, so the Water tab shows only the chip and `WateringDueActionsRow`, whose plain "Water" button never
-branches on `useLiquidFertilizer`. A liquid plant with no fertilizing interval therefore has no combined button
-anywhere (accepted; the `+` FAB → Add Care Log remains).
+branches on `useLiquidFertilizer`. A liquid plant with no fertilizing interval gets the combined button too (#532);
+Home's `HomeSummaryCard` still shows fertilizing rows only with an interval.
 - **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
   asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
   `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put

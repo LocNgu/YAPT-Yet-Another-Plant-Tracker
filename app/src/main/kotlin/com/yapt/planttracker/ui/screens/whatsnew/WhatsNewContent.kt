@@ -30,7 +30,9 @@ object WhatsNewContent {
                 "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
                 "is overdue, as it already does for an active issue or an overdue reminder",
             "The Water + Fertilize button for liquid-fertilizer plants now lives on Home and the Fertilize tab " +
-                "instead of the Water tab"
+                "instead of the Water tab",
+            "A plant's Fertilize button now shows even without a fertilizing reminder, so you can log an " +
+                "occasional feeding without setting a schedule first"
         ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +
