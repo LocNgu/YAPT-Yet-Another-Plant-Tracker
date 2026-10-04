@@ -1737,7 +1737,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(waterTabMatcher)
         composeTestRule.onNode(homeTabMatcher).assertIsDisplayed()
         composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsDisplayed()
         composeTestRule.onNode(photoTabMatcher).assertIsDisplayed()
         // Repot sits behind the chevron since #530 (product ADR-0060).
         composeTestRule.onAllNodesWithText("Repot").assertCountEquals(0)
@@ -1764,11 +1764,11 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(homeTabMatcher)
         composeTestRule.onNode(homeTabMatcher).assertIsSelected()
-        composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsNotSelected()
 
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
 
-        composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsSelected()
         composeTestRule.onNode(homeTabMatcher).assertIsNotSelected()
     }
 
@@ -1796,8 +1796,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("No fertilizing logged yet."))
@@ -1896,8 +1896,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilizing reminder"))
         composeTestRule.onNodeWithText("Fertilizing reminder").assertIsDisplayed()
@@ -2619,6 +2619,13 @@ class PlantDetailScreenTest {
     private val waterTabMatcher = hasText("Water") and isSelectable()
 
     private val homeTabMatcher = hasText("Home") and isSelectable()
+
+    /**
+     * Same collision as [waterTabMatcher]: since #532 `FertilizeDueActionRow` renders for every plant on
+     * Home and the Fertilize tab, and its plain "Fertilize" button carries the same literal text as the
+     * Fertilize tab ([R.string.plant_detail_tab_fertilize]). Match the tab by its selectable semantics.
+     */
+    private val fertilizeTabMatcher = hasText("Fertilize") and isSelectable()
 
     /**
      * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see
