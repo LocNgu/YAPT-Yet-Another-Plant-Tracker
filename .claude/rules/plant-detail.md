@@ -32,7 +32,7 @@ technical ADR-0018's placement clause) it renders only at the bottom of Home —
   product ADR-0060, amending product ADR-0043's tab set/order). See "Home tab" below.
 - Per-tab filtered log lists use prefixed keys (`"water-"`/`"fert-"`/`"repot-"` + id) so they never collide with the
   combined list's `it.id` keys. There is no misting list any more (#530): existing MIST logs show only in Home's
-  combined log, like Prune/Note.
+  combined log, like Prune/Note. MIST can no longer be logged at all (#875, product ADR-0061) — see "Care history".
 
 ### Tab row collapse/expand + attention badge (product ADR-0043, #590)
 Seven tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
@@ -94,8 +94,8 @@ are gated on `careStatus != null`:
 4. The combined care history, last (`combinedCareHistoryItems()` in `CareHistorySection.kt`, called from the
    `HOME` branch *after* the `careStatus` items, so it renders even before `careStatus` loads). **No other tab
    shows it**: a brand-new plant therefore has one `no_care_logs_detail` empty state, on Home, while Water,
-   Fertilize, Repot and Photo keep only their own. PRUNE/NOTE/PHOTO/MIST/reminder-done (CUSTOM) entries appear only
-   here. See "Care history" below.
+   Fertilize, Repot and Photo keep only their own. PRUNE/NOTE/PHOTO/reminder-done (CUSTOM) entries, and
+   historical MIST entries, appear only here. See "Care history" below.
 `PlantDetailScreenTest` no longer opens on Water: tests of Water/Fertilize/Repot-pane controls pass
 `initialTab = PlantDetailTab.WATER`/`FERTILIZE`/`REPOT` (the last also expands the row, so no tab click is needed).
 
@@ -673,8 +673,17 @@ collapse descriptions) per Detekt's `LongParameterList`.
   keys `"water-${id}"`, chevron descriptions `watering_history_expand_cd`/`watering_history_collapse_cd`. With no WATER
   logs it renders **nothing** — no header, no empty state of its own: the chart above already says "Need at least 2
   watering logs…", and a second message would reintroduce the duplicated empty state this split removed. The old
-  "Recent misting" list is gone (maintainer decision on #530; `CareType.MIST` itself and its other surfaces are
-  untouched).
+  "Recent misting" list is gone (maintainer decision on #530, recorded by product ADR-0061).
+- **Misting is retired (#875, product ADR-0061).** Nothing can log a new MIST (Add Care Log's picker, its `careType`
+  route arg/`preselectCareType()`, the Plant List bulk bar and the demo data all exclude it), but **existing MIST
+  rows still display and are editable**: Home's combined log lists them like Prune/Note (counted in the header and
+  the five-row collapse, with the same edit/delete), with **no display filter** — the deliberate difference from
+  CHECK, because a mist entry is something the user typed. `CareType.MIST`, its `EnumResources` label/icon and the
+  watering chart's MIST markers are kept for that history. Add Care Log's picker is
+  `careTypePickerOptions(includeMist)`; the Mist chip is included only while editing a log whose stored type is MIST
+  (`AddCareLogViewModel.offersMistType`, set once at load and never cleared, so switching away and back works).
+  Tests: `AddCareLogViewModelMistTest` (JVM), `AddCareLogScreenTest`'s `createMode_*`/`editingA*Log_*` cases,
+  `PlantDetailScreenTest`'s "combined log includes Mist" case.
 - **Each list owns its expanded state** — two screen-level `remember { mutableStateOf(false) }` flags
   (`isCareHistoryExpanded`/`isWaterHistoryExpanded`), hoisted because the chip's lazy item leaves composition when
   scrolled away. Neither is saved: both reset on every screen open (#253), and expanding one never expands the other.

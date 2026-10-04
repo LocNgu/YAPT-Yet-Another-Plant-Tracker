@@ -4,6 +4,16 @@ enum class CareType {
     WATER,
     FERTILIZE,
     PRUNE,
+
+    /**
+     * Misting. **Retained for historical data only (#875, product ADR-0061): no longer written by
+     * any code path** — Add Care Log's picker offers it only while editing a log that already has
+     * this type, and the bulk bar, quick-log surfaces and demo data never create one. Unlike
+     * [CHECK] these rows are entries the user typed in, so they are not hidden: Plant Detail's
+     * Home history still lists them (editable, deletable) and the watering chart still draws
+     * their markers. Persisted as a String, so removing this constant would make existing rows
+     * and `.yapt` backups coerce to the wrong fallback.
+     */
     MIST,
     REPOT,
     NOTE,

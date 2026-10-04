@@ -30,6 +30,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.ui.util.labelRes
@@ -49,6 +50,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AddCareLogScreenTest {
 
+    private companion object {
+        const val LOAD_TIMEOUT_MS = 5_000L
+    }
+
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -66,6 +71,19 @@ class AddCareLogScreenTest {
             careLogId = 0L
         ).also { it.preselectCareType(initialCareType) }
     }
+
+    private fun makeEditViewModel(storedCareType: CareType): AddCareLogViewModel {
+        val careLogRepo = mockk<CareLogRepository>()
+        val plantRepo = mockk<PlantRepository>()
+        val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant)
+        coEvery { careLogRepo.getLogById(99L) } returns
+            CareLog(id = 99L, plantId = 1L, careType = storedCareType, loggedAt = 0L)
+        return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
+    }
+
+    private fun careTypeLabel(careType: CareType): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(careType.labelRes())
 
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
         val registry = object : ActivityResultRegistry() {
@@ -103,6 +121,86 @@ class AddCareLogScreenTest {
         composeTestRule
             .onNode(hasText(waterLabel) and isSelected())
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun createMode_offersNoMistChip() {
+        val viewModel = makeViewModel()
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+        }
+
+        // Misting is retired for new logs (#875, product ADR-0061). Water is on screen, and Mist
+        // used to sit three chips along, so a missing chip here is the retired picker.
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.WATER)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
+    }
+
+    @Test
+    fun createMode_mistPreselectionFallsBackToWater() {
+        val viewModel = makeViewModel(initialCareType = CareType.MIST)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+        }
+
+        composeTestRule
+            .onNode(hasText(careTypeLabel(CareType.WATER)) and isSelected())
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
+    }
+
+    @Test
+    fun editingAMistLog_showsTheMistChipSelected() {
+        val viewModel = makeEditViewModel(CareType.MIST)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+        }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
+
+        val mistLabel = careTypeLabel(CareType.MIST)
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(mistLabel) and isSelected())
+        composeTestRule.onNode(hasText(mistLabel) and isSelected()).assertIsDisplayed()
+    }
+
+    @Test
+    fun editingAMistLog_chipStaysAvailableAfterSwitchingAway() {
+        val viewModel = makeEditViewModel(CareType.MIST)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+        }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
+
+        val mistLabel = careTypeLabel(CareType.MIST)
+        val waterLabel = careTypeLabel(CareType.WATER)
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(waterLabel))
+        composeTestRule.onNodeWithText(waterLabel).performClick()
+        composeTestRule.onNode(hasText(waterLabel) and isSelected()).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(mistLabel) and !isSelected())
+        composeTestRule.onNodeWithText(mistLabel).performClick()
+        composeTestRule.onNode(hasText(mistLabel) and isSelected()).assertIsDisplayed()
+    }
+
+    @Test
+    fun editingANonMistLog_offersNoMistChip() {
+        val viewModel = makeEditViewModel(CareType.PRUNE)
+
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+        }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
+
+        composeTestRule
+            .onNode(hasText(careTypeLabel(CareType.PRUNE)) and isSelected())
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Product ADR-0060: Plant Detail gets a Home tab — the landing tab, with watering and fertilizing actions and a summary
 
-**Status**: accepted
+**Status**: accepted — "beside its misting list" clause amended by [ADR-0061](0061-manual-misting-retired.md)
 
 **Date**: 2026-10-02
 
