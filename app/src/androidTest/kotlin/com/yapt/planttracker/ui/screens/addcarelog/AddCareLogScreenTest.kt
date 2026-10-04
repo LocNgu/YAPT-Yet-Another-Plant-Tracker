@@ -85,6 +85,15 @@ class AddCareLogScreenTest {
     private fun careTypeLabel(careType: CareType): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(careType.labelRes())
 
+    // Mist used to sit right after Prune, so scroll the chip row there before asserting it is gone:
+    // an unscrolled row on a narrow or large-font device would not have composed it either way.
+    private fun assertPickerHasNoMistChip() {
+        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
+            .performScrollToNode(hasText(careTypeLabel(CareType.PRUNE)))
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.REPOT)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
+    }
+
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
         val registry = object : ActivityResultRegistry() {
             override fun <I, O> onLaunch(
@@ -131,10 +140,9 @@ class AddCareLogScreenTest {
             AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
         }
 
-        // Misting is retired for new logs (#875, product ADR-0061). Water is on screen, and Mist
-        // used to sit three chips along, so a missing chip here is the retired picker.
+        // Misting is retired for new logs (#875, product ADR-0061).
         composeTestRule.onNodeWithText(careTypeLabel(CareType.WATER)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
+        assertPickerHasNoMistChip()
     }
 
     @Test
@@ -148,7 +156,7 @@ class AddCareLogScreenTest {
         composeTestRule
             .onNode(hasText(careTypeLabel(CareType.WATER)) and isSelected())
             .assertIsDisplayed()
-        composeTestRule.onNodeWithText(careTypeLabel(CareType.MIST)).assertDoesNotExist()
+        assertPickerHasNoMistChip()
     }
 
     @Test

@@ -3,9 +3,10 @@ package com.yapt.planttracker.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.domain.model.CareType
@@ -59,7 +60,8 @@ class BulkActionBarTest {
         val reported = mutableListOf<CareType>()
         setBarContent(onCareAction = { reported.add(it) })
 
-        composeTestRule.onNodeWithText("Prune").performClick()
+        // requiredWidth centres the overflow, so a touch-click could land off-screen; invoke the action.
+        composeTestRule.onNodeWithText("Prune").performSemanticsAction(SemanticsActions.OnClick)
 
         composeTestRule.runOnIdle { assertEquals(listOf(CareType.PRUNE), reported) }
     }
