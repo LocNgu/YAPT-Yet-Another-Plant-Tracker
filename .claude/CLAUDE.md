@@ -36,14 +36,14 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 ```
 - Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
 - Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
-- **Care vs. Today:** the user-facing name is **Care** (tab, top bar, copy, changelog); internal identifiers (`Screen.Today`, route `today`, `Today*` classes) deliberately keep "Today". Care is the start destination; root tabs are Care · Plants · Calendar · Settings — so Plants may not be on the back stack. Details: `rules/navigation.md`, `rules/care-queue.md`.
+- **Care vs. Today:** the user-facing name is **Care** (tab, top bar, copy, changelog); internal identifiers (`Screen.Today`, route `today`, `Today*` classes) deliberately keep "Today". Care is the start destination; root tabs are Care · Plants · Calendar · Settings — so Plants may not be on the back stack — never `getBackStackEntry(Screen.PlantList.route)` unguarded (#836). Details: `rules/navigation.md`, `rules/care-queue.md`.
 - Due tasks come only from `TodayQueueAggregator` (via `TodayCareRepository`); UI code never derives them.
 - Quick-log surfaces go through `QuickLogUseCase`; adaptive WATER learning lives in `AdaptiveWateringObservation` (`rules/care-logging.md`).
 
 ## Conventions (beyond what the linter enforces)
 - **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).
 - **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
-- **Retired enum constants stay** — `CareType.CHECK`/`MIST` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` are kept for reading historical rows/backups; new code never writes them.
+- **Retired enum constants stay** — `CareType.CHECK`/`MIST` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` are kept for reading historical rows/backups; no new CHECK/MIST rows are created (an existing MIST log stays editable).
 - **Dates** — relative-date display only via the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`, strings from resources); never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013). Advance by N days via `Long.plusCalendarDays()`, never `+ TimeUnit.DAYS.toMillis(n)` (DST, technical ADR-0034); the one exception is the REPOT freeze window in `WateringLifecycleReset`, a genuine duration documented in place.
 - **A `combine()` that reads "today" needs `dayChangeTicker()` as an input** — nothing else emits at midnight (#550). Constructor-inject it as `Flow<LocalDate>` defaulting to `dayChangeTicker()`; tests pass a non-real ticker and **never `advanceUntilIdle()` against the real one** (it hangs). Details: `rules/day-change.md`.
 - **Same-day WATER/FERTILIZE duplicates are rejected** (only those two types) via `CareLogRepository.hasLogOfTypeOnDay()`; check *before* any paired insert. Details: `rules/care-logging.md`.
@@ -73,7 +73,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 
 1. **Spec** (`spec` agent) — clarifying questions, then clarifications posted on the issue. Skipped only on the fast-path (mechanical **and** single-file change).
 2. **Implement** (`implementer` agent) — pushes a `claude/*` branch; the orchestrator opens the PR against `develop`.
-3. **Review** (`reviewer` agent) — **never skipped**, runs in parallel with CI; one combined fix round (CI + BLOCKING + SMALL), at most two.
+3. **Review** (`reviewer` agent) — **never skipped**, runs in parallel with CI; one combined fix round (CI + BLOCKING + SMALL); review is capped at two rounds total (`pipeline.md`).
 4. **QA** (`qa` agent) — only when the reviewer lists "needs a device" items.
 5. **Update docs** in the feature PR: `CHANGELOG.md` `[Unreleased]`, `WhatsNewContent.unreleased` (never `all`), and the relevant `.claude/rules/*.md` (this file only for repo-wide rules). `chore:`/docs-only PRs may skip the changelog/What's New.
 6. **Merge** — **human only**; Claude never merges.
