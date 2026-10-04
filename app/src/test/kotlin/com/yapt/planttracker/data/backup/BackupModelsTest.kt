@@ -241,6 +241,13 @@ class BackupModelsTest {
     }
 
     @Test
+    fun `a retired MIST care log round-trips unchanged (#875)`() {
+        val mist = fullLog.copy(careType = "MIST")
+        assertEquals(mist, mist.toBackupCareLog().toCareLogEntity())
+        assertEquals("MIST", mist.toBackupCareLog().careType)
+    }
+
+    @Test
     fun `BackupCareLog careType stored as raw String`() {
         val bl = fullLog.copy(careType = "PRUNE").toBackupCareLog()
         assertEquals("PRUNE", bl.careType)

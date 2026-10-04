@@ -615,7 +615,6 @@
     <string name="bulk_action_water">Water</string>
     <string name="bulk_action_fertilize">Fertilize</string>
     <string name="bulk_action_prune">Prune</string>
-    <string name="bulk_action_mist">Mist</string>
     <string name="bulk_action_repot">Repot</string>
     <string name="bulk_action_move_to_graveyard">Move to Graveyard</string>
     <plurals name="bulk_snackbar_logged">

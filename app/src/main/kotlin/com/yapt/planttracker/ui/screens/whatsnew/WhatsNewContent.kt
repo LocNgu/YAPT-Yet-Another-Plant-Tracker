@@ -32,7 +32,10 @@ object WhatsNewContent {
             "The Water + Fertilize button for liquid-fertilizer plants now lives on Home and the Fertilize tab " +
                 "instead of the Water tab",
             "A plant's Fertilize button now shows even without a fertilizing reminder, so you can log an " +
-                "occasional feeding without setting a schedule first"
+                "occasional feeding without setting a schedule first",
+            "Misting can no longer be logged — Add Care Log and the plant list's multi-select bar no longer " +
+                "offer it. Mist entries you already logged stay in your history: you can still see them on a " +
+                "plant's Home tab, edit or delete them, and they still show on the watering chart"
         ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +

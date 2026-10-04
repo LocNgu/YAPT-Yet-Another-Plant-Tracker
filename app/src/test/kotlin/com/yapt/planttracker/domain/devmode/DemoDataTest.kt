@@ -37,6 +37,11 @@ class DemoDataTest {
     }
 
     @Test
+    fun `no demo plant carries a MIST log because misting is retired (#875)`() {
+        assertTrue(dataset().plants.flatMap { it.careLogs }.none { it.careType == CareType.MIST })
+    }
+
+    @Test
     fun `every plant name carries the Demo prefix`() {
         dataset().plants.forEach { seed ->
             assertTrue(seed.plant.name.startsWith(DemoData.NAME_PREFIX))

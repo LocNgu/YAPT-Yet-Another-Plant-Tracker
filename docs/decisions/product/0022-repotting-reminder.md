@@ -1,6 +1,6 @@
 # Product ADR-0022: Repotting reminder (months-based) and the extended-care first-due anchor
 
-**Status**: accepted — due-date rule amended by [ADR-0057](0057-seasonal-repot-planning.md)
+**Status**: accepted — due-date rule amended by [ADR-0057](0057-seasonal-repot-planning.md); "`CareType.MIST` remains available as a manually logged care event" clause amended by [ADR-0061](0061-manual-misting-retired.md)
 
 **Date**: 2026-07-31
 

@@ -45,6 +45,8 @@ fun CareType.labelRes(): Int = when (this) {
     CareType.WATER -> R.string.care_type_watered
     CareType.FERTILIZE -> R.string.care_type_fertilized
     CareType.PRUNE -> R.string.care_type_pruned
+    // CareType.MIST is retained for historical data (#875, product ADR-0061) — no longer written,
+    // but existing rows still need a label to render.
     CareType.MIST -> R.string.care_type_misted
     CareType.REPOT -> R.string.care_type_repotted
     CareType.NOTE -> R.string.care_type_note
@@ -59,6 +61,8 @@ fun CareType.icon(): ImageVector = when (this) {
     CareType.WATER -> Icons.Filled.WaterDrop
     CareType.FERTILIZE -> Icons.Filled.Spa
     CareType.PRUNE -> Icons.Filled.ContentCut
+    // CareType.MIST is retained for historical data (#875, product ADR-0061) — no longer written,
+    // but existing rows still need an icon to render.
     CareType.MIST -> Icons.Filled.Shower
     CareType.REPOT -> Icons.Filled.LocalFlorist
     CareType.NOTE -> Icons.AutoMirrored.Filled.Notes

@@ -340,6 +340,16 @@ class BackupSerializerTest {
     }
 
     @Test
+    fun `a retired MIST careLog survives an encode-decode round trip (#875)`() {
+        val log = BackupCareLog(id = 1L, plantId = 1L, careType = "MIST", loggedAt = 1_000L, notes = "Morning mist")
+        val decoded = backupJson.decodeFromString(
+            BackupCareLog.serializer(),
+            backupJson.encodeToString(BackupCareLog.serializer(), log)
+        )
+        assertEquals(log, decoded)
+    }
+
+    @Test
     fun `careLog without customReminderId defaults to null`() {
         val json = """
             {"schemaVersion":8,"exportedAt":1700000000000,"appVersion":"1.0",

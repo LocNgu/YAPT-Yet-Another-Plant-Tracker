@@ -41,13 +41,12 @@ import com.yapt.planttracker.ui.util.icon
 /**
  * The care types offered as one-tap bulk actions in [BulkActionBar]. NOTE and PHOTO are excluded
  * because they require per-plant input (free text / an image) that a fire-and-forget bulk action
- * can't supply.
+ * can't supply; MIST is retired (#875, product ADR-0061).
  */
 private val BULK_CARE_TYPES = listOf(
     CareType.WATER,
     CareType.FERTILIZE,
     CareType.PRUNE,
-    CareType.MIST,
     CareType.REPOT
 )
 
@@ -56,10 +55,9 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
     CareType.WATER -> R.string.bulk_action_water
     CareType.FERTILIZE -> R.string.bulk_action_fertilize
     CareType.PRUNE -> R.string.bulk_action_prune
-    CareType.MIST -> R.string.bulk_action_mist
     CareType.REPOT -> R.string.bulk_action_repot
     // Not offered in bulk (see BULK_CARE_TYPES); fall back to the water label defensively.
-    CareType.NOTE, CareType.PHOTO, CareType.CUSTOM, CareType.CHECK -> R.string.bulk_action_water
+    CareType.MIST, CareType.NOTE, CareType.PHOTO, CareType.CUSTOM, CareType.CHECK -> R.string.bulk_action_water
 }
 
 /**
