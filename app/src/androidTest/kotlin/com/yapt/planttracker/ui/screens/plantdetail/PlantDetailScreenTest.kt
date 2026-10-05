@@ -1737,7 +1737,7 @@ class PlantDetailScreenTest {
             .performScrollToNode(waterTabMatcher)
         composeTestRule.onNode(homeTabMatcher).assertIsDisplayed()
         composeTestRule.onNode(waterTabMatcher).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Fertilize").assertIsDisplayed()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsDisplayed()
         composeTestRule.onNode(photoTabMatcher).assertIsDisplayed()
         // Repot sits behind the chevron since #530 (product ADR-0060).
         composeTestRule.onAllNodesWithText("Repot").assertCountEquals(0)
@@ -1764,11 +1764,11 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(homeTabMatcher)
         composeTestRule.onNode(homeTabMatcher).assertIsSelected()
-        composeTestRule.onNodeWithText("Fertilize").assertIsNotSelected()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsNotSelected()
 
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
 
-        composeTestRule.onNodeWithText("Fertilize").assertIsSelected()
+        composeTestRule.onNode(fertilizeTabMatcher).assertIsSelected()
         composeTestRule.onNode(homeTabMatcher).assertIsNotSelected()
     }
 
@@ -1796,8 +1796,8 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
         // On CI's 320x640 emulator the empty state sits below the fold; scroll the list to it.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("No fertilizing logged yet."))
@@ -1878,8 +1878,7 @@ class PlantDetailScreenTest {
     @Test
     fun fertilizeTab_showsInlineScheduleControl() {
         // No fertilizing interval → the inline control shows its disabled "Fertilizing reminder" header,
-        // which is unique to this control (the Fertilize tab's action button is gated on the interval
-        // being set too, #603, so it's also absent here).
+        // which is unique to this control. The action button no longer depends on the interval (#532).
         val plant = Plant(id = 34L, name = "Oregano", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -1897,15 +1896,55 @@ class PlantDetailScreenTest {
         // emulator; scroll to it first. Custom Reminders/Active Issues moved into their own hidden
         // tabs (#590, product ADR-0043), so they no longer push this any further.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilize"))
-        composeTestRule.onNodeWithText("Fertilize").performClick()
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Fertilizing reminder"))
         composeTestRule.onNodeWithText("Fertilizing reminder").assertIsDisplayed()
-        assertTrue(
-            composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(1)
+    }
+
+    @Test
+    fun fertilizeTab_regularPlantWithoutInterval_showsFertilizeAndTapLogsDirectly() {
+        val plant = Plant(id = 35L, name = "Sage", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant)
+        coEvery {
+            mockQuickLogUseCase.quickLog(plant, CareType.FERTILIZE, any())
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
+        showDetail(viewModel, initialTab = PlantDetailTab.FERTILIZE)
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG) and hasText("Fertilize"))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Fertilized Sage")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    @Test
+    fun fertilizeTab_liquidPlantWithoutInterval_showsWaterAndFertilizeAndOpensDatePicker() {
+        val plant = Plant(
+            id = 36L,
+            name = "Ivy",
+            useLiquidFertilizer = true,
+            wateringIntervalDays = 7,
+            createdAt = 0L,
+            updatedAt = 0L
         )
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.FERTILIZE)
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG) and hasText("Water + Fertilize"))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
     }
 
     @Test
@@ -2370,19 +2409,21 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun homeTab_withoutFertilizingInterval_hidesFertilizingRowsAndButton() {
+    fun homeTab_withoutFertilizingInterval_hidesFertilizingRowsButKeepsTheButton() {
         val plant = Plant(id = 112L, name = "Cactus", wateringIntervalDays = 14, createdAt = 0L, updatedAt = 0L)
         showDetail(makeViewModel(plant))
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(1)
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(str(R.string.home_summary_next_watering)))
         composeTestRule.onAllNodesWithText(str(R.string.insight_last_fertilized)).assertCountEquals(0)
         composeTestRule.onAllNodesWithText(str(R.string.home_summary_next_fertilizing)).assertCountEquals(0)
-        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(0)
     }
 
     @Test
-    fun homeTab_liquidPlantWithoutFertilizingInterval_showsNoCombinedButton() {
+    fun homeTab_liquidPlantWithoutFertilizingInterval_showsTheCombinedButton() {
         val plant = Plant(
             id = 119L,
             name = "Ivy",
@@ -2394,9 +2435,9 @@ class PlantDetailScreenTest {
         showDetail(makeViewModel(plant))
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(str(R.string.home_summary_next_watering)))
-        composeTestRule.onAllNodesWithText(str(R.string.water_fertilize_combined_button)).assertCountEquals(0)
-        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(0)
+            .performScrollToNode(hasTestTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onAllNodesWithText(str(R.string.water_fertilize_combined_button)).assertCountEquals(1)
+        composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(1)
     }
 
     @Test
@@ -2578,6 +2619,13 @@ class PlantDetailScreenTest {
     private val waterTabMatcher = hasText("Water") and isSelectable()
 
     private val homeTabMatcher = hasText("Home") and isSelectable()
+
+    /**
+     * Same collision as [waterTabMatcher]: since #532 `FertilizeDueActionRow` renders for every plant on
+     * Home and the Fertilize tab, and its plain "Fertilize" button carries the same literal text as the
+     * Fertilize tab ([R.string.plant_detail_tab_fertilize]). Match the tab by its selectable semantics.
+     */
+    private val fertilizeTabMatcher = hasText("Fertilize") and isSelectable()
 
     /**
      * "Photo" is potentially ambiguous on Plant Detail the same way "Water" is (see

@@ -38,8 +38,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   already did for an active issue or an overdue reminder (#530, product ADR-0060)
 - **The Water tab no longer has its own "Water + Fertilize" button** — for a liquid-fertilizer plant that button now
   lives on Home and the Fertilize tab only, so each tab shows one combined button at most; the Water tab keeps just
-  Water and Reschedule. A liquid-fertilizer plant with no fertilizing schedule has no combined button; use the + button
-  to log it (#530, product ADR-0060)
+  Water and Reschedule (#530, product ADR-0060)
+- **The Fertilize button no longer needs a fertilizing schedule** — a plant with no fertilizing interval now shows
+  Fertilize (or Water + Fertilize for a liquid-fertilizer plant) on Home and the Fertilize tab, so an occasional
+  feeding can be logged without setting up a reminder first. It uses the same date picker, same-day duplicate guard
+  and liquid pairing as before. Home's summary still shows the Fertilizing rows only when an interval is set (#532,
+  part 1 of 4)
 - **Misting can no longer be logged; existing mist entries stay in your history** — Add Care Log no longer offers
   Mist when you add a care entry, and the plant list's multi-select bar no longer has a Mist action. Mist entries you
   already logged still show in a plant's Home care history, where you can edit or delete them, and still appear as

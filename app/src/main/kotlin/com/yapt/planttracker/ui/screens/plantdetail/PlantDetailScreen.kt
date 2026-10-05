@@ -737,13 +737,11 @@ fun PlantDetailScreen(
                                         onWaterClick = { showWaterDatePicker = true },
                                         onRescheduleClick = { viewModel.requestReschedule() }
                                     )
-                                    if (plant?.fertilizingIntervalDays != null) {
-                                        Spacer(Modifier.height(8.dp))
-                                        FertilizeDueActionRow(
-                                            useLiquidFertilizer = plant?.useLiquidFertilizer == true,
-                                            onFertilizeClick = onFertilizeClick
-                                        )
-                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    FertilizeDueActionRow(
+                                        useLiquidFertilizer = plant?.useLiquidFertilizer == true,
+                                        onFertilizeClick = onFertilizeClick
+                                    )
                                     Spacer(Modifier.height(16.dp))
                                 }
                                 item {
@@ -888,14 +886,12 @@ fun PlantDetailScreen(
 
                         PlantDetailTab.FERTILIZE -> {
                             careStatus?.let {
-                                if (plant?.fertilizingIntervalDays != null) {
-                                    item {
-                                        FertilizeDueActionRow(
-                                            useLiquidFertilizer = plant?.useLiquidFertilizer == true,
-                                            onFertilizeClick = onFertilizeClick
-                                        )
-                                        Spacer(Modifier.height(16.dp))
-                                    }
+                                item {
+                                    FertilizeDueActionRow(
+                                        useLiquidFertilizer = plant?.useLiquidFertilizer == true,
+                                        onFertilizeClick = onFertilizeClick
+                                    )
+                                    Spacer(Modifier.height(16.dp))
                                 }
                             }
                             item {
