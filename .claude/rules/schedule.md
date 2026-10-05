@@ -44,7 +44,7 @@ Dates:
   - Ordinary due dates resume immediately on exit. Dormancy-spanning waterings are excluded from learning and reason prompts.
 - **On-schedule / direction (#586, #649):**
   - `isWateringOnSchedule` (`wateringOnScheduleNow()`) compares the raw observed gap with the *effective* interval, within `GAP_AGREEMENT_TOLERANCE`. That equals the model's de-seasonalized-gap-vs-base test, which is why "was the prompt shown" can be derived rather than stored. It is `true` with no interval or no previous watering.
-  - `isWateringGapLong` (`wateringGapRanLong()`) gives the direction of an off-schedule gap and picks the reason prompt's late wording and option set (`rules/care-logging.md`). Derive it from the gap, **never** from `isOverdue`, because an override moves the due date.
+  - `isWateringGapLong` (`wateringGapRanLong()`) gives the direction of an off-schedule gap (only meaningful while `isWateringOnSchedule` is false) and picks the reason prompt's late wording and option set (`rules/care-logging.md`). Derive it from the gap, **never** from `isOverdue`, because an override moves the due date.
   - `CareSchedule.isWateringOnScheduleAt`/`isWateringGapLongAt` are the same checks for a picked (backdated) date.
 - `computedNextWateringDueAt` (the pre-override date) and `rescheduleDeltaDays` (non-null only while the override wins) are computed once in `computeWateringDue()` and never re-derived elsewhere.
 - Suspend `buildStatus()` runs inside `combine {}`, so it uses a `for` loop + `mutableListOf`, never `.map {}` (technical ADR-0003).

@@ -30,7 +30,7 @@ paths:
 
 ## CI job graph (#84, #87)
 - `test` (Detekt + unit tests + `lintDebug`) gates `build` (debug APK) and `release` (`testReleaseUnitTest` + `lintRelease`).
-- Instrumented tests run on PRs via a path filter, and docs-only changes skip the Android jobs. A concurrency group cancels stacked runs.
+- PRs are path-filtered: instrumented tests run only for relevant paths, and docs-only PRs skip the Android jobs (any `app/**` or workflow change still runs them). A concurrency group cancels stacked runs.
 - A push to `main` creates a signed-APK GitHub Release.
 
 ## Robolectric runs `TestYaptApplication` (#757)

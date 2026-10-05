@@ -44,7 +44,7 @@ Two independent features, both unset by default, so due dates are unchanged unle
 ## Surfaces
 - **Notification:** "Repot planned this spring" in season; "Planned repot overdue by N days" after, counted from the season's last day (`rules/notifications.md`).
 - **Care:** the task is bucketed by season state, and the tile's second line reads "Planned for spring" (`rules/care-queue.md`).
-- **Plant Detail Repot tab:** the "Plan repot" button, `RepotPlanSeasonDialog` and `RepotPlanSummary` (`rules/plant-detail.md`). `setRepotPlan()`/`clearRepotPlan()` write only the plan columns, inside `plantEditMutex`.
+- **Plant Detail Repot tab:** the "Plan repot" button, `RepotPlanSeasonDialog` and `RepotPlanSummary` (`rules/plant-detail.md`). `setRepotPlan()`/`clearRepotPlan()` write only the plan columns, inside `plantEditMutex`; `now` is a defaulted parameter (the VM has no injectable clock).
 - **Add/Edit Plant:** the shared `FertilizingSeasonsSelector` (with a `labelRes` and the screen's own last-season snackbar copy via `onLastSeasonLocked`) sits under the repotting slider, shown only while the reminder is on. It is bound to `repottingSeasons`/`toggleRepottingSeason()` (a toggle, per #804).
 
 ## Repotting overview page (#525, product ADR-0059)

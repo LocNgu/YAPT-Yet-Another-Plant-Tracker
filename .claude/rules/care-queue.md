@@ -27,7 +27,7 @@ User-facing name **Care**; internal identifiers keep "Today".
 - **Tiles:** no due-date text and no overdue styling (#842). The content description always names the plant and the task. A REPOT plan tile's second line is "Planned for spring".
 - **Tap:** opens Plant Detail on the matching tab via the `tab` route arg (`TodayCareKind.plantDetailTab()`; combined → Fertilize; #843).
 - **Long-press:** opens a `DropdownMenu` of that kind's actions only (`careMenuActions()` in `CareMenuAction.kt`), mirrored as semantics `customActions` + `onLongClickLabel`. Each entry calls the existing `TodayViewModel` handler/prompt. Never add inline buttons back or reimplement a prompt.
-- **No bulk completion or selection on Care** (#842): the bottom bar never hides for Care, and there is no plant-grouped layout or flag. `completeCustomReminder()` (single Mark done) and Plant List's `bulkLog()` remain.
+- **No bulk completion or selection on Care** (#842): the bottom bar never hides for Care (`shouldShowBottomNavigation()` takes only Plant List's selection flag), and there is no plant-grouped layout or flag. `completeCustomReminder()` (single Mark done) and Plant List's `bulkLog()` remain.
 - **Reminder photos:** Care, Plant List and Calendar all save them through the one transactional `QuickLogUseCase.saveReminderPhoto()`.
 - **Back stack:** Care is the start destination, so Plants may not be on the back stack. Never call `getBackStackEntry(Screen.PlantList.route)` unguarded (#836).
 - **Tests:** many-group Compose tests use a viewport taller than the window (`tall = true` in `TodayScreenTest`) so lazy items compose without scrolling, then assert existence/order only.

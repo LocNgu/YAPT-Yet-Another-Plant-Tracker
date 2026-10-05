@@ -33,6 +33,7 @@ A quick-water can be backdated (`loggedAt`). Keep the two clocks apart:
 - Writes `wateringIntervalDays = newInterval` directly. The base is written only when `!plant.pinIntervalToBase && amplitude != 0.0`; pinned/amplitude-Off plants keep `newInterval` as a literal and leave the stored base untouched.
 - Base value: if `suggestedBaseInterval` is non-null (the field is untouched), persist the model's unrounded base verbatim. `null` means the user retyped the field (callers pass it via `takeIf { field == suggested }`); then derive `SeasonalWatering.deseasonalize(newInterval)` **on the Apply day**. Re-deriving a base from a rounded value amplifies the ±0.5-day rounding by 1/season (#718).
 - Apply reads `nowProvider()` once and uses it for the seasonal inverse, `Plant.updatedAt` and `DIALOG_EDIT.triggeredAt`.
+- The effective `newInterval` is converted down to base-space **once** (`newIntervalBaseSpace`) and reused for the base write, `confidenceAfterDialogEdit()`'s tolerance check and the row below.
 - The `DIALOG_EDIT` row's `afterIntervalDays` is **base-space** (the model's accounting); it intentionally differs from the effective `wateringIntervalDays`. With seasonal watering on and the plant unpinned, `wateringIntervalDays` and `wateringBaseIntervalDays` legitimately diverge.
 - Silent apply (ask toggle off) converts the raw suggestion through `effectiveWateringIntervalDaysForDisplay()` from the precise base before calling the choke point, so it commits the number the dialog would have shown.
 - **Dismissal (#674):** `QuickLogUseCase.recordWateringSuggestionDismissal(plant)` is the shared confidence bump + `DIALOG_DISMISSAL` row (`before == after`, base-space via `currentAdaptiveBaseIntervalDays()`, guarded on `wateringIntervalDays != null`). All three dismiss call sites delegate to it.
@@ -54,7 +55,7 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
 - Schema: `MIGRATION_11_12` (DB 12). Backup v13 adds `BackupRoot.wateringAdjustments` (default empty) and `BackupSettings.askBeforeChangingIntervals` (default true); see `rules/backup.md`.
 
 ## "Ask before changing intervals" (`SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS`, default `true`)
-- A plain settings key, not a feature flag; the row lives on the main Settings screen. Consulted via `PlantDetailViewModel.shouldShowIntervalDialog()`.
+- A plain settings key, not a feature flag, so it survives turning developer mode off; the row lives on the main Settings screen. Consulted via `PlantDetailViewModel.shouldShowIntervalDialog()`.
 - **On:** the product ADR-0006 `AlertDialog`. **Off:** `applySuggestionOrPrompt()` calls the choke point directly (logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays, beforeBaseIntervalDays, afterIntervalDays)`. The snackbar's Undo calls `undoSilentIntervalApply(before…)`, which restores the captured prior values as-is (never recomputed) and writes no new row.
 - Calendar/Plant List have no silent path: they always show the dialog.
 - The Add Care Log save-flow suggestion also goes through this toggle via `PlantDetailViewModel.handleSuggestedWateringInterval()`. `NavGraph` never sets `suggestedWateringInterval` directly.
