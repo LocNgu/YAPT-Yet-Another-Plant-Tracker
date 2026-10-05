@@ -17,48 +17,19 @@ round-trip; forward-compat warning dialog. Optimization changes only the copies 
 gallery-owned source image.
 
 ## Mechanics (don't regress these)
-- **Export** assembles the ZIP in a `cacheDir` temp file first, then streams to the SAF destination — prevents
-  broken 0 KB exports to cloud providers (technical ADR-0014, #144).
-- **Restore** streams photos to `cacheDir` temp files (never into memory) to avoid OOM; temp files are tracked in a
-  map before copy so `finally` always cleans up (#193/#195/#196).
-- Single bulk `getAllLogs()` / `getAllReminders()` query (not N+1) — fetch once, group by `plantId` in memory,
-  then `plants.flatMap { grouped[it.id].orEmpty() }`.
-- `performImport` guards photo-file cleanup with a `dbCommitted` flag — written files are deleted only if the DB
-  transaction has **not** committed, so a throw from `dataStore.edit`/`ReminderScheduler` after commit can't leave
-  dangling URIs (#175).
-- Navigation is blocked during export/import by a non-dismissable `BackupProgressDialog` (#365).
-- **Export sources plants from `PlantDao.getAllPlantsIncludingArchived()`, not the active-only `getAllPlants()`**
-  (#743) — archiving is soft/reversible (`getArchivedPlants()`, bulk restore, undo on the list screen), so a
-  `.yapt` backup must round-trip an archived plant's full history (care logs, photos, custom reminders, plant
-  issues, watering adjustments), not silently drop it. `BackupPlant.archivedAt` carries the column verbatim;
-  restore writes it straight back onto `PlantEntity.archivedAt`, so a plant archived at export time comes back
-  archived, and one that wasn't stays unarchived.
-- **Photo `photoMapping` is write-then-map, not probe-then-map** (#743, reordered by #817) — export folds the
-  candidate-photo open into the same loop that does the real zip write: for each candidate URI, `openPhoto()` is
-  called exactly once, and only on success is the photo actually copied into the zip (via
-  `copyOptimizedPhotoToZip()`/`buildZipPhotoName()`) and its `photoMapping[uri] = zipPath` entry added; on failure,
-  `skippedPhotoCount` increments and nothing is added to the map. This is a single pass inside the same
-  `ZipOutputStream.use {}` block — there is no `writePhotosToZip()` standalone function anymore, and no gap
-  between "probed OK" and "written" for a photo to become unreadable in (the #817 bug class this reorder exists
-  to close: a photo readable at probe time but not by the time the real write happened, which used to leave a
-  dangling `photos/<uuid>_name.jpg` reference in the manifest). The JSON manifest (`backupPlants`/`backupLogs`/
-  `backupPlantPhotos`/`backupRoot`/`jsonString`, all built from the now-final `photoMapping`) is constructed
-  *after* this photo loop and its `backup.json` zip entry is written *last*, not first — harmless, since import
-  scans all zip entries by name regardless of position. `skippedPhotoCount` therefore counts every
-  `openPhoto()`-stage failure in one unified pass, not a probe-stage-only count as before #817 — an exception
-  thrown during the copy itself (rather than `openPhoto()` returning `null`) still aborts the whole export
-  rather than being counted, unchanged from pre-#817 behavior. `BackupResult.ExportSuccess.skippedPhotoCount`
-  (default `0`, so existing 2-arg construction still compiles) surfaces the count; `SettingsScreen` shows the
-  existing `backup_export_success` string when it's `0`, and a new `backup_export_success_with_skipped_photos`
-  plural (modeled on `bulk_snackbar_logged_with_skipped`) otherwise.
-- **Restore-side hardening (#817) guards backups the export-side fix can't retroactively cover** — a backup
-  exported by pre-#817 code, or a zip corrupted by any other cause after export, can still have a manifest that
-  references a `photos/...` path with no matching zip entry. `coverPhotoUri` and `CareLogEntity.photoUri`'s
-  restore fallback is `zipPathToLocalPath[it]` (no `?: it`), so a zip path absent from that map resolves to
-  `null` rather than writing the raw dangling zip-path string into the DB. `PlantPhotoEntity.uri` deliberately
-  stays `zipPathToLocalPath[it] ?: it` — it must keep preserving a legitimate raw device URI when the backup was
-  made with `includePhotos=false` (that value was never a zip path to begin with, so it's not ambiguous with a
-  dangling reference).
+- **Export builds the ZIP in a `cacheDir` temp file**, then streams it to the SAF destination; this prevents 0 KB exports to cloud providers (technical ADR-0014, #144).
+- **Export includes archived plants** (`PlantDao.getAllPlantsIncludingArchived()`, #743) with their full history. `BackupPlant.archivedAt` round-trips verbatim, so archived stays archived.
+- **Bulk queries:** fetch logs and reminders once (`getAllLogs()`/`getAllReminders()`) and group by `plantId` in memory; never N+1.
+- **Photos are write-then-map in one pass (#817):** each candidate URI gets `openPhoto()` exactly once. Only after a successful zip copy is `photoMapping[uri] = zipPath` added; otherwise `skippedPhotoCount` increments.
+  - There is no separate probe step: a gap between probe and write left dangling manifest paths.
+  - `backup.json` is built from the final mapping and written **last**; import finds entries by name.
+  - An exception during the copy still aborts the export.
+  - `ExportSuccess.skippedPhotoCount` (default 0) selects `backup_export_success` or the `backup_export_success_with_skipped_photos` plural.
+- **Restore streams photos to `cacheDir` temp files** (never into memory). They are tracked before copying, so `finally` always cleans up (#193/#195/#196).
+- **Restore tolerates dangling photo paths** (old or corrupt backups): `coverPhotoUri` and `CareLogEntity.photoUri` use `zipPathToLocalPath[it]` with **no** `?: it`, so a missing entry becomes `null`. `PlantPhotoEntity.uri` keeps `?: it`, because it must preserve a raw device URI from an `includePhotos = false` backup.
+- **`performImport` guards cleanup with `dbCommitted`:** written photo files are deleted only if the DB transaction did **not** commit (#175).
+- A non-dismissable `BackupProgressDialog` blocks navigation during export/import (#365). The Settings tab also disables the bottom bar (`rules/navigation.md`).
+- After a successful restore, `BackupManager.onImportCompleted` schedules the orphan photo sweep (`rules/photos.md`).
 
 ## Schema version history (all new fields carry defaults for forward-compat)
 | v | Added | Old backups deserialize to |
@@ -87,13 +58,19 @@ gallery-owned source image.
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.
 
-`BackupSerializerTest` asserts `encodeDefaults = true` emits explicit null keys; `fullRoot()` sets every non-null
-field so future nullable additions are caught by the round-trip test (#288). Instrumented `BackupManager` tests
-cover round-trips ±photos, empty DB, future-schema warning, corrupt ZIP, missing backup.json, zip-slip, settings,
-photo SHA-256, an archived plant's full history round-tripping and remaining archived (#743), an unreadable
-photo URI restoring to `null` rather than a dangling zip path while incrementing `skippedPhotoCount` (#743), and
-(#817) a hand-built zip whose manifest references a `photos/...` path with no matching zip entry restoring
-`coverPhotoUri`/`CareLogEntity.photoUri` as `null` rather than the raw path.
+## Tests
+- `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
+- Instrumented `BackupManager` tests cover:
+  - round-trips with and without photos, an empty DB, and settings
+  - a future-schema warning, a corrupt ZIP, a missing `backup.json`, and zip-slip
+  - photo SHA-256 checks
+  - an archived plant's history (#743)
+  - unreadable photos → `null` + `skippedPhotoCount`
+  - a manifest path with no zip entry → `null` (#817)
 
 ## Backup-rule XML files (#824, product ADR-0053)
-**Two distinct backup-rule XML files, not one** (#824, product ADR-0053) — `data_extraction_rules.xml` (root `<data-extraction-rules>`, wired via `android:dataExtractionRules`) governs API 31+: cloud backup is deliberately off (nine-domain exclude-all, no `<include>`) and device-transfer is left empty, meaning it carries everything, photos included. `backup_rules.xml` (root `<full-backup-content>`, wired via `android:fullBackupContent`) governs API 26-30 only and stays byte-for-byte unchanged, photos included. **The root tag must match the manifest attribute pointing at it** — pointing `dataExtractionRules` at a `<full-backup-content>`-rooted file makes the platform's `verifyTopLevelTag()` throw, which silently disables both cloud backup and device-transfer on API 31+ with no fallback to `fullBackupContent`; that was the pre-#824 bug. `BackupRulesTest` (plain JVM, no Robolectric) parses the manifest and both files as the regression guard.
+- **Two files:**
+  - `data_extraction_rules.xml` (root `<data-extraction-rules>`, `android:dataExtractionRules`) governs API 31+. Cloud backup is off (nine-domain exclude-all, no `<include>`); device-transfer is left empty, so it carries everything, photos included.
+  - `backup_rules.xml` (root `<full-backup-content>`, `android:fullBackupContent`) governs API 26–30 and stays unchanged.
+- **The root tag must match the manifest attribute.** A mismatch makes `verifyTopLevelTag()` throw, which silently disables both cloud backup and device-transfer on API 31+ (the pre-#824 bug).
+- `BackupRulesTest` (plain JVM) parses the manifest and both files.

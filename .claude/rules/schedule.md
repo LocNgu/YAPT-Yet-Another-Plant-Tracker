@@ -4,259 +4,73 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/today/**/*"
   - "app/src/test/**/schedule/**/*"
-  - "app/src/test/**/time/**/*"
   - "app/src/test/**/today/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
-  - "app/src/main/kotlin/com/yapt/planttracker/util/DayChangeTicker.kt"
 ---
-
-> Computed seasonal watering factor (`seasonalAmplitude`/`hemisphere` params on `computeStatus()`,
-> #569, product ADR-0026) has its own file: `.claude/rules/seasonal-watering.md`.
 
 # CareSchedule rules
 
-Pure business logic. Calendar-day comparisons via `Long.toLocalDate()` — never millisecond division
-(technical ADR-0013). `daysBetween()` uses `ChronoUnit.DAYS`. Every due-date advance ("N days from
-`lastWateredAt`/`lastFertilizedAt`/`createdAt`") goes through `Long.plusCalendarDays()`, never `+
-TimeUnit.DAYS.toMillis(n)` — a fixed 24h span silently loses a day of local calendar-date advancement
-across a DST fall-back transition (#733, technical ADR-0034).
+Pure business logic. Related rules files:
+- Seasonal watering factor: `rules/seasonal-watering.md`.
+- Fertilizing seasons: `rules/fertilizing-seasons.md`.
+- Repot plans: `rules/repotting.md`.
+- Care queue aggregation: `rules/care-queue.md`.
 
-## Care queue (internally "Today") and local-day rollover (#836/#550, product ADR-0054)
-
-`TodayQueueAggregator` is the canonical pure projection for the Care root (user-facing "Care"; internal identifiers keep "Today"). It receives all active
-domain plants, care logs, custom reminders, issues, photos, settings, and an explicit `LocalDate`; it
-must reuse `CareSchedule.computeStatus()` rather than reimplement due-date rules. Its horizon is local
-Overdue + Today + the next three calendar days, ordered by due instant, lowercase plant name, then task
-id. A liquid-fertilizer plant gets one combined task only when watering exists in the horizon and
-fertilizing is due no later than that watering; it never gets a standalone fertilizer task. Active
-issues relabel only their linked custom-reminder task. Photo tasks use the newest care-log photo or
-gallery photo and deliberately ignore the session-only reminder-popup suppression. The screen layout is
-`careTypeSections()` (`domain/today/TodayCareTask.kt`): Watering (incl. the combined
-water-and-fertilize task) → Issue treatments → Fertilizing → Custom reminders → Repotting → Photos,
-empty sections hidden, queue order kept inside a section. Watering alone carries `subGroups` (Overdue /
-Today / Next 3 days, mapped 1:1 from `TodayTaskBucket` — every `Upcoming` is inside the aggregator's
-three-day horizon, so the UI does no date math), empty sub-groups hidden; every section and sub-group
-carries a distinct-plant `plantCount`. Presentation lives in `ui/screens/today/TodayCareGrid.kt`
-(product ADR-0056).
-
-`dayChangeTicker()` is the shared self-correcting foreground day signal used by Care, Plant List,
-and Calendar. It emits immediately, computes the duration to the next midnight in the clock's local
-zone, delays for no more than its bounded poll interval, then recomputes from a fresh clock read. Do
-not replace it with a fixed 24-hour ticker: local days can be 23 or 25 hours, and a long-lived fixed
-delay drifts after lifecycle or scheduler delays. See technical ADR-0035.
+Dates:
+- Calendar-day comparisons use `Long.toLocalDate()`, never millisecond division (technical ADR-0013).
+- `daysBetween()` uses `ChronoUnit.DAYS`.
+- Every "N days from X" due-date advance goes through `Long.plusCalendarDays()`, never `+ TimeUnit.DAYS.toMillis(n)` (DST fall-back loses a day, technical ADR-0034).
 
 ## computeStatus()
-- **Watering** — never-watered plant with an interval set is **due today** (`nextWateringDueAt = now`,
-  `isDueSoon = true`), stays due-today (never drifts overdue) until the first WATER log; an existing
-  `wateringDueDateOverride` still wins via `maxOf()`.
-- **Fertilizing** (#795, product ADR-0049, superseding #286's four discrete per-season intervals,
-  product ADR-0045) — the raw due date is `lastFertilizedAt + fertilizingIntervalDays`, or
-  `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30, named const) before the first log; both go through
-  the same shift, `SeasonalFertilizing.nextActiveDueAtMillis(rawDueAtMillis, activeSeasons,
-  hemisphere, nowDate)`. Every season active is an unconditional early-out (raw unchanged, however
-  overdue — every existing plant stays bit-for-bit identical). Otherwise the rule branches on whether
-  the raw date is still in the future:
-  - **Future raw** (after `nowDate`): the simple forward shift — unchanged if its own season is
-    active, else the start of day of the 1st of the first following month whose season is active.
-  - **Past-or-present raw** (on or before `nowDate`): evaluated against *today's* season instead of
-    the raw date's own, because the raw date's season can be active while a long inactive gap has
-    since opened up between it and today — a plant last fertilized in an active month and then left
-    unfertilized only reads overdue up to where that gap crosses into the next inactive season, not
-    for that inactive season's entire span. If today's season is inactive, the result is the start of
-    day of the 1st of the first following month whose season is active (a future date — not due, not
-    overdue). If today's season is active, `SeasonalFertilizing` finds the start of the *contiguous
-    run* of active months ending at today's month (walking backward while the previous month is also
-    active — this correctly spans a run that wraps the year boundary, e.g. Autumn+Winter active); the
-    raw date is used unchanged when it already falls on or after that run's start (still overdue from
-    the real raw date), otherwise the run's start is the due date — due today while still in that
-    first month, overdue once past it.
-  Adaptive watering never touches this; no learning, confidence, or adjustment history.
-- **Repotting** — first-due for a never-repotted plant is `createdAt + interval` (private generic
-  `extendedCareDueAt()`), so a newly added plant isn't flagged immediately. Populates
-  `nextRepottingDueAt`/`isRepottingOverdue`/`isRepottingDueSoon`/`lastRepottedAt` (all defaulted, existing
-  callers unaffected). See product ADR-0022 (#232). `computeRepottingDue()` (#809, product ADR-0057)
-  layers two things on top, both unset by default:
-  - **A one-off plan wins outright** — `Plant.repotPlanSeasonStartAt` (start of day of the target
-    season's first day; no interval needed) *replaces* the interval date, even when earlier (unlike
-    watering's defer-only `maxOf` override, product ADR-0039). `SeasonalRepotting.resolvePlan()` derives
-    the season and its end (the first day *after* the season, from the nearest season boundary to the
-    stored timestamp, hemisphere-independent) and `RepotPlan.stateOn(nowDate)` gives UPCOMING /
-    IN_SEASON / SEASON_ENDED: `nextRepottingDueAt` is the stored start, `isRepottingDueSoon` is true for
-    the whole season, `isRepottingOverdue` only once the season has ended, and
-    `PlantCareStatus.repottingPlanSeasonEndAt` is non-null exactly for a plan (`isRepottingPlanned`),
-    as is `repottingPlanSeason` (the resolved season, for "planned this spring" copy). Consumers never
-    read "past `nextRepottingDueAt`" as overdue for a plan: `ReminderNotificationComposer` counts a lapsed
-    plan's overdue days from the season's last day, and `TodayQueueAggregator` buckets its task by the
-    season state (Today while in season, Overdue once ended).
-  - **Preferred seasons for the interval** — without a plan, the raw date goes through
-    `SeasonalRepotting.nextPreferredDueAtMillis(raw, repottingSeasons, hemisphere, anchor)` where
-    `anchor = lastRepottedAt ?: createdAt`. Every season preferred (or an empty set) returns raw
-    untouched; raw already in a preferred season → unchanged; any other raw date, **past or future**, →
-    the first day of the *nearest* preferred stretch (a contiguous run of preferred seasons,
-    year-wrapping ones included; distance is measured to the stretch's first day, tie → later). A
-    candidate must fall at least **half the interval** after the anchor's day (`(raw − anchor) / 2`
-    calendar days, integer division, floored at 1 so a candidate on or before the anchor never passes);
-    a rejected one is replaced by the next stretch forward — the stretch after raw, which always
-    satisfies the gap, so there is at most one fall-forward — so a plant repotted Jan 15 2026 with a
-    180-day interval and spring preferred is due Mar 1 2027, not Mar 1 2026. The result is
-    **time-stable** — a pure function of raw/seasons/hemisphere/anchor with no `nowDate` parameter,
-    unlike fertilizing's today-relative shift — so a shifted date reads due on its first day and overdue
-    after it, and can legitimately lie in the past: an overdue plant stays overdue until repotted (or the
-    plan/seasons change) rather than jumping to a later stretch once its raw date passes. The trade-off:
-    a long-neglected plant reads overdue since an old preferred season even in an off-season (product
-    ADR-0057).
-  Tests: `SeasonalRepottingTest` (pure), `CareScheduleSeasonalRepottingTest` (status integration).
-- **Custom reminders** — unbounded per plant, so unlike repotting they're a `List<CustomReminderStatus>`
-  (`PlantCareStatus.customReminderStatuses`), not scalar fields. `computeStatus()` takes a `customReminders:
-  List<CustomReminder> = emptyList()` param; each reminder reuses `extendedCareDueAt()` independently, but
-  anchored to **the reminder's own `createdAt`**, not the plant's — reminders are commonly added long after
-  plant creation, so a fresh reminder must not be flagged overdue immediately (#560 follow-up). See technical
-  ADR-0019 (#232).
-- No interval configured → "Not scheduled".
-- A configured dormancy window always suppresses fertilizing due/overdue flags. Watering is either
-  fully suspended (`dormantWateringIntervalDays == null`, product ADR-0044) or uses a fixed whole-week
-  cadence of 1–12 weeks (product ADR-0046/product ADR-0047). The fixed cadence ignores seasonal/adaptive state, is floored at the
-  current dormant cycle's first day, and becomes the active computed schedule before
-  `wateringDueDateOverride` is applied. Only fully suspended plants go in the Dormant list/calendar
-  bucket; cadence plants participate normally. Ordinary due dates become active immediately on exit.
+- **Watering:** a never-watered plant with an interval is **due today** (`nextWateringDueAt = now`, `isDueSoon = true`). It never drifts overdue before the first WATER log. A `wateringDueDateOverride` wins via `maxOf()`, so a reschedule can only push later.
+- **Fertilizing** (#795, product ADR-0049): the raw due date is `lastFertilizedAt + interval`, or `createdAt + FIRST_FERTILIZE_GRACE_DAYS` (30) before the first log. It is then shifted by `SeasonalFertilizing.nextActiveDueAtMillis(raw, activeSeasons, hemisphere, nowDate)`:
+  - All four seasons active returns the raw date unchanged.
+  - **Future raw date:** kept if its own season is active, else moved to the 1st of the next month in an active season.
+  - **Raw date today or earlier:** judged by *today's* season.
+    - Today inactive: move to the 1st of the next active month (not due).
+    - Today active: find the start of the contiguous run of active months ending this month (it may wrap the year, e.g. Autumn+Winter). Keep the raw date if it falls in that run (still overdue); otherwise the run start becomes the due date (due today in its first month, overdue after).
+  - So a plant is never due during an inactive season. There is no learning, confidence or adjustment history for fertilizing.
+- **Repotting** (product ADR-0022, #809, product ADR-0057):
+  - The first due date for a never-repotted plant is `createdAt + interval` (via `extendedCareDueAt()`).
+  - A one-off plan *replaces* the interval date outright, even when it is earlier. `isRepottingDueSoon` covers the whole season; `isRepottingOverdue` starts only after the season ends. `repottingPlanSeasonEndAt` and `repottingPlanSeason` are non-null exactly for a plan.
+  - Without a plan, preferred seasons shift the interval date (time-stable, half-interval floor).
+  - Details in `rules/repotting.md`. Tests: `SeasonalRepottingTest`, `CareScheduleSeasonalRepottingTest`.
+- **Custom reminders** (technical ADR-0019): `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`, from the `customReminders` param. Each reminder is anchored to **its own `createdAt`**, not the plant's, so a newly added reminder isn't immediately overdue.
+- No interval → "Not scheduled".
+- **Dormancy** (product ADR-0044/0046/0047/0049):
+  - A configured window always suppresses fertilizing due/overdue.
+  - Watering is either fully suspended (`dormantWateringIntervalDays == null`) or follows a fixed 1–12 week cadence. The cadence ignores seasonal/adaptive state, is floored at the current dormant cycle's first day, and becomes the computed schedule before the override applies.
+  - `PlantCareStatus.isDormant` marks both. Only *fully suspended* plants go in the Dormant group/calendar bucket (shown on today, not counted as due, both care dates suppressed in the window); cadence plants participate normally.
+  - Ordinary due dates resume immediately on exit. Dormancy-spanning waterings are excluded from learning and reason prompts.
+- **On-schedule / direction (#586, #649):**
+  - `isWateringOnSchedule` (`wateringOnScheduleNow()`) compares the raw observed gap with the *effective* interval, within `GAP_AGREEMENT_TOLERANCE`. That equals the model's de-seasonalized-gap-vs-base test, which is why "was the prompt shown" can be derived rather than stored. It is `true` with no interval or no previous watering.
+  - `isWateringGapLong` (`wateringGapRanLong()`) gives the direction of an off-schedule gap and picks the reason prompt's late wording and option set (`rules/care-logging.md`). Derive it from the gap, **never** from `isOverdue`, because an override moves the due date.
+  - `CareSchedule.isWateringOnScheduleAt`/`isWateringGapLongAt` are the same checks for a picked (backdated) date.
+- `computedNextWateringDueAt` (the pre-override date) and `rescheduleDeltaDays` (non-null only while the override wins) are computed once in `computeWateringDue()` and never re-derived elsewhere.
+- Suspend `buildStatus()` runs inside `combine {}`, so it uses a `for` loop + `mutableListOf`, never `.map {}` (technical ADR-0003).
 
 ## computeAdaptiveInterval() — multiplicative + confidence-weighted (product ADR-0025, technical ADR-0021, #568)
-The only watering-suggestion path — `ADAPTIVE_WATERING` graduated (#655) and shipped unconditionally; the legacy
-`computeSuggestedInterval()` ±1-day nudge (product ADR-0006) it replaced has been deleted along with the flag
-check, so there is no flag-off path anymore. Flow: after a WATER log, `AddCareLogViewModel` (via the shared
-`AdaptiveWateringObservation`) computes `actualIntervalDays` from the entered log's chronological predecessor
-(`getLastWateringBefore`), never the globally newest pair — the configured interval stands in only for a plant's
-first-ever watering, and a log backdated before every existing watering is skipped (#673, technical ADR-0033).
-It then calls this function and passes the result back via
-`savedStateHandle["suggestedWateringInterval"]`; the detail screen shows a modal editable `AlertDialog`
-(product ADR-0006 dialog shape, supersedes product ADR-0005).
-- `target = observed × multiplier(feedback)` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base = base +
-  g(confidence) × (target − base)`. Gain table indexed 0-5: `[0.60, 0.45, 0.35, 0.28, 0.22, 0.15]`.
-- Clamped to ±40% per step (of the pre-step base, before rounding — rounding to a whole day can add up to another
-  half-day on top of the 40%, an accepted quantization artifact, not a bug) then `.coerceIn(1, 180)` overall.
-- `Plant.wateringConfidence: Int?` (0-5, `null` = never adapted) is the only new column (DB v10, `MIGRATION_9_10`;
-  backup schema v11). `CareSchedule.correctionStreak(recentFeedback)` derives the same-direction run from
-  `CareLogRepository.getRecentWaterings(plantId, limit = 3)` (most-recent-first) — **never** cached on a column
-  (editing/deleting a past WATER log must be reflected on the next adaptation with no stale cache).
-- Confidence never rises from the feedback chip's value alone — only from gap agreement (observed within
-  `GAP_AGREEMENT_TOLERANCE` = 15% of the current base) or a dialog dismissal (capped at
-  `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowers an already-higher value); it falls (`-2`, floored 0) when
-  `correctionStreak()` shows `abs(streak) >= 2`. First observation (`wateringConfidence == null`) bootstraps to 0
-  without evaluating a transition, but still corrects `base` at the confidence-0 gain.
-- Manual-edit semantics differ by surface: an AddEditPlant interval edit is a full reset (`confidence = 0`,
-  `AddEditPlantViewModel.save()`); editing the number inside the product ADR-0006 dialog before Apply reuses
-  `GAP_AGREEMENT_TOLERANCE` — within it, normal rules; outside it, `-2` floored at 0 (`PlantDetailViewModel
-  .applySuggestedInterval()`/`.dismissSuggestedInterval()`, the latter routed from the dialog's Dismiss button and
-  `onDismissRequest`, not `clearSuggestedInterval()`, a plain no-side-effect reset with no production caller since
-  #620 round 2 removed the screen's stale-suggestion cleanup `LaunchedEffect` — `pendingWateringSuggestion`
-  collapses to `null` by itself once the effective-space delta is 0, so a raw-value short-circuit at the screen
-  layer is no longer needed and would risk discarding a suggestion that only *looks* unchanged in base space).
-- `CareScheduleAdaptiveReplayTest` is the pure-JVM replay harness (scenarios 1a/1b/2/3a/3b/4); do not alter the
-  multipliers/gain table to chase different convergence numbers — see technical ADR-0021 for the corrected
-  convergence figures (5 obs/46 days obedient, 2 obs/28 days autonomous) and why "confidence never reaches 5" in
-  scenario 3b is a known-unreachable bound from the originating issue thread, not a bug in this implementation.
-- `AddCareLogViewModel`/`QuickLogUseCase` de-seasonalize the observed gap before calling
-  `computeAdaptiveInterval()` when amplitude isn't Off (`observedBase = observedGap / season(dateOfGap)`,
-  #569, product ADR-0026) — `computeAdaptiveInterval()` itself is unaware of seasonality; only its
-  `observedIntervalDays` input is patched at the call site. See `.claude/rules/seasonal-watering.md`.
-- **`feedback: WateringFeedback?`** — widened to nullable (#570, product ADR-0027): the WATER-log feedback chip
-  collapsed to one optional flag, making `null` the dominant case. `null` maps to `NEUTRAL_TARGET_MULTIPLIER`
-  (1.00, same value as JUST_RIGHT's — `target = observed` verbatim) at a gain capped by
-  `NEUTRAL_OBSERVATION_GAIN` (0.15) — a ceiling on the existing gain, not a second learning rate. Confidence still
-  updates normally on gap agreement for a null-feedback observation; only the `base` correction is throttled.
-- **Sub-day precision (#717/#718):** `AdaptiveInterval` carries both the rounded whole-day value used by UI and
-  adjustment-history surfaces and the unrounded `baseIntervalDays` persisted by write paths. Neutral corrections
-  therefore accumulate below a day, and accepting an unchanged seasonal suggestion must use that precise base
-  rather than reverse-converting its rounded effective display value.
-  The model is `Double` end to end: the `Double` overload of this function is the real one (the `Int` overload
-  only widens via `.toDouble()`), `clampStep()` returns an unrounded `Double`, and the one rounding inside is
-  `newBase.roundToInt()` populating the display-facing `AdaptiveInterval.intervalDays`. Write paths persist
-  `baseIntervalDays`, never that rounded sibling — don't route the persisted base through an `Int`. Rounding a
-  base is safe only for display, and the *round-trip* is what makes it unsafe: deriving a base back **from** a
-  rounded effective value divides the ±0.5-day residual by `season(today)`, amplifying it by `1/season` —
-  ±0.77 days at the July trough on the default `STANDARD` amplitude (0.35) and a full ±1.0 on `STRONG` (0.5),
-  and worst in the growing season rather than winter, since a factor below 1 magnifies rather than shrinks.
-  That is the bug #718 fixed, and it is a different thing from the accepted whole-day *display* artifact noted
-  on the clamp bullet above. Retaining sub-day precision is also what makes a
-  capped-gain neutral correction able to move a short interval at all: at `NEUTRAL_OBSERVATION_GAIN` = 0.15, a
-  whole-day move needs `0.15 × |observed − base| >= 0.5`, i.e. an *integer* gap difference of 4, and `4 <= 0.15
-  × base` needs `base >= 27` (the two `0.15`s there are *different* constants — `NEUTRAL_OBSERVATION_GAIN`
-  for the gain and `GAP_AGREEMENT_TOLERANCE` for the exclusion bound — which happen to be equal today, so the
-  threshold moves if either is ever tuned alone) — so before #717/#718, when the sub-day result was
-  discarded, every base of 26 days or less was a dead zone a neutral observation could never move.
-  (Neutral here is the null-feedback, *on-schedule* case at the capped gain — an unattributed
-  *off-schedule* observation is a different rule and gets gain 0.0 outright, per #586/product ADR-0030
-  below.)
-- **The suggestion-dialog gate compares live effective values, never the stale `Plant.wateringIntervalDays`
-  literal (#716)** — see `.claude/rules/seasonal-watering.md`'s "#716" note for the full rule; this bullet is
-  just the pointer, since the fix lives in the seasonal-conversion file, not here.
-- **The off-schedule exclusion (#586, product ADR-0030)** narrows that further: `gain = 0.0` when `feedback == null`
-  **and** the gap disagrees with `currentBaseIntervalDays` (`isUnattributedOffScheduleObservation()`), reported back
-  as `AdaptiveInterval.excludedFromBaseLearning`. Off-schedule is exactly when the reason prompt appears, so a `null`
-  there means the user was asked why and declined to attribute it — a pre-emptive holiday watering marked "just my
-  timing" must not shorten `base` through the passive channel. **Derived inside the pure function, never passed in**:
-  a boolean threaded through call sites is one a caller can forget, and this way the rule holds identically for the
-  quick-log sheets, AddCareLog, a bulk log, and the notification's "Watered" action. Consequence: `base` now only ever
-  moves on explicit attribution or on an on-schedule nudge inside the tolerance band. Confidence is deliberately not
-  separately suppressed — an off-schedule gap disagrees with the prediction whatever the reason, so it simply
-  doesn't rise. Call sites map an excluded result to `WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED`.
-- **`PlantCareStatus.isWateringGapLong`** (#586 follow-up) is the *direction* of an off-schedule gap —
-  `true` once the observed gap has run longer than the effective interval. Only meaningful while
-  `isWateringOnSchedule` is false, and it selects the reason prompt's late wording ("Why was it late?" /
-  "It was dry by then" / "Forgot, or no time") over the early one ("Why now?" / "The plant needed it" /
-  "Just my schedule"). Same two bits in either direction — about the plant, or about you — so this is
-  wording only and product ADR-0030's mapping is untouched. Derived in `wateringGapRanLong()` from the same
-  gap-vs-effective-interval comparison as `isWateringOnSchedule`, **never** from `isOverdue`: the latter
-  measures against the due date, which a `wateringDueDateOverride` moves, so a deferred plant can be
-  not-overdue while its gap has still run long.
-- **`PlantCareStatus.isWateringOnSchedule`** (#586) is the UI half of the same test, computed in `computeStatus()`
-  via `wateringOnScheduleNow()`: raw observed gap vs the *effective* (seasonal) interval, where the model compares
-  the de-seasonalized gap vs `base` — the same test, since `observed / season` vs `base` is `observed` vs
-  `base × season`. That equivalence is what lets "was the prompt shown" be derived rather than persisted. `true`
-  (no prompt) when there's no interval or no previous watering.
-- **Lifecycle resets + cold-start bootstrap (#571)** — see `domain/usecase/WateringLifecycleReset.kt`.
-  A `REPOT` care log or a qualifying `Plant.room` change (any real change except blank/empty -> filled
-  for the first time) resets `wateringConfidence` to 0 (unconditional since `ADAPTIVE_WATERING`
-  graduated, #655), written once as a side effect at log-creation/plant-save time — never derived live from querying REPOT log
-  history, so editing/deleting a past REPOT log can't spuriously re-trigger a reset. A REPOT reset also
-  sets `Plant.wateringFreezeUntil` (`wateringResetAt + 28 days`, room-change resets never set this) —
-  `computeAdaptiveInterval(..., frozen = true)` while `now < wateringFreezeUntil` forces the same
-  exclusion treatment as an unattributed off-schedule observation (gain 0, `excludedFromBaseLearning`),
-  reusing #586's mechanism rather than inventing a second one; confidence still updates normally
-  (evidence about the schedule regardless of why `base` is excluded). `CareSchedule.bootstrapBaseInterval
-  (waterLogTimestampsMs, seasonFn)` cold-starts `base`/confidence from history — `median(gap_i /
-  season(date_i))` / `min(5, gapCount / 3)` — evaluated on every WATER-log adaptive observation via
-  `WateringLifecycleReset.maybeBootstrap()`: once when `wateringConfidence == null` (first-ever
-  observation, whole history eligible) or repeatedly while `wateringResetAt != null` (post-reset,
-  eligible history bounded to `wateringFreezeUntil ?: wateringResetAt`), applying only when
-  `CareSchedule.MIN_BOOTSTRAP_GAPS` (3) is met and dual-writing `wateringIntervalDays`/
-  `wateringBaseIntervalDays` (mirroring `QuickLogUseCase.applyWateringIntervalSuggestion()`'s dual-write fix) plus clearing
-  `wateringResetAt` so it fires exactly once. When it fires, `adaptWateringInterval()` returns the
-  pre-bootstrap interval unchanged so the product ADR-0006 suggestion dialog never re-surfaces a value the
-  bootstrap already silently committed.
-- **`CareType.CHECK`** ("Soil still moist", #570 product ADR-0027) no longer feeds this function at all
-  (#738, product ADR-0039, superseding product ADR-0030's Reschedule-flow clause) — a reschedule writes only
-  `Plant.wateringDueDateOverride` and asks no reason prompt. `QuickLogUseCase.recordStillMoistCheck()`,
-  `recordStillMoistAdaptiveObservation()`, `computeStillMoistAdaptiveInterval()`, and
-  `suggestedStillMoistDeferralDays()` are all deleted; the reschedule write path is
-  `QuickLogUseCase.recordReschedule(plant, newDueAtMillis)`, a plain column write with no adaptive-model
-  involvement at all. `CareType.CHECK` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` remain as enum
-  constants (Room/`.yapt` deserialization safety for historical rows) but are write-only-in-the-past —
-  see `.claude/rules/watering-transparency.md`. Every reschedule option, "I can't right now" included,
-  writes the override only and nothing else, same posture product ADR-0029 originally established.
+The only watering-suggestion path; the old ±1-day nudge and the `ADAPTIVE_WATERING` flag are gone (#655). Callers (via `AdaptiveWateringObservation`, `rules/care-logging.md`) measure the observed gap from the new log's chronological predecessor, de-seasonalize it when amplitude isn't Off (`observed / season(dateOfGap)`, product ADR-0026), and show the result in the product ADR-0006 editable dialog. The function itself knows nothing about seasons.
+- **Target and gain:** `target = observed × multiplier` (1.25 TOO_SOON / 1.00 JUST_RIGHT / 0.82 TOO_LATE); `base += g(confidence) × (target − base)`, with gains `[0.60, 0.45, 0.35, 0.28, 0.22, 0.15]` for confidence 0–5.
+- **Clamping:** each step is clamped to ±40% of the pre-step base, then `coerceIn(1, 180)`. Don't tune the multipliers or gains to chase convergence numbers. `CareScheduleAdaptiveReplayTest` is the replay harness, and technical ADR-0021 has the figures (scenario 3b never reaching confidence 5 is a known bound).
+- **`feedback: WateringFeedback?`** (product ADR-0027): `null` uses `NEUTRAL_TARGET_MULTIPLIER` (1.00) with gain capped at `NEUTRAL_OBSERVATION_GAIN` (0.15). Confidence still updates on gap agreement.
+- **Off-schedule exclusion (#586, product ADR-0030):** `feedback == null` **and** a gap outside tolerance (`isUnattributedOffScheduleObservation()`) gives gain 0 and `excludedFromBaseLearning` (→ `WATER_NOT_ATTRIBUTED`). This is **derived inside the function, never passed in**, so every surface (quick-log, Add Care Log, bulk log, the notification's Watered action) behaves the same. `base` moves only on explicit attribution or an on-schedule nudge.
+- **Confidence (`Plant.wateringConfidence: Int?`, 0–5, null = never adapted):**
+  - It rises only on gap agreement (within `GAP_AGREEMENT_TOLERANCE` = 15% of base) or a dialog dismissal (capped at `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowered by it).
+  - It drops by 2 (floor 0) when `correctionStreak()` ≥ 2 in one direction.
+  - The first observation bootstraps it to 0 but still corrects `base`.
+  - `correctionStreak()` is derived from `getRecentWaterings(limit = 3)` and never cached in a column, so edits and deletes take effect.
+- **Manual edits:** an Add/Edit interval change resets confidence to 0. Editing the number inside the dialog applies the normal rules within tolerance, and −2 outside it. The dialog's Dismiss button and `onDismissRequest` go to `dismissSuggestedInterval()`.
+- **Sub-day precision (#717/#718, technical ADR-0027):**
+  - The model is `Double` end to end. `AdaptiveInterval` carries the unrounded `baseIntervalDays` (persisted) and the rounded `intervalDays` (display only). Never route the persisted base through an `Int`.
+  - Never derive a base back from a rounded effective value: it amplifies the ±0.5-day residual by 1/season.
+  - Without sub-day precision, a neutral correction can't move any base ≤ 26 days.
+  - The whole-day rounding on top of the ±40% clamp is an accepted display artifact.
+- The suggestion-dialog gate compares live *effective* values, never the stored `wateringIntervalDays` literal (`rules/seasonal-watering.md`).
+- **Lifecycle resets + cold start (#571, `WateringLifecycleReset.kt`):**
+  - **Resets:** a REPOT log or a real `room` change (not blank → first value) resets confidence to 0. It is written once at log/save time, never derived from REPOT history. A REPOT reset also sets `wateringFreezeUntil = wateringResetAt + 28 days`, the one deliberate fixed duration. While frozen, observations get gain 0 + `excludedFromBaseLearning` (→ `FROZEN_POST_REPOT`), and confidence still updates.
+  - **Cold start:** `bootstrapBaseInterval(waterLogTimestampsMs, seasonFn)` returns `median(gap_i / season(date_i))` with confidence `min(5, gapCount / 3)`. `maybeBootstrap()` runs it on the first-ever observation, or while `wateringResetAt != null` (history bounded to `wateringFreezeUntil ?: wateringResetAt`). It needs `MIN_BOOTSTRAP_GAPS` (3), dual-writes interval + base, and clears `wateringResetAt` so it fires once. When it fires, `adaptWateringInterval()` returns the pre-bootstrap interval, so the dialog never re-offers what was silently committed.
+- **Reschedule is model-neutral** (product ADR-0039): `recordReschedule()` writes only the override. `CareType.CHECK` and `CHECK_STILL_MOIST` are historical only.
 
 ## DateUtils.relativeDate() / relativeDateText()
-`DateUtils.relativeDate()` returns a `RelativeDate` sealed type; the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`) renders it from string resources.
-Calendar-day (`ChronoUnit.DAYS.between`) so "Last: X days ago" reflects calendar days, not a rolling 24h window
-(#351). History list + Graveyard show exact dates (e.g. "Jun 10, 2026") for events > 14 days old; PlantCard chips
-and Detail stats always show the relative form (#387).
-
-## Convention reminder
-Suspend `buildStatus()` runs inside a `combine {}` block — `List.map {}` takes a non-suspend lambda, so it uses a
-`for` loop with `mutableListOf`. Don't refactor to `.map {}` (technical ADR-0003).
-
-## Dormancy display (#763/#286/#802, product ADR-0044/product ADR-0049)
-`PlantCareStatus.isDormant` marks suspended watering and fertilizing schedules. Plant List watering/fertilizing due groupings and the watering *and fertilizing* chips say Dormant; Calendar shows dormant plants separately on today without counting them as due and suppresses both care dates inside the window. "Why this date?" shows suspension in place of a live watering due date, while adjustment history remains visible.
-
-## Dormant watering cadence (#785, product ADR-0046/product ADR-0047)
-A valid dormancy window may opt into a fixed whole-week watering cadence from 1 to 12 weeks; null keeps full suspension. The cadence ignores seasonal/adaptive state, while fertilizing stays suspended and dormancy-spanning waterings remain excluded from learning and reason prompts.
+`relativeDate()` returns a `RelativeDate` sealed type, which `relativeDateText()` renders from resources. It counts calendar days (#351). History and the Graveyard show exact dates for events more than 14 days old; plant cards and Detail always show the relative form (#387).

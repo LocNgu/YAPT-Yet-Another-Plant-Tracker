@@ -8,104 +8,39 @@ paths:
 
 # Developer mode / feature flags / debug actions (product ADR-0042, #514)
 
-## Developer mode unlock (#520)
-Tapping Settings → About version row 5× unlocks a **Developer** section at the bottom of Settings. Counter logic is
-pure/Compose-free: `DeveloperModeUnlock.registerTap(currentTapCount, isDeveloperModeEnabled)` in `domain/devmode/`
-→ `DeveloperModeTapResult` (new count + `Silent`/`Countdown(n)`/`Unlocked`/`Inert`). The counter is **screen-scoped
-Compose `remember`** in `SettingsScreen`, not the ViewModel — resets when Settings leaves composition, no wall-clock
-timeout; once unlocked every tap is `Inert`. AOSP-style countdown snackbars at taps 3/4/5.
-`SettingsKeys.DEVELOPER_MODE_ENABLED` (default false); master `Switch` — off hides the section **and resets every
-feature flag to its registry default**. Four read-only build-info rows (version+code, build type, Room DB version
-from `PlantDatabase.DB_VERSION`, API level). Reachable in debug **and** release; excluded from backup (device-local,
-no schema bump).
+## Unlock (#520)
+- **The tap counter:** tap Settings → About version 5× to unlock a **Developer** section. The pure counter logic is `DeveloperModeUnlock.registerTap(count, enabled)` → `DeveloperModeTapResult` (`Silent`/`Countdown(n)`/`Unlocked`/`Inert`). The count is a screen-scoped Compose `remember`, not ViewModel state: it resets when Settings leaves composition and has no timeout. Countdown snackbars show at taps 3/4/5.
+- **The switch:** `SettingsKeys.DEVELOPER_MODE_ENABLED` (default false, device-local, not backed up). Turning it off hides the section **and resets every flag to its default**.
+- **Build info rows:** version + code, build type, `PlantDatabase.DB_VERSION`, API level. The section works in debug and release.
 
 ## Feature-flag registry (#521)
-`data class FeatureFlag(key, titleRes, descriptionRes, default)` + `object FeatureFlagRegistry { val all }` in
-`domain/featureflag/`. `FeatureFlags` (YaptApplication lazy singleton) wraps `settingsDataStore`, constructed with
-`flags: List<FeatureFlag> = FeatureFlagRegistry.all` (**the injectable seam a test overrides**); exposes
-`isEnabled(flag): Flow<Boolean>`, `setEnabled`, `resetAll()`. Each key = `"feature_flag_" + flag.key`
-(`preferenceKeyFor`) — flags need **no schema/migration** to add or remove.
-- `SettingsViewModel` takes `featureFlags: FeatureFlags = FeatureFlags(dataStore)` (keeps the constructor under the
-  Detekt `LongParameterList` threshold — the flag list lives on `FeatureFlags`, not a second VM param); exposes
-  `flags`, `featureFlagStates: StateFlow<Map<String,Boolean>>` (a `combine`, short-circuited to `emptyMap()` when no
-  flags), `setFlagEnabled`.
-- `SettingsScreen` renders one generic row per flag (`testTag("feature_flag_switch_${flag.key}")`); empty registry
-  shows "No feature flags in this build". Adding a flag = registry entry + 2 string resources, no new Settings UI.
-- `TODAY_GROUP_BY_PLANT` (`today_group_by_plant`, #836, product ADR-0054) graduated (#842, product ADR-0056,
-  amending product ADR-0054's flag clause) — the Care grid with Watering date sub-groups and the long-press
-  quick-action menu is the chosen direction, so the flag, the `plantSections()` plant-grouped renderer, their
-  strings, and their tests were deleted together (product ADR-0042's lifecycle rule) and there is no registry
-  entry or flag row for it anymore. `FeatureFlagRegistry.all` is empty again. A device that ran the flag build
-  keeps an orphan `feature_flag_today_group_by_plant` DataStore boolean that nothing reads; flags never touch
-  the database schema, so no migration or cleanup is needed.
-- `ADAPTIVE_WATERING` graduated (#655) — the multiplicative + confidence-weighted watering interval model
-  (`CareSchedule.computeAdaptiveInterval()`, see `.claude/rules/schedule.md`) now ships unconditionally; there is
-  no registry entry or flag row for it anymore. `Plant.wateringConfidence` and the `.yapt` backup field, which
-  already shipped unconditionally before the flag was removed, are unaffected.
-- `SEASONAL_WATERING` graduated (#656) — the computed seasonal watering curve (see
-  `.claude/rules/seasonal-watering.md`) and the amplitude picker on the main Settings screen now ship
-  unconditionally; there is no registry entry or flag row for it anymore. The backing
-  `Plant.wateringBaseIntervalDays`/`pinIntervalToBase` columns and `.yapt` backup fields, which already
-  shipped unconditionally before the flag was removed, are unaffected.
-- `CHECK_REMINDERS` graduated (#657) — the watering reminder notification's "Check {plant}" title (#570)
-  now ships unconditionally; there is no registry entry or flag row for it anymore. See
-  `.claude/rules/notifications.md`. The action set itself narrowed from three (Watered/Still-moist/Not
-  now) to two (Watered/Not now) later, by #738 (product ADR-0039) — `StillMoistReceiver` is deleted,
-  unrelated to this graduation. `ReminderWorker` and the notification composer were otherwise
-  unaffected by the graduation itself — no new columns/backup fields, `CareType.CHECK` still reuses
-  the existing care-log pipeline entirely.
-- `PLANT_DETAIL_TABS` graduated (#704) — the Plant Detail per-action tabs feature (tab strip, inline
-  scheduling settings, per-tab insights, `.claude/rules/plant-detail.md`) now ships unconditionally;
-  there is no registry entry or flag row for it anymore. Unlike the three graduations above, this one
-  was user-visible on every real install — the flag-off classic single-page layout (and the `StatsRow`/
-  `StatChip` quick-log chips it alone hosted, #434) was deleted entirely, not merely made permanent.
-  `FeatureFlagRegistry.all` became empty when that flag graduated; #836 later added the temporary Care
-  grouping experiment described above, which #842 removed again. The empty-registry period was expected —
-  Product ADR-0042 already anticipated this as the registry's expected steady state ("often be empty or
-  near-empty in practice, not just at initial ship"), not an edge case needing special handling. Developer
-  mode's `dev_mode_feature_flags_empty` rendering needed no new UI code — `SettingsScreen.kt` has
-  branched on `viewModel.flags.isEmpty()` since #521.
+- **Model:** `FeatureFlag(key, titleRes, descriptionRes, default)` + `FeatureFlagRegistry.all`. `FeatureFlags` (an app singleton) wraps the DataStore with `flags = FeatureFlagRegistry.all` as the test seam, and exposes `isEnabled(flag): Flow<Boolean>`, `setEnabled` and `resetAll()`.
+- **Keys:** `"feature_flag_" + key`. Adding or removing a flag needs no schema change or migration.
+- **ViewModel:** `SettingsViewModel(featureFlags = FeatureFlags(dataStore))` (the list lives on `FeatureFlags`, which keeps the VM under Detekt's parameter limit). It exposes `flags`, `featureFlagStates` (short-circuits to `emptyMap()` with no flags) and `setFlagEnabled`.
+- **UI:** one generic row per flag (`testTag("feature_flag_switch_${key}")`); an empty registry shows "No feature flags in this build". A new flag = a registry entry + 2 strings, no new UI.
+- **Lifecycle (product ADR-0042):** a graduating flag is deleted together with its losing branch, strings and tests.
+  - `FeatureFlagRegistry.all` is **currently empty**, which is the expected steady state.
+  - Graduated so far: `ADAPTIVE_WATERING` (#655), `SEASONAL_WATERING` (#656), `CHECK_REMINDERS` (#657), `PLANT_DETAIL_TABS` (#704), `TODAY_GROUP_BY_PLANT` (#842).
+  - Orphan `feature_flag_*` DataStore booleans may linger on devices; nothing reads them (except the seasonal fixup's legacy check, `rules/seasonal-watering.md`).
 
 ## Demo data (#523)
-Two more Debug-actions rows: **Seed demo plants** / **Remove demo plants**, backed by `DemoData` (pure,
-deterministic 10-plant dataset generator, `object` with a single `generate(now)` entry point — the anchor-time math
-and per-plant definitions are split into `DemoDataTime`/`DemoPlantBuilders` to stay under Detekt's `TooManyFunctions`
-threshold) and `DemoDataSeeder` (impure orchestration: writes/deletes via `PlantRepository`/`CareLogRepository`,
-wrapped in one `database.withTransaction {}` so a killed process can't leave a partial demo set behind). Every demo
-plant/log carries the `DemoData.NAME_PREFIX = "[Demo] "` name prefix; `seed()` is idempotent — it removes any
-existing `[Demo] `-prefixed plants first, so repeated taps never stack duplicates — and `remove()` hard-deletes only
-that prefix, cascading care logs, never touching a real plant. `SettingsViewModel.seedDemoPlants()` /
-`removeDemoPlants()` lazily construct `DemoDataSeeder` (not a constructor param — avoids growing the VM's param list)
-and route through the same `debugActionEvent` snackbar as the other Debug actions.
-
-Two of the ten (ZZ Plant, Rubber Plant — #571) ship with a pre-adapted `wateringConfidence` (3 and 4) purely so a
-developer can manually exercise the lifecycle-reset triggers without grinding out real watering history first: log
-a REPOT on the ZZ Plant to see confidence drop to 0 and the 4-week freeze start, or edit the Rubber Plant to a
-different room to see the reset with no freeze. Aloe Vera also carries a pre-adapted confidence (2) with its
-already-`null` room, to demo the blank→filled exception (assigning its room for the first time must not reset it).
-The rest of the dataset covers the cold-start bootstrap for free: every other plant keeps `wateringConfidence ==
-null`, so the next WATER log against a plant with enough history (Monstera, Snake Plant, Fiddle Leaf Fig, Pothos,
-Peace Lily) triggers `bootstrapBaseInterval()`, while the sparse-history plants (Aloe Vera, Cactus, Calathea)
-correctly keep their typed interval.
+- **Debug rows:** **Seed demo plants** / **Remove demo plants**. `SettingsViewModel` builds `DemoDataSeeder` lazily (not a constructor param).
+- **Generation:** pure, deterministic `DemoData.generate(now)` (10 plants). Helpers are split into `DemoDataTime`/`DemoPlantBuilders` (Detekt).
+- **Writes:** `DemoDataSeeder` runs in one `withTransaction {}`. Every demo row has the `DemoData.NAME_PREFIX = "[Demo] "` prefix. `seed()` removes existing demo plants first (idempotent); `remove()` hard-deletes only prefixed plants (logs cascade).
+- **No MIST logs** are generated (#875).
+- **Fixtures for manual testing (#571):**
+  - ZZ Plant (confidence 3): log a REPOT to see the reset + freeze.
+  - Rubber Plant (4): change its room to see a reset without a freeze.
+  - Aloe Vera (2, null room): assigning a first room must *not* reset.
+  - Monstera, Snake Plant, Fiddle Leaf Fig, Pothos, Peace Lily (null confidence, enough history) bootstrap on their next WATER log; Aloe, Cactus and Calathea keep their typed interval.
 
 ## Debug actions (#522, #519)
-Three non-destructive rows below the flags list; none touches the DB or confirms.
-- **Reset What's New seen state** — `resetWhatsNewSeenState()` removes `LAST_SEEN_VERSION_CODE` so the auto-show
-  fires next launch (absent key reads as 0).
-- **Run reminder check now** — `runReminderCheckNow()` checks POST_NOTIFICATIONS **itself** (before enqueueing, so
-  the Snackbar is accurate) via the shared `NotificationPermission.isGranted(context)` helper (also used by
-  `ReminderWorker.doWork()` so the two can't drift); only then calls `ReminderScheduler.runNow(context)` —
-  `enqueueUniqueWork(RUN_NOW_WORK_NAME, REPLACE, …)` so rapid taps coalesce.
-- **Show drain-water reminder now** — `showPostWateringReminderNow()` writes the transient pending-modal token directly,
-  bypassing the 30-minute WorkManager delay and POST_NOTIFICATIONS permission for deterministic manual UI testing.
-- All three emit via `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
+Non-destructive rows with no DB writes and no confirmation. All emit through `SettingsViewModel.debugActionEvent: SharedFlow<String>`.
+- **Reset What's New seen state:** removes `LAST_SEEN_VERSION_CODE` (an absent key reads as 0).
+- **Run reminder check now:** checks POST_NOTIFICATIONS itself first (the shared `NotificationPermission.isGranted()`, also used by `ReminderWorker`), then `ReminderScheduler.runNow()` (`enqueueUniqueWork(RUN_NOW_WORK_NAME, REPLACE)` coalesces taps).
+- **Show drain-water reminder now:** writes the pending-modal token directly, bypassing the 30-minute delay and the permission.
 
-## Snackbar unification — do NOT re-add `dismiss()` (the instructive bug)
-`SettingsScreen` routes **every** snackbar source (debug actions, backup export result, unlock countdown, dev-mode
-disabled) into one screen-scoped `remember { MutableSharedFlow<String>(extraBufferCapacity=1, onBufferOverflow=
-DROP_OLDEST) }`, collected by exactly one `LaunchedEffect` using **`collectLatest`**. There is deliberately **no**
-`currentSnackbarData?.dismiss()` — `collectLatest` cancels the in-flight collector, and a cancelled suspended
-`showSnackbar()` clears `currentSnackbarData` in its own `finally`. A plain `collect` parks inside `showSnackbar`
-(which suspends until dismissed) and turns *replace* into *queue*; `DROP_OLDEST` does not fix that (it buffers
-un-collected values, not the in-flight `showSnackbar`). Pinned by
-`debugActionSnackbar_replacesTheUnlockSnackbar_ratherThanQueuingBehindIt`.
+## Snackbars — do NOT re-add `dismiss()`
+- **One stream:** every Settings snackbar source goes into one screen-scoped `MutableSharedFlow<String>(extraBufferCapacity = 1, DROP_OLDEST)`, collected by one `LaunchedEffect` with **`collectLatest`**.
+- **Why it works:** cancelling the in-flight `showSnackbar()` clears it in its own `finally`, so there is deliberately no `currentSnackbarData?.dismiss()`. A plain `collect` would queue instead of replace, and `DROP_OLDEST` doesn't fix that.
+- Pinned by `debugActionSnackbar_replacesTheUnlockSnackbar_ratherThanQueuingBehindIt`.
