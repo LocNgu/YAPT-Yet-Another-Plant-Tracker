@@ -23,7 +23,7 @@ paths:
 `computeCareReminderItems`/`computeDueReminders` decide what's due; `ReminderWorker` localizes the resulting `CareReminderItem`s.
 - **Dormancy:** a fixed dormant cadence notifies normally, a full pause exposes no watering flags, and fertilizing is suppressed in both (#785).
 - **Combine toggle** (`combine_notifications`, default off): one count-only notification, `COMBINED_NOTIFICATION_ID = -1`, landing on Plant List, with no per-plant action (product ADR-0020, #474).
-- **"Notify for fertilizing"** (`fertilizing_notifications_enabled`, default on): when off, fertilizing-only reminders are dropped (`hasWateringItem()`), but a watering-due plant keeps its fertilizing line. Liquid-fertilizer plants never get a fertilizing-only reminder; "Fertilize with watering" is appended to the watering alert instead (product ADR-0021, #223, #56).
+- **"Notify for fertilizing"** (`fertilizing_notifications_enabled`, default on): when off, fertilizing-only reminders are dropped (`isFertilizingOnly()`), but a watering-due plant keeps its fertilizing line. Liquid-fertilizer plants never get a fertilizing-only reminder; "Fertilize with watering" is appended to the watering alert instead (product ADR-0021, #223, #56).
 - **Custom reminders:** `CustomReminderOverdue(name, days)` / `CustomReminderDueToday(name)`, with the free-text name straight into the body (technical ADR-0019).
 - **Planned repot** (#809, product ADR-0057):
   - In season: `RepottingPlannedThisSeason(season)` ("Repot planned this spring", one string per season via `repotPlannedNotificationRes()`).

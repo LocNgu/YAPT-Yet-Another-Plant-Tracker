@@ -28,7 +28,7 @@ gallery-owned source image.
 - **Restore streams photos to `cacheDir` temp files** (never into memory). They are tracked before copying, so `finally` always cleans up (#193/#195/#196).
 - **Restore tolerates dangling photo paths** (old or corrupt backups): `coverPhotoUri` and `CareLogEntity.photoUri` use `zipPathToLocalPath[it]` with **no** `?: it`, so a missing entry becomes `null`. `PlantPhotoEntity.uri` keeps `?: it`, because it must preserve a raw device URI from an `includePhotos = false` backup.
 - **`performImport` guards cleanup with `dbCommitted`:** written photo files are deleted only if the DB transaction did **not** commit (#175).
-- A non-dismissable `BackupProgressDialog` blocks navigation during export/import (#365). The Settings tab also disables the bottom bar (`rules/navigation.md`).
+- A non-dismissable progress dialog (`SettingsScreen`'s `isBackupInProgress` block, plus a `BackHandler`) blocks navigation during export/import (#365). The Settings tab also disables the bottom bar (`rules/navigation.md`).
 - After a successful restore, `BackupManager.onImportCompleted` schedules the orphan photo sweep (`rules/photos.md`).
 
 ## Schema version history (all new fields carry defaults for forward-compat)
