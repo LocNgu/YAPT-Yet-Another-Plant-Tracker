@@ -2059,6 +2059,147 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun pruneTab_actionQuickLogsPrune() {
+        val plant = Plant(id = 44L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.PRUNE, any()) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Pruned Rosemary", logged = true)
+        coEvery { mockQuickLogUseCase.maybeBuildPhotoReminderRequest(plant.id) } returns null
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PRUNE)
+
+        scrollDetailTo(hasTestTag(PRUNE_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PRUNE_TAB_ACTION_BUTTON_TEST_TAG)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(PRUNE_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.PRUNE, any()) }
+
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+
+        coVerify(exactly = 1, timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.PRUNE, any()) }
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText("Pruned Rosemary")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    @Test
+    fun pruneTab_dismissingDatePicker_doesNotLog() {
+        val plant = Plant(id = 44L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PRUNE)
+
+        scrollDetailTo(hasTestTag(PRUNE_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PRUNE_TAB_ACTION_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(PRUNE_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(str(R.string.cancel)).performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.PRUNE, any()) }
+    }
+
+    @Test
+    fun pruneTab_withNoLogs_showsEmptyStateAndNoInsights() {
+        val plant = Plant(id = 45L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PRUNE)
+
+        scrollDetailTo(hasText(str(R.string.plant_detail_tab_prune_empty)))
+        composeTestRule.onNodeWithText(str(R.string.plant_detail_tab_prune_empty)).assertIsDisplayed()
+        assertNoNodeWithText(str(R.string.insight_prunings))
+    }
+
+    @Test
+    fun pruneTab_listsOnlyPruneLogsWithInsights() {
+        val plant = Plant(id = 46L, name = "Rosemary", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(1L, plant.id, CareType.PRUNE),
+            historyLog(2L, plant.id, CareType.WATER),
+            historyLog(3L, plant.id, CareType.REPOT),
+            historyLog(4L, plant.id, CareType.NOTE)
+        )
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.PRUNE)
+
+        scrollDetailTo(hasText(str(R.string.insight_prunings)))
+        composeTestRule.onNodeWithText(str(R.string.insight_prunings)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.insight_last_pruned)).assertIsDisplayed()
+        scrollDetailTo(hasText(str(R.string.care_type_pruned)))
+        composeTestRule.onNodeWithText(str(R.string.care_type_pruned)).assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.care_type_watered))
+        assertNoNodeWithText(str(R.string.care_type_repotted))
+        assertNoNodeWithText(str(R.string.plant_detail_tab_prune_empty))
+    }
+
+    @Test
+    fun pruneTab_pruneRow_editOpensThatLogInTheEditor() {
+        val plant = Plant(id = 47L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant, listOf(historyLog(7L, plant.id, CareType.PRUNE)))
+        var editedLogId: Long? = null
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToAddLog = {},
+                onNavigateToEditLog = { editedLogId = it },
+                initialTab = PlantDetailTab.PRUNE
+            )
+        }
+
+        scrollDetailTo(hasContentDescription(str(R.string.cd_edit_log)))
+        scrollDetailToEnd()
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_edit_log)).performClick()
+
+        assertEquals(7L, editedLogId)
+    }
+
+    @Test
+    fun pruneTab_pruneRow_deleteRemovesThatLogThroughTheRepository() {
+        val plant = Plant(id = 48L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        val pruneLog = historyLog(7L, plant.id, CareType.PRUNE)
+        val careLogRepo = mockk<CareLogRepository>().also {
+            every { it.getLogsForPlant(plant.id) } returns flowOf(listOf(pruneLog))
+            every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+            coEvery { it.getLastWateringBefore(any(), any()) } returns null
+            coEvery { it.deleteLog(any()) } returns Unit
+        }
+        showDetail(
+            makeViewModelWithReminderRepo(plant, mockCustomReminderRepo, careLogRepo),
+            initialTab = PlantDetailTab.PRUNE
+        )
+
+        scrollDetailTo(hasContentDescription(str(R.string.cd_delete_log)))
+        scrollDetailToEnd()
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_delete_log)).performClick()
+
+        coVerify(timeout = 5000) { careLogRepo.deleteLog(pruneLog) }
+    }
+
+    @Test
+    fun pruneTab_initialTab_isSelectedAndExpandsTheSecondRow() {
+        val plant = Plant(id = 49L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PRUNE)
+
+        composeTestRule.onNode(hasText(pruneTabLabel()) and isSelectable()).assertIsSelected()
+    }
+
+    @Test
+    fun homeTab_combinedLogStillIncludesPruneEntries() {
+        val plant = Plant(id = 50L, name = "Rosemary", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant, listOf(historyLog(1L, plant.id, CareType.PRUNE))))
+
+        scrollDetailTo(hasText(str(R.string.care_type_pruned)))
+        composeTestRule.onNodeWithText(str(R.string.care_type_pruned)).assertIsDisplayed()
+    }
+
+    @Test
     fun photoTab_actionOpensAddPhotoSheet() {
         val plant = Plant(id = 43L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
@@ -2179,6 +2320,10 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
         assertTrue(
+            composeTestRule.onAllNodesWithText(pruneTabLabel())
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        assertTrue(
             composeTestRule.onAllNodesWithText(customRemindersTabLabel())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         )
@@ -2213,6 +2358,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(customRemindersTabLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(issuesTabLabel()).assertIsDisplayed()
         composeTestRule.onNodeWithText(repotTabLabel()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(pruneTabLabel()).assertIsDisplayed()
     }
 
     @Test
@@ -2593,6 +2739,9 @@ class PlantDetailScreenTest {
 
     private fun customRemindersTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tab_custom_reminders)
+
+    private fun pruneTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_detail_tab_prune)
 
     private fun repotTabLabel(): String = InstrumentationRegistry.getInstrumentation().targetContext
         .getString(R.string.plant_detail_tab_repot)

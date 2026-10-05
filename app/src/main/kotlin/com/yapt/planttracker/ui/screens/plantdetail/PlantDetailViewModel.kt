@@ -468,6 +468,21 @@ class PlantDetailViewModel(
     }
 
     /**
+     * Quick-logs a prune from the Prune tab's date picker (#882). Goes through [QuickLogUseCase.quickLog]
+     * like every other quick-log surface. PRUNE has no notes, no reason prompt and no same-day duplicate
+     * guard, so repeat logs on one day are allowed.
+     */
+    fun quickPrune(loggedAt: Long = System.currentTimeMillis()) {
+        viewModelScope.launch {
+            val p = plant.value ?: return@launch
+            val outcome = quickLogUseCase.quickLog(p, CareType.PRUNE, loggedAt)
+            if (!outcome.logged) return@launch
+            _quickLogMessage.emit(QuickLogMessage.Pruned(p.name))
+            maybeTriggerPhotoReminder(p.id)
+        }
+    }
+
+    /**
      * Quick-logs a paired fertilize + watering for liquid-fertilizer plants, reached from the same
      * "Log watering" date picker (#654) as [quickWater] — [loggedAt] mirrors that function's parameter
      * of the same name.
@@ -592,6 +607,7 @@ class PlantDetailViewModel(
         data class Watered(val plantName: String) : QuickLogMessage()
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class Repotted(val plantName: String) : QuickLogMessage()
+        data class Pruned(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()

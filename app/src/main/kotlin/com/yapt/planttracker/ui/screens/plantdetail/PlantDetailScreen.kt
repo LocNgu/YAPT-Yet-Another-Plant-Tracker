@@ -159,6 +159,7 @@ fun PlantDetailScreen(
     var showLiquidFertilizeSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
     var showRepotDatePicker by remember { mutableStateOf(false) }
     var showRepotPlanDialog by remember { mutableStateOf(false) }
+    var showPruneDatePicker by rememberSaveable { mutableStateOf(false) }
     // #694: null hides the Add-photo sheet; non-null is both "sheet visible" and the currently
     // picked date. pendingPhotoLoggedAt is rememberSaveable because the camera app can kill this
     // Activity while a capture is in flight — the picked date has to survive to the result callback.
@@ -276,6 +277,7 @@ fun PlantDetailScreen(
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
     val repottedTemplate = stringResource(R.string.quick_log_repotted)
+    val prunedTemplate = stringResource(R.string.quick_log_pruned)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -288,6 +290,8 @@ fun PlantDetailScreen(
                     String.format(fertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Repotted ->
                     String.format(repottedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Pruned ->
+                    String.format(prunedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
@@ -525,6 +529,17 @@ fun PlantDetailScreen(
             onConfirm = { loggedAt ->
                 showRepotDatePicker = false
                 viewModel.quickRepot(loggedAt)
+            }
+        )
+    }
+
+    if (showPruneDatePicker) {
+        CareDatePickerBottomSheet(
+            testTag = PRUNE_DATE_PICKER_TEST_TAG,
+            onDismiss = { showPruneDatePicker = false },
+            onConfirm = { loggedAt ->
+                showPruneDatePicker = false
+                viewModel.quickPrune(loggedAt)
             }
         )
     }
@@ -1063,6 +1078,13 @@ fun PlantDetailScreen(
                             }
                         }
 
+                        PlantDetailTab.PRUNE -> pruneTabItems(
+                            careLogs = careLogs,
+                            onPruneClick = { showPruneDatePicker = true },
+                            onEdit = { onNavigateToEditLog(it.id) },
+                            onDelete = { viewModel.deleteLog(it) }
+                        )
+
                         PlantDetailTab.PHOTO -> {
                             item {
                                 PlantDetailTabActionRow(
@@ -1227,7 +1249,7 @@ private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
  * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
  * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
  * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
- * (identical to today), and expanding to 7 wraps the extra 3 onto a second row at that same width,
+ * (identical to today), and expanding to 8 wraps the extra 4 onto a second row at that same width,
  * rather than shrinking every tab or scrolling horizontally.
  *
  * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned

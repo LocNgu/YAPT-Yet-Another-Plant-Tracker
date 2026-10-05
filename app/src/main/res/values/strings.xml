@@ -156,6 +156,7 @@
     <string name="quick_log_watered">Watered %s</string>
     <string name="quick_log_fertilized">Fertilized %s</string>
     <string name="quick_log_repotted">Repotted %s</string>
+    <string name="quick_log_pruned">Pruned %s</string>
     <string name="quick_log_watered_and_fertilized">Watered and fertilized %s</string>
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
@@ -360,11 +361,13 @@
     <string name="plant_detail_tab_water">Water</string>
     <string name="plant_detail_tab_fertilize">Fertilize</string>
     <string name="plant_detail_tab_repot">Repot</string>
+    <string name="plant_detail_tab_prune">Prune</string>
     <string name="plant_detail_tab_photo">Photo</string>
     <string name="plant_detail_action_add_photo">Add photo</string>
     <string name="plant_detail_watering_section">Recent watering</string>
     <string name="plant_detail_tab_fertilize_empty">No fertilizing logged yet.</string>
     <string name="plant_detail_tab_repot_empty">No repotting logged yet.</string>
+    <string name="plant_detail_tab_prune_empty">No pruning logged yet.</string>
     <string name="repot_plan_action">Plan repot</string>
     <string name="repot_plan_dialog_title">Plan repot for</string>
     <string name="repot_plan_season_option">%1$s %2$d</string>
@@ -389,12 +392,14 @@
     <string name="insight_waterings">Waterings</string>
     <string name="insight_fertilizings">Fertilizings</string>
     <string name="insight_repottings">Repottings</string>
+    <string name="insight_prunings">Prunings</string>
     <string name="insight_photos">Photos</string>
     <string name="insight_avg_interval">Avg. interval</string>
     <!-- #603: last watered/fertilized restored to the tabs layout after StatsRow was removed there -->
     <string name="insight_last_watered">Last watered</string>
     <string name="insight_last_fertilized">Last fertilized</string>
     <string name="insight_last_repotted">Last repotted</string>
+    <string name="insight_last_pruned">Last pruned</string>
     <!-- #530: Home tab summary card -->
     <string name="home_summary_next_watering">Next watering</string>
     <string name="home_summary_next_fertilizing">Next fertilizing</string>

@@ -87,13 +87,19 @@ class ScreenTest {
     fun `plantDetail tab arg parses defensively`() {
         assertEquals(null, PlantDetailTab.fromRouteArg(null))
         assertEquals(PlantDetailTab.FERTILIZE, PlantDetailTab.fromRouteArg("FERTILIZE"))
+        assertEquals(PlantDetailTab.PRUNE, PlantDetailTab.fromRouteArg("PRUNE"))
         assertEquals(PlantDetailTab.DEFAULT, PlantDetailTab.fromRouteArg("bogus"))
     }
 
     @Test
     fun `only the second-row tabs need the tab row expanded`() {
         assertEquals(
-            setOf(PlantDetailTab.REPOT, PlantDetailTab.CUSTOM_REMINDERS, PlantDetailTab.ISSUES),
+            setOf(
+                PlantDetailTab.REPOT,
+                PlantDetailTab.PRUNE,
+                PlantDetailTab.CUSTOM_REMINDERS,
+                PlantDetailTab.ISSUES
+            ),
             PlantDetailTab.entries.filter { it.isInCollapsedRow }.toSet()
         )
     }
@@ -109,6 +115,7 @@ class ScreenTest {
                 PlantDetailTab.FERTILIZE,
                 PlantDetailTab.PHOTO,
                 PlantDetailTab.REPOT,
+                PlantDetailTab.PRUNE,
                 PlantDetailTab.CUSTOM_REMINDERS,
                 PlantDetailTab.ISSUES
             ),
