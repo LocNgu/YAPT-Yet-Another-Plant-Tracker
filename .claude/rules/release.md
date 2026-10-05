@@ -24,7 +24,7 @@ Triggered when the human asks to cut a release ("do a release", "bump to X.Y.Z",
      its sentinel at release-cut is a manual step enforced by this checklist, not by CI — same posture as
      `CHANGELOG.md`'s `[Unreleased]` promotion)
    - `README.md` — add any new features not already under Features
-   - `.claude/CLAUDE.md` — add any missing conventions/pointers (no longer a big "completed" log)
+   - `.claude/CLAUDE.md` — repo-wide rules only, one or two lines each; feature detail goes in `.claude/rules/*.md`
 3. **Commit + push** to the feature branch: `chore: bump version to X.Y.Z, promote changelog, update docs`.
 4. **Create the prep PR** — `claude/<branch>` → `develop`, title `chore: release prep for X.Y.Z` (docs/version-only).
    `subscribe_pr_activity` and drive it to green as usual.

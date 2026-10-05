@@ -26,7 +26,7 @@ Closes #
 
 - [ ] `CHANGELOG.md` `[Unreleased]` updated (not required for `chore:`/docs-only PRs)
 - [ ] `WhatsNewContent.kt` `unreleased` (not `all`) appended to if there's a user-visible change (not required for `chore:`/docs-only PRs)
-- [ ] `.claude/CLAUDE.md` updated if architecture, conventions, or completed features changed
+- [ ] Relevant `.claude/rules/*.md` updated if a feature's behaviour/internals changed; `.claude/CLAUDE.md` only for repo-wide rules (kept to one or two lines each)
 - [ ] All new UI strings live in `strings.xml` (no hardcoded strings in Compose)
 - [ ] Room schema JSON committed under `app/schemas/` and a `Migration` added if the DB version was bumped
 - [ ] New/changed behaviour covered by tests, or explained above why not

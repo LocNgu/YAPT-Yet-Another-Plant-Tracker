@@ -4,8 +4,17 @@
 
 Read [`.claude/CLAUDE.md`](.claude/CLAUDE.md) before making a change. It is the
 authoritative guide to YAPT's product behaviour, architecture, engineering
-conventions, and ADR process. Load the applicable file under `.claude/rules/`
-before touching a covered area.
+conventions, and ADR process. It is deliberately lean: feature and screen
+detail lives only in the path-scoped files under `.claude/rules/`.
+
+Claude Code loads those rules files automatically; Codex does not. Before
+editing a file, read every `.claude/rules/*.md` whose `paths:` frontmatter
+glob matches it. Match the file's path against each glob, not just its literal
+name: `plantdetail/**/*` covers `PlantDetailViewModel.kt` although the file name
+never appears. Listing the frontmatter (`grep -A20 '^paths:' .claude/rules/*.md`)
+makes that quick. Also read any rules file that
+`CLAUDE.md` names for the area. `.claude/pipeline.md` describes Claude's
+subagent orchestration and does not apply to Codex.
 
 Treat the checked-in build files, `CHANGELOG.md`, ADRs, and current GitHub
 issues as the source of truth when they conflict with dated details in
