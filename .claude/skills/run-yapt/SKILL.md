@@ -120,7 +120,7 @@ other `androidTest` code.
   Home-screen state, `stop` first, then `launch`.
 - **The photo-reminder dialog can intercept your next tap.** Opening a
   plant detail screen may show a one-time-per-session "Time for a photo!"
-  `AlertDialog` (see CLAUDE.md's Photo reminder feature) if that plant's
+  `AlertDialog` (see `.claude/rules/notifications.md`'s Photo reminder) if that plant's
   last photo is 30+ days old. A `tap-text` aimed at a stat chip or button
   underneath will hit the dialog's overlay instead. Screenshot first, or
   `tap-text "Dismiss"` defensively before continuing.

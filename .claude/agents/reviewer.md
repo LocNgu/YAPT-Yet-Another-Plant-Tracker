@@ -65,7 +65,7 @@ Classify every finding:
 - Inline date math instead of `DateUtils`
 - New ViewModel without an inner `Factory`; PhotoPicker URI not persisted with `takePersistableUriPermission`; Room schema change without a `Migration`; new dependency not pinned in `app/build.gradle.kts`
 - Security issues
-- A red CI job on this SHA that this PR caused (the orchestrator folds CI's result in before posting — see `.claude/CLAUDE.md`'s "Review on push")
+- A red CI job on this SHA that this PR caused (the orchestrator folds CI's result in before posting — see `.claude/pipeline.md`'s "Review on push")
 
 **NON-BLOCKING** — do not block the PR; tag each finding **SMALL** or **LARGE**:
 - **SMALL** requires all three: localized, **and** no product/UX decision, **and** no architecture or
@@ -118,7 +118,7 @@ In round 2+, also tell the orchestrator which round-1 findings are now fixed so 
   gets a fresh review.
 - **The cap is 2 review rounds total, regardless of why round 2 was launched** — a fresh BLOCKING finding,
   a PR-caused red CI, a fix commit that weakened or removed a test/assertion, or a fix that reached
-  outside what the SMALL findings named all count the same way (`.claude/CLAUDE.md`'s "Review on push").
+  outside what the SMALL findings named all count the same way (`.claude/pipeline.md`'s "Review on push").
   Round 1 does not have to have ended CHANGES NEEDED for round 2 to happen — an APPROVED round 1 with a
   SMALL-only fix that then triggers one of those four conditions still counts against the same cap.
 - **After round 2** (whatever triggered it, implementer has responded again): do **not** auto-approve. Return a summary + recommendation and stop — the human decides. Use this template:
