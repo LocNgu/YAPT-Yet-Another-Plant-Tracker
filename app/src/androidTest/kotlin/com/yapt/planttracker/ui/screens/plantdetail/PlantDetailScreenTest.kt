@@ -2188,6 +2188,7 @@ class PlantDetailScreenTest {
         showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PRUNE)
 
         composeTestRule.onNode(hasText(pruneTabLabel()) and isSelectable()).assertIsSelected()
+        composeTestRule.onNode(hasText(repotTabLabel()) and isSelectable()).assertIsDisplayed()
     }
 
     @Test
