@@ -22,6 +22,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   sits at the bottom of Home. Every button runs through the Water and Fertilize tabs' own handlers, so duplicate
   guards, date pickers and reason prompts behave the same (#530, product ADR-0060, amending product ADR-0043 and
   technical ADR-0018)
+- **A Prune tab on Plant Detail** — pruning gets its own tab behind the arrow, right after Repot (Home · Water ·
+  Fertilize · Photo, then Repot · Prune · Reminders · Issues). A Prune button opens the same date picker as Repot
+  (today by default, editable); confirming logs one prune and shows a snackbar, cancelling logs nothing. The tab
+  shows how many prunings there are and when the last one was, lists just this plant's prune entries with edit and
+  delete, and says so when there are none. There is no notes field and no same-day duplicate check. Prune entries
+  still appear in Home's care history, and a `?tab=PRUNE` link opens the tab with the row expanded (#532 part 2,
+  product ADR-0043)
 
 ### Changed
 - **The full care history now appears only on a plant's Home tab, and the Water tab lists its own waterings** —

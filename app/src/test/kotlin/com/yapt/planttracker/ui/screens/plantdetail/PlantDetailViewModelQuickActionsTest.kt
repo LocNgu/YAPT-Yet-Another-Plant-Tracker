@@ -356,6 +356,52 @@ class PlantDetailViewModelQuickActionsTest {
     }
 
     @Test
+    fun `quickPrune forwards the picked loggedAt to the shared use case and emits message`() = runTest {
+        val monstera = plant()
+        val pickedLoggedAt = 123_456_789L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.PRUNE, pickedLoggedAt) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Pruned Monstera", logged = true)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickLogMessage.test {
+                vm.quickPrune(pickedLoggedAt)
+                assertEquals(PlantDetailViewModel.QuickLogMessage.Pruned("Monstera"), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { quickLogUseCase.quickLog(monstera, CareType.PRUNE, pickedLoggedAt) }
+    }
+
+    @Test
+    fun `quickPrune emits no message when the shared use case did not log`() = runTest {
+        val monstera = plant()
+        val pickedLoggedAt = 123_456_789L
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { quickLogUseCase.quickLog(monstera, CareType.PRUNE, pickedLoggedAt) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "", logged = false)
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.quickLogMessage.test {
+                vm.quickPrune(pickedLoggedAt)
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { quickLogUseCase.quickLog(monstera, CareType.PRUNE, pickedLoggedAt) }
+        coVerify(exactly = 0) { quickLogUseCase.maybeBuildPhotoReminderRequest(any()) }
+    }
+
+    @Test
     fun `quickLiquidFertilize logs paired care and emits combined message`() = runTest {
         val monstera = plant().copy(
             useLiquidFertilizer = true,

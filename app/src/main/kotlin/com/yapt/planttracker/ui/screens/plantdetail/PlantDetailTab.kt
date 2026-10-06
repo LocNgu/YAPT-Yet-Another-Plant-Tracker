@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notifications
@@ -14,12 +15,12 @@ import com.yapt.planttracker.R
 
 /**
  * Per-action tabs on Plant Detail (#436). The tab strip lives inside the Box overlay's scrolling
- * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Prune and Note have no
- * tab and appear only in the combined care-history list at the bottom of [HOME] (#530, product ADR-0060), as do
- * historical Mist entries (misting can no longer be logged, #875, product ADR-0061); the Water tab lists just its
- * own WATER entries.
- * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot sits behind the
- * collapsed row's chevron.
+ * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Note has no tab and
+ * appears only in the combined care-history list at the bottom of [HOME] (#530, product ADR-0060), as do
+ * historical Mist entries (misting can no longer be logged, #875, product ADR-0061); Prune entries show there
+ * too, and the Water tab lists just its own WATER entries.
+ * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot and Prune (#882) sit
+ * behind the collapsed row's chevron.
  * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0043) fold what used to be the always-visible
  * `CustomRemindersCard`/`PlantIssuesCard` sections into the tab strip's collapsed-by-default second
  * row — see `PlantDetailScreen.kt`'s `PlantDetailTabStrip`. [ISSUES] reuses `PlantIssuesCard`'s own
@@ -31,6 +32,7 @@ enum class PlantDetailTab(@StringRes val labelRes: Int, val icon: ImageVector) {
     FERTILIZE(R.string.plant_detail_tab_fertilize, Icons.Filled.Spa),
     PHOTO(R.string.plant_detail_tab_photo, Icons.Filled.PhotoLibrary),
     REPOT(R.string.plant_detail_tab_repot, Icons.Filled.LocalFlorist),
+    PRUNE(R.string.plant_detail_tab_prune, Icons.Filled.ContentCut),
     CUSTOM_REMINDERS(R.string.plant_detail_tab_custom_reminders, Icons.Filled.Notifications),
     ISSUES(R.string.plant_detail_tab_issues, Icons.Filled.BugReport);
 

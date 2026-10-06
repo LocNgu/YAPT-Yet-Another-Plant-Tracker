@@ -19,7 +19,10 @@ object WhatsNewContent {
         added = listOf(
             "A plant's detail page now opens on a new Home tab: Water, Reschedule and Fertilize (or Water + " +
                 "Fertilize) buttons up top, then when it was last watered and fertilized and when each is next " +
-                "due, then its care history"
+                "due, then its care history",
+            "A plant's detail page has a new Prune tab behind the arrow, after Repot: log a prune on today or " +
+                "an earlier date, see how many prunings you've logged and when the last one was, and edit or " +
+                "delete them"
         ),
         changed = listOf(
             "A plant's full care history now appears only on its Home tab instead of repeating under every " +
