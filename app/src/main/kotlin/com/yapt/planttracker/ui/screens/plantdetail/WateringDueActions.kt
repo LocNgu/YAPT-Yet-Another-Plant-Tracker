@@ -111,7 +111,7 @@ internal fun RescheduleDeltaChip(
  * of the row's width (#603 round-3 visual polish).
  *
  * Plain `16dp` horizontal padding, matching every other card on the screen (#610) — this row can
- * still scroll flush against a screen edge and land inside the pinned Back/Edit/FAB overlay buttons'
+ * still scroll flush against a screen edge and land inside the pinned Back/Edit overlay buttons'
  * touch targets there (Box overlay, not Scaffold — technical ADR-0018), but that narrow collision risk
  * is now a deliberate, human-confirmed trade-off in exchange for visual consistency (technical
  * ADR-0022) rather than something this row's own margins should compensate for; technical
@@ -165,7 +165,7 @@ internal fun WateringDueActionsRow(
  * plant, plain "Fertilize" otherwise.
  *
  * Uses the same plain `16dp` horizontal padding as [WateringDueActionsRow] (#610) — see that
- * function's KDoc for the accepted residual collision trade-off with the pinned Back/FAB buttons.
+ * function's KDoc for the accepted residual collision trade-off with the pinned Back/Edit buttons.
  */
 @Composable
 internal fun FertilizeDueActionRow(

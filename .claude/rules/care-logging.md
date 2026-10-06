@@ -16,15 +16,15 @@ paths:
 # Care logging
 
 ## Shared adaptive WATER observation (#780, technical ADR-0030; #673, technical ADR-0033)
-- `AdaptiveWateringObservation` is the one adaptive WATER path, used by `QuickLogUseCase` and `AddCareLogViewModel`. Dormancy, bootstrap, confidence and adjustment writes live there; callers supply only their gap policy and clocks (`rules/watering-transparency.md`).
+- `AdaptiveWateringObservation` is the one adaptive WATER path, used by `QuickLogUseCase` (and `AddCareLogViewModel`'s edit-only save, where the observation is skipped and only the dormancy feedback strip applies). Dormancy, bootstrap, confidence and adjustment writes live there; callers supply only their gap policy and clocks (`rules/watering-transparency.md`).
 - The gap is measured from the new log's **chronological predecessor** (`getLastWateringBefore`), never the globally newest pair.
-  - Only the Add Care Log form falls back to the configured interval for a plant's first-ever watering.
+  - Only the `CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED` gap source (Add Care Log, now edit-only so never observing) falls back to the configured interval for a plant's first-ever watering.
   - A log backdated before every existing watering gets no observation.
 
 ## Same-day duplicates
 - **Only WATER and FERTILIZE** are rejected on a day that already has one. CHECK and MIST are never written, so they aren't guarded.
 - `CareLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs, excludeLogId)` is the single query (DAO `countLogsOfTypeOnDay`).
-- `QuickLogUseCase.isDuplicateGuarded()` covers every quick-log surface; `AddCareLogViewModel` has its own equivalent guard.
+- `QuickLogUseCase.isDuplicateGuarded()` covers every quick-log surface; `AddCareLogViewModel` has its own equivalent guard for edits (excluding the edited row).
 - Check *before* a paired liquid-fertilizer WATER insert, not just against the sibling insert in the same call (#509).
 
 ## Post-watering reminder (#519, product ADR-0036)

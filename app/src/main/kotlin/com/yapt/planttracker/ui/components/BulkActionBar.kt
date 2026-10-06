@@ -66,7 +66,7 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
  * above remains scrollable and tappable and the user can keep adding/removing plants before acting.
  *
  * Compact by design so it leaves as much room as possible for the list above: the care actions are a
- * horizontally scrollable chip row (mirroring the care-type selector on the Add Care Log screen) and
+ * horizontally scrollable chip row and
  * the destructive "Move to Graveyard" action sits inline with the selected-count header. Care actions
  * log directly with sensible defaults (watering uses `JUST_RIGHT` feedback) and don't raise the
  * per-plant interval-suggestion or photo-reminder dialogs, which would stack up once per plant.

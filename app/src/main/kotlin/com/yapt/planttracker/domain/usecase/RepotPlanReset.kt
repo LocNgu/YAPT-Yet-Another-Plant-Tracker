@@ -7,8 +7,7 @@ import kotlinx.coroutines.flow.first
 /**
  * Clears a one-off planned repot when a newly inserted REPOT log supersedes it (#809, product ADR-0057)
  * — the repot-plan counterpart of `clearWateringOverrideIfActive` for `wateringDueDateOverride`. A
- * dedicated object, like [WateringLifecycleReset], because a REPOT log is written from two call sites
- * (`QuickLogUseCase` and `AddCareLogViewModel`) and the side effect must be identical from both.
+ * dedicated object, like [WateringLifecycleReset], called from `QuickLogUseCase`'s REPOT path.
  *
  * Only *new* logs count: editing or deleting a REPOT log never reaches here, so it can neither clear
  * nor resurrect a plan. The decision is [SeasonalRepotting.repotLogClearsPlan] — the log's local calendar

@@ -112,7 +112,7 @@ internal fun localDayToUtcMidnightMillis(
  * phone.
  *
  * [onConfirm] receives a [Long] timestamp with the *picked* calendar date but the *current* wall-clock
- * time-of-day, mirroring `AddCareLogScreen`'s own new-log date-picker `Calendar` field-copy pattern —
+ * time-of-day via a `Calendar` field-copy —
  * only the date changes, never the time. Not called at all if the user confirms with no date selected
  * (shouldn't happen once a day is pre-selected, but mirrors `RescheduleDatePickerDialog`'s existing
  * null-safety for the same picker API).
@@ -207,8 +207,8 @@ internal fun LogWateringDatePickerDialog(
 
 /**
  * [utcMidnightMs] (the picker's UTC-midnight-encoded selected day) reinterpreted as a local calendar
- * day, with the current wall-clock time-of-day copied on — the exact `Calendar` field-copy pattern
- * `AddCareLogScreen.kt`'s own new-log date picker uses, so a backdated quick-water's `CareLog.loggedAt`
+ * day, with the current wall-clock time-of-day copied on via a `Calendar` field-copy,
+ * so a backdated quick-water's `CareLog.loggedAt`
  * carries a realistic time-of-day rather than local midnight. [wallClockNowMs] defaults to the real
  * wall-clock time but is overridable so a unit test can pin the time-of-day being copied on rather than
  * depending on whenever the test happens to run.

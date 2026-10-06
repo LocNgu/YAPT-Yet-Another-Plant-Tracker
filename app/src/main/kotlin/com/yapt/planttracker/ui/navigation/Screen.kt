@@ -1,6 +1,5 @@
 package com.yapt.planttracker.ui.navigation
 
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 
 sealed class Screen(val route: String) {
@@ -28,12 +27,8 @@ sealed class Screen(val route: String) {
             if (tab != null) "plant_detail/$plantId?tab=${tab.name}" else "plant_detail/$plantId"
     }
 
-    object AddCareLog : Screen("add_care_log/{plantId}?careLogId={careLogId}&careType={careType}") {
-        fun createRoute(
-            plantId: Long,
-            careLogId: Long = 0L,
-            careType: CareType = CareType.WATER
-        ) = "add_care_log/$plantId?careLogId=$careLogId&careType=${careType.name}"
+    object AddCareLog : Screen("add_care_log/{plantId}/{careLogId}") {
+        fun createRoute(plantId: Long, careLogId: Long) = "add_care_log/$plantId/$careLogId"
     }
 
     object Graveyard : Screen("graveyard")

@@ -54,10 +54,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - **Misting can no longer be logged; existing mist entries stay in your history** — Add Care Log no longer offers
   Mist when you add a care entry, and the plant list's multi-select bar no longer has a Mist action. Mist entries you
   already logged still show in a plant's Home care history, where you can edit or delete them, and still appear as
-  markers on the watering chart. Editing one of those entries shows the Mist chip, selected, so you can keep it or
-  switch it to another type; no other entry ever shows it. Nothing is converted or removed, and backups with mist
+  markers on the watering chart. Editing one of those entries shows "Misted" as its read-only type and keeps it
+  (see the Add Care Log change below). Nothing is converted or removed, and backups with mist
   entries restore unchanged. The demo plants no longer include a mist entry (#875, product ADR-0061, amending product
   ADR-0022 and product ADR-0060)
+- **The + button on Plant Detail is gone, and Add Care Log only edits** — new care entries now come only from a
+  plant's tabs (Water, Fertilize, Photo, Repot, Prune and a reminder's Mark done). Add Care Log opens only from a
+  log's edit button, always titled "Edit Care Log". The row of care-type chips is replaced by the entry's type,
+  shown as a read-only header, so an edit can no longer change a log's type or turn an old Note, Misted, Checked or
+  Custom entry into something else; its date, notes and photo can still be edited, as can a watering's "plant
+  needed it" flag and amount, and a fertilizing's type and amount. Saving a Photo log still needs a photo, a
+  same-day duplicate is still refused, and snackbars on Plant Detail sit at the bottom edge again. A new entry's
+  notes, amount or flags can now be added only by editing it afterwards (#532, part 3 of 4, #883)
 
 ### Fixed
 - **The Repot tab's "Next repot due" date ignored your repots** — Plant Detail worked out the next repot from the day the plant was added instead of from its latest Repot log, so after repotting it kept showing the old date (and, with the new tab-row attention dot, could flag a freshly repotted plant as overdue). It now counts from the latest repot, like Care, Plant List and the daily notification (#530)

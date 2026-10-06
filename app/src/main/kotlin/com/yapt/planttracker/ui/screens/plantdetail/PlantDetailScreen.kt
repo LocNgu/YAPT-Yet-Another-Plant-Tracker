@@ -37,7 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.ExpandMore
@@ -49,7 +48,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -129,7 +127,6 @@ fun PlantDetailScreen(
     viewModel: PlantDetailViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
-    onNavigateToAddLog: () -> Unit,
     onNavigateToEditLog: (careLogId: Long) -> Unit,
     initialTab: PlantDetailTab? = null
 ) {
@@ -215,7 +212,7 @@ fun PlantDetailScreen(
     var isWaterHistoryExpanded by remember { mutableStateOf(false) }
 
     // Edit fades out once the hero photo (the LazyColumn's item index 0) has fully scrolled past —
-    // Back and the FAB stay pinned regardless of scroll (technical ADR-0022).
+    // Back stays pinned regardless of scroll (technical ADR-0022).
     val listState = rememberLazyListState()
     val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
@@ -626,7 +623,7 @@ fun PlantDetailScreen(
                         .fillMaxSize()
                         .testTag(PLANT_DETAIL_CONTENT_TEST_TAG),
                     contentPadding = PaddingValues(
-                        bottom = 88.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     ),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
@@ -1205,25 +1202,11 @@ fun PlantDetailScreen(
                 }
             }
 
-            FloatingActionButton(
-                onClick = {
-                    viewModel.prepareNewLog()
-                    onNavigateToAddLog()
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
-            }
-
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 88.dp)
             )
         }
     }

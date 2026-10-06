@@ -231,7 +231,6 @@
     <string name="cd_close_photo_viewer">Close photo viewer</string>
     <string name="cd_photo_viewer_date">Photo taken %1$s</string>
     <string name="cd_edit_plant">Edit plant</string>
-    <string name="cd_log_care">Log care</string>
     <string name="cd_edit_log">Edit log</string>
     <string name="cd_delete_log">Delete log</string>
     <string name="cd_plant_photo">Plant photo</string>
@@ -268,16 +267,13 @@
     <string name="repotting_interval_decrease_cd">Decrease repotting interval</string>
     <string name="repotting_interval_increase_cd">Increase repotting interval</string>
     <string name="liquid_fertilizer_label">Fertilize with watering (liquid fertilizer)</string>
-    <string name="care_log_title_add">Log Care</string>
     <string name="care_log_title_edit">Edit Care Log</string>
-    <string name="care_log_prompt_what_did_you_do">What did you do?</string>
     <!-- Single optional WATER-log flag (#570, product ADR-0027), reworded to the shared reason
          vocabulary in #586 (product ADR-0030) so the form and the quick-log prompt read alike. -->
     <string name="care_log_feedback_plant_needed_it">The plant needed it</string>
     <string name="care_log_fertilizer_type_label">Fertilizer type</string>
     <string name="fertilizer_type_liquid">Liquid</string>
     <string name="fertilizer_type_solid">Solid</string>
-    <string name="fertilizer_also_logs_watering">Also logs a watering</string>
     <string name="care_log_photo_label">Photo (optional)</string>
     <string name="care_log_photo_label_required">Photo</string>
     <string name="care_log_error_already_watered">This plant already has a watering logged for this day.</string>
