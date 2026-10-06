@@ -66,6 +66,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   needed it" flag and amount, and a fertilizing's type and amount. Saving a Photo log still needs a photo, a
   same-day duplicate is still refused, and snackbars on Plant Detail sit at the bottom edge again. A new entry's
   notes, amount or flags can now be added only by editing it afterwards (#532, part 3 of 4, #883)
+- **Notes can no longer be logged as their own entry; existing Notes stay in your history** — with the + button and
+  the care-type picker gone, nothing creates a Note any more, and the demo plants no longer include one. Notes you
+  already logged still show in a plant's Home care history, where you can edit or delete them, and backups with
+  Notes restore unchanged. Free text goes in a log's notes field, a reminder or an issue instead (#532, part 4 of 4,
+  product ADR-0062, amending product ADR-0038, ADR-0043, ADR-0060 and ADR-0061)
+
+### Removed
+- **Dead watering-suggestion path in Add Care Log** — the edit-only screen no longer observes WATER logs or hands a
+  suggested watering interval back to Plant Detail through `savedStateHandle`; `QuickLogUseCase` is now the only
+  caller of `AdaptiveWateringObservation.observe()`, which loses its `isEditMode` parameter and the form-only gap
+  source. Internal cleanup with no user-visible change; quick-log behaviour is unchanged (#532, part 4 of 4,
+  technical ADR-0037, superseding technical ADR-0006 and technical ADR-0033)
 
 ### Fixed
 - **The Repot tab's "Next repot due" date ignored your repots** — Plant Detail worked out the next repot from the day the plant was added instead of from its latest Repot log, so after repotting it kept showing the old date (and, with the new tab-row attention dot, could flag a freshly repotted plant as overdue). It now counts from the latest repot, like Care, Plant List and the daily notification (#530)

@@ -1,7 +1,7 @@
 # YAPT – Yet Another Plant Tracker
 
 Offline-first Android app for houseplant care. No cloud, no accounts, no telemetry. Users log care
-events (water/fertilize/prune/repot/note/photo); the app surfaces overdue reminders and adapts
+events (water/fertilize/prune/repot/photo); the app surfaces overdue reminders and adapts
 watering intervals from the user's own feedback.
 
 > **Keep this file lean — it loads into every session.** Only repo-wide rules belong here, one or two
@@ -43,7 +43,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 ## Conventions (beyond what the linter enforces)
 - **StateFlow** for UI state; **SharedFlow** for one-shot events. Always `collectAsStateWithLifecycle()` (never `collectAsState()`).
 - **Enums stored as String** in Room — read with `runCatching { Enum.valueOf(...) }.getOrDefault(fallback)`, never plain `.valueOf()`. Display strings/icons live in `ui/util/EnumResources.kt`, not on the enum.
-- **Retired enum constants stay** — `CareType.CHECK`/`MIST` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` are kept for reading historical rows/backups; no new CHECK/MIST rows are created (an existing MIST log stays editable).
+- **Retired enum constants stay** — `CareType.CHECK`/`MIST`/`NOTE` and `WateringAdjustmentTrigger.CHECK_STILL_MOIST` are kept for reading historical rows/backups; no new CHECK/MIST/NOTE rows are created (an existing MIST or NOTE log stays editable).
 - **Dates** — relative-date display only via the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`, strings from resources); never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013). Advance by N days via `Long.plusCalendarDays()`, never `+ TimeUnit.DAYS.toMillis(n)` (DST, technical ADR-0034); the one exception is the REPOT freeze window in `WateringLifecycleReset`, a genuine duration documented in place.
 - **A `combine()` that reads "today" needs `dayChangeTicker()` as an input** — nothing else emits at midnight (#550). Constructor-inject it as `Flow<LocalDate>` defaulting to `dayChangeTicker()`; tests pass a non-real ticker and **never `advanceUntilIdle()` against the real one** (it hangs). Details: `rules/day-change.md`.
 - **Two watering-interval numbers** — `wateringBaseIntervalDays` (season-neutral `Double`, never rounded at rest) and `wateringIntervalDays` (effective, only rewritten on discrete events). For today's effective interval call `CareSchedule.effectiveWateringIntervalDaysForDisplay()`, never the stored literal. Details: `rules/seasonal-watering.md`.

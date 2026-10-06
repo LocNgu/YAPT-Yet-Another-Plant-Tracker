@@ -16,11 +16,13 @@ import com.yapt.planttracker.R
 /**
  * Per-action tabs on Plant Detail (#436). The tab strip lives inside the Box overlay's scrolling
  * content, below the hero — see technical ADR-0018 (supersedes technical ADR-0005). Note has no tab and
- * appears only in the combined care-history list at the bottom of [HOME] (#530, product ADR-0060), as do
- * historical Mist entries (misting can no longer be logged, #875, product ADR-0061); Prune entries show there
- * too, and the Water tab lists just its own WATER entries.
- * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot and Prune (#882) sit
- * behind the collapsed row's chevron.
+ * can no longer be logged (#532, product ADR-0062); existing Note entries appear only in the combined
+ * care-history list at the bottom of [HOME] (#530, product ADR-0060), as do historical Mist entries
+ * (#875, product ADR-0061). Prune has its own tab and shows there too, and the Water tab lists just its
+ * own WATER entries. New logs come only from the in-pane actions: the `+` FAB is gone and Add Care Log
+ * only edits an existing log (#532, product ADR-0062).
+ * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot and Prune sit
+ * behind the collapsed row's chevron (#532, product ADR-0062).
  * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0043) fold what used to be the always-visible
  * `CustomRemindersCard`/`PlantIssuesCard` sections into the tab strip's collapsed-by-default second
  * row — see `PlantDetailScreen.kt`'s `PlantDetailTabStrip`. [ISSUES] reuses `PlantIssuesCard`'s own

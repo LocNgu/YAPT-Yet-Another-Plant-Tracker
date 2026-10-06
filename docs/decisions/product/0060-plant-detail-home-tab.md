@@ -1,6 +1,6 @@
 # Product ADR-0060: Plant Detail gets a Home tab — the landing tab, with watering and fertilizing actions and a summary
 
-**Status**: accepted — "beside its misting list" clause amended by [ADR-0061](0061-manual-misting-retired.md)
+**Status**: accepted — "beside its misting list" clause amended by [ADR-0061](0061-manual-misting-retired.md); tab order, `FertilizeDueActionRow` interval-gate and liquid edge-case clauses, and "Not changed: the `+` FAB and Add Care Log" clause amended by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md)
 
 **Date**: 2026-10-02
 

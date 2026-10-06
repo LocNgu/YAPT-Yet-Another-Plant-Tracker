@@ -1,6 +1,6 @@
 # Product ADR-0038: Photo quick action logs in place
 
-**Status**: accepted
+**Status**: accepted — "`AddCareLogScreen` remains the canonical full-entry flow for a PHOTO log with notes" clause amended by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md)
 
 **Date**: 2026-09-12
 

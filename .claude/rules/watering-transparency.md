@@ -58,7 +58,7 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
 - A plain settings key, not a feature flag, so it survives turning developer mode off; the row lives on the main Settings screen. Consulted via `PlantDetailViewModel.shouldShowIntervalDialog()`.
 - **On:** the product ADR-0006 `AlertDialog`. **Off:** `applySuggestionOrPrompt()` calls the choke point directly (logged as `DIALOG_EDIT`) and emits `Event.SilentIntervalApplied(beforeIntervalDays, beforeBaseIntervalDays, afterIntervalDays)`. The snackbar's Undo calls `undoSilentIntervalApply(before…)`, which restores the captured prior values as-is (never recomputed) and writes no new row.
 - Calendar/Plant List have no silent path: they always show the dialog.
-- The Add Care Log save-flow suggestion (always null now that the screen is edit-only) would also go through this toggle via `PlantDetailViewModel.handleSuggestedWateringInterval()`. `NavGraph` never sets `suggestedWateringInterval` directly.
+- Add Care Log produces no suggestion: it is edit-only and its `savedStateHandle` handoff and `handleSuggestedWateringInterval()` were deleted (technical ADR-0037, superseding technical ADR-0006). The quick-log surfaces are the only source of the suggestion.
 
 ## The sheet (`WateringExplanationSheet.kt`)
 - Entry: a "Why this date?" `TextButton` (`testTag("why_this_date_button")`) in the Water tab's inline-settings card, shown whenever `wateringIntervalDays != null` (or an active dormant cadence).

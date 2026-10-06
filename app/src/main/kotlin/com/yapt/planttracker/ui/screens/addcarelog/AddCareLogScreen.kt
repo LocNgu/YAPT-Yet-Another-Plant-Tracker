@@ -81,7 +81,7 @@ import java.util.TimeZone
 @Composable
 fun AddCareLogScreen(
     viewModel: AddCareLogViewModel,
-    onNavigateBack: (suggestedInterval: Int?, suggestedBaseInterval: Double?) -> Unit
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -115,14 +115,7 @@ fun AddCareLogScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is AddCareLogViewModel.Event.Saved ->
-                    onNavigateBack(event.suggestedWateringInterval, event.suggestedWateringBaseInterval)
-                is AddCareLogViewModel.Event.NavigateBack ->
-                    onNavigateBack(null, null)
-            }
-        }
+        viewModel.events.collect { onNavigateBack() }
     }
 
     // A duplicate-log error is specific to the date that triggered it; clear it as soon as the user
@@ -184,7 +177,7 @@ fun AddCareLogScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.care_log_title_edit)) },
                 navigationIcon = {
-                    IconButton(onClick = { onNavigateBack(null, null) }) {
+                    IconButton(onClick = { onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
