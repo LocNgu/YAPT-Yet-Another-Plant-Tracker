@@ -40,7 +40,6 @@ import com.yapt.planttracker.BuildConfig
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
@@ -400,14 +399,6 @@ fun YaptNavGraph(
                     onNavigateToEdit = {
                         navController.navigate(Screen.EditPlant.createRoute(plantId))
                     },
-                    onNavigateToAddLog = {
-                        navController.navigate(
-                            Screen.AddCareLog.createRoute(
-                                plantId,
-                                careType = vm.consumeNewLogCareType()
-                            )
-                        )
-                    },
                     onNavigateToEditLog = { careLogId ->
                         navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
                     }
@@ -418,21 +409,11 @@ fun YaptNavGraph(
                 route = Screen.AddCareLog.route,
                 arguments = listOf(
                     navArgument("plantId") { type = NavType.LongType },
-                    navArgument("careLogId") {
-                        type = NavType.LongType
-                        defaultValue = 0L
-                    },
-                    navArgument("careType") {
-                        type = NavType.StringType
-                        defaultValue = CareType.WATER.name
-                    }
+                    navArgument("careLogId") { type = NavType.LongType }
                 )
             ) { backStackEntry ->
                 val plantId = backStackEntry.arguments!!.getLong("plantId")
                 val careLogId = backStackEntry.arguments!!.getLong("careLogId")
-                val initialCareType = runCatching {
-                    CareType.valueOf(backStackEntry.arguments!!.getString("careType")!!)
-                }.getOrDefault(CareType.WATER).takeUnless { it == CareType.MIST } ?: CareType.WATER
                 val vm: AddCareLogViewModel = viewModel(
                     factory = AddCareLogViewModel.Factory(
                         app.careLogRepository,
@@ -440,13 +421,9 @@ fun YaptNavGraph(
                         plantId,
                         careLogId,
                         app.settingsDataStore,
-                        app.wateringAdjustmentRepository,
-                        app::schedulePostWateringReminder
+                        app.wateringAdjustmentRepository
                     )
                 )
-                LaunchedEffect(initialCareType) {
-                    vm.preselectCareType(initialCareType)
-                }
                 AddCareLogScreen(
                     viewModel = vm,
                     onNavigateBack = { suggestedInterval, suggestedBaseInterval ->

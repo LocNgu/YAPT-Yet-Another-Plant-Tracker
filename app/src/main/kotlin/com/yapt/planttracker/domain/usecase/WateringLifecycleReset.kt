@@ -19,9 +19,8 @@ import kotlin.math.roundToInt
  * situation with the new. In the #568 model a "chapter" (#285's approach 4) reduces to
  * `confidence = 0`, no new subsystem.
  *
- * A dedicated object rather than folding this directly into [QuickLogUseCase]/`AddCareLogViewModel`/
- * `AddEditPlantViewModel`: a REPOT log is written from two call sites (the manual Add Care Log form and
- * [QuickLogUseCase]'s bulk-action REPOT path via `BulkActionBar`), and the reset side effect must be
+ * A dedicated object rather than folding this directly into [QuickLogUseCase]/`AddEditPlantViewModel`:
+ * the REPOT and room-change resets are applied from separate call sites, and the reset side effect must be
  * byte-for-byte identical from both — mirrors `CareLogRepository.hasLogOfTypeOnDay`'s "one query, many
  * callers" precedent (#509).
  */

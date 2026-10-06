@@ -38,7 +38,11 @@ object WhatsNewContent {
                 "occasional feeding without setting a schedule first",
             "Misting can no longer be logged — Add Care Log and the plant list's multi-select bar no longer " +
                 "offer it. Mist entries you already logged stay in your history: you can still see them on a " +
-                "plant's Home tab, edit or delete them, and they still show on the watering chart"
+                "plant's Home tab, edit or delete them, and they still show on the watering chart",
+            "The + button on a plant's detail page is gone: log care from the plant's tabs instead. Add Care " +
+                "Log now only edits an existing entry (tap its edit button), showing the entry's type at the " +
+                "top instead of a row of types, so an edit can't change what kind of entry it is. Notes and " +
+                "amounts for a new entry can be added by editing it afterwards"
         ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +

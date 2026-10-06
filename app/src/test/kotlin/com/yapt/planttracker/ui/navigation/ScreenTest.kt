@@ -1,6 +1,5 @@
 package com.yapt.planttracker.ui.navigation
 
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -48,11 +47,8 @@ class ScreenTest {
     }
 
     @Test
-    fun `addCareLog route template declares plantId path and optional log arguments`() {
-        assertEquals(
-            "add_care_log/{plantId}?careLogId={careLogId}&careType={careType}",
-            Screen.AddCareLog.route
-        )
+    fun `addCareLog route template requires both plantId and careLogId path arguments`() {
+        assertEquals("add_care_log/{plantId}/{careLogId}", Screen.AddCareLog.route)
     }
 
     // --- createRoute argument interpolation ---
@@ -124,21 +120,8 @@ class ScreenTest {
     }
 
     @Test
-    fun `addCareLog createRoute defaults careLogId to 0`() {
-        assertEquals("add_care_log/3?careLogId=0&careType=WATER", Screen.AddCareLog.createRoute(3L))
-    }
-
-    @Test
     fun `addCareLog createRoute substitutes both plantId and careLogId`() {
-        assertEquals("add_care_log/3?careLogId=9&careType=WATER", Screen.AddCareLog.createRoute(3L, 9L))
-    }
-
-    @Test
-    fun `addCareLog createRoute can preselect care type`() {
-        assertEquals(
-            "add_care_log/3?careLogId=0&careType=PHOTO",
-            Screen.AddCareLog.createRoute(3L, careType = CareType.PHOTO)
-        )
+        assertEquals("add_care_log/3/9", Screen.AddCareLog.createRoute(3L, 9L))
     }
 
     @Test

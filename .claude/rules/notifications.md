@@ -46,7 +46,7 @@ paths:
 - The shared `PhotoReminderDialog` is suppressed while an interval-suggestion dialog shows (#233/#407/#410/#416).
 
 ## Post-watering standing-water reminder (#519, product ADR-0036)
-- **Scheduling:** every successful **current-day** WATER insert schedules a unique `OneTimeWorkRequest` 30 minutes later; `REPLACE` debounces to the latest watering. All WATER paths (Add Care Log, quick-water, bulk, liquid-fertilizer paired WATER) use the same callback. Bulk logging schedules once, after its transaction commits. Backdated logs, edits and rejected duplicates never schedule.
+- **Scheduling:** every successful **current-day** WATER insert schedules a unique `OneTimeWorkRequest` 30 minutes later; `REPLACE` debounces to the latest watering. All WATER paths (quick-water, bulk, liquid-fertilizer paired WATER) use the same callback. Bulk logging schedules once, after its transaction commits. Backdated logs, edits and rejected duplicates never schedule.
 - **Setting:** `post_watering_reminder_enabled` (default on) is gated by the master notifications switch and backed up (schema v16). Turning either off cancels pending work and clears both presentations; the worker rechecks both.
 - **At fire time** (mutually exclusive):
   - Foreground: write the device-local `post_watering_reminder_pending_at` token (never backed up) and show one global dismissible modal.

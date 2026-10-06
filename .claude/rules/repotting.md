@@ -37,7 +37,7 @@ Two independent features, both unset by default, so due dates are unchanged unle
 
 ## Clearing a plan
 - A newly inserted REPOT log clears the plan when its local day is on or after the plan-made day; a backdated one leaves it.
-- This goes through the shared `RepotPlanReset.clearIfSuperseded()` and the column-specific `PlantDao.updateRepotPlan()`, called from `QuickLogUseCase` and `AddCareLogViewModel`.
+- This goes through the shared `RepotPlanReset.clearIfSuperseded()` and the column-specific `PlantDao.updateRepotPlan()`, called from `QuickLogUseCase`.
 - **Order matters:** call it *after* `WateringLifecycleReset.applyRepotReset()`, whose full-row write would otherwise restore the plan. `QuickLogUseCase.maybeApplyRepotReset()` re-reads the plant fresh first, because callers pass stale snapshots.
 - Editing or deleting a REPOT log never clears or resurrects a plan.
 

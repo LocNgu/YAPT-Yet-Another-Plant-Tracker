@@ -310,8 +310,6 @@ class PlantDetailViewModel(
     private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
     val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
 
-    private var pendingNewLogCareType = CareType.WATER
-
     /** Lets the extracted `PlantDetail*Actions.kt` extension functions emit without widening [_events] itself. */
     internal suspend fun emitEvent(event: Event) = _events.emit(event)
 
@@ -342,18 +340,6 @@ class PlantDetailViewModel(
 
     fun dismissPhotoReminder() {
         _showPhotoReminderDialog.value = false
-    }
-
-    /**
-     * Carries the selected tab's requested care type through Plant Detail's existing add-log
-     * navigation callback (#658). Consuming resets the next generic FAB navigation to WATER.
-     */
-    fun prepareNewLog(careType: CareType = CareType.WATER) {
-        pendingNewLogCareType = careType
-    }
-
-    fun consumeNewLogCareType(): CareType = pendingNewLogCareType.also {
-        pendingNewLogCareType = CareType.WATER
     }
 
     /**

@@ -72,7 +72,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -232,7 +231,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -251,7 +249,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.CUSTOM_REMINDERS
             )
@@ -272,7 +269,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.ISSUES
             )
@@ -292,7 +288,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -303,7 +298,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun logCareFab_isDisplayed() {
+    fun logCareFab_isNotOffered() {
         val plant = Plant(id = 2L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
 
@@ -312,12 +307,11 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Log care").assertIsDisplayed()
+        composeTestRule.onAllNodesWithContentDescription("Log care").assertCountEquals(0)
     }
 
     @Test
@@ -362,7 +356,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -409,7 +402,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -449,7 +441,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -482,7 +473,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -511,7 +501,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -532,7 +521,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -567,7 +555,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -601,7 +588,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -645,7 +631,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -674,7 +659,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -715,7 +699,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -857,7 +840,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -887,7 +869,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -933,7 +914,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1172,7 +1152,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = { editedLogId = it },
                 initialTab = PlantDetailTab.WATER
             )
@@ -1264,7 +1243,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1285,7 +1263,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1320,7 +1297,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1353,7 +1329,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1389,7 +1364,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1432,7 +1406,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1474,7 +1447,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1516,7 +1488,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1563,7 +1534,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1602,7 +1572,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1645,7 +1614,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.FERTILIZE
             )
@@ -1690,7 +1658,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.FERTILIZE
             )
@@ -1725,7 +1692,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1756,7 +1722,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1782,7 +1747,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1814,7 +1778,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1841,7 +1804,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1864,7 +1826,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -1887,7 +1848,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -1973,7 +1933,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.REPOT
             )
@@ -2002,7 +1961,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.REPOT
             )
@@ -2038,7 +1996,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.REPOT
             )
@@ -2147,7 +2104,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = { editedLogId = it },
                 initialTab = PlantDetailTab.PRUNE
             )
@@ -2204,14 +2160,12 @@ class PlantDetailScreenTest {
     fun photoTab_actionOpensAddPhotoSheet() {
         val plant = Plant(id = 43L, name = "Ivy", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plant)
-        var navigationRequested = false
 
         composeTestRule.setContent {
             PlantDetailScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = { navigationRequested = true },
                 onNavigateToEditLog = {}
             )
         }
@@ -2234,8 +2188,6 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(ADD_PHOTO_DATE_ROW_TEST_TAG).assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.photo_source_take_photo)).assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.photo_source_choose_gallery)).assertIsDisplayed()
-
-        assertFalse(navigationRequested)
     }
 
     // #694 acceptance criterion: "Cancelling the dialog or image selection creates no PHOTO log."
@@ -2271,7 +2223,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2308,7 +2259,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2344,7 +2294,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2376,7 +2325,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2414,7 +2362,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2451,7 +2398,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2473,7 +2419,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -2508,7 +2453,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = initialTab
             )
@@ -2975,7 +2919,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3001,7 +2944,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3034,7 +2976,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3070,7 +3011,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3107,7 +3047,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3143,7 +3082,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3174,7 +3112,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3212,7 +3149,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3250,7 +3186,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {}
             )
         }
@@ -3295,7 +3230,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -3327,7 +3261,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -3369,7 +3302,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -3407,7 +3339,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -3433,7 +3364,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.WATER
             )
@@ -3487,7 +3417,6 @@ class PlantDetailScreenTest {
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
-                onNavigateToAddLog = {},
                 onNavigateToEditLog = {},
                 initialTab = PlantDetailTab.REPOT
             )
