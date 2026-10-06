@@ -18,8 +18,8 @@ enum class CareType {
     REPOT,
 
     /**
-     * Free-text note. **Retained for historical data only (#532, product ADR-0062): no longer written
-     * by any code path** — Add Care Log only edits a stored NOTE log (its type stays fixed, shown as a
+     * Free-text note. **Retained for historical data only (#532, product ADR-0062): no code path
+     * creates a new NOTE log** — Add Care Log only edits a stored NOTE log (its type stays fixed, shown as a
      * read-only header), and the bulk bar, quick-log surfaces and demo data never create one. Existing
      * rows still list in Plant Detail's Home history (editable, deletable) and persist as a String, so
      * removing this constant would make them and `.yapt` backups coerce to the wrong fallback.
