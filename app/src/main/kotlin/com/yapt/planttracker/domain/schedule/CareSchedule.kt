@@ -557,8 +557,8 @@ object CareSchedule {
      * parameter confidence would silently *rise* even though nothing about the schedule was actually
      * tested — the plant was asleep for the entire gap. `true` skips the streak/gap-agreement
      * transition entirely (`newConfidence = currentConfidence`, verbatim) rather than post-hoc
-     * correcting the result at each call site, which is how [QuickLogUseCase] and
-     * `AddCareLogViewModel`'s two independent copies of this call would otherwise drift apart. Defaults
+     * correcting the result at each call site, which is how separate call sites would otherwise drift
+     * apart ([QuickLogUseCase] is the only one that observes; `AddCareLogViewModel` is edit-only). Defaults
      * `false` so every existing call site/test is unaffected. Distinct from a post-hoc "exit decrement"
      * (`WateringAdjustmentTrigger.DORMANCY_EXIT`, applied by callers *after* this function returns,
      * never inside it) — that is a one-time -1 for *leaving* dormancy, layered on top of the

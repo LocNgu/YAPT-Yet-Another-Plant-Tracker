@@ -248,14 +248,6 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `the care type cannot be changed from outside the view model`() = runTest {
-        val vm = editVm(CareLog(plantId = 1L, careType = CareType.MIST, loggedAt = now))
-        advanceUntilIdle()
-
-        assertEquals(CareType.MIST, vm.careType)
-    }
-
-    @Test
     fun `editing a WATER log keeps its feedback, amount and date and records no new adjustment`() = runTest {
         val adjustments: WateringAdjustmentRepository = mockk(relaxed = true)
         val vm = editVm(

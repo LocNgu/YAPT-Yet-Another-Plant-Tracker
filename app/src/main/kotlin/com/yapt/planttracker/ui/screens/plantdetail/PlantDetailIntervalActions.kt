@@ -107,8 +107,9 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
 }
 
 /**
- * Entry point for the product ADR-0006 suggestion surfaced via `AddCareLogScreen`'s save flow,
- * routed back to this screen through `NavGraph`'s `savedStateHandle` (technical ADR-0006).
+ * Entry point for the product ADR-0006 suggestion handed back from `AddCareLogScreen`'s save flow
+ * through `NavGraph`'s `savedStateHandle` (technical ADR-0006). Since #532 part 3 that screen is
+ * edit-only and never produces a suggestion; the handoff is kept as-is.
  */
 fun PlantDetailViewModel.handleSuggestedWateringInterval(
     suggestedInterval: Int,
