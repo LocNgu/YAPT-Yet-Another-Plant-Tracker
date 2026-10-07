@@ -15,11 +15,9 @@ paths:
 
 # Care logging
 
-## Shared adaptive WATER observation (#780, technical ADR-0030; #673, technical ADR-0033)
-- `AdaptiveWateringObservation` is the one adaptive WATER path, used by `QuickLogUseCase` (and `AddCareLogViewModel`'s edit-only save, where the observation is skipped and only the dormancy feedback strip applies). Dormancy, bootstrap, confidence and adjustment writes live there; callers supply only their gap policy and clocks (`rules/watering-transparency.md`).
-- The gap is measured from the new log's **chronological predecessor** (`getLastWateringBefore`), never the globally newest pair.
-  - Only the `CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED` gap source (Add Care Log, now edit-only so never observing) falls back to the configured interval for a plant's first-ever watering.
-  - A log backdated before every existing watering gets no observation.
+## Shared adaptive WATER observation (#780, technical ADR-0030; sole call site per technical ADR-0037)
+- `AdaptiveWateringObservation` is the one adaptive WATER path, and `QuickLogUseCase` is the **only** `observe()` call site (technical ADR-0037). Add Care Log is edit-only and calls just `feedbackForLog()`, the write-time dormancy feedback strip, on every save; it has no `dataStore`/`wateringAdjustmentRepository`, no suggestion on `Event.Saved` and no `NavGraph` handoff. Dormancy, bootstrap, confidence and adjustment writes live in the shared class; callers supply only their clocks (`rules/watering-transparency.md`).
+- The gap is measured from the new log's **chronological predecessor** (`getLastWateringBefore`, #673), never the globally newest pair. No predecessor means no observation, which includes a log backdated before every existing watering. There is no gap-source parameter and no first-watering configured fallback.
 
 ## Same-day duplicates
 - **Only WATER and FERTILIZE** are rejected on a day that already has one. CHECK and MIST are never written, so they aren't guarded.

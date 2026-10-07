@@ -52,7 +52,6 @@ import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
-import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewScreen
@@ -381,17 +380,6 @@ fun YaptNavGraph(
                     )
                 )
 
-                val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-                LaunchedEffect(savedStateHandle) {
-                    val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
-                    if (suggestedInterval != null) {
-                        val suggestedBase = savedStateHandle.get<Double>("suggestedWateringBaseInterval")
-                        vm.handleSuggestedWateringInterval(suggestedInterval, suggestedBase)
-                        savedStateHandle.remove<Int>("suggestedWateringInterval")
-                        savedStateHandle.remove<Double>("suggestedWateringBaseInterval")
-                    }
-                }
-
                 PlantDetailScreen(
                     viewModel = vm,
                     initialTab = initialTab,
@@ -419,26 +407,12 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantRepository,
                         plantId,
-                        careLogId,
-                        app.settingsDataStore,
-                        app.wateringAdjustmentRepository
+                        careLogId
                     )
                 )
                 AddCareLogScreen(
                     viewModel = vm,
-                    onNavigateBack = { suggestedInterval, suggestedBaseInterval ->
-                        suggestedInterval?.let { interval ->
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("suggestedWateringInterval", interval)
-                            suggestedBaseInterval?.let { base ->
-                                navController.previousBackStackEntry
-                                    ?.savedStateHandle
-                                    ?.set("suggestedWateringBaseInterval", base)
-                            }
-                        }
-                        navController.popBackStackOnce(backStackEntry)
-                    }
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
                 )
             }
 

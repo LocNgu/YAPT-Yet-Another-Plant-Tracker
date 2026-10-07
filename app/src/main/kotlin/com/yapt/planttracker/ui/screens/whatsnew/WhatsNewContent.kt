@@ -42,7 +42,9 @@ object WhatsNewContent {
             "The + button on a plant's detail page is gone: log care from the plant's tabs instead. Add Care " +
                 "Log now only edits an existing entry (tap its edit button), showing the entry's type at the " +
                 "top instead of a row of types, so an edit can't change what kind of entry it is. Notes and " +
-                "amounts for a new entry can be added by editing it afterwards"
+                "amounts for a new entry can be added by editing it afterwards",
+            "Notes can no longer be logged as their own entry. Notes you already logged stay in your plant's " +
+                "Home history, where you can still edit or delete them"
         ),
         fixed = listOf(
             "A quick second action on a plant's detail page can no longer silently undo the first — " +

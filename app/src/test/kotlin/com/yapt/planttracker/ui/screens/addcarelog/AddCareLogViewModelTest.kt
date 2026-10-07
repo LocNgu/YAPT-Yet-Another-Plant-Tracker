@@ -4,7 +4,6 @@ import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -151,22 +150,12 @@ class AddCareLogViewModelTest {
         }
     }
 
-    private fun editVm(
-        log: CareLog,
-        plant: Plant? = plant(),
-        wateringAdjustmentRepository: WateringAdjustmentRepository? = null
-    ): AddCareLogViewModel {
+    private fun editVm(log: CareLog, plant: Plant? = plant()): AddCareLogViewModel {
         coEvery { careLogRepo.getLogById(99L) } returns log.copy(id = 99L)
         coEvery { careLogRepo.addLog(any()) } returns 99L
         every { plantRepo.getPlantById(1L) } returns flowOf(plant)
         coEvery { plantRepo.updatePlant(any()) } just runs
-        return AddCareLogViewModel(
-            careLogRepo,
-            plantRepo,
-            plantId = 1L,
-            careLogId = 99L,
-            wateringAdjustmentRepository = wateringAdjustmentRepository
-        )
+        return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
     }
 
     private suspend fun save(vm: AddCareLogViewModel): AddCareLogViewModel.Event {
@@ -237,7 +226,7 @@ class AddCareLogViewModelTest {
             advanceUntilIdle()
             vm.notes = "Edited"
 
-            assertEquals(AddCareLogViewModel.Event.Saved(null, null), save(vm))
+            assertEquals(AddCareLogViewModel.Event.Saved, save(vm))
 
             coVerify {
                 careLogRepo.addLog(
@@ -248,8 +237,7 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `editing a WATER log keeps its feedback, amount and date and records no new adjustment`() = runTest {
-        val adjustments: WateringAdjustmentRepository = mockk(relaxed = true)
+    fun `editing a WATER log keeps its feedback and amount and never touches the plant`() = runTest {
         val vm = editVm(
             CareLog(
                 plantId = 1L,
@@ -258,15 +246,11 @@ class AddCareLogViewModelTest {
                 wateringFeedback = WateringFeedback.TOO_LATE,
                 amount = "250 ml"
             ),
-            plant = plant(wateringIntervalDays = 7),
-            wateringAdjustmentRepository = adjustments
+            plant = plant(wateringIntervalDays = 7)
         )
         advanceUntilIdle()
 
-        val event = save(vm) as AddCareLogViewModel.Event.Saved
-
-        assertNull(event.suggestedWateringInterval)
-        assertNull(event.suggestedWateringBaseInterval)
+        assertEquals(AddCareLogViewModel.Event.Saved, save(vm))
         coVerify {
             careLogRepo.addLog(
                 match {
@@ -275,7 +259,6 @@ class AddCareLogViewModelTest {
             )
         }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { adjustments.addAdjustment(any()) }
     }
 
     @Test
@@ -324,7 +307,6 @@ class AddCareLogViewModelTest {
 
     @Test
     fun `editing a REPOT log's date does not re-trigger the reset or clear the plan`() = runTest {
-        val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk(relaxed = true)
         coEvery { plantRepo.clearRepotPlan(any(), any()) } just runs
         val vm = editVm(
             CareLog(plantId = 1L, careType = CareType.REPOT, loggedAt = localDateUtcMillis(2026, 1, 5)),
@@ -332,8 +314,7 @@ class AddCareLogViewModelTest {
                 wateringConfidence = 3,
                 repotPlanSeasonStartAt = localDateUtcMillis(2027, 3, 1),
                 repotPlanMadeAt = localDateUtcMillis(2026, 9, 29)
-            ),
-            wateringAdjustmentRepository = wateringAdjustmentRepo
+            )
         )
         advanceUntilIdle()
         vm.loggedAt = localDateUtcMillis(2026, 11, 5)
@@ -342,7 +323,6 @@ class AddCareLogViewModelTest {
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         coVerify(exactly = 0) { plantRepo.clearRepotPlan(any(), any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
     @Test

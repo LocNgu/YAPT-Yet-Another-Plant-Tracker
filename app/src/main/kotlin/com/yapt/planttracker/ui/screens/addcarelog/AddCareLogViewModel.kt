@@ -4,15 +4,12 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -25,24 +22,20 @@ import kotlinx.coroutines.launch
 
 // Edit-only (#532, part 3): the screen opens an existing log by [careLogId] and never changes its type.
 // New logs come from the in-pane actions via QuickLogUseCase.
-@Suppress("LongParameterList")
+// It never observes a WATER log or hands back an interval suggestion (technical ADR-0037); only the
+// dormancy feedback strip of the shared path applies.
 class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
     private val plantId: Long,
-    private val careLogId: Long,
-    // Nullable + defaulted so the many existing tests constructing this VM directly don't all need
-    // updating; null is treated the same as amplitude being Off (#569).
-    private val dataStore: DataStore<Preferences>? = null,
-    // Nullable + defaulted for the same reason as [dataStore] (#572).
-    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+    private val careLogId: Long
 ) : ViewModel() {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
         plantRepository,
         careLogRepository,
-        dataStore,
-        wateringAdjustmentRepository
+        dataStore = null,
+        wateringAdjustmentRepository = null
     )
 
     // Fixed once the log loads; the screen shows it as a read-only header, so an edit can never write a
@@ -107,13 +100,7 @@ class AddCareLogViewModel(
 
             if (careType == CareType.PHOTO && photoUri != null) updateCoverPhoto()
 
-            val suggestion = computeSuggestedInterval()
-            _events.emit(
-                Event.Saved(
-                    suggestedWateringInterval = suggestion?.intervalDays,
-                    suggestedWateringBaseInterval = suggestion?.baseIntervalDays
-                )
-            )
+            _events.emit(Event.Saved)
         }
     }
 
@@ -159,35 +146,8 @@ class AddCareLogViewModel(
         else -> error("No duplicate guard defined for $careType")
     }
 
-    internal data class SuggestedInterval(val intervalDays: Int, val baseIntervalDays: Double)
-
-    /** Observation time is [loggedAt]; [displayNow] is today's date for the live suggestion gate. */
-    @Suppress("ReturnCount")
-    internal suspend fun computeSuggestedInterval(displayNow: Long = System.currentTimeMillis()): SuggestedInterval? {
-        if (careType != CareType.WATER) return null
-        val plant = plantRepository.getPlantById(plantId).first() ?: return null
-        val suggestion = adaptiveObservation.observe(
-            plant,
-            selectedFeedback,
-            loggedAt,
-            displayNow,
-            AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED,
-            isEditMode = true
-        ) ?: return null
-        return SuggestedInterval(suggestion.intervalDays, suggestion.baseIntervalDays)
-    }
-
     sealed class Event {
-        /**
-         * [suggestedWateringBaseInterval] is the unrounded base-space value behind
-         * [suggestedWateringInterval] (technical ADR-0027); both are null together when the save
-         * produced no suggestion. Not defaulted, so an emit site cannot drop the precise base and
-         * silently fall back to the rounded one (#717/#718).
-         */
-        data class Saved(
-            val suggestedWateringInterval: Int?,
-            val suggestedWateringBaseInterval: Double?
-        ) : Event()
+        data object Saved : Event()
         data object NavigateBack : Event()
     }
 
@@ -195,19 +155,10 @@ class AddCareLogViewModel(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
         private val plantId: Long,
-        private val careLogId: Long,
-        private val dataStore: DataStore<Preferences>? = null,
-        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+        private val careLogId: Long
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddCareLogViewModel(
-                careLogRepository,
-                plantRepository,
-                plantId,
-                careLogId,
-                dataStore,
-                wateringAdjustmentRepository
-            ) as T
+            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId) as T
     }
 }

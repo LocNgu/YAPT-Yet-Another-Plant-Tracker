@@ -62,14 +62,13 @@ class AddCareLogScreenTest {
         coEvery { careLogRepo.getLogById(99L) } returns
             CareLog(id = 99L, plantId = 1L, careType = storedCareType, loggedAt = 0L)
         coEvery { careLogRepo.addLog(any()) } returns 99L
-        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
     }
 
     private fun showScreen(viewModel: AddCareLogViewModel) {
         composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
     }
@@ -215,7 +214,7 @@ class AddCareLogScreenTest {
                 LocalContext provides noHardwareContext,
                 LocalActivityResultRegistryOwner provides noOpRegistryOwner()
             ) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
@@ -272,7 +271,7 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }

@@ -106,24 +106,6 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
     )
 }
 
-/**
- * Entry point for the product ADR-0006 suggestion handed back from `AddCareLogScreen`'s save flow
- * through `NavGraph`'s `savedStateHandle` (technical ADR-0006). Since #532 part 3 that screen is
- * edit-only and never produces a suggestion; the handoff is kept as-is.
- */
-fun PlantDetailViewModel.handleSuggestedWateringInterval(
-    suggestedInterval: Int,
-    suggestedBaseInterval: Double?
-) {
-    viewModelScope.launch {
-        // The one place the rounded value may legitimately stand in for the precise base: the base
-        // crosses a process boundary via NavGraph's savedStateHandle, so a restored-from-death entry
-        // can carry the interval without it. Nothing better is recoverable at that point -- but the
-        // parameter stays non-defaulted so this substitution happens here, visibly, and nowhere else.
-        applySuggestionOrPrompt(suggestedInterval, suggestedBaseInterval ?: suggestedInterval.toDouble())
-    }
-}
-
 internal fun PlantDetailViewModel.setTimeRange(range: TimeRange) {
     selectedTimeRange.value = range
 }

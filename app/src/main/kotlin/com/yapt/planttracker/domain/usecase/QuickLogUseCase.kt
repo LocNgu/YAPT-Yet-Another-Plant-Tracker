@@ -729,10 +729,7 @@ class QuickLogUseCase(
         now: Long = System.currentTimeMillis(),
         displayNow: Long = nowProvider()
     ): QuickWaterSuggestion? {
-        val suggestion = adaptiveObservation.observe(
-            plant, feedback, now, displayNow,
-            AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
-        ) ?: return null
+        val suggestion = adaptiveObservation.observe(plant, feedback, now, displayNow) ?: return null
         return QuickWaterSuggestion(
             plant.id,
             plant.name,

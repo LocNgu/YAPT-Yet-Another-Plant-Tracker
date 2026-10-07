@@ -346,7 +346,7 @@ footer code{font-family:"IBM Plex Mono",monospace;}
       <div class="flow-out"><span class="tag excl">excluded</span> — gain forced to 0. Logged as <code>WATER_NOT_ATTRIBUTED</code>. Confidence is not separately punished; it simply doesn't rise from this observation.</div>
     </div>
   </div>
-  <p class="sec-note" style="margin-top:14px;">This third row is <b>derived</b> inside <code>computeAdaptiveInterval()</code> from timing (<code>feedback == null &amp;&amp; !gapAgrees(...)</code>) rather than passed in as a boolean — a flag threaded through every quick-log surface, the AddCareLog form, a bulk log, and the notification's "Watered" action is one a caller can eventually forget. The four-state <code>WateringFeedback</code> column never grows a fifth persisted state to represent it.</p>
+  <p class="sec-note" style="margin-top:14px;">This third row is <b>derived</b> inside <code>computeAdaptiveInterval()</code> from timing (<code>feedback == null &amp;&amp; !gapAgrees(...)</code>) rather than passed in as a boolean — a flag threaded through every quick-log surface, a bulk log, and the notification's "Watered" action is one a caller can eventually forget. The four-state <code>WateringFeedback</code> column never grows a fifth persisted state to represent it.</p>
 </section>
 
 <section>

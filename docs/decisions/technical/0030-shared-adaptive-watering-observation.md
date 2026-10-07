@@ -1,6 +1,6 @@
 # Technical ADR-0030: One adaptive watering observation path
 
-**Status**: accepted — form gap-source clause amended by [ADR-0033](0033-add-care-log-chronological-watering-gap.md)
+**Status**: accepted — form gap-source clause amended by [ADR-0033](0033-add-care-log-chronological-watering-gap.md) (itself superseded by [ADR-0037](0037-add-care-log-no-adaptive-observation.md)); clause that `AddCareLogViewModel` calls the shared observation amended by [ADR-0037](0037-add-care-log-no-adaptive-observation.md)
 
 **Date**: 2026-09-21
 

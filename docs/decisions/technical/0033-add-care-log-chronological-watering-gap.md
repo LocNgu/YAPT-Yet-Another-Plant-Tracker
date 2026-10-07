@@ -1,6 +1,6 @@
 # Technical ADR-0033: Add Care Log measures the watering gap from the entered log's predecessor
 
-**Status**: accepted
+**Status**: superseded by [ADR-0037](0037-add-care-log-no-adaptive-observation.md)
 
 **Date**: 2026-09-26
 

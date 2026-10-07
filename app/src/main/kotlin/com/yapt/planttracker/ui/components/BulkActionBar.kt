@@ -39,9 +39,9 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.icon
 
 /**
- * The care types offered as one-tap bulk actions in [BulkActionBar]. NOTE and PHOTO are excluded
- * because they require per-plant input (free text / an image) that a fire-and-forget bulk action
- * can't supply; MIST is retired (#875, product ADR-0061).
+ * The care types offered as one-tap bulk actions in [BulkActionBar]. PHOTO is excluded because it
+ * requires per-plant input (an image) that a fire-and-forget bulk action can't supply; MIST and NOTE
+ * are retired (#875, product ADR-0061; #532, product ADR-0062).
  */
 private val BULK_CARE_TYPES = listOf(
     CareType.WATER,
