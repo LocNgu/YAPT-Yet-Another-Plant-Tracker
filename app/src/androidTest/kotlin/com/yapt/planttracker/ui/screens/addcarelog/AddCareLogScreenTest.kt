@@ -10,18 +10,15 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
@@ -30,6 +27,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.ui.util.labelRes
@@ -49,23 +47,34 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AddCareLogScreenTest {
 
+    private companion object {
+        const val LOAD_TIMEOUT_MS = 5_000L
+    }
+
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun makeViewModel(initialCareType: CareType = CareType.WATER): AddCareLogViewModel {
+    private fun makeViewModel(storedCareType: CareType = CareType.WATER): AddCareLogViewModel {
         val careLogRepo = mockk<CareLogRepository>()
         val plantRepo = mockk<PlantRepository>()
         val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant)
-        coEvery { careLogRepo.addLog(any()) } returns 1L
-        coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
-        return AddCareLogViewModel(
-            careLogRepo,
-            plantRepo,
-            plantId = 1L,
-            careLogId = 0L
-        ).also { it.preselectCareType(initialCareType) }
+        coEvery { careLogRepo.getLogById(99L) } returns
+            CareLog(id = 99L, plantId = 1L, careType = storedCareType, loggedAt = 0L)
+        coEvery { careLogRepo.addLog(any()) } returns 99L
+        coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
+        return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
     }
+
+    private fun showScreen(viewModel: AddCareLogViewModel) {
+        composeTestRule.setContent {
+            AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
+    }
+
+    private fun careTypeLabel(careType: CareType): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(careType.labelRes())
 
     private fun noOpRegistryOwner(): ActivityResultRegistryOwner {
         val registry = object : ActivityResultRegistry() {
@@ -87,58 +96,64 @@ class AddCareLogScreenTest {
     }
 
     @Test
-    fun waterCareType_isSelectedByDefault() {
-        val viewModel = makeViewModel()
+    fun editScreen_showsTheEditTitle() {
+        showScreen(makeViewModel())
 
-        composeTestRule.setContent {
-            AddCareLogScreen(
-                viewModel = viewModel,
-                onNavigateBack = { _, _ -> }
-            )
-        }
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.care_log_title_edit)
+        ).assertIsDisplayed()
+    }
 
-        val waterLabel = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(CareType.WATER.labelRes())
+    private fun assertShowsTypeHeader(type: CareType) {
+        showScreen(makeViewModel(type))
 
-        composeTestRule
-            .onNode(hasText(waterLabel) and isSelected())
-            .assertIsDisplayed()
+        composeTestRule.onNode(hasText(careTypeLabel(type)) and isHeading()).assertIsDisplayed()
     }
 
     @Test
-    fun photoCareType_canBePreselected() {
-        val viewModel = makeViewModel(initialCareType = CareType.PHOTO)
+    fun editingAWaterLog_showsWaterHeader() = assertShowsTypeHeader(CareType.WATER)
 
-        composeTestRule.setContent {
-            AddCareLogScreen(
-                viewModel = viewModel,
-                onNavigateBack = { _, _ -> }
-            )
+    @Test
+    fun editingANoteLog_showsNoteHeader() = assertShowsTypeHeader(CareType.NOTE)
+
+    @Test
+    fun editingACustomLog_showsCustomHeader() = assertShowsTypeHeader(CareType.CUSTOM)
+
+    @Test
+    fun editingACheckLog_showsCheckHeader() = assertShowsTypeHeader(CareType.CHECK)
+
+    @Test
+    fun editingAWaterLog_offersNoOtherCareTypes() {
+        showScreen(makeViewModel(CareType.WATER))
+
+        CareType.entries.filter { it != CareType.WATER }.forEach { other ->
+            composeTestRule.onNodeWithText(careTypeLabel(other)).assertDoesNotExist()
         }
+    }
 
-        val photoLabel = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(CareType.PHOTO.labelRes())
+    @Test
+    fun editingAMistLog_showsMistHeaderWithoutAChipRow() {
+        showScreen(makeViewModel(CareType.MIST))
 
-        composeTestRule.onNodeWithTag(CARE_TYPE_PICKER_TEST_TAG)
-            .performScrollToNode(hasText(photoLabel) and isSelected())
-        composeTestRule.onNode(hasText(photoLabel) and isSelected()).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Take photo")
-            .performScrollTo()
-            .assertIsDisplayed()
+        composeTestRule.onNode(hasText(careTypeLabel(CareType.MIST)) and isHeading()).assertIsDisplayed()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.WATER)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(careTypeLabel(CareType.PRUNE)).assertDoesNotExist()
+    }
+
+    @Test
+    fun editingAPhotoLog_revealsInlineSourceButtons() {
+        showScreen(makeViewModel(CareType.PHOTO))
+
+        composeTestRule.onNode(hasText(careTypeLabel(CareType.PHOTO)) and isHeading()).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Choose from gallery").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun plantNeededItFeedbackFlag_isUnselectedByDefault() {
         // #570, product ADR-0027: the 3-way soil-state chip collapsed to one optional flag, with
         // nothing pre-selected (logging without touching it writes null feedback).
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddCareLogScreen(
-                viewModel = viewModel,
-                onNavigateBack = { _, _ -> }
-            )
-        }
+        showScreen(makeViewModel())
 
         val plantNeededItLabel = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(R.string.care_log_feedback_plant_needed_it)
@@ -150,11 +165,7 @@ class AddCareLogScreenTest {
 
     @Test
     fun photoButton_tapped_showsPhotoSourceSheet() {
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
+        showScreen(makeViewModel())
 
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
         composeTestRule.waitForIdle()
@@ -164,39 +175,11 @@ class AddCareLogScreenTest {
     }
 
     @Test
-    fun selectingPhotoCareType_revealsInlineSourceButtons() {
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
-
-        // Default care type (WATER): a photo is optional, so only the compact
-        // add-photo icon shows — no inline source buttons.
-        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Add photo").assertExists()
-
-        // Selecting PHOTO reveals the Take photo / Choose from gallery actions
-        // inline, so the user reaches the camera/picker with no extra tap and no
-        // pop-up sheet (#443).
-        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithText("Take photo").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Choose from gallery").performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
     fun inlineTakePhotoButton_tapped_routesThroughCameraPermissionFlow() {
-        val viewModel = makeViewModel()
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
+        showScreen(makeViewModel(CareType.PHOTO))
 
-        // Reveal the inline source buttons, then mock (after reveal so composition
-        // is unaffected, matching the sheet-path camera tests).
-        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
-        composeTestRule.waitForIdle()
+        // Mock after the inline source buttons are composed so composition is unaffected,
+        // matching the sheet-path camera tests.
 
         mockkStatic(ContextCompat::class)
         mockkStatic(ActivityCompat::class)
@@ -216,49 +199,6 @@ class AddCareLogScreenTest {
     }
 
     @Test
-    fun openingSheetThenSwitchingToPhoto_closesSheetWithNoOverlap() {
-        val viewModel = makeViewModel()
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
-
-        // Open the source sheet from a non-PHOTO care type (compact icon path).
-        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
-
-        // Switching to PHOTO must close the sheet so only the inline buttons
-        // remain — no duplicate Take photo / Choose from gallery from the sheet
-        // and the inline buttons showing at once (#443).
-        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onAllNodesWithText("Take photo").assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Choose from gallery").assertCountEquals(1)
-    }
-
-    @Test
-    fun switchingAwayFromPhoto_hidesInlineSourceButtons() {
-        val viewModel = makeViewModel()
-
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
-
-        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.PHOTO }
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Take photo").performScrollTo().assertIsDisplayed()
-
-        // Switching to a non-PHOTO care type collapses the inline buttons back to
-        // the compact add-photo icon, since a photo is optional there (#443).
-        composeTestRule.runOnUiThread { viewModel.selectedCareType = CareType.WATER }
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithText("Take photo").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Add photo").assertExists()
-    }
-
-    @Test
     fun takePhoto_noCameraHardware_showsSnackbar() {
         val mockPm = mockk<PackageManager>(relaxed = true)
         every { mockPm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) } returns false
@@ -274,9 +214,10 @@ class AddCareLogScreenTest {
                 LocalContext provides noHardwareContext,
                 LocalActivityResultRegistryOwner provides noOpRegistryOwner()
             ) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
 
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
         composeTestRule.waitForIdle()
@@ -287,10 +228,7 @@ class AddCareLogScreenTest {
 
     @Test
     fun takePhoto_rationaleNeeded_showsRationaleDialog() {
-        val viewModel = makeViewModel()
-        composeTestRule.setContent {
-            AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
-        }
+        showScreen(makeViewModel())
 
         // Open the sheet before mocking so FilterChip composition is unaffected.
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
@@ -333,9 +271,10 @@ class AddCareLogScreenTest {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
-                AddCareLogScreen(viewModel = viewModel, onNavigateBack = { _, _ -> })
+                AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
+        composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
 
         // Open the sheet before mocking so FilterChip composition is unaffected.
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()

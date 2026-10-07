@@ -18,6 +18,9 @@ The orchestrator passes you:
 ### 1. Read context
 
 1. `.claude/CLAUDE.md` loads automatically — use it for architecture, conventions, and existing patterns.
+   It is deliberately lean: feature detail lives in path-scoped `.claude/rules/*.md` files, which only
+   load when a matching source file is read. Read the rules file(s) for the issue's area yourself
+   (`CLAUDE.md`'s Pointers section maps areas to files).
 2. Fetch the issue and any existing comments:
    - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` (owner `locngu`, repo `yapt-yet-another-plant-tracker`)
 

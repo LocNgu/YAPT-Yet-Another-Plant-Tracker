@@ -339,8 +339,8 @@ footer a{color:var(--sage-dark);}
     </div>
     <div class="card">
       <div class="top"><h3>Plant Detail</h3><span class="tag warn">hub</span></div>
-      <div class="route">plant_detail/{plantId}</div>
-      <p>The busiest screen: an always-visible care-history list below six per-action tabs — Water (with the watering chart), Fertilize, Repot, Photo (with the photo gallery), Custom Reminders, Issues.</p>
+      <div class="route">plant_detail/{plantId}?tab={tab}</div>
+      <p>The busiest screen: seven per-action tabs under the hero — Home (the landing tab: Water/Reschedule/Fertilize actions, a last/next summary and the combined care history, which appears nowhere else), Water (with the watering chart and its own watering list), Fertilize, Photo (with the photo gallery), then Repot, Custom Reminders and Issues behind the tab-row arrow.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Add / Edit Plant</h3></div>
@@ -349,8 +349,8 @@ footer a{color:var(--sage-dark);}
     </div>
     <div class="card">
       <div class="top"><h3>Add Care Log</h3></div>
-      <div class="route">add_care_log/{plantId}?careLogId={id}</div>
-      <p>Manual log entry for any <code class="mono">CareType</code> except <code class="mono">CHECK</code>; also the edit surface for an existing log.</p>
+      <div class="route">add_care_log/{plantId}/{careLogId}</div>
+      <p>Edit-only surface for an existing log (opened from a log row's edit button): the type shows as a read-only header, and date, notes, photo and per-type fields are editable. New logs come from the in-pane actions.</p>
     </div>
     <div class="card">
       <div class="top"><h3>Settings</h3></div>
@@ -447,7 +447,7 @@ footer a{color:var(--sage-dark);}
 
 <section>
   <div class="sec-head"><span class="sec-num">07</span><h2>How a change actually ships</h2></div>
-  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec only, never Review; QA is already on-demand). Review launches alongside CI, joined by head SHA, not after it goes green (technical ADR-0032).</p>
+  <p class="sec-note">Per <code class="mono">.claude/CLAUDE.md</code> and <code class="mono">.claude/pipeline.md</code> — the default pipeline for any feature or fix on this repo (a narrow single-file mechanical fast-path skips Spec only, never Review; QA is already on-demand). Review launches alongside CI, joined by head SHA, not after it goes green (technical ADR-0032).</p>
   <div class="pipeline">
     <div class="pstep"><div class="n">issue</div><div class="t">File it first</div><div class="d">GitHub issue before any code</div></div>
     <div class="pstep"><div class="n">01</div><div class="t">Spec</div><div class="d">ADR scan, batched questions</div></div>

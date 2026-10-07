@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,8 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Notes
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.ExpandMore
@@ -47,12 +44,10 @@ import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -98,7 +93,6 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
-import com.yapt.planttracker.domain.model.WateringScheduleMode
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -133,7 +127,6 @@ fun PlantDetailScreen(
     viewModel: PlantDetailViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
-    onNavigateToAddLog: () -> Unit,
     onNavigateToEditLog: (careLogId: Long) -> Unit,
     initialTab: PlantDetailTab? = null
 ) {
@@ -163,6 +156,7 @@ fun PlantDetailScreen(
     var showLiquidFertilizeSheet by remember { mutableStateOf<PendingReasonPrompt?>(null) }
     var showRepotDatePicker by remember { mutableStateOf(false) }
     var showRepotPlanDialog by remember { mutableStateOf(false) }
+    var showPruneDatePicker by rememberSaveable { mutableStateOf(false) }
     // #694: null hides the Add-photo sheet; non-null is both "sheet visible" and the currently
     // picked date. pendingPhotoLoggedAt is rememberSaveable because the camera app can kill this
     // Activity while a capture is in flight — the picked date has to survive to the result callback.
@@ -194,8 +188,11 @@ fun PlantDetailScreen(
     val iconContainerColor = if (hasPhoto) Color.Black.copy(alpha = 0.60f) else Color.Transparent
 
     // Signals something is hidden behind the collapsed tab row (#590) — reuses the same
-    // already-collected activeIssues/customReminderStatuses the always-visible cards use.
-    val tabRowHasAttention = activeIssues.isNotEmpty() || customReminderStatuses.any { it.isOverdue }
+    // already-collected activeIssues/customReminderStatuses the always-visible cards use. An overdue
+    // repot joins them now that Repot sits behind the chevron (#530, product ADR-0060); overdue only.
+    val tabRowHasAttention = activeIssues.isNotEmpty() ||
+        customReminderStatuses.any { it.isOverdue } ||
+        careStatus?.isRepottingOverdue == true
 
     var fullScreenPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val galleryUris = remember(galleryPhotos) { galleryPhotos.map { it.uri } }
@@ -210,18 +207,16 @@ fun PlantDetailScreen(
         }
     }
 
-    var isExpanded by remember { mutableStateOf(false) }
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
-        label = "chevronRotation"
-    )
+    // Each collapsible care-log list owns its expanded state (#253); neither survives leaving the screen.
+    var isCareHistoryExpanded by remember { mutableStateOf(false) }
+    var isWaterHistoryExpanded by remember { mutableStateOf(false) }
 
     // Edit fades out once the hero photo (the LazyColumn's item index 0) has fully scrolled past —
-    // Back and the FAB stay pinned regardless of scroll (technical ADR-0022).
+    // Back stays pinned regardless of scroll (technical ADR-0022).
     val listState = rememberLazyListState()
     val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
-    var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.WATER) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.DEFAULT) }
     var isTabRowExpanded by rememberSaveable { mutableStateOf(initialTab?.isInCollapsedRow == true) }
 
     // #644: the field mirrors what the "Suggested: ... days" sentence below shows — the effective
@@ -279,6 +274,7 @@ fun PlantDetailScreen(
     val wateredTemplate = stringResource(R.string.quick_log_watered)
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
     val repottedTemplate = stringResource(R.string.quick_log_repotted)
+    val prunedTemplate = stringResource(R.string.quick_log_pruned)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -291,6 +287,8 @@ fun PlantDetailScreen(
                     String.format(fertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Repotted ->
                     String.format(repottedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Pruned ->
+                    String.format(prunedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
@@ -532,6 +530,17 @@ fun PlantDetailScreen(
         )
     }
 
+    if (showPruneDatePicker) {
+        CareDatePickerBottomSheet(
+            testTag = PRUNE_DATE_PICKER_TEST_TAG,
+            onDismiss = { showPruneDatePicker = false },
+            onConfirm = { loggedAt ->
+                showPruneDatePicker = false
+                viewModel.quickPrune(loggedAt)
+            }
+        )
+    }
+
     if (showRepotPlanDialog) {
         RepotPlanSeasonDialog(
             onSelect = { season ->
@@ -614,7 +623,7 @@ fun PlantDetailScreen(
                         .fillMaxSize()
                         .testTag(PLANT_DETAIL_CONTENT_TEST_TAG),
                     contentPadding = PaddingValues(
-                        bottom = 88.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     ),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
@@ -708,44 +717,73 @@ fun PlantDetailScreen(
                             onToggleExpanded = {
                                 val expanding = !isTabRowExpanded
                                 isTabRowExpanded = expanding
-                                val onHiddenTab = selectedTab == PlantDetailTab.CUSTOM_REMINDERS ||
-                                    selectedTab == PlantDetailTab.ISSUES
-                                if (!expanding && onHiddenTab) {
-                                    selectedTab = PlantDetailTab.WATER
+                                if (!expanding && selectedTab.isInCollapsedRow) {
+                                    selectedTab = PlantDetailTab.DEFAULT
                                 }
                             }
                         )
                         Spacer(Modifier.height(8.dp))
                     }
 
+                    val onFertilizeClick: () -> Unit = {
+                        if (plant?.useLiquidFertilizer == true) {
+                            showLiquidFertilizeDatePicker = true
+                        } else {
+                            viewModel.quickFertilize()
+                        }
+                    }
+
+                    val careLogRowActions = CareLogRowActions(
+                        onEdit = { onNavigateToEditLog(it.id) },
+                        onDelete = { viewModel.deleteLog(it) },
+                        customReminderName = { log -> log.customReminderId?.let { customReminderNameById[it] } }
+                    )
+
                     when (selectedTab) {
+                        PlantDetailTab.HOME -> {
+                            careStatus?.let { status ->
+                                item {
+                                    RescheduleChipAndWateringActions(
+                                        status = status,
+                                        onRevertReschedule = { viewModel.revertReschedule() },
+                                        onWaterClick = { showWaterDatePicker = true },
+                                        onRescheduleClick = { viewModel.requestReschedule() }
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    FertilizeDueActionRow(
+                                        useLiquidFertilizer = plant?.useLiquidFertilizer == true,
+                                        onFertilizeClick = onFertilizeClick
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                item {
+                                    HomeSummaryCard(status)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
+                            // The combined log renders on Home only (#530, product ADR-0060); the other tabs
+                            // list just their own type.
+                            combinedCareHistoryItems(
+                                careLogs = careLogs,
+                                collapse = CareHistoryCollapse(
+                                    isExpanded = isCareHistoryExpanded,
+                                    onToggleExpanded = { isCareHistoryExpanded = !isCareHistoryExpanded },
+                                    expandDescriptionRes = R.string.care_history_expand_cd,
+                                    collapseDescriptionRes = R.string.care_history_collapse_cd
+                                ),
+                                rowActions = careLogRowActions
+                            )
+                        }
+
                         PlantDetailTab.WATER -> {
                             careStatus?.let { status ->
                                 item {
-                                    status.rescheduleDeltaDays?.takeUnless {
-                                        status.wateringScheduleMode == WateringScheduleMode.DORMANT_SUSPENDED
-                                    }?.let { delta ->
-                                        RescheduleDeltaChip(
-                                            deltaDays = delta,
-                                            onClick = { viewModel.revertReschedule() },
-                                            modifier = Modifier.padding(horizontal = 16.dp)
-                                        )
-                                        Spacer(Modifier.height(8.dp))
-                                    }
-                                    WateringDueActionsRow(
+                                    RescheduleChipAndWateringActions(
+                                        status = status,
+                                        onRevertReschedule = { viewModel.revertReschedule() },
                                         onWaterClick = { showWaterDatePicker = true },
-                                        onRescheduleClick = if (status.computedNextWateringDueAt != null) {
-                                            { viewModel.requestReschedule() }
-                                        } else {
-                                            null
-                                        }
+                                        onRescheduleClick = { viewModel.requestReschedule() }
                                     )
-                                    if (plant?.wateringIntervalDays != null && plant?.useLiquidFertilizer == true) {
-                                        Spacer(Modifier.height(8.dp))
-                                        CombinedWaterFertilizeActionRow(
-                                            onClick = { showLiquidFertilizeDatePicker = true }
-                                        )
-                                    }
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
@@ -833,43 +871,39 @@ fun PlantDetailScreen(
                                     onRangeSelected = { viewModel.setTimeRange(it) }
                                 )
                             }
-                            // Misting is folded into the Water tab (#436): a recent-mists list.
-                            val mistLogs = careLogs.filter { it.careType == CareType.MIST }
-                            if (mistLogs.isNotEmpty()) {
+                            // The Water tab's own WATER list (#530, product ADR-0060). No header and no empty state
+                            // of its own with no WATER logs: the chart above already says there is nothing to plot.
+                            val waterLogs = careLogs.filter { it.careType == CareType.WATER }
+                            if (waterLogs.isNotEmpty()) {
                                 item {
                                     Text(
-                                        text = stringResource(R.string.plant_detail_misting_section),
+                                        text = stringResource(R.string.plant_detail_watering_section),
                                         style = MaterialTheme.typography.titleMedium,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                     )
                                 }
-                                items(mistLogs, key = { "mist-${it.id}" }) { log ->
-                                    CareLogItem(
-                                        log = log,
-                                        onEdit = { onNavigateToEditLog(log.id) },
-                                        onDelete = { viewModel.deleteLog(log) },
-                                        customReminderName = log.customReminderId?.let { customReminderNameById[it] }
-                                    )
-                                }
+                                collapsibleCareLogItems(
+                                    logs = waterLogs,
+                                    key = { "water-${it.id}" },
+                                    collapse = CareHistoryCollapse(
+                                        isExpanded = isWaterHistoryExpanded,
+                                        onToggleExpanded = { isWaterHistoryExpanded = !isWaterHistoryExpanded },
+                                        expandDescriptionRes = R.string.watering_history_expand_cd,
+                                        collapseDescriptionRes = R.string.watering_history_collapse_cd
+                                    ),
+                                    rowActions = careLogRowActions
+                                )
                             }
                         }
 
                         PlantDetailTab.FERTILIZE -> {
                             careStatus?.let {
-                                if (plant?.fertilizingIntervalDays != null) {
-                                    item {
-                                        FertilizeDueActionRow(
-                                            useLiquidFertilizer = plant?.useLiquidFertilizer == true,
-                                            onFertilizeClick = {
-                                                if (plant?.useLiquidFertilizer == true) {
-                                                    showLiquidFertilizeDatePicker = true
-                                                } else {
-                                                    viewModel.quickFertilize()
-                                                }
-                                            }
-                                        )
-                                        Spacer(Modifier.height(16.dp))
-                                    }
+                                item {
+                                    FertilizeDueActionRow(
+                                        useLiquidFertilizer = plant?.useLiquidFertilizer == true,
+                                        onFertilizeClick = onFertilizeClick
+                                    )
+                                    Spacer(Modifier.height(16.dp))
                                 }
                             }
                             item {
@@ -1041,6 +1075,13 @@ fun PlantDetailScreen(
                             }
                         }
 
+                        PlantDetailTab.PRUNE -> pruneTabItems(
+                            careLogs = careLogs,
+                            onPruneClick = { showPruneDatePicker = true },
+                            onEdit = { onNavigateToEditLog(it.id) },
+                            onDelete = { viewModel.deleteLog(it) }
+                        )
+
                         PlantDetailTab.PHOTO -> {
                             item {
                                 PlantDetailTabActionRow(
@@ -1118,87 +1159,6 @@ fun PlantDetailScreen(
                             }
                         }
                     }
-
-                    // #738 (product ADR-0039): existing CareType.CHECK rows are kept on disk but
-                    // hidden from this care-history list — a screen-local display filter, not a
-                    // filter on viewModel.careLogs (which also feeds CareSchedule.computeStatus's
-                    // totalLogs and must not change).
-                    val displayedCareLogs = careLogs.filter { it.careType != CareType.CHECK }
-
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.care_history),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.plant_detail_care_logs_count, displayedCareLogs.size),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    if (displayedCareLogs.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.height(200.dp)) {
-                                EmptyStateView(
-                                    message = stringResource(R.string.no_care_logs_detail),
-                                    icon = Icons.AutoMirrored.Filled.Notes
-                                )
-                            }
-                        }
-                    } else {
-                        val visibleLogs = if (isExpanded) displayedCareLogs else displayedCareLogs.take(5)
-                        items(visibleLogs, key = { it.id }) { log ->
-                            CareLogItem(
-                                log = log,
-                                onEdit = { onNavigateToEditLog(log.id) },
-                                onDelete = { viewModel.deleteLog(log) },
-                                customReminderName = log.customReminderId?.let { customReminderNameById[it] }
-                            )
-                        }
-
-                        if (displayedCareLogs.size > 5) {
-                            item {
-                                val remaining = displayedCareLogs.size - 5
-                                AssistChip(
-                                    onClick = { isExpanded = !isExpanded },
-                                    label = {
-                                        Text(
-                                            if (isExpanded) {
-                                                stringResource(R.string.care_history_show_less)
-                                            } else {
-                                                pluralStringResource(
-                                                    R.plurals.care_history_show_more,
-                                                    remaining,
-                                                    remaining
-                                                )
-                                            }
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Filled.ExpandMore,
-                                            contentDescription = if (isExpanded) {
-                                                stringResource(R.string.care_history_collapse_cd)
-                                            } else {
-                                                stringResource(R.string.care_history_expand_cd)
-                                            },
-                                            modifier = Modifier.rotate(chevronRotation)
-                                        )
-                                    },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1242,25 +1202,11 @@ fun PlantDetailScreen(
                 }
             }
 
-            FloatingActionButton(
-                onClick = {
-                    viewModel.prepareNewLog()
-                    onNavigateToAddLog()
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_log_care))
-            }
-
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 88.dp)
             )
         }
     }
@@ -1282,11 +1228,11 @@ private val TAB_SELECTION_INDICATOR_SHAPE = RoundedCornerShape(12.dp)
 /**
  * The Plant Detail per-action tab strip (technical ADR-0018) plus its collapse/expand toggle
  * (product ADR-0043, #590). Collapsed (default) shows only the first [PlantDetailTab.COLLAPSED_TAB_COUNT] entries
- * of [PlantDetailTab] — today's Water/Fertilize/Repot/Photo, unchanged in width or appearance;
+ * of [PlantDetailTab] — Home/Water/Fertilize/Photo (#530, product ADR-0060), same width and appearance;
  * expanded reveals all entries. Each [Tab] is `Modifier.fillMaxWidth(0.25f)` inside a [FlowRow] (not
  * a [androidx.compose.material3.TabRow]/`PrimaryTabRow`) so a tab's width is always a quarter of the
  * strip's full width regardless of how many tabs are currently visible — 4 fill exactly one row
- * (identical to today), and expanding to 6 wraps the extra 2 onto a second row at that same width,
+ * (identical to today), and expanding to 8 wraps the extra 4 onto a second row at that same width,
  * rather than shrinking every tab or scrolling horizontally.
  *
  * `TabRow`/`PrimaryTabRow` draws the selected-tab indicator itself, as a separate overlay positioned
@@ -1346,7 +1292,7 @@ private fun PlantDetailTabStrip(
 
 /**
  * Chevron control toggling [PlantDetailTabStrip] between collapsed/expanded — reuses the exact
- * chevron-rotate pattern the care-history `AssistChip` already uses in this file (#253) rather than
+ * chevron-rotate pattern the care-history `AssistChip` uses (`CareHistorySection.kt`, #253) rather than
  * new iconography. Shows an attention [Badge] only while collapsed **and** [hasAttention] — once
  * expanded everything is already visible, so there is nothing left to flag. The [Badge] itself is a
  * bare dot with no semantics of its own, so a screen-reader user relies entirely on the toggle's own
@@ -1509,7 +1455,7 @@ private fun careTypeInsightItems(
 
 /** Presentational card listing label -> value insight rows for a Plant Detail tab (#436). */
 @Composable
-private fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+internal fun TabInsightsCard(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .fillMaxWidth()

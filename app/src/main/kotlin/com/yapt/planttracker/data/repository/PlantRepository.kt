@@ -57,6 +57,10 @@ class PlantRepository(
     suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long) =
         plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)
 
+    /** Column-specific update — see [PlantDao.updateCoverPhotoUri]'s doc for why this exists. */
+    suspend fun updateCoverPhotoUri(id: Long, coverPhotoUri: String?, updatedAt: Long) =
+        plantDao.updateCoverPhotoUri(id, coverPhotoUri, updatedAt)
+
     /**
      * Sets the one-off planned repot (#809, product ADR-0057): [seasonStartAt] is the target season's
      * first day at start of day, [madeAt] is when the plan was made. Column-specific — see

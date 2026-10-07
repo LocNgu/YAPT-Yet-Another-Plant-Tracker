@@ -19,6 +19,47 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 530,
+            versionName = "0.35.0",
+            added = listOf(
+                "A plant's detail page now opens on a new Home tab: Water, Reschedule and Fertilize (or Water + " +
+                    "Fertilize) buttons up top, then when it was last watered and fertilized and when each is next " +
+                    "due, then its care history",
+                "A plant's detail page has a new Prune tab behind the arrow, after Repot: log a prune on today or " +
+                    "an earlier date, see how many prunings you've logged and when the last one was, and edit or " +
+                    "delete them"
+            ),
+            changed = listOf(
+                "A plant's full care history now appears only on its Home tab instead of repeating under every " +
+                    "tab, and the Water tab lists just its own waterings (five, then Show more) with edit and " +
+                    "delete. The Water tab no longer has its own misting list — misting entries show in the Home " +
+                    "tab's care history",
+                "On a plant's detail page the Repot tab now sits behind the arrow with Reminders and Issues, so the " +
+                    "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
+                    "is overdue, as it already does for an active issue or an overdue reminder",
+                "The Water + Fertilize button for liquid-fertilizer plants now lives on Home and the Fertilize tab " +
+                    "instead of the Water tab",
+                "A plant's Fertilize button now shows even without a fertilizing reminder, so you can log an " +
+                    "occasional feeding without setting a schedule first",
+                "Misting can no longer be logged — Add Care Log and the plant list's multi-select bar no longer " +
+                    "offer it. Mist entries you already logged stay in your history: you can still see them on a " +
+                    "plant's Home tab, edit or delete them, and they still show on the watering chart",
+                "The + button on a plant's detail page is gone: log care from the plant's tabs instead. Add Care " +
+                    "Log now only edits an existing entry (tap its edit button), showing the entry's type at the " +
+                    "top instead of a row of types, so an edit can't change what kind of entry it is. Notes and " +
+                    "amounts for a new entry can be added by editing it afterwards",
+                "Notes can no longer be logged as their own entry. Notes you already logged stay in your plant's " +
+                    "Home history, where you can still edit or delete them"
+            ),
+            fixed = listOf(
+                "A quick second action on a plant's detail page can no longer silently undo the first — " +
+                    "applying, dismissing or undoing a suggested watering interval, reverting a reschedule, " +
+                    "changing the cover photo, or editing the dormancy window right after another setting " +
+                    "(the pin switch, an interval edit, a watering that cleared a reschedule) used to quietly put " +
+                    "the older value back"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 510,
             versionName = "0.34.0",
             added = listOf(

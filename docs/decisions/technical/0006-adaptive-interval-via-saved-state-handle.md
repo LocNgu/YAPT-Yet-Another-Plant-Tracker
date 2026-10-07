@@ -1,6 +1,6 @@
 # Technical ADR-0006: Suggested watering interval returned to PlantDetailScreen via Navigation savedStateHandle
 
-**Status**: accepted
+**Status**: superseded by [ADR-0037](0037-add-care-log-no-adaptive-observation.md)
 
 **Date**: 2024-01-01
 

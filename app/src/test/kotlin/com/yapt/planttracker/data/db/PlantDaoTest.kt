@@ -340,4 +340,31 @@ class PlantDaoTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `updateCoverPhotoUri sets and clears only the cover and updatedAt`() = runTest {
+        val id = dao.insertPlant(
+            plant(name = "Fern").copy(wateringIntervalDays = 9, wateringConfidence = 2, pinIntervalToBase = true)
+        )
+
+        dao.updateCoverPhotoUri(id, "content://new.jpg", 5_000L)
+        dao.getPlantById(id).test {
+            val covered = awaitItem()!!
+            assertEquals("content://new.jpg", covered.coverPhotoUri)
+            assertEquals(5_000L, covered.updatedAt)
+            assertEquals(9, covered.wateringIntervalDays)
+            assertEquals(2, covered.wateringConfidence)
+            assertEquals(true, covered.pinIntervalToBase)
+            cancelAndConsumeRemainingEvents()
+        }
+
+        dao.updateCoverPhotoUri(id, null, 6_000L)
+        dao.getPlantById(id).test {
+            val cleared = awaitItem()!!
+            assertNull(cleared.coverPhotoUri)
+            assertEquals(6_000L, cleared.updatedAt)
+            assertEquals(9, cleared.wateringIntervalDays)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
 }

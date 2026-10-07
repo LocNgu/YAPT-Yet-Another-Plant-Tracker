@@ -5,126 +5,56 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/notification/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/notification/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/reminder/**/*"
-  - "app/src/test/**/{worker,notification,reminder}/**/*"
+  - "app/src/test/**/worker/**/*"
+  - "app/src/test/**/notification/**/*"
+  - "app/src/test/**/reminder/**/*"
 ---
 
 # Notifications & Reminders rules
 
-## ReminderWorker (WorkManager, REPLACE policy — technical ADR-0010)
-Daily at the user-configured time; cancels every active YAPT notification except the independent post-watering
-notification (`-2`) before posting (self-heals if the user switched modes; technical ADR-0026). One notification
-per overdue/due-soon plant (ID = `plant.id.toInt()`); body = care items joined with `" · "`.
-No-ops when POST_NOTIFICATIONS is denied. Deep-link: tap → `MainActivity` `plantId` extra → PlantDetail (#7).
-- Default reminder time (hour 9, minute 0) is written to DataStore on first launch so `?: 9` fallbacks never
-  silently re-anchor the schedule (#356). Lives in `SettingsDefaults.REMINDER_HOUR`/`MINUTE`, not magic numbers.
-- `MainActivity` passes the **stored** hour/minute to `ReminderScheduler.schedule()` on every launch (#394).
-- `BootReceiver` reschedules from stored prefs via an `internal suspend fun` pulled out of `goAsync()` so it's testable.
+## ReminderWorker (WorkManager, REPLACE — technical ADR-0010)
+- **Schedule and cleanup:** runs daily at the user's time. Before posting it cancels every active YAPT notification **except** the post-watering one (`-2`, technical ADR-0026).
+- **What it posts:** one notification per overdue/due-soon plant (ID `plant.id.toInt()`), with care items joined by `" · "`. Tapping opens `MainActivity` with a `plantId` extra → Plant Detail (#7). It does nothing when POST_NOTIFICATIONS is denied.
+- **Reminder time:** the default (`SettingsDefaults.REMINDER_HOUR`/`MINUTE` = 9:00) is written to DataStore on first launch, so `?: 9` fallbacks never re-anchor (#356). `MainActivity` passes the **stored** time to `ReminderScheduler.schedule()` on every launch (#394).
+- `BootReceiver` reschedules via an `internal suspend fun` pulled out of `goAsync()` for testability.
+- Custom reminders are fetched per plant (`getRemindersForPlantOnce()`) before `computeStatus()`.
 
-## Pure composer (`domain/notification/ReminderNotificationComposer`, JVM-testable, no Context)
-`computeCareReminderItems` / `computeDueReminders` decide due/not-due and per-plant care-item composition;
-`ReminderWorker` turns `CareReminderItem`s into localized strings.
-- Dormant plants opted into a fixed dormant watering cadence (product ADR-0046/product ADR-0047) expose ordinary
-  watering due flags and therefore notify normally. Full-pause dormant plants still expose neither
-  watering flag; fertilizing remains suppressed in both dormant watering modes (#785).
-- **Combine toggle** (`combine_notifications`, default `false`) — when on, one count-only notification under fixed
-  `COMBINED_NOTIFICATION_ID = -1` (plant ids are always positive), lands on PlantList, no Skip-watering action.
-  See product ADR-0020 (documents the dropped per-plant Skip in combined mode) (#474).
-- **"Notify for fertilizing"** (`fertilizing_notifications_enabled`, default `true`) — when off, drops
-  fertilizing-only reminders via `List<CareReminderItem>.hasWateringItem()`; a watering-due plant keeps its
-  fertilizing line; liquid-fertilizer plants never make a fertilizing-only reminder. Product ADR-0021 (#223).
-- **Liquid-fertilizer** plants: "Fertilize with watering" appended to the watering alert, no separate notification (#56).
-- **Custom reminders** — `CustomReminderOverdue(name, days)` / `CustomReminderDueToday(name)` `CareReminderItem`s,
-  one per overdue/due-today reminder in `PlantCareStatus.customReminderStatuses`; the reminder's free-text `name`
-  goes straight into the body (no icon/category), joined with the same `" · "` separator. `ReminderWorker` fetches
-  each plant's reminders via `CustomReminderRepository.getRemindersForPlantOnce()` before calling `computeStatus()`.
-  See technical ADR-0019 (#232).
-- **Planned repot** (#809, product ADR-0057) — a plan in season composes `RepottingPlannedThisSeason(season)`
-  ("Repot planned this spring", one whole string per season via `FertilizingSeason.repotPlannedNotificationRes()`
-  in `EnumResources.kt`); a plan whose season has ended composes `RepottingPlanOverdue(days)` ("Planned repot
-  overdue by N days"), with N counted from the season's last day (`repottingPlanSeasonEndAt` − 1 day, so the first
-  day after the season reads 1) — never from `nextRepottingDueAt`, which for a plan is the season's first day. An
-  upcoming plan composes nothing, and suppresses the interval date (the plan wins outright). Interval repots keep
-  `RepottingOverdue`/`RepottingDueToday`. A plan-only plant (no interval) needs nothing extra from `ReminderWorker`:
-  it still loads the last REPOT log only when an interval is set, since the plan path never reads `lastRepottedAt`.
-  A repot-only reminder never takes the watering "Check" reframe.
+## Pure composer (`ReminderNotificationComposer`, no Context)
+`computeCareReminderItems`/`computeDueReminders` decide what's due; `ReminderWorker` localizes the resulting `CareReminderItem`s.
+- **Dormancy:** a fixed dormant cadence notifies normally, a full pause exposes no watering flags, and fertilizing is suppressed in both (#785).
+- **Combine toggle** (`combine_notifications`, default off): one count-only notification, `COMBINED_NOTIFICATION_ID = -1`, landing on Plant List, with no per-plant action (product ADR-0020, #474).
+- **"Notify for fertilizing"** (`fertilizing_notifications_enabled`, default on): when off, fertilizing-only reminders are dropped (`isFertilizingOnly()`), but a watering-due plant keeps its fertilizing line. Liquid-fertilizer plants never get a fertilizing-only reminder; "Fertilize with watering" is appended to the watering alert instead (product ADR-0021, #223, #56).
+- **Custom reminders:** `CustomReminderOverdue(name, days)` / `CustomReminderDueToday(name)`, with the free-text name straight into the body (technical ADR-0019).
+- **Planned repot** (#809, product ADR-0057):
+  - In season: `RepottingPlannedThisSeason(season)` ("Repot planned this spring", one string per season via `repotPlannedNotificationRes()`).
+  - After the season: `RepottingPlanOverdue(days)`, with N counted from the season's **last** day (`repottingPlanSeasonEndAt` − 1 day), never from `nextRepottingDueAt`.
+  - An upcoming plan composes nothing and suppresses the interval date.
+  - Interval repots use `RepottingOverdue`/`RepottingDueToday`. A plan-only plant needs no `lastRepottedAt` load.
+  - A repot-only reminder never gets the watering "Check" reframe.
 
-## Reschedule watering (renamed from "Skip watering", #508, product ADR-0029)
-`SkipWateringReceiver` handles the notification action (+1 day override, unchanged; labelled "Not now" since
-#586's `check_reminders` reframe, now the only watering-due label since that flag graduated, #657); guards on `intent.action`
-(#178). Its actual logic is pulled into an `internal suspend fun skipWatering(context, plantId)` outside
-`goAsync()` for direct testability (mirrors `BootReceiver.rescheduleFromStoredPrefs`). Deliberately **not** a
-learning signal (#570, product ADR-0027, reaffirmed by product ADR-0029) — it only ever touches `wateringDueDateOverride`,
-never `wateringConfidence`/`wateringIntervalDays`/`wateringBaseIntervalDays`; `SkipWateringReceiverTest` pins this
-so it can't be wired up later by accident. The action's label string (`reschedule_watering_title`, was
-`skip_watering_title`) is shared with the Plant Detail Reschedule button/dialog (`.claude/rules/plant-detail.md`) —
-one rename covers both surfaces. The now-unregistered duplicate under `worker/SkipWateringReceiver.kt` (which
-mutated `wateringIntervalDays` directly, contradicting product ADR-0007/product ADR-0029) was deleted in #508.
+## Watering-due reminders are check-ins (product ADR-0027/0030/0039)
+- The reframe applies only when watering is due (`isOverdue || isDueSoon`). Fertilizing/repotting-only reminders keep the plant-name title and no actions.
+- When watering is due, the title is "Check {plant}" (`notification_check_title`). The action row is **fixed, whatever the overdue-ness** (#586): varying buttons between firings costs more than it gains. It has two actions:
+  - **Watered** reuses the body-tap deep link. It writes no reason, which is correct: a reminder fires at or after the due date, so it is never early, and a late one is safely excluded from learning (`rules/schedule.md`).
+  - **Not now** (`SkipWateringReceiver`, label `reschedule_watering_title`, shared with Plant Detail) writes `wateringDueDateOverride = maxOf(override ?: now, now) + 1 day`, so a stale past override still clears "due" in one tap (#741).
+- "Not now" is **never a learning signal**: it touches only the override, never confidence or either interval. `SkipWateringReceiverTest` pins this (product ADR-0007/0027/0029). Its logic is `internal suspend fun skipWatering(context, plantId)` outside `goAsync()`, and it guards on `intent.action` (#178).
+- "Still moist" no longer exists anywhere (#738). Rescheduling to another date happens in-app.
 
-## Check reminders (#570, product ADR-0027; `CHECK_REMINDERS` graduated #657)
-The watering-due reminder is always a check-in prompt, not an instruction. Gated in
-`ReminderWorker.postPlantNotification()` on `isWateringDue (= status.isOverdue || status.isDueSoon)` only — a
-fertilizing/repotting-only reminder never reframes, since there's no "check the soil" action to offer it.
-- **Not watering-due**: title = plant name, no action row.
-- **Watering-due**: title becomes "Check {plant}" (`R.string.notification_check_title`); the action
-  row is **fixed regardless of how overdue the plant is** (#586, product ADR-0030). It is two —
-  **Watered** (reuses the same deep-link `PendingIntent` as tapping the notification body — a
-  discoverability affordance, not a new code path) and **Not now** (`SkipWateringReceiver`, the same
-  +1-day override write the pre-#570 "Reschedule watering" action used, relabelled) — narrowed from
-  three by #738 (product ADR-0039), which drops the **Still moist** action entirely rather than
-  reworking it: rescheduling now requires opening the app and using Plant Detail. This is safe from a
-  *learning* standpoint: "Not now" writes only `wateringDueDateOverride` and never a model field. It
-  computes `maxOf(wateringDueDateOverride ?: now, now) + 1 day` — anchored to whichever is later, the
-  existing override or now — so a tap always moves the due date to at least one day past today,
-  regardless of any stale past override (#741; mirrors Plant Detail's
-  `rescheduledRelativeDueAt()` anchor). **History:** before #741's fix, the arithmetic was
-  `(wateringDueDateOverride ?: now) + 1 day`, anchored to the existing override alone — on a plant with
-  a stale past override, a tap advanced that stale date by only one day and could leave the plant still
-  overdue, requiring several taps to clear. An earlier draft of ADR-0039 asserted the opposite (that
-  "Not now" always clears "due"); that claim was corrected before merge and is now true again with this
-  fix. Varying the
-  remaining action set by overdue-ness is still rejected, for the same reason as before: unpredictable
-  buttons between firings cost more than the one attribution the fixed set gives up. A reminder fires
-  at or after the due date, so a notification watering is never *early* — **Watered** therefore writes
-  no reason at all, which is correct on schedule and the safe exclusion when late (see
-  `.claude/rules/schedule.md`). The "I watered late *because* it was dry" attribution stays available
-  in-app. `StillMoistReceiver`, its test, `ACTION_STILL_MOIST`, `stillMoistPendingIntent()`, and
-  `R.string.notification_action_still_moist` are all deleted. Technical ADR-0007's note about distinct
-  `PendingIntent` request codes for the Still-moist/Skip-watering pair is moot now that receiver is
-  gone.
-- `CareType.CHECK` entries are explicitly excluded from `WateringHistoryChart`'s data series/marker-color map
-  (`computeCareEventMarkers()`, see `.claude/rules/chart.md`). Per product ADR-0039 (#738) the CHECK
-  write path is retired along with the reschedule reason prompt — no new CHECK logs are written at
-  all. Existing rows are hidden from Plant Detail's care-history list by a display filter — see
-  `.claude/rules/watering-transparency.md` for the `watering_adjustments`-side posture, which stays
-  unfiltered.
-
-## Photo reminder (DataStore-only, no DB migration)
-`PHOTO_REMINDER_ENABLED` toggle. Pure logic in `domain/reminder/PhotoReminderPolicy`
-(`shouldShowPhotoReminder`, `lastPhotoDaysSince`, `PHOTO_REMINDER_INTERVAL_DAYS`, session dedup
-`shownThisSession`). Fires once-per-session-per-plant when the newest photo is ≥ 30 days old (or plant ≥ 30 days
-with no photos), on PlantDetail open and after each quick-log on PlantList (#233/#407/#410/#416). Shared
-`PhotoReminderDialog` in `ui/components/`; suppressed while an interval-suggestion dialog is showing.
+## Photo reminder (DataStore-only)
+- `PHOTO_REMINDER_ENABLED` toggle; pure logic in `domain/reminder/PhotoReminderPolicy` (`shouldShowPhotoReminder`, `lastPhotoDaysSince`, `PHOTO_REMINDER_INTERVAL_DAYS`, session dedup `shownThisSession`).
+- It fires once per session per plant when the newest photo is ≥ 30 days old (or the plant is ≥ 30 days old with no photos). Triggers: opening Plant Detail, and each Plant List quick-log.
+- The shared `PhotoReminderDialog` is suppressed while an interval-suggestion dialog shows (#233/#407/#410/#416).
 
 ## Post-watering standing-water reminder (#519, product ADR-0036)
-Every successfully inserted current-day WATER log schedules one unique `OneTimeWorkRequest` for 30 minutes later.
-`ExistingWorkPolicy.REPLACE` debounces a watering round to the latest WATER; bulk logging waits until its Room
-transaction commits and schedules once. Full Add Care Log, quick-water, bulk, and liquid-fertilizer paired-WATER
-paths all route through the same callback. Backdated logs, edits, and rejected duplicates never schedule.
-- Settings key `post_watering_reminder_enabled`, default `true`, is gated by master notifications and round-trips
-  through backup schema v16. Turning either switch off cancels pending work and clears both presentations; the worker
-  rechecks both switches.
-- At fire time, a foreground app writes the device-local `post_watering_reminder_pending_at` DataStore token and shows
-  one global dismissible modal. A background app clears stale modal state and posts generic notification ID `-2` on the
-  plant-care channel. Android notification permission gates only the background path. The two paths are mutually
-  exclusive per firing (product ADR-0036).
-- The background notification has no actions. Tap opens PlantList with an in-memory `CARED_FOR_TODAY` sort that never
-  overwrites the stored sort preference. The pending modal token is transient operational state and never backed up.
-- Developer mode's **Show drain-water reminder now** action writes the modal token directly for no-wait manual testing.
-- Pure eligibility/resource composition lives in `domain/notification/PostWateringReminderNotificationComposer`.
-- Daily reminder cleanup explicitly preserves ID `-2` (technical ADR-0026, superseding technical ADR-0007's `cancelAll()`).
+- **Scheduling:** every successful **current-day** WATER insert schedules a unique `OneTimeWorkRequest` 30 minutes later; `REPLACE` debounces to the latest watering. All WATER paths (quick-water, bulk, liquid-fertilizer paired WATER) use the same callback. Bulk logging schedules once, after its transaction commits. Backdated logs, edits and rejected duplicates never schedule.
+- **Setting:** `post_watering_reminder_enabled` (default on) is gated by the master notifications switch and backed up (schema v16). Turning either off cancels pending work and clears both presentations; the worker rechecks both.
+- **At fire time** (mutually exclusive):
+  - Foreground: write the device-local `post_watering_reminder_pending_at` token (never backed up) and show one global dismissible modal.
+  - Background: post ID `-2` with no actions. Its tap opens Plant List with an in-memory `CARED_FOR_TODAY` sort that never overwrites the stored sort.
+  - Notification permission gates only the background path.
+- Composition lives in `PostWateringReminderNotificationComposer`. Developer mode's **Show drain-water reminder now** writes the modal token directly.
 
 ## Tests
-`ReminderNotificationComposerTest` (both toggle branches, planned repot), `ReminderWorkerTest` (Robolectric — denied/
-due/ not-due + fertilizing-only suppression + plan-only repot), `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`,
-`PhotoReminderTest`, `PostWateringReminderNotificationComposerTest`, `PostWateringReminderSchedulerTest`,
-`PostWateringReminderPresentationTest`, `PostWateringReminderWorkerTest`, and `PostWateringReminderDialogTest`.
+- Composer and worker: `ReminderNotificationComposerTest`, `ReminderWorkerTest` (Robolectric).
+- Scheduling and helpers: `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`, `PhotoReminderTest`.
+- Post-watering reminder: the `PostWateringReminder*Test` set (composer, scheduler, presentation, worker, dialog).

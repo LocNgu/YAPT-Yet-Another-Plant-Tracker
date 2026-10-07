@@ -93,8 +93,7 @@ class PlantListViewModel(
     private val _isSearchActive = MutableStateFlow(false)
     val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
 
-    // Plain field, not a Flow (mirrors PlantDetailViewModel's pendingNewLogCareType/
-    // consumeNewLogCareType precedent) — consumed exactly once per [openSearch] so returning from
+    // Plain field, not a Flow — consumed exactly once per [openSearch] so returning from
     // Plant Detail with search already open (isSearchActive already true, no fresh tap) does not
     // re-trigger auto-focus.
     private var pendingSearchAutoFocus = false

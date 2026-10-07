@@ -406,7 +406,7 @@ class PlantDetailViewModelSeasonalTest {
     fun `pendingWateringSuggestion is null when the model's base is unchanged, even against a stale literal (#716)`() =
         runTest {
             // #716 acceptance criterion 5: this reconstructed-from-navigation-state gate must reach the
-            // same conclusion as QuickLogUseCase.computeSuggestion()/AddCareLogViewModel.computeSuggestedInterval()
+            // same conclusion as QuickLogUseCase.computeSuggestion()
             // for a pure seasonal-drift observation. Deliberately date-independent (no fixed "today"
             // available to inject here, unlike QuickLogUseCaseSeasonalTest's pinned nowProvider): the
             // suggestion's base (8.8) is identical to the plant's own current base (8.8), so

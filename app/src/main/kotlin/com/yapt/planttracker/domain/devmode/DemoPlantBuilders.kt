@@ -29,8 +29,6 @@ internal object DemoPlantBuilders {
     private const val MONSTERA_CREATED_DAYS_AGO = 200
     private const val MONSTERA_PRUNE_DAYS_AGO = 45
     private const val MONSTERA_REPOT_DAYS_AGO = 120
-    private const val MONSTERA_MIST_DAYS_AGO = 10
-    private const val MONSTERA_NOTE_DAYS_AGO = 5
 
     // Plant 2 - Snake Plant: due today, fertilizing overdue.
     private const val SNAKE_NAME = "Snake Plant"
@@ -119,9 +117,7 @@ internal object DemoPlantBuilders {
         ) + listOf(
             DemoDataTime.careLog(anchor, MONSTERA_LAST_FERT_DAYS_AGO, CareType.FERTILIZE),
             DemoDataTime.careLog(anchor, MONSTERA_PRUNE_DAYS_AGO, CareType.PRUNE),
-            DemoDataTime.careLog(anchor, MONSTERA_REPOT_DAYS_AGO, CareType.REPOT),
-            DemoDataTime.careLog(anchor, MONSTERA_MIST_DAYS_AGO, CareType.MIST),
-            DemoDataTime.careLog(anchor, MONSTERA_NOTE_DAYS_AGO, CareType.NOTE)
+            DemoDataTime.careLog(anchor, MONSTERA_REPOT_DAYS_AGO, CareType.REPOT)
         )
         return DemoPlantSeed(plant, logs)
     }

@@ -9,7 +9,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,8 +18,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -60,38 +57,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
-import com.yapt.planttracker.ui.components.CareTypeChip
 import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.components.yaptFilterChipColors
+import com.yapt.planttracker.ui.util.icon
+import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.DateUtils
 import java.util.Calendar
 import java.util.TimeZone
-
-internal const val CARE_TYPE_PICKER_TEST_TAG = "care_type_picker"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun AddCareLogScreen(
     viewModel: AddCareLogViewModel,
-    onNavigateBack: (suggestedInterval: Int?, suggestedBaseInterval: Double?) -> Unit
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // Keyed on isLoaded so in edit mode the picker re-initializes once the async
-    // load completes, picking up the log's original loggedAt instead of "now".
+    // Keyed on isLoaded so the picker re-initializes once the async load completes, picking up the
+    // log's original loggedAt instead of "now".
     val datePickerState = key(viewModel.isLoaded) {
         rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
     }
@@ -118,29 +115,12 @@ fun AddCareLogScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is AddCareLogViewModel.Event.Saved ->
-                    onNavigateBack(event.suggestedWateringInterval, event.suggestedWateringBaseInterval)
-                is AddCareLogViewModel.Event.NavigateBack ->
-                    onNavigateBack(null, null)
-            }
-        }
+        viewModel.events.collect { onNavigateBack() }
     }
 
-    // PHOTO uses the inline source buttons, not the sheet. If the source sheet was
-    // left open from a non-PHOTO care type and the user then switches to PHOTO,
-    // close it so the sheet items and the inline buttons don't overlap (#443).
-    LaunchedEffect(viewModel.selectedCareType) {
-        if (viewModel.selectedCareType == CareType.PHOTO) {
-            showPhotoSourceSheet = false
-        }
-    }
-
-    // A duplicate-log error is specific to the care type/date combination that triggered it;
-    // clear it as soon as the user changes either so a fixed re-attempt isn't blocked by stale
-    // error text (#509).
-    LaunchedEffect(viewModel.selectedCareType, viewModel.loggedAt) {
+    // A duplicate-log error is specific to the date that triggered it; clear it as soon as the user
+    // changes it so a fixed re-attempt isn't blocked by stale error text (#509).
+    LaunchedEffect(viewModel.loggedAt) {
         viewModel.clearDuplicateLogError()
     }
 
@@ -150,19 +130,12 @@ fun AddCareLogScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { utcMidnightMs ->
-                        // selectedDateMillis is UTC midnight; convert to local date.
-                        // For edits, preserve the original time-of-day from loggedAt.
-                        // For new logs, use the current wall-clock time so the
-                        // timestamp reflects when the user confirmed, not screen-open time.
+                        // selectedDateMillis is UTC midnight; convert to local date and
+                        // preserve the original time-of-day from loggedAt.
                         val pickerCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
                         pickerCal.timeInMillis = utcMidnightMs
                         val localCal = Calendar.getInstance()
-                        localCal.timeInMillis =
-                            if (viewModel.isEditMode) {
-                                viewModel.loggedAt
-                            } else {
-                                System.currentTimeMillis()
-                            }
+                        localCal.timeInMillis = viewModel.loggedAt
                         localCal.set(Calendar.YEAR, pickerCal.get(Calendar.YEAR))
                         localCal.set(Calendar.MONTH, pickerCal.get(Calendar.MONTH))
                         localCal.set(Calendar.DAY_OF_MONTH, pickerCal.get(Calendar.DAY_OF_MONTH))
@@ -202,26 +175,16 @@ fun AddCareLogScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        if (viewModel.isEditMode) {
-                            stringResource(
-                                R.string.care_log_title_edit
-                            )
-                        } else {
-                            stringResource(R.string.care_log_title_add)
-                        }
-                    )
-                },
+                title = { Text(stringResource(R.string.care_log_title_edit)) },
                 navigationIcon = {
-                    IconButton(onClick = { onNavigateBack(null, null) }) {
+                    IconButton(onClick = { onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
             )
         },
         floatingActionButton = {
-            val isSaveEnabled = !(viewModel.selectedCareType == CareType.PHOTO && viewModel.photoUri == null)
+            val isSaveEnabled = viewModel.isLoaded && !(viewModel.careType == CareType.PHOTO && viewModel.photoUri == null)
             FloatingActionButton(
                 onClick = { if (isSaveEnabled) viewModel.saveLog() },
                 modifier = Modifier.alpha(if (isSaveEnabled) 1f else 0.38f)
@@ -239,58 +202,47 @@ fun AddCareLogScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (!viewModel.isEditMode || viewModel.isLoaded) {
-                OutlinedCard(
+            if (!viewModel.isLoaded) return@Column
+
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true }
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = DateUtils.formatDate(viewModel.loggedAt),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Icon(
-                            Icons.Filled.DateRange,
-                            contentDescription = stringResource(R.string.cd_pick_date),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = DateUtils.formatDate(viewModel.loggedAt),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Icon(
+                        Icons.Filled.DateRange,
+                        contentDescription = stringResource(R.string.cd_pick_date),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            Text(
-                text = stringResource(R.string.care_log_prompt_what_did_you_do),
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            LazyRow(
-                modifier = Modifier.testTag(CARE_TYPE_PICKER_TEST_TAG),
+            Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(0.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // CUSTOM is only loggable from a plant's Custom reminders card (mark-done ties the
-                // log back to a specific reminder via customReminderId), never from this generic picker.
-                // CHECK is only ever written by the check-reminders notification's Still-moist action
-                // (#570), never manually from this picker.
-                items(CareType.entries.filter { it != CareType.CUSTOM && it != CareType.CHECK }) { type ->
-                    CareTypeChip(
-                        careType = type,
-                        selected = viewModel.selectedCareType == type,
-                        onClick = {
-                            viewModel.selectedCareType = type
-                            // Nothing pre-selected on type switch (#570, product ADR-0027) — the
-                            // 3-way soil-state chip collapsed to one optional flag.
-                            viewModel.selectedFeedback = null
-                        }
-                    )
-                }
+                Icon(
+                    imageVector = viewModel.careType.icon(),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(viewModel.careType.labelRes()),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.semantics { heading() }
+                )
             }
 
             viewModel.duplicateLogError?.let { errorRes ->
@@ -301,7 +253,7 @@ fun AddCareLogScreen(
                 )
             }
 
-            if (viewModel.selectedCareType == CareType.WATER) {
+            if (viewModel.careType == CareType.WATER) {
                 // Single optional flag, not a 3-way chip group (#570, product ADR-0027): "was the
                 // soil dry when watered" is the only signal a WATER log can add that isn't already
                 // captured by the check-first flow's own Watered/Still-moist actions or the
@@ -317,7 +269,7 @@ fun AddCareLogScreen(
                 )
             }
 
-            if (viewModel.selectedCareType == CareType.FERTILIZE) {
+            if (viewModel.careType == CareType.FERTILIZE) {
                 Column {
                     Text(
                         text = stringResource(R.string.care_log_fertilizer_type_label),
@@ -341,18 +293,10 @@ fun AddCareLogScreen(
                             )
                         }
                     }
-                    if (viewModel.selectedFertilizerType == FertilizerType.LIQUID) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.fertilizer_also_logs_watering),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
-            if (viewModel.selectedCareType in listOf(CareType.WATER, CareType.FERTILIZE)) {
+            if (viewModel.careType in listOf(CareType.WATER, CareType.FERTILIZE)) {
                 OutlinedTextField(
                     value = viewModel.amount,
                     onValueChange = { viewModel.amount = it },
@@ -365,7 +309,7 @@ fun AddCareLogScreen(
 
             Column {
                 Text(
-                    text = if (viewModel.selectedCareType == CareType.PHOTO) {
+                    text = if (viewModel.careType == CareType.PHOTO) {
                         stringResource(R.string.care_log_photo_label_required)
                     } else {
                         stringResource(R.string.care_log_photo_label)
@@ -381,14 +325,13 @@ fun AddCareLogScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                 }
-                // When PHOTO is the selected care type, reveal the two source
-                // actions inline (Take photo / Choose from gallery) as full-width
-                // buttons so the user goes straight to the camera or picker with no
-                // intermediate sheet. Other care types keep the compact icon that
-                // opens the source sheet, since a photo is only an optional
-                // attachment there (#443).
+                // A PHOTO log reveals the two source actions inline (Take photo /
+                // Choose from gallery) as full-width buttons so the user goes straight
+                // to the camera or picker with no intermediate sheet. Other care types
+                // keep the compact icon that opens the source sheet, since a photo is
+                // only an optional attachment there (#443).
                 AnimatedContent(
-                    targetState = viewModel.selectedCareType == CareType.PHOTO,
+                    targetState = viewModel.careType == CareType.PHOTO,
                     label = "photoSourceActions"
                 ) { isPhotoCareType ->
                     if (isPhotoCareType) {

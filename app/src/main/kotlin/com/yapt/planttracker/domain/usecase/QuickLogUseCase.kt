@@ -93,9 +93,11 @@ class QuickLogUseCase(
             careLogRepository.addLog(
                 CareLog(plantId = plant.id, careType = CareType.PHOTO, loggedAt = now, photoUri = uri)
             )
-            val updated = plant.copy(coverPhotoUri = uri, updatedAt = now)
-            plantRepository.updatePlant(updated)
-            updated
+            // Column write, not a full-row updatePlant(): other Plant Detail writers read-then-write the
+            // whole row outside this transaction, and a statement that names only the cover can't revert
+            // their columns (#808, technical ADR-0036).
+            plantRepository.updateCoverPhotoUri(plant.id, uri, now)
+            plant.copy(coverPhotoUri = uri, updatedAt = now)
         }
     }
 
@@ -727,10 +729,7 @@ class QuickLogUseCase(
         now: Long = System.currentTimeMillis(),
         displayNow: Long = nowProvider()
     ): QuickWaterSuggestion? {
-        val suggestion = adaptiveObservation.observe(
-            plant, feedback, now, displayNow,
-            AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
-        ) ?: return null
+        val suggestion = adaptiveObservation.observe(plant, feedback, now, displayNow) ?: return null
         return QuickWaterSuggestion(
             plant.id,
             plant.name,

@@ -1,6 +1,6 @@
 # Product ADR-0050: Coalesce a burst of −/+ taps on Plant Detail's inline interval cards
 
-**Status**: accepted
+**Status**: accepted — lock scope amended by [technical ADR-0036](../technical/0036-plant-edit-mutex-and-column-writes.md)
 
 **Date**: 2026-09-23
 

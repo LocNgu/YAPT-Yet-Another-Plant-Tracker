@@ -109,7 +109,7 @@ class QuickLogUseCaseSaveReminderPhotoTest {
     fun `saveReminderPhoto rolls back every write when the cover update fails`() = runTest {
         val id = plantRepo.addPlant(Plant(name = "Fern", createdAt = 0L, updatedAt = 0L))
         val failingPlants = spyk(plantRepo)
-        coEvery { failingPlants.updatePlant(any()) } throws IllegalStateException("boom")
+        coEvery { failingPlants.updateCoverPhotoUri(any(), any(), any()) } throws IllegalStateException("boom")
 
         try {
             useCase(failingPlants).saveReminderPhoto(id, "content://reminder.jpg")

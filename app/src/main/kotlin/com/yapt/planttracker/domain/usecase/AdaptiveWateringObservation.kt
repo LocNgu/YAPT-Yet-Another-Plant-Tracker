@@ -19,9 +19,9 @@ import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
- * The one adaptive-observation write path for quick watering and the Add Care Log form (#780).
- * The form's first-watering fallback and its nullable test dependencies are explicit inputs;
- * dormancy, bootstrap, confidence, adjustment rows and state persistence have one implementation.
+ * The one adaptive-observation write path (#780). [QuickLogUseCase] is the only [observe] call site;
+ * edit-only Add Care Log no longer observes and uses just [feedbackForLog] (#884, technical
+ * ADR-0037). Dormancy, bootstrap, confidence, adjustment rows and state persistence live here once.
  */
 @Suppress("TooManyFunctions", "LongParameterList")
 internal class AdaptiveWateringObservation(
@@ -30,8 +30,6 @@ internal class AdaptiveWateringObservation(
     private val dataStore: DataStore<Preferences>?,
     private val wateringAdjustmentRepository: WateringAdjustmentRepository?
 ) {
-    enum class GapSource { CHRONOLOGICAL_PREDECESSOR, CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED }
-
     data class Suggestion(
         val intervalDays: Int,
         val effectiveIntervalDays: Int,
@@ -72,8 +70,7 @@ internal class AdaptiveWateringObservation(
 
     /**
      * [feedback] may be `null` (#570, product ADR-0027) — a silent gap-only observation, capped at
-     * [CareSchedule.NEUTRAL_OBSERVATION_GAIN]. [isEditMode] skips adaptation for the form's edit flow;
-     * [feedbackForLog] still suppresses feedback before an edited log is persisted.
+     * [CareSchedule.NEUTRAL_OBSERVATION_GAIN].
      *
      * Gates on a **live-to-live, effective-space** comparison (#716) — the pre-observation model's
      * base run through today's season versus the post-observation model's base run through the same
@@ -90,41 +87,28 @@ internal class AdaptiveWateringObservation(
      * [effectiveIntervalForDisplay] calls: the suggested and current values are what the user reads
      * **today**, regardless of the date the log claims to have happened. Evaluating them at a
      * backdated [loggedAt] could show a spurious dialog for a number that would not change today or,
-     * worse, silently apply a real display change without asking. The quick caller defaults this
-     * clock to its `nowProvider`; the form defaults it to the real wall clock. The history bootstrap
+     * worse, silently apply a real display change without asking. The caller defaults this
+     * clock to its `nowProvider`. The history bootstrap
      * has its own always-real display clock (#679), documented at [maybeApplyHistoryBootstrap].
      *
-     * Both entry points measure the gap from [loggedAt]'s chronological predecessor
+     * The gap is measured from [loggedAt]'s chronological predecessor
      * ([CareLogRepository.getLastWateringBefore], strictly earlier), never the two globally newest
-     * waterings: a backdated log may be older than both of those rows (#654 round-2 review fix for
-     * quick watering, #673 for the form, technical ADR-0033). The same predecessor drives the
-     * dormancy check, so gap and dormancy can no longer disagree (#776, P2-d/P1-4). [gapSource] only
-     * decides what happens without a predecessor. [GapSource.CHRONOLOGICAL_PREDECESSOR] skips the
-     * observation. [GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED] keeps the form's
-     * historical configured-interval fallback, but only for the plant's first-ever WATER log (fewer
-     * than two on file, the just-inserted one included — the exact condition the form's old
-     * newest-pair lookup fell back on). A log backdated before every existing watering has later
-     * waterings but no earlier one; it is skipped exactly like quick watering.
+     * waterings: a backdated log may be older than both of those rows (#654 round-2 review fix,
+     * technical ADR-0033). The same predecessor drives the dormancy check, so gap and dormancy can no
+     * longer disagree (#776, P2-d/P1-4). Without a predecessor the observation is skipped — including
+     * a log backdated before every existing watering, which has later waterings but no earlier one.
      */
     @Suppress("ReturnCount")
     suspend fun observe(
         plant: Plant,
         feedback: WateringFeedback?,
         loggedAt: Long,
-        displayNow: Long,
-        gapSource: GapSource,
-        isEditMode: Boolean = false
+        displayNow: Long
     ): Suggestion? {
-        if (isEditMode) return null
         val current = plant.wateringIntervalDays ?: return null
-        val previous = careLogRepository.getLastWateringBefore(plant.id, loggedAt)?.loggedAt
-        val dormancySpanning = previous != null && spansDormancy(plant, previous, loggedAt)
-        val actual = when {
-            previous != null -> CareSchedule.daysBetween(previous, loggedAt)
-            gapSource == GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED &&
-                careLogRepository.getLastTwoWaterings(plant.id).size < 2 -> current
-            else -> return null
-        }
+        val previous = careLogRepository.getLastWateringBefore(plant.id, loggedAt)?.loggedAt ?: return null
+        val dormancySpanning = spansDormancy(plant, previous, loggedAt)
+        val actual = CareSchedule.daysBetween(previous, loggedAt)
         if (actual <= 0 && !dormancySpanning) return null
         val observationFeedback = feedback.takeUnless { dormancySpanning }
         val result = adapt(plant, observationFeedback, actual, current, loggedAt, dormancySpanning) ?: return null

@@ -12,6 +12,79 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-07
+
+### Added
+- **A Home tab on Plant Detail** — a plant now opens on Home, the first tab, instead of Water. It carries the
+  same Water and Reschedule buttons as the Water tab (with the Rescheduled chip that reverts a deferral), one
+  Fertilize button (labelled "Water + Fertilize" for a liquid-fertilizer plant, never two combined buttons), and a
+  summary of Last watered, Next watering and, when fertilizing is on, Last fertilized and Next fertilizing, with
+  relative text plus the date. Suspended or dormant schedules read "Dormant" instead of a stale date, a dormant
+  watering cadence shows its due date, and a plant that was never watered or fertilized says so. The care history
+  sits at the bottom of Home. Every button runs through the Water and Fertilize tabs' own handlers, so duplicate
+  guards, date pickers and reason prompts behave the same (#530, product ADR-0060, amending product ADR-0043 and
+  technical ADR-0018)
+- **A Prune tab on Plant Detail** — pruning gets its own tab behind the arrow, right after Repot (Home · Water ·
+  Fertilize · Photo, then Repot · Prune · Reminders · Issues). A Prune button opens the same date picker as Repot
+  (today by default, editable); confirming logs one prune and shows a snackbar, cancelling logs nothing. The tab
+  shows how many prunings there are and when the last one was, lists just this plant's prune entries with edit and
+  delete, and says so when there are none. There is no notes field and no same-day duplicate check. Prune entries
+  still appear in Home's care history, and a `?tab=PRUNE` link opens the tab with the row expanded (#532 part 2,
+  product ADR-0043)
+
+### Changed
+- **The full care history now appears only on a plant's Home tab, and the Water tab lists its own waterings** —
+  the combined care history used to repeat under every tab. It now sits at the bottom of Home alone, where Pruned,
+  Note, Photo, Misted and reminder entries still appear. The Water tab shows a "Recent watering" list of just its
+  waterings (five, then "Show more"), with the same edit and delete buttons; with no waterings it shows nothing
+  extra, since the chart already says so. The Water tab no longer has its own misting list; misting entries show in
+  the Home tab's care history. A brand-new plant now shows its "No care logged yet" message once, on Home, instead
+  of under every tab (#530, product ADR-0060, amending technical ADR-0018)
+- **Repot moved behind the tab-row arrow** — the collapsed row reads Home · Water · Fertilize · Photo and the
+  expanded row adds Repot · Reminders · Issues, at the same tab width. Opening a plant from a Care Repot task or the
+  Repotting overview still lands on Repot with the row expanded; collapsing while on a hidden tab now returns to
+  Home. The arrow's attention dot also appears for an overdue repot (a plan whose season has ended counts), as it
+  already did for an active issue or an overdue reminder (#530, product ADR-0060)
+- **The Water tab no longer has its own "Water + Fertilize" button** — for a liquid-fertilizer plant that button now
+  lives on Home and the Fertilize tab only, so each tab shows one combined button at most; the Water tab keeps just
+  Water and Reschedule (#530, product ADR-0060)
+- **The Fertilize button no longer needs a fertilizing schedule** — a plant with no fertilizing interval now shows
+  Fertilize (or Water + Fertilize for a liquid-fertilizer plant) on Home and the Fertilize tab, so an occasional
+  feeding can be logged without setting up a reminder first. It uses the same date picker, same-day duplicate guard
+  and liquid pairing as before. Home's summary still shows the Fertilizing rows only when an interval is set (#532,
+  part 1 of 4)
+- **Misting can no longer be logged; existing mist entries stay in your history** — Add Care Log no longer offers
+  Mist when you add a care entry, and the plant list's multi-select bar no longer has a Mist action. Mist entries you
+  already logged still show in a plant's Home care history, where you can edit or delete them, and still appear as
+  markers on the watering chart. Editing one of those entries shows "Misted" as its read-only type and keeps it
+  (see the Add Care Log change below). Nothing is converted or removed, and backups with mist
+  entries restore unchanged. The demo plants no longer include a mist entry (#875, product ADR-0061, amending product
+  ADR-0022 and product ADR-0060)
+- **The + button on Plant Detail is gone, and Add Care Log only edits** — new care entries now come only from a
+  plant's tabs (Water, Fertilize, Photo, Repot, Prune and a reminder's Mark done). Add Care Log opens only from a
+  log's edit button, always titled "Edit Care Log". The row of care-type chips is replaced by the entry's type,
+  shown as a read-only header, so an edit can no longer change a log's type or turn an old Note, Misted, Checked or
+  Custom entry into something else; its date, notes and photo can still be edited, as can a watering's "plant
+  needed it" flag and amount, and a fertilizing's type and amount. Saving a Photo log still needs a photo, a
+  same-day duplicate is still refused, and snackbars on Plant Detail sit at the bottom edge again. A new entry's
+  notes, amount or flags can now be added only by editing it afterwards (#532, part 3 of 4, #883)
+- **Notes can no longer be logged as their own entry; existing Notes stay in your history** — with the + button and
+  the care-type picker gone, nothing creates a Note any more, and the demo plants no longer include one. Notes you
+  already logged still show in a plant's Home care history, where you can edit or delete them, and backups with
+  Notes restore unchanged. Free text goes in a log's notes field, a reminder or an issue instead (#532, part 4 of 4,
+  product ADR-0062, amending product ADR-0038, ADR-0043, ADR-0060 and ADR-0061)
+
+### Removed
+- **Dead watering-suggestion path in Add Care Log** — the edit-only screen no longer observes WATER logs or hands a
+  suggested watering interval back to Plant Detail through `savedStateHandle`; `QuickLogUseCase` is now the only
+  caller of `AdaptiveWateringObservation.observe()`, which loses its `isEditMode` parameter and the form-only gap
+  source. Internal cleanup with no user-visible change; quick-log behaviour is unchanged (#532, part 4 of 4,
+  technical ADR-0037, superseding technical ADR-0006 and technical ADR-0033)
+
+### Fixed
+- **The Repot tab's "Next repot due" date ignored your repots** — Plant Detail worked out the next repot from the day the plant was added instead of from its latest Repot log, so after repotting it kept showing the old date (and, with the new tab-row attention dot, could flag a freshly repotted plant as overdue). It now counts from the latest repot, like Care, Plant List and the daily notification (#530)
+- **A quick second action on Plant Detail could silently undo the first** — applying, dismissing or undoing a suggested watering interval, reverting or applying a reschedule (and undoing that), changing the cover photo (taking, adding or deleting one), and editing the dormancy window each saved the whole plant from a snapshot that could still predate a change made a moment earlier, so tapping one right after another setting (the pin switch, an interval edit, a watering that cleared a reschedule) could quietly put the older value back. Those actions now share one lock with the interval, season, pin and liquid-fertilizer settings and read the plant fresh inside it, and the single-field ones (reschedule revert, cover photo) update only their own field. Plant Detail's reminder photo now goes through the same all-or-nothing save as the Plants, Calendar and Care reminders. The same race can still affect the adaptive watering-interval bookkeeping inside quick-water, quick-fertilize and quick-repot and the Calendar/Plant List copies of apply/dismiss, tracked as a follow-up (#872) (#808, technical ADR-0036, amending product ADR-0050)
+
 ## [0.34.0] - 2026-10-01
 
 ### Changed

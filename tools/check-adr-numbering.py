@@ -164,7 +164,7 @@ def check_files(violations: list[str]) -> dict[str, set[str]]:
                 violations.append(
                     f"{DECISIONS}/{ns}/: [R1] {len(names)} ADRs share number "
                     f"{number}: {', '.join(names)} — renumber the later-dated "
-                    f"file to the next free number (see .claude/CLAUDE.md)"
+                    f"file to the next free number (see .claude/rules/adr.md)"
                 )
     return numbers
 
@@ -240,7 +240,7 @@ def main() -> int:
             print(f"  {violation}", file=sys.stderr)
         print(
             f"\n{len(set(violations))} violation(s). "
-            "See the ADR conventions in .claude/CLAUDE.md.",
+            "See the ADR conventions in .claude/rules/adr.md.",
             file=sys.stderr,
         )
         return 1

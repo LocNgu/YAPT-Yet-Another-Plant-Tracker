@@ -19,6 +19,10 @@ import androidx.compose.ui.unit.dp
 
 internal const val REPOT_TAB_ACTION_BUTTON_TEST_TAG = "repot_tab_action_button"
 internal const val PHOTO_TAB_ACTION_BUTTON_TEST_TAG = "photo_tab_action_button"
+internal const val PRUNE_TAB_ACTION_BUTTON_TEST_TAG = "prune_tab_action_button"
+
+/** Locates the Prune tab's date-picker sheet ([CareDatePickerBottomSheet], #882) in Compose UI tests. */
+internal const val PRUNE_DATE_PICKER_TEST_TAG = "prune_date_picker_dialog"
 
 /** Locates the Repot tab's date-picker sheet ([CareDatePickerBottomSheet], #694) in Compose UI tests. */
 internal const val REPOT_DATE_PICKER_TEST_TAG = "repot_date_picker_dialog"

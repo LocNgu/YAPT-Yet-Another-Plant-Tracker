@@ -30,11 +30,11 @@ import java.util.TimeZone
 
 /**
  * Focused direct coverage of [AdaptiveWateringObservation] (#780, technical ADR-0030), the one
- * shared write path behind [QuickLogUseCase] and `AddCareLogViewModel`. Exercises `feedbackForLog`
- * and `observe` with controlled repositories and clocks, without going through either caller.
- * Their own suites remain responsible for end-to-end wiring; this class protects the shared
- * seams: dormancy suppression/provenance, bootstrap precedence, confidence/adjustment
- * persistence, the observation-vs-display clock split, gap-source policy, and edit mode (#783).
+ * shared write path behind [QuickLogUseCase] (and `AddCareLogViewModel`'s dormancy feedback strip).
+ * Exercises `feedbackForLog` and `observe` with controlled repositories and clocks, without going
+ * through either caller. Their own suites remain responsible for end-to-end wiring; this class
+ * protects the shared seams: dormancy suppression/provenance, bootstrap precedence,
+ * confidence/adjustment persistence, the observation-vs-display clock split, and the predecessor-only gap policy.
  *
  * The default timezone is pinned to UTC (northern hemisphere) for the duration of this class so
  * [com.yapt.planttracker.domain.schedule.SeasonalWatering.currentHemisphere] is deterministic
@@ -160,8 +160,7 @@ class AdaptiveWateringObservationTest {
             dormant,
             feedback = null,
             loggedAt = decemberFifteenth,
-            displayNow = decemberFifteenth,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = decemberFifteenth
         )
 
         assertNull(result)
@@ -190,8 +189,7 @@ class AdaptiveWateringObservationTest {
             dormant,
             feedback = null,
             loggedAt = marchFirst,
-            displayNow = marchFirst,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = marchFirst
         )
 
         coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.updatedAt == marchFirst }) }
@@ -234,8 +232,7 @@ class AdaptiveWateringObservationTest {
             monstera,
             feedback = null,
             loggedAt = aprilTenth,
-            displayNow = aprilTenth,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = aprilTenth
         )
 
         val marchFirst = millisAt(2027, 3, 1)
@@ -247,8 +244,7 @@ class AdaptiveWateringObservationTest {
             afterFirstExit,
             feedback = null,
             loggedAt = marchFirst,
-            displayNow = marchFirst,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = marchFirst
         )
 
         assertEquals(1, recorded.count { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
@@ -273,8 +269,7 @@ class AdaptiveWateringObservationTest {
             neverAdapted,
             feedback = null,
             loggedAt = loggedAt,
-            displayNow = loggedAt,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = loggedAt
         )
 
         assertNull(result)
@@ -299,8 +294,7 @@ class AdaptiveWateringObservationTest {
             neverAdapted,
             feedback = null,
             loggedAt = marchFirst,
-            displayNow = marchFirst,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = marchFirst
         )
 
         assertNull(result)
@@ -335,8 +329,7 @@ class AdaptiveWateringObservationTest {
                 monstera,
                 feedback = null,
                 loggedAt = loggedAt,
-                displayNow = loggedAt,
-                gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+                displayNow = loggedAt
             )
 
             assertNull(result)
@@ -369,8 +362,7 @@ class AdaptiveWateringObservationTest {
             monstera,
             feedback = null,
             loggedAt = loggedAt,
-            displayNow = displayNow,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = displayNow
         )
 
         assertNull(result)
@@ -398,8 +390,7 @@ class AdaptiveWateringObservationTest {
                 monstera,
                 feedback = null,
                 loggedAt = loggedAt,
-                displayNow = displayNow,
-                gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+                displayNow = displayNow
             )
 
             assertEquals(
@@ -414,10 +405,10 @@ class AdaptiveWateringObservationTest {
             coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         }
 
-    // ---- Gap source ----
+    // ---- Predecessor policy ----
 
     @Test
-    fun `CHRONOLOGICAL_PREDECESSOR returns null with no writes when there is no predecessor`() = runTest {
+    fun `observe returns null with no writes when there is no predecessor`() = runTest {
         val monstera = plant(confidence = 3)
         val loggedAt = millisAt(2026, 6, 8)
         coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
@@ -426,112 +417,10 @@ class AdaptiveWateringObservationTest {
             monstera,
             feedback = null,
             loggedAt = loggedAt,
-            displayNow = loggedAt,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR
+            displayNow = loggedAt
         )
 
         assertNull(result)
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
-    @Test
-    fun `OR_FIRST_CONFIGURED falls back to the configured interval for the plant's first-ever watering`() = runTest {
-        val monstera = plant(confidence = 3, wateringIntervalDays = 7)
-        val loggedAt = millisAt(2026, 6, 8)
-        coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
-        // The just-inserted log is the plant's only WATER log.
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns
-            listOf(CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = loggedAt))
-
-        val result = observation().observe(
-            monstera,
-            feedback = null,
-            loggedAt = loggedAt,
-            displayNow = loggedAt,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED
-        )
-
-        assertNull(result)
-        coVerify {
-            wateringAdjustmentRepo.addAdjustment(
-                match {
-                    it.trigger == WateringAdjustmentTrigger.WATER_NEUTRAL &&
-                        it.beforeIntervalDays == 7 &&
-                        it.afterIntervalDays == 7
-                }
-            )
-        }
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 4 }) }
-    }
-
-    // #673 (technical ADR-0033): no predecessor, but later waterings exist — the log was backdated
-    // before every one of them. There is no gap to observe, so it is skipped like quick watering.
-    @Test
-    fun `OR_FIRST_CONFIGURED skips a log backdated before every existing watering`() = runTest {
-        val monstera = plant(confidence = 3, wateringIntervalDays = 7)
-        val loggedAt = millisAt(2026, 6, 1)
-        coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
-        coEvery { careLogRepo.getLastTwoWaterings(1L) } returns listOf(
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = millisAt(2026, 6, 15)),
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = millisAt(2026, 6, 8))
-        )
-
-        val result = observation().observe(
-            monstera,
-            feedback = null,
-            loggedAt = loggedAt,
-            displayNow = loggedAt,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED
-        )
-
-        assertNull(result)
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-    }
-
-    // #673 (technical ADR-0033): with a predecessor on file, the gap comes from it alone — the
-    // globally newest pair is never consulted, so a stale same-day duplicate elsewhere in history
-    // can no longer zero out a genuine dormancy-spanning gap (formerly #776, P1-4).
-    @Test
-    fun `OR_FIRST_CONFIGURED measures from the predecessor and never reads the newest pair`() = runTest {
-        val dormant = plant(confidence = 3, dormancyStartMonth = 11, dormancyEndMonth = 2)
-        val marchFirst = millisAt(2027, 3, 1)
-        coEvery { careLogRepo.getLastWateringBefore(1L, marchFirst) } returns
-            CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = millisAt(2026, 10, 25))
-
-        observation().observe(
-            dormant,
-            feedback = null,
-            loggedAt = marchFirst,
-            displayNow = marchFirst,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED
-        )
-
-        coVerify(exactly = 0) { careLogRepo.getLastTwoWaterings(any()) }
-        coVerify {
-            wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
-        }
-    }
-
-    // ---- Edit mode ----
-
-    @Test
-    fun `observe in edit mode returns null and never touches a repository`() = runTest {
-        val monstera = plant(confidence = 3)
-        val loggedAt = millisAt(2026, 6, 8)
-
-        val result = observation().observe(
-            monstera,
-            feedback = null,
-            loggedAt = loggedAt,
-            displayNow = loggedAt,
-            gapSource = AdaptiveWateringObservation.GapSource.CHRONOLOGICAL_PREDECESSOR,
-            isEditMode = true
-        )
-
-        assertNull(result)
-        coVerify(exactly = 0) { careLogRepo.getLastWateringBefore(any(), any(), any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }

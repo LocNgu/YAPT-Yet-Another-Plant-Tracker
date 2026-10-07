@@ -1,6 +1,6 @@
 # Technical ADR-0018: Plant Detail tab strip lives inside the Box overlay, not a Scaffold/TabRow header
 
-**Status**: accepted — Edit button persistent-interactivity clause amended by [ADR-0022](0022-edit-button-scroll-fade-plain-row-margins.md)
+**Status**: accepted — Edit button persistent-interactivity clause amended by [ADR-0022](0022-edit-button-scroll-fade-plain-row-margins.md); care-history placement clause (and the already-stale `StatsRow` and `PrimaryTabRow` wording) amended by [product ADR-0060](../product/0060-plant-detail-home-tab.md)
 
 **Date**: 2026-07-31
 

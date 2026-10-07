@@ -39,15 +39,14 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.icon
 
 /**
- * The care types offered as one-tap bulk actions in [BulkActionBar]. NOTE and PHOTO are excluded
- * because they require per-plant input (free text / an image) that a fire-and-forget bulk action
- * can't supply.
+ * The care types offered as one-tap bulk actions in [BulkActionBar]. PHOTO is excluded because it
+ * requires per-plant input (an image) that a fire-and-forget bulk action can't supply; MIST and NOTE
+ * are retired (#875, product ADR-0061; #532, product ADR-0062).
  */
 private val BULK_CARE_TYPES = listOf(
     CareType.WATER,
     CareType.FERTILIZE,
     CareType.PRUNE,
-    CareType.MIST,
     CareType.REPOT
 )
 
@@ -56,10 +55,9 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
     CareType.WATER -> R.string.bulk_action_water
     CareType.FERTILIZE -> R.string.bulk_action_fertilize
     CareType.PRUNE -> R.string.bulk_action_prune
-    CareType.MIST -> R.string.bulk_action_mist
     CareType.REPOT -> R.string.bulk_action_repot
     // Not offered in bulk (see BULK_CARE_TYPES); fall back to the water label defensively.
-    CareType.NOTE, CareType.PHOTO, CareType.CUSTOM, CareType.CHECK -> R.string.bulk_action_water
+    CareType.MIST, CareType.NOTE, CareType.PHOTO, CareType.CUSTOM, CareType.CHECK -> R.string.bulk_action_water
 }
 
 /**
@@ -68,7 +66,7 @@ private fun CareType.bulkActionLabelRes(): Int = when (this) {
  * above remains scrollable and tappable and the user can keep adding/removing plants before acting.
  *
  * Compact by design so it leaves as much room as possible for the list above: the care actions are a
- * horizontally scrollable chip row (mirroring the care-type selector on the Add Care Log screen) and
+ * horizontally scrollable chip row and
  * the destructive "Move to Graveyard" action sits inline with the selected-count header. Care actions
  * log directly with sensible defaults (watering uses `JUST_RIGHT` feedback) and don't raise the
  * per-plant interval-suggestion or photo-reminder dialogs, which would stack up once per plant.

@@ -5,648 +5,104 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/insights/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/ui/components/PhotoGallery*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/ui/components/FullScreenPhotoViewer*.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/SteppedSlider*.kt"
 ---
 
 # Plant Detail rules
 
-## Layout — Box overlay, NOT Scaffold (technical ADR-0018, supersedes technical ADR-0005)
-280 dp hero photo bleeds behind the status bar; `Box` overlay with overlaid back/edit pill buttons;
-`Surface(colorScheme.background)` root for correct dark-mode text. The outer `Scaffold` in `YaptNavGraph` sets
-`contentWindowInsets = WindowInsets(0)` so it doesn't double-reserve the status-bar inset here (#29). Tapping the
-hero opens `FullScreenPhotoViewer`; the no-cover placeholder has no clickable modifier (#307).
+Current behaviour only; how each rule came about is in the cited issues/ADRs and `git log`.
 
-## Per-action tabs (#436, graduated #704)
-The whole tabs feature (tab strip + inline settings + per-tab insights) ships unconditionally —
-`PlantDetailTabStrip` (a `FlowRow` of standalone `Tab`s, not `TabRow`/`PrimaryTabRow` — see below) is a
-`LazyColumn` item inside the Box overlay below the hero, and is the only Plant Detail layout. It used to
-sit behind `FeatureFlagRegistry.PLANT_DETAIL_TABS` (`plant_detail_tabs`, default off, gating a classic
-single-page layout as the flag-off alternative); the flag graduated in #704 per product ADR-0042's
-flag-lifecycle rule — the registry entry, `PlantDetailViewModel.tabsEnabled`, and the classic-layout
-branch (chart + gallery + care history on one page, plus the tappable `StatsRow`/`StatChip` quick-log
-chips, #434) were all deleted in that PR. The shared care-history list and `+` FAB are unaffected —
-they always rendered outside either branch.
+## Layout — Box overlay, NOT Scaffold (technical ADR-0018)
+- 280 dp hero photo bleeds behind the status bar; `Box` overlay with pinned Back/Edit pill buttons; `Surface(colorScheme.background)` root for dark-mode text. The outer `Scaffold` in `YaptNavGraph` sets `contentWindowInsets = WindowInsets(0)` so the status-bar inset isn't reserved twice (#29).
+- Tapping the hero opens `FullScreenPhotoViewer`; the no-cover placeholder is not clickable (#307).
+- **Edit fades, Back doesn't (technical ADR-0022).** Edit is wrapped in `AnimatedVisibility` (removed from composition, so not clickable/announced) once the `LazyColumn` reports `firstVisibleItemIndex > 0`. Back is always visible. There is no "Log care" `+` FAB (#532): new logs come only from the in-pane tab actions, and the snackbar host sits at plain navigation-bar padding.
+- Action rows and cards use plain `padding(horizontal = 16.dp)`. The residual overlap with Back/Edit at scroll edges is an accepted trade-off — don't add "just in case" insets without a new decision.
 
-- `PlantDetailTab` enum (6 entries: `WATER, FERTILIZE, REPOT, PHOTO, CUSTOM_REMINDERS, ISSUES`) = per-tab `labelRes`
-  + icon; `selectedTab` is `rememberSaveable` (defaults Water).
-- Per-tab filtered log lists use prefixed keys (`"fert-"`/`"repot-"`/`"mist-"` + id) so they never collide with the
-  shared list's `it.id` keys. Misting is folded into the Water tab.
+## Tabs (#436, product ADR-0043, product ADR-0060)
+- `PlantDetailTab` = `HOME, WATER, FERTILIZE, PHOTO, REPOT, PRUNE, CUSTOM_REMINDERS, ISSUES` (`labelRes` + icon). `PlantDetailTab.DEFAULT = HOME`: initial selection, `fromRouteArg()`'s unknown-name fallback, and the reset target when the row collapses under a hidden tab. `selectedTab` is `rememberSaveable`. Tabs are the only layout (the classic layout, `StatsRow`/`StatChip` and the `PLANT_DETAIL_TABS` flag were deleted in #704).
+- **Strip:** `PlantDetailTabStrip` is a `FlowRow` of standalone `Tab`s (`fillMaxWidth(0.25f)` each), never `TabRow`/`PrimaryTabRow`. Collapsed shows `COLLAPSED_TAB_COUNT = 4` (Home · Water · Fertilize · Photo); expanded wraps Repot/Prune/Custom reminders/Issues onto a second row. `isTabRowExpanded` is `rememberSaveable`, not DataStore — it resets to collapsed on every visit.
+- **Selection indicator (#591):** a standalone `Tab` draws no indicator, and its `unselectedContentColor` defaults to the selected color. So each `Tab` gets explicit `selectedContentColor`/`unselectedContentColor` (`onPrimaryContainer`/`onSurfaceVariant`) plus its own `primaryContainer` `RoundedCornerShape(12.dp)` background when selected.
+- **Toggle:** chevron `AssistChip` pattern (`animateFloatAsState`, `ExpandMore` rotated 180°). Its content description is `plant_detail_tabs_expand_cd`/`_collapse_cd`/`_expand_attention_cd`; the last is used when collapsed with attention, because the `Badge` dot has no description of its own.
+- **Attention badge:** shown only when collapsed and (`activeIssues` non-empty, any `CustomReminderStatus.isOverdue`, or `careStatus?.isRepottingOverdue == true` — overdue only, an ended repot plan counts). Uses already-collected state, no new queries.
+- **Initial tab via route (#843):** `Screen.PlantDetail` is `plant_detail/{plantId}?tab={tab}` (nullable, default null; `createRoute(plantId, tab = null)` omits the query so other callers are unchanged). It seeds only the *initial* `selectedTab`; a hidden initial tab (`isInCollapsedRow`) also seeds `isTabRowExpanded = true`. Care's mapping is `TodayCareKind.plantDetailTab()` (`WATER_AND_FERTILIZE` → `FERTILIZE`).
+- Per-tab filtered lists use prefixed keys (`"water-"`/`"fert-"`/`"repot-"`/`"prune-"` + id) so they never collide with the combined list's `it.id`.
+- Tests of a non-Home pane pass `initialTab = PlantDetailTab.WATER`/`FERTILIZE`/`REPOT`/`PRUNE` (REPOT and PRUNE also expand the row).
 
-### Tab row collapse/expand + attention badge (product ADR-0043, #590)
-Six tabs don't fit one row at each tab's current fixed width without either shrinking every tab or scrolling
-horizontally, so `PlantDetailTabStrip` uses a `FlowRow` of individually-sized `Tab` composables
-(`Modifier.fillMaxWidth(0.25f)` each, no `TabRow`/`PrimaryTabRow` wrapper) instead. Collapsed (default) shows only
-`PlantDetailTab.entries.take(4)` — today's Water/Fertilize/Repot/Photo, same width/layout as before; expanded shows
-all 6, with `CUSTOM_REMINDERS`/`ISSUES` wrapping onto a second row at that same per-tab width.
-- **Initial tab from the Care tab (#843):** `Screen.PlantDetail` is `plant_detail/{plantId}?tab={tab}` (nullable
-  `StringType`, default null); `createRoute(plantId, tab: PlantDetailTab? = null)` omits the query when null, so
-  Plant List/Calendar/notifications/deep links are unchanged. `NavGraph` parses it with
-  `PlantDetailTab.fromRouteArg()` (`runCatching { valueOf }.getOrDefault(WATER)`, null stays null) and passes
-  `PlantDetailScreen(initialTab = …)`, which seeds only the *initial* value of the `rememberSaveable`
-  `selectedTab` — rotation/back-stack restore keeps the user's later tab. `initialTab?.isInCollapsedRow`
-  (`CUSTOM_REMINDERS`/`ISSUES`) also seeds `isTabRowExpanded` true. Care's mapping lives in
-  `TodayCareKind.plantDetailTab()` (`ui/screens/today/TodayCareKindTab.kt`; `WATER_AND_FERTILIZE` → `FERTILIZE`);
-  a Care grid tile passes its own task's kind (the plant-grouped layout is gone, #842).
-- `var isTabRowExpanded by rememberSaveable { mutableStateOf(false) }` — screen/session-local like `selectedTab`
-  and the care-history `isExpanded` chip, **not** a `DataStore` setting; resets to collapsed on every fresh visit.
-- Toggle reuses the care-history `AssistChip`'s exact chevron-rotate pattern (`animateFloatAsState` rotating
-  `Icons.Filled.ExpandMore` 180°), with a `contentDescription` that flips between
-  `plant_detail_tabs_expand_cd`/`plant_detail_tabs_collapse_cd`/`plant_detail_tabs_expand_attention_cd` (collapsed
-  **and** `hasAttention` — folds the "something needs attention" signal into the announced text since the badge
-  itself, a bare `Badge` dot, carries no `contentDescription` of its own, #591).
-- Attention `Badge` on the toggle when **collapsed** and (`activeIssues.isNotEmpty()` or any
-  `CustomReminderStatus.isOverdue`) — both already-collected in `PlantDetailScreen.kt`, no new queries. Hidden once
-  expanded.
-- Collapsing while `selectedTab` is `CUSTOM_REMINDERS`/`ISSUES` (now hidden) resets `selectedTab` to `WATER`.
-- **Selection indicator (#591):** a standalone `Tab()` outside `TabRow`/`PrimaryTabRow` draws no indicator of its
-  own — `PrimaryIndicator` is drawn by `TabRow` itself as a separate overlay positioned from real `TabPosition`s,
-  unavailable here — and `Tab()`'s `unselectedContentColor` defaults to `selectedContentColor` when neither is
-  passed, so the selected/unselected tabs would otherwise render identically. Each `Tab` is given explicit
-  `selectedContentColor`/`unselectedContentColor` (`colorScheme.onPrimaryContainer`/`onSurfaceVariant`) plus a
-  `colorScheme.primaryContainer` rounded-background (`RoundedCornerShape(12.dp)`, else transparent) scoped to that
-  one `Tab`'s own `Modifier` — works per-tab regardless of which row (collapsed or expanded) it wraps onto, unlike
-  a shared `TabRow` indicator which needs one `TabPosition` list across the whole row.
+### Home tab (#530, product ADR-0060)
+In `PlantDetailScreen.kt`'s `HOME` branch, composables in `PlantDetailHomePane.kt`, top to bottom (items 1–3 gated on `careStatus != null`):
+1. `RescheduleChipAndWateringActions` — the reschedule delta chip above `WateringDueActionsRow`. **Shared with the Water tab** (same composable, same handlers and dialog state); never add a second code path.
+2. One `FertilizeDueActionRow`, shown whether or not a fertilizing interval is set (#532), with the screen's single `onFertilizeClick` (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).
+3. `HomeSummaryCard` — `TabInsightsCard` rows from pure `homeSummaryRows(status)`: Last/Next watering, plus Last/Next fertilizing only with a fertilizing interval. Values are `HomeSummaryValue.At` (`relativeDateText()` + `DateUtils.formatDate()`), `Never` or `Dormant`. Watering reads "Dormant" only for `WateringScheduleMode.DORMANT_SUSPENDED` (a dormant *cadence* shows its live date); fertilizing whenever `isDormant`; no next date → row hidden; the out-of-season shifted date comes straight from `nextFertilizingDueAt`. No settings controls (product ADR-0023). Tests: `HomeSummaryRowsTest`, `PlantDetailScreenTest`'s `homeTab_*`.
+4. The combined care history, last (renders even before `careStatus` loads). See "Care history".
 
-## Inline scheduling settings (product ADR-0023 — a new decision, not a supersession; slider-control clause amended by product ADR-0048, tap-commit clause further amended by product ADR-0050)
-Water/Fertilize tabs each show an editable `Card` (interval enable `Switch` + shared `SteppedSlider`
-(`ui/components/SteppedSlider.kt`, #531, product ADR-0048) — a `Slider` flanked by −/+ `IconButton`s with a
-haptic tick on drag; Fertilize adds the liquid-fert toggle). Edits **auto-persist** (no Save button) via
-`setWateringInterval(Int?, viaButtonTap: Boolean = false)` / `setFertilizingInterval(Int?, viaButtonTap: Boolean
-= false)` / `setLiquidFertilizer(Boolean)` → `PlantRepository.updatePlant`; `null` clears the schedule. A drag
-commits on release (`onValueChangeFinished(viaButtonTap = false)`) and so does the enable `Switch`, both
-immediately. A −/+ tap (`onValueChangeFinished(viaButtonTap = true)`) instead starts (or restarts) a 1-second
-quiet-window timer — `INTERVAL_TAP_COALESCE_WINDOW_MS` in `PlantDetailIntervalEditActions.kt` — so a rapid
-burst of taps produces exactly one write and, for watering, exactly one `MANUAL_EDIT` row using the *last*
-tapped value, not one per tap (#531 review round 1, product ADR-0050). An immediate commit (release/switch)
-always cancels any pending tap first. Both write functions read the plant fresh inside a shared
-`PlantDetailViewModel.intervalEditMutex` (mirroring `dormancyEditMutex`'s existing precedent below) rather than
-the cached `plant` StateFlow, which can lag a write still in flight — the bug this fixed made a burst's audit
-row log the wrong `beforeIntervalDays`. A still-pending tap survives leaving the screen mid-window: the timer
-runs on `viewModelScope` (cancelled by AndroidX before `onCleared()` is called), but the actual write always
-executes via `PlantDetailViewModel.applicationScope` (wired from `YaptApplication.applicationScope` through
-`Factory`, defaulted for existing tests that don't exercise this path), and `onCleared()` explicitly flushes
-`pendingWateringTapDays`/`pendingFertilizingTapDays` through that same scope if the timer never got to. Shared
-`InlineIntervalSetting` composable; defaults `DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS`
-= 7/30. Add/Edit Plant stays the canonical editor for name/species/room/notes/cover — its three sliders have no
-`viaButtonTap` concept at all (every change writes straight into the VM field, persisted together on Save) but
-now also carry a `stateDescription` (the same string already shown in each interval's header label) so a screen
-reader announces the current value there too (#531 review round 1).
+## Inline scheduling settings (product ADR-0023, product ADR-0048, product ADR-0050)
+- Water/Fertilize tabs each show an `InlineIntervalSetting` card: enable `Switch` + shared `SteppedSlider` (`Slider` flanked by −/+ `IconButton`s, haptic tick on drag); Fertilize adds the liquid-fertilizer toggle. Defaults `DEFAULT_WATERING_INTERVAL_DAYS`/`DEFAULT_FERTILIZING_INTERVAL_DAYS` = 7/30. Order on each tab: actions row → interval card → insights card.
+- Edits **auto-persist** (no Save): `setWateringInterval(Int?, viaButtonTap)` / `setFertilizingInterval(Int?, viaButtonTap)` / `setLiquidFertilizer(Boolean)`; `null` clears the schedule.
+- **Commit semantics:** a drag release or the `Switch` commits immediately and cancels any pending tap. A −/+ tap (re)starts a 1 s quiet window (`INTERVAL_TAP_COALESCE_WINDOW_MS`, `PlantDetailIntervalEditActions.kt`), so a burst writes once and logs one `MANUAL_EDIT` row with the last value. The timer runs on `viewModelScope`, but the write runs on `PlantDetailViewModel.applicationScope` (from `YaptApplication.applicationScope` via `Factory`), and `onCleared()` flushes `pendingWateringTapDays`/`pendingFertilizingTapDays`, so a pending tap survives leaving the screen.
+- **Dormancy cadence slider** (#785, product ADR-0046/0047): the shared dormancy editor (Add/Edit and Water tab) has a "Dormancy watering interval" switch (labelled by what it enables, never "Pause watering"; off = full suspension; disabling the window clears the cadence) plus a 1–12 week `SteppedSlider`. It is **excluded from tap coalescing**: every tap commits immediately, writes no audit row, and has its own `pendingWindow` staleness guard. An active dormant-only cadence may expose Reschedule and "Why this date?" even with the ordinary interval off.
+- Add/Edit Plant stays the canonical editor for name/species/room/notes/cover; its sliders have no `viaButtonTap` (saved together on Save) but carry a `stateDescription` matching the header label.
 
-The shared dormancy editor in Add/Edit and the Water tab also offers a "Dormancy watering interval"
-switch plus a 1–12 week `SteppedSlider` (#785, product ADR-0046/product ADR-0047; stepper buttons added
-by #531, product ADR-0048). The switch is labelled by what
-it enables, never "Pause watering" — off (null) keeps full suspension and reads as a subtitle; disabling the
-window clears the cadence. An active dormant-only cadence may expose Reschedule and “Why this date?”
-even when the ordinary watering interval is disabled. **Deliberately excluded from the tap-coalescing above
-(product ADR-0050):** this slider already has its own `dormancyEditMutex` + `pendingWindow` staleness guard and
-writes no `WateringAdjustment` audit row at all, so every −/+ tap here still commits immediately — neither
-problem the coalescing fix addresses actually applies to it.
+## One lock for plant-row writes — `plantEditMutex` (#804, #808, technical ADR-0036)
+- Serializes every Plant Detail ViewModel plant-row write: interval, season toggle, pin, liquid-fertilizer, dormancy, repot plan, suggestion apply/dismiss/undo (including `applySuggestionOrPrompt()`'s silent-apply branch), reschedule apply/revert/undo, and cover-photo writes.
+- **Rule for any new write:** take the lock and read `getPlantById(plantId).first()` inside it, never `plant.value` (it lags Room's echo). A single-column write uses a column-specific DAO `UPDATE` (`updateWateringDueDateOverride`, `updateRepotPlan`, `updateCoverPhotoUri`) *still inside the lock*, so a full-row writer that already read the row can't write the old value back.
+- `Mutex` is not reentrant: never hold it across `quickWater*`/`quickLiquidFertilize*` (they reach `applySuggestionOrPrompt()`, which takes it). Emit events after releasing it.
+- `revertReschedule()` captures the previous override from the fresh read; `deletePhoto()` decides "was it the cover" from the fresh read. `updateCoverPhotoUri` doesn't fire `onPhotoReferencesRemoved` (the daily orphan sweep covers it).
+- Tests: `PlantDetailPlantEditLockTest`. **Not covered yet (#872):** `QuickLogUseCase`'s caller-snapshot full-row writes (`persistAdaptiveState`, `clearWateringOverrideIfActive`, the backdated branch) and the Calendar/Plant List apply/dismiss copies.
 
 ## Per-tab insights (#436)
-`domain/insights/CareInsights.summarize(logs, careType)` → `CareTypeSummary(count, lastAt, averageIntervalDays)`
-(mean of consecutive calendar-day gaps via `CareSchedule.daysBetween`, rounded, floored at 1). Photo tab uses
-`summarizePhotos(galleryPhotos)` → `PhotoSummary`. JVM-tested (`CareInsightsTest`). Shared `TabInsightsCard` +
-`careTypeInsightItems(...)` live in `PlantDetailScreen.kt`.
+`domain/insights/CareInsights.summarize(logs, careType)` → `CareTypeSummary(count, lastAt, averageIntervalDays)` (mean of consecutive calendar-day gaps via `CareSchedule.daysBetween`, rounded, floored at 1); Photo uses `summarizePhotos(galleryPhotos)`. Shared `TabInsightsCard` + `careTypeInsightItems(...)`; `lastAtLabel` is set on Water/Fertilize (`insight_last_watered`/`insight_last_fertilized`). JVM-tested (`CareInsightsTest`).
 
-## Repot and Photo tab quick actions (#658, date-first per #694)
+## Watering actions (product ADR-0029/0030/0033/0034/0039/0040)
+- **`WateringDueActionsRow`** (`WateringDueActions.kt`): **Water** is a filled `Button` (`colorScheme.primary`, leading `WaterDrop`, `weight(1f)`) and is **unconditional** — shown whenever the row renders, even with no watering interval (product ADR-0040). **Reschedule** is an icon-only `OutlinedIconButton` (`MoreTime`, content description `reschedule_watering_title`), shown only with `wateringIntervalDays != null` (never gated on due status); `onRescheduleClick` is nullable accordingly. Tests find it by content description.
+- **Every quick-water entry point opens the date picker first** (`LogWateringDatePickerDialog`, not-future-only, today preselected): confirming today is the old fast path, an earlier date backfills (#654). The picked `loggedAt` then drives everything: the duplicate-day guard, the `CareLog` write, the adaptive gap and the reason gate. Never let them use different clocks.
+- **Reason gate:** `requestWater`/`requestLiquidFertilize` (bottom of `PlantDetailScreen.kt`) decide on/off schedule for the *picked* date against **that date's chronological predecessor**, not `careStatus.lastWateredAt`. `PlantDetailViewModel.previousWateringBefore(loggedAt)` fetches it once per confirm and it travels with the date in `PendingReasonPrompt(loggedAt, previousWateringAt)`, so the gate and the sheet's wording can't disagree (#679). The predicates `isChosenDateOnSchedule`/`isChosenDateGapLong` are `internal` for `PlantDetailScreenGateTest`. `PlantDetailScreenTest`'s `CareLogRepository` mocks must stub `getLastWateringBefore(any(), any())`.
+- On schedule → log directly. Off schedule → `WateringReasonBottomSheet` with direction-specific options (early "Why now?" → "The plant needed it"/"Just my timing"; late "Why was it late?" → "Soil was still moist"/"Forgot, or no time"). The mapping is in `rules/care-logging.md`.
+- The Water tab's Water button always calls plain `requestWater()`; it never branches on `useLiquidFertilizer`.
+- **Combined "Water + Fertilize"** (`water_fertilize_combined_button`): `FertilizeDueActionRow`'s label for a liquid-fertilizer plant, wired to `requestLiquidFertilize()`. It appears on Home and Fertilize only (never the Water tab), whether or not a fertilizing interval is set (#532).
+- **Fertilize** (`FertilizeDueActionRow`, `OutlinedButton`): shown whenever `careStatus` has loaded, with no interval gate (#532) and no due text. Its handlers and the duplicate guard never read an interval. `HomeSummaryCard` still shows fertilizing rows only with an interval. A liquid plant takes the date-picker + reason-gated path (`quickLiquidFertilize(reason)`; its paired WATER follows the same rules). Both paths go through `QuickLogUseCase`, feed the adaptive suggestion into the `suggestedWateringInterval` dialog and emit a `QuickLogMessage`. Plain `quickFertilize()` has no date picker (no adaptive/reason concept to feed).
 
-Repot and Photo each start with an always-visible filled action button, using a leading tab-matching
-icon and the same 16dp horizontal padding as Water's primary action. Custom Reminders and Issues retain
-their existing add/report controls; no extra duplicate actions are added there.
+## Reschedule (product ADR-0039, #720, #737, #746)
+- **Model-neutral.** `requestReschedule()` opens `RescheduleWateringDialog` directly, with no reason prompt. Every option commits through `applyReschedule(newDueAtMillis)` → `QuickLogUseCase.recordReschedule()`, which writes only `Plant.wateringDueDateOverride`. It never touches an interval or confidence, never writes a `watering_adjustments` row or `CareType.CHECK` log, and never fires the product ADR-0006 suggestion dialog or a `QuickLogMessage`. "Still moist" is gone everywhere, including `StillMoistReceiver`.
+- **Options:** Today / +1 / +2 / +3 days / Custom date…. +N rows show `+N days · <DateUtils.formatDate()>` and commit that exact timestamp, computed from `maxOf(nextWateringDueAt, now)` (`rescheduledRelativeDueAt()` → `confirmRescheduleRelativeDate()`). Today stays a relative label and reads the live clock on tap, so a dialog held across midnight can't commit yesterday.
+- **A reschedule can only push later.** `computeWateringDue()` resolves `maxOf(computedNextDueAt, override)`, so an earlier override would be silently discarded. The custom picker's `SelectableDates` therefore ANDs two floors (`isSelectableRescheduleDate`): local today or later, **and** strictly after `PlantCareStatus.computedNextWateringDueAt`'s local day (vacuous when null). Compare in the caller's `zoneId`, never UTC, because the picker's `utcTimeMillis` is UTC-midnight-encoded. `TodayOrLaterSelectableDates` is `remember`ed keyed on that value.
+- **OK is re-validated** (`isRescheduleConfirmEnabled`): Material3 doesn't clear an already-selected date that a since-moved due date now rejects. OK is disabled rather than silently dropping the selection. This is not redundant with the grid — don't delete it.
+- **Today's gate** (`isRescheduleTodayEnabled(computedNextWateringDueAt, effectiveNextWateringDueAt)`): enabled when local today is strictly after the computed due day **and** the effective due date isn't already today. Call it as `careStatus?.let { … } == true`, so a not-yet-loaded status stays disabled (both nulls are vacuously true inside the predicate). Accepted gaps: the picker's own today cell may still be offered when the effective date is already today (a harmless tie), and a never-watered plant with a future override keeps Today disabled.
+- The date helpers live in `RescheduleDateSelection.kt` (Detekt `TooManyFunctions`); `RescheduleDatePickerDialog` stays in `WateringDueActions.kt`.
+- **Delta chip + revert (#630):** `PlantCareStatus.rescheduleDeltaDays` is non-null only while the override actually wins `maxOf()`, so the chip self-hides once the schedule catches up. `RescheduleDeltaChip` ("Rescheduled +N days", `watering_reschedule_delta_days`, decorative close icon with null description) is hidden for `DORMANT_SUSPENDED`. A tap calls `revertReschedule()` directly, which clears only the override and emits `Event.RescheduleReverted(previousOverrideAtMillis)`. The snackbar's Undo restores it via `undoRevertReschedule()`. "Why this date?" shows a display-only mirror row.
 
-**Repot** opens a date picker first (`CareDatePickerBottomSheet`, `REPOT_DATE_PICKER_TEST_TAG`,
-`showRepotDatePicker` state in `PlantDetailScreen.kt`), defaulting to today. Confirming calls
-`PlantDetailViewModel.quickRepot(loggedAt)` → `QuickLogUseCase.quickLog(plant, CareType.REPOT,
-loggedAt)`, preserving the shared repot confidence-reset/freeze side effect and the existing rule that
-REPOT is not guarded against same-day duplicates — the picked date is also the reset anchor
-(`WateringLifecycleReset.applyRepotReset`'s `resetAnchorMs`), so `wateringResetAt`/`wateringFreezeUntil`
-follow a backdated repot rather than always landing on "now". Cancelling the sheet creates no log and
-applies no reset. `QuickLogUseCase.quickLog()`'s `loggedAt: Long = System.currentTimeMillis()` parameter
-(mirroring #654's identical threading on `quickWaterWithReason`) is what makes this possible — it drives
-the duplicate-day check (WATER/FERTILIZE only; REPOT is never guarded), the `CareLog` write, the paired
-liquid-fertilizer WATER insert, the post-watering reminder debounce, and the reset anchor together, so
-none of them can drift from each other. Only `quickRepot()` passes a non-default value; `bulkLog`, Plant
-List, Calendar, and plain `quickFertilize()` all keep using real "now" — no other quick-log surface
-changed behavior.
+## Date-picker sheet (`CareDatePicker.kt`, product ADR-0037)
+- Load-bearing structure, kept in one place: `rememberModalBottomSheetState(skipPartiallyExpanded = true)`, and the `DatePicker` in its own `Modifier.weight(1f, fill = false).verticalScroll(...)` inner `Column` with the Cancel/OK row pinned after it. Together they keep OK reachable on short viewports. Use the stock `DatePicker` title (a custom `title` slot clipped).
+- `CareDatePickerContent(...)` — a `ColumnScope` extension for callers that already own a sheet (the Add-photo sheet). `CareDatePickerBottomSheet(testTag, onDismiss, onConfirm, initialSelectedDateMillis = localTodayAsUtcMidnightMillis())` — Repot uses it. `LogWateringDatePickerDialog(onDismiss, onConfirm)` — a one-line delegate; its name and `LOG_WATERING_DATE_PICKER_TEST_TAG` value (`"log_watering_date_picker_dialog"`) stay unchanged for existing callers/tests.
+- Material3's `DatePicker` takes UTC-midnight-encoded dates: preselect with `localTodayAsUtcMidnightMillis()`, re-open on a chosen date with `localDayToUtcMidnightMillis(loggedAt)`, convert back with `utcMidnightMsToLoggedAtMillis()`. Never pass a raw `System.currentTimeMillis()`.
 
-**Photo** opens `AddPhotoBottomSheet` (`PlantDetailPhotoCapture.kt`, `ADD_PHOTO_SHEET_TEST_TAG`) — one
-sheet combining a date row (defaulting to today, editable in place) with **Take photo** / **Choose from
-gallery** — rather than navigating to `AddCareLogScreen` (product ADR-0038, replacing the Photo half of
-#658/#693). Whichever source returns an image, `PlantDetailViewModel.savePhotoLog(uri, loggedAt)` writes
-the PHOTO `CareLog` at the picked date and updates the plant's cover photo directly; it deliberately never
-calls `plantPhotoRepository.addPhoto()` (the unified `PhotoGallery` already merges `plant_photos` with
-care-log photos, technical ADR-0015 — writing both would list the same image twice) and `Plant.updatedAt`
-stays real wall-clock time even for a backdated photo. The trade this makes explicit: the quick path has
-**no notes field** — `AddCareLogScreen` remains the untouched canonical full-entry flow (its route,
-`CareType` preselection argument, `consumeNewLogCareType()`, and the `+` FAB all still work exactly as
-before). Cancelling the sheet or abandoning image selection creates no log — `pendingPhotoLoggedAt`
-(`rememberSaveable`, since the camera app can kill this Activity mid-capture) is only consumed by the
-camera/gallery result callbacks, never by the sheet's own dismissal.
+## Repot and Photo tab actions (#658, #694, product ADR-0038)
+Both tabs start with an always-visible filled button (leading tab icon, same 16 dp padding as Water's). Custom reminders and Issues keep their own add/report controls and get no duplicate action.
+- **Repot** opens `CareDatePickerBottomSheet` (`REPOT_DATE_PICKER_TEST_TAG`, defaults to today) → `quickRepot(loggedAt)` → `QuickLogUseCase.quickLog(plant, REPOT, loggedAt)`. The picked date is also `WateringLifecycleReset.applyRepotReset`'s `resetAnchorMs`, so the reset/freeze follow a backdated repot. REPOT is never duplicate-guarded. Cancel creates nothing. Every other quick-log caller keeps real "now".
+- **Photo** opens `AddPhotoBottomSheet` (`PlantDetailPhotoCapture.kt`, `ADD_PHOTO_SHEET_TEST_TAG`): a date row (editable in place) plus Take photo / Choose from gallery. `savePhotoLog(uri, loggedAt)` writes the PHOTO `CareLog` and updates the cover. It **never** calls `plantPhotoRepository.addPhoto()` (the gallery already merges care-log photos — writing both duplicates it, technical ADR-0015). `Plant.updatedAt` stays real time. No notes field; a note can be added afterwards by editing the log in `AddCareLogScreen`. `pendingPhotoLoggedAt` is `rememberSaveable` (camera may kill the Activity) and is consumed only by the camera/gallery result callbacks.
+- **Plan repot (#809, product ADR-0057):** an outlined "Plan repot" button (`REPOT_PLAN_BUTTON_TEST_TAG`, `PlantDetailTabActionRow`'s optional `TabSecondaryAction`), shown only while no plan exists. It opens `RepotPlanSeasonDialog` (`RepotPlanSection.kt`): an `AlertDialog` of `SeasonalRepotting.upcomingSeasons()` (never the current season, never chips — product ADR-0023), committing immediately via `setRepotPlan(season, now)`. `RepotPlanSummary` below it shows "Planned: spring 2027" (`repotPlanLabelRes()`, derived from the stored timestamp via `resolvePlan()`) with Edit/Clear buttons (semantics "Edit repot plan"/"Clear repot plan"; Clear is immediate, no undo). With no plan it shows "Next repot due <date>" (`nextRepottingDueAt`) when an interval exists, plus the preferred seasons when they aren't all four; otherwise nothing. `setRepotPlan()`/`clearRepotPlan()` (`PlantDetailRepotPlanActions.kt`) use the column-specific repository writes inside `plantEditMutex`. Tests: `PlantDetailViewModelRepotPlanTest`, `PlantDetailScreenTest`'s `repotTab_*`. More in `rules/repotting.md`.
 
-### Repot tab: plan a repot (#809, product ADR-0057)
+## Prune tab (#882, product ADR-0043)
+`pruneTabItems()` (`PlantDetailPruneTab.kt`, a `LazyListScope` extension) mirrors the Repot tab minus plans: a filled "Prune" button (`ContentCut`, `PRUNE_TAB_ACTION_BUTTON_TEST_TAG`) → `CareDatePickerBottomSheet` (`PRUNE_DATE_PICKER_TEST_TAG`, defaults to today; `showPruneDatePicker` is `rememberSaveable`) → `quickPrune(loggedAt)` → `QuickLogUseCase.quickLog(plant, PRUNE, loggedAt)` + `QuickLogMessage.Pruned` snackbar. No notes, no reason prompt, no duplicate guard (same-day repeats allowed), no due state (so no attention badge). Below it: a `TabInsightsCard` (`insight_prunings` count + `insight_last_pruned`, only when logs exist — no average interval), the plant's own PRUNE logs (keys `"prune-${id}"`, edit/delete), or an `EmptyStateView` when none. Tests: `PlantDetailViewModelQuickActionsTest`'s `quickPrune*`, `PlantDetailScreenTest`'s `pruneTab_*`.
 
-Beside the filled **Repot** quick-log the tab has an outlined **Plan repot** button
-(`REPOT_PLAN_BUTTON_TEST_TAG`) — `PlantDetailTabActionRow`'s optional `secondary: TabSecondaryAction`, sharing
-the row's width equally. It is shown only while no plan exists; with a plan, the plan line's **Edit**
-reopens the same picker, so the two never sit side by side. The picker is `RepotPlanSeasonDialog`
-(`RepotPlanSection.kt`, `REPOT_PLAN_DIALOG_TEST_TAG`), an `AlertDialog` of full-width text options — the
-`RescheduleWateringDialog` presentation — listing `SeasonalRepotting.upcomingSeasons(LocalDate.now(),
-SeasonalWatering.currentHemisphere())` as "Winter 2026", "Spring 2027", …; the current season is never
-offered (it is "repot now"), and there are **no inline season chips on this tab** (product ADR-0023).
-Picking one commits immediately via `PlantDetailViewModel.setRepotPlan(season, now)`.
+## Care history (`CareHistorySection.kt`)
+- One helper, `collapsibleCareLogItems()`: `CareLogItem` rows (edit/delete via `CareLogRowActions`), the first `CARE_HISTORY_COLLAPSED_COUNT` (5), then a "Show N more"/"Show less" `AssistChip` (hidden at ≤ 5). Parameters are bundled in `CareHistoryCollapse` (Detekt `LongParameterList`).
+- **Home's combined log** (`combinedCareHistoryItems()`, keys `it.id`) — the **only** place the combined log renders, so a new plant shows one `no_care_logs_detail` empty state. It holds every type; PHOTO/CUSTOM and historical NOTE/MIST appear only here, and PRUNE also appears on its own tab. `CareType.CHECK` rows are hidden from rows *and* count. This is a display filter only — never filter `viewModel.careLogs`, which feeds `CareSchedule.computeStatus`.
+- **Water tab's list** (after the chart): "Recent watering" header + WATER logs, keys `"water-${id}"`. With no WATER logs it renders **nothing**: no header, no empty state (the chart already says so).
+- **MIST is retired (#875, product ADR-0061):** nothing creates one (Add Care Log is edit-only, bulk bar, demo data). Existing MIST rows display and are editable with **no display filter** (unlike CHECK, the user typed them). Editing one shows a read-only "Misted" header and keeps the type (see below). Tests: `AddCareLogViewModelTest`'s retired-type case, `AddCareLogScreenTest`'s `editingAMistLog_*`, `PlantDetailScreenTest`'s "combined log includes Mist" case.
+- **NOTE is retired (#532, product ADR-0062):** like MIST, the constant, label, icon and chart colour stay and no code path writes one (no FAB, Add Care Log only edits, bulk bar never offered it, demo data dropped its NOTE log). Existing NOTE rows show in Home's log (no display filter), edit and delete. Never offer NOTE or MIST in a list of types to create.
+- Each list owns its expanded flag (`isCareHistoryExpanded`/`isWaterHistoryExpanded`), a screen-level `remember` (not saveable), so both reset on every open (#253).
+- `CareLogItem.customReminderName` shows a CUSTOM entry's reminder name; pass `null` when the reminder was deleted — never crash on a dangling `customReminderId`.
 
-Below the action row `RepotPlanSummary` renders: with a plan, "Planned: spring 2027"
-(`FertilizingSeason.repotPlanLabelRes()` — one whole sentence per season, filled with the year from
-`SeasonalRepotting.resolvePlan(plant.repotPlanSeasonStartAt, hemisphere)`, so the label is always derived
-from the stored timestamp) plus **Edit** and **Clear** text buttons whose semantics carry the fuller
-"Edit repot plan"/"Clear repot plan" descriptions (the screen has other Edit/Clear-ish controls); with no
-plan, "Next repot due <date>" from `PlantCareStatus.nextRepottingDueAt` (`DateUtils.formatDate`, so it
-already includes the preferred-season shift) when an interval is set, and "Repots in Spring, Summer" when
-the preferred seasons aren't all four. A plant with neither a plan nor an interval shows nothing here
-beyond the Plan action. Clear is immediate, with no confirmation or undo.
+## Add Care Log is edit-only (#532, part 3; product ADR-0062)
+- `Screen.AddCareLog` is `add_care_log/{plantId}/{careLogId}`, both required. Only `onNavigateToEditLog` opens it (the row edit buttons); the `careType` route arg, `preselectCareType()`, `prepareNewLog()`/`consumeNewLogCareType()` and `onNavigateToAddLog` are gone, so nothing opens a create form. Back-stack guards (`popBackStackOnce`, #408) are unchanged.
+- The log's type is a **read-only header** (`careTypeIcon` + label, heading semantics) and never changes, so an edit can't write a retired type (NOTE/MIST/CHECK) or turn one log into another. The form stays hidden and `saveLog()` is a no-op until the log has loaded.
+- Editable: date (the original time-of-day is kept), notes, photo, WATER feedback flag + amount, FERTILIZE fertilizer type + amount. A PHOTO log can't be saved without a photo (#305/#443); a PHOTO save updates the cover; same-day WATER/FERTILIZE duplicates are rejected excluding the edited row.
+- No create-mode side effects live here any more (paired liquid WATER, repot reset, plan/override clear, post-watering reminder): they are `QuickLogUseCase`'s. An edit never runs the adaptive observation and hands nothing back to Plant Detail (`Event.Saved` is a plain object; technical ADR-0037), but `feedbackForLog()` still strips dormancy-spanning feedback on every save.
 
-`setRepotPlan()`/`clearRepotPlan()` (`PlantDetailRepotPlanActions.kt`) call the column-specific
-`PlantRepository.setRepotPlan`/`clearRepotPlan` (never a full-row `updatePlant()`), but do so inside
-`intervalEditMutex`: every other writer sharing that lock re-reads the plant fresh inside it and writes the
-whole row back, so a plan write outside the lock could land between that read and write and be reverted.
-`repotPlanMadeAt` = the `now` parameter (defaults to `System.currentTimeMillis()` — this ViewModel has no
-injectable clock). A plan needs no repotting interval. Tests: `PlantDetailViewModelRepotPlanTest` (plain JVM),
-`PlantDetailScreenTest`'s `repotTab_*` cases (instrumented; text/contentDescription only).
+## Photos (technical ADR-0015)
+Unified `PhotoGallery` merges `plant_photos` + care-log photos (`GalleryPhoto(uri, timestamp)`, `.distinctBy { it.uri }`), newest first. `FullScreenPhotoViewer` is a `HorizontalPager`: solid black incl. status bar, "N / M" indicator when > 1, per-page date chip (`cd_photo_viewer_date`), trash icon + long-press delete (the cover falls back to the next-most-recent photo).
 
-### The shared date-picker sheet (`CareDatePicker.kt`, #654/#675/#694)
-
-`LogWateringDatePickerDialog`'s body is split three ways so ADR-0037's two load-bearing structural
-details (`skipPartiallyExpanded = true`; the `DatePicker` in its own `weight(1f, fill = false)
-.verticalScroll(...)` inner `Column` with the Cancel/OK row pinned outside it) live in exactly one place
-rather than being copy-pasted per caller:
-- `CareDatePickerContent(initialSelectedDateMillis, onCancel, onConfirm)` — the actual `DatePicker` +
-  button row, an extension on `ColumnScope` (not a sheet of its own) so a caller that already owns a
-  `ModalBottomSheet` can swap it in as an internal content state without nesting two sheets. The
-  Add-photo sheet does exactly this.
-- `CareDatePickerBottomSheet(testTag, onDismiss, onConfirm, initialSelectedDateMillis =
-  localTodayAsUtcMidnightMillis())` — a `ModalBottomSheet` wrapping the content above; Repot's own
-  picker uses this directly.
-- `LogWateringDatePickerDialog(onDismiss, onConfirm)` — a one-line delegate onto
-  `CareDatePickerBottomSheet` passing `LOG_WATERING_DATE_PICKER_TEST_TAG`. Its function name and that
-  tag's string value (`"log_watering_date_picker_dialog"`) are deliberately unchanged, so every existing
-  water/liquid-fertilize call site and instrumented test needed no edits.
-
-`localDayToUtcMidnightMillis(loggedAt)` (the inverse of `localTodayAsUtcMidnightMillis()`) re-encodes an
-already-picked `loggedAt` instant's local calendar day as UTC midnight, so a picker can be re-opened
-pre-selected on a previously chosen date rather than always defaulting back to today — the Add-photo
-sheet's date-edit state uses this to preselect whatever date the sheet is currently showing.
-
-## Fertilize tab action (#434, #603; `StatsRow`/`StatChip` deleted #704)
-`FertilizeDueActionRow` (`WateringDueActions.kt`) is a single always-visible `OutlinedButton` rendered
-under the Fertilize tab, gated on `plant?.fertilizingIntervalDays != null` (mirroring
-`WateringDueActionsRow`'s own `wateringIntervalDays` gate) — not on due status. It has no "reschedule"
-counterpart since fertilizing has no equivalent concept. Fertilize logs directly via `quickFertilize()`
-(regular) or a reason-gated path → `quickLiquidFertilize(reason)` (liquid-fert, whose paired WATER log
-follows the same rule); both delegate to the shared `QuickLogUseCase`, feed the adaptive suggestion into
-the `suggestedWateringInterval` dialog, and emit a `QuickLogMessage`.
-
-This button replaced the classic layout's tappable watering/fertilizing `StatChip`s (in `StatsRow`,
-#434) when the tabs layout dropped `StatsRow` as a redundant second control once `WateringDueActionsRow`'s
-Water button became always-visible (#603). `StatsRow`/`StatChip` themselves — and the classic layout
-they lived in — were deleted from the app entirely when `PLANT_DETAIL_TABS` graduated (#704).
-`careTypeInsightItems(...)`'s `lastAtLabel` is populated (`R.string.insight_last_watered` /
-`R.string.insight_last_fertilized`) for both Water/Fertilize tabs, restoring the "last done" display
-`StatsRow` used to show (#603 round-2 fix) — it is no longer `null` there.
-
-## Watering-due actions row: Water / Reschedule watering (#586, product ADR-0030; always-visible since #603)
-`WateringDueActionsRow` (`WateringDueActions.kt`) renders **two** buttons in one row — narrowed
-from #508's three (product ADR-0029) — on the Water tab. Reschedule stays gated on
-`plant?.wateringIntervalDays != null` (**not** on due status — #603 dropped the earlier `status.isOverdue
-|| status.isDueSoon` clause, since "Reschedule" had no other entry point and was otherwise unreachable
-before the plant's due date). **Water is unconditional** — it renders whenever the row itself renders
-(`careStatus != null`), independent of `wateringIntervalDays` (product ADR-0040, #704) — a plant with
-no configured watering schedule still needs a one-tap way to log an occasional watering, now that the
-classic layout's always-on `StatChip` fallback for that case no longer exists. `onRescheduleClick` is a
-nullable `(() -> Unit)?` parameter accordingly — non-null only when the caller has a schedule to
-reschedule. "Did water go in, or not?" is a fact, not a judgement; *why* is asked afterwards, and only
-when the action is off schedule.
-
-**Styling (#603 round-3 visual polish):** Water is a filled Material3 `Button` (`colorScheme.primary`,
-no hardcoded color — resolves to `SageGreen`/`SageGreenLight` in `Theme.kt`) with a leading
-`Icons.Filled.WaterDrop` icon ahead of its text, `Modifier.weight(1f)`. Reschedule watering is an
-icon-only `OutlinedIconButton` (`Icons.Filled.MoreTime`, no visible text — `contentDescription` reuses
-`R.string.reschedule_watering_title`), sized to its own content so Water's `weight(1f)` takes the rest
-of the row. Compose UI tests locate the Reschedule button via `onNodeWithContentDescription`, not
-`onNodeWithText`, since it has no visible label (`PlantDetailScreenTest.kt`).
-
-The row uses plain `padding(horizontal = 16.dp)`, same as every other card on the screen (#610,
-technical ADR-0022) — an earlier fix (#604) widened this to `88.dp`/`64.dp` trailing/leading insets to
-keep the row's clickable bounds clear of the *permanently pinned* Back icon button (top-left), Edit icon
-button (top-right), and "Log care" FAB (bottom-right, all Box-overlay buttons per technical ADR-0018)
-whenever the row (first item under its tab) scrolled flush against a screen edge, but that traded away
-visual consistency with every sibling card for a worst-case-sized buffer paid at every scroll position.
-Technical ADR-0022 instead fades the Edit button out once the user has scrolled substantially past the hero photo
-— see "Edit button scroll fade" below — so the row's own margins could revert to normal. The residual
-collision risk with Back/FAB is a deliberate, accepted trade-off (technical ADR-0022), not an oversight; do not
-reintroduce a smaller "just in case" inset here without a new decision. `FertilizeDueActionRow` uses the
-same plain `16.dp` padding for the same reason.
-
-### Edit button scroll fade (technical ADR-0022)
-The pinned Edit `IconButton` (`PlantDetailScreen.kt`'s Back/Edit `Row`, `Alignment.TopStart` in the Box
-overlay) fades out (`AnimatedVisibility` + `fadeIn()`/`fadeOut()`, matching the `PlantDetailTabStrip`
-chevron's `animateFloatAsState` fade/rotate convention) once the `LazyColumn`'s named `LazyListState`
-reports `firstVisibleItemIndex > 0` — i.e. the 280dp hero photo (item index 0) has fully scrolled out of
-the viewport. `AnimatedVisibility` removes the button from composition (not just alpha) once its exit
-animation finishes, so it stops being clickable and disappears from the semantics tree, not just
-visually. **Back stays exactly as before** — always pinned, never fades, no visibility logic — and so
-does the "Log care" FAB, since persistent visibility across scrolling is the whole point of a FAB. Edit
-becomes unreachable via its icon once scrolled past the hero, with no alternative on-screen entry point
-today — a real, if narrow, functional regression accepted in technical ADR-0022.
-
-**Placement (#603 round-3):** the actions row (and `FertilizeDueActionRow` on the Fertilize tab) renders
-**before** the `InlineIntervalSetting` card on its tab, not after — actions row → interval card →
-per-tab insights card.
-
-- **Water** — on schedule, logs immediately (`quickWater(reason = null)`, the fast path); off schedule,
-  opens `WateringReasonBottomSheet`, whose two-chip option set is direction-specific (#649, product
-  ADR-0033): early ("Why now?" → "The plant needed it" / "Just my timing") vs. late ("Why was it late?"
-  → "Soil was still moist" / "Forgot, or no time") — a late gap never offers a shorten attribution. The
-  `requestWater`/`requestLiquidFertilize` helpers at the bottom of `PlantDetailScreen.kt` own that
-  branch, shared with the tabs layout's `FertilizeDueActionRow` so no surface can disagree. On the Water
-  tab, this "Water" button **always** calls plain `requestWater()`, regardless of
-  `Plant.useLiquidFertilizer` — it never branches (#652).
-
-**Combined Water + Fertilize action on the Water tab (#652):** for a liquid-fertilizer plant
-(`plant?.useLiquidFertilizer == true`), a second, visually distinct `OutlinedButton`
-(`CombinedWaterFertilizeActionRow`, `WateringDueActions.kt`,
-`WATERING_DUE_COMBINED_WATER_FERTILIZE_BUTTON_TEST_TAG`) renders directly below
-`WateringDueActionsRow`, wired to `requestLiquidFertilize()`/`showLiquidFertilizeSheet` — the same
-combined path `FertilizeDueActionRow` uses — so a liquid-fertilizer plant owner doesn't have to switch
-to the Fertilize tab to log the one action they take every time they water. It is additive, not a
-replacement: the plain "Water" button stays present and unchanged next to it. Absent entirely for a
-non-liquid-fertilizer plant. `FertilizeDueActionRow`'s own button is relabeled "Water + Fertilize"
-(shared string `R.string.water_fertilize_combined_button`) under the same `useLiquidFertilizer`
-condition, for consistency with the new Water-tab button — its `onClick` behavior was already correct
-and unchanged.
-- **Reschedule watering** — as of #738 (product ADR-0039), a reschedule is model-neutral again and
-  asks no reason at all: `requestReschedule()` opens `RescheduleWateringDialog` directly.
-  `RescheduleReasonBottomSheet`/`chooseRescheduleReason()` (which used to open first and ask "Why put
-  it off?" → "Soil still moist" / "I can't right now", dismissible to abandon the reschedule entirely)
-  are removed.
-
-**Follow-up (#654):** a plain tap on Water/the combined action no longer logs immediately even when
-on schedule — every quick-water entry point (`WateringDueActionsRow`'s Water button in both layouts,
-the classic-layout watering `StatChip`, and `CombinedWaterFertilizeActionRow`/`FertilizeDueActionRow`'s
-liquid-fert path) first opens `LogWateringDatePickerDialog` (`LogWateringDatePicker.kt`, not-future-only
-via `SelectableDates`, pre-selected to today, distinct from `RescheduleWateringDialog`'s custom date —
-that one sets `wateringDueDateOverride` on the *next due date*, this one backdates the *logged event*
-itself). Confirming with today selected reproduces the old instant-log fast path in one extra confirm
-tap; picking an earlier date backfills a forgotten watering. `requestWater`/`requestLiquidFertilize`
-now take the picked `loggedAt` and re-evaluate on/off-schedule against **that** date (`CareSchedule
-.isWateringOnScheduleAt`/`isWateringGapLongAt`, public wrappers around the same `wateringOnScheduleNow`/
-`wateringGapRanLong` comparisons `PlantCareStatus.isWateringOnSchedule`/`isWateringGapLong` already use
-against real "now") rather than the plant's precomputed `careStatus`, which is always "now"-relative —
-picking today reproduces `careStatus`'s own result exactly, since the underlying gap comparison is
-calendar-day granular. `quickWater()`/`quickLiquidFertilize()` and `QuickLogUseCase
-.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()` all gained an explicit `loggedAt: Long =
-System.currentTimeMillis()` parameter threading through the duplicate-day guard, the `CareLog` write,
-and the adaptive-gap math consistently — see `.claude/rules/watering-transparency.md` for why that one
-value can't be allowed to drift across those three. Plain (non-liquid) `quickFertilize()` is unchanged
-— no date picker, since fertilizing alone has no adaptive-interval/reason-prompt concept for a chosen
-date to feed into.
-
-**Review round 1 fix (#654 PR #671):** `loggedAt` threading missed one spot — `QuickLogUseCase
-.adaptWateringInterval()`'s call to its private `deseasonalizedObservedIntervalDays()` helper still
-evaluated the season at `nowProvider()` (real wall-clock "now") instead of the caller's backdated
-`loggedAt`, so a backdated quick-water with `SEASONAL_WATERING` on de-seasonalized the observed gap
-using *today's* season factor, not the logged day's. Fixed by adding an explicit `atDate: LocalDate`
-parameter (default `nowProvider().toLocalDate()`, so `computeStillMoistAdaptiveInterval()`'s two
-callers — which have no backdating concept — are unaffected) that `adaptWateringInterval()` now passes
-`now.toLocalDate()` into. `effectiveIntervalForDisplay()` (display-only, feeds the product ADR-0006 suggestion
-dialog's "different from current" check) had the identical bug and got the same fix via an explicit
-`now` parameter threaded from `computeSuggestion()`. `QuickLogUseCaseSeasonalTest`'s pre-existing
-adaptive-path calls to `quickWaterWithReason()` had to start passing `loggedAt = peakDay` explicitly to
-keep matching their pinned `nowProvider` — they previously relied on the pre-fix code silently reading
-`nowProvider()` for season while `loggedAt` (unpassed, defaulting to the real device clock) drove
-everything else, which the fix correctly stopped tolerating.
-
-**Review round 2 fixes (#654 PR #671, external bot findings):** two more. (1) `LogWateringDatePickerDialog`'s
-`initialSelectedDateMillis` passed `System.currentTimeMillis()` — a raw UTC instant — directly into
-Material3's `DatePicker`, which interprets that parameter as a UTC-midnight-encoded calendar date, not
-an instant; in timezones where local calendar day differs from UTC's (e.g. early morning in UTC+14, late
-evening in UTC−8) the picker could preselect the wrong day. Fixed via a new
-`localTodayAsUtcMidnightMillis()` helper (`LogWateringDatePicker.kt`, mirroring `isOnOrBeforeLocalToday`'s
-own local-day ↔ UTC-midnight conversion in the opposite direction) that encodes local today as UTC
-midnight before handing it to the picker. (2) `QuickLogUseCase.computeSuggestion()` computed the
-adaptive-gap observation from `CareLogRepository.getLastTwoWaterings()` — "the two globally newest
-waterings by `loggedAt`" — rather than the newly-inserted (possibly backdated) log's own chronological
-predecessor. Backdating a new WATER log to a date *before* an already-existing one silently paired the
-new log with that later, unrelated log instead of its real neighbor, feeding the adaptive model a wrong
-gap. Fixed by adding `CareLogRepository.getLastWateringBefore(plantId, beforeMillis)` (`CareLogDao
-.getLastLogOfTypeBefore`, `... WHERE loggedAt < :beforeMillis ORDER BY loggedAt DESC LIMIT 1`) and
-switching `computeSuggestion()` to look up the log strictly preceding its own `now`/`loggedAt` argument.
-`AddCareLogViewModel`'s independent `getLastTwoWaterings()` call site is untouched — out of scope for
-this fix, a pre-existing, separately-reported concern. (Since fixed by #673, technical ADR-0033: the form
-now measures from the same chronological predecessor via `AdaptiveWateringObservation`'s
-`CHRONOLOGICAL_PREDECESSOR_OR_FIRST_CONFIGURED` gap source.)
-
-**UI feedback fix (#654 PR #671, post-merge-conflict-resolution):** `LogWateringDatePickerDialog`'s
-custom `title` slot (`Text(stringResource(R.string.log_watering_date_picker_title))`) replaced
-Material3's own default title composable entirely — which normally applies its own internal padding —
-so the bare `Text` sat flush against the dialog's rounded top corner, partly clipped. Fixed by dropping
-the override and letting `DatePicker` render its default title, exactly matching `AddCareLogScreen`'s
-own picker (which never overrides `title` either, and never had this bug). The now-orphaned
-`log_watering_date_picker_title` string resource was removed; tests that waited on/asserted that title
-text now use the existing `LOG_WATERING_DATE_PICKER_TEST_TAG` instead, which already existed
-specifically to locate this dialog in Compose UI tests.
-
-**Follow-up (#679):** `requestWater`/`requestLiquidFertilize`'s on/off-schedule gate had the same class
-of bug round 2's fix (2) above fixed for `computeSuggestion()` — it compared the picked date against
-`PlantCareStatus.lastWateredAt` (the plant's globally newest watering, always "now"-relative) instead of
-that date's own chronological predecessor, and the subsequent `WateringReasonBottomSheet`'s gap-length
-wording repeated the same wrong reference point. Fixed via a new `PlantDetailViewModel
-.previousWateringBefore(before): Long?` suspend wrapper around the same `CareLogRepository
-.getLastWateringBefore()` lookup, called from `rememberCoroutineScope().launch {}` inside both
-`LogWateringDatePickerDialog.onConfirm` callbacks; the fetched value is bundled with `loggedAt` into a
-`PendingReasonPrompt` so `showWaterSheet`/`showLiquidFertilizeSheet`'s later `isChosenDateGapLong` call
-uses the exact same predecessor `requestWater`/`requestLiquidFertilize` already gated on, rather than
-re-deriving (or mis-deriving) it a second time. Also fixed in the same issue: `QuickLogUseCase
-.quickWaterWithReason()`/`quickLiquidFertilizeWithReason()` cleared an active `wateringDueDateOverride`
-unconditionally on every WATER insert, discarding an unrelated reschedule when backfilling an old
-watering from before it was made — see `.claude/rules/watering-transparency.md`'s #679 follow-ups for
-that fix and the matching cold-start-bootstrap `displayNow` fix.
-
-**Test coverage follow-up (#679 review round 1):** `isChosenDateOnSchedule`/`isChosenDateGapLong` (the
-functions backing the gate above) went from `private` to `internal` specifically so `PlantDetailScreenGateTest`
-(a plain JVM unit test, `app/src/test/.../ui/screens/plantdetail/`) can exercise the exact "backdate
-before an already-existing later watering" scenario directly — passing the real predecessor produces the
-correct off-schedule/late result, while passing a reference chronologically *after* the chosen date (the
-old, buggy stand-in for `PlantCareStatus.lastWateredAt`) reproduces the wrong-direction ("early") answer
-the fix prevents. An instrumented Compose test driving Material3's `DatePicker` day grid to a specific
-backdated day had no precedent in this suite and was judged too fragile (no existing test picks a
-non-today date; day-of-month arithmetic would depend on when CI happens to run) to be worth adding for
-this. `PlantDetailViewModel.previousWateringBefore()` itself has a plain delegation unit test in
-`PlantDetailViewModelTest`. Every `mockk<CareLogRepository>()` fixture in `PlantDetailScreenTest.kt`
-(instrumented) now also stubs `getLastWateringBefore(any(), any())` (default `null`) — added after CI
-caught a `MockKException` on `wateringChip_onSchedule_tapLogsDirectlyWithoutTheReasonPrompt`, since every
-"Log watering" date-picker confirm now calls `previousWateringBefore()` regardless of which test triggers
-it.
-
-**Follow-up (#675):** `LogWateringDatePickerDialog` moved from a centered Material3 `DatePickerDialog`
-to a `ModalBottomSheet` wrapping the same stock `DatePicker` composable, matching the bottom-sheet
-convention `WateringReasonBottomSheet`/`RescheduleReasonBottomSheet` (`ReasonBottomSheets.kt`) and
-`WateringExplanationSheet` already use elsewhere on this screen — pure UI-consistency, no behavior
-change. `rememberModalBottomSheetState(skipPartiallyExpanded = true)` is load-bearing: the default
-(`false`) lets a tall sheet — a full calendar grid plus a button row — open only partially expanded on
-smaller devices. But `skipPartiallyExpanded` only removes that partial-expansion anchor — it does not
-shrink oversized content to fit the viewport, so on its own it does not guarantee the OK/Cancel row is
-reachable. What actually guarantees that (external review on PR #696) is that the `DatePicker` sits in
-its own inner scrollable `Column` (`Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())`)
-below the sheet's outer `Column`, with the OK/Cancel `TextButton` row (Cancel leading, OK trailing,
-end-aligned) always rendered last, outside that inner scroll — the calendar scrolls internally on a
-viewport shorter than its own ~568dp (landscape, a resized multi-window), while the buttons stay pinned
-and visible; `weight(1f, fill = false)` also means the sheet does not stretch to full height on a normal
-portrait phone where the calendar comfortably fits. Reusing `R.string.ok`/`R.string.cancel` unchanged,
-and dismissal still routes through the plain `onDismiss` lambda (no `sheetState.hide()` await), matching
-every other sheet's convention. `LOG_WATERING_DATE_PICKER_TEST_TAG` moved onto the `ModalBottomSheet`'s
-`modifier`; `TodayOrEarlierSelectableDates`/`localTodayAsUtcMidnightMillis()`/
-`utcMidnightMsToLoggedAtMillis()` and the public `LogWateringDatePickerDialog(onDismiss, onConfirm)`
-signature are all unchanged, so `PlantDetailScreen.kt`'s two call sites needed no edits. Product
-ADR-0034's passing description of this picker as "a plain Material3 `DatePickerDialog`" is now stale —
-its substantive decision (no instant-log fast path, not-future-only range, picked-date-drives-everything)
-is untouched, so the ADR itself was not edited.
-
-**Follow-up (#694):** `LogWateringDatePicker.kt` was renamed to `CareDatePicker.kt` (and its test file to
-`CareDatePickerTest.kt`) once Repot and the Add-photo sheet needed the same "pick a date, then confirm"
-sheet — see "The shared date-picker sheet" above for the `CareDatePickerContent`/
-`CareDatePickerBottomSheet` split this introduced. `LogWateringDatePickerDialog`'s signature and
-`LOG_WATERING_DATE_PICKER_TEST_TAG`'s string value are deliberately unchanged despite the file move, so
-every existing water/liquid-fertilize call site and instrumented test still compiles and passes
-untouched. This section's two load-bearing details (`skipPartiallyExpanded = true`; the pinned-button-
-row-plus-scrollable-calendar structure) now live in `CareDatePickerContent`/`CareDatePickerBottomSheet`
-rather than directly in `LogWateringDatePickerDialog`'s own body — any future edit to either detail
-belongs there, not in the now-trivial delegate.
-
-**"Still moist" is retired (#738, product ADR-0039).** It is no longer a button (that happened back
-at #508/product ADR-0029) and, as of ADR-0039, it is no longer an answer either — the reschedule reason
-prompt it lived in as "Soil still moist" is removed entirely, and the notification's own "Still
-moist" action (`StillMoistReceiver`) is dropped rather than reworked. `QuickLogUseCase
-.recordStillMoistCheck()`, `recordStillMoistAdaptiveObservation()`, `suggestedStillMoistDeferralDays()`,
-and `StillMoistReceiver` itself are all deleted.
-
-`applyReschedule(newDueAtMillis)` is the single commit point for every date option, unconditionally —
-a plain `Plant.wateringDueDateOverride` write via `QuickLogUseCase.recordReschedule(plant,
-newDueAtMillis)`, never `wateringIntervalDays`/`wateringBaseIntervalDays`/`wateringConfidence` and
-never a `watering_adjustments` row, and no `QuickLogMessage` emitted. There is no reason branch left
-to distinguish — every reschedule behaves the way product ADR-0029 originally described for the half of
-reschedules that really was about the user. **The deferral's length is never a model input** — there
-is no model input at all.
-
-`RescheduleWateringDialog` options: **Today** (`confirmRescheduleToday()`, disabled via
-`isRescheduleTodayEnabled` — see "Today button's own gate" below, #746)
-/ **+1 / +2 / +3 days** (`rescheduledRelativeDueAt()` computes the due-date-anchored preview,
-`confirmRescheduleRelativeDate()` commits that exact timestamp) / **Custom date…**
-(`confirmRescheduleCustomDate(dateMillis)`, a Material 3 `DatePicker` with
-`SelectableDates` excluding past dates and — since #720 — dates on or before the schedule-computed due
-date, see below). **Never fires the product ADR-0006 interval-suggestion dialog**
-afterward; there is no `Event` for a reschedule at all. The "(suggested)" row and its source
-(`suggestedStillMoistDeferralDays()`) and `PlantDetailViewModel.confirmRescheduleSuggestedDays()`
-(#719's handler) are removed — a reschedule no longer teaches the model anything for that row to
-preview, leaving Today/+1/+2/+3/Custom date as the full option set.
-
-**The two-anchor confusion this file used to document under "#719" is resolved by #738, not by
-patching it.** The removed "(suggested)" row's from-today anchor and `confirmRescheduleRelativeDays()`'s
-due-date anchor only ever needed reconciling because that row existed; removing it removes the second
-anchor entirely, leaving `confirmRescheduleRelativeDays()`'s due-date anchor as the only one left. #719
-(which had fixed the from-today row on its own anchor) is superseded rather than reverted; the history
-of that anchor pair is in #719/#720/#738 and their PRs.
-
-The remaining `+1/+2/+3` labels were still unclear about their due-date anchor (#737). The dialog
-shows `+N days · <date>` using `DateUtils.formatDate()` and passes the same calculated timestamp to
-`confirmRescheduleRelativeDate()`. The date can wrap on a narrow screen; Custom date remains a picker
-because its result is not known until a day is selected. Today stays the self-explanatory relative
-label and reads the live clock on tap — a dated Today preview held across midnight could otherwise
-commit yesterday and leave the plant immediately overdue.
-
-### Custom-date picker's due-date floor (#720)
-`CareSchedule.computeWateringDue()` resolves the due date as `maxOf(computedNextDueAt, override)`, so an
-override earlier than the schedule-computed date can never win — it would be written to the database
-and then silently discarded, with no chip, snackbar, or error. The "Custom date…" picker's
-`SelectableDates` therefore ANDs two independent floors, never just one:
-`WateringDueActions.isSelectableRescheduleDate(utcTimeMillis, computedNextWateringDueAt, zoneId, today)`
-combines the existing `isOnOrAfterLocalToday` (local-today floor) with a new due-date floor — a candidate
-is only selectable when its local calendar day is **strictly after** `computedNextWateringDueAt`'s local
-calendar day (same-day can only tie or lose the `maxOf()`). Both floors are independently load-bearing: a
-plant overdue since January with today in September needs the today floor to reject a February pick that
-the due-date floor alone would accept, and a plant not yet due needs the due-date floor to reject "today"
-where the today floor alone would accept it. `computedNextWateringDueAt == null` (no interval configured)
-makes the due-date floor vacuous.
-
-`PlantCareStatus.computedNextWateringDueAt: Long?` carries `computeWateringDue()`'s private
-pre-override local out to the UI layer for exactly this comparison — populated once inside `CareSchedule`,
-never re-derived, same posture `rescheduleDeltaDays` already documents. It is a real epoch-millis instant
-(unlike the picker's own `utcTimeMillis`, which Material3 always encodes as UTC midnight regardless of
-device timezone) and must be converted via the caller's `zoneId`, not `ZoneOffset.UTC`, to compare local
-calendar days consistently. `TodayOrLaterSelectableDates` is a class (not the earlier stateless `object`)
-parameterized by `computedNextWateringDueAt`, `remember`ed keyed on that value in
-`RescheduleDatePickerDialog` so `rememberDatePickerState` isn't handed a fresh instance every
-recomposition; `RescheduleWateringDialog` threads the value down from `PlantDetailScreen`'s
-`careStatus?.computedNextWateringDueAt`.
-
-Today/+1/+2/+3 need no such gate — they anchor to `maxOf(nextWateringDueAt, now)` and only ever add
-forward time, so they cannot produce an ineffective date by construction; only the free-form custom date
-can land on or before the computed due date. `computeWateringDue()`'s `maxOf()` itself is untouched by
-this fix — constraining the picker was the chosen option (A) over letting an earlier override win (C),
-which product ADR-0029/ADR-0039's forward-only invariant doesn't contemplate. A reschedule can therefore
-only ever push a plant **later**; there is deliberately no way to express "come back sooner", and that is
-an invariant rather than a gap awaiting a fix. A related, separate bug in the
-"Today" button's own gate (`todayEnabled = careStatus?.isOverdue == true`, which could be `false` in a
-state where tapping Today would actually pull the due date in) was out of scope here and filed
-separately as #746 — now fixed, see "Today button's own gate (#746)" below.
-
-**Review round 1 fix (#720 PR #748):** excluding a date from the day grid isn't the whole picket —
-Material3's `rememberDatePickerState` re-validates its retained state's grid against a fresh
-`SelectableDates` instance on recomposition, but it does **not** clear an already-tapped
-`selectedDateMillis` that a since-moved `computedNextWateringDueAt` would now reject (e.g. a watering
-logged from another surface, such as a notification action, while the dialog sits open). Without a
-second check, OK would still forward that stale selection to `onConfirm`, reproducing the exact
-silent-no-op bug #720 exists to prevent. `RescheduleDatePickerDialog`'s OK `TextButton` now also gates
-`enabled` on `isRescheduleConfirmEnabled(selectedDateMillis, computedNextWateringDueAt)` — a pure
-predicate (`null` selection stays enabled, matching the documented "OK closes the picker either way"
-behavior; a non-null selection is re-validated via `isSelectableRescheduleDate`) — disabling the
-affordance rather than silently discarding the tap, per this codebase's convention: a disabled control
-is visible feedback, a silently-dropped confirm is the exact bug class being fixed. This is not
-redundant with the grid's own `SelectableDates` — do not delete it as apparently so.
-
-`isOnOrAfterLocalToday`, `isSelectableRescheduleDate`, `isRescheduleConfirmEnabled`,
-`TodayOrLaterSelectableDates`, and `utcMidnightMsToLocalStartOfDayMillis` live in a separate file,
-`RescheduleDateSelection.kt` (not `WateringDueActions.kt`), split out in this same round specifically to
-stay under Detekt's per-file `TooManyFunctions` threshold once `isRescheduleConfirmEnabled` was added —
-same reasoning as `CustomRemindersSection.kt`/`PlantIssuesSection.kt` elsewhere in this file.
-`RescheduleDatePickerDialog` itself stays in `WateringDueActions.kt`, calling into the split-out file's
-top-level functions (same package, no import needed).
-
-### Today button's own gate (#746)
-`RescheduleWateringDialog`'s "Today" option used `todayEnabled = careStatus?.isOverdue == true` —
-derived from the **post-override, effective** due date, which is always `>= computedNextDueAt` since
-an override only ever wins `maxOf()` when it's greater. That left a window where a winning *future*
-override made "Today" disabled even though tapping it (`override = now`) would beat
-`computedNextDueAt` in `maxOf()` and genuinely pull the due date in — the opposite failure mode from
-#720 (offered-then-discarded vs. conservatively withheld).
-
-Fixed with a new pure predicate, `isRescheduleTodayEnabled(computedNextWateringDueAt,
-effectiveNextWateringDueAt, zoneId, today)` (`RescheduleDateSelection.kt`) — `true` whenever local
-today clears **both** of two independent floors: local today is strictly after
-`computedNextWateringDueAt`'s local calendar day (the schedule-computed floor, mirroring
-`isSelectableRescheduleDate`'s own due-date floor), **and** `effectiveNextWateringDueAt`
-(`PlantCareStatus.nextWateringDueAt`, the post-override date actually in effect) is not already today.
-Both `null` (no interval configured) are treated as vacuously clearing their own floor, matching
-`isSelectableRescheduleDate`'s convention — unreachable in practice, since a non-null interval forces
-`computeWateringDue()` to always populate both fields. No UTC round-trip is needed here, unlike
-`isSelectableRescheduleDate`'s `utcTimeMillis` parameter — "Today" never goes through the Material3
-picker, it writes a plain `System.currentTimeMillis()`, so `LocalDate.now(zoneId)` is already the real
-local day being written. `isOverdue` still implies this predicate (a strict superset — this change can
-only flip Today from disabled to enabled, never the reverse): `isOverdue` means the effective due
-date's local day is strictly before today, which both clears the computed floor
-(`computedNextDueAt <= effective due date` always) and rules out the "already due today" no-op guard.
-
-**Review round 1 (#752), a verified Codex finding:** the first (single-parameter) version of this
-predicate only checked the computed-due-date floor, which is the *pre*-override date and stays frozen
-in the past forever once a plant has gone overdue — it never re-tracks a since-applied Today tap or an
-active override. Sequence: overdue plant, no override, tap Today (`override = now`) → effective due
-date becomes today, `isOverdue` correctly flips to `false`, but the old fix's predicate still read the
-same (already-cleared) computed floor and stayed `true` — reopening the dialog offered Today again for
-a tap that would be a genuine no-op. The second `effectiveNextWateringDueAt` parameter (`PlantCareStatus
-.nextWateringDueAt`) closes this: it's the "already due today" check the computed floor alone can't
-express, since the computed floor doesn't move once an override or a same-day Today tap has already
-resolved it.
-
-**This is no longer provably identical to `isSelectableRescheduleDate`'s decision for the picker's own
-"today" cell — only a one-way implication holds.** Whenever `isRescheduleTodayEnabled` is `true`, the
-picker would also accept its own today cell (feeding local-today in as `isSelectableRescheduleDate`'s
-`utcTimeMillis` makes its `isOnOrAfterLocalToday` term trivial and its due-date floor reduce to exactly
-`isRescheduleTodayEnabled`'s own computed-floor term). The reverse can fail: when the plant's effective
-due date is already today, the button's no-op guard disables it while the picker's day grid — which has
-no per-cell "already exactly this value" concept, since it's a many-valued grid rather than one fixed
-target — still offers that same cell as selectable. This is an accepted, low-severity gap distinct from
-#720's: the picker cell's date can still win or tie `computeWateringDue()`'s `maxOf()`, it just doesn't
-*move* anything when it ties, so nothing is silently discarded. Not fixed here.
-
-`PlantDetailScreen.kt` calls it as `careStatus?.let { isRescheduleTodayEnabled(it.computedNextWateringDueAt,
-it.nextWateringDueAt) } == true` rather than unwrapping `careStatus` at the call site directly — the
-latter would conflate "`careStatus` hasn't loaded yet" with "no computed/effective due date" and, since
-both fields' `null` is vacuously enabled, would flip a not-yet-loaded `careStatus` from disabled
-(today's behaviour) to enabled. The two nulls are deliberately not the same case.
-
-**Known limitation, accepted, not fixed:** a never-watered plant (`lastWateredAt == null`) with a
-winning future override keeps Today disabled — `computeWateringDue()` pins `computedNextDueAt = now`
-for that branch, which re-tracks "today" indefinitely, so the computed floor is never cleared no matter
-how far out the override sits. Not a regression (the old gate disabled it too) and not a disagreement
-with the picker (its own today-cell floor degenerates identically for that plant).
-
-### Reschedule delta chip + revert (#630)
-`PlantCareStatus.rescheduleDeltaDays: Int?` is computed once inside `CareSchedule.computeWateringDue()`
-— non-null only when `plant.wateringDueDateOverride` is the actual `maxOf()` winner over the
-schedule-computed due date (`override != null && override > computedNextDueAt`), so a stale,
-non-winning override reports no delta and the chip self-hides once the schedule catches back up. A
-`RescheduleDeltaChip` `AssistChip` (`WateringDueActions.kt`, "Rescheduled +N days" via the
-`watering_reschedule_delta_days` plural, plus a decorative trailing close icon —
-`contentDescription = null`, matching this file's convention for a decorative icon inside an
-already-labeled clickable unit, since `AssistChip` merges descendant semantics into one TalkBack
-announcement — so tap-to-revert reads as removable rather than relying on the chip's clickability
-alone) renders directly above `WateringDueActionsRow` on the Water tab, gated on this same field
-(which itself requires `wateringIntervalDays != null` — see the previous section's Water/Reschedule
-gate split); tapping anywhere on the chip calls
-`PlantDetailViewModel.revertReschedule()` directly — no confirmation dialog. `revertReschedule()`
-clears `wateringDueDateOverride` only (never `wateringIntervalDays`/`wateringBaseIntervalDays`/
-`wateringConfidence`, never a `WateringAdjustment` row — same posture `applyReschedule` already keeps)
-and emits `Event.RescheduleReverted(previousOverrideAtMillis)`; `PlantDetailScreen` shows a Snackbar
-("Reschedule reverted" + `R.string.snackbar_undo`) whose Undo action calls
-`undoRevertReschedule(previousOverrideAtMillis)` to restore the captured prior override as-is — mirrors
-`Event.SilentIntervalApplied`/`undoSilentIntervalApply()`'s capture-before-write shape exactly, same
-accepted race if a newer reschedule lands before Undo is tapped. The "Why this date?" sheet
-(`WateringExplanationSheet`/`WateringExplanationBuilder`) gets a matching **display-only** mirror row
-(same plural, no tap target) — the chip outside the sheet is the only actionable UI for this.
-
-## Photos
-Unified `PhotoGallery` merges `plant_photos` + care-log photos (`GalleryPhoto(uri, timestamp)`,
-`.distinctBy { it.uri }`) newest-first (technical ADR-0015, #290). `FullScreenPhotoViewer` is a `HorizontalPager`
-over `photos: List<GalleryPhoto>`, solid-black background incl. status-bar area, "N / M" indicator when > 1, per-page
-capture date chip (`cd_photo_viewer_date`); trash icon + long-press delete individual photos (cover falls back to
-next-most-recent) (#306/#308/#444/#445).
-
-## Care history
-Collapses to 5 most recent by default; `AssistChip` with animated chevron expands; hidden when ≤ 5; expanded state
-resets on screen open (#253).
-
-## Custom reminders (technical ADR-0019, #232)
-`CustomRemindersCard`'s **placement** (product ADR-0043, #590): renders only when `selectedTab ==
-PlantDetailTab.CUSTOM_REMINDERS`, one of the two tabs hidden behind the collapsed tab row by default
-(see "Tab row collapse/expand" above) — it was an always-visible card in the classic layout the tabs
-feature originally sat behind a flag alongside (deleted when `PLANT_DETAIL_TABS` graduated, #704).
-Backed by `PlantDetailViewModel.customReminders` (`Flow` from
-`CustomReminderRepository`) and `customReminderStatuses` (derived from `careStatus`, since `CareSchedule.computeStatus`
-now takes a `customReminders` param and returns `PlantCareStatus.customReminderStatuses: List<CustomReminderStatus>`).
-Add/edit uses one shared `CustomReminderDialog` (name + plain-days interval, no months toggle); delete goes through a
-confirm `AlertDialog`; "mark done" (`markCustomReminderDone`) writes a `CareType.CUSTOM` `CareLog` linked via
-`customReminderId` and resets the reminder's `lastDoneAt` in one ViewModel call. Composables live in a separate
-file, `CustomRemindersSection.kt` (not `PlantDetailScreen.kt`), to stay under Detekt's per-file `TooManyFunctions`
-threshold — same reasoning as `PlantIssuesSection.kt` below. Row/card composables bundle their callbacks into an
-`internal` `CustomReminderActions` data class (needed cross-file, unlike `PlantIssuesSection.kt`'s file-private
-`ReminderToggleState`) to stay under Detekt's `LongParameterList` threshold —
-follow that pattern rather than adding more individual lambda params. `CareLogItem` takes an optional
-`customReminderName: String?` so a `CUSTOM` journal entry shows the reminder's free-text name instead of the generic
-label; pass `null` (or omit it) when the linked reminder has since been deleted — never crash on a dangling
-`customReminderId`.
-
-## Plant issues (technical ADR-0020, #564)
-"Active issues" `PlantIssuesCard`'s **placement** mirrors `CustomRemindersCard` (product ADR-0043, #590):
-rendered only when `selectedTab == PlantDetailTab.ISSUES` — the other tab hidden behind the collapsed
-tab row by default. Composables live in a separate file, `PlantIssuesSection.kt` (not
-`PlantDetailScreen.kt`), to stay under Detekt's
-per-file `TooManyFunctions` threshold;
-`PlantIssuesCard` is `internal` so `PlantDetailScreen.kt` can call it. Backed by `PlantDetailViewModel.activeIssues`
-(`Flow<List<PlantIssue>>` from `PlantIssueRepository.getActiveIssuesForPlant`, already filtered to `resolvedAt ==
-null` — the card never shows resolved issues). Each row shows the issue name, "Ongoing for N days" (via
-`CareSchedule.daysBetween(issue.startedAt, now)`, never inline date math), and — when `linkedReminderId` resolves
-against the already-loaded `customReminders` list — a "Reminder: {name}" line; a dangling `linkedReminderId` (its
-`CustomReminder` was deleted) just omits that line, same posture as `CareLogItem`'s `customReminderName`.
-"Report an issue" (`ReportIssueDialog`) has an optional "set a treatment reminder" toggle that, when on, creates a
-`CustomReminder` **and** links it via `PlantIssue.linkedReminderId` in one `reportIssue()` ViewModel call — this is
-a one-way, unenforced link (technical ADR-0019/technical ADR-0020): resolving or deleting the issue never touches the linked reminder.
-"Mark resolved" (`ResolveIssueDialog`) sets `resolvedAt` + an optional free-text `resolutionNote`; no notification
-or `ReminderWorker` involvement — this is a passive visual status only.
+## Custom reminders (technical ADR-0019) and issues (technical ADR-0020)
+- Both render only on their (hidden-by-default) tab. Composables live in `CustomRemindersSection.kt` / `PlantIssuesSection.kt` (Detekt `TooManyFunctions`); reminder row callbacks are bundled in `internal` `CustomReminderActions` — extend it rather than adding lambda params.
+- **Reminders:** `customReminders` + `customReminderStatuses` (from `PlantCareStatus.customReminderStatuses`). One shared `CustomReminderDialog` (name + plain-days interval); delete confirms; "Mark done" writes a `CareType.CUSTOM` log linked by `customReminderId` and resets `lastDoneAt` in one call.
+- **Issues:** `activeIssues` (unresolved only). Rows show the name, "Ongoing for N days" (`CareSchedule.daysBetween`, never inline math) and "Reminder: {name}" when `linkedReminderId` resolves (omitted when dangling). "Report an issue" can create and link a treatment reminder in one `reportIssue()` call. The link is one-way: resolving/deleting the issue never touches the reminder. "Mark resolved" sets `resolvedAt` + optional `resolutionNote`, with no notification.

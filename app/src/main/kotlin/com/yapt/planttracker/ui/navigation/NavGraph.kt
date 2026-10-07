@@ -40,7 +40,6 @@ import com.yapt.planttracker.BuildConfig
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
-import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
@@ -53,7 +52,6 @@ import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
-import com.yapt.planttracker.ui.screens.plantdetail.handleSuggestedWateringInterval
 import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewScreen
@@ -382,31 +380,12 @@ fun YaptNavGraph(
                     )
                 )
 
-                val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-                LaunchedEffect(savedStateHandle) {
-                    val suggestedInterval = savedStateHandle?.get<Int>("suggestedWateringInterval")
-                    if (suggestedInterval != null) {
-                        val suggestedBase = savedStateHandle.get<Double>("suggestedWateringBaseInterval")
-                        vm.handleSuggestedWateringInterval(suggestedInterval, suggestedBase)
-                        savedStateHandle.remove<Int>("suggestedWateringInterval")
-                        savedStateHandle.remove<Double>("suggestedWateringBaseInterval")
-                    }
-                }
-
                 PlantDetailScreen(
                     viewModel = vm,
                     initialTab = initialTab,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onNavigateToEdit = {
                         navController.navigate(Screen.EditPlant.createRoute(plantId))
-                    },
-                    onNavigateToAddLog = {
-                        navController.navigate(
-                            Screen.AddCareLog.createRoute(
-                                plantId,
-                                careType = vm.consumeNewLogCareType()
-                            )
-                        )
                     },
                     onNavigateToEditLog = { careLogId ->
                         navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
@@ -418,50 +397,22 @@ fun YaptNavGraph(
                 route = Screen.AddCareLog.route,
                 arguments = listOf(
                     navArgument("plantId") { type = NavType.LongType },
-                    navArgument("careLogId") {
-                        type = NavType.LongType
-                        defaultValue = 0L
-                    },
-                    navArgument("careType") {
-                        type = NavType.StringType
-                        defaultValue = CareType.WATER.name
-                    }
+                    navArgument("careLogId") { type = NavType.LongType }
                 )
             ) { backStackEntry ->
                 val plantId = backStackEntry.arguments!!.getLong("plantId")
                 val careLogId = backStackEntry.arguments!!.getLong("careLogId")
-                val initialCareType = runCatching {
-                    CareType.valueOf(backStackEntry.arguments!!.getString("careType")!!)
-                }.getOrDefault(CareType.WATER)
                 val vm: AddCareLogViewModel = viewModel(
                     factory = AddCareLogViewModel.Factory(
                         app.careLogRepository,
                         app.plantRepository,
                         plantId,
-                        careLogId,
-                        app.settingsDataStore,
-                        app.wateringAdjustmentRepository,
-                        app::schedulePostWateringReminder
+                        careLogId
                     )
                 )
-                LaunchedEffect(initialCareType) {
-                    vm.preselectCareType(initialCareType)
-                }
                 AddCareLogScreen(
                     viewModel = vm,
-                    onNavigateBack = { suggestedInterval, suggestedBaseInterval ->
-                        suggestedInterval?.let { interval ->
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("suggestedWateringInterval", interval)
-                            suggestedBaseInterval?.let { base ->
-                                navController.previousBackStackEntry
-                                    ?.savedStateHandle
-                                    ?.set("suggestedWateringBaseInterval", base)
-                            }
-                        }
-                        navController.popBackStackOnce(backStackEntry)
-                    }
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
                 )
             }
 

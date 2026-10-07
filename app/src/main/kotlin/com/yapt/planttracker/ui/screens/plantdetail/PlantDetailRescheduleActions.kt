@@ -2,7 +2,9 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.util.plusCalendarDays
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Opens [PlantDetailViewModel.showRescheduleDialog] directly (#738, product ADR-0039) — a
@@ -55,7 +57,11 @@ fun PlantDetailViewModel.confirmRescheduleCustomDate(newDueAtMillis: Long) = app
 private fun PlantDetailViewModel.applyReschedule(newDueAtMillis: Long) {
     viewModelScope.launch {
         dismissRescheduleDialog()
-        val p = plant.value ?: return@launch
-        quickLogUseCase.recordReschedule(p, newDueAtMillis)
+        // Under plantEditMutex (#808, technical ADR-0036): recordReschedule is a column write, but a
+        // full-row writer that already read the row could otherwise put the old override straight back.
+        plantEditMutex.withLock {
+            val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
+            quickLogUseCase.recordReschedule(p, newDueAtMillis)
+        }
     }
 }
