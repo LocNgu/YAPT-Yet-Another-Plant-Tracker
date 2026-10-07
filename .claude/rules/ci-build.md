@@ -15,7 +15,7 @@ paths:
 
 # CI / Build rules
 
-## Toolchain (AGP 9.4.1 / Gradle 9.7.1 / Kotlin plugins 2.4.20 / KSP 2.3.12)
+## Toolchain (AGP 9.4.1 / Gradle 9.8.0 / Kotlin plugins 2.4.20 / KSP 2.3.12)
 - Compose BOM 2026.09.00 · compileSdk 37 · targetSdk 35 · minSdk 26.
 - **Kotlin and KSP versions needn't match.** KSP has its own release line (the `<kotlin>-<ksp>` scheme is legacy), so a Dependabot PR with different numbers isn't self-evidently broken; validate through CI. The KotlinX/MockK ↔ Kotlin stdlib coupling noted in `.github/dependabot.yml` is real.
 - **AGP 9 compiles Kotlin itself.** Never re-add `org.jetbrains.kotlin.android` (AGP 9 errors). Compose/serialization plugins stay at 2.4.20. Use `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
