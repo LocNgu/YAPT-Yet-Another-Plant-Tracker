@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-07
+
 ### Added
 - **A Home tab on Plant Detail** — a plant now opens on Home, the first tab, instead of Water. It carries the
   same Water and Reschedule buttons as the Water tab (with the Rescheduled chip that reverts a deferral), one
