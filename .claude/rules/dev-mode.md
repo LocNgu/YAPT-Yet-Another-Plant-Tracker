@@ -14,7 +14,7 @@ paths:
 - **Build info rows:** version + code, build type, `PlantDatabase.DB_VERSION`, API level. The section works in debug and release.
 
 ## Feature-flag registry (#521)
-- **Model:** `FeatureFlag(key, titleRes, descriptionRes, default)` + `FeatureFlagRegistry.all`. `FeatureFlags` (an app singleton) wraps the DataStore with `flags = FeatureFlagRegistry.all` as the test seam, and exposes `isEnabled(flag): Flow<Boolean>`, `setEnabled` and `resetAll()`.
+- **Model:** `FeatureFlag(key, titleRes, descriptionRes, default)` + `FeatureFlagRegistry.all`. `FeatureFlags` (an app singleton) wraps the DataStore with `flags = FeatureFlagRegistry.all` as the test seam, and exposes `isEnabled(flag): Flow<Boolean>`, `setEnabled`, `resetAll()` and `resetAllIn(prefs)`. The developer-mode-off path calls `resetAllIn` inside the same `dataStore.edit {}` that writes `DEVELOPER_MODE_ENABLED = false`, so the disable and the reset are one atomic write (#527) — never two separate edits.
 - **Keys:** `"feature_flag_" + key`. Adding or removing a flag needs no schema change or migration.
 - **ViewModel:** `SettingsViewModel(featureFlags = FeatureFlags(dataStore))` (the list lives on `FeatureFlags`, which keeps the VM under Detekt's parameter limit). It exposes `flags`, `featureFlagStates` (short-circuits to `emptyMap()` with no flags) and `setFlagEnabled`.
 - **UI:** one generic row per flag (`testTag("feature_flag_switch_${key}")`); an empty registry shows "No feature flags in this build". A new flag = a registry entry + 2 strings, no new UI.

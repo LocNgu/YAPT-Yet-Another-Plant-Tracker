@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.featureflag
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -41,10 +42,17 @@ class FeatureFlags(
 
     /** Resets every flag in [flags] back to its registry default. See product ADR-0042. */
     suspend fun resetAll() {
-        dataStore.edit { prefs ->
-            for (flag in flags) {
-                prefs[preferenceKeyFor(flag)] = flag.default
-            }
+        dataStore.edit { prefs -> resetAllIn(prefs) }
+    }
+
+    /**
+     * Writes every flag's registry default into [prefs], for a caller that must fold the reset into
+     * its own `dataStore.edit {}` so both apply as one atomic write — the developer-mode-off path
+     * (#527). [prefs] must come from the same DataStore this instance wraps.
+     */
+    fun resetAllIn(prefs: MutablePreferences) {
+        for (flag in flags) {
+            prefs[preferenceKeyFor(flag)] = flag.default
         }
     }
 

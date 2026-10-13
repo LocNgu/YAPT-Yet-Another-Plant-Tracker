@@ -12,6 +12,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Turning developer mode off now resets feature flags in the same write** — the switch-off and the reset of every
+  flag to its default are one atomic settings write, so the app being killed at the wrong moment can no longer leave
+  a flag on while developer mode reads as off (#527, product ADR-0042)
+
 ## [0.35.0] - 2026-10-07
 
 ### Added
