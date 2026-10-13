@@ -1539,8 +1539,13 @@ class PlantListViewModelTest {
         every { plantRepo.getAllPlants() } returns flowOf(plants.toList())
         every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
         return PlantListViewModel(
-            application, plantRepo, careLogRepo, dataStore,
-            quickLogUseCase, plantIssueRepo, dayChangeFlow
+            application,
+            plantRepo,
+            careLogRepo,
+            dataStore,
+            quickLogUseCase,
+            plantIssueRepo,
+            dayChangeFlow
         )
     }
 
