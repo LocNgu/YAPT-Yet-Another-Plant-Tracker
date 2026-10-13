@@ -1,5 +1,6 @@
 package com.yapt.planttracker.data.repository
 
+import android.util.Log
 import com.yapt.planttracker.data.db.CareLogDao
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.domain.model.CareLog
@@ -123,10 +124,17 @@ class CareLogRepository(
     }
 }
 
+private const val TAG = "CareLogRepository"
+
 private fun CareLogEntity.toDomain() = CareLog(
     id = id,
     plantId = plantId,
-    careType = runCatching { CareType.valueOf(careType) }.getOrDefault(CareType.NOTE),
+    // Fallback stays NOTE (retired, but still readable); the warning makes a corrupt or
+    // unmigrated value visible in logcat instead of silently showing up as a Note (#558).
+    careType = runCatching { CareType.valueOf(careType) }.getOrElse {
+        Log.w(TAG, "Unknown CareType '$careType' on care log $id, defaulting to NOTE")
+        CareType.NOTE
+    },
     loggedAt = loggedAt,
     notes = notes,
     photoUri = photoUri,
