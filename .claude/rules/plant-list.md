@@ -1,5 +1,5 @@
 ---
-description: Plant List search
+description: Plant List search and multi-select
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantlist/**/*"
   - "app/src/test/**/plantlist/**/*"
@@ -20,3 +20,8 @@ paths:
   - `searchQueryText`/`isSearchActive` are in-memory and ViewModel-scoped like `selectedRoom`: they survive Plant Detail → back and reset on process death. There is no DataStore key.
   - `searchQueryText` is a synchronous `var … by mutableStateOf("")` for the TextField. The same `setSearchQuery()` also updates the private `MutableStateFlow` the combine reads, so the two can't drift.
   - Auto-focus on a fresh icon tap uses a consumed-once `pendingSearchAutoFocus` field, not a `Flow` (a `SharedFlow` emission can race its `LaunchedEffect` collector).
+
+## Multi-select is sticky (#449, product ADR-0063)
+- **`selectedPlantIds` is never reconciled against what is visible.** Room chips (which stay enabled while selecting), sort filters, search and day changes never add to or prune it. No auto-pruning anywhere.
+- **Hidden** = a selected id absent from `plantsWithStatus`. `hiddenSelectedCount` (StateFlow, derived from `selectedPlantIds` + `plantsWithStatus`) drives the top-bar label `N selected · M hidden` (`bulk_selected_count_with_hidden`, only when M > 0).
+- **`selectAll()` is a union** with the visible plants. **`bulkLog()` resolves plants from `plantRepository.getAllPlants()`**, not `plantsWithStatus`, so hidden plants are logged. Ids that no longer resolve to an active plant are skipped silently. `bulkArchive()` and its dialog text are unchanged.

@@ -234,6 +234,17 @@ class PlantListViewModel(
     private val _selectedPlantIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedPlantIds: StateFlow<Set<Long>> = _selectedPlantIds.asStateFlow()
 
+    // Selection is sticky (#449, product ADR-0063): room chips, sort filters, search and day changes
+    // never touch [_selectedPlantIds]. "Hidden" = selected but absent from the visible
+    // [plantsWithStatus], which already reflects room + sort filter + search.
+    val hiddenSelectedCount: StateFlow<Int> = combine(
+        _selectedPlantIds,
+        plantsWithStatus
+    ) { selected, visible ->
+        val visibleIds = visible.mapTo(HashSet()) { it.plant.id }
+        selected.count { it !in visibleIds }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     /** Toggles [plantId] in the selection set; adding the first plant enters selection mode. */
     fun toggleSelection(plantId: Long) {
         _selectedPlantIds.value = _selectedPlantIds.value.let {
@@ -241,8 +252,9 @@ class PlantListViewModel(
         }
     }
 
+    /** Adds every visible plant to the selection; hidden selections are kept (#449). */
     fun selectAll() {
-        _selectedPlantIds.value = plantsWithStatus.value.map { it.plant.id }.toSet()
+        _selectedPlantIds.value = _selectedPlantIds.value + plantsWithStatus.value.map { it.plant.id }
     }
 
     fun clearSelection() {
@@ -255,7 +267,9 @@ class PlantListViewModel(
     val bulkArchivedEvent: SharedFlow<BulkArchivedEvent> = _bulkArchivedEvent.asSharedFlow()
 
     /**
-     * Logs [careType] for every currently selected plant, then clears the selection and emits a
+     * Logs [careType] for every currently selected plant — hidden ones included, resolved from the
+     * repository rather than the filtered list (#449); ids that no longer resolve to an active plant
+     * are skipped silently — then clears the selection and emits a
      * snackbar summarising how many plants were affected. Watering carries no reason (#586) and
      * fertilizing routes through [QuickLogUseCase.quickLog] so liquid-fertilizer plants still get a
      * paired watering; per-plant interval-suggestion and photo-reminder dialogs are intentionally
@@ -265,7 +279,11 @@ class PlantListViewModel(
         val ids = _selectedPlantIds.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            val plants = plantsWithStatus.value.filter { it.plant.id in ids }.map { it.plant }
+            val plants = plantRepository.getAllPlants().first().filter { it.id in ids }
+            if (plants.isEmpty()) {
+                clearSelection()
+                return@launch
+            }
             val result = quickLogUseCase.bulkLog(plants, careType)
             clearSelection()
             val label = application.getString(careType.labelRes())
