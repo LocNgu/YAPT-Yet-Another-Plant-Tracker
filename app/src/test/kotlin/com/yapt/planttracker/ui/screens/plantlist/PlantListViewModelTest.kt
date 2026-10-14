@@ -1550,33 +1550,46 @@ class PlantListViewModelTest {
     }
 
     @Test
-    fun `switching the room filter leaves the selection unchanged and counts hidden plants`() = runTest {
-        val a = plant(id = 1L, name = "A", room = "Kitchen")
-        val b = plant(id = 2L, name = "B", room = "Bedroom")
-        vm = stickyVm(a, b)
+    fun `switching the room filter leaves the selection unchanged and roomsWithSelection covers hidden rooms`() =
+        runTest {
+            val a = plant(id = 1L, name = "A", room = "Kitchen")
+            val b = plant(id = 2L, name = "B", room = "Bedroom")
+            val c = plant(id = 3L, name = "C")
+            vm = stickyVm(a, b, c)
 
-        backgroundScope.launch { vm.hiddenSelectedCount.collect {} }
-        vm.plantsWithStatus.test {
-            assertEquals(2, awaitItem().size)
-            vm.toggleSelection(1L)
-            vm.toggleSelection(2L)
-            advanceUntilIdle()
-            assertEquals(0, vm.hiddenSelectedCount.value)
+            backgroundScope.launch { vm.roomsWithSelection.collect {} }
+            vm.plantsWithStatus.test {
+                assertEquals(3, awaitItem().size)
+                assertTrue(vm.roomsWithSelection.value.isEmpty())
+                vm.toggleSelection(1L)
+                vm.toggleSelection(2L)
+                vm.toggleSelection(3L)
+                advanceUntilIdle()
+                assertEquals(
+                    setOf("Kitchen", "Bedroom", PlantListViewModel.UNASSIGNED_ROOM),
+                    vm.roomsWithSelection.value
+                )
 
-            vm.selectRoom("Kitchen")
-            advanceUntilIdle()
-            assertEquals(1, awaitItem().size)
-            assertEquals(1, vm.hiddenSelectedCount.value)
-            assertEquals(setOf(1L, 2L), vm.selectedPlantIds.value)
+                vm.selectRoom("Kitchen")
+                advanceUntilIdle()
+                assertEquals(1, awaitItem().size)
+                assertEquals(setOf(1L, 2L, 3L), vm.selectedPlantIds.value)
+                assertEquals(
+                    setOf("Kitchen", "Bedroom", PlantListViewModel.UNASSIGNED_ROOM),
+                    vm.roomsWithSelection.value
+                )
 
-            vm.selectRoom(null)
-            advanceUntilIdle()
-            assertEquals(2, awaitItem().size)
-            assertEquals(0, vm.hiddenSelectedCount.value)
-            assertEquals(setOf(1L, 2L), vm.selectedPlantIds.value)
-            cancelAndIgnoreRemainingEvents()
+                vm.toggleSelection(2L)
+                vm.toggleSelection(3L)
+                advanceUntilIdle()
+                assertEquals(setOf("Kitchen"), vm.roomsWithSelection.value)
+
+                vm.clearSelection()
+                advanceUntilIdle()
+                assertTrue(vm.roomsWithSelection.value.isEmpty())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
-    }
 
     @Test
     fun `bulkLog after a room switch logs every selected plant including the hidden one`() = runTest {

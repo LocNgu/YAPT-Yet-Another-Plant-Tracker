@@ -23,5 +23,6 @@ paths:
 
 ## Multi-select is sticky (#449, product ADR-0063)
 - **`selectedPlantIds` is never reconciled against what is visible.** Room chips (which stay enabled while selecting), sort filters, search and day changes never add to or prune it. No auto-pruning anywhere.
-- **Hidden** = a selected id absent from `plantsWithStatus`. `hiddenSelectedCount` (StateFlow, derived from `selectedPlantIds` + `plantsWithStatus`) drives the top-bar label `N selected · M hidden` (`bulk_selected_count_with_hidden`, only when M > 0).
+- **Room-chip dots:** in selection mode, a room chip (Unassigned included, never "All") whose room holds ≥ 1 selected plant shows a primary-color dot and a `stateDescription` ("Contains selected plants"), via `RoomFilterChip`. The bar stays a plain `N selected`.
+  - `roomsWithSelection` (StateFlow<Set<String>>) joins `selectedPlantIds` with the full active plant list (`allPlants`), **not** `plantsWithStatus`, so hidden rooms still get a dot. Keys match the chips: the room name, or `UNASSIGNED_ROOM` for `room == null`. No per-plant Room queries.
 - **`selectAll()` is a union** with the visible plants. **`bulkLog()` resolves plants from `plantRepository.getAllPlants()`**, not `plantsWithStatus`, so hidden plants are logged. Ids that no longer resolve to an active plant are skipped silently. `bulkArchive()` and its dialog text are unchanged.

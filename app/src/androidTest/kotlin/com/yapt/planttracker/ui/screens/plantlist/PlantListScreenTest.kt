@@ -1,8 +1,11 @@
 package com.yapt.planttracker.ui.screens.plantlist
 
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -206,6 +209,32 @@ class PlantListScreenTest {
         // sheet's contents and per-action behaviour are covered by PlantListViewModelTest.)
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
+    }
+
+    @Test
+    fun selecting_marksOnlyTheRoomChipsContainingSelectedPlants() {
+        val kitchen = Plant(id = 1L, name = "Monstera", room = "Kitchen", createdAt = 0L, updatedAt = 0L)
+        val bedroom = Plant(id = 2L, name = "Fern", room = "Bedroom", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(kitchen, bedroom), rooms = listOf("Bedroom", "Kitchen"))
+        val hasSelection = SemanticsMatcher.expectValue(
+            SemanticsProperties.StateDescription,
+            "Contains selected plants"
+        )
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {}
+            )
+        }
+
+        composeTestRule.onNode(hasSelection).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+
+        composeTestRule.onNode(hasText("Kitchen") and hasClickAction() and hasSelection).assertExists()
+        composeTestRule.onNode(hasText("Bedroom") and hasClickAction() and hasSelection).assertDoesNotExist()
+        composeTestRule.onNode(hasText("All") and hasClickAction() and hasSelection).assertDoesNotExist()
     }
 
     @Test

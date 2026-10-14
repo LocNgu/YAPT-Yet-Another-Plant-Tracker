@@ -18,7 +18,7 @@ object WhatsNewContent {
         versionName = "Unreleased",
         fixed = listOf(
             "Selecting several plants on the Plants tab now keeps them selected when you switch rooms, sort or " +
-                "search. The bar shows how many selected plants are out of view, Select all adds the visible " +
+                "search. Room chips that hold selected plants show a small dot, Select all adds the visible " +
                 "plants without dropping the others, and bulk Water, Fertilize, Prune and Repot now log every " +
                 "selected plant, including the hidden ones"
         )

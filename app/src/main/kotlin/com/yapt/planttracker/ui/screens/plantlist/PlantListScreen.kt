@@ -119,7 +119,7 @@ fun PlantListScreen(
     val photoReminderRequest by viewModel.photoReminderRequest.collectAsStateWithLifecycle()
     val selectedPlantIds by viewModel.selectedPlantIds.collectAsStateWithLifecycle()
     val selectionMode = selectedPlantIds.isNotEmpty()
-    val hiddenSelectedCount by viewModel.hiddenSelectedCount.collectAsStateWithLifecycle()
+    val roomsWithSelection by viewModel.roomsWithSelection.collectAsStateWithLifecycle()
     // Count shown in the bulk bar; holds the last non-zero value so the bar doesn't flash
     // "Apply to 0 plants" for a frame while it slides out after an action clears the selection.
     var bulkBarCount by remember { mutableStateOf(0) }
@@ -214,20 +214,11 @@ fun PlantListScreen(
                     TopAppBar(
                         title = {
                             Text(
-                                if (hiddenSelectedCount > 0) {
-                                    pluralStringResource(
-                                        R.plurals.bulk_selected_count_with_hidden,
-                                        selectedPlantIds.size,
-                                        selectedPlantIds.size,
-                                        hiddenSelectedCount
-                                    )
-                                } else {
-                                    pluralStringResource(
-                                        R.plurals.bulk_selected_count,
-                                        selectedPlantIds.size,
-                                        selectedPlantIds.size
-                                    )
-                                }
+                                pluralStringResource(
+                                    R.plurals.bulk_selected_count,
+                                    selectedPlantIds.size,
+                                    selectedPlantIds.size
+                                )
                             )
                         },
                         colors = TopAppBarDefaults.topAppBarColors(),
@@ -394,20 +385,21 @@ fun PlantListScreen(
                     }
                     if (hasUnassignedPlants) {
                         item {
-                            FilterChip(
+                            RoomFilterChip(
+                                label = stringResource(R.string.filter_unassigned),
                                 selected = selectedRoom == PlantListViewModel.UNASSIGNED_ROOM,
-                                onClick = { viewModel.selectRoom(PlantListViewModel.UNASSIGNED_ROOM) },
-                                label = { Text(stringResource(R.string.filter_unassigned)) },
-                                colors = yaptFilterChipColors()
+                                containsSelection = selectionMode &&
+                                    PlantListViewModel.UNASSIGNED_ROOM in roomsWithSelection,
+                                onClick = { viewModel.selectRoom(PlantListViewModel.UNASSIGNED_ROOM) }
                             )
                         }
                     }
                     items(rooms, key = { room -> "room-$room" }) { room ->
-                        FilterChip(
+                        RoomFilterChip(
+                            label = room,
                             selected = selectedRoom == room,
-                            onClick = { viewModel.selectRoom(room) },
-                            label = { Text(room) },
-                            colors = yaptFilterChipColors()
+                            containsSelection = selectionMode && room in roomsWithSelection,
+                            onClick = { viewModel.selectRoom(room) }
                         )
                     }
                 }

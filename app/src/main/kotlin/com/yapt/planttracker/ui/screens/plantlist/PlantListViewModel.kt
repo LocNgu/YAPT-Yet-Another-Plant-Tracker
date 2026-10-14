@@ -235,15 +235,15 @@ class PlantListViewModel(
     val selectedPlantIds: StateFlow<Set<Long>> = _selectedPlantIds.asStateFlow()
 
     // Selection is sticky (#449, product ADR-0063): room chips, sort filters, search and day changes
-    // never touch [_selectedPlantIds]. "Hidden" = selected but absent from the visible
-    // [plantsWithStatus], which already reflects room + sort filter + search.
-    val hiddenSelectedCount: StateFlow<Int> = combine(
+    // never touch [_selectedPlantIds]. Derived from the full active plant list, not [plantsWithStatus],
+    // so a chip whose plants are currently hidden still shows its selection dot. Keys match the chips:
+    // the room name, or [UNASSIGNED_ROOM] for a plant with no room.
+    val roomsWithSelection: StateFlow<Set<String>> = combine(
         _selectedPlantIds,
-        plantsWithStatus
-    ) { selected, visible ->
-        val visibleIds = visible.mapTo(HashSet()) { it.plant.id }
-        selected.count { it !in visibleIds }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+        allPlants
+    ) { selected, plants ->
+        plants.filter { it.id in selected }.mapTo(HashSet()) { it.room ?: UNASSIGNED_ROOM }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     /** Toggles [plantId] in the selection set; adding the first plant enters selection mode. */
     fun toggleSelection(plantId: Long) {
