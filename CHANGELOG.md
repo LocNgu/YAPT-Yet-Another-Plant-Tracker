@@ -13,7 +13,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- **A Watering overview in Settings** — a new row right after Repotting overview opens a read-only page showing how
+- **A Watering overview in Settings** — a new row in a new Overviews section, right after Repotting overview (which
+  moves there from Backup & restore), opens a read-only page showing how
   often every plant needs water: a count line and a proportion bar, then groups for every 1–3, 4–7, 8–14 and 15+
   days, plants resting for the winter (a paused plant reads "Watering paused", one on a reduced winter cadence shows
   it), and plants with no watering schedule. Each row shows the photo, name, room, "every N days" and when watering

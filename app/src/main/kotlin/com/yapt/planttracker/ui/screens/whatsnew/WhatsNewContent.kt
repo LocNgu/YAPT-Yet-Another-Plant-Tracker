@@ -17,8 +17,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
-            "A new Watering overview in Settings, right after Repotting overview, shows how often every plant " +
-                "needs water: plants grouped by every 1–3, 4–7, 8–14 or 15+ days, those resting for the winter, " +
+            "A new Watering overview in Settings, next to Repotting overview in a new Overviews section, " +
+                "shows how often every plant needs water: plants grouped by every 1–3, 4–7, 8–14 or 15+ days, those resting for the winter, " +
                 "and those with no watering schedule, each with its next watering. Tap a plant to open its Water tab"
         )
     )
