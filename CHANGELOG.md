@@ -18,7 +18,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   days, plants resting for the winter (a paused plant reads "Watering paused", one on a reduced winter cadence shows
   it), and plants with no watering schedule. Each row shows the photo, name, room, "every N days" and when watering
   is next due; a group over five plants shows five and "Show all N", and tapping a row opens the plant's Water tab.
-  The intervals follow today's season and update at midnight without a restart (#901, product ADR-0063)
+  The intervals follow today's season, and the page updates as you log waterings, edit plants or change the seasonal
+  watering setting (#901, product ADR-0063)
 
 ### Fixed
 - **Turning developer mode off now resets feature flags in the same write** — the switch-off and the reset of every

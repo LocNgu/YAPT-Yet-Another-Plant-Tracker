@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.watering
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -96,7 +96,6 @@ internal fun WateringOverviewContent(
 
 @Composable
 private fun WateringSummary(overview: WateringOverview) {
-    val separator = stringResource(R.string.watering_overview_count_separator)
     val parts = buildList {
         add(pluralStringResource(R.plurals.watering_overview_count_plants, overview.totalCount, overview.totalCount))
         if (overview.scheduledCount > 0) {
@@ -111,7 +110,7 @@ private fun WateringSummary(overview: WateringOverview) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = parts.joinToString(separator),
+            text = joined(parts, R.string.watering_overview_count_join),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -131,18 +130,27 @@ private fun groupColor(group: WateringOverviewGroup): Color = when (group) {
     WateringOverviewGroup.NO_SCHEDULE -> MaterialTheme.colorScheme.outlineVariant
 }
 
+// Folds with a two-argument format string rather than a separator resource: aapt2 trims unquoted
+// leading/trailing whitespace from string values, so " · " would compile to "·".
+@Composable
+private fun joined(parts: List<String>, @StringRes joinRes: Int): String {
+    var result = ""
+    for ((index, part) in parts.withIndex()) {
+        result = if (index == 0) part else stringResource(joinRes, result, part)
+    }
+    return result
+}
+
 @Composable
 private fun ProportionBar(overview: WateringOverview) {
-    val resources = LocalContext.current.resources
-    val counts = overview.sections.joinToString(
-        resources.getString(R.string.watering_overview_bar_description_separator)
-    ) {
-        resources.getString(
+    val entries = overview.sections.map {
+        stringResource(
             R.string.watering_overview_bar_description_item,
-            resources.getString(it.group.labelRes()),
+            stringResource(it.group.labelRes()),
             it.items.size
         )
     }
+    val counts = joined(entries, R.string.watering_overview_bar_description_join)
     val description = stringResource(R.string.watering_overview_bar_description, counts)
     Row(
         modifier = Modifier

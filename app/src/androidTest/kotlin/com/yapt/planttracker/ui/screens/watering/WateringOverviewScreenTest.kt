@@ -127,6 +127,10 @@ class WateringOverviewScreenTest {
         composeTestRule.onNodeWithText("No watering schedule · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cactus").assertIsDisplayed()
         composeTestRule.onNodeWithText("Every 4–7 days", substring = true).assertDoesNotExist()
+
+        fun top(text: String) = composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
+        assertTrue(top("Every 1–3 days · 1") < top("Every 15+ days · 1"))
+        assertTrue(top("Every 15+ days · 1") < top("No watering schedule · 1"))
     }
 
     @Test
@@ -142,7 +146,7 @@ class WateringOverviewScreenTest {
         plants.value = (1L..6L).map { plant(it, "Plant $it", interval = 5) }
         setContent()
 
-        composeTestRule.onNodeWithTag(wateringRowTag(5)).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(wateringRowTag(5)).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag(wateringRowTag(6)).assertDoesNotExist()
 
         composeTestRule.onNodeWithText("Show all 6").performScrollTo().performClick()

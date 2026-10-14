@@ -49,7 +49,7 @@ Two independent features, both unset by default, so due dates are unchanged unle
 
 ## Repotting overview page (#525, product ADR-0059)
 - **What it is:** an audit page for active plants not repotted in a long time. It is never a sort option, Care task or notification.
-- **Entry and navigation:** a Settings row ("Repotting overview") right after Plant Graveyard, nested like it (`Screen.RepottingOverview`, route `repotting_overview`, bottom bar hidden, back arrow `cd_back`, Back → the Settings tab).
+- **Entry and navigation:** a Settings row ("Repotting overview") first under the "Overviews" section (between Display and Backup & restore; before #901 it sat after Plant Graveyard), nested like Plant Graveyard (`Screen.RepottingOverview`, route `repotting_overview`, bottom bar hidden, back arrow `cd_back`, Back → the Settings tab).
 - **The Settings subtitle** is a plural count for the **saved** chip ("4 plants not repotted in 2+ years" / "3 plants never repotted"; "No plants to review" for zero; `RepottingOverviewThreshold.settingsSubtitleRes()`).
 - **One pipeline feeds both** the page and the subtitle, so they can't drift:
   - `observeRepottingOverview()` (`domain/repotting/`) combines active plants, `observeLastCareAtByPlant(REPOT)`, the saved threshold and a day-change flow through the pure `RepottingOverviewBuilder`.

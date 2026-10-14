@@ -53,7 +53,8 @@ Alternatives considered:
 
 - Plants with a suspiciously long or short learned interval become visible in one place, without touching Care,
   the notification, or any due-date rule.
-- The page depends on a day-change ticker, the seasonal amplitude and the WATER-log stream; it stays correct at
-  midnight, at a seasonal step and after a watering without a restart (technical ADR-0035).
+- The page is built from a day-change ticker, the seasonal amplitude and the WATER-log stream, so it re-evaluates
+  after a watering, a plant edit or an amplitude change (technical ADR-0035). Relative dates ("Tomorrow") are not
+  promised to refresh by themselves while the page stays open across midnight when no input changed; that is accepted.
 - Editing intervals from the page, a room filter or search, and the sitter-rhythm recommendation (#899) are out
   of scope.

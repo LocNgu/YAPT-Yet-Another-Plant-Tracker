@@ -5,6 +5,7 @@ import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.watering.WateringOverviewGroup
 import com.yapt.planttracker.util.MainDispatcherRule
 import com.yapt.planttracker.util.toStartOfDayMillis
@@ -64,7 +65,8 @@ class WateringOverviewViewModelTest {
         careLogRepository = careLogRepository,
         seasonalAmplitude = amplitude,
         dayChange = dayChange,
-        nowProvider = nowProvider
+        nowProvider = nowProvider,
+        hemisphere = { Hemisphere.NORTHERN }
     )
 
     private fun TestScope.keepUiStateHot(vm: WateringOverviewViewModel) {

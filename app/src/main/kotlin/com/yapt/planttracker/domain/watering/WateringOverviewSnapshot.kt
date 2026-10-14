@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.watering
 
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -16,14 +17,16 @@ data class WateringOverviewSnapshot(
  * day-change trigger only (technical ADR-0035, #550): its value is ignored and [nowProvider] is read
  * once per emission so the intervals and the due dates are evaluated at the same instant. The
  * seasonal amplitude is an input so a change to that setting re-evaluates the page; the hemisphere is
- * read per emission so a timezone change is picked up.
+ * read per emission through [hemisphere] so a timezone change is picked up.
  */
+@Suppress("LongParameterList")
 fun observeWateringOverview(
     plants: Flow<List<Plant>>,
     lastWateredAtByPlantId: Flow<Map<Long, Long>>,
     seasonalAmplitude: Flow<Double>,
     dayChange: Flow<*>,
-    nowProvider: () -> Long = System::currentTimeMillis
+    nowProvider: () -> Long = System::currentTimeMillis,
+    hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere
 ): Flow<WateringOverviewSnapshot> = combine(plants, lastWateredAtByPlantId, seasonalAmplitude, dayChange) {
         activePlants, lastWatered, amplitude, _ ->
     WateringOverviewSnapshot(
@@ -32,7 +35,7 @@ fun observeWateringOverview(
             lastWateredAtByPlantId = lastWatered,
             seasonalAmplitude = amplitude,
             now = nowProvider(),
-            hemisphere = SeasonalWatering.currentHemisphere()
+            hemisphere = hemisphere()
         ),
         hasActivePlants = activePlants.any { it.archivedAt == null }
     )

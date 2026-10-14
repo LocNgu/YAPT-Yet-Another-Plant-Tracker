@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.watering.WateringOverview
 import com.yapt.planttracker.domain.watering.observeWateringOverview
@@ -31,14 +33,17 @@ sealed interface WateringOverviewUiState {
 /**
  * The Watering overview page (#901, product ADR-0063): a read-only audit of how often each plant needs
  * water. The state is [observeWateringOverview], so it moves by itself after a watering is logged, a
- * plant is edited, the seasonal amplitude changes, or midnight ([dayChange], #550).
+ * plant is edited, or the seasonal amplitude changes. [dayChange] re-evaluates the groups and due dates
+ * on a day change, but the page is not guaranteed to refresh while open across midnight (a snapshot equal to
+ * the previous one is conflated by `stateIn`).
  */
 class WateringOverviewViewModel(
     plantRepository: PlantRepository,
     careLogRepository: CareLogRepository,
     seasonalAmplitude: Flow<Double>,
     dayChange: Flow<LocalDate> = dayChangeTicker(),
-    nowProvider: () -> Long = System::currentTimeMillis
+    nowProvider: () -> Long = System::currentTimeMillis,
+    hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere
 ) : ViewModel() {
 
     val uiState: StateFlow<WateringOverviewUiState> = observeWateringOverview(
@@ -46,7 +51,8 @@ class WateringOverviewViewModel(
         lastWateredAtByPlantId = careLogRepository.observeLastCareAtByPlant(CareType.WATER),
         seasonalAmplitude = seasonalAmplitude,
         dayChange = dayChange,
-        nowProvider = nowProvider
+        nowProvider = nowProvider,
+        hemisphere = hemisphere
     )
         .map<_, WateringOverviewUiState> { WateringOverviewUiState.Ready(it.overview, it.hasActivePlants) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WateringOverviewUiState.Loading)

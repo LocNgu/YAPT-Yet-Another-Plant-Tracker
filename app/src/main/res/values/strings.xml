@@ -89,6 +89,7 @@
     <string name="seasonal_curve_hemisphere_southern">Southern</string>
     <string name="seasonal_curve_pinned_note">Pinned — this plant\'s interval doesn\'t follow the seasonal curve</string>
     <string name="settings_section_display">Display</string>
+    <string name="settings_section_overviews">Overviews</string>
     <string name="graveyard_settings_title">Plant Graveyard</string>
     <string name="settings_section_about">About</string>
     <string name="settings_about_app_name">YAPT – Yet Another Plant Tracker</string>
@@ -551,10 +552,10 @@
     <string name="watering_overview_count_scheduled">%d on a schedule</string>
     <string name="watering_overview_count_resting">%d resting</string>
     <string name="watering_overview_count_no_schedule">%d without a schedule</string>
-    <string name="watering_overview_count_separator"> · </string>
+    <string name="watering_overview_count_join">%1$s · %2$s</string>
     <string name="watering_overview_bar_description">Plants by watering frequency: %1$s</string>
     <string name="watering_overview_bar_description_item">%1$s %2$d</string>
-    <string name="watering_overview_bar_description_separator">, </string>
+    <string name="watering_overview_bar_description_join">%1$s, %2$s</string>
     <plurals name="watering_overview_every_days">
         <item quantity="one">Every day</item>
         <item quantity="other">Every %d days</item>

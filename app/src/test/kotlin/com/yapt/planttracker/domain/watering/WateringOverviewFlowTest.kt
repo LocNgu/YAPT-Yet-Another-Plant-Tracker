@@ -2,6 +2,7 @@ package com.yapt.planttracker.domain.watering
 
 import app.cash.turbine.test
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.util.toStartOfDayMillis
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +38,8 @@ class WateringOverviewFlowTest {
             lastWateredAtByPlantId = flowOf(emptyMap()),
             seasonalAmplitude = flowOf(0.0),
             dayChange = flowOf(Unit),
-            nowProvider = { summer }
+            nowProvider = { summer },
+            hemisphere = { Hemisphere.NORTHERN }
         ).first()
 
         assertEquals(
@@ -75,7 +77,14 @@ class WateringOverviewFlowTest {
         val dayChange = MutableSharedFlow<LocalDate>(replay = 1)
         dayChange.tryEmit(LocalDate.of(2026, 7, 4))
 
-        observeWateringOverview(plants, MutableStateFlow(emptyMap()), amplitude, dayChange) { now }.test {
+        observeWateringOverview(
+            plants = plants,
+            lastWateredAtByPlantId = MutableStateFlow(emptyMap()),
+            seasonalAmplitude = amplitude,
+            dayChange = dayChange,
+            nowProvider = { now },
+            hemisphere = { Hemisphere.NORTHERN }
+        ).test {
             assertEquals(listOf(WateringOverviewGroup.EVERY_1_3_DAYS), awaitItem().groups())
 
             now = winter
@@ -101,11 +110,13 @@ class WateringOverviewFlowTest {
         dayChange.tryEmit(LocalDate.of(2026, 7, 4))
 
         observeWateringOverview(
-            flowOf(listOf(plant(1))),
-            lastWatered,
-            flowOf(0.0),
-            dayChange
-        ) { summer }.test {
+            plants = flowOf(listOf(plant(1))),
+            lastWateredAtByPlantId = lastWatered,
+            seasonalAmplitude = flowOf(0.0),
+            dayChange = dayChange,
+            nowProvider = { summer },
+            hemisphere = { Hemisphere.NORTHERN }
+        ).test {
             val before = awaitItem().overview.sections.single().items.single().nextDueAt
             lastWatered.value = mapOf(1L to summer)
             val after = awaitItem().overview.sections.single().items.single().nextDueAt
