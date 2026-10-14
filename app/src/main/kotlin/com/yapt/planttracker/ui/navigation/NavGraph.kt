@@ -60,6 +60,8 @@ import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.today.TodayScreen
 import com.yapt.planttracker.ui.screens.today.TodayViewModel
+import com.yapt.planttracker.ui.screens.watering.WateringOverviewScreen
+import com.yapt.planttracker.ui.screens.watering.WateringOverviewViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -432,6 +434,7 @@ fun YaptNavGraph(
                     onShowWhatsNew = { showWhatsNew = true },
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
                     onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
+                    onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
                     onBackupInProgressChanged = { backupInProgress = it }
                 )
             }
@@ -456,6 +459,23 @@ fun YaptNavGraph(
                     )
                 )
                 RepottingOverviewScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToPlant = { plantId, tab ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
+                    }
+                )
+            }
+
+            composable(Screen.WateringOverview.route) { backStackEntry ->
+                val vm: WateringOverviewViewModel = viewModel(
+                    factory = WateringOverviewViewModel.Factory(
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.settingsDataStore
+                    )
+                )
+                WateringOverviewScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onNavigateToPlant = { plantId, tab ->

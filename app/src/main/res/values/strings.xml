@@ -533,6 +533,37 @@
         <item quantity="other">%d plants not repotted in 3+ years</item>
     </plurals>
 
+    <!-- Watering overview (#901, product ADR-0063) -->
+    <string name="watering_overview_title">Watering overview</string>
+    <string name="watering_overview_settings_subtitle">See how often each plant needs water</string>
+    <string name="watering_overview_no_plants">No plants yet. Add a plant to see how often it needs water.</string>
+    <string name="watering_overview_group_1_3">Every 1–3 days</string>
+    <string name="watering_overview_group_4_7">Every 4–7 days</string>
+    <string name="watering_overview_group_8_14">Every 8–14 days</string>
+    <string name="watering_overview_group_15_plus">Every 15+ days</string>
+    <string name="watering_overview_group_resting">Resting</string>
+    <string name="watering_overview_group_no_schedule">No watering schedule</string>
+    <string name="watering_overview_header_with_count">%1$s · %2$d</string>
+    <plurals name="watering_overview_count_plants">
+        <item quantity="one">%d plant</item>
+        <item quantity="other">%d plants</item>
+    </plurals>
+    <string name="watering_overview_count_scheduled">%d on a schedule</string>
+    <string name="watering_overview_count_resting">%d resting</string>
+    <string name="watering_overview_count_no_schedule">%d without a schedule</string>
+    <string name="watering_overview_count_separator"> · </string>
+    <string name="watering_overview_bar_description">Plants by watering frequency: %1$s</string>
+    <string name="watering_overview_bar_description_item">%1$s %2$d</string>
+    <string name="watering_overview_bar_description_separator">, </string>
+    <plurals name="watering_overview_every_days">
+        <item quantity="one">Every day</item>
+        <item quantity="other">Every %d days</item>
+    </plurals>
+    <string name="watering_overview_interval_next">%1$s · Next: %2$s</string>
+    <string name="watering_overview_next_only">Next: %1$s</string>
+    <string name="watering_overview_paused">Watering paused</string>
+    <string name="watering_overview_show_all">Show all %d</string>
+
     <string name="photo_reminder_setting_title">Photo reminder</string>
     <string name="photo_reminder_setting_subtitle">Prompt me to photograph plants every 30 days</string>
     <string name="combine_notifications_title">Combine reminders</string>

@@ -109,6 +109,7 @@ fun SettingsScreen(
     onShowWhatsNew: () -> Unit,
     onNavigateToGraveyard: () -> Unit = {},
     onNavigateToRepottingOverview: () -> Unit = {},
+    onNavigateToWateringOverview: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -682,6 +683,13 @@ fun SettingsScreen(
                 title = stringResource(R.string.repotting_overview_title),
                 subtitle = repottingOverviewSubtitle(repottingOverviewSummary),
                 onClick = onNavigateToRepottingOverview
+            )
+
+            SettingsItemRow(
+                icon = Icons.Filled.WaterDrop,
+                title = stringResource(R.string.watering_overview_title),
+                subtitle = stringResource(R.string.watering_overview_settings_subtitle),
+                onClick = onNavigateToWateringOverview
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

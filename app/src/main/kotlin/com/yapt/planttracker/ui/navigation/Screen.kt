@@ -35,6 +35,8 @@ sealed class Screen(val route: String) {
 
     object RepottingOverview : Screen("repotting_overview")
 
+    object WateringOverview : Screen("watering_overview")
+
     object Today : Screen("today")
 
     object Calendar : Screen("calendar")

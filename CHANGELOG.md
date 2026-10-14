@@ -12,6 +12,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **A Watering overview in Settings** — a new row right after Repotting overview opens a read-only page showing how
+  often every plant needs water: a count line and a proportion bar, then groups for every 1–3, 4–7, 8–14 and 15+
+  days, plants resting for the winter (a paused plant reads "Watering paused", one on a reduced winter cadence shows
+  it), and plants with no watering schedule. Each row shows the photo, name, room, "every N days" and when watering
+  is next due; a group over five plants shows five and "Show all N", and tapping a row opens the plant's Water tab.
+  The intervals follow today's season and update at midnight without a restart (#901, product ADR-0063)
+
 ### Fixed
 - **Turning developer mode off now resets feature flags in the same write** — the switch-off and the reset of every
   flag to its default are one atomic settings write, so the app being killed at the wrong moment can no longer leave
