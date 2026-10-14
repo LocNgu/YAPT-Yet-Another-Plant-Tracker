@@ -1637,6 +1637,22 @@ class PlantListViewModelTest {
     }
 
     @Test
+    fun `bulkLog with only unresolvable selected ids does not call the use case and clears selection`() = runTest {
+        vm = stickyVm(plant(id = 1L, name = "A"))
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.toggleSelection(99L)
+            vm.bulkLog(CareType.WATER)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { quickLogUseCase.bulkLog(any(), any()) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
     fun `bulkLog skips a selected id that no longer resolves to an active plant`() = runTest {
         val a = plant(id = 1L, name = "A")
         vm = stickyVm(a)

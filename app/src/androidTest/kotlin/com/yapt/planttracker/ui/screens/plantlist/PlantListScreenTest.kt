@@ -211,15 +211,41 @@ class PlantListScreenTest {
         composeTestRule.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
     }
 
+    private fun containsSelectionMatcher() = SemanticsMatcher.expectValue(
+        SemanticsProperties.StateDescription,
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.state_room_chip_has_selection)
+    )
+
+    @Test
+    fun selecting_keepsTheMarkerOnARoomChipWhoseSelectedPlantsAreHidden() {
+        val kitchen = Plant(id = 1L, name = "Monstera", room = "Kitchen", createdAt = 0L, updatedAt = 0L)
+        val bedroom = Plant(id = 2L, name = "Fern", room = "Bedroom", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(kitchen, bedroom), rooms = listOf("Bedroom", "Kitchen"))
+        val hasSelection = containsSelectionMatcher()
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNode(hasText("Bedroom") and hasClickAction()).performClick()
+
+        composeTestRule.onNodeWithText("Monstera").assertDoesNotExist()
+        composeTestRule.onNode(hasText("Kitchen") and hasClickAction() and hasSelection).assertExists()
+        composeTestRule.onNode(hasText("Bedroom") and hasClickAction() and hasSelection).assertDoesNotExist()
+    }
+
     @Test
     fun selecting_marksOnlyTheRoomChipsContainingSelectedPlants() {
         val kitchen = Plant(id = 1L, name = "Monstera", room = "Kitchen", createdAt = 0L, updatedAt = 0L)
         val bedroom = Plant(id = 2L, name = "Fern", room = "Bedroom", createdAt = 0L, updatedAt = 0L)
         val viewModel = makeViewModel(plants = listOf(kitchen, bedroom), rooms = listOf("Bedroom", "Kitchen"))
-        val hasSelection = SemanticsMatcher.expectValue(
-            SemanticsProperties.StateDescription,
-            "Contains selected plants"
-        )
+        val hasSelection = containsSelectionMatcher()
 
         composeTestRule.setContent {
             PlantListScreen(
