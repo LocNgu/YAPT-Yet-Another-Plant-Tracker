@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-15
+
 ### Added
 - **A Watering overview in Settings** — a new row in a new Overviews section, right after Repotting overview (which
   moves there from Backup & restore), opens a read-only page showing how
