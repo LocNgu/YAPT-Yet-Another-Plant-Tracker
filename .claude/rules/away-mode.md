@@ -1,5 +1,5 @@
 ---
-description: Away mode — trip storage, date logic and backup (slice 1 of #895); the whole-feature design is product ADR-0065
+description: Away mode — trip storage, date logic and backup; the whole-feature design is product ADR-0065
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/away/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/model/AwayPeriod*.kt"
@@ -16,8 +16,8 @@ paths:
 # Away mode (product ADR-0065, technical ADR-0038)
 
 The design for the whole feature (trips, paused reminders, learning exclusion, Care banner, plant-sitter flow) is
-product ADR-0065. This file records what exists today: **storage, date logic and backup only**. Nothing outside
-backup reads the new tables yet, and there is no UI, string or reminder change.
+product ADR-0065. This file records what exists today: **storage, date logic and backup only**. Only backup reads
+the new tables, and there is no UI, string or reminder change.
 
 ## Storage (DB 18)
 - `away_periods(id, firstDay, lastDay, visitEveryDays?, createdAt)`: `firstDay`/`lastDay` are **inclusive local epoch days**, never instants. No foreign keys, because a trip is global. Past trips are kept.
@@ -29,7 +29,7 @@ backup reads the new tables yet, and there is no UI, string or reminder change.
 
 ## Pure date logic (`domain/away/AwayPeriods.kt`)
 - `isAway(date, periods)`; `currentOrUpcoming(periods, today)` (the earliest trip whose last day is not before today).
-- **`spansAway(periods, fromMillis, toMillis)` is the one predicate every exclusion uses** (later slices): any trip overlaps the inclusive local-day range of the two instants (via `Long.toLocalDate()`); `false` when `toMillis <= fromMillis`. A gap ending on a trip's first day, or starting on its last, spans it.
+- **`spansAway(periods, fromMillis, toMillis)` is the one predicate for every away exclusion**: any trip overlaps the inclusive local-day range of the two instants (via `Long.toLocalDate()`); `false` when `toMillis <= fromMillis`. A gap ending on a trip's first day, or starting on its last, spans it.
 - `validate(firstDay, lastDay, today, existing, editingId)` returns a sealed `AwayPeriodValidation`, checked in this order: `FirstDayAfterLastDay`, `EndsInThePast` (last day before today), `TooLong` (over `MAX_TRIP_DAYS` = 90 inclusive days), `OverlapsTrip`, `AnotherCurrentOrUpcomingTrip`, else `Valid`. The start may be in the past while the trip is ongoing. `editingId` excludes the edited trip from the conflict checks, so it never conflicts with itself.
 - `endEarly(period, today)` ("I'm back"): last day becomes yesterday; `null` (remove the trip) when that is before the first day; never extends a trip.
 - `isVisitDayInside` / `visitsOutside(visits, firstDay, lastDay)`: a visit day must lie inside its trip. The caller deletes the visits an edit or `endEarly` strands and reports the count; WATER logs those visits already wrote stay.
