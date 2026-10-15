@@ -13,7 +13,16 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        fixed = listOf(
+            "Selecting several plants on the Plants tab now keeps them selected when you switch rooms, sort or " +
+                "search. Room chips that hold selected plants show a small dot, Select all adds the visible " +
+                "plants without dropping the others, and bulk Water, Fertilize, Prune and Repot now log every " +
+                "selected plant, including the hidden ones"
+        )
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
