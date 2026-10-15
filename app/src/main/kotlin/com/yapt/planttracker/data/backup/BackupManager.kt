@@ -31,6 +31,10 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 22 (#896, Away mode, product ADR-0065): awayPeriods: List<BackupAwayPeriod> round-trips the
+// away_periods, sitter_visits and sitter_visit_plants tables, nested trip → visits → plants, with days
+// as ISO-8601 dates. Old backups deserialize to no trips. Restore skips a trip or visit whose dates
+// don't parse, re-filters visits into their trip and drops visit plants whose plant isn't restored.
 // Schema 21 (#809, product ADR-0057): repotPlanSeasonStartAt, repotPlanMadeAt, and repottingSeasons added
 // to BackupPlant — the one-off planned-repot target (season first day + when it was made) and the
 // recurring repotting interval's preferred seasons (same comma-separated FertilizingSeason encoding
@@ -83,7 +87,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 21
+const val CURRENT_SCHEMA_VERSION = 22
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -150,6 +154,10 @@ class BackupManager(
             val plantIssues = plants.flatMap { allIssues[it.id].orEmpty() }
             val allAdjustments = wateringAdjustmentDao.getAllAdjustments().first().groupBy { it.plantId }
             val wateringAdjustments = plants.flatMap { allAdjustments[it.id].orEmpty() }
+            val backupAwayPeriods = AwayBackupMapping.toBackup(
+                database.awayPeriodDao().getAll(),
+                database.sitterVisitDao().getAllVisits()
+            )
 
             val prefs = dataStore.data.first()
             val notificationsEnabled = prefs[SettingsKeys.NOTIFICATIONS_ENABLED] ?: true
@@ -310,6 +318,7 @@ class BackupManager(
                             customReminders = backupCustomReminders,
                             plantIssues = backupPlantIssues,
                             wateringAdjustments = backupWateringAdjustments,
+                            awayPeriods = backupAwayPeriods,
                             settings = BackupSettings(
                                 notificationsEnabled = notificationsEnabled,
                                 reminderHour = reminderHour,
@@ -527,7 +536,10 @@ class BackupManager(
                 )
             }
 
+            val awayRows = AwayBackupMapping.fromBackup(backup.awayPeriods, plantEntities.map { it.id }.toSet())
+
             database.withTransaction {
+                database.awayPeriodDao().deleteAll()
                 database.plantPhotoDao().deleteAll()
                 database.customReminderDao().deleteAll()
                 database.plantIssueDao().deleteAll()
@@ -540,6 +552,9 @@ class BackupManager(
                 database.careLogDao().insertAll(careLogEntities)
                 database.plantPhotoDao().insertAll(plantPhotoEntities)
                 database.wateringAdjustmentDao().insertAll(wateringAdjustmentEntities)
+                database.awayPeriodDao().insertAll(awayRows.periods)
+                awayRows.visits.forEach { database.sitterVisitDao().insertVisit(it) }
+                database.sitterVisitDao().insertVisitPlants(awayRows.visitPlants)
             }
             dbCommitted = true
             onImportCompleted()

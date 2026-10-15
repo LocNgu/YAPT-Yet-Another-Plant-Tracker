@@ -10,6 +10,7 @@ import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.RepottingOverviewPreferences
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
@@ -71,6 +72,9 @@ open class YaptApplication : Application() {
     val customReminderRepository by lazy { CustomReminderRepository(database.customReminderDao()) }
     val plantIssueRepository by lazy { PlantIssueRepository(database.plantIssueDao()) }
     val wateringAdjustmentRepository by lazy { WateringAdjustmentRepository(database.wateringAdjustmentDao()) }
+    val awayPeriodRepository by lazy {
+        AwayPeriodRepository(database.awayPeriodDao(), database.sitterVisitDao())
+    }
     val featureFlags by lazy { FeatureFlags(settingsDataStore) }
     val repottingOverviewPreferences by lazy { RepottingOverviewPreferences(settingsDataStore) }
     val todayCareRepository by lazy {
