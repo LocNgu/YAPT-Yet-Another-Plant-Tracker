@@ -23,6 +23,7 @@ import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
+import com.yapt.planttracker.domain.watering.WateringOverviewGroup
 import com.yapt.planttracker.ui.theme.ThemeMode
 
 @StringRes
@@ -209,4 +210,15 @@ fun RepottingOverviewThreshold.settingsSubtitleRes(): Int = when (this) {
     RepottingOverviewThreshold.ONE_YEAR -> R.plurals.repotting_overview_settings_subtitle_one_year
     RepottingOverviewThreshold.TWO_YEARS -> R.plurals.repotting_overview_settings_subtitle_two_years
     RepottingOverviewThreshold.THREE_YEARS -> R.plurals.repotting_overview_settings_subtitle_three_years
+}
+
+/** Group label on the Watering overview (#901, product ADR-0064). */
+@StringRes
+fun WateringOverviewGroup.labelRes(): Int = when (this) {
+    WateringOverviewGroup.EVERY_1_3_DAYS -> R.string.watering_overview_group_1_3
+    WateringOverviewGroup.EVERY_4_7_DAYS -> R.string.watering_overview_group_4_7
+    WateringOverviewGroup.EVERY_8_14_DAYS -> R.string.watering_overview_group_8_14
+    WateringOverviewGroup.EVERY_15_PLUS_DAYS -> R.string.watering_overview_group_15_plus
+    WateringOverviewGroup.RESTING -> R.string.watering_overview_group_resting
+    WateringOverviewGroup.NO_SCHEDULE -> R.string.watering_overview_group_no_schedule
 }

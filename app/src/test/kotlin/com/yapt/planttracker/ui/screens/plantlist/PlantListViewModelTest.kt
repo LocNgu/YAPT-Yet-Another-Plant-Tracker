@@ -30,6 +30,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -1531,6 +1532,143 @@ class PlantListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
         vm.clearSelection()
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    private fun stickyVm(vararg plants: Plant): PlantListViewModel {
+        every { plantRepo.getAllPlants() } returns flowOf(plants.toList())
+        every { plantRepo.getAllRooms() } returns flowOf(listOf("Kitchen", "Bedroom"))
+        return PlantListViewModel(
+            application,
+            plantRepo,
+            careLogRepo,
+            dataStore,
+            quickLogUseCase,
+            plantIssueRepo,
+            dayChangeFlow
+        )
+    }
+
+    @Test
+    fun `switching the room filter leaves the selection unchanged and roomsWithSelection covers hidden rooms`() =
+        runTest {
+            val a = plant(id = 1L, name = "A", room = "Kitchen")
+            val b = plant(id = 2L, name = "B", room = "Bedroom")
+            val c = plant(id = 3L, name = "C")
+            vm = stickyVm(a, b, c)
+
+            backgroundScope.launch { vm.roomsWithSelection.collect {} }
+            vm.plantsWithStatus.test {
+                assertEquals(3, awaitItem().size)
+                assertTrue(vm.roomsWithSelection.value.isEmpty())
+                vm.toggleSelection(1L)
+                vm.toggleSelection(2L)
+                vm.toggleSelection(3L)
+                advanceUntilIdle()
+                assertEquals(
+                    setOf("Kitchen", "Bedroom", PlantListViewModel.UNASSIGNED_ROOM),
+                    vm.roomsWithSelection.value
+                )
+
+                vm.selectRoom("Kitchen")
+                advanceUntilIdle()
+                assertEquals(1, awaitItem().size)
+                assertEquals(setOf(1L, 2L, 3L), vm.selectedPlantIds.value)
+                assertEquals(
+                    setOf("Kitchen", "Bedroom", PlantListViewModel.UNASSIGNED_ROOM),
+                    vm.roomsWithSelection.value
+                )
+
+                vm.toggleSelection(2L)
+                vm.toggleSelection(3L)
+                advanceUntilIdle()
+                assertEquals(setOf("Kitchen"), vm.roomsWithSelection.value)
+
+                vm.clearSelection()
+                advanceUntilIdle()
+                assertTrue(vm.roomsWithSelection.value.isEmpty())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `bulkLog after a room switch logs every selected plant including the hidden one`() = runTest {
+        val a = plant(id = 1L, name = "A", room = "Kitchen")
+        val b = plant(id = 2L, name = "B", room = "Bedroom")
+        vm = stickyVm(a, b)
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } returns
+            QuickLogUseCase.BulkLogResult(loggedCount = 2, skippedCount = 0, totalCount = 2)
+
+        vm.plantsWithStatus.test {
+            assertEquals(2, awaitItem().size)
+            vm.toggleSelection(1L)
+            vm.toggleSelection(2L)
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+            assertEquals(1, awaitItem().size)
+
+            vm.bulkLog(CareType.WATER)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.bulkLog(listOf(a, b), CareType.WATER) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `selectAll under a room filter adds the visible plants and keeps a hidden selection`() = runTest {
+        val a = plant(id = 1L, name = "A", room = "Kitchen")
+        val b = plant(id = 2L, name = "B", room = "Bedroom")
+        val c = plant(id = 3L, name = "C", room = "Kitchen")
+        vm = stickyVm(a, b, c)
+
+        vm.plantsWithStatus.test {
+            assertEquals(3, awaitItem().size)
+            vm.toggleSelection(2L)
+            vm.selectRoom("Kitchen")
+            advanceUntilIdle()
+            assertEquals(2, awaitItem().size)
+
+            vm.selectAll()
+            assertEquals(setOf(1L, 2L, 3L), vm.selectedPlantIds.value)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `bulkLog with only unresolvable selected ids does not call the use case and clears selection`() = runTest {
+        vm = stickyVm(plant(id = 1L, name = "A"))
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.toggleSelection(99L)
+            vm.bulkLog(CareType.WATER)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { quickLogUseCase.bulkLog(any(), any()) }
+        assertTrue(vm.selectedPlantIds.value.isEmpty())
+    }
+
+    @Test
+    fun `bulkLog skips a selected id that no longer resolves to an active plant`() = runTest {
+        val a = plant(id = 1L, name = "A")
+        vm = stickyVm(a)
+        coEvery { quickLogUseCase.bulkLog(any(), CareType.WATER) } returns
+            QuickLogUseCase.BulkLogResult(loggedCount = 1, skippedCount = 0, totalCount = 1)
+
+        vm.plantsWithStatus.test {
+            awaitItem()
+            vm.toggleSelection(1L)
+            vm.toggleSelection(99L)
+            vm.bulkLog(CareType.WATER)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { quickLogUseCase.bulkLog(listOf(a), CareType.WATER) }
         assertTrue(vm.selectedPlantIds.value.isEmpty())
     }
 

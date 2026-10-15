@@ -8,6 +8,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import app.cash.turbine.test
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.backup.BackupManagerInterface
@@ -32,6 +33,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import io.mockk.verify
@@ -477,7 +479,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setDeveloperModeEnabled(false) does not touch DataStore a second time when there are no flags`() = runTest {
+    fun `setDeveloperModeEnabled(false) writes DataStore once when there are no flags`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
@@ -491,18 +493,27 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setDeveloperModeEnabled(false) resets every flag to its registry default`() = runTest {
+    fun `setDeveloperModeEnabled(false) resets every flag to its registry default in the same write`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null
         every { mockPrefs[SettingsKeys.REMINDER_MINUTE] } returns null
-        coEvery { mockDataStore.updateData(any()) } returns mockPrefs
+        val transform = slot<suspend (Preferences) -> Preferences>()
+        coEvery { mockDataStore.updateData(capture(transform)) } returns mockPrefs
         vm = buildVmWithFlags()
 
         vm.setDeveloperModeEnabled(false)
         advanceUntilIdle()
 
-        // One write for DEVELOPER_MODE_ENABLED, one for FeatureFlags.resetAll(flags).
-        coVerify(exactly = 2) { mockDataStore.updateData(any()) }
+        // One atomic write carries both the disable and the flag reset (#527), so a process kill
+        // can't leave developer mode off with a flag still enabled.
+        coVerify(exactly = 1) { mockDataStore.updateData(any()) }
+        val stored = mutablePreferencesOf(
+            FeatureFlags.preferenceKeyFor(testFlag) to false,
+            SettingsKeys.DEVELOPER_MODE_ENABLED to true
+        )
+        val written = transform.captured(stored)
+        assertEquals(false, written[SettingsKeys.DEVELOPER_MODE_ENABLED])
+        assertEquals(testFlag.default, written[FeatureFlags.preferenceKeyFor(testFlag)])
     }
 
     @Test

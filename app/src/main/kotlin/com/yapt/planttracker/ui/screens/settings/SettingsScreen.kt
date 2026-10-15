@@ -109,6 +109,7 @@ fun SettingsScreen(
     onShowWhatsNew: () -> Unit,
     onNavigateToGraveyard: () -> Unit = {},
     onNavigateToRepottingOverview: () -> Unit = {},
+    onNavigateToWateringOverview: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -640,6 +641,29 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
+                text = stringResource(R.string.settings_section_overviews),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
+
+            SettingsItemRow(
+                icon = Icons.Filled.LocalFlorist,
+                title = stringResource(R.string.repotting_overview_title),
+                subtitle = repottingOverviewSubtitle(repottingOverviewSummary),
+                onClick = onNavigateToRepottingOverview
+            )
+
+            SettingsItemRow(
+                icon = Icons.Filled.WaterDrop,
+                title = stringResource(R.string.watering_overview_title),
+                subtitle = stringResource(R.string.watering_overview_settings_subtitle),
+                onClick = onNavigateToWateringOverview
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
                 text = stringResource(R.string.backup_section_title),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
@@ -675,13 +699,6 @@ fun SettingsScreen(
                 title = stringResource(R.string.graveyard_settings_title),
                 subtitle = pluralStringResource(R.plurals.graveyard_settings_subtitle, graveyardCount, graveyardCount),
                 onClick = onNavigateToGraveyard
-            )
-
-            SettingsItemRow(
-                icon = Icons.Filled.LocalFlorist,
-                title = stringResource(R.string.repotting_overview_title),
-                subtitle = repottingOverviewSubtitle(repottingOverviewSummary),
-                onClick = onNavigateToRepottingOverview
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

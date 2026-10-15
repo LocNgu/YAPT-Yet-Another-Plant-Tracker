@@ -496,7 +496,7 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun repottingOverviewRow_sitsDirectlyAfterThePlantGraveyardRow() {
+    fun overviewsSection_holdsRepottingThenWateringOverviewBetweenDisplayAndBackup() {
         composeTestRule.setContent {
             SettingsScreen(
                 viewModel = viewModel,
@@ -505,10 +505,34 @@ class SettingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Repotting overview").performScrollTo().assertIsDisplayed()
-        val graveyardTop = composeTestRule.onNodeWithText("Plant Graveyard").fetchSemanticsNode().positionInRoot.y
-        val repottingTop = composeTestRule.onNodeWithText("Repotting overview").fetchSemanticsNode().positionInRoot.y
-        assertTrue(graveyardTop < repottingTop)
+        composeTestRule.onNodeWithText("Watering overview").performScrollTo().assertIsDisplayed()
+        fun top(text: String) = composeTestRule.onNodeWithText(text).fetchSemanticsNode().positionInRoot.y
+        val display = top("Display")
+        val overviews = top("Overviews")
+        val repotting = top("Repotting overview")
+        val watering = top("Watering overview")
+        val graveyard = top("Plant Graveyard")
+        assertTrue(display < overviews)
+        assertTrue(overviews < repotting)
+        assertTrue(repotting < watering)
+        assertTrue(watering < graveyard)
+    }
+
+    @Test
+    fun wateringOverviewRow_showsItsStaticSubtitleAndInvokesCallback() {
+        var called = false
+        composeTestRule.setContent {
+            SettingsScreen(
+                viewModel = viewModel,
+                onRestoreSuccess = { _, _ -> },
+                onShowWhatsNew = {},
+                onNavigateToWateringOverview = { called = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("See how often each plant needs water").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watering overview").performScrollTo().performClick()
+        assertTrue(called)
     }
 
     @Test

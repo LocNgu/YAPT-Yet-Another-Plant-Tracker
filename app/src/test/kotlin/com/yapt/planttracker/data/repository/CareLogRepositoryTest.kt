@@ -1,6 +1,7 @@
 package com.yapt.planttracker.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
@@ -22,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -303,7 +305,7 @@ class CareLogRepositoryTest {
     }
 
     @Test
-    fun `unknown careType string in DB falls back to NOTE`() = runTest {
+    fun `unknown careType string in DB falls back to NOTE and logs a warning`() = runTest {
         init()
         // Insert a raw row with an unrecognised care type via the DAO directly
         val rawDao = db.careLogDao()
@@ -322,6 +324,9 @@ class CareLogRepositoryTest {
         val result = repo.getLogById(rawId)
         assertNotNull(result)
         assertEquals(CareType.NOTE, result?.careType)
+        val warnings = ShadowLog.getLogsForTag("CareLogRepository")
+            .filter { it.type == Log.WARN }
+        assertTrue(warnings.any { "DELETED_TYPE" in it.msg })
     }
 
     @Test

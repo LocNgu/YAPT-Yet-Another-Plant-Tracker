@@ -19,6 +19,22 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 540,
+            versionName = "0.36.0",
+            added = listOf(
+                "A new Watering overview in Settings, next to Repotting overview in a new Overviews section, " +
+                    "shows how often every plant needs water: plants grouped by every 1–3, 4–7, 8–14 or 15+ " +
+                    "days, those resting for the winter, and those with no watering schedule, each with its next " +
+                    "watering. Tap a plant to open its Water tab"
+            ),
+            fixed = listOf(
+                "Selecting several plants on the Plants tab now keeps them selected when you switch rooms, sort or " +
+                    "search. Room chips that hold selected plants show a small dot, Select all adds the visible " +
+                    "plants without dropping the others, and bulk Water, Fertilize, Prune and Repot now log every " +
+                    "selected plant, including the hidden ones"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 530,
             versionName = "0.35.0",
             added = listOf(

@@ -25,6 +25,7 @@ class ScreenTest {
         assertEquals("settings", Screen.Settings.route)
         assertEquals("graveyard", Screen.Graveyard.route)
         assertEquals("repotting_overview", Screen.RepottingOverview.route)
+        assertEquals("watering_overview", Screen.WateringOverview.route)
         assertEquals("today", Screen.Today.route)
         assertEquals("calendar", Screen.Calendar.route)
     }
@@ -145,6 +146,7 @@ class ScreenTest {
         assertFalse(shouldShowBottomNavigation(Screen.PlantDetail.route, false))
         assertFalse(shouldShowBottomNavigation(Screen.Graveyard.route, false))
         assertFalse(shouldShowBottomNavigation(Screen.RepottingOverview.route, false))
+        assertFalse(shouldShowBottomNavigation(Screen.WateringOverview.route, false))
         assertFalse(shouldShowBottomNavigation(null, false))
     }
 }
