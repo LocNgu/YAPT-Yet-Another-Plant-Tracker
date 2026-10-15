@@ -12,11 +12,14 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.entity.AwayPeriodEntity
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.entity.SitterVisitEntity
+import com.yapt.planttracker.data.entity.SitterVisitPlantEntity
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.util.ExistingCameraPhotoCompression
 import kotlinx.coroutines.CoroutineScope
@@ -166,6 +169,122 @@ class BackupManagerTest {
         assertNull(restored.repotPlanSeasonStartAt)
         assertNull(restored.repotPlanMadeAt)
         assertNull(restored.repottingSeasons)
+    }
+
+    private suspend fun insertBasicPlant(id: Long) = db.plantDao().insertPlant(
+        PlantEntity(
+            id = id,
+            name = "Plant $id",
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+    )
+
+    private suspend fun insertTripWithConfirmedVisit() {
+        insertBasicPlant(1L)
+        insertBasicPlant(2L)
+        val awayDao = db.awayPeriodDao()
+        awayDao.insertPeriod(AwayPeriodEntity(1L, 20_000L, 20_010L, 7, 5000L))
+        awayDao.insertVisit(SitterVisitEntity(10L, 1L, 20_004L, "CONFIRMED", 6000L))
+        awayDao.insertVisitPlants(
+            listOf(SitterVisitPlantEntity(10L, 1L, true), SitterVisitPlantEntity(10L, 2L, false))
+        )
+    }
+
+    private fun writeBackupZip(name: String, json: String): Uri {
+        val zipFile = tmpFolder.newFile(name)
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("backup.json"))
+            zip.write(json.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+        return Uri.fromFile(zipFile)
+    }
+
+    @Test
+    fun roundTrip_restoresTripsVisitsAndVisitPlants() = runBlocking {
+        insertTripWithConfirmedVisit()
+        val exportUri = Uri.fromFile(tmpFolder.newFile("away.yapt"))
+        assertTrue(backupManager.exportBackup(exportUri, includePhotos = false) is BackupResult.ExportSuccess)
+
+        db.awayPeriodDao().deleteAll()
+        db.plantDao().deleteAll()
+        assertTrue(backupManager.importBackup(exportUri) is BackupResult.ImportSuccess)
+
+        val awayDao = db.awayPeriodDao()
+        assertEquals(listOf(AwayPeriodEntity(1L, 20_000L, 20_010L, 7, 5000L)), awayDao.getAllPeriods())
+        assertEquals(listOf(SitterVisitEntity(10L, 1L, 20_004L, "CONFIRMED", 6000L)), awayDao.getAllVisits())
+        assertEquals(
+            listOf(SitterVisitPlantEntity(10L, 1L, true), SitterVisitPlantEntity(10L, 2L, false)),
+            awayDao.getAllVisitPlants()
+        )
+    }
+
+    @Test
+    fun import_replacesExistingTripsAndVisits() = runBlocking {
+        insertTripWithConfirmedVisit()
+        val backupJson = """
+            {"schemaVersion": 22, "exportedAt": 1000, "appVersion": "1.0",
+             "plants": [{"id": 1, "name": "A", "createdAt": 1000, "updatedAt": 1000}],
+             "careLogs": [],
+             "settings": {"notificationsEnabled": true, "reminderHour": 9, "reminderMinute": 0},
+             "awayPeriods": [{"id": 7, "firstDay": "2026-12-20", "lastDay": "2026-12-27", "createdAt": 1,
+                              "visits": []}]}
+        """.trimIndent()
+
+        assertTrue(backupManager.importBackup(writeBackupZip("replace.yapt", backupJson)) is BackupResult.ImportSuccess)
+
+        val awayDao = db.awayPeriodDao()
+        assertEquals(listOf(7L), awayDao.getAllPeriods().map { it.id })
+        assertTrue(awayDao.getAllVisits().isEmpty())
+        assertTrue(awayDao.getAllVisitPlants().isEmpty())
+    }
+
+    @Test
+    fun olderBackupWithoutAwayPeriods_restoresWithNoTrips() = runBlocking {
+        insertTripWithConfirmedVisit()
+        val olderJson = """
+            {"schemaVersion": 21, "exportedAt": 1000, "appVersion": "1.0",
+             "plants": [{"id": 1, "name": "Older", "createdAt": 1000, "updatedAt": 1000}],
+             "careLogs": [],
+             "settings": {"notificationsEnabled": true, "reminderHour": 9, "reminderMinute": 0}}
+        """.trimIndent()
+
+        assertTrue(backupManager.importBackup(writeBackupZip("older.yapt", olderJson)) is BackupResult.ImportSuccess)
+
+        assertTrue(db.awayPeriodDao().getAllPeriods().isEmpty())
+        assertEquals(1, db.plantDao().getAllPlants().first().size)
+    }
+
+    @Test
+    fun import_skipsTripsAndVisitsWithBadDatesAndDropsVisitPlantsOfMissingPlants() = runBlocking {
+        val backupJson = """
+            {"schemaVersion": 22, "exportedAt": 1000, "appVersion": "1.0",
+             "plants": [{"id": 1, "name": "A", "createdAt": 1000, "updatedAt": 1000}],
+             "careLogs": [],
+             "settings": {"notificationsEnabled": true, "reminderHour": 9, "reminderMinute": 0},
+             "awayPeriods": [
+               {"id": 1, "firstDay": "nonsense", "lastDay": "2026-10-20", "createdAt": 1, "visits": []},
+               {"id": 2, "firstDay": "2026-10-10", "lastDay": "2026-10-20", "createdAt": 1, "visits": [
+                 {"id": 20, "day": "also nonsense", "createdAt": 1, "plants": []},
+                 {"id": 21, "day": "2026-10-14", "state": "PLANNED", "createdAt": 1, "plants": [
+                   {"plantId": 1}, {"plantId": 99}]}
+               ]}
+             ]}
+        """.trimIndent()
+
+        assertTrue(backupManager.importBackup(writeBackupZip("bad_dates.yapt", backupJson)) is BackupResult.ImportSuccess)
+
+        val awayDao = db.awayPeriodDao()
+        assertEquals(listOf(2L), awayDao.getAllPeriods().map { it.id })
+        assertEquals(listOf(21L), awayDao.getAllVisits().map { it.id })
+        assertEquals(listOf(1L), awayDao.getAllVisitPlants().map { it.plantId })
     }
 
     @Test
