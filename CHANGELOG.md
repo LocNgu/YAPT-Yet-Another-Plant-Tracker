@@ -23,6 +23,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   watering setting (#901, product ADR-0063)
 
 ### Fixed
+- **Plant List multi-select now keeps your selection when the room filter changes** — switching room chips, sorting
+  or searching while selecting no longer changes what is selected. Room chips holding selected plants show a small
+  dot (and announce "Contains selected plants"), so you can see where hidden selections are. Select all adds the
+  visible plants without dropping hidden ones, and bulk Water, Fertilize, Prune and Repot now log every selected
+  plant, hidden ones included, instead of silently skipping them (#449, product ADR-0063)
 - **Turning developer mode off now resets feature flags in the same write** — the switch-off and the reset of every
   flag to its default are one atomic settings write, so the app being killed at the wrong moment can no longer leave
   a flag on while developer mode reads as off (#527, product ADR-0042)
