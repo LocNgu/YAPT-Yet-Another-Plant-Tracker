@@ -20,7 +20,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   it), and plants with no watering schedule. Each row shows the photo, name, room, "every N days" and when watering
   is next due; a group over five plants shows five and "Show all N", and tapping a row opens the plant's Water tab.
   The intervals follow today's season, and the page updates as you log waterings, edit plants or change the seasonal
-  watering setting (#901, product ADR-0063)
+  watering setting (#901, product ADR-0064)
 
 ### Fixed
 - **Plant List multi-select now keeps your selection when the room filter changes** — switching room chips, sorting

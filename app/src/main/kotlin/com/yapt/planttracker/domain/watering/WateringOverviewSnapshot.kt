@@ -13,7 +13,7 @@ data class WateringOverviewSnapshot(
 )
 
 /**
- * The reactive pipeline behind the Watering overview (#901, product ADR-0063). [dayChange] is a
+ * The reactive pipeline behind the Watering overview (#901, product ADR-0064). [dayChange] is a
  * day-change trigger only (technical ADR-0035, #550): its value is ignored and [nowProvider] is read
  * once per emission so the intervals and the due dates are evaluated at the same instant. The
  * seasonal amplitude is an input so a change to that setting re-evaluates the page; the hemisphere is

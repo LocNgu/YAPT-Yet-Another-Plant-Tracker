@@ -31,7 +31,7 @@ sealed interface WateringOverviewUiState {
 }
 
 /**
- * The Watering overview page (#901, product ADR-0063): a read-only audit of how often each plant needs
+ * The Watering overview page (#901, product ADR-0064): a read-only audit of how often each plant needs
  * water. The state is [observeWateringOverview], so it moves by itself after a watering is logged, a
  * plant is edited, or the seasonal amplitude changes. [dayChange] re-evaluates the groups and due dates
  * on a day change, but the page is not guaranteed to refresh while open across midnight (a snapshot equal to

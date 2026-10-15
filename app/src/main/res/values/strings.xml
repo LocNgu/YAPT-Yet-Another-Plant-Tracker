@@ -534,7 +534,7 @@
         <item quantity="other">%d plants not repotted in 3+ years</item>
     </plurals>
 
-    <!-- Watering overview (#901, product ADR-0063) -->
+    <!-- Watering overview (#901, product ADR-0064) -->
     <string name="watering_overview_title">Watering overview</string>
     <string name="watering_overview_settings_subtitle">See how often each plant needs water</string>
     <string name="watering_overview_no_plants">No plants yet. Add a plant to see how often it needs water.</string>

@@ -1,4 +1,4 @@
-# Product ADR-0063: Watering overview — a read-only page of how often every plant needs water
+# Product ADR-0064: Watering overview — a read-only page of how often every plant needs water
 
 **Status**: accepted
 

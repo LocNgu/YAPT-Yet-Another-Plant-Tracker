@@ -7,7 +7,7 @@ import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.util.toLocalDate
 
-/** The Watering overview's groups, in page order (#901, product ADR-0063). */
+/** The Watering overview's groups, in page order (#901, product ADR-0064). */
 @Suppress("MagicNumber")
 enum class WateringOverviewGroup {
     EVERY_1_3_DAYS,
@@ -58,7 +58,7 @@ data class WateringOverview(val sections: List<WateringOverviewSection>) {
 }
 
 /**
- * Groups every active plant by how often it needs water (#901, product ADR-0063). Pure: [now] and
+ * Groups every active plant by how often it needs water (#901, product ADR-0064). Pure: [now] and
  * [hemisphere] come from the caller, the due date is [CareSchedule.computeStatus]'s own
  * `nextWateringDueAt` and the interval is the same function the "Why this date?" sheet uses, so the page
  * adds no due-date logic of its own.

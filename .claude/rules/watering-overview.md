@@ -7,7 +7,7 @@ paths:
   - "app/src/androidTest/**/watering/**/*"
 ---
 
-# Watering overview (#901, product ADR-0063)
+# Watering overview (#901, product ADR-0064)
 
 A read-only audit of how often every plant needs water. Nested under Settings, in the "Overviews" section (`settings_section_overviews`, between Display and Backup & restore) directly after Repotting overview (`Screen.WateringOverview`, route `watering_overview`); the row's subtitle is static, so `SettingsViewModel` has no pipeline for it. No schema, DataStore or backup change.
 

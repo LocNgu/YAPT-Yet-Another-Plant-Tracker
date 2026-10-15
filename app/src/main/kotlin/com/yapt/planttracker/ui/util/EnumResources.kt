@@ -212,7 +212,7 @@ fun RepottingOverviewThreshold.settingsSubtitleRes(): Int = when (this) {
     RepottingOverviewThreshold.THREE_YEARS -> R.plurals.repotting_overview_settings_subtitle_three_years
 }
 
-/** Group label on the Watering overview (#901, product ADR-0063). */
+/** Group label on the Watering overview (#901, product ADR-0064). */
 @StringRes
 fun WateringOverviewGroup.labelRes(): Int = when (this) {
     WateringOverviewGroup.EVERY_1_3_DAYS -> R.string.watering_overview_group_1_3
