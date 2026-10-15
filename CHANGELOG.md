@@ -12,6 +12,16 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **A Watering overview in Settings** — a new row in a new Overviews section, right after Repotting overview (which
+  moves there from Backup & restore), opens a read-only page showing how
+  often every plant needs water: a count line and a proportion bar, then groups for every 1–3, 4–7, 8–14 and 15+
+  days, plants resting for the winter (a paused plant reads "Watering paused", one on a reduced winter cadence shows
+  it), and plants with no watering schedule. Each row shows the photo, name, room, "every N days" and when watering
+  is next due; a group over five plants shows five and "Show all N", and tapping a row opens the plant's Water tab.
+  The intervals follow today's season, and the page updates as you log waterings, edit plants or change the seasonal
+  watering setting (#901, product ADR-0064)
+
 ### Fixed
 - **Plant List multi-select now keeps your selection when the room filter changes** — switching room chips, sorting
   or searching while selecting no longer changes what is selected. Room chips holding selected plants show a small

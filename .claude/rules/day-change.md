@@ -5,6 +5,7 @@ paths:
   - "app/src/main/kotlin/com/yapt/planttracker/**/*ViewModel*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/data/repository/TodayCareRepository*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/repotting/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/watering/**/*"
   - "app/src/test/**/*ViewModel*Test.kt"
   - "app/src/test/**/DayChangeTicker*.kt"
   - "app/src/test/**/TodayCareRepository*.kt"
@@ -22,6 +23,7 @@ No app flow emits just because time passes. So a `combine()` that reads or deriv
   - `CalendarViewModel.statusesForDay`
   - `TodayCareRepository.observeQueue()`
   - the Repotting overview pipeline
+  - the Watering overview pipeline (`observeWateringOverview`, #901; `WateringOverviewViewModel` takes `dayChange`, and its tests pass a controllable `MutableSharedFlow`)
 
 ## Combine once, derive twice
 Calendar builds `private data class StatusesForDay(day, statuses)` in **one** `combine(allPlants, logCount, seasonalAmplitude, today)`. Both `plantsWithStatus` and `plantsByDay` (`combine(statusesForDay, _visibleMonth)`) derive from it. If each stage read `today` separately, `plantsByDay` would briefly pair the new day with the old statuses. Apply the same rule to any two-stage chain that shares a trigger.
