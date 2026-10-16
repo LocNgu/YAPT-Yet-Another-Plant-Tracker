@@ -37,7 +37,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
 - Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
 - **Care vs. Today:** the user-facing name is **Care** (tab, top bar, copy, changelog); internal identifiers (`Screen.Today`, route `today`, `Today*` classes) deliberately keep "Today". Care is the start destination; root tabs are Care · Plants · Calendar · Settings — so Plants may not be on the back stack — never `getBackStackEntry(Screen.PlantList.route)` unguarded (#836). Details: `rules/navigation.md`, `rules/care-queue.md`.
-- Due tasks come only from `TodayQueueAggregator` (via `TodayCareRepository`); UI code never derives them.
+- Due tasks come only from `TodayQueueAggregator` (via `TodayCareRepository`); UI code never derives them. Upcoming is bounded by `TodayQueueInput.horizonEnd` (default today + 3); a caller widens it via `observeQueue(horizonEnd)`, never by extra Room queries (`rules/care-queue.md`).
 - Quick-log surfaces go through `QuickLogUseCase`; adaptive WATER learning lives in `AdaptiveWateringObservation` (`rules/care-logging.md`).
 
 ## Conventions (beyond what the linter enforces)

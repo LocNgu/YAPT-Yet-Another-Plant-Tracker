@@ -39,10 +39,15 @@ class TodayCareRepository(
         val day: java.time.LocalDate,
         val seasonalAmplitude: Double,
         val photoReminderEnabled: Boolean,
-        val awayPeriods: List<AwayPeriod>
+        val awayPeriods: List<AwayPeriod>,
+        val horizonEnd: LocalDate?
     )
 
-    fun observeQueue(): Flow<TodayQueueSnapshot> {
+    fun observeQueue(): Flow<TodayQueueSnapshot> = combineQueue(flowOf(null))
+
+    fun observeQueue(horizonEnd: Flow<LocalDate>): Flow<TodayQueueSnapshot> = combineQueue(horizonEnd)
+
+    private fun combineQueue(horizonEnd: Flow<LocalDate?>): Flow<TodayQueueSnapshot> {
         val careData = combine(
             plantRepository.getAllPlants(),
             careLogRepository.getAllLogs(),
@@ -60,9 +65,10 @@ class TodayCareRepository(
             dayChangeFlow,
             dataStore.seasonalAmplitudeFlow(),
             photoReminderEnabled,
-            awayPeriods
-        ) { day, seasonalAmplitude, photosEnabled, periods ->
-            QueueSettings(day, seasonalAmplitude, photosEnabled, periods)
+            awayPeriods,
+            horizonEnd
+        ) { day, seasonalAmplitude, photosEnabled, periods, horizon ->
+            QueueSettings(day, seasonalAmplitude, photosEnabled, periods, horizon)
         }
         return combine(careData, settings) { data, queueSettings ->
             TodayQueueAggregator.build(
@@ -75,7 +81,8 @@ class TodayCareRepository(
                     today = queueSettings.day,
                     seasonalAmplitude = queueSettings.seasonalAmplitude,
                     photoReminderEnabled = queueSettings.photoReminderEnabled,
-                    awayPeriods = queueSettings.awayPeriods
+                    awayPeriods = queueSettings.awayPeriods,
+                    horizonEnd = queueSettings.horizonEnd ?: TodayQueueInput.defaultHorizonEnd(queueSettings.day)
                 )
             )
         }
