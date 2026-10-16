@@ -796,4 +796,151 @@
         <item quantity="one">Removed %1$d sitter visit that fell outside your trip</item>
         <item quantity="other">Removed %1$d sitter visits that fell outside your trip</item>
     </plurals>
+
+    <string name="away_action_plan_visit">Plan a sitter visit</string>
+    <string name="away_action_before_leave">Before you leave</string>
+    <string name="away_action_sitter_rhythm">Sitter rhythm</string>
+    <string name="away_rhythm_not_set">Sitter visits: how often isn\'t set yet</string>
+    <plurals name="away_rhythm_set">
+        <item quantity="one">Sitter visits: about every %d day</item>
+        <item quantity="other">Sitter visits: about every %d days</item>
+    </plurals>
+
+    <string name="sitter_rhythm_title">Sitter visits</string>
+    <string name="sitter_rhythm_heading">How often should a sitter come?</string>
+    <string name="sitter_rhythm_assumption">This assumes everything that\'s due gets watered on your last day at home, %1$s.</string>
+    <plurals name="sitter_rhythm_option">
+        <item quantity="one">Every %d day</item>
+        <item quantity="other">Every %d days</item>
+    </plurals>
+    <string name="sitter_rhythm_flagged_none">No plants go longer than usual</string>
+    <plurals name="sitter_rhythm_flagged_count">
+        <item quantity="one">%d plant goes longer than usual</item>
+        <item quantity="other">%d plants go longer than usual</item>
+    </plurals>
+    <string name="sitter_rhythm_recommended">Recommended</string>
+    <string name="sitter_rhythm_flagged_heading">Longer than usual</string>
+    <plurals name="sitter_rhythm_flagged_plant">
+        <item quantity="one">%1$s (usually every 1 day)</item>
+        <item quantity="other">%1$s (usually every %2$d days)</item>
+    </plurals>
+    <string name="sitter_rhythm_save">Save</string>
+    <string name="sitter_rhythm_no_trip">Plan a trip first, then choose how often a sitter should come.</string>
+    <string name="sitter_ask_title">Ask your sitter</string>
+    <string name="sitter_ask_weekly">Could you come about once a week? The first time by %1$s.</string>
+    <string name="sitter_ask_fortnightly">Could you come about every two weeks? The first time by %1$s.</string>
+    <plurals name="sitter_ask_days">
+        <item quantity="one">Could you come about every %1$d day? The first time by %2$s.</item>
+        <item quantity="other">Could you come about every %1$d days? The first time by %2$s.</item>
+    </plurals>
+    <string name="sitter_ask_copy">Copy</string>
+
+    <string name="before_leave_title">Before you leave</string>
+    <string name="before_leave_not_available">Before you leave is for your last day at home. Come back then to water what would run dry while you\'re away.</string>
+    <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then.</string>
+    <string name="before_leave_water_today">Water today</string>
+    <string name="before_leave_check_soil">Check the soil</string>
+    <string name="before_leave_check_soil_hint">Water only if dry; otherwise the sitter waters them on the first visit.</string>
+    <plurals name="before_leave_can_wait">
+        <item quantity="one">%d other plant can wait</item>
+        <item quantity="other">%d other plants can wait</item>
+    </plurals>
+    <plurals name="before_leave_log_action">
+        <item quantity="one">Log %d as watered</item>
+        <item quantity="other">Log %d as watered</item>
+    </plurals>
+    <plurals name="before_leave_logged">
+        <item quantity="one">Logged %d plant as watered</item>
+        <item quantity="other">Logged %d plants as watered</item>
+    </plurals>
+    <plurals name="before_leave_skipped">
+        <item quantity="one">%d was already watered today</item>
+        <item quantity="other">%d were already watered today</item>
+    </plurals>
+    <string name="before_leave_logged_with_skipped">%1$s · %2$s</string>
+
+    <string name="sitter_plan_title">Plan a sitter visit</string>
+    <string name="sitter_plan_no_trip">Plan a trip first, then plan the sitter\'s visits here.</string>
+    <string name="sitter_plan_when">When</string>
+    <string name="sitter_plan_today">Today</string>
+    <string name="sitter_plan_tomorrow">Tomorrow</string>
+    <string name="sitter_plan_pick_date">Pick a date</string>
+    <string name="sitter_plan_gap_title">Next visit after that, roughly</string>
+    <plurals name="sitter_plan_gap_value">
+        <item quantity="one">in %d day</item>
+        <item quantity="other">in %d days</item>
+    </plurals>
+    <string name="sitter_plan_gap_decrease">Fewer days until the next visit</string>
+    <string name="sitter_plan_gap_increase">More days until the next visit</string>
+    <string name="sitter_plan_includes_due_by">The list includes anything due by %1$s</string>
+    <string name="sitter_plan_nothing_to_water">No plants need water on this visit</string>
+    <string name="sitter_plan_room_count">%1$s %2$d</string>
+    <plurals name="sitter_plan_resting">
+        <item quantity="one">+ %d resting</item>
+        <item quantity="other">+ %d resting</item>
+    </plurals>
+    <string name="sitter_plan_names_more">%1$s and %2$d more</string>
+    <plurals name="sitter_plan_note_missed">
+        <item quantity="one">%1$d plant was missed last time: %2$s</item>
+        <item quantity="other">%1$d plants were missed last time: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_longer">
+        <item quantity="one">%1$d plant goes longer than usual: %2$s</item>
+        <item quantity="other">%1$d plants go longer than usual: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_longer_hint">
+        <item quantity="one">They wait about %d day for the next visit.</item>
+        <item quantity="other">They wait about %d days for the next visit.</item>
+    </plurals>
+    <plurals name="sitter_plan_note_no_photo">
+        <item quantity="one">%1$d listed plant has no photo: %2$s</item>
+        <item quantity="other">%1$d listed plants have no photo: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_look_alike">
+        <item quantity="one">%1$d plant shares a name and room with another and has no photo to tell them apart: %2$s</item>
+        <item quantity="other">%1$d plants share a name and room with another and have no photo to tell them apart: %2$s</item>
+    </plurals>
+    <string name="sitter_plan_share_pdf">Share list (PDF)</string>
+    <string name="sitter_plan_share_text">Share as text</string>
+
+    <string name="sitter_confirm_title">Confirm the last visit</string>
+    <string name="sitter_confirm_heading">Visit on %1$s</string>
+    <string name="sitter_confirm_hint">Untick the plants the sitter skipped. Continue logs the rest as watered on that day.</string>
+    <string name="sitter_confirm_continue">Continue</string>
+    <string name="sitter_confirm_did_not_happen">The visit didn\'t happen</string>
+    <string name="sitter_confirm_did_not_happen_done">Marked as not happened</string>
+    <plurals name="sitter_confirm_skipped">
+        <item quantity="one">%d was already watered that day</item>
+        <item quantity="other">%d were already watered that day</item>
+    </plurals>
+
+    <string name="sitter_share_chooser_title">Share plant list</string>
+    <string name="sitter_share_failed">Couldn\'t create the PDF. Try Share as text instead.</string>
+    <string name="sitter_visit_title">Plants to water on %1$s</string>
+    <plurals name="sitter_water_count">
+        <item quantity="one">Water %d plant</item>
+        <item quantity="other">Water %d plants</item>
+    </plurals>
+    <string name="sitter_resting_title">Please don\'t water these</string>
+    <plurals name="sitter_resting_subtitle">
+        <item quantity="one">%d plant is resting: leave it dry</item>
+        <item quantity="other">%d plants are resting: leave them dry</item>
+    </plurals>
+    <string name="sitter_room_none">No room</string>
+    <string name="sitter_room_continued">%1$s (continued)</string>
+    <string name="sitter_no_photo">No photo</string>
+    <string name="sitter_missed_tag">Missed last time</string>
+    <string name="sitter_footer_only_water">Only water the plants on this page</string>
+    <string name="sitter_footer_page">Page %1$d of %2$d</string>
+    <string name="sitter_text_bullet">- %1$s</string>
+    <string name="sitter_text_name_species">%1$s (%2$s)</string>
+    <string name="sitter_text_with_missed">%1$s · %2$s</string>
+    <plurals name="sitter_text_resting_title">
+        <item quantity="one">Please don\'t water these (%d)</item>
+        <item quantity="other">Please don\'t water these (%d)</item>
+    </plurals>
+    <string name="sitter_caption_single">Plants to water on %1$s, by room. Only water what\'s on this page.</string>
+    <string name="sitter_caption_single_resting">Plants to water on %1$s, by room. Only water what\'s on page 1; page %2$d shows the ones to leave dry.</string>
+    <string name="sitter_caption_multi">Plants to water on %1$s, by room. Only water what\'s on pages 1 to %2$d.</string>
+    <string name="sitter_caption_multi_resting">Plants to water on %1$s, by room. Only water what\'s on pages 1 to %2$d; page %3$d onwards shows the ones to leave dry.</string>
 </resources>
