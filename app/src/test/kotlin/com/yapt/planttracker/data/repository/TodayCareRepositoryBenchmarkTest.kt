@@ -54,7 +54,9 @@ class TodayCareRepositoryBenchmarkTest {
             .allowMainThreadQueries()
             .setQueryCallback(
                 { sql, _ ->
-                    if (sql.trimStart().startsWith("SELECT", ignoreCase = true)) selectCount.incrementAndGet()
+                    val isDataRead = sql.trimStart().startsWith("SELECT", ignoreCase = true) &&
+                        !sql.contains("room_table_modification_log")
+                    if (isDataRead) selectCount.incrementAndGet()
                 },
                 Executor { it.run() }
             )

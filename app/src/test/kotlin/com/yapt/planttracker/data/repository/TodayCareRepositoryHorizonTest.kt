@@ -27,7 +27,7 @@ import java.time.ZoneId
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayCareRepositoryHorizonTest {
 
-    private val zone = ZoneId.of("UTC")
+    private val zone = ZoneId.systemDefault()
     private val firstDay = LocalDate.of(2026, 9, 27)
     private var now = firstDay.atStartOfDay(zone).toInstant().toEpochMilli()
 
