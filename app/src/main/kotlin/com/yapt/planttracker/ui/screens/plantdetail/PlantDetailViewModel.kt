@@ -8,12 +8,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -73,7 +75,8 @@ class PlantDetailViewModel(
      * existing test call site to supply one) — production code always gets the shared instance because
      * [Factory] passes it explicitly.
      */
-    internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val awayPeriodRepository: AwayPeriodRepository? = null
 ) : ViewModel() {
 
     /**
@@ -505,6 +508,13 @@ class PlantDetailViewModel(
     suspend fun previousWateringBefore(before: Long): Long? =
         careLogRepository.getLastWateringBefore(plantId, before)?.loggedAt
 
+    /**
+     * The trips the reason-prompt gate checks a picked date against (Away mode, #897, product
+     * ADR-0065) — read fresh next to [previousWateringBefore] so the two can't disagree. Trips are global,
+     * so this is not scoped to [plantId].
+     */
+    suspend fun awayPeriods(): List<AwayPeriod> = awayPeriodRepository?.getAll().orEmpty()
+
     private suspend fun maybeTriggerPhotoReminder(plantId: Long) {
         quickLogUseCase.maybeBuildPhotoReminderRequest(plantId)?.let { request ->
             _photoReminderDaysSince.value = request.daysSince
@@ -611,7 +621,8 @@ class PlantDetailViewModel(
         private val database: PlantDatabase,
         private val wateringAdjustmentRepository: WateringAdjustmentRepository,
         /** `YaptApplication.applicationScope` (#531 review round 1, product ADR-0048) — see the matching constructor param's KDoc. */
-        private val applicationScope: CoroutineScope
+        private val applicationScope: CoroutineScope,
+        private val awayPeriodRepository: AwayPeriodRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -626,7 +637,8 @@ class PlantDetailViewModel(
                 plantIssueRepository,
                 database,
                 wateringAdjustmentRepository,
-                applicationScope
+                applicationScope,
+                awayPeriodRepository
             ) as T
     }
 }

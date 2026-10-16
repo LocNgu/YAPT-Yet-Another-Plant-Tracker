@@ -310,7 +310,7 @@ private fun requestCompletion(
     when (task.kind) {
         TodayCareKind.WATER -> {
             val action = task.wateringAction
-            if (action?.isOnSchedule != false || action.isDormancySpanning) {
+            if (action == null || action.skipsReasonPrompt) {
                 viewModel.completeWater(task.id, null)
             } else {
                 requestReason()
@@ -318,7 +318,7 @@ private fun requestCompletion(
         }
         TodayCareKind.WATER_AND_FERTILIZE -> {
             val action = task.wateringAction
-            if (action?.isOnSchedule != false || action.isDormancySpanning) {
+            if (action == null || action.skipsReasonPrompt) {
                 viewModel.completeFertilizing(task.id, null)
             } else {
                 requestReason()

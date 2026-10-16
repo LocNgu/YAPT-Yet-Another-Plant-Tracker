@@ -95,6 +95,14 @@ data class PlantCareStatus(
      * status built by hand in a test is unaffected.
      */
     val isWateringGapDormancySpanning: Boolean = false,
+    /**
+     * Whether the gap since [lastWateredAt] overlaps an away trip (Away mode, #897, product ADR-0065),
+     * via [com.yapt.planttracker.domain.away.AwayPeriods.spansAway]. The sibling of
+     * [isWateringGapDormancySpanning]: such a watering is excluded from learning, so asking why it was
+     * early or late is incoherent. `false` with no prior watering, and `false` for every caller that
+     * passes no away periods. Gates read [skipsWateringReasonPrompt], never this flag alone.
+     */
+    val isWateringGapAwaySpanning: Boolean = false,
     /** Which watering schedule is active at status-computation time (#785, product ADR-0046). */
     val wateringScheduleMode: WateringScheduleMode = WateringScheduleMode.NORMAL,
     /** Ordinary seasonal/adaptive due date before an override, even when dormancy selects another mode. */
@@ -122,6 +130,15 @@ data class PlantCareStatus(
     val repottingPlanSeason: FertilizingSeason? = null
 ) {
     val isRepottingPlanned: Boolean get() = repottingPlanSeasonEndAt != null
+
+    /**
+     * The one reason-prompt gate for a quick WATER on Plant List and Calendar (product ADR-0030): no
+     * "why now?" question when the watering agrees with the schedule, or when its gap is excluded from
+     * learning anyway (dormancy, product ADR-0044; away, product ADR-0065). Derived here so no surface
+     * can miss a clause when another exclusion is added.
+     */
+    val skipsWateringReasonPrompt: Boolean
+        get() = isWateringOnSchedule || isWateringGapDormancySpanning || isWateringGapAwaySpanning
 }
 
 enum class WateringScheduleMode { NORMAL, DORMANT_CADENCE, DORMANT_SUSPENDED }

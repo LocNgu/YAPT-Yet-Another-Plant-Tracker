@@ -281,7 +281,8 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.settingsDataStore,
                         app.quickLogUseCase,
-                        app.plantIssueRepository
+                        app.plantIssueRepository,
+                        app.awayPeriodRepository
                     )
                 )
                 ApplyCaredTodayDeepLink(
@@ -378,7 +379,8 @@ fun YaptNavGraph(
                         app.plantIssueRepository,
                         app.database,
                         app.wateringAdjustmentRepository,
-                        app.applicationScope
+                        app.applicationScope,
+                        app.awayPeriodRepository
                     )
                 )
 
@@ -409,7 +411,8 @@ fun YaptNavGraph(
                         app.careLogRepository,
                         app.plantRepository,
                         plantId,
-                        careLogId
+                        careLogId,
+                        app.awayPeriodRepository
                     )
                 )
                 AddCareLogScreen(
@@ -509,7 +512,8 @@ fun YaptNavGraph(
                         app.plantRepository,
                         app.careLogRepository,
                         app.settingsDataStore,
-                        app.quickLogUseCase
+                        app.quickLogUseCase,
+                        app.awayPeriodRepository
                     )
                 )
                 CalendarScreen(

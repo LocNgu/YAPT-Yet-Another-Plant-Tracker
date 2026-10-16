@@ -456,13 +456,14 @@ fun PlantListScreen(
                                     onLongClick = { viewModel.toggleSelection(status.plant.id) },
                                     onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
                                     // #586 fast path: only an off-schedule watering asks why. A gap
-                                    // that overlaps the plant's dormancy window skips the prompt too
-                                    // (#699/#761, product ADR-0044) — see CalendarScreen's requestWater
+                                    // that overlaps the plant's dormancy window or an away trip skips the
+                                    // prompt too (#699/#761, product ADR-0044; #897, product ADR-0065) via
+                                    // skipsWateringReasonPrompt — see CalendarScreen's requestWater
                                     // for the full rationale (a persisted answer could poison a later
                                     // correctionStreak() window even though this observation is
                                     // excluded from base learning either way).
                                     onQuickWater = {
-                                        if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
+                                        if (status.skipsWateringReasonPrompt) {
                                             viewModel.quickWater(status.plant.id, reason = null)
                                         } else {
                                             waterFeedbackPlant = status
@@ -472,7 +473,7 @@ fun PlantListScreen(
                                         when {
                                             !status.plant.useLiquidFertilizer ->
                                                 viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                                            status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
+                                            status.skipsWateringReasonPrompt ->
                                                 viewModel.quickLiquidFertilize(status.plant.id, reason = null)
                                             else -> liquidFertilizeFeedbackPlant = status
                                         }

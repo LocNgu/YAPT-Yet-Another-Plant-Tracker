@@ -1,5 +1,7 @@
 package com.yapt.planttracker.domain.schedule
 
+import com.yapt.planttracker.domain.away.AwayPeriods
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.domain.model.Plant
@@ -46,7 +48,9 @@ object CareSchedule {
         // #569 (product ADR-0026): 0.0 (same as flag off/SeasonalAmplitude.OFF) never applies the
         // seasonal curve — every existing call site is unaffected unless it opts in.
         seasonalAmplitude: Double = 0.0,
-        hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
+        hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
+        // Away mode (#897, product ADR-0065): the default keeps every other caller unchanged.
+        awayPeriods: List<AwayPeriod> = emptyList()
     ): PlantCareStatus {
         val daysSinceWatering = lastWateredAt?.let { (now - it) / ONE_DAY_MS }
         val nowDate = now.toLocalDate()
@@ -106,6 +110,7 @@ object CareSchedule {
             computedNextWateringDueAt = wateringDue.computedNextDueAt,
             isDormant = isDormant,
             isWateringGapDormancySpanning = gapDormancySpanning,
+            isWateringGapAwaySpanning = lastWateredAt != null && AwayPeriods.spansAway(awayPeriods, lastWateredAt, now),
             wateringScheduleMode = wateringDue.mode,
             normalComputedNextWateringDueAt = wateringDue.normalComputedNextDueAt,
             dormantComputedNextWateringDueAt = wateringDue.dormantComputedNextDueAt,
@@ -749,20 +754,27 @@ object CareSchedule {
      * dormancy-spanning gap even after the newest one was correctly excluded elsewhere. Both `null`
      * (the default, matching every other caller that doesn't configure dormancy) is a no-op filter — no
      * gap can span a window that doesn't exist.
+     *
+     * [isGapExcluded] (#897, product ADR-0065) is the general gap-exclusion predicate for every other
+     * reason a gap must not teach the model — today, a gap that overlaps an away trip. It receives a
+     * consecutive pair's `(earlier, later)` timestamps and is OR-ed with the dormancy filter, so a
+     * future exclusion plugs in here rather than adding another parameter pair. The default excludes nothing.
      */
     @Suppress("ReturnCount")
     fun bootstrapBaseInterval(
         waterLogTimestampsMs: List<Long>,
         seasonFn: (LocalDate) -> Double,
         dormancyStartMonth: Int? = null,
-        dormancyEndMonth: Int? = null
+        dormancyEndMonth: Int? = null,
+        isGapExcluded: (earlier: Long, later: Long) -> Boolean = { _, _ -> false }
     ): BootstrapResult? {
         val sorted = waterLogTimestampsMs.sorted()
         if (sorted.size < 2) return null
 
         val deseasonalizedGaps = sorted.zipWithNext { earlier, later -> earlier to later }
             .filterNot { (earlier, later) ->
-                DormancyWindow.spansDormancy(dormancyStartMonth, dormancyEndMonth, earlier, later)
+                DormancyWindow.spansDormancy(dormancyStartMonth, dormancyEndMonth, earlier, later) ||
+                    isGapExcluded(earlier, later)
             }
             .map { (earlier, later) ->
                 val gapDays = daysBetween(earlier, later)

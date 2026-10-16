@@ -85,4 +85,32 @@ class WateringExplanationSheetTest {
         composeTestRule.onNodeWithText("Growing-season schedule").assertIsDisplayed()
         composeTestRule.onNodeWithText("Suspended during dormancy").assertDoesNotExist()
     }
+
+    @Test
+    fun awayExcludedAdjustmentShowsItsLabelInRecentAdjustments() {
+        val now = System.currentTimeMillis()
+        val explanation = WateringExplanation(
+            nextWateringDueAt = now,
+            lastWateredAt = now,
+            effectiveIntervalDays = 7,
+            waterLogCount = 4,
+            baseIntervalDays = 7,
+            confidenceLevel = WateringConfidenceLevel.GETTING_THERE,
+            recentAdjustments = listOf(
+                WateringAdjustment(
+                    plantId = 1L,
+                    triggeredAt = now,
+                    trigger = WateringAdjustmentTrigger.AWAY_EXCLUDED,
+                    beforeIntervalDays = 7,
+                    afterIntervalDays = 7
+                )
+            )
+        )
+
+        composeTestRule.setContent { WateringExplanationSheet(explanation, onDismiss = {}) }
+
+        // No dormancy window: the sheet has no inner scroll container (performScrollTo would throw) and opens
+        // partially expanded, so the row may sit below the fold until the user drags the sheet up.
+        composeTestRule.onNodeWithText("away — not counted").assertExists()
+    }
 }
