@@ -46,6 +46,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDate
+import java.util.concurrent.Executor
 
 /** Away mode (#898, product ADR-0065): planning, editing, cancelling and ending a trip; nothing here writes a plant. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -65,7 +66,14 @@ class AwayModeViewModelTest {
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = Room.inMemoryDatabaseBuilder(context, PlantDatabase::class.java).allowMainThreadQueries().build()
+        // Room on the test thread (#912): on its own threads, a mutation resumes there and its event reaches the
+        // unconfined collector after join() has already returned to the test body.
+        val synchronousExecutor = Executor { it.run() }
+        db = Room.inMemoryDatabaseBuilder(context, PlantDatabase::class.java)
+            .allowMainThreadQueries()
+            .setQueryExecutor(synchronousExecutor)
+            .setTransactionExecutor(synchronousExecutor)
+            .build()
         repository = AwayPeriodRepository(db.awayPeriodDao())
         reminderRuns = 0
     }
