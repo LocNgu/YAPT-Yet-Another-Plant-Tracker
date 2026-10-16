@@ -22,6 +22,7 @@ import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
@@ -101,7 +102,13 @@ class PlantDetailPlantEditLockTest {
                 if (askBeforeChangingIntervals) {
                     emptyPreferences()
                 } else {
-                    preferencesOf(SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false)
+                    // Seasonal Off: silent apply converts the suggestion with today's seasonal factor
+                    // (#644), so under the default amplitude a hard-coded interval only holds for part
+                    // of the year (#907). These tests are about the lock, not the season.
+                    preferencesOf(
+                        SettingsKeys.ASK_BEFORE_CHANGING_INTERVALS to false,
+                        SettingsKeys.SEASONAL_AMPLITUDE to SeasonalAmplitude.OFF.name
+                    )
                 }
             )
         }
