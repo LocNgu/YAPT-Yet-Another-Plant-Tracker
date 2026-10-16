@@ -3,6 +3,7 @@ package com.yapt.planttracker.data.repository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.today.TodayQueueAggregator
 import com.yapt.planttracker.domain.today.TodayQueueInput
@@ -10,6 +11,7 @@ import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.util.dayChangeTicker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -21,7 +23,8 @@ class TodayCareRepository(
     private val plantIssueRepository: PlantIssueRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
     private val dataStore: DataStore<Preferences>,
-    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker()
+    private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
+    private val awayPeriodRepository: AwayPeriodRepository? = null
 ) {
 
     private data class CareData(
@@ -35,7 +38,8 @@ class TodayCareRepository(
     private data class QueueSettings(
         val day: java.time.LocalDate,
         val seasonalAmplitude: Double,
-        val photoReminderEnabled: Boolean
+        val photoReminderEnabled: Boolean,
+        val awayPeriods: List<AwayPeriod>
     )
 
     fun observeQueue(): Flow<TodayQueueSnapshot> {
@@ -51,12 +55,14 @@ class TodayCareRepository(
         val photoReminderEnabled = dataStore.data.map { prefs ->
             prefs[SettingsKeys.PHOTO_REMINDER_ENABLED] ?: false
         }
+        val awayPeriods = awayPeriodRepository?.observeAll() ?: flowOf(emptyList())
         val settings = combine(
             dayChangeFlow,
             dataStore.seasonalAmplitudeFlow(),
-            photoReminderEnabled
-        ) { day, seasonalAmplitude, photosEnabled ->
-            QueueSettings(day, seasonalAmplitude, photosEnabled)
+            photoReminderEnabled,
+            awayPeriods
+        ) { day, seasonalAmplitude, photosEnabled, periods ->
+            QueueSettings(day, seasonalAmplitude, photosEnabled, periods)
         }
         return combine(careData, settings) { data, queueSettings ->
             TodayQueueAggregator.build(
@@ -68,7 +74,8 @@ class TodayCareRepository(
                     photos = data.photos,
                     today = queueSettings.day,
                     seasonalAmplitude = queueSettings.seasonalAmplitude,
-                    photoReminderEnabled = queueSettings.photoReminderEnabled
+                    photoReminderEnabled = queueSettings.photoReminderEnabled,
+                    awayPeriods = queueSettings.awayPeriods
                 )
             )
         }

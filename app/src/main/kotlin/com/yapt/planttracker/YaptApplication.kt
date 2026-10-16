@@ -82,7 +82,8 @@ open class YaptApplication : Application() {
             customReminderRepository,
             plantIssueRepository,
             plantPhotoRepository,
-            settingsDataStore
+            settingsDataStore,
+            awayPeriodRepository = awayPeriodRepository
         )
     }
     val quickLogUseCase by lazy {
@@ -95,7 +96,8 @@ open class YaptApplication : Application() {
             database,
             wateringAdjustmentRepository,
             onWaterLogged = ::schedulePostWateringReminder,
-            customReminderRepository = customReminderRepository
+            customReminderRepository = customReminderRepository,
+            awayPeriodRepository = awayPeriodRepository
         )
     }
 

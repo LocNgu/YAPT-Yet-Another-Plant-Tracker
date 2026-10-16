@@ -68,6 +68,7 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
 - **Recent adjustments:** `relativeDateText()` date, `WateringAdjustmentTrigger.labelRes()`, and `before → after` (or "unchanged").
 - **Reschedule delta row (#630):** display-only mirror of the Water tab's chip (same `watering_reschedule_delta_days` plural, no tap target).
 - Textual only; it does not embed `SeasonalWateringCurveChart`.
+- **Away mode (#897, product ADR-0065):** `AWAY_EXCLUDED` ("away — not counted") appears in Recent adjustments through `labelRes()` (`adjustment_trigger_away_excluded`). It is `before == after`, like `DORMANCY_EXCLUDED`; the sheet has no other away-specific content. Tests: `EnumResourcesAwayTest`, `WateringExplanationSheetTest`.
 - **Dormancy (#763, product ADR-0044):**
   - `DORMANT_SUSPENDED` shows "schedule suspended" in place of the due date and hides the effective-interval and reschedule rows. Base, season, last-watered, confidence and Recent adjustments stay; `DORMANCY_EXCLUDED`/`DORMANCY_EXIT` use their existing labels.
   - A configured dormancy window makes the sheet fully expanded with a bounded inner scroll.

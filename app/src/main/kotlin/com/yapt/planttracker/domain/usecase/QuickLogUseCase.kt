@@ -8,6 +8,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -57,14 +58,16 @@ class QuickLogUseCase(
     private val wateringAdjustmentRepository: WateringAdjustmentRepository,
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val onWaterLogged: suspend (Long) -> Unit = {},
-    private val customReminderRepository: CustomReminderRepository? = null
+    private val customReminderRepository: CustomReminderRepository? = null,
+    awayPeriodRepository: AwayPeriodRepository? = null
 ) {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
         plantRepository,
         careLogRepository,
         dataStore,
-        wateringAdjustmentRepository
+        wateringAdjustmentRepository,
+        awayPeriodRepository
     )
 
     /**
@@ -328,7 +331,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
-        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
+        val feedback = feedbackUnlessGapExcluded(plant, reason, loggedAt)
         val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
@@ -386,7 +389,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
         }
-        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
+        val feedback = feedbackUnlessGapExcluded(plant, reason, loggedAt)
         val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
         careLogRepository.addLog(
@@ -655,7 +658,7 @@ class QuickLogUseCase(
         dayTimestampMs: Long = System.currentTimeMillis()
     ): Boolean = careLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs)
 
-    private suspend fun feedbackUnlessDormancySpanning(
+    private suspend fun feedbackUnlessGapExcluded(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long

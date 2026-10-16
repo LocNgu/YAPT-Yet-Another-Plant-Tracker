@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.CareLog
@@ -28,14 +29,16 @@ class AddCareLogViewModel(
     private val careLogRepository: CareLogRepository,
     private val plantRepository: PlantRepository,
     private val plantId: Long,
-    private val careLogId: Long
+    private val careLogId: Long,
+    awayPeriodRepository: AwayPeriodRepository? = null
 ) : ViewModel() {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
         plantRepository,
         careLogRepository,
         dataStore = null,
-        wateringAdjustmentRepository = null
+        wateringAdjustmentRepository = null,
+        awayPeriodRepository = awayPeriodRepository
     )
 
     // Fixed once the log loads; the screen shows it as a read-only header, so an edit can never write a
@@ -155,10 +158,11 @@ class AddCareLogViewModel(
         private val careLogRepository: CareLogRepository,
         private val plantRepository: PlantRepository,
         private val plantId: Long,
-        private val careLogId: Long
+        private val careLogId: Long,
+        private val awayPeriodRepository: AwayPeriodRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId) as T
+            AddCareLogViewModel(careLogRepository, plantRepository, plantId, careLogId, awayPeriodRepository) as T
     }
 }

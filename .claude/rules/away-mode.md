@@ -1,5 +1,5 @@
 ---
-description: Away mode — trip storage, date logic and backup; the whole-feature design is product ADR-0065
+description: Away mode — trip storage, date logic, backup and learning protection; the whole-feature design is product ADR-0065
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/away/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/model/AwayPeriod*.kt"
@@ -11,13 +11,17 @@ paths:
   - "app/src/test/**/away/**/*"
   - "app/src/test/**/*AwayPeriod*.kt"
   - "app/src/test/**/MigrationTest17To18.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/usecase/AdaptiveWateringObservation.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/usecase/WateringLifecycleReset.kt"
+  - "app/src/test/**/*Away*Test.kt"
 ---
 
 # Away mode (product ADR-0065, technical ADR-0038)
 
 The design for the whole feature (trips, paused reminders, learning exclusion, Care banner, plant-sitter flow) is
-product ADR-0065. This file records what exists today: **storage, date logic and backup only**. Only backup reads
-the new tables, and there is no UI, string or reminder change.
+product ADR-0065. This file records what exists today: **storage, date logic, backup and learning protection
+(slice 2, #897)**. Backup and the learning code read the tables; there is no way to create a trip yet, so nothing is
+visible until slice 3 (#898). Reminders, the Care banner and the sitter flow don't exist yet.
 
 ## Storage (DB 18)
 - `away_periods(id, firstDay, lastDay, visitEveryDays?, createdAt)`: `firstDay`/`lastDay` are **inclusive local epoch days**, never instants. No foreign keys, because a trip is global. Past trips are kept.
@@ -39,3 +43,13 @@ the new tables, and there is no UI, string or reminder change.
 - `BackupRoot.awayPeriods: List<BackupAwayPeriod> = emptyList()`; each trip carries `visits` and their `plants`, with ISO-8601 dates (`LocalDate.toString()`).
 - Export reads the three tables once each (bulk) and groups in memory (`buildBackupAwayPeriods`).
 - Import runs inside `performImport`'s transaction: `awayPeriodDao().deleteAll()` first, then inserts after the plants. `toRestoredAwayData(restoredPlantIds)` is pure and skips a trip or visit with an unparseable date, re-filters visits into their trip, drops visit plants whose plant is not in the backup, falls back to `PLANNED` for an unknown state, and collapses repeated ids so no insert can violate a key. Plant ids are restored verbatim, so there is no id remapping.
+
+## Learning protection (slice 2, #897)
+- **One predicate:** `AwayPeriods.spansAway` drives every exclusion below. Away mode adds no plant-row write and no new caller-snapshot write (#872).
+- **Observation** (`AdaptiveWateringObservation`, optional `AwayPeriodRepository`): an away-spanning gap is observed `frozen` with the confidence transition suppressed and no feedback. Base unchanged, `null` confidence stays `null`, one `AWAY_EXCLUDED` row, never `DORMANCY_EXIT` (the exit decrement stays dormancy-only). Label precedence `DORMANCY_EXCLUDED` > `AWAY_EXCLUDED` > `FROZEN_POST_REPOT` > `WATER_NOT_ATTRIBUTED` > feedback triggers. When the history bootstrap wins, the triggering observation still gets its provenance row (dormancy's if both apply). Covers every log written inside a trip, backdated ones, and the first gap that *ends* after a trip; the first gap that *starts* after the last away day learns normally. Details: `rules/care-logging.md`.
+- **Feedback strip:** `feedbackForLog()` clears feedback for an away-spanning gap, which also covers Add Care Log edits (`excludeLogId`).
+- **Bootstrap:** `CareSchedule.bootstrapBaseInterval(…, isGapExcluded)` generalizes the dormancy filter into one predicate (OR-ed with the plant's dormancy months, which keep their own parameters for existing callers); `WateringLifecycleReset.BootstrapRequest.isGapExcluded` threads it, and the observation passes `spansAway` over the trips it already read.
+- **`PlantCareStatus.isWateringGapAwaySpanning`** comes from `computeStatus(…, awayPeriods = emptyList())`; the derived `skipsWateringReasonPrompt` and `WateringTaskAction.skipsReasonPrompt` are the single reason-prompt gates for Care, Plant List and Calendar. Plant Detail's `isChosenDateAwaySpanning` checks the picked date against its own predecessor. **Drop the Calendar gate if #852 removes Calendar.**
+- **Plumbing:** the trips flow goes in through `TodayCareRepository` (settings `combine()`, 4 inputs), `PlantListViewModel` (`statusInputs` folds it with the seasonal amplitude to stay at the 5-flow limit), `CalendarViewModel` (5th input) and `PlantDetailViewModel.awayPeriods()` (a suspend read next to `previousWateringBefore`), all via nullable constructor params so existing tests are unchanged; the ViewModel factories take the repository as required.
+- **Label:** `WateringAdjustmentTrigger.AWAY_EXCLUDED` ("away — not counted", `adjustment_trigger_away_excluded`), appended last in the enum.
+- Tests: `AdaptiveWateringObservationAwayTest`, `QuickLogUseCaseAwayTest`, `CareScheduleAwayTest`, `WateringLifecycleResetAwayTest`, `TodayQueueAggregatorAwayTest`, `TodayCareRepositoryAwayTest`, `PlantListViewModelAwayTest`, `CalendarViewModelAwayTest`, `PlantDetailScreenGateAwayTest`, `EnumResourcesAwayTest`.

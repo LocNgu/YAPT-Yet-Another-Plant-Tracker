@@ -124,5 +124,14 @@ enum class WateringAdjustmentTrigger {
      * supersedes this incremental decrement: [HISTORY_BOOTSTRAP] and [DORMANCY_EXCLUDED] record
      * that observation instead, with no [DORMANCY_EXIT] row.
      */
-    DORMANCY_EXIT
+    DORMANCY_EXIT,
+
+    /**
+     * A watering whose gap overlapped an away day (Away mode, #897, product ADR-0065) — excluded from
+     * base learning and confidence the same way [DORMANCY_EXCLUDED] is, but a distinct trigger: the
+     * owner was away, the plant did not change. `beforeIntervalDays`/`afterIntervalDays` are always
+     * equal. Precedence: [DORMANCY_EXCLUDED] > this > [FROZEN_POST_REPOT]. There is never an exit
+     * decrement for it. Appended last, so no stored ordinal moves.
+     */
+    AWAY_EXCLUDED
 }

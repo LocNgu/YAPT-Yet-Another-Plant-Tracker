@@ -1,5 +1,6 @@
 package com.yapt.planttracker.domain.today
 
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -28,7 +29,8 @@ data class TodayQueueInput(
     val today: LocalDate,
     val seasonalAmplitude: Double,
     val photoReminderEnabled: Boolean,
-    val hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
+    val hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
+    val awayPeriods: List<AwayPeriod> = emptyList()
 )
 
 @Suppress("TooManyFunctions")
@@ -64,7 +66,8 @@ object TodayQueueAggregator {
                 customReminders = remindersByPlant[plant.id].orEmpty(),
                 now = now,
                 seasonalAmplitude = input.seasonalAmplitude,
-                hemisphere = input.hemisphere
+                hemisphere = input.hemisphere,
+                awayPeriods = input.awayPeriods
             )
             buildPlantTasks(
                 PlantTaskContext(
@@ -176,7 +179,8 @@ object TodayQueueAggregator {
                             isGapLong = context.status.isWateringGapLong,
                             isDormancySpanning = context.status.isWateringGapDormancySpanning,
                             computedDueAt = context.status.computedNextWateringDueAt,
-                            effectiveDueAt = context.status.nextWateringDueAt
+                            effectiveDueAt = context.status.nextWateringDueAt,
+                            isAwaySpanning = context.status.isWateringGapAwaySpanning
                         )
                     )
                 }
