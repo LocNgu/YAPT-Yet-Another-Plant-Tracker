@@ -89,6 +89,8 @@ import com.yapt.planttracker.domain.devmode.DeveloperModeUnlock
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
+import com.yapt.planttracker.ui.screens.away.AwayModeSettingsSection
+import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.ui.util.settingsSubtitleRes
@@ -110,7 +112,8 @@ fun SettingsScreen(
     onNavigateToGraveyard: () -> Unit = {},
     onNavigateToRepottingOverview: () -> Unit = {},
     onNavigateToWateringOverview: () -> Unit = {},
-    onBackupInProgressChanged: (Boolean) -> Unit = {}
+    onBackupInProgressChanged: (Boolean) -> Unit = {},
+    awayModeViewModel: AwayModeViewModel? = null
 ) {
     val context = LocalContext.current
     val versionName = remember {
@@ -557,6 +560,8 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            awayModeViewModel?.let { AwayModeSettingsSection(it, onMessage = { msg -> snackbarMessages.tryEmit(msg) }) }
 
             Text(
                 text = stringResource(R.string.settings_section_seasonal_watering),

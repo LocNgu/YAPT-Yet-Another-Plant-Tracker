@@ -12,6 +12,25 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Away mode — plan a trip and pause reminders** — a new Away mode section in Settings (always visible, even with
+  notifications off) lets you plan a trip on a date-range picker, edit its dates, cancel it before it starts, or tap
+  **I'm back** when you return early (the last day becomes yesterday, or the trip is removed if it hadn't really
+  begun). Each invalid trip says why: a last day in the past, more than 90 days, overlapping another trip, or another
+  trip already planned. On every away day no care reminder is sent, per plant or combined, and the notification
+  shade is cleared; reminders resume by themselves the day after the last away day, and the "drain the saucer"
+  reminder after you water yourself is unchanged. Starting or ending a trip refreshes today's reminders at once.
+  Nothing about your plants changes: due dates, intervals and confidence stay as they were, so anything that came
+  due while you were away simply shows as due or overdue when you are back. Sitter visits that fall outside an
+  edited or shortened trip are removed, and the count is shown (#898, product ADR-0065)
+- **A Care banner while you are away** — "Away until Oct 21 · reminders paused" with an **I'm back** button, and from a
+  week before a trip starts a note saying when reminders will pause; it appears and disappears at midnight without
+  restarting the app (#898, product ADR-0065)
+- **Waterings logged during a trip no longer skew the adaptive interval** — a watering whose gap overlaps your away
+  days is left out of the learned interval the way a dormancy gap is: the interval doesn't move, no "Why now?" prompt
+  appears (on Care, Plants, Calendar or a backdated Plant Detail watering), and "Why this date?" shows "away — not
+  counted" (#897, product ADR-0065)
+
 ## [0.36.0] - 2026-10-15
 
 ### Added

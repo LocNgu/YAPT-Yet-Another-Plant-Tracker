@@ -1,0 +1,146 @@
+package com.yapt.planttracker.ui.screens.away
+
+import android.app.Application
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
+import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.data.repository.TodayCareRepository
+import com.yapt.planttracker.domain.model.AwayPeriod
+import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
+import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.today.TodayCareKind
+import com.yapt.planttracker.domain.today.TodayCareTask
+import com.yapt.planttracker.domain.today.TodayQueueSnapshot
+import com.yapt.planttracker.domain.today.TodayTaskBucket
+import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.today.TodayScreen
+import com.yapt.planttracker.ui.screens.today.TodayViewModel
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.time.LocalDate
+
+@RunWith(AndroidJUnit4::class)
+class AwayModeBannerTest {
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    private val today = LocalDate.of(LocalDate.now().year, 10, 14)
+    private var imBackCalls = 0
+
+    private fun trip(first: LocalDate, last: LocalDate) = AwayPeriod(id = 3L, firstDay = first, lastDay = last)
+
+    private fun setBanner(periods: List<AwayPeriod>) {
+        composeTestRule.setContent {
+            AwayModeBannerContent(AwayModeUiState(today, periods), onImBack = { imBackCalls++ })
+        }
+    }
+
+    private fun hasStateDescription(value: String) =
+        SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, value)
+
+    @Test
+    fun whileAwayItNamesTheLastDayAndOffersImBack() {
+        setBanner(listOf(trip(today.minusDays(2), LocalDate.of(today.year, 10, 21))))
+
+        composeTestRule.onNodeWithText("Away until Oct 21 · reminders paused")
+            .assertIsDisplayed()
+            .assert(hasStateDescription("Away"))
+        composeTestRule.onNodeWithText("I'm back").performClick()
+
+        assertEquals(1, imBackCalls)
+    }
+
+    @Test
+    fun beforeTheTripItSaysWhenRemindersPauseAndHasNoAction() {
+        setBanner(listOf(trip(LocalDate.of(today.year, 10, 18), LocalDate.of(today.year, 10, 25))))
+
+        composeTestRule.onNodeWithText("Reminders pause on Oct 18 · away until Oct 25")
+            .assertIsDisplayed()
+            .assert(hasStateDescription("Trip coming up"))
+        composeTestRule.onNodeWithText("I'm back").assertDoesNotExist()
+    }
+
+    @Test
+    fun aTripMoreThanAWeekAwayShowsNoBanner() {
+        setBanner(listOf(trip(today.plusDays(8), today.plusDays(12))))
+
+        composeTestRule.onNodeWithText("Reminders pause", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun withoutATripOrAfterItEndedThereIsNoBanner() {
+        setBanner(listOf(trip(today.minusDays(9), today.minusDays(1))))
+
+        composeTestRule.onNodeWithText("reminders paused", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("I'm back").assertDoesNotExist()
+    }
+
+    @Test
+    fun careShowsTheBannerAboveTheGridAndImBackEndsTheTrip() {
+        val now = LocalDate.now()
+        val period = AwayPeriod(id = 3L, firstDay = now.minusDays(1), lastDay = now.plusDays(2))
+        val awayRepository = mockk<AwayPeriodRepository>(relaxed = true) {
+            every { observeAll() } returns flowOf(listOf(period))
+            coEvery { getAllWithVisits() } returns listOf(AwayPeriodWithVisits(period, emptyList()))
+            coEvery { getAll() } returns listOf(period)
+        }
+        val awayViewModel = AwayModeViewModel(awayRepository, onTodaysAwayStateChanged = {}, dayChange = flowOf(now))
+        val fern = Plant(id = 1L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val snapshot = TodayQueueSnapshot(
+            1,
+            listOf(
+                TodayCareTask(
+                    id = "water:1",
+                    plant = fern,
+                    kind = TodayCareKind.WATER,
+                    dueAt = System.currentTimeMillis(),
+                    bucket = TodayTaskBucket.Today
+                )
+            )
+        )
+        val todayRepository = mockk<TodayCareRepository> { every { observeQueue() } returns flowOf(snapshot) }
+        val viewModel = TodayViewModel(
+            ApplicationProvider.getApplicationContext<Application>(),
+            todayRepository,
+            mockk<QuickLogUseCase>(relaxed = true),
+            mockk<PlantRepository>(relaxed = true)
+        )
+
+        composeTestRule.setContent {
+            TodayScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = { _, _ -> },
+                onNavigateToAdd = {},
+                awayModeViewModel = awayViewModel
+            )
+        }
+
+        val banner = composeTestRule.onNodeWithText("reminders paused", substring = true)
+        banner.assertIsDisplayed()
+        val bannerTop = banner.fetchSemanticsNode().positionInRoot.y
+        val gridTop = composeTestRule.onNodeWithText("Watering · 1").fetchSemanticsNode().positionInRoot.y
+        assertTrue(bannerTop < gridTop)
+
+        composeTestRule.onNodeWithText("I'm back").performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(timeout = 5_000) { awayRepository.updatePeriodAndDeleteVisits(any(), any()) }
+    }
+}
