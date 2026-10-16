@@ -45,6 +45,7 @@ import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogScreen
 import com.yapt.planttracker.ui.screens.addcarelog.AddCareLogViewModel
 import com.yapt.planttracker.ui.screens.addplant.AddEditPlantScreen
 import com.yapt.planttracker.ui.screens.addplant.AddEditPlantViewModel
+import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
 import com.yapt.planttracker.ui.screens.calendar.CalendarScreen
 import com.yapt.planttracker.ui.screens.calendar.CalendarViewModel
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
@@ -206,6 +207,11 @@ private fun ApplyCaredTodayDeepLink(
         }
     }
 }
+
+@Composable
+private fun awayModeViewModel(app: YaptApplication): AwayModeViewModel = viewModel(
+    factory = AwayModeViewModel.Factory(app, app.awayPeriodRepository, app.settingsDataStore)
+)
 
 @Composable
 fun YaptNavGraph(
@@ -438,7 +444,8 @@ fun YaptNavGraph(
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
                     onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
                     onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
-                    onBackupInProgressChanged = { backupInProgress = it }
+                    onBackupInProgressChanged = { backupInProgress = it },
+                    awayModeViewModel = awayModeViewModel(app)
                 )
             }
 
@@ -501,7 +508,8 @@ fun YaptNavGraph(
                     onNavigateToPlant = { plantId, tab ->
                         navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
                     },
-                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) }
+                    onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
+                    awayModeViewModel = awayModeViewModel(app)
                 )
             }
 

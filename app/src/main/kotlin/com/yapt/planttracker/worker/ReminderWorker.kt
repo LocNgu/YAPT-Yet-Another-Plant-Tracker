@@ -11,6 +11,7 @@ import com.yapt.planttracker.MainActivity
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.away.AwayPeriods
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantCareStatus
@@ -27,6 +28,7 @@ import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.util.repotPlannedNotificationRes
+import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.first
 
 class ReminderWorker(
@@ -51,6 +53,22 @@ class ReminderWorker(
             .filter { it.id != PostWateringReminderWorker.NOTIFICATION_ID }
             .forEach { notificationManager.cancel(it.id) }
 
+        // Away mode (product ADR-0065, technical ADR-0038): on an away day the shade stays cleared and nothing
+        // is posted, per plant or combined. The gate is stateless and WorkManager's schedule is never touched,
+        // so reminders resume by themselves the day after the last away day.
+        if (!AwayPeriods.isAway(now.toLocalDate(), app.awayPeriodRepository.getAll())) {
+            postDueReminders(app, plants, now, notificationManager)
+        }
+
+        return Result.success()
+    }
+
+    private suspend fun postDueReminders(
+        app: YaptApplication,
+        plants: List<Plant>,
+        now: Long,
+        notificationManager: NotificationManager
+    ) {
         val seasonalAmplitude = context.settingsDataStore.seasonalAmplitudeOnce()
         val hemisphere = SeasonalWatering.currentHemisphere()
 
@@ -78,8 +96,6 @@ class ReminderWorker(
                 }
             }
         }
-
-        return Result.success()
     }
 
     @Suppress("LongParameterList")

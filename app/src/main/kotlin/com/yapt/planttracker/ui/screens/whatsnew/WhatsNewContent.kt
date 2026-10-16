@@ -13,7 +13,18 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        added = listOf(
+            "Away mode in Settings: plan a trip, edit its dates, cancel it or tap I'm back when you return early. " +
+                "No care reminders are sent on your away days and they resume the day after the last one, while " +
+                "your plants' due dates stay untouched. A banner on Care shows while you're away, and for a week " +
+                "before you leave",
+            "Waterings logged while you're away no longer change how often YAPT thinks a plant needs water, and " +
+                "don't ask \"Why now?\" for them"
+        )
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).

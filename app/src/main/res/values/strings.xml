@@ -768,4 +768,32 @@
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>
     <string name="interval_auto_applied_snackbar">Watering interval updated to %1$d days</string>
+    <!-- Away mode (#898, product ADR-0065) -->
+    <string name="away_section_title">Away mode</string>
+    <string name="away_section_intro">Pause reminders while you travel. Days you are away also stay out of how YAPT learns each plant\'s watering interval.</string>
+    <string name="away_row_title">Trip</string>
+    <string name="away_status_none">No trip planned</string>
+    <string name="away_status_planned">%1$s – %2$s · reminders resume %3$s</string>
+    <string name="away_status_away">Away now · %1$s – %2$s · reminders resume %3$s</string>
+    <string name="away_state_none">No trip</string>
+    <string name="away_state_planned">Trip planned</string>
+    <string name="away_state_away">Away</string>
+    <string name="away_action_plan">Plan a trip</string>
+    <string name="away_action_edit">Edit dates</string>
+    <string name="away_action_cancel">Cancel trip</string>
+    <string name="away_action_back">I\'m back</string>
+    <string name="away_sheet_save">Save</string>
+    <string name="away_error_first_after_last">The first day can\'t be after the last day.</string>
+    <string name="away_error_ends_in_past">The last day can\'t be in the past.</string>
+    <string name="away_error_too_long">A trip can last at most %1$d days.</string>
+    <string name="away_error_overlaps">These dates overlap your trip on %1$s – %2$s.</string>
+    <string name="away_error_another_trip">You already have a trip on %1$s – %2$s. Cancel it or tap I\'m back first.</string>
+    <string name="away_banner_active">Away until %1$s · reminders paused</string>
+    <string name="away_banner_upcoming">Reminders pause on %1$s · away until %2$s</string>
+    <string name="away_banner_state_away">Away</string>
+    <string name="away_banner_state_upcoming">Trip coming up</string>
+    <plurals name="away_visits_removed">
+        <item quantity="one">Removed %1$d sitter visit that fell outside your trip</item>
+        <item quantity="other">Removed %1$d sitter visits that fell outside your trip</item>
+    </plurals>
 </resources>

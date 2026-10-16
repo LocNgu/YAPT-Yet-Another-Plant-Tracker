@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
+@Suppress("TooManyFunctions")
 class AwayPeriodRepository(private val awayPeriodDao: AwayPeriodDao) {
 
     fun observeAll(): Flow<List<AwayPeriod>> =
@@ -34,6 +35,9 @@ class AwayPeriodRepository(private val awayPeriodDao: AwayPeriodDao) {
 
     suspend fun updatePeriod(period: AwayPeriod) =
         awayPeriodDao.updatePeriod(period.toEntity())
+
+    suspend fun updatePeriodAndDeleteVisits(period: AwayPeriod, visitIds: List<Long>) =
+        awayPeriodDao.updatePeriodAndDeleteVisits(period.toEntity(), visitIds)
 
     suspend fun deletePeriod(period: AwayPeriod) =
         awayPeriodDao.deletePeriod(period.toEntity())

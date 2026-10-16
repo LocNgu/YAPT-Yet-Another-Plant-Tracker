@@ -2,6 +2,8 @@
 description: Away mode — trip storage, date logic, backup and learning protection; the whole-feature design is product ADR-0065
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/away/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/away/**/*"
+  - "app/src/androidTest/**/away/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/model/AwayPeriod*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/data/entity/AwayPeriodEntity.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/data/entity/SitterVisit*.kt"
@@ -20,8 +22,8 @@ paths:
 
 The design for the whole feature (trips, paused reminders, learning exclusion, Care banner, plant-sitter flow) is
 product ADR-0065. This file records what exists today: **storage, date logic, backup and learning protection
-(slice 2, #897)**. Backup and the learning code read the tables; there is no way to create a trip yet, so nothing is
-visible until slice 3 (#898). Reminders, the Care banner and the sitter flow don't exist yet.
+(slice 2, #897), and the Settings section, reminder pause and Care banner (slice 3, #898)**. The sitter flow
+(rhythm, Before you leave, visits, sharing, confirming) doesn't exist yet.
 
 ## Storage (DB 18)
 - `away_periods(id, firstDay, lastDay, visitEveryDays?, createdAt)`: `firstDay`/`lastDay` are **inclusive local epoch days**, never instants. No foreign keys, because a trip is global. Past trips are kept.
@@ -38,6 +40,18 @@ visible until slice 3 (#898). Reminders, the Care banner and the sitter flow don
 - `endEarly(period, today)` ("I'm back"): last day becomes yesterday; `null` (remove the trip) when that is before the first day; never extends a trip.
 - `isVisitDayInside` / `visitsOutside(visits, firstDay, lastDay)`: a visit day must lie inside its trip. The caller deletes the visits an edit or `endEarly` strands and reports the count; WATER logs those visits already wrote stay.
 - Tests pin the time zone (technical ADR-0013) and include a DST fall-back case.
+
+## Trips UI, reminder pause and Care banner (slice 3, #898)
+- **`AwayModeViewModel`** (`ui/screens/away/`, inner `Factory(application, awayPeriodRepository, settingsDataStore)`) serves Settings and the Care banner; `NavGraph` builds one per destination through the same factory. `uiState: StateFlow<AwayModeUiState?>` (`null` while loading) combines `observeAll()` with an injected `dayChange: Flow<LocalDate>` (default `dayChangeTicker()`, technical ADR-0035), so the banner appears and disappears at midnight. `todayProvider` (default `LocalDate.now()`) is what the mutations use; tests inject both, and a non-real ticker (never `advanceUntilIdle()` against the real one).
+- **Mutations** return their `Job` (tests `join()` it) and run under one `Mutex`, re-reading the trips with their visits inside it: `saveTrip(first, last, editingId)`, `cancelTrip()` (only a trip that hasn't started), `imBack()` (only a trip that has). Each validates through `AwayPeriods.validate` (an invalid range emits `AwayModeEvent.Rejected`, writes nothing); an edit or I'm back uses `visitsOutside` and `AwayPeriodRepository.updatePeriodAndDeleteVisits` (one `@Transaction`, so the trip and its stranded visits change together) and reports the count as `AwayModeEvent.VisitsRemoved`. **Nothing here writes a plant row** (`AwayModeViewModelTest` pins it).
+- **A change to whether *today* is an away day** (compared before/after inside the mutation) calls `onTodaysAwayStateChanged`, which the Factory wires to `ReminderScheduler.runNow()` **only while the in-app notifications switch is on**: `ReminderWorker` checks just the runtime permission, and the daily schedule is cancelled while reminders are off, so an unguarded run would notify against the user's choice. Planning, editing or cancelling an upcoming trip that never touches today does not run it.
+- **`domain/away/AwayTripStatus.kt`:** `awayTripStatus(periods, today)` is `None` / `Upcoming(trip)` / `Away(trip)` over `currentOrUpcoming`; `showsBanner(today)` is true while away and from `AWAY_BANNER_LEAD_DAYS` (7, adjust in review) before a trip starts.
+- **Settings section** (`AwayModeSettingsSection.kt`, not in `SettingsScreen.kt`): `SettingsScreen` takes an optional `awayModeViewModel` and renders the section between Reminders and Seasonal watering, always visible (away days matter for learning even with notifications off). A status row (`stateDescription` "No trip" / "Trip planned" / "Away"; subtitle "Oct 1 – Oct 21 · reminders resume Oct 22", or "Away now · …") and buttons: **Plan a trip** (none), **Edit dates** + **Cancel trip** (upcoming), **Edit dates** + **I'm back** (away). Cancel and I'm back are immediate with no undo (a trip writes nothing to plants).
+- **Date sheet** (`AwayModeDateRangeSheet.kt`): a `ModalBottomSheet` (`skipPartiallyExpanded`) with a Material3 `DateRangePicker`, which returns **UTC-midnight-encoded** millis — convert only through `toDatePickerMillis()` / `datePickerMillisToLocalDate()`, never `toLocalDate()` (same trap as `CareDatePicker.kt`). It accepts any date so each failure can say why; the live `AwayPeriods.validate` result shows as a polite live-region message (`awayValidationText`: one distinct string per `AwayPeriodValidation`, conflict messages name the other trip's dates) and Save is disabled unless `Valid`. A start without an end is a one-day trip.
+- **Care banner** (`AwayModeBanner.kt`): see `rules/care-queue.md`. Texts: away "Away until Oct 21 · reminders paused" with **I'm back**; upcoming "Reminders pause on Oct 18 · away until Oct 25" with no action. Slice 4 (#899) adds **Plan a sitter visit** and **Before you leave** here.
+- **Date text:** `awayDayText(date, today)` uses `DateFormat.getBestDateTimePattern` ("MMMd", or "yMMMd" when the year differs from today's).
+- **Reminders:** `ReminderWorker` gate in `rules/notifications.md`.
+- Tests: `AwayTripStatusTest`, `AwayModeViewModelTest`, `AwayModeTextTest`, `ReminderWorkerTest` (the away cases); instrumented `AwayModeSettingsSectionTest`, `AwayModeBannerTest` (incl. the Care screen).
 
 ## Backup (schema v22)
 - `BackupRoot.awayPeriods: List<BackupAwayPeriod> = emptyList()`; each trip carries `visits` and their `plants`, with ISO-8601 dates (`LocalDate.toString()`).

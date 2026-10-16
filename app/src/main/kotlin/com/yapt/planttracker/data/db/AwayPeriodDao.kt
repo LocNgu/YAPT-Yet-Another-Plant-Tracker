@@ -90,6 +90,12 @@ abstract class AwayPeriodDao {
         insertVisitPlants(plants.map { it.copy(visitId = visit.id) })
     }
 
+    @Transaction
+    open suspend fun updatePeriodAndDeleteVisits(period: AwayPeriodEntity, visitIds: List<Long>) {
+        updatePeriod(period)
+        if (visitIds.isNotEmpty()) deleteVisits(visitIds)
+    }
+
     // Backup restore: ids come from the (already de-duplicated) backup, so plain inserts are enough
     // and REPLACE's delete-then-insert (which would cascade) is never needed.
     @Insert

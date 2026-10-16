@@ -11,6 +11,7 @@ import androidx.work.testing.TestListenableWorkerBuilder
 import com.yapt.planttracker.R
 import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -70,6 +71,7 @@ class ReminderWorkerTest {
     // Room's synchronous clearAllTables() would run on Robolectric's main thread and throw;
     // the DAO deletes are suspend and dispatch off it. Children before parents for the FK.
     private fun clearDatabase() = runBlocking {
+        app.database.awayPeriodDao().deleteAll()
         app.database.customReminderDao().deleteAll()
         app.database.careLogDao().deleteAll()
         app.database.plantPhotoDao().deleteAll()
@@ -430,6 +432,99 @@ class ReminderWorkerTest {
         app.plantRepository.addPlant(
             Plant(name = "Cactus", wateringIntervalDays = null, createdAt = 0L, updatedAt = 0L)
         )
+
+        runWorker()
+
+        assertEquals(
+            listOf(PostWateringReminderWorker.NOTIFICATION_ID),
+            notificationManager.activeNotifications.map { it.id }
+        )
+    }
+
+    private suspend fun addTrip(firstOffsetDays: Long, lastOffsetDays: Long) {
+        val today = LocalDate.now()
+        app.awayPeriodRepository.addPeriod(
+            AwayPeriod(firstDay = today.plusDays(firstOffsetDays), lastDay = today.plusDays(lastOffsetDays))
+        )
+    }
+
+    private suspend fun addDueFern() {
+        app.plantRepository.addPlant(Plant(name = "Fern", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L))
+    }
+
+    @Test
+    fun `on an away day nothing is posted and the notifications from earlier are cleared`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        addDueFern()
+        runWorker()
+        assertEquals(1, shadowOf(notificationManager).size())
+
+        addTrip(firstOffsetDays = -1, lastOffsetDays = 2)
+
+        assertEquals(ListenableWorker.Result.success(), runWorker())
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `on an away day the combined notification is not posted either`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.settingsDataStore.edit { it[SettingsKeys.COMBINE_NOTIFICATIONS] = true }
+        addDueFern()
+        runWorker()
+        assertEquals(
+            listOf(ReminderWorker.COMBINED_NOTIFICATION_ID),
+            notificationManager.activeNotifications.map { it.id }
+        )
+
+        addTrip(firstOffsetDays = 0, lastOffsetDays = 0)
+        runWorker()
+
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `the last day of a trip is still an away day`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        addDueFern()
+        addTrip(firstOffsetDays = -5, lastOffsetDays = 0)
+
+        runWorker()
+
+        assertEquals(0, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `the day after the trip posts as usual`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        addDueFern()
+        addTrip(firstOffsetDays = -5, lastOffsetDays = -1)
+
+        runWorker()
+
+        assertEquals(1, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `an upcoming trip does not silence today`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        addDueFern()
+        addTrip(firstOffsetDays = 1, lastOffsetDays = 5)
+
+        runWorker()
+
+        assertEquals(1, shadowOf(notificationManager).size())
+    }
+
+    @Test
+    fun `an away day leaves the independent post-watering notification alone`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        app.settingsDataStore.edit {
+            it[SettingsKeys.NOTIFICATIONS_ENABLED] = true
+            it[SettingsKeys.POST_WATERING_REMINDER_ENABLED] = true
+        }
+        TestListenableWorkerBuilder<PostWateringReminderWorker>(app).build().doWork()
+        addDueFern()
+        addTrip(firstOffsetDays = -1, lastOffsetDays = 1)
 
         runWorker()
 
