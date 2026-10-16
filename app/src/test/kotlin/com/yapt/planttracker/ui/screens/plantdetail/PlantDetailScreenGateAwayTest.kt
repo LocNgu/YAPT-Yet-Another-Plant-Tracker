@@ -1,6 +1,9 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import com.yapt.planttracker.domain.model.AwayPeriod
+import com.yapt.planttracker.domain.model.Plant
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,5 +64,60 @@ class PlantDetailScreenGateAwayTest {
                 millisAt(LocalDate.of(2026, 7, 20))
             )
         )
+    }
+
+    // ---- requestWater / requestLiquidFertilize wiring ----
+
+    private val previousWateringAt = millisAt(LocalDate.of(2026, 6, 25))
+    private val pickedAt = millisAt(LocalDate.of(2026, 7, 20))
+
+    // 25 days after a 7-day interval is well off schedule, so only the trip can skip the prompt.
+    private val plant = Plant(id = 1L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+
+    private fun context(viewModel: PlantDetailViewModel, trips: List<AwayPeriod>) =
+        QuickWaterGateContext(plant, seasonalAmplitude = 0.0, viewModel = viewModel, awayPeriods = trips)
+
+    @Test
+    fun `requestWater logs straight away with the picked date when the gap spans a trip`() {
+        val viewModel = mockk<PlantDetailViewModel>(relaxed = true)
+        var sheetShown = false
+
+        requestWater(context(viewModel, listOf(trip)), pickedAt, previousWateringAt) { sheetShown = true }
+
+        verify(exactly = 1) { viewModel.quickWater(reason = null, loggedAt = pickedAt) }
+        assertFalse(sheetShown)
+    }
+
+    @Test
+    fun `requestWater still shows the reason sheet for the same off-schedule gap without a trip`() {
+        val viewModel = mockk<PlantDetailViewModel>(relaxed = true)
+        var sheetShown = false
+
+        requestWater(context(viewModel, emptyList()), pickedAt, previousWateringAt) { sheetShown = true }
+
+        assertTrue(sheetShown)
+        verify(exactly = 0) { viewModel.quickWater(any(), any()) }
+    }
+
+    @Test
+    fun `requestLiquidFertilize logs straight away with the picked date when the gap spans a trip`() {
+        val viewModel = mockk<PlantDetailViewModel>(relaxed = true)
+        var sheetShown = false
+
+        requestLiquidFertilize(context(viewModel, listOf(trip)), pickedAt, previousWateringAt) { sheetShown = true }
+
+        verify(exactly = 1) { viewModel.quickLiquidFertilize(reason = null, loggedAt = pickedAt) }
+        assertFalse(sheetShown)
+    }
+
+    @Test
+    fun `requestLiquidFertilize still shows the reason sheet for the same off-schedule gap without a trip`() {
+        val viewModel = mockk<PlantDetailViewModel>(relaxed = true)
+        var sheetShown = false
+
+        requestLiquidFertilize(context(viewModel, emptyList()), pickedAt, previousWateringAt) { sheetShown = true }
+
+        assertTrue(sheetShown)
+        verify(exactly = 0) { viewModel.quickLiquidFertilize(any(), any()) }
     }
 }

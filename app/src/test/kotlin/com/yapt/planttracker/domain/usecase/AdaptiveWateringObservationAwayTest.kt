@@ -340,8 +340,9 @@ class AdaptiveWateringObservationAwayTest {
         val previous = millisAt(2026, 6, 29)
         val loggedAt = millisAt(2026, 7, 20)
         predecessor(loggedAt, previous)
+        // 6 raw gaps (7 x 5, then 21 across the trip): confidence 2 unfiltered, 1 with the away gap dropped.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
-            millisAt(2026, 6, 1), millisAt(2026, 6, 8), millisAt(2026, 6, 15),
+            millisAt(2026, 5, 25), millisAt(2026, 6, 1), millisAt(2026, 6, 8), millisAt(2026, 6, 15),
             millisAt(2026, 6, 22), previous, loggedAt
         )
 
@@ -391,10 +392,11 @@ class AdaptiveWateringObservationAwayTest {
         val previous = millisAt(2026, 8, 12)
         val loggedAt = millisAt(2026, 8, 19)
         predecessor(loggedAt, previous)
-        // The Jun 22 -> Jul 20 gap (28 days) crosses the trip; the other three are weekly.
+        // 6 raw gaps: 7, 28 (Jun 22 -> Jul 20, across the trip), then four weekly ones. Unfiltered that
+        // is confidence 2; with the earlier away gap dropped it is 5 gaps, confidence 1.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(1L) } returns listOf(
             millisAt(2026, 6, 15), millisAt(2026, 6, 22), millisAt(2026, 7, 20),
-            millisAt(2026, 7, 27), previous, loggedAt
+            millisAt(2026, 7, 27), millisAt(2026, 8, 3), previous, loggedAt
         )
 
         observation().observe(
@@ -405,7 +407,6 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertEquals(listOf(WateringAdjustmentTrigger.HISTORY_BOOTSTRAP), recorded.map { it.trigger })
-        // 5 raw gaps (7, 28, 7, 16, 7); the 28-day one is dropped -> 4 gaps -> confidence 1, median 7.
         coVerify {
             plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 7.0 && it.wateringConfidence == 1 })
         }
