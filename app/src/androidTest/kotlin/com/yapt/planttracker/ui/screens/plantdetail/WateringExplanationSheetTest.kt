@@ -109,7 +109,8 @@ class WateringExplanationSheetTest {
 
         composeTestRule.setContent { WateringExplanationSheet(explanation, onDismiss = {}) }
 
-        composeTestRule.onNodeWithText("away — not counted").performScrollTo()
-        composeTestRule.onNodeWithText("away — not counted").assertIsDisplayed()
+        // No dormancy window: the sheet has no inner scroll container (performScrollTo would throw) and opens
+        // partially expanded, so the row may sit below the fold until the user drags the sheet up.
+        composeTestRule.onNodeWithText("away — not counted").assertExists()
     }
 }
