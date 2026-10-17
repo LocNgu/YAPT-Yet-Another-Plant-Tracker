@@ -267,7 +267,7 @@ class AddEditPlantViewModel(
                 // carry the stored values over so an unrelated edit can't silently wipe it (#809).
                 repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,
                 repotPlanMadeAt = existing?.repotPlanMadeAt,
-                // Hide/Unhide own this column through column-specific writes (#915, technical ADR-0036):
+                // Hide/Unhide own this column through column-specific writes (#915):
                 // an unrelated edit must never unhide a plant.
                 hiddenAt = existing?.hiddenAt,
                 wateringConfidence = wateringConfidence,

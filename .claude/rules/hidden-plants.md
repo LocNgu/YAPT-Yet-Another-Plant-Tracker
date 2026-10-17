@@ -15,7 +15,7 @@ A living plant the owner doesn't want to see right now. Separate from the Gravey
 ## State and queries
 - `Plant.hiddenAt` / `PlantEntity.hiddenAt` (`Long?`, `null` = visible; DB v19, `Migration(18, 19)`). `Plant.isVisible` (`archivedAt == null && hiddenAt == null`) is the one domain check for "belongs on operational surfaces"; use it, not a bare `archivedAt == null`.
 - `PlantDao.getAllPlants()` and `getAllRooms()` filter `hiddenAt IS NULL`, so every list, reminder and overview that reads them drops hidden plants. `getHiddenPlants()` / `getHiddenCount()` serve the Hidden plants page and Settings row (never include archived). `getAllNonArchivedPlants()` is for background passes that must still reach hidden plants (`YaptApplication.runSeasonalGraduationFixupIfNeeded()`).
-- **Hide/Unhide are column-specific** (`PlantDao.updateHiddenAt`, technical ADR-0036) and leave `updatedAt` alone. `archivePlant`/`archivePlants` also set `hiddenAt = NULL`, so a restored plant is visible.
+- **Hide/Unhide are column-specific** (`PlantDao.updateHiddenAt`) and leave `updatedAt` alone, like archiving. They run from the Edit Plant ViewModel and rely on the column-specific UPDATE alone (the technical ADR-0036 point-3 style of write); `plantEditMutex` belongs to the Plant Detail ViewModel and is not taken. `archivePlant`/`archivePlants` also set `hiddenAt = NULL`, so a restored plant is visible.
 - `AddEditPlantViewModel.saveEdit()` carries `hiddenAt = existing?.hiddenAt`: an unrelated edit must never unhide a plant. New `Plant` columns need the same treatment.
 - The domain defence-in-depth filters (`TodayQueueAggregator`, the Watering/Repotting overview builders and snapshots, `BeforeYouLeave`, `VisitProjection`, `PlanVisitState`) use `isVisible`.
 

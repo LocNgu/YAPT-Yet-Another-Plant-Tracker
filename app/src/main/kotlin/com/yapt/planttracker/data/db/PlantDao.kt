@@ -65,9 +65,9 @@ interface PlantDao {
     fun getAllNonArchivedPlants(): Flow<List<PlantEntity>>
 
     /**
-     * Column-specific hide/unhide (#915, technical ADR-0036): touches only `hiddenAt`, so a concurrent
-     * edit to any other column can't be reverted. Deliberately leaves `updatedAt` alone — hiding is a
-     * view preference, not an edit of the plant's care data.
+     * Column-specific hide/unhide (#915; the column-UPDATE style of technical ADR-0036 point 3): touches
+     * only `hiddenAt`, so a concurrent edit to any other column can't be reverted. Deliberately leaves
+     * `updatedAt` alone — hiding is a view preference, not an edit of the plant's care data.
      */
     @Query("UPDATE plants SET hiddenAt = :hiddenAt WHERE id = :id")
     suspend fun updateHiddenAt(id: Long, hiddenAt: Long?)

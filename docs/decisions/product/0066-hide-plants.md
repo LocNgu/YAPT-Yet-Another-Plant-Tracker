@@ -32,8 +32,10 @@ Alternatives rejected:
 - **Entry point**: a **Hide plant** / **Unhide plant** row on Edit Plant, below the form. There is no bulk action and no
   Plant Detail overflow menu. Hiding writes immediately (not on Save), returns to the Plants tab without assuming it is
   on the back stack (#836), and shows an Undo snackbar.
-- **Storage**: Hide and Unhide write only `hiddenAt` (technical ADR-0036) and leave `updatedAt` alone, since hiding is a
-  view preference, not an edit of care data. `AddEditPlantViewModel.saveEdit()` carries `hiddenAt` over, so an unrelated
+- **Storage**: Hide and Unhide write only `hiddenAt` through a column-specific UPDATE, the style of write technical
+  ADR-0036 point 3 describes, so a concurrent edit to any other column can't be reverted. They run from the Edit Plant
+  ViewModel and don't take Plant Detail's `plantEditMutex`. They leave `updatedAt` alone, like archiving, since hiding
+  is a view preference, not an edit of care data. `AddEditPlantViewModel.saveEdit()` carries `hiddenAt` over, so an unrelated
   edit can't unhide a plant. Moving a plant to the Graveyard, single or bulk, clears `hiddenAt`, so restoring it brings it
   back visible.
 - **Learning**: nothing special. Hiding writes no schedule data, and a long hidden gap is learned like any other gap.
