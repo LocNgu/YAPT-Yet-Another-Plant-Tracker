@@ -199,6 +199,8 @@ class PlanVisitViewModel(
                 )
             } catch (_: IOException) {
                 _events.tryEmit(PlanVisitEvent.ShareFailed)
+            } catch (_: IllegalStateException) {
+                _events.tryEmit(PlanVisitEvent.ShareFailed)
             } finally {
                 sharing.value = false
             }

@@ -21,26 +21,6 @@ internal fun awayDayText(date: LocalDate, today: LocalDate, locale: Locale = Loc
     return date.format(DateTimeFormatter.ofPattern(pattern, locale))
 }
 
-/** "Mon, Oct 7": the weekday and day, with the year only when it differs from [today]'s. */
-internal fun awayWeekdayDayText(date: LocalDate, today: LocalDate, locale: Locale = Locale.getDefault()): String {
-    val skeleton = if (date.year == today.year) "EEEMMMd" else "EEEyMMMd"
-    val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
-    return date.format(DateTimeFormatter.ofPattern(pattern, locale))
-}
-
-/** The copyable "Ask your sitter" text of the rhythm step (product ADR-0065). */
-internal fun Context.askYourSitterText(everyDays: Int, firstVisitBy: LocalDate, today: LocalDate): String {
-    val by = awayWeekdayDayText(firstVisitBy, today)
-    return when (everyDays) {
-        WEEKLY_RHYTHM_DAYS -> getString(R.string.sitter_ask_weekly, by)
-        FORTNIGHTLY_RHYTHM_DAYS -> getString(R.string.sitter_ask_fortnightly, by)
-        else -> resources.getQuantityString(R.plurals.sitter_ask_days, everyDays, everyDays, by)
-    }
-}
-
-private const val WEEKLY_RHYTHM_DAYS = 7
-private const val FORTNIGHTLY_RHYTHM_DAYS = 14
-
 internal fun Context.awayValidationText(validation: AwayPeriodValidation, today: LocalDate): String =
     when (validation) {
         AwayPeriodValidation.Valid -> ""
@@ -76,44 +56,4 @@ internal fun AwayModeEventsEffect(viewModel: AwayModeViewModel, onMessage: (Stri
             latestOnMessage(context.awayEventText(event, today))
         }
     }
-}
-
-internal fun Context.beforeYouLeaveLoggedText(event: BeforeYouLeaveEvent.Logged): String {
-    val logged = resources.getQuantityString(R.plurals.before_leave_logged, event.logged, event.logged)
-    return if (event.skipped == 0) {
-        logged
-    } else {
-        getString(
-            R.string.before_leave_logged_with_skipped,
-            logged,
-            resources.getQuantityString(R.plurals.before_leave_skipped, event.skipped, event.skipped)
-        )
-    }
-}
-
-private const val MAX_LISTED_NAMES = 5
-
-/** "Basil, Fern and 3 more": the first few names of a warning, so a long list can't swamp the summary card. */
-internal fun Context.namesText(names: List<String>): String {
-    val shown = names.take(MAX_LISTED_NAMES).joinToString(", ")
-    val more = names.size - MAX_LISTED_NAMES
-    return if (more > 0) getString(R.string.sitter_plan_names_more, shown, more) else shown
-}
-
-internal fun android.content.Context.planVisitEventText(event: PlanVisitEvent): String = when (event) {
-    is PlanVisitEvent.Confirmed -> {
-        val logged = resources.getQuantityString(R.plurals.before_leave_logged, event.logged, event.logged)
-        if (event.skipped == 0) {
-            logged
-        } else {
-            getString(
-                R.string.before_leave_logged_with_skipped,
-                logged,
-                resources.getQuantityString(R.plurals.sitter_confirm_skipped, event.skipped, event.skipped)
-            )
-        }
-    }
-    PlanVisitEvent.DidNotHappen -> getString(R.string.sitter_confirm_did_not_happen_done)
-    PlanVisitEvent.ShareFailed -> getString(R.string.sitter_share_failed)
-    is PlanVisitEvent.SharePdf, is PlanVisitEvent.ShareText -> ""
 }

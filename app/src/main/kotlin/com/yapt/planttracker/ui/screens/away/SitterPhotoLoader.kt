@@ -7,7 +7,7 @@ import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.RectF
 import android.media.ExifInterface
-import android.net.Uri
+import androidx.core.net.toUri
 import com.yapt.planttracker.util.ImageUtils
 import java.io.InputStream
 
@@ -21,7 +21,7 @@ internal object SitterPhotoLoader {
 
     /** A downscaled, upright copy of the photo at [uriString], or `null` when it can't be read. */
     fun load(context: Context, uriString: String): Bitmap? = runCatching {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null

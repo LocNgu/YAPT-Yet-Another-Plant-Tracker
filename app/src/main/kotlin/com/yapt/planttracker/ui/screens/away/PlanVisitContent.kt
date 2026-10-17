@@ -34,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -223,17 +222,21 @@ private fun List<Plant>.names(): List<String> = map { it.name }
 
 @Composable
 private fun roomCountsText(counts: List<RoomCount>): String {
-    val context = LocalContext.current
     val noRoom = stringResource(R.string.sitter_room_none)
-    return counts.joinToString(" · ") {
-        context.getString(R.string.sitter_plan_room_count, it.room ?: noRoom, it.count)
-    }
+    return counts
+        .map { stringResource(R.string.sitter_plan_room_count, it.room ?: noRoom, it.count) }
+        .joinToString(stringResource(R.string.sitter_plan_rooms_separator))
+}
+
+@Composable
+private fun namesText(names: List<String>): String {
+    val (shown, more) = cappedNames(names)
+    return if (more > 0) stringResource(R.string.sitter_plan_names_more, shown, more) else shown
 }
 
 @Composable
 private fun Note(plurals: Int, names: List<String>, hint: String? = null) {
-    val context = LocalContext.current
-    val text = context.resources.getQuantityString(plurals, names.size, names.size, context.namesText(names))
+    val text = pluralStringResource(plurals, names.size, names.size, namesText(names))
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(
             Icons.Filled.Warning,

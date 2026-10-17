@@ -45,11 +45,8 @@ class SitterTextTest {
 
     @Test
     fun `a few names are listed in full and a long list is cut with a count`() {
-        assertEquals("Basil, Fern", context.namesText(listOf("Basil", "Fern")))
-        assertEquals(
-            "A, B, C, D, E and 2 more",
-            context.namesText(listOf("A", "B", "C", "D", "E", "F", "G"))
-        )
+        assertEquals("Basil, Fern" to 0, cappedNames(listOf("Basil", "Fern")))
+        assertEquals("A, B, C, D, E" to 2, cappedNames(listOf("A", "B", "C", "D", "E", "F", "G")))
     }
 
     @Test

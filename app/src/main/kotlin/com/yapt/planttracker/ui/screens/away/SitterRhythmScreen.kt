@@ -91,9 +91,8 @@ internal fun SitterRhythmContent(
     modifier: Modifier = Modifier
 ) {
     val evaluation = state.evaluation
-    var chosen by rememberSaveable(state.trip.id) {
-        mutableIntStateOf(state.savedEveryDays ?: evaluation.recommendedEveryDays)
-    }
+    val initial = state.savedEveryDays?.takeIf { it in SitterRhythm.OPTIONS } ?: evaluation.recommendedEveryDays
+    var chosen by rememberSaveable(state.trip.id) { mutableIntStateOf(initial) }
     val option = evaluation.options.first { it.everyDays == chosen }
     val today = LocalDate.now()
 

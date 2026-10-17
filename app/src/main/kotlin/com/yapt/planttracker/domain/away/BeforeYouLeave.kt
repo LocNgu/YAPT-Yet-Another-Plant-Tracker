@@ -32,7 +32,7 @@ data class BeforeYouLeaveInput(
 object BeforeYouLeave {
 
     fun plan(input: BeforeYouLeaveInput): BeforeYouLeavePlan {
-        val gap = input.visitEveryDays ?: SitterRhythm.DEFAULT_EVERY_DAYS
+        val gap = (input.visitEveryDays ?: SitterRhythm.DEFAULT_EVERY_DAYS).coerceAtLeast(1)
         val firstVisit = input.today.plusDays(gap.toLong())
         val lastWaterTodayDay = input.today.plusDays(((gap - 1) / 2).toLong())
         val active = input.plants.filter { it.archivedAt == null }

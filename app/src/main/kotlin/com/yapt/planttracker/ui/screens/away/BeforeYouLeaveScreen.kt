@@ -138,7 +138,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.plantSection(
     item(key = "header-$title") {
         Column(modifier = Modifier.padding(top = 12.dp)) {
             Text(
-                "${stringResource(title)} · ${rows.size}",
+                stringResource(R.string.before_leave_section_title, stringResource(title), rows.size),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
