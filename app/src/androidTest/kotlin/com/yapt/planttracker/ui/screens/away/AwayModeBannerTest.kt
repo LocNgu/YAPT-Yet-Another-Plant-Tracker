@@ -135,6 +135,7 @@ class AwayModeBannerTest {
         val period = AwayPeriod(id = 3L, firstDay = now.minusDays(1), lastDay = now.plusDays(2))
         val awayRepository = mockk<AwayPeriodRepository>(relaxed = true) {
             every { observeAll() } returns flowOf(listOf(period))
+            every { observeAllWithVisits() } returns flowOf(listOf(AwayPeriodWithVisits(period, emptyList())))
             coEvery { getAllWithVisits() } returns listOf(AwayPeriodWithVisits(period, emptyList()))
             coEvery { getAll() } returns listOf(period)
         }
