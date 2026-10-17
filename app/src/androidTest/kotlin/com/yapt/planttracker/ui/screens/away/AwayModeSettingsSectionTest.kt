@@ -8,10 +8,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,6 +22,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.AwayPeriod
+import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
+import com.yapt.planttracker.domain.model.SitterVisit
+import com.yapt.planttracker.domain.model.SitterVisitPlant
+import com.yapt.planttracker.domain.model.SitterVisitState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -232,5 +238,88 @@ class AwayModeSettingsSectionTest {
         setSection(listOf(trip(today.minusDays(2), today.plusDays(7))))
 
         composeTestRule.onNodeWithText("Sitter visits: how often isn't set yet").assertIsDisplayed()
+    }
+
+    private val confirmRequests = mutableListOf<Long>()
+
+    private fun visit(
+        id: Long,
+        day: LocalDate,
+        state: SitterVisitState,
+        vararg watered: Boolean?
+    ) = SitterVisit(
+        id = id,
+        awayPeriodId = 7L,
+        day = day,
+        state = state,
+        plants = watered.mapIndexed { index, value -> SitterVisitPlant(index + 1L, value) }
+    )
+
+    private fun setSectionWithVisits(period: AwayPeriod, visits: List<SitterVisit>) {
+        composeTestRule.setContent {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                AwayModeSettingsContent(
+                    AwayModeUiState(today, listOf(period), listOf(AwayPeriodWithVisits(period, visits))),
+                    actions,
+                    navigation,
+                    onConfirmVisit = { confirmRequests += it }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun theTripsVisitsAreListedWithTheirState() {
+        val period = trip(today.minusDays(10), today.minusDays(1))
+        setSectionWithVisits(
+            period,
+            listOf(
+                visit(1L, today.minusDays(8), SitterVisitState.CONFIRMED, true, false),
+                visit(2L, today.minusDays(5), SitterVisitState.DID_NOT_HAPPEN, null),
+                visit(3L, today.minusDays(2), SitterVisitState.PLANNED, null, null, null)
+            )
+        )
+
+        composeTestRule.onNodeWithText("Sitter visits").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Confirmed · 1 of 2 plants watered").performScrollTo()
+            .assert(hasStateDescription("Confirmed"))
+        composeTestRule.onNodeWithText("Didn't happen · 1 plant").performScrollTo()
+            .assert(hasStateDescription("Didn't happen"))
+        composeTestRule.onNodeWithText("Planned · 3 plants").performScrollTo()
+            .assert(hasStateDescription("Planned"))
+    }
+
+    @Test
+    fun aPlannedVisitCanBeConfirmedAfterTheTripAndAnAnsweredOneCannot() {
+        val period = trip(today.minusDays(10), today.minusDays(1))
+        setSectionWithVisits(
+            period,
+            listOf(
+                visit(1L, today.minusDays(8), SitterVisitState.CONFIRMED, true),
+                visit(3L, today.minusDays(2), SitterVisitState.PLANNED, null)
+            )
+        )
+
+        composeTestRule.onAllNodesWithText("Confirm").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Confirm").performScrollTo().performClick()
+
+        assertEquals(listOf(3L), confirmRequests)
+    }
+
+    @Test
+    fun aPlannedVisitCanBeConfirmedDuringTheTripButNotBeforeItsDay() {
+        val period = trip(today.minusDays(3), today.plusDays(5))
+        setSectionWithVisits(
+            period,
+            listOf(
+                visit(1L, today.minusDays(1), SitterVisitState.PLANNED, null),
+                visit(2L, today.plusDays(2), SitterVisitState.PLANNED, null)
+            )
+        )
+
+        composeTestRule.onAllNodesWithText("Confirm").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Confirm").performScrollTo().performClick()
+
+        assertEquals(listOf(1L), confirmRequests)
     }
 }

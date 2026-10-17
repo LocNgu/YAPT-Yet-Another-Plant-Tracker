@@ -16,6 +16,9 @@ import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.SitterVisit
+import com.yapt.planttracker.domain.model.SitterVisitPlant
+import com.yapt.planttracker.domain.model.SitterVisitState
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
@@ -176,5 +179,57 @@ class AwayModeBannerTest {
         composeTestRule.waitForIdle()
 
         coVerify(timeout = 5_000) { awayRepository.updatePeriodAndDeleteVisits(any(), any()) }
+    }
+
+    private val confirmed = mutableListOf<Long>()
+
+    private fun visit(id: Long, day: LocalDate, state: SitterVisitState = SitterVisitState.PLANNED) = SitterVisit(
+        id = id,
+        awayPeriodId = 3L,
+        day = day,
+        state = state,
+        plants = listOf(SitterVisitPlant(1L))
+    )
+
+    private fun setBannerWithVisits(todayOverride: LocalDate, visits: List<SitterVisit>) {
+        val period = trip(today.minusDays(10), today.minusDays(1))
+        composeTestRule.setContent {
+            AwayModeBannerContent(
+                AwayModeUiState(todayOverride, listOf(period), listOf(AwayPeriodWithVisits(period, visits))),
+                onImBack = {},
+                onConfirmVisit = { confirmed += it }
+            )
+        }
+    }
+
+    @Test
+    fun afterTheTripItOffersTheUnconfirmedVisitsOldestFirst() {
+        setBannerWithVisits(
+            today,
+            listOf(visit(2L, today.minusDays(3)), visit(1L, today.minusDays(6)))
+        )
+
+        composeTestRule.onNodeWithText("2 sitter visits to confirm").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Confirm visit").performClick()
+
+        assertEquals(listOf(1L), confirmed)
+    }
+
+    @Test
+    fun anAnsweredVisitIsNotCounted() {
+        setBannerWithVisits(
+            today,
+            listOf(visit(1L, today.minusDays(6), SitterVisitState.CONFIRMED), visit(2L, today.minusDays(3)))
+        )
+
+        composeTestRule.onNodeWithText("1 sitter visit to confirm").assertIsDisplayed()
+    }
+
+    @Test
+    fun theOfferIsGoneOnceTheWindowHasPassed() {
+        setBannerWithVisits(today.plusDays(14), listOf(visit(1L, today.minusDays(6))))
+
+        composeTestRule.onNodeWithText("1 sitter visit to confirm").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Confirm visit").assertDoesNotExist()
     }
 }

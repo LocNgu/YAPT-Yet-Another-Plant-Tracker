@@ -446,7 +446,8 @@ fun YaptNavGraph(
                     onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
                     onBackupInProgressChanged = { backupInProgress = it },
                     awayModeViewModel = awayModeViewModel(app),
-                    awayModeNavigation = navController.awayModeNavigation()
+                    awayModeNavigation = navController.awayModeNavigation(),
+                    confirmVisitViewModel = confirmVisitViewModel(app)
                 )
             }
 
@@ -549,7 +550,8 @@ fun YaptNavGraph(
                     },
                     onNavigateToAdd = { navController.navigate(Screen.AddPlant.route) },
                     awayModeViewModel = awayModeViewModel(app),
-                    awayModeNavigation = navController.awayModeNavigation()
+                    awayModeNavigation = navController.awayModeNavigation(),
+                    confirmVisitViewModel = confirmVisitViewModel(app)
                 )
             }
 

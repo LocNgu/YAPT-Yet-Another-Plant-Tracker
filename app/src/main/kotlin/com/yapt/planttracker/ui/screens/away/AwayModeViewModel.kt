@@ -12,9 +12,12 @@ import com.yapt.planttracker.domain.away.AwayPeriodValidation
 import com.yapt.planttracker.domain.away.AwayPeriods
 import com.yapt.planttracker.domain.away.AwayTripStatus
 import com.yapt.planttracker.domain.away.awayTripStatus
+import com.yapt.planttracker.domain.away.settingsVisitTrip
 import com.yapt.planttracker.domain.away.showsBanner
+import com.yapt.planttracker.domain.away.visitsToConfirmAfterTrip
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
+import com.yapt.planttracker.domain.model.SitterVisit
 import com.yapt.planttracker.util.dayChangeTicker
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Job
@@ -32,12 +35,22 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
-data class AwayModeUiState(val today: LocalDate, val periods: List<AwayPeriod>) {
+data class AwayModeUiState(
+    val today: LocalDate,
+    val periods: List<AwayPeriod>,
+    val trips: List<AwayPeriodWithVisits> = emptyList()
+) {
     val status: AwayTripStatus = awayTripStatus(periods, today)
     val showsBanner: Boolean get() = status.showsBanner(today)
 
     /** The owner's last day at home: the trip is upcoming and starts tomorrow. */
     val isLastDayAtHome: Boolean get() = (status as? AwayTripStatus.Upcoming)?.trip?.firstDay == today.plusDays(1)
+
+    /** The unconfirmed sitter visits Care offers after a trip, oldest first (slice 5). */
+    val visitsToConfirm: List<SitterVisit> get() = visitsToConfirmAfterTrip(trips, today)
+
+    /** The visits Settings lists: the current or most recent trip's. */
+    val settingsVisits: List<SitterVisit> get() = settingsVisitTrip(trips, today)?.visits.orEmpty()
 }
 
 sealed interface AwayModeEvent {
@@ -63,8 +76,8 @@ class AwayModeViewModel(
     private val todayProvider: () -> LocalDate = { LocalDate.now() }
 ) : ViewModel() {
 
-    val uiState: StateFlow<AwayModeUiState?> = combine(repository.observeAll(), dayChange) { periods, today ->
-        AwayModeUiState(today, periods)
+    val uiState: StateFlow<AwayModeUiState?> = combine(repository.observeAllWithVisits(), dayChange) { trips, today ->
+        AwayModeUiState(today, trips.map { it.period }, trips)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     private val _events = MutableSharedFlow<AwayModeEvent>(extraBufferCapacity = EVENT_BUFFER)

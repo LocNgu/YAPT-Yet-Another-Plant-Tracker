@@ -28,23 +28,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.AwayTripStatus
+import com.yapt.planttracker.domain.away.canConfirmOn
+import com.yapt.planttracker.domain.model.SitterVisit
+import com.yapt.planttracker.domain.model.SitterVisitState
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 /** Settings' always-visible Away mode section (product ADR-0065); [onMessage] shows a snackbar on the host. */
 @Composable
 fun AwayModeSettingsSection(
     viewModel: AwayModeViewModel,
     onMessage: (String) -> Unit,
-    navigation: AwayModeNavigation = AwayModeNavigation()
+    navigation: AwayModeNavigation = AwayModeNavigation(),
+    confirmVisitViewModel: ConfirmVisitViewModel? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     AwayModeEventsEffect(viewModel, onMessage)
+    confirmVisitViewModel?.let { ConfirmVisitSheetHost(it, onMessage) }
     val scope = rememberCoroutineScope()
     state?.let { current ->
         AwayModeSettingsContent(
@@ -63,7 +70,8 @@ fun AwayModeSettingsSection(
                 onCancelTrip = { viewModel.cancelTrip() },
                 onImBack = { viewModel.imBack() }
             ),
-            navigation = navigation
+            navigation = navigation,
+            onConfirmVisit = { id -> confirmVisitViewModel?.open(id) }
         )
     }
 }
@@ -72,7 +80,8 @@ fun AwayModeSettingsSection(
 internal fun AwayModeSettingsContent(
     state: AwayModeUiState,
     actions: AwayModeActions,
-    navigation: AwayModeNavigation = AwayModeNavigation()
+    navigation: AwayModeNavigation = AwayModeNavigation(),
+    onConfirmVisit: (visitId: Long) -> Unit = {}
 ) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     val trip = when (val status = state.status) {
@@ -96,6 +105,7 @@ internal fun AwayModeSettingsContent(
     AwayModeStatusRow(state)
     AwayModeTripButtons(state, actions, onEditDates = { showSheet = true }, onPlan = { showSheet = true })
     AwayModeSitterButtons(state, navigation)
+    AwayModeVisitList(state, onConfirmVisit)
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
     if (showSheet) {
@@ -223,6 +233,64 @@ private fun AwayModeSitterButtons(state: AwayModeUiState, navigation: AwayModeNa
         if (state.isLastDayAtHome) {
             OutlinedButton(onClick = navigation.onBeforeYouLeave) {
                 Text(stringResource(R.string.away_action_before_leave))
+            }
+        }
+    }
+}
+
+/** The current or most recent trip's sitter visits with their state; a planned one can be confirmed from here. */
+@Composable
+private fun AwayModeVisitList(state: AwayModeUiState, onConfirmVisit: (visitId: Long) -> Unit) {
+    val visits = state.settingsVisits
+    if (visits.isEmpty()) return
+    Text(
+        text = stringResource(R.string.sitter_visits_heading),
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
+    )
+    visits.forEach { visit -> AwayModeVisitRow(visit, state.today, onConfirmVisit) }
+}
+
+@Composable
+private fun AwayModeVisitRow(visit: SitterVisit, today: LocalDate, onConfirmVisit: (visitId: Long) -> Unit) {
+    val stateText = stringResource(
+        when (visit.state) {
+            SitterVisitState.PLANNED -> R.string.sitter_visit_state_planned
+            SitterVisitState.CONFIRMED -> R.string.sitter_visit_state_confirmed
+            SitterVisitState.DID_NOT_HAPPEN -> R.string.sitter_visit_state_did_not_happen
+        }
+    )
+    val total = visit.plants.size
+    val detail = if (visit.state == SitterVisitState.CONFIRMED) {
+        val watered = visit.plants.count { it.watered == true }
+        pluralStringResource(R.plurals.sitter_visit_watered_count, total, watered, total)
+    } else {
+        pluralStringResource(R.plurals.sitter_visit_plant_count, total, total)
+    }
+    val dayText = awayWeekdayDayText(visit.day, today)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .semantics(mergeDescendants = true) { stateDescription = stateText }
+        ) {
+            Text(dayText, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "$stateText · $detail",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (visit.canConfirmOn(today)) {
+            val description = stringResource(R.string.sitter_visit_confirm_description, dayText)
+            TextButton(
+                onClick = { onConfirmVisit(visit.id) },
+                modifier = Modifier.semantics { contentDescription = description }
+            ) {
+                Text(stringResource(R.string.sitter_visit_confirm_action))
             }
         }
     }
