@@ -27,8 +27,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   **Share list (PDF)** builds an offline photo list grouped by room, with a tick box, a **Missed last time** tag
   and a last page **Please don't water these** for resting plants; **Share as text** is the fallback. Before
   planning the next visit a checklist confirms the last one (untick what the sitter skipped, or say it didn't
-  happen); Back skips it and the next list assumes it was watered. Nothing here writes to a plant (#899, product
-  ADR-0065)
+  happen); Back skips it and the next list assumes it was watered. Nothing here edits a plant directly: the
+  waterings it logs go through the usual quick-log path (#899, product ADR-0065)
 - **Away mode — plan a trip and pause reminders** — a new Away mode section in Settings (always visible, even with
   notifications off) lets you plan a trip on a date-range picker, edit its dates, cancel it before it starts, or tap
   **I'm back** when you return early (the last day becomes yesterday, or the trip is removed if it hadn't really

@@ -21,6 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.AwayTripStatus
+import kotlinx.coroutines.launch
 
 /** Settings' always-visible Away mode section (product ADR-0065); [onMessage] shows a snackbar on the host. */
 @Composable
@@ -43,11 +45,21 @@ fun AwayModeSettingsSection(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     AwayModeEventsEffect(viewModel, onMessage)
+    val scope = rememberCoroutineScope()
     state?.let { current ->
         AwayModeSettingsContent(
             state = current,
             actions = AwayModeActions(
-                onSave = { first, last, editingId -> viewModel.saveTrip(first, last, editingId) },
+                onSave = { first, last, editingId ->
+                    val saved = viewModel.saveTrip(first, last, editingId)
+                    // The rhythm step follows a new trip, once it is stored, so the screen never opens on "no trip".
+                    if (editingId == null) {
+                        scope.launch {
+                            saved.join()
+                            navigation.onSitterRhythm()
+                        }
+                    }
+                },
                 onCancelTrip = { viewModel.cancelTrip() },
                 onImBack = { viewModel.imBack() }
             ),
@@ -92,10 +104,7 @@ internal fun AwayModeSettingsContent(
             editingId = trip?.id,
             initialRange = trip?.let { it.firstDay to it.lastDay },
             onDismiss = { showSheet = false },
-            onSave = { first, last ->
-                actions.onSave(first, last, trip?.id)
-                if (trip == null) navigation.onSitterRhythm()
-            }
+            onSave = { first, last -> actions.onSave(first, last, trip?.id) }
         )
     }
 }

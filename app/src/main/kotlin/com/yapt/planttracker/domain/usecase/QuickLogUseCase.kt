@@ -14,7 +14,6 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
-import com.yapt.planttracker.domain.away.SitterDueDates
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -33,6 +32,7 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
+import com.yapt.planttracker.util.toNoonMillis
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -205,7 +205,7 @@ class QuickLogUseCase(
      * a trip is already excluded from learning by [AdaptiveWateringObservation].
      */
     suspend fun logSitterVisitWaterings(plants: List<Plant>, visitDay: LocalDate): BulkLogResult {
-        val loggedAt = minOf(SitterDueDates.noonMillis(visitDay), nowProvider())
+        val loggedAt = minOf(visitDay.toNoonMillis(), nowProvider())
         var loggedCount = 0
         database.withTransaction {
             for (plant in plants) {

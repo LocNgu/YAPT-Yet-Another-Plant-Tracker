@@ -9,10 +9,9 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueAggregator
 import com.yapt.planttracker.domain.today.TodayQueueInput
 import com.yapt.planttracker.util.toLocalDate
+import com.yapt.planttracker.util.toNoonMillis
 import com.yapt.planttracker.util.toStartOfDayMillis
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 
 /** One plant's next watering date, as [TodayQueueAggregator] reports it. */
 data class WateringDue(val plant: Plant, val dueDate: LocalDate)
@@ -53,10 +52,7 @@ internal object SitterDueDates {
 
     /** A WATER log noon of [day], the instant a simulated watering is dated. */
     fun syntheticWaterLog(plantId: Long, day: LocalDate): CareLog =
-        CareLog(plantId = plantId, careType = CareType.WATER, loggedAt = noonMillis(day))
-
-    fun noonMillis(day: LocalDate): Long =
-        day.atTime(LocalTime.NOON).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        CareLog(plantId = plantId, careType = CareType.WATER, loggedAt = day.toNoonMillis())
 
     fun endOfDayMillis(day: LocalDate): Long = day.plusDays(1).toStartOfDayMillis() - 1
 

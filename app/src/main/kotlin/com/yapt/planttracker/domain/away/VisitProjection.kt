@@ -9,6 +9,7 @@ import com.yapt.planttracker.domain.model.SitterVisitState
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.watering.WateringOverviewBuilder
 import com.yapt.planttracker.domain.watering.WateringOverviewGroup
+import com.yapt.planttracker.util.toNoonMillis
 import com.yapt.planttracker.util.toStartOfDayMillis
 import java.time.LocalDate
 
@@ -140,7 +141,7 @@ object VisitProjector {
             .mapValues { (_, logs) -> logs.maxOf { it.loggedAt } }
         return map { plant ->
             val day = simulated[plant.id]
-            val clears = day != null && SitterDueDates.noonMillis(day) >= (newestReal[plant.id] ?: Long.MIN_VALUE)
+            val clears = day != null && day.toNoonMillis() >= (newestReal[plant.id] ?: Long.MIN_VALUE)
             if (clears && plant.wateringDueDateOverride != null) plant.copy(wateringDueDateOverride = null) else plant
         }
     }
