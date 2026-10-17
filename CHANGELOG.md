@@ -13,6 +13,22 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **A plant-sitter list for your trip** — trip setup now asks **How often should a sitter come?** (every 4, 5, 7, 10
+  or 14 days) and shows, for each rhythm, how many plants would go longer than usual (at least 1.5 times their
+  usual interval, assuming everything due is watered on your last day at home). YAPT recommends the longest rhythm
+  with nothing flagged, lists the plants a chosen rhythm would stretch, and writes the text to ask your sitter
+  ("Could you come about once a week? The first time by Wed, Oct 7."). On your last day at home **Before you leave**
+  splits the plants into **Water today** (due before halfway to the first visit, ticked) and **Check the soil**
+  (unticked), and one tap logs the ticked ones as watered with no "Why now?" and no effect on learning. While
+  away, **Plan a sitter visit** (Care banner and Settings) takes a day (Today, Tomorrow or a date inside the trip)
+  and a rough gap to the next visit, then lists the plants due by that visit or before halfway to the next, leaning
+  dry on a tie. A summary card shows the count, room counts and resting plants, and warns about plants missed last
+  time, plants going longer than usual, listed plants with no photo and look-alikes (same name and room, no photo).
+  **Share list (PDF)** builds an offline photo list grouped by room, with a tick box, a **Missed last time** tag
+  and a last page **Please don't water these** for resting plants; **Share as text** is the fallback. Before
+  planning the next visit a checklist confirms the last one (untick what the sitter skipped, or say it didn't
+  happen); Back skips it and the next list assumes it was watered. Nothing here edits a plant directly: the
+  waterings it logs go through the usual quick-log path (#899, product ADR-0065)
 - **Away mode — plan a trip and pause reminders** — a new Away mode section in Settings (always visible, even with
   notifications off) lets you plan a trip on a date-range picker, edit its dates, cancel it before it starts, or tap
   **I'm back** when you return early (the last day becomes yesterday, or the trip is removed if it hadn't really

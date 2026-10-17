@@ -35,6 +35,9 @@ import java.time.LocalDate
 data class AwayModeUiState(val today: LocalDate, val periods: List<AwayPeriod>) {
     val status: AwayTripStatus = awayTripStatus(periods, today)
     val showsBanner: Boolean get() = status.showsBanner(today)
+
+    /** The owner's last day at home: the trip is upcoming and starts tomorrow. */
+    val isLastDayAtHome: Boolean get() = (status as? AwayTripStatus.Upcoming)?.trip?.firstDay == today.plusDays(1)
 }
 
 sealed interface AwayModeEvent {

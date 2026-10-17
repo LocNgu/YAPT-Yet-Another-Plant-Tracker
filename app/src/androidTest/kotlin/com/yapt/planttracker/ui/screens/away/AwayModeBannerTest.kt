@@ -43,12 +43,19 @@ class AwayModeBannerTest {
 
     private val today = LocalDate.of(LocalDate.now().year, 10, 14)
     private var imBackCalls = 0
+    private var planVisitCalls = 0
+    private var beforeLeaveCalls = 0
 
     private fun trip(first: LocalDate, last: LocalDate) = AwayPeriod(id = 3L, firstDay = first, lastDay = last)
 
     private fun setBanner(periods: List<AwayPeriod>) {
         composeTestRule.setContent {
-            AwayModeBannerContent(AwayModeUiState(today, periods), onImBack = { imBackCalls++ })
+            AwayModeBannerContent(
+                AwayModeUiState(today, periods),
+                onImBack = { imBackCalls++ },
+                onPlanVisit = { planVisitCalls++ },
+                onBeforeYouLeave = { beforeLeaveCalls++ }
+            )
         }
     }
 
@@ -65,6 +72,33 @@ class AwayModeBannerTest {
         composeTestRule.onNodeWithText("I'm back").performClick()
 
         assertEquals(1, imBackCalls)
+    }
+
+    @Test
+    fun whileAwayItOffersToPlanASitterVisit() {
+        setBanner(listOf(trip(today.minusDays(2), LocalDate.of(today.year, 10, 21))))
+
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertIsDisplayed().performClick()
+
+        assertEquals(1, planVisitCalls)
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+    }
+
+    @Test
+    fun onTheLastDayAtHomeItOffersBeforeYouLeave() {
+        setBanner(listOf(trip(today.plusDays(1), today.plusDays(8))))
+
+        composeTestRule.onNodeWithText("Before you leave").assertIsDisplayed().performClick()
+
+        assertEquals(1, beforeLeaveCalls)
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertDoesNotExist()
+    }
+
+    @Test
+    fun earlierThanTheLastDayAtHomeThereIsNoBeforeYouLeave() {
+        setBanner(listOf(trip(today.plusDays(4), today.plusDays(9))))
+
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
     }
 
     @Test

@@ -1,5 +1,9 @@
 package com.yapt.planttracker.ui.screens.away
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,14 +30,31 @@ import com.yapt.planttracker.domain.away.AwayTripStatus
 
 /** The Care banner (product ADR-0065): shown while away and for a week before a trip starts. */
 @Composable
-fun AwayModeBanner(viewModel: AwayModeViewModel, onMessage: (String) -> Unit) {
+fun AwayModeBanner(
+    viewModel: AwayModeViewModel,
+    onMessage: (String) -> Unit,
+    navigation: AwayModeNavigation = AwayModeNavigation()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     AwayModeEventsEffect(viewModel, onMessage)
-    state?.let { AwayModeBannerContent(it, onImBack = { viewModel.imBack() }) }
+    state?.let {
+        AwayModeBannerContent(
+            it,
+            onImBack = { viewModel.imBack() },
+            onPlanVisit = navigation.onPlanVisit,
+            onBeforeYouLeave = navigation.onBeforeYouLeave
+        )
+    }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun AwayModeBannerContent(state: AwayModeUiState, onImBack: () -> Unit) {
+internal fun AwayModeBannerContent(
+    state: AwayModeUiState,
+    onImBack: () -> Unit,
+    onPlanVisit: () -> Unit = {},
+    onBeforeYouLeave: () -> Unit = {}
+) {
     if (!state.showsBanner) return
     val status = state.status
     val text: String
@@ -59,21 +80,29 @@ internal fun AwayModeBannerContent(state: AwayModeUiState, onImBack: () -> Unit)
         shape = MaterialTheme.shapes.medium,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.FlightTakeoff, contentDescription = null)
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier
-                    .weight(1f)
-                    .semantics { stateDescription = stateText }
-            )
-            if (status is AwayTripStatus.Away) {
-                TextButton(onClick = onImBack) { Text(stringResource(R.string.away_action_back)) }
+        Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp, end = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.FlightTakeoff, contentDescription = null)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { stateDescription = stateText }
+                )
+            }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (status is AwayTripStatus.Away) {
+                    TextButton(onClick = onPlanVisit) { Text(stringResource(R.string.away_action_plan_visit)) }
+                    TextButton(onClick = onImBack) { Text(stringResource(R.string.away_action_back)) }
+                }
+                if (state.isLastDayAtHome) {
+                    TextButton(onClick = onBeforeYouLeave) { Text(stringResource(R.string.away_action_before_leave)) }
+                }
             }
         }
     }

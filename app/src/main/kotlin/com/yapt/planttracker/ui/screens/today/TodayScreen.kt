@@ -50,6 +50,7 @@ import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.screens.away.AwayModeBanner
+import com.yapt.planttracker.ui.screens.away.AwayModeNavigation
 import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
@@ -62,14 +63,15 @@ private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod", "LongParameterList")
 @Composable
 fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long, PlantDetailTab?) -> Unit,
     onNavigateToAdd: () -> Unit,
     onLaunchPhotoCapture: ((Long) -> Unit)? = null,
-    awayModeViewModel: AwayModeViewModel? = null
+    awayModeViewModel: AwayModeViewModel? = null,
+    awayModeNavigation: AwayModeNavigation = AwayModeNavigation()
 ) {
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -135,7 +137,11 @@ fun TodayScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             awayModeViewModel?.let { vm ->
-                AwayModeBanner(vm, onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } })
+                AwayModeBanner(
+                    vm,
+                    onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+                    navigation = awayModeNavigation
+                )
             }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val state = uiState) {

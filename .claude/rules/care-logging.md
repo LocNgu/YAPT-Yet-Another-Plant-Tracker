@@ -26,6 +26,10 @@ paths:
 - `QuickLogUseCase.isDuplicateGuarded()` covers every quick-log surface; `AddCareLogViewModel` has its own equivalent guard for edits (excluding the edited row).
 - Check *before* a paired liquid-fertilizer WATER insert, not just against the sibling insert in the same call (#509).
 
+## Sitter visit waterings (#899, product ADR-0065)
+- `QuickLogUseCase.logSitterVisitWaterings(plants, visitDay)` is the confirm step's write: one transaction, `quickWaterWithReasonInternal(plant, reason = null, loggedAt, schedulePostWateringReminder = false)` per plant, never `onWaterLogged`, so there is no reason prompt and no post-watering reminder (the owner isn't there). The log is dated `min(noon of visitDay, nowProvider())` and the same-day duplicate guard applies per plant. A gap touching a trip is already `AWAY_EXCLUDED` by slice 2.
+- **Before you leave** uses the unchanged `bulkLog(plants, WATER)` (Plant List's path; the owner is home, feedback `null`).
+
 ## Post-watering reminder (#519, product ADR-0036)
 Every successful **current-day** WATER insert debounces one alert to 30 minutes after the latest watering. Backdated, edited and duplicate-suppressed logs don't schedule. Details: `rules/notifications.md`.
 

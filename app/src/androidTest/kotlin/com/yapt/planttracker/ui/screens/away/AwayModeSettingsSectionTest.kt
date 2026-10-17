@@ -48,10 +48,17 @@ class AwayModeSettingsSectionTest {
 
     private fun trip(first: LocalDate, last: LocalDate) = AwayPeriod(id = 7L, firstDay = first, lastDay = last)
 
+    private val opened = mutableListOf<String>()
+    private val navigation = AwayModeNavigation(
+        onSitterRhythm = { opened += "rhythm" },
+        onBeforeYouLeave = { opened += "before" },
+        onPlanVisit = { opened += "plan" }
+    )
+
     private fun setSection(periods: List<AwayPeriod>) {
         composeTestRule.setContent {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                AwayModeSettingsContent(AwayModeUiState(today, periods), actions)
+                AwayModeSettingsContent(AwayModeUiState(today, periods), actions, navigation)
             }
         }
     }
@@ -175,5 +182,55 @@ class AwayModeSettingsSectionTest {
         composeTestRule.onNodeWithText("Save").assertIsEnabled().performClick()
 
         assertTrue(saves.single().let { it.first == first && it.second == last && it.third == null })
+    }
+
+    @Test
+    fun withoutATripThereAreNoSitterEntryPoints() {
+        setSection(emptyList())
+
+        composeTestRule.onNodeWithText("Sitter rhythm").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+    }
+
+    @Test
+    fun aTripOffersTheRhythmAndPlanningAVisit() {
+        setSection(listOf(trip(today.minusDays(2), today.plusDays(7))))
+
+        composeTestRule.onNodeWithText("Sitter rhythm").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Plan a sitter visit").performScrollTo().performClick()
+
+        assertEquals(listOf("rhythm", "plan"), opened)
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+    }
+
+    @Test
+    fun beforeYouLeaveIsOfferedOnTheLastDayAtHomeOnly() {
+        setSection(listOf(trip(today.plusDays(1), today.plusDays(8))))
+
+        composeTestRule.onNodeWithText("Before you leave").performScrollTo().performClick()
+
+        assertEquals(listOf("before"), opened)
+    }
+
+    @Test
+    fun beforeYouLeaveIsNotOfferedTwoDaysAhead() {
+        setSection(listOf(trip(today.plusDays(2), today.plusDays(8))))
+
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+    }
+
+    @Test
+    fun theTripRowSaysHowOftenTheSitterComes() {
+        setSection(listOf(trip(today.minusDays(2), today.plusDays(7)).copy(visitEveryDays = 10)))
+
+        composeTestRule.onNodeWithText("Sitter visits: about every 10 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTripRowSaysWhenNoRhythmIsChosenYet() {
+        setSection(listOf(trip(today.minusDays(2), today.plusDays(7))))
+
+        composeTestRule.onNodeWithText("Sitter visits: how often isn't set yet").assertIsDisplayed()
     }
 }

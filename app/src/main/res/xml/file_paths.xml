@@ -2,4 +2,5 @@
 <paths>
     <external-cache-path name="plant_photos" path="." />
     <files-path name="plant_images" path="images/" />
+    <cache-path name="sitter_lists" path="sitter_lists/" />
 </paths>

@@ -3,6 +3,7 @@ package com.yapt.planttracker.util
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.Date
@@ -14,6 +15,10 @@ internal fun Long.toLocalDate(): LocalDate =
 /** The inverse of [toLocalDate]: midnight of [this] date in the system default zone, as epoch millis. */
 internal fun LocalDate.toStartOfDayMillis(): Long =
     atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+/** Noon of [this] date in the system default zone, as epoch millis: always an instant on that local day. */
+internal fun LocalDate.toNoonMillis(): Long =
+    atTime(LocalTime.NOON).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
 /**
  * Advances [this] instant by [days] **calendar** days in [zone], preserving local wall-clock
