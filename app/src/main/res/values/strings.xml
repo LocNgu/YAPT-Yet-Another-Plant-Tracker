@@ -24,6 +24,7 @@
     <string name="reminder_time_dialog_title">Set reminder time</string>
     <string name="ok">OK</string>
     <string name="no_plants_yet">No plants yet!\nTap + to add your first plant.</string>
+    <string name="no_plants_all_hidden">All your plants are hidden.\nFind them in Settings \u2192 Hidden plants.</string>
     <string name="no_care_logs">No care logged yet.\nTap the button below to log your first care event.</string>
     <string name="channel_name">Plant Care Reminders</string>
     <string name="channel_description">Reminders to water and care for your plants</string>
@@ -473,6 +474,8 @@
     <string name="delete_photo_confirm">Remove this photo? This cannot be undone.</string>
     <string name="snackbar_moved_to_graveyard">Moved to Plant Graveyard</string>
     <string name="snackbar_undo">UNDO</string>
+    <string name="snackbar_plant_hidden">Plant hidden</string>
+    <string name="snackbar_plant_unhidden">Plant unhidden</string>
     <string name="graveyard_title">Plant Graveyard</string>
     <string name="graveyard_empty_state">No plants in the graveyard</string>
     <string name="graveyard_restore_button">Restore</string>
@@ -490,6 +493,20 @@
         <item quantity="one">1 plant archived</item>
         <item quantity="other">%d plants archived</item>
     </plurals>
+
+    <!-- Hidden plants (#915, product ADR-0066) -->
+    <string name="hide_plant">Hide plant</string>
+    <string name="unhide_plant">Unhide plant</string>
+    <string name="hide_plant_hint">Keep it, but leave it out of Care, reminders, the calendar and the plant list. Find it again in Settings.</string>
+    <string name="unhide_plant_hint">This plant is hidden. Unhide it to bring it back to Care, reminders and the plant list.</string>
+    <string name="hidden_plants_settings_title">Hidden plants</string>
+    <plurals name="hidden_plants_settings_subtitle">
+        <item quantity="one">1 plant hidden</item>
+        <item quantity="other">%d plants hidden</item>
+    </plurals>
+    <string name="hidden_plants_title">Hidden plants</string>
+    <string name="hidden_plants_empty_state">No hidden plants</string>
+    <string name="unhide_button">Unhide</string>
 
     <!-- Repotting overview (#525, product ADR-0059) -->
     <string name="repotting_overview_title">Repotting overview</string>

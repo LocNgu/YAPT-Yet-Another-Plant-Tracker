@@ -1018,6 +1018,40 @@ class BackupManagerTest {
     }
 
     @Test
+    fun hiddenPlant_roundTrip_remainsHiddenAndOlderBackupsImportVisible() = runBlocking {
+        fun plant(id: Long, name: String) = PlantEntity(
+            id = id,
+            name = name,
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant(1L, "Monstera"))
+        db.plantDao().insertPlant(plant(2L, "Ficus"))
+        db.plantDao().updateHiddenAt(2L, 6000L)
+
+        val exportFile = tmpFolder.newFile("hidden_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        val exportResult = backupManager.exportBackup(exportUri, includePhotos = false)
+        assertTrue("Expected ExportSuccess", exportResult is BackupResult.ExportSuccess)
+        assertEquals(2, (exportResult as BackupResult.ExportSuccess).plantCount)
+
+        db.plantDao().deleteAll()
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        assertEquals(listOf("Monstera"), db.plantDao().getAllPlants().first().map { it.name })
+        val hidden = db.plantDao().getHiddenPlants().first()
+        assertEquals(listOf("Ficus"), hidden.map { it.name })
+        assertEquals(6000L, hidden[0].hiddenAt)
+    }
+
+    @Test
     fun unreadablePhoto_isSkippedWithoutDanglingUri() = runBlocking {
         val plant = PlantEntity(
             id = 1L,

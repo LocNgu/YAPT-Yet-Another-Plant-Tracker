@@ -31,6 +31,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 23 (#915, product ADR-0066): hiddenAt added to BackupPlant — when the owner hid a living plant
+// from operational surfaces. Old backups deserialize it to null: every plant visible.
 // Schema 22 (#896, product ADR-0065): awayPeriods added to BackupRoot — each trip carries its sitter
 // visits and their plants, dates as ISO-8601 strings. Old backups deserialize to emptyList(): no trips.
 // Schema 21 (#809, product ADR-0057): repotPlanSeasonStartAt, repotPlanMadeAt, and repottingSeasons added
@@ -85,7 +87,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 22
+const val CURRENT_SCHEMA_VERSION = 23
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -244,7 +246,8 @@ class BackupManager(
                                 repotPlanMadeAt = entity.repotPlanMadeAt,
                                 repottingSeasons = SeasonalFertilizing.encode(
                                     SeasonalFertilizing.decode(entity.repottingSeasons)
-                                )
+                                ),
+                                hiddenAt = entity.hiddenAt
                             )
                         }
 
@@ -469,7 +472,8 @@ class BackupManager(
                     repotPlanMadeAt = bp.repotPlanMadeAt,
                     repottingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(bp.repottingSeasons)
-                    )
+                    ),
+                    hiddenAt = bp.hiddenAt
                 )
             }
 

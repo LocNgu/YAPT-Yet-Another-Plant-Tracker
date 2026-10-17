@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.yapt.planttracker.data.entity.PlantEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -366,5 +367,64 @@ class PlantDaoTest {
             assertEquals(9, cleared.wateringIntervalDays)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `hidden plants leave getAllPlants and getAllRooms but stay in getAllNonArchivedPlants`() = runTest {
+        dao.insertPlant(plant(name = "Shown", room = "Living Room"))
+        val hiddenId = dao.insertPlant(plant(name = "Away", room = "Garage"))
+        dao.updateHiddenAt(hiddenId, 7_000L)
+
+        assertEquals(listOf("Shown"), dao.getAllPlants().first().map { it.name })
+        assertEquals(listOf("Living Room"), dao.getAllRooms().first())
+        assertEquals(listOf("Away", "Shown"), dao.getAllNonArchivedPlants().first().map { it.name })
+        assertEquals(listOf("Away", "Shown"), dao.getAllPlantsIncludingArchived().first().map { it.name })
+    }
+
+    @Test
+    fun `getHiddenPlants lists hidden plants newest first and excludes archived and visible ones`() = runTest {
+        val first = dao.insertPlant(plant(name = "First"))
+        val second = dao.insertPlant(plant(name = "Second"))
+        dao.insertPlant(plant(name = "Visible"))
+        val archived = dao.insertPlant(plant(name = "Archived"))
+        dao.updateHiddenAt(first, 1_000L)
+        dao.updateHiddenAt(second, 2_000L)
+        dao.updateHiddenAt(archived, 3_000L)
+        dao.archivePlant(archived, 4_000L)
+
+        assertEquals(listOf("Second", "First"), dao.getHiddenPlants().first().map { it.name })
+        assertEquals(2, dao.getHiddenCount().first())
+    }
+
+    @Test
+    fun `updateHiddenAt sets and clears only the hidden column`() = runTest {
+        val id = dao.insertPlant(plant(name = "Fern").copy(wateringConfidence = 2, pinIntervalToBase = true))
+
+        dao.updateHiddenAt(id, 5_000L)
+        val hidden = dao.getPlantById(id).first()!!
+        assertEquals(5_000L, hidden.hiddenAt)
+        assertEquals(1_000_000L, hidden.updatedAt)
+        assertEquals(2, hidden.wateringConfidence)
+        assertEquals(true, hidden.pinIntervalToBase)
+
+        dao.updateHiddenAt(id, null)
+        assertNull(dao.getPlantById(id).first()!!.hiddenAt)
+        assertEquals(listOf("Fern"), dao.getAllPlants().first().map { it.name })
+    }
+
+    @Test
+    fun `archivePlant and archivePlants clear hiddenAt so a restore comes back visible`() = runTest {
+        val single = dao.insertPlant(plant(name = "Single"))
+        val bulkA = dao.insertPlant(plant(name = "BulkA"))
+        val bulkB = dao.insertPlant(plant(name = "BulkB"))
+        listOf(single, bulkA, bulkB).forEach { dao.updateHiddenAt(it, 1_000L) }
+
+        dao.archivePlant(single, 2_000L)
+        dao.archivePlants(listOf(bulkA, bulkB), 2_000L)
+        assertEquals(0, dao.getHiddenCount().first())
+        assertTrue(dao.getArchivedPlants().first().all { it.hiddenAt == null })
+
+        dao.restorePlants(listOf(single, bulkA, bulkB))
+        assertEquals(listOf("BulkA", "BulkB", "Single"), dao.getAllPlants().first().map { it.name })
     }
 }

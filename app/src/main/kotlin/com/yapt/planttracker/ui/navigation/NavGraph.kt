@@ -55,6 +55,8 @@ import com.yapt.planttracker.ui.screens.calendar.CalendarScreen
 import com.yapt.planttracker.ui.screens.calendar.CalendarViewModel
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
+import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsScreen
+import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
@@ -109,31 +111,6 @@ private fun NavController.navigateInitialDestination(
         navigate(Screen.PlantDetail.createRoute(initialPlantId))
     }
     onConsumed()
-}
-
-// Care is the start destination, so Plants is not guaranteed to sit below Edit Plant on the back
-// stack (Care -> Plant Detail -> Edit). Reuse it when present; otherwise stack it above Care first.
-@androidx.annotation.VisibleForTesting
-internal fun NavController.showArchivedPlantOnPlantList(
-    editEntry: NavBackStackEntry,
-    archivedId: Long,
-    archivedName: String
-) {
-    val existing = runCatching { getBackStackEntry(Screen.PlantList.route) }.getOrNull()
-    if (existing != null) {
-        existing.savedStateHandle["archivedPlantId"] = archivedId
-        existing.savedStateHandle["archivedPlantName"] = archivedName
-        popBackStackOnce(editEntry, Screen.PlantList.route)
-        return
-    }
-    navigate(Screen.PlantList.createRoute()) {
-        popUpTo(graph.findStartDestination().id)
-        launchSingleTop = true
-    }
-    runCatching { getBackStackEntry(Screen.PlantList.route) }.getOrNull()?.savedStateHandle?.let { handle ->
-        handle["archivedPlantId"] = archivedId
-        handle["archivedPlantName"] = archivedName
-    }
 }
 
 @androidx.annotation.VisibleForTesting
@@ -297,12 +274,24 @@ fun YaptNavGraph(
                     onApplied = { pendingCaredTodayDeepLink = false }
                 )
                 LaunchedEffect(vm) {
-                    backStackEntry.savedStateHandle.getStateFlow<Long?>("archivedPlantId", null)
+                    backStackEntry.savedStateHandle.getStateFlow<Long?>(ARCHIVED_PLANT_ID_KEY, null)
                         .collect { plantId ->
                             if (plantId != null) {
-                                val plantName = backStackEntry.savedStateHandle.remove<String>("archivedPlantName") ?: ""
-                                backStackEntry.savedStateHandle.remove<Long>("archivedPlantId")
+                                val plantName =
+                                    backStackEntry.savedStateHandle.remove<String>(ARCHIVED_PLANT_NAME_KEY) ?: ""
+                                backStackEntry.savedStateHandle.remove<Long>(ARCHIVED_PLANT_ID_KEY)
                                 vm.onPlantArchived(plantId, plantName)
+                            }
+                        }
+                }
+                LaunchedEffect(vm) {
+                    backStackEntry.savedStateHandle.getStateFlow<Long?>(HIDDEN_PLANT_ID_KEY, null)
+                        .collect { plantId ->
+                            if (plantId != null) {
+                                val plantName =
+                                    backStackEntry.savedStateHandle.remove<String>(HIDDEN_PLANT_NAME_KEY) ?: ""
+                                backStackEntry.savedStateHandle.remove<Long>(HIDDEN_PLANT_ID_KEY)
+                                vm.onPlantHidden(plantId, plantName)
                             }
                         }
                 }
@@ -354,6 +343,9 @@ fun YaptNavGraph(
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onPlantArchived = { archivedId, archivedName ->
                         navController.showArchivedPlantOnPlantList(backStackEntry, archivedId, archivedName)
+                    },
+                    onPlantHidden = { hiddenId, hiddenName ->
+                        navController.showHiddenPlantOnPlantList(backStackEntry, hiddenId, hiddenName)
                     }
                 )
             }
@@ -442,6 +434,7 @@ fun YaptNavGraph(
                     onRestoreSuccess = navController::showRestoredPlantList,
                     onShowWhatsNew = { showWhatsNew = true },
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
+                    onNavigateToHiddenPlants = { navController.navigate(Screen.HiddenPlants.route) },
                     onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
                     onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
                     onBackupInProgressChanged = { backupInProgress = it },
@@ -457,6 +450,19 @@ fun YaptNavGraph(
                 GraveyardScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
+                )
+            }
+
+            composable(Screen.HiddenPlants.route) { backStackEntry ->
+                val vm: HiddenPlantsViewModel = viewModel(
+                    factory = HiddenPlantsViewModel.Factory(app.plantRepository)
+                )
+                HiddenPlantsScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToPlant = { plantId ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId))
+                    }
                 )
             }
 

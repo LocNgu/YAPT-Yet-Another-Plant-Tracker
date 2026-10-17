@@ -21,6 +21,9 @@ paths:
   - `searchQueryText` is a synchronous `var … by mutableStateOf("")` for the TextField. The same `setSearchQuery()` also updates the private `MutableStateFlow` the combine reads, so the two can't drift.
   - Auto-focus on a fresh icon tap uses a consumed-once `pendingSearchAutoFocus` field, not a `Flow` (a `SharedFlow` emission can race its `LaunchedEffect` collector).
 
+## Hidden plants (#915, product ADR-0066)
+- `getAllPlants()`/`getAllRooms()` exclude hidden plants, so the list, search, sort, room chips and multi-select never see them. When no plant is visible but `hiddenCount > 0`, the empty state reads `no_plants_all_hidden` (points to Settings → Hidden plants). "Hidden" elsewhere in this file means scrolled or filtered out, not this state. Details: `rules/hidden-plants.md`.
+
 ## Multi-select is sticky (#449, product ADR-0063)
 - **`selectedPlantIds` is never reconciled against what is visible.** Room chips (which stay enabled while selecting), sort filters, search and day changes never add to or prune it. No auto-pruning anywhere.
 - **Room-chip dots:** in selection mode, a room chip (Unassigned included, never "All") whose room holds ≥ 1 selected plant shows a primary-color dot and a `stateDescription` ("Contains selected plants"), via `RoomFilterChip`. The bar stays a plain `N selected`.

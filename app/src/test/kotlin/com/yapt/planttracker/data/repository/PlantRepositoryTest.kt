@@ -370,4 +370,42 @@ class PlantRepositoryTest {
         assertEquals(360, plant.repottingIntervalDays)
         assertEquals(setOf(FertilizingSeason.SPRING), plant.repottingSeasons)
     }
+
+    @Test
+    fun `hidePlant and unhidePlant move a plant out of and back into getAllPlants`() = runTest {
+        val id = repo.addPlant(samplePlant(name = "Fern"))
+
+        repo.hidePlant(id, timestamp = 7_000L)
+        assertEquals(emptyList<String>(), repo.getAllPlants().first().map { it.name })
+        assertEquals(listOf("Fern"), repo.getHiddenPlants().first().map { it.name })
+        assertEquals(7_000L, repo.getPlantById(id).first()!!.hiddenAt)
+        assertEquals(1, repo.getHiddenCount().first())
+        assertEquals(listOf("Fern"), repo.getAllNonArchivedPlants().first().map { it.name })
+
+        repo.unhidePlant(id)
+        assertEquals(listOf("Fern"), repo.getAllPlants().first().map { it.name })
+        assertEquals(0, repo.getHiddenCount().first())
+    }
+
+    @Test
+    fun `updatePlant round-trips hiddenAt through the entity mapping`() = runTest {
+        val id = repo.addPlant(samplePlant(name = "Fern").copy(hiddenAt = 9_000L))
+
+        assertEquals(9_000L, repo.getPlantById(id).first()!!.hiddenAt)
+        repo.updatePlant(repo.getPlantById(id).first()!!.copy(notes = "edited"))
+        assertEquals(9_000L, repo.getPlantById(id).first()!!.hiddenAt)
+    }
+
+    @Test
+    fun `archiving a hidden plant clears hiddenAt`() = runTest {
+        val id = repo.addPlant(samplePlant(name = "Fern"))
+        repo.hidePlant(id, timestamp = 7_000L)
+
+        repo.archivePlant(id, timestamp = 8_000L)
+
+        assertNull(repo.getPlantById(id).first()!!.hiddenAt)
+        assertEquals(0, repo.getHiddenCount().first())
+        repo.restorePlant(id)
+        assertEquals(listOf("Fern"), repo.getAllPlants().first().map { it.name })
+    }
 }

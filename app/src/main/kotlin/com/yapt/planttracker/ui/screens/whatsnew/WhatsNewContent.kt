@@ -25,7 +25,10 @@ object WhatsNewContent {
                 "don't ask \"Why now?\" for them",
             "A plant-sitter list for your trip: choose how often a sitter should come, water what would run dry on " +
                 "your last day at home, plan each visit while you're away and share a photo list of the plants to " +
-                "water (and the ones to leave dry) as a PDF or as text"
+                "water (and the ones to leave dry) as a PDF or as text",
+            "Hide a plant you still own but don't want to see right now: Hide plant on Edit Plant takes it out of " +
+                "Care, reminders, the Calendar and your plant list without moving it to the Graveyard. Find hidden " +
+                "plants again under Settings, Hidden plants, where you can unhide them"
         )
     )
 

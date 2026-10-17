@@ -128,6 +128,10 @@ class SettingsViewModel(
     val graveyardCount: StateFlow<Int> = plantRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /** Drives the "Hidden plants" row, shown only while this is above zero (#915, product ADR-0066). */
+    val hiddenCount: StateFlow<Int> = plantRepository.getHiddenCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     /**
      * The Repotting overview row's subtitle (#525, product ADR-0059). Built from the same
      * [observeRepottingOverview] pipeline the page uses, so the count can't drift from its list.

@@ -117,6 +117,14 @@ class WateringOverviewBuilderTest {
     }
 
     @Test
+    fun `hidden plants never appear in the watering overview`() {
+        val overview = build(listOf(plant(1, interval = 2), plant(2, interval = 2).copy(hiddenAt = 5L)))
+
+        assertEquals(listOf(1L), overview.sections.flatMap { s -> s.items.map { it.plant.id } })
+        assertEquals(1, overview.totalCount)
+    }
+
+    @Test
     fun `counts sum to the total and resting plants are not on a schedule`() {
         val overview = build(
             listOf(

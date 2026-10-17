@@ -259,6 +259,18 @@ class RepottingOverviewBuilderTest {
     }
 
     @Test
+    fun `hidden plants are excluded everywhere`() {
+        val hidden = plant(1).copy(hiddenAt = millis(2026, 1, 1))
+        val hiddenPlanned = plant(2, repotPlanSeasonStartAt = millis(2027, 3, 1)).copy(hiddenAt = millis(2026, 1, 1))
+        for (chip in RepottingOverviewThreshold.entries) {
+            val result = build(listOf(hidden, hiddenPlanned), threshold = chip)
+            assertTrue(chip.name, result.items.isEmpty())
+            assertTrue(chip.name, result.planned.isEmpty())
+            assertEquals(chip.name, 0, result.count)
+        }
+    }
+
+    @Test
     fun `plant without a repotting interval is listed like any other`() {
         val noInterval = plant(1).copy(repottingIntervalDays = null)
         val withInterval = plant(2).copy(repottingIntervalDays = 365)

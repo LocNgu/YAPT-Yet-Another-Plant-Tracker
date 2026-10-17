@@ -60,6 +60,19 @@ class RepottingOverviewFlowTest {
     }
 
     @Test
+    fun `reports no active plants when every plant is hidden`() = runTest {
+        val hiddenOnly = observeRepottingOverview(
+            flowOf(listOf(plant(1).copy(hiddenAt = 5L))),
+            flowOf(emptyMap()),
+            flowOf(RepottingOverviewThreshold.NEVER),
+            flowOf(today)
+        ).first()
+
+        assertFalse(hiddenOnly.hasActivePlants)
+        assertTrue(hiddenOnly.overview.items.isEmpty())
+    }
+
+    @Test
     fun `re-evaluates when any input changes, including the day`() = runTest {
         val plants = MutableStateFlow(listOf(plant(1, createdAt = LocalDate.of(2024, 10, 1))))
         val threshold = MutableStateFlow(RepottingOverviewThreshold.TWO_YEARS)

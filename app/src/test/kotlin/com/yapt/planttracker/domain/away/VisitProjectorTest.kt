@@ -342,6 +342,15 @@ class VisitProjectorTest {
     }
 
     @Test
+    fun `hidden plants never appear`() {
+        val plants = listOf(plant(1, interval = 3).copy(hiddenAt = 1L), plant(2, interval = 3))
+
+        val result = project(plants, listOf(water(1, day(10)), water(2, day(10))))
+
+        assertEquals(listOf(2L), result.listedIds())
+    }
+
+    @Test
     fun `a pre-trip watering not yet logged is assumed done on the last day at home`() {
         val plants = listOf(plant(1, interval = 10), plant(2, interval = 11))
 

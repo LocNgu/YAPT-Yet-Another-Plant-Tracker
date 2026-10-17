@@ -239,6 +239,25 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
+    fun `hidden plants produce no tasks and are not counted as active`() {
+        val hidden = plant(id = 1L, wateringIntervalDays = 1).copy(hiddenAt = millis(today))
+        val shown = plant(id = 2L, wateringIntervalDays = 1)
+        val result = TodayQueueAggregator.build(
+            input(
+                plants = listOf(hidden, shown),
+                logs = listOf(
+                    log(hidden.id, CareType.WATER, today.minusDays(5)),
+                    log(shown.id, CareType.WATER, today.minusDays(5))
+                )
+            )
+        )
+
+        assertEquals(1, result.activePlantCount)
+        assertTrue(result.tasks.all { it.plant.id == shown.id })
+        assertTrue(result.tasks.isNotEmpty())
+    }
+
+    @Test
     fun `dormant cadence watering participates normally`() {
         val plant = plant(
             wateringIntervalDays = 30,

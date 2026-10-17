@@ -51,6 +51,7 @@ class PlantListViewModelAwayTest {
         val plantRepo: PlantRepository = mockk {
             every { getAllPlants() } returns flowOf(listOf(plant))
             every { getAllRooms() } returns flowOf(emptyList())
+            every { getHiddenCount() } returns flowOf(0)
         }
         val careLogRepo: CareLogRepository = mockk {
             every { logCount } returns flowOf(0)

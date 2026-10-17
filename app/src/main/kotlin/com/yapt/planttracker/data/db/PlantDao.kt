@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PlantDao {
 
-    @Query("SELECT * FROM plants WHERE archivedAt IS NULL ORDER BY name ASC")
+    @Query(
+        "SELECT * FROM plants WHERE archivedAt IS NULL AND hiddenAt IS NULL ORDER BY name ASC"
+    )
     fun getAllPlants(): Flow<List<PlantEntity>>
 
     @Query("SELECT * FROM plants WHERE id = :plantId")
@@ -22,7 +24,10 @@ interface PlantDao {
     @Delete
     suspend fun deletePlant(plant: PlantEntity)
 
-    @Query("SELECT DISTINCT room FROM plants WHERE room IS NOT NULL AND archivedAt IS NULL ORDER BY room ASC")
+    @Query(
+        "SELECT DISTINCT room FROM plants " +
+            "WHERE room IS NOT NULL AND archivedAt IS NULL AND hiddenAt IS NULL ORDER BY room ASC"
+    )
     fun getAllRooms(): Flow<List<String>>
 
     @Query("DELETE FROM plants")
@@ -45,7 +50,29 @@ interface PlantDao {
     @Query("SELECT COUNT(*) FROM plants WHERE archivedAt IS NOT NULL")
     fun getArchivedCount(): Flow<Int>
 
-    @Query("UPDATE plants SET archivedAt = :timestamp WHERE id = :id")
+    /** Living plants the owner hid (#915), most recently hidden first. Archived plants are never listed here. */
+    @Query("SELECT * FROM plants WHERE archivedAt IS NULL AND hiddenAt IS NOT NULL ORDER BY hiddenAt DESC")
+    fun getHiddenPlants(): Flow<List<PlantEntity>>
+
+    @Query("SELECT COUNT(*) FROM plants WHERE archivedAt IS NULL AND hiddenAt IS NOT NULL")
+    fun getHiddenCount(): Flow<Int>
+
+    /**
+     * Every non-archived plant, visible and hidden alike (#915) — for background passes that must still
+     * reach hidden plants, such as the seasonal graduation fixup, which [getAllPlants] would skip.
+     */
+    @Query("SELECT * FROM plants WHERE archivedAt IS NULL ORDER BY name ASC")
+    fun getAllNonArchivedPlants(): Flow<List<PlantEntity>>
+
+    /**
+     * Column-specific hide/unhide (#915, technical ADR-0036): touches only `hiddenAt`, so a concurrent
+     * edit to any other column can't be reverted. Deliberately leaves `updatedAt` alone — hiding is a
+     * view preference, not an edit of the plant's care data.
+     */
+    @Query("UPDATE plants SET hiddenAt = :hiddenAt WHERE id = :id")
+    suspend fun updateHiddenAt(id: Long, hiddenAt: Long?)
+
+    @Query("UPDATE plants SET archivedAt = :timestamp, hiddenAt = NULL WHERE id = :id")
     suspend fun archivePlant(id: Long, timestamp: Long)
 
     @Query("UPDATE plants SET archivedAt = NULL WHERE id = :id")
@@ -108,7 +135,7 @@ interface PlantDao {
 
     // Single-statement batch variants so bulk archive/restore apply atomically — a killed
     // process can't leave some of the selected plants archived and others not (#448).
-    @Query("UPDATE plants SET archivedAt = :timestamp WHERE id IN (:ids)")
+    @Query("UPDATE plants SET archivedAt = :timestamp, hiddenAt = NULL WHERE id IN (:ids)")
     suspend fun archivePlants(ids: List<Long>, timestamp: Long)
 
     @Query("UPDATE plants SET archivedAt = NULL WHERE id IN (:ids)")

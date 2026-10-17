@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -111,6 +112,7 @@ fun SettingsScreen(
     onRestoreSuccess: (plantCount: Int, logCount: Int) -> Unit,
     onShowWhatsNew: () -> Unit,
     onNavigateToGraveyard: () -> Unit = {},
+    onNavigateToHiddenPlants: () -> Unit = {},
     onNavigateToRepottingOverview: () -> Unit = {},
     onNavigateToWateringOverview: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {},
@@ -129,6 +131,7 @@ fun SettingsScreen(
     val fertilizingNotificationsEnabled by viewModel.fertilizingNotificationsEnabled.collectAsStateWithLifecycle()
     val postWateringReminderEnabled by viewModel.postWateringReminderEnabled.collectAsStateWithLifecycle()
     val graveyardCount by viewModel.graveyardCount.collectAsStateWithLifecycle()
+    val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val repottingOverviewSummary by viewModel.repottingOverviewSummary.collectAsStateWithLifecycle()
     val reminderHour by viewModel.reminderHour.collectAsStateWithLifecycle()
     val reminderMinute by viewModel.reminderMinute.collectAsStateWithLifecycle()
@@ -709,6 +712,19 @@ fun SettingsScreen(
                 subtitle = pluralStringResource(R.plurals.graveyard_settings_subtitle, graveyardCount, graveyardCount),
                 onClick = onNavigateToGraveyard
             )
+
+            if (hiddenCount > 0) {
+                SettingsItemRow(
+                    icon = Icons.Filled.VisibilityOff,
+                    title = stringResource(R.string.hidden_plants_settings_title),
+                    subtitle = pluralStringResource(
+                        R.plurals.hidden_plants_settings_subtitle,
+                        hiddenCount,
+                        hiddenCount
+                    ),
+                    onClick = onNavigateToHiddenPlants
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
