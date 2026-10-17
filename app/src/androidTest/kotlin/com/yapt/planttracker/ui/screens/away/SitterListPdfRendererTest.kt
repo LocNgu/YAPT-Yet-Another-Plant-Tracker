@@ -1,6 +1,8 @@
 package com.yapt.planttracker.ui.screens.away
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.test.core.app.ApplicationProvider
@@ -9,8 +11,10 @@ import com.yapt.planttracker.domain.away.SitterList
 import com.yapt.planttracker.domain.away.SitterListPlant
 import com.yapt.planttracker.domain.away.SitterListRoom
 import com.yapt.planttracker.domain.away.SitterPdfLayout
+import com.yapt.planttracker.util.ImageUtils
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,10 +27,21 @@ class SitterListPdfRendererTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val file = File(context.cacheDir, "sitter-renderer-test.pdf")
+    private val photoFiles = mutableListOf<File>()
 
     @After
     fun tearDown() {
         file.delete()
+        photoFiles.forEach { it.delete() }
+    }
+
+    private fun jpeg(dir: File, name: String): File {
+        dir.mkdirs()
+        val photo = File(dir, name).also { photoFiles += it }
+        val bitmap = Bitmap.createBitmap(64, 48, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        bitmap.recycle()
+        return photo
     }
 
     private fun plant(id: Long, photo: String? = null, missed: Boolean = false) = SitterListPlant(
@@ -73,5 +88,20 @@ class SitterListPdfRendererTest {
         SitterListPdfRenderer.write(context, sitterList, file)
 
         assertEquals(1, pageCount(file))
+    }
+
+    @Test
+    fun aRestoredCoverStoredAsABarePathIsRead() {
+        val photo = jpeg(File(context.filesDir, "restored_photos"), "sitter-test-restored.jpg")
+
+        assertNotNull(SitterPhotoLoader.load(context, photo.absolutePath))
+    }
+
+    @Test
+    fun aCameraCoverThroughTheAppFileProviderIsRead() {
+        val photo = jpeg(File(context.filesDir, "images"), "sitter-test-camera.jpg")
+        val uri = ImageUtils.createCameraImageUri(context, photo)
+
+        assertNotNull(SitterPhotoLoader.load(context, uri.toString()))
     }
 }

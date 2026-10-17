@@ -31,4 +31,4 @@ paths:
 
 ## The sitter-list share file (#899, product ADR-0065)
 - The PDF a plant sitter receives is written to `cacheDir/sitter_lists/` and shared through the existing `FileProvider` (`file_paths.xml` `cache-path`). It is a **cache file, not a photo**: `OrphanPhotoSweeper` reconciles only `filesDir/images` and `filesDir/restored_photos` and never touches it, and no table references it. The next share deletes the previous one (`SitterShare.newPdfFile`); the OS reclaims the rest with the cache.
-- It only **reads** cover photos (`SitterPhotoLoader`, downscaled while decoding, never modified, never written back). A cover URI that can't be opened just draws the "No photo" box, so a photo removed since the plan never fails the share.
+- It only **reads** cover photos (`SitterPhotoLoader`, downscaled while decoding, never modified, never written back). A restored cover is a bare absolute path, which `ContentResolver` can't open, so `SitterPhotoLoader.photoUri` turns it into a `file://` URI first. A cover URI that can't be opened just draws the "No photo" box, so a photo removed since the plan never fails the share.

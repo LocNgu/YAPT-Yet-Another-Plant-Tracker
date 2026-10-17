@@ -7,8 +7,10 @@ import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.RectF
 import android.media.ExifInterface
+import android.net.Uri
 import androidx.core.net.toUri
 import com.yapt.planttracker.util.ImageUtils
+import java.io.File
 import java.io.InputStream
 
 /** Reads a plant's cover photo for the sitter PDF, downscaled while decoding so 70-odd photos stay cheap. */
@@ -21,7 +23,7 @@ internal object SitterPhotoLoader {
 
     /** A downscaled, upright copy of the photo at [uriString], or `null` when it can't be read. */
     fun load(context: Context, uriString: String): Bitmap? = runCatching {
-        val uri = uriString.toUri()
+        val uri = photoUri(uriString)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
@@ -34,6 +36,12 @@ internal object SitterPhotoLoader {
         val degrees = context.contentResolver.openInputStream(uri)?.use { rotationDegrees(it) } ?: 0f
         if (degrees == 0f) decoded else rotated(decoded, degrees)
     }.getOrNull()
+
+    /**
+     * The stored cover reference as a URI `ContentResolver` can open. A `.yapt` restore stores a bare absolute path
+     * (no scheme), which only a `file://` URI reaches; camera and gallery covers are already `content://`.
+     */
+    fun photoUri(ref: String): Uri = if (ref.contains("://")) ref.toUri() else Uri.fromFile(File(ref))
 
     /** The source rectangle that fills [box] from the middle of [bitmap] without distortion. */
     fun centerCrop(bitmap: Bitmap, box: RectF): Rect {
