@@ -80,9 +80,12 @@ private fun planState(
     )
 }
 
-/** The trip's latest visit up to today, when it was never answered. */
+/**
+ * The trip's latest visit before today, when it was never answered. A visit on today itself may not have
+ * happened yet, and planning it must not flip the screen into its own checklist, so it waits for tomorrow.
+ */
 private fun visitToConfirm(visits: List<SitterVisit>, today: LocalDate): SitterVisit? = visits
-    .filter { it.day <= today }
+    .filter { it.day < today }
     .maxWithOrNull(compareBy({ it.day }, { it.id }))
     ?.takeIf { it.state == SitterVisitState.PLANNED }
 
