@@ -21,10 +21,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -32,27 +34,46 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.AwayTripStatus
+import kotlinx.coroutines.launch
 
 /** Settings' always-visible Away mode section (product ADR-0065); [onMessage] shows a snackbar on the host. */
 @Composable
-fun AwayModeSettingsSection(viewModel: AwayModeViewModel, onMessage: (String) -> Unit) {
+fun AwayModeSettingsSection(
+    viewModel: AwayModeViewModel,
+    onMessage: (String) -> Unit,
+    navigation: AwayModeNavigation = AwayModeNavigation()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     AwayModeEventsEffect(viewModel, onMessage)
+    val scope = rememberCoroutineScope()
     state?.let { current ->
         AwayModeSettingsContent(
             state = current,
             actions = AwayModeActions(
-                onSave = { first, last, editingId -> viewModel.saveTrip(first, last, editingId) },
+                onSave = { first, last, editingId ->
+                    val saved = viewModel.saveTrip(first, last, editingId)
+                    // The rhythm step follows a new trip, once it is stored, so the screen never opens on "no trip".
+                    if (editingId == null) {
+                        scope.launch {
+                            saved.join()
+                            navigation.onSitterRhythm()
+                        }
+                    }
+                },
                 onCancelTrip = { viewModel.cancelTrip() },
                 onImBack = { viewModel.imBack() }
-            )
+            ),
+            navigation = navigation
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun AwayModeSettingsContent(state: AwayModeUiState, actions: AwayModeActions) {
+internal fun AwayModeSettingsContent(
+    state: AwayModeUiState,
+    actions: AwayModeActions,
+    navigation: AwayModeNavigation = AwayModeNavigation()
+) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
     val trip = when (val status = state.status) {
         AwayTripStatus.None -> null
@@ -73,23 +94,8 @@ internal fun AwayModeSettingsContent(state: AwayModeUiState, actions: AwayModeAc
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
     )
     AwayModeStatusRow(state)
-    FlowRow(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        when (state.status) {
-            AwayTripStatus.None ->
-                Button(onClick = { showSheet = true }) { Text(stringResource(R.string.away_action_plan)) }
-            is AwayTripStatus.Upcoming -> {
-                OutlinedButton(onClick = { showSheet = true }) { Text(stringResource(R.string.away_action_edit)) }
-                TextButton(onClick = actions.onCancelTrip) { Text(stringResource(R.string.away_action_cancel)) }
-            }
-            is AwayTripStatus.Away -> {
-                OutlinedButton(onClick = { showSheet = true }) { Text(stringResource(R.string.away_action_edit)) }
-                Button(onClick = actions.onImBack) { Text(stringResource(R.string.away_action_back)) }
-            }
-        }
-    }
+    AwayModeTripButtons(state, actions, onEditDates = { showSheet = true }, onPlan = { showSheet = true })
+    AwayModeSitterButtons(state, navigation)
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
     if (showSheet) {
@@ -133,6 +139,9 @@ private fun AwayModeStatusRow(state: AwayModeUiState) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            awayRhythmText(state)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -152,4 +161,69 @@ private fun awayStatusText(state: AwayModeUiState): String = when (val status = 
         awayDayText(status.trip.lastDay, state.today),
         awayDayText(status.trip.lastDay.plusDays(1), state.today)
     )
+}
+
+@Composable
+private fun awayRhythmText(state: AwayModeUiState): String? {
+    val trip = when (val status = state.status) {
+        AwayTripStatus.None -> null
+        is AwayTripStatus.Upcoming -> status.trip
+        is AwayTripStatus.Away -> status.trip
+    }
+    val days = trip?.visitEveryDays
+    return when {
+        trip == null -> null
+        days == null -> stringResource(R.string.away_rhythm_not_set)
+        else -> pluralStringResource(R.plurals.away_rhythm_set, days, days)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AwayModeTripButtons(
+    state: AwayModeUiState,
+    actions: AwayModeActions,
+    onEditDates: () -> Unit,
+    onPlan: () -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        when (state.status) {
+            AwayTripStatus.None ->
+                Button(onClick = onPlan) { Text(stringResource(R.string.away_action_plan)) }
+            is AwayTripStatus.Upcoming -> {
+                OutlinedButton(onClick = onEditDates) { Text(stringResource(R.string.away_action_edit)) }
+                TextButton(onClick = actions.onCancelTrip) { Text(stringResource(R.string.away_action_cancel)) }
+            }
+            is AwayTripStatus.Away -> {
+                OutlinedButton(onClick = onEditDates) { Text(stringResource(R.string.away_action_edit)) }
+                Button(onClick = actions.onImBack) { Text(stringResource(R.string.away_action_back)) }
+            }
+        }
+    }
+}
+
+/** The slice-4 entry points (product ADR-0065): the sitter rhythm, planning a visit, and Before you leave. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AwayModeSitterButtons(state: AwayModeUiState, navigation: AwayModeNavigation) {
+    if (state.status == AwayTripStatus.None) return
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedButton(onClick = navigation.onSitterRhythm) {
+            Text(stringResource(R.string.away_action_sitter_rhythm))
+        }
+        OutlinedButton(onClick = navigation.onPlanVisit) {
+            Text(stringResource(R.string.away_action_plan_visit))
+        }
+        if (state.isLastDayAtHome) {
+            OutlinedButton(onClick = navigation.onBeforeYouLeave) {
+                Text(stringResource(R.string.away_action_before_leave))
+            }
+        }
+    }
 }

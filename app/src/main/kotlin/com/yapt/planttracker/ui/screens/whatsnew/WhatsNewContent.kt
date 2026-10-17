@@ -22,7 +22,10 @@ object WhatsNewContent {
                 "your plants' due dates stay untouched. A banner on Care shows while you're away, and for a week " +
                 "before you leave",
             "Waterings logged while you're away no longer change how often YAPT thinks a plant needs water, and " +
-                "don't ask \"Why now?\" for them"
+                "don't ask \"Why now?\" for them",
+            "A plant-sitter list for your trip: choose how often a sitter should come, water what would run dry on " +
+                "your last day at home, plan each visit while you're away and share a photo list of the plants to " +
+                "water (and the ones to leave dry) as a PDF or as text"
         )
     )
 

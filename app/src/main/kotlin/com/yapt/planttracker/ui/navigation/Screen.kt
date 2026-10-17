@@ -37,6 +37,12 @@ sealed class Screen(val route: String) {
 
     object WateringOverview : Screen("watering_overview")
 
+    object SitterRhythm : Screen("sitter_rhythm")
+
+    object BeforeYouLeave : Screen("before_you_leave")
+
+    object PlanSitterVisit : Screen("plan_sitter_visit")
+
     object Today : Screen("today")
 
     object Calendar : Screen("calendar")
