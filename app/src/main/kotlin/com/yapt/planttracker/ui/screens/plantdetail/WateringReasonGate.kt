@@ -1,5 +1,7 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import com.yapt.planttracker.domain.away.AwayPeriods
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.DormancyWindow
@@ -23,7 +25,8 @@ import com.yapt.planttracker.util.toLocalDate
 internal data class QuickWaterGateContext(
     val plant: Plant,
     val seasonalAmplitude: Double,
-    val viewModel: PlantDetailViewModel
+    val viewModel: PlantDetailViewModel,
+    val awayPeriods: List<AwayPeriod>
 )
 
 /**
@@ -52,7 +55,8 @@ internal data class PendingReasonPrompt(val loggedAt: Long, val previousWatering
  *
  * [isChosenDateDormancySpanning] is a second, independent reason to skip the prompt (#699/#761,
  * product ADR-0044) — a gap that overlaps the plant's dormancy window asks an incoherent question of
- * a plant that was asleep.
+ * a plant that was asleep. [isChosenDateAwaySpanning] is a third (Away mode, #897, product ADR-0065):
+ * a gap that overlaps a trip is excluded from learning, including for a backdated picked date.
  */
 internal fun requestWater(
     context: QuickWaterGateContext,
@@ -61,7 +65,8 @@ internal fun requestWater(
     showReasonSheet: () -> Unit
 ) {
     if (isChosenDateOnSchedule(context.plant, previousWateringAt, loggedAt, context.seasonalAmplitude) ||
-        isChosenDateDormancySpanning(context.plant, previousWateringAt, loggedAt)
+        isChosenDateDormancySpanning(context.plant, previousWateringAt, loggedAt) ||
+        isChosenDateAwaySpanning(context.awayPeriods, previousWateringAt, loggedAt)
     ) {
         context.viewModel.quickWater(reason = null, loggedAt = loggedAt)
     } else {
@@ -77,7 +82,8 @@ internal fun requestLiquidFertilize(
     showReasonSheet: () -> Unit
 ) {
     if (isChosenDateOnSchedule(context.plant, previousWateringAt, loggedAt, context.seasonalAmplitude) ||
-        isChosenDateDormancySpanning(context.plant, previousWateringAt, loggedAt)
+        isChosenDateDormancySpanning(context.plant, previousWateringAt, loggedAt) ||
+        isChosenDateAwaySpanning(context.awayPeriods, previousWateringAt, loggedAt)
     ) {
         context.viewModel.quickLiquidFertilize(reason = null, loggedAt = loggedAt)
     } else {
@@ -140,3 +146,16 @@ internal fun isChosenDateGapLong(
 internal fun isChosenDateDormancySpanning(plant: Plant, lastWateredAt: Long?, chosenDate: Long): Boolean =
     lastWateredAt != null &&
         DormancyWindow.spansDormancy(plant.dormancyStartMonth, plant.dormancyEndMonth, lastWateredAt, chosenDate)
+
+/**
+ * Whether the gap [lastWateredAt]→[chosenDate] overlaps an away trip (Away mode, #897, product
+ * ADR-0065) — the third independent reason to skip [WateringReasonBottomSheet], and the only one that
+ * reads [AwayPeriods.spansAway], the same predicate the observation itself uses, so the gate and the
+ * learning exclusion can't disagree. `false` with no predecessor, matching its siblings.
+ */
+internal fun isChosenDateAwaySpanning(
+    awayPeriods: List<AwayPeriod>,
+    lastWateredAt: Long?,
+    chosenDate: Long
+): Boolean =
+    lastWateredAt != null && AwayPeriods.spansAway(awayPeriods, lastWateredAt, chosenDate)

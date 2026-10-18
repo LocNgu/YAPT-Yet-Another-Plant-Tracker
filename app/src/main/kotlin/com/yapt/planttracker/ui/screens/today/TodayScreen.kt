@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,24 +49,33 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.screens.away.AwayModeBanner
+import com.yapt.planttracker.ui.screens.away.AwayModeNavigation
+import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
+import com.yapt.planttracker.ui.screens.away.ConfirmVisitViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
+import kotlinx.coroutines.launch
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
 private const val TODAY_ADD_PLANT_TAG = "today_add_plant"
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod", "LongParameterList")
 @Composable
 fun TodayScreen(
     viewModel: TodayViewModel,
     onNavigateToPlant: (Long, PlantDetailTab?) -> Unit,
     onNavigateToAdd: () -> Unit,
-    onLaunchPhotoCapture: ((Long) -> Unit)? = null
+    onLaunchPhotoCapture: ((Long) -> Unit)? = null,
+    awayModeViewModel: AwayModeViewModel? = null,
+    awayModeNavigation: AwayModeNavigation = AwayModeNavigation(),
+    confirmVisitViewModel: ConfirmVisitViewModel? = null
 ) {
+    val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var reasonTaskId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -126,20 +137,30 @@ fun TodayScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_tab_today)) }) }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            when (val state = uiState) {
-                TodayUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                TodayUiState.Error -> TodayErrorState(viewModel::retry)
-                is TodayUiState.Ready -> when {
-                    state.snapshot.activePlantCount == 0 -> TodayFirstUseState(viewModel::addPlant)
-                    state.snapshot.tasks.isEmpty() -> TodayCaughtUpState()
-                    else -> TodayCareGrid(
-                        tasks = state.snapshot.tasks,
-                        gridState = gridState,
-                        collapsedGroups = collapsedGroups,
-                        onToggleGroup = { collapsedGroups = collapsedGroups.toggled(it) },
-                        actions = actions
-                    )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            awayModeViewModel?.let { vm ->
+                AwayModeBanner(
+                    vm,
+                    onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+                    navigation = awayModeNavigation,
+                    confirmVisitViewModel = confirmVisitViewModel
+                )
+            }
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                when (val state = uiState) {
+                    TodayUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    TodayUiState.Error -> TodayErrorState(viewModel::retry)
+                    is TodayUiState.Ready -> when {
+                        state.snapshot.activePlantCount == 0 -> TodayFirstUseState(viewModel::addPlant)
+                        state.snapshot.tasks.isEmpty() -> TodayCaughtUpState()
+                        else -> TodayCareGrid(
+                            tasks = state.snapshot.tasks,
+                            gridState = gridState,
+                            collapsedGroups = collapsedGroups,
+                            onToggleGroup = { collapsedGroups = collapsedGroups.toggled(it) },
+                            actions = actions
+                        )
+                    }
                 }
             }
         }
@@ -310,7 +331,7 @@ private fun requestCompletion(
     when (task.kind) {
         TodayCareKind.WATER -> {
             val action = task.wateringAction
-            if (action?.isOnSchedule != false || action.isDormancySpanning) {
+            if (action == null || action.skipsReasonPrompt) {
                 viewModel.completeWater(task.id, null)
             } else {
                 requestReason()
@@ -318,7 +339,7 @@ private fun requestCompletion(
         }
         TodayCareKind.WATER_AND_FERTILIZE -> {
             val action = task.wateringAction
-            if (action?.isOnSchedule != false || action.isDormancySpanning) {
+            if (action == null || action.skipsReasonPrompt) {
                 viewModel.completeFertilizing(task.id, null)
             } else {
                 requestReason()

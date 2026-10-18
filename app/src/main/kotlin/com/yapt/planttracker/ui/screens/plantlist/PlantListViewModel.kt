@@ -13,9 +13,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.R
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -54,7 +57,8 @@ class PlantListViewModel(
     private val quickLogUseCase: QuickLogUseCase,
     private val plantIssueRepository: PlantIssueRepository,
     private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
-    private val nowProvider: () -> Long = System::currentTimeMillis
+    private val nowProvider: () -> Long = System::currentTimeMillis,
+    awayPeriodRepository: AwayPeriodRepository? = null
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -150,6 +154,18 @@ class PlantListViewModel(
         dayChangeFlow
     ) { sort, _ -> sort }
 
+    /** Everything [buildStatus] reads from settings-like sources, folded into one flow (5-flow limit, #550). */
+    private data class StatusInputs(val seasonalAmplitude: Double, val awayPeriods: List<AwayPeriod>)
+
+    /**
+     * Folds the away periods (Away mode, #897, product ADR-0065) in with the seasonal amplitude so the
+     * main [plantsWithStatusBeforeSearch] `combine()` stays at the 5-flow limit of the typed overloads.
+     */
+    private val statusInputs: Flow<StatusInputs> = combine(
+        dataStore.seasonalAmplitudeFlow(),
+        awayPeriodRepository?.observeAll() ?: flowOf(emptyList())
+    ) { seasonalAmplitude, awayPeriods -> StatusInputs(seasonalAmplitude, awayPeriods) }
+
     // DB-bound: room filter -> buildStatus()'s per-plant Room queries -> applySortOrder(). Search
     // (#512) is deliberately not an input here — see plantsWithStatus below.
     private val plantsWithStatusBeforeSearch: StateFlow<List<PlantCareStatus>> = combine(
@@ -157,8 +173,8 @@ class PlantListViewModel(
         careLogRepository.logCount,
         selectedRoom,
         sortOrderOrDayChanged,
-        dataStore.seasonalAmplitudeFlow()
-    ) { plants, _, room, sort, seasonalAmplitude ->
+        statusInputs
+    ) { plants, _, room, sort, inputs ->
         // Captured once, up front, before any of buildStatus()'s suspend careLogRepository calls
         // (which take real time) — so the CARED_FOR_TODAY day-range check and every status's own
         // overdue/due math (CareSchedule.computeStatus()'s default now) agree on the same instant,
@@ -171,7 +187,7 @@ class PlantListViewModel(
         }
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in filtered) {
-            statusList.add(buildStatus(plant, seasonalAmplitude, now))
+            statusList.add(buildStatus(plant, inputs, now))
         }
         val caredTodayAt = if (sort.option == SortOption.CARED_FOR_TODAY) {
             val (start, end) = DateUtils.todayRangeMillis(now)
@@ -227,6 +243,23 @@ class PlantListViewModel(
 
     fun undoArchive(plantId: Long) {
         viewModelScope.launch { plantRepository.restorePlant(plantId) }
+    }
+
+    /** Drives the "every plant is hidden" empty state, which points at Settings -> Hidden plants (#915). */
+    val hiddenCount: StateFlow<Int> = plantRepository.getHiddenCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    data class HiddenEvent(val plantId: Long, val plantName: String)
+
+    private val _hiddenEvent = MutableSharedFlow<HiddenEvent>()
+    val hiddenEvent: SharedFlow<HiddenEvent> = _hiddenEvent.asSharedFlow()
+
+    fun onPlantHidden(plantId: Long, plantName: String) {
+        viewModelScope.launch { _hiddenEvent.emit(HiddenEvent(plantId, plantName)) }
+    }
+
+    fun undoHide(plantId: Long) {
+        viewModelScope.launch { plantRepository.unhidePlant(plantId) }
     }
 
     // --- Multi-select (tap and hold) bulk care actions ---
@@ -552,7 +585,7 @@ class PlantListViewModel(
         }
     }
 
-    private suspend fun buildStatus(plant: Plant, seasonalAmplitude: Double, now: Long): PlantCareStatus {
+    private suspend fun buildStatus(plant: Plant, inputs: StatusInputs, now: Long): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
@@ -563,7 +596,8 @@ class PlantListViewModel(
             lastFertilizedAt = lastFertilizing?.loggedAt,
             totalLogs = totalLogs,
             now = now,
-            seasonalAmplitude = seasonalAmplitude
+            seasonalAmplitude = inputs.seasonalAmplitude,
+            awayPeriods = inputs.awayPeriods
         ).copy(activeIssueCount = activeIssueCount)
     }
 
@@ -578,7 +612,8 @@ class PlantListViewModel(
         private val careLogRepository: CareLogRepository,
         private val dataStore: DataStore<Preferences>,
         private val quickLogUseCase: QuickLogUseCase,
-        private val plantIssueRepository: PlantIssueRepository
+        private val plantIssueRepository: PlantIssueRepository,
+        private val awayPeriodRepository: AwayPeriodRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -588,7 +623,8 @@ class PlantListViewModel(
                 careLogRepository,
                 dataStore,
                 quickLogUseCase,
-                plantIssueRepository
+                plantIssueRepository,
+                awayPeriodRepository = awayPeriodRepository
             ) as T
     }
 }

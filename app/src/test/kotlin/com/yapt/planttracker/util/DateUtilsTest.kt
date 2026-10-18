@@ -301,4 +301,18 @@ class DateUtilsTest {
         val timestamp = now
         assertEquals(timestamp.plusCalendarDays(3, java.time.ZoneId.systemDefault()), timestamp.plusCalendarDays(3))
     }
+
+    @Test
+    fun `toNoonMillis is noon of the local day, also on a DST change day`() {
+        assertEquals(
+            LocalDate.of(2023, 11, 14).toStartOfDayMillis() + TimeUnit.HOURS.toMillis(12),
+            LocalDate.of(2023, 11, 14).toNoonMillis()
+        )
+
+        // 2023-11-05 is 25 hours long in New York: noon is 13 hours after local midnight there.
+        TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
+        val fallBack = LocalDate.of(2023, 11, 5)
+        assertEquals(fallBack, fallBack.toNoonMillis().toLocalDate())
+        assertEquals(TimeUnit.HOURS.toMillis(13), fallBack.toNoonMillis() - fallBack.toStartOfDayMillis())
+    }
 }

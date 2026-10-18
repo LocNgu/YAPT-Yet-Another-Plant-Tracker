@@ -8,6 +8,7 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.db.PlantDatabase
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
@@ -31,7 +32,9 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.util.toLocalDate
+import com.yapt.planttracker.util.toNoonMillis
 import kotlinx.coroutines.flow.first
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
@@ -57,14 +60,16 @@ class QuickLogUseCase(
     private val wateringAdjustmentRepository: WateringAdjustmentRepository,
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val onWaterLogged: suspend (Long) -> Unit = {},
-    private val customReminderRepository: CustomReminderRepository? = null
+    private val customReminderRepository: CustomReminderRepository? = null,
+    awayPeriodRepository: AwayPeriodRepository? = null
 ) {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
         plantRepository,
         careLogRepository,
         dataStore,
-        wateringAdjustmentRepository
+        wateringAdjustmentRepository,
+        awayPeriodRepository
     )
 
     /**
@@ -183,6 +188,36 @@ class QuickLogUseCase(
             }
         }
         latestWaterLoggedAt?.let { onWaterLogged(it) }
+        return BulkLogResult(
+            loggedCount = loggedCount,
+            skippedCount = plants.size - loggedCount,
+            totalCount = plants.size
+        )
+    }
+
+    /**
+     * Logs a WATER entry dated on [visitDay] for every plant in [plants], inside one Room transaction: the
+     * confirm step of a sitter visit (#899, product ADR-0065). Like [bulkLog] it carries no reason and asks
+     * nothing, and it never schedules the post-watering reminder or calls `onWaterLogged`, because the
+     * owner isn't there. The same-day duplicate guard applies per plant, so confirming twice, or confirming
+     * a day the owner already logged, skips rather than doubles. The log is dated noon of [visitDay], but
+     * never later than "now", so confirming today's visit can't write a future instant. A gap that touches
+     * a trip is already excluded from learning by [AdaptiveWateringObservation].
+     */
+    suspend fun logSitterVisitWaterings(plants: List<Plant>, visitDay: LocalDate): BulkLogResult {
+        val loggedAt = minOf(visitDay.toNoonMillis(), nowProvider())
+        var loggedCount = 0
+        database.withTransaction {
+            for (plant in plants) {
+                val outcome = quickWaterWithReasonInternal(
+                    plant,
+                    reason = null,
+                    loggedAt = loggedAt,
+                    schedulePostWateringReminder = false
+                )
+                if (outcome.logged) loggedCount++
+            }
+        }
         return BulkLogResult(
             loggedCount = loggedCount,
             skippedCount = plants.size - loggedCount,
@@ -328,7 +363,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.WATER, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.WATER), logged = false)
         }
-        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
+        val feedback = feedbackUnlessGapExcluded(plant, reason, loggedAt)
         val previousNewest = careLogRepository.getLastTwoWaterings(plant.id).firstOrNull()?.loggedAt
         careLogRepository.addLog(
             CareLog(
@@ -386,7 +421,7 @@ class QuickLogUseCase(
         if (hasLoggedToday(plant.id, CareType.FERTILIZE, loggedAt)) {
             return QuickLogOutcome(message = alreadyLoggedMessage(plant, CareType.FERTILIZE), logged = false)
         }
-        val feedback = feedbackUnlessDormancySpanning(plant, reason, loggedAt)
+        val feedback = feedbackUnlessGapExcluded(plant, reason, loggedAt)
         val alreadyWateredToday = hasLoggedToday(plant.id, CareType.WATER, loggedAt)
 
         careLogRepository.addLog(
@@ -655,7 +690,7 @@ class QuickLogUseCase(
         dayTimestampMs: Long = System.currentTimeMillis()
     ): Boolean = careLogRepository.hasLogOfTypeOnDay(plantId, careType, dayTimestampMs)
 
-    private suspend fun feedbackUnlessDormancySpanning(
+    private suspend fun feedbackUnlessGapExcluded(
         plant: Plant,
         reason: WateringReason?,
         loggedAt: Long

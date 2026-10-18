@@ -1,5 +1,6 @@
 package com.yapt.planttracker.domain.today
 
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
@@ -28,8 +29,16 @@ data class TodayQueueInput(
     val today: LocalDate,
     val seasonalAmplitude: Double,
     val photoReminderEnabled: Boolean,
-    val hemisphere: Hemisphere = SeasonalWatering.currentHemisphere()
-)
+    val hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
+    val awayPeriods: List<AwayPeriod> = emptyList(),
+    val horizonEnd: LocalDate = defaultHorizonEnd(today)
+) {
+    companion object {
+        private const val DEFAULT_UPCOMING_HORIZON_DAYS = 3L
+
+        fun defaultHorizonEnd(today: LocalDate): LocalDate = today.plusDays(DEFAULT_UPCOMING_HORIZON_DAYS)
+    }
+}
 
 @Suppress("TooManyFunctions")
 object TodayQueueAggregator {
@@ -53,7 +62,7 @@ object TodayQueueAggregator {
             .sortedWith(compareBy<PlantIssue> { it.startedAt }.thenBy { it.id })
             .associateBy { it.linkedReminderId!! }
         val now = input.today.toStartOfDayMillis()
-        val tasks = input.plants.filter { it.archivedAt == null }.flatMap { plant ->
+        val tasks = input.plants.filter { it.isVisible }.flatMap { plant ->
             val logs = logsByPlant[plant.id].orEmpty()
             val status = CareSchedule.computeStatus(
                 plant = plant,
@@ -64,7 +73,8 @@ object TodayQueueAggregator {
                 customReminders = remindersByPlant[plant.id].orEmpty(),
                 now = now,
                 seasonalAmplitude = input.seasonalAmplitude,
-                hemisphere = input.hemisphere
+                hemisphere = input.hemisphere,
+                awayPeriods = input.awayPeriods
             )
             buildPlantTasks(
                 PlantTaskContext(
@@ -79,7 +89,7 @@ object TodayQueueAggregator {
         }
 
         return TodayQueueSnapshot(
-            activePlantCount = input.plants.count { it.archivedAt == null },
+            activePlantCount = input.plants.count { it.isVisible },
             tasks = tasks.sortedWith(
                 compareBy<TodayCareTask> { it.dueAt }
                     .thenBy { it.plant.name.lowercase() }
@@ -121,7 +131,7 @@ object TodayQueueAggregator {
 
     private fun repottingTask(context: PlantTaskContext): TodayCareTask? {
         val dueAt = repottingTaskDueAt(context.status, context.input.today) ?: return null
-        return taskForDueDate(context.input.today, dueAt) { bucket ->
+        return taskForDueDate(context.input, dueAt) { bucket ->
             TodayCareTask(
                 id = "repot:${context.plant.id}",
                 plant = context.plant,
@@ -138,7 +148,7 @@ object TodayQueueAggregator {
      * (#809, product ADR-0057) is due for its whole season and overdue only once it has ended, so its
      * season start — [PlantCareStatus.nextRepottingDueAt] — can't be used once the season is under way,
      * or an in-season plan would land in Overdue from its second day on. Instead: its season start while
-     * upcoming (so it enters the next-three-days horizon like any date), today while in season (Today),
+     * upcoming (so it enters the upcoming horizon like any date), today while in season (Today),
      * and the season's last day once it has ended (Overdue from the first day after the season), which
      * keeps every task's bucket a plain function of its [TodayCareTask.dueAt].
      */
@@ -164,7 +174,7 @@ object TodayQueueAggregator {
                 )
             }
             ?.let { dueAt ->
-                taskForDueDate(context.input.today, dueAt) { bucket ->
+                taskForDueDate(context.input, dueAt) { bucket ->
                     TodayCareTask(
                         id = "water:${context.plant.id}",
                         plant = context.plant,
@@ -176,7 +186,8 @@ object TodayQueueAggregator {
                             isGapLong = context.status.isWateringGapLong,
                             isDormancySpanning = context.status.isWateringGapDormancySpanning,
                             computedDueAt = context.status.computedNextWateringDueAt,
-                            effectiveDueAt = context.status.nextWateringDueAt
+                            effectiveDueAt = context.status.nextWateringDueAt,
+                            isAwaySpanning = context.status.isWateringGapAwaySpanning
                         )
                     )
                 }
@@ -191,7 +202,7 @@ object TodayQueueAggregator {
                     )
             }
             ?.let { dueAt ->
-                taskForDueDate(context.input.today, dueAt) { bucket ->
+                taskForDueDate(context.input, dueAt) { bucket ->
                     TodayCareTask(
                         id = "fertilize:${context.plant.id}",
                         plant = context.plant,
@@ -205,7 +216,7 @@ object TodayQueueAggregator {
     private fun customReminderTasks(context: PlantTaskContext): List<TodayCareTask> = buildList {
         for (reminderStatus in context.status.customReminderStatuses) {
             val dueAt = reminderStatus.nextDueAt ?: continue
-            taskForDueDate(context.input.today, dueAt) { bucket ->
+            taskForDueDate(context.input, dueAt) { bucket ->
                 val issue = context.activeIssueByReminderId[reminderStatus.reminder.id]
                 TodayCareTask(
                     id = "custom:${reminderStatus.reminder.id}",
@@ -232,7 +243,7 @@ object TodayQueueAggregator {
         ).filterNotNull().maxOrNull()
         val dueAt = (lastPhotoAt ?: context.plant.createdAt)
             .plusCalendarDays(PhotoReminderPolicy.PHOTO_REMINDER_INTERVAL_DAYS)
-        return taskForDueDate(context.input.today, dueAt) { bucket ->
+        return taskForDueDate(context.input, dueAt) { bucket ->
             TodayCareTask(
                 id = "photo:${context.plant.id}",
                 plant = context.plant,
@@ -265,20 +276,18 @@ object TodayQueueAggregator {
     }
 
     private inline fun taskForDueDate(
-        today: LocalDate,
+        input: TodayQueueInput,
         dueAt: Long,
         build: (TodayTaskBucket) -> TodayCareTask
     ): TodayCareTask? {
         val dueDate = dueAt.toLocalDate()
-        val days = ChronoUnit.DAYS.between(today, dueDate)
+        val days = ChronoUnit.DAYS.between(input.today, dueDate)
         val bucket = when {
             days < 0L -> TodayTaskBucket.Overdue
             days == 0L -> TodayTaskBucket.Today
-            days in 1L..UPCOMING_HORIZON_DAYS -> TodayTaskBucket.Upcoming(dueDate.toEpochDay())
+            !dueDate.isAfter(input.horizonEnd) -> TodayTaskBucket.Upcoming(dueDate.toEpochDay())
             else -> return null
         }
         return build(bucket)
     }
-
-    private const val UPCOMING_HORIZON_DAYS = 3L
 }

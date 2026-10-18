@@ -54,12 +54,15 @@ gallery-owned source image.
 | v19 | `BackupPlant.dormantWateringIntervalDays` | `null` (#785, product ADR-0046) |
 | v20 | `BackupPlant.archivedAt: Long? = null` | `null` (unarchived) (#743) |
 | v21 | `BackupPlant.repotPlanSeasonStartAt: Long?` + `BackupPlant.repotPlanMadeAt: Long?` + `BackupPlant.repottingSeasons: String?` (comma-separated `FertilizingSeason` names via `SeasonalFertilizing.encode`/`decode`) | `null` / `null` / `null` = no plan, every season (#809, product ADR-0057) |
+| v22 | `BackupRoot.awayPeriods: List<BackupAwayPeriod>`; each trip carries its `visits` and their `plants`, dates as ISO-8601 strings | `emptyList()` = no trips (#896, product ADR-0065) |
+| v23 | `BackupPlant.hiddenAt: Long?` (hidden from operational surfaces; export already includes every plant) | `null` = visible (#915, product ADR-0066) |
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.
 
 ## Tests
 - `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
+- `AwayPeriodBackupTest` (plain JVM) covers the away-trip restore rules: bad dates skipped, visits re-filtered into their trip, visit plants of missing plants dropped.
 - Instrumented `BackupManager` tests cover:
   - round-trips with and without photos, an empty DB, and settings
   - a future-schema warning, a corrupt ZIP, a missing `backup.json`, and zip-slip
@@ -67,6 +70,7 @@ excluded from `BackupSettings`; import clears it together with pending post-wate
   - an archived plant's history (#743)
   - unreadable photos → `null` + `skippedPhotoCount`
   - a manifest path with no zip entry → `null` (#817)
+  - trips, visits and visit plants: round trip, replace-on-import, a backup without the field, and bad dates (#896)
 
 ## Backup-rule XML files (#824, product ADR-0053)
 - **Two files:**

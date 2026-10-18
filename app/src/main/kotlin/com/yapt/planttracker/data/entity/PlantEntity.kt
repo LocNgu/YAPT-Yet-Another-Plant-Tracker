@@ -35,5 +35,7 @@ data class PlantEntity(
     /** Instant the plan was made — `updatedAt` can't stand in, it changes on every edit (#809). */
     val repotPlanMadeAt: Long? = null,
     /** Comma-separated [com.yapt.planttracker.domain.schedule.FertilizingSeason] names; `null` = every season. */
-    val repottingSeasons: String? = null
+    val repottingSeasons: String? = null,
+    /** Instant the plant was hidden from every operational surface; `null` = visible. Independent of [archivedAt] (#915). */
+    val hiddenAt: Long? = null
 )

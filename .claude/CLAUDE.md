@@ -37,7 +37,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - Manual DI: `YaptApplication` builds DB + repositories as lazy singletons; `NavGraph` passes them into each ViewModel's inner `Factory`.
 - Every ViewModel has an inner `Factory`; screens obtain it via `viewModel(factory = …)`.
 - **Care vs. Today:** the user-facing name is **Care** (tab, top bar, copy, changelog); internal identifiers (`Screen.Today`, route `today`, `Today*` classes) deliberately keep "Today". Care is the start destination; root tabs are Care · Plants · Calendar · Settings — so Plants may not be on the back stack — never `getBackStackEntry(Screen.PlantList.route)` unguarded (#836). Details: `rules/navigation.md`, `rules/care-queue.md`.
-- Due tasks come only from `TodayQueueAggregator` (via `TodayCareRepository`); UI code never derives them.
+- Due tasks come only from `TodayQueueAggregator` (via `TodayCareRepository`); UI code never derives them. Upcoming is bounded by `TodayQueueInput.horizonEnd` (default today + 3); a caller widens it via `observeQueue(horizonEnd)`, never by extra Room queries (`rules/care-queue.md`).
 - Quick-log surfaces go through `QuickLogUseCase`; adaptive WATER learning lives in `AdaptiveWateringObservation` (`rules/care-logging.md`).
 
 ## Conventions (beyond what the linter enforces)
@@ -47,6 +47,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 - **Dates** — relative-date display only via the composable `relativeDateText()` (`ui/util/RelativeDateText.kt`, strings from resources); never compute `(now-ts)/86_400_000` inline. Calendar-day comparisons via `Long.toLocalDate()` (technical ADR-0013). Advance by N days via `Long.plusCalendarDays()`, never `+ TimeUnit.DAYS.toMillis(n)` (DST, technical ADR-0034); the one exception is the REPOT freeze window in `WateringLifecycleReset`, a genuine duration documented in place.
 - **A `combine()` that reads "today" needs `dayChangeTicker()` as an input** — nothing else emits at midnight (#550). Constructor-inject it as `Flow<LocalDate>` defaulting to `dayChangeTicker()`; tests pass a non-real ticker and **never `advanceUntilIdle()` against the real one** (it hangs). Details: `rules/day-change.md`.
 - **Two watering-interval numbers** — `wateringBaseIntervalDays` (season-neutral `Double`, never rounded at rest) and `wateringIntervalDays` (effective, only rewritten on discrete events). For today's effective interval call `CareSchedule.effectiveWateringIntervalDaysForDisplay()`, never the stored literal. Details: `rules/seasonal-watering.md`.
+- **Hidden is not archived** — `Plant.hiddenAt` takes a living plant off every operational surface; filter active plants with `Plant.isVisible`, never a bare `archivedAt == null`. Details: `rules/hidden-plants.md`.
 - **Same-day WATER/FERTILIZE duplicates are rejected** (only those two types) via `CareLogRepository.hasLogOfTypeOnDay()`; check *before* any paired insert. Details: `rules/care-logging.md`.
 - **Plant Detail plant-row writes** take `plantEditMutex` and re-read the plant inside it (never `plant.value`); the mutex is not reentrant. Details: `rules/plant-detail.md`.
 - **Integer interval sliders use the shared `SteppedSlider`** (`ui/components/SteppedSlider.kt`, product ADR-0048).
@@ -94,7 +95,7 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 - **Forbidden:** anything touching `main`, force-pushing `develop`, branch deletion/rename, `git reset --hard`, `git stash drop`/`clear`, `find`'s action primaries, reading secret files, and **merging PRs by any means**.
 
 ## Pointers — `.claude/rules/` (path-scoped: each loads automatically when you touch matching files)
-- Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md`
+- Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md` · `hidden-plants.md` · `away-mode.md` (trip storage, date logic, backup; feature design is product ADR-0065)
 - Screens: `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
 - Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `adr.md` · `permissions.md`
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference.

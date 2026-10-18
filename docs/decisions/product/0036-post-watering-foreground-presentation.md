@@ -1,6 +1,6 @@
 # Product ADR-0036: Foreground-aware post-watering reminder presentation
 
-**Status**: accepted
+**Status**: accepted — WATER-path coverage clause amended by [ADR-0065](0065-away-mode.md)
 
 **Date**: 2026-09-09
 

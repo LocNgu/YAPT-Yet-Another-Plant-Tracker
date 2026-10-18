@@ -103,6 +103,17 @@ class SettingsViewModelTest {
     )
 
     @Test
+    fun `hiddenCount follows the repository so the Hidden plants row can appear and disappear`() = runTest {
+        every { mockPlantRepository.getHiddenCount() } returns flowOf(2)
+        vm = buildVm()
+
+        vm.hiddenCount.test {
+            assertEquals(2, expectMostRecentItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `notificationsEnabled emits false when DataStore returns false`() = runTest {
         every { mockPrefs[SettingsKeys.NOTIFICATIONS_ENABLED] } returns false
         every { mockPrefs[SettingsKeys.REMINDER_HOUR] } returns null

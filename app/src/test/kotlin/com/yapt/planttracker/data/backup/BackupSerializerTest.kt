@@ -106,7 +106,8 @@ class BackupSerializerTest {
         plantPhotos = listOf(defaultPlantPhoto),
         customReminders = listOf(defaultCustomReminder),
         plantIssues = listOf(defaultPlantIssue),
-        wateringAdjustments = listOf(defaultWateringAdjustment)
+        wateringAdjustments = listOf(defaultWateringAdjustment),
+        awayPeriods = listOf(fullAwayPeriod())
     )
 
     @Test

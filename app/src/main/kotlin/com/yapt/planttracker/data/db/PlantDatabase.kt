@@ -6,11 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.yapt.planttracker.data.entity.AwayPeriodEntity
 import com.yapt.planttracker.data.entity.CareLogEntity
 import com.yapt.planttracker.data.entity.CustomReminderEntity
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.PlantIssueEntity
 import com.yapt.planttracker.data.entity.PlantPhotoEntity
+import com.yapt.planttracker.data.entity.SitterVisitEntity
+import com.yapt.planttracker.data.entity.SitterVisitPlantEntity
 import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
@@ -23,7 +26,10 @@ import java.time.LocalDate
         PlantPhotoEntity::class,
         CustomReminderEntity::class,
         PlantIssueEntity::class,
-        WateringAdjustmentEntity::class
+        WateringAdjustmentEntity::class,
+        AwayPeriodEntity::class,
+        SitterVisitEntity::class,
+        SitterVisitPlantEntity::class
     ],
     version = PlantDatabase.DB_VERSION,
     exportSchema = true
@@ -36,11 +42,12 @@ abstract class PlantDatabase : RoomDatabase() {
     abstract fun customReminderDao(): CustomReminderDao
     abstract fun plantIssueDao(): PlantIssueDao
     abstract fun wateringAdjustmentDao(): WateringAdjustmentDao
+    abstract fun awayPeriodDao(): AwayPeriodDao
 
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 17
+        const val DB_VERSION = 19
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -276,6 +283,59 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #896 (product ADR-0065, technical ADR-0038): Away mode storage. Plain CREATE TABLEs, nothing to
+        // backfill, so every existing row is untouched. No foreign keys on away_periods (a trip is global).
+        @Suppress("MagicNumber")
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `away_periods` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`firstDay` INTEGER NOT NULL, " +
+                        "`lastDay` INTEGER NOT NULL, " +
+                        "`visitEveryDays` INTEGER, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sitter_visits` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`awayPeriodId` INTEGER NOT NULL, " +
+                        "`day` INTEGER NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`awayPeriodId`) REFERENCES `away_periods`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sitter_visits_awayPeriodId` ON `sitter_visits` (`awayPeriodId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sitter_visit_plants` (" +
+                        "`visitId` INTEGER NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`watered` INTEGER, " +
+                        "PRIMARY KEY(`visitId`, `plantId`), " +
+                        "FOREIGN KEY(`visitId`) REFERENCES `sitter_visits`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_sitter_visit_plants_plantId` " +
+                        "ON `sitter_visit_plants` (`plantId`)"
+                )
+            }
+        }
+
+        // #915 (product ADR-0066): when the owner hid a living plant from operational surfaces. Pure ALTER
+        // TABLE — every existing row reads back null, so every plant stays visible.
+        @Suppress("MagicNumber")
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN hiddenAt INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -299,7 +359,9 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_13_14,
                         MIGRATION_14_15,
                         MIGRATION_15_16,
-                        MIGRATION_16_17
+                        MIGRATION_16_17,
+                        MIGRATION_17_18,
+                        MIGRATION_18_19
                     )
                     .build()
                     .also { INSTANCE = it }

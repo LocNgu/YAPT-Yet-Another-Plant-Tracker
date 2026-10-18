@@ -98,6 +98,7 @@ fun PlantListScreen(
 ) {
     val plantsWithStatus by viewModel.plantsWithStatus.collectAsStateWithLifecycle()
     val plantListItems by viewModel.plantListItems.collectAsStateWithLifecycle()
+    val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val selectedRoom by viewModel.selectedRoom.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
@@ -164,6 +165,20 @@ fun PlantListScreen(
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.undoArchive(event.plantId)
+            }
+        }
+    }
+
+    val hiddenMsg = stringResource(R.string.snackbar_plant_hidden)
+    LaunchedEffect(Unit) {
+        viewModel.hiddenEvent.collect { event ->
+            val result = snackbarHostState.showSnackbar(
+                message = hiddenMsg,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoHide(event.plantId)
             }
         }
     }
@@ -419,7 +434,9 @@ fun PlantListScreen(
                 val emptyCaredToday = stringResource(R.string.empty_state_cared_today)
                 val emptyActiveIssues = stringResource(R.string.empty_state_active_issues)
                 val emptyAllAssigned = stringResource(R.string.empty_state_all_assigned)
-                val emptyNoPlants = stringResource(R.string.no_plants_yet)
+                val emptyNoPlants = stringResource(
+                    if (hiddenCount > 0) R.string.no_plants_all_hidden else R.string.no_plants_yet
+                )
                 val emptyMessage = when {
                     sortOrder.option == SortOption.BOTH_DUE -> emptyBothDue
                     sortOrder.option == SortOption.CARED_FOR_TODAY -> emptyCaredToday
@@ -456,13 +473,14 @@ fun PlantListScreen(
                                     onLongClick = { viewModel.toggleSelection(status.plant.id) },
                                     onToggleSelect = { viewModel.toggleSelection(status.plant.id) },
                                     // #586 fast path: only an off-schedule watering asks why. A gap
-                                    // that overlaps the plant's dormancy window skips the prompt too
-                                    // (#699/#761, product ADR-0044) — see CalendarScreen's requestWater
+                                    // that overlaps the plant's dormancy window or an away trip skips the
+                                    // prompt too (#699/#761, product ADR-0044; #897, product ADR-0065) via
+                                    // skipsWateringReasonPrompt — see CalendarScreen's requestWater
                                     // for the full rationale (a persisted answer could poison a later
                                     // correctionStreak() window even though this observation is
                                     // excluded from base learning either way).
                                     onQuickWater = {
-                                        if (status.isWateringOnSchedule || status.isWateringGapDormancySpanning) {
+                                        if (status.skipsWateringReasonPrompt) {
                                             viewModel.quickWater(status.plant.id, reason = null)
                                         } else {
                                             waterFeedbackPlant = status
@@ -472,7 +490,7 @@ fun PlantListScreen(
                                         when {
                                             !status.plant.useLiquidFertilizer ->
                                                 viewModel.quickLog(status.plant.id, CareType.FERTILIZE)
-                                            status.isWateringOnSchedule || status.isWateringGapDormancySpanning ->
+                                            status.skipsWateringReasonPrompt ->
                                                 viewModel.quickLiquidFertilize(status.plant.id, reason = null)
                                             else -> liquidFertilizeFeedbackPlant = status
                                         }

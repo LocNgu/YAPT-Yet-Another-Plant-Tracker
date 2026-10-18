@@ -89,13 +89,17 @@ object WateringLifecycleReset {
      * case, which has no boundary — the whole history is eligible); [seasonFn] is the same
      * de-seasonalization function [CareSchedule.bootstrapBaseInterval] uses. [feedback] is the
      * triggering observation's [WateringFeedback] (see [maybeBootstrap]'s doc for why it matters).
+     * [isGapExcluded] (#897, product ADR-0065) is the gap-exclusion predicate handed to
+     * [CareSchedule.bootstrapBaseInterval] for every non-dormancy exclusion (an away trip today); the
+     * plant's own dormancy months are still read from [plant].
      */
     data class BootstrapRequest(
         val plant: Plant,
         val waterLogTimestampsMs: List<Long>,
         val boundaryMs: Long,
         val seasonFn: (LocalDate) -> Double,
-        val feedback: WateringFeedback? = null
+        val feedback: WateringFeedback? = null,
+        val isGapExcluded: (earlier: Long, later: Long) -> Boolean = { _, _ -> false }
     )
 
     /**
@@ -188,7 +192,7 @@ object WateringLifecycleReset {
      * application threshold. Passes [Plant.dormancyStartMonth]/[Plant.dormancyEndMonth] through
      * (#699/#761, product ADR-0044 — Codex review round 1 on #776, P1-a) so a dormancy-spanning gap
      * anywhere in the eligible history is excluded from the cold-start estimate, not merely the
-     * triggering observation's own gap.
+     * triggering observation's own gap. [BootstrapRequest.isGapExcluded] does the same for away trips.
      */
     private fun eligibleBootstrapResult(request: BootstrapRequest): CareSchedule.BootstrapResult? {
         val eligibleTimestamps = request.waterLogTimestampsMs.filter { it >= request.boundaryMs }
@@ -196,7 +200,8 @@ object WateringLifecycleReset {
             eligibleTimestamps,
             request.seasonFn,
             request.plant.dormancyStartMonth,
-            request.plant.dormancyEndMonth
+            request.plant.dormancyEndMonth,
+            request.isGapExcluded
         )
         return result?.takeIf { it.gapCount >= CareSchedule.MIN_BOOTSTRAP_GAPS }
     }

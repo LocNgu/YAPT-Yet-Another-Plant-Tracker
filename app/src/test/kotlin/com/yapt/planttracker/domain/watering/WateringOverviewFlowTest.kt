@@ -70,6 +70,19 @@ class WateringOverviewFlowTest {
     }
 
     @Test
+    fun `reports no active plants when every plant is hidden`() = runTest {
+        val hiddenOnly = observeWateringOverview(
+            flowOf(listOf(plant(1).copy(hiddenAt = 5L))),
+            flowOf(emptyMap()),
+            flowOf(0.0),
+            flowOf(Unit)
+        ).first()
+
+        assertFalse(hiddenOnly.hasActivePlants)
+        assertTrue(hiddenOnly.overview.sections.isEmpty())
+    }
+
+    @Test
     fun `re-evaluates at a day change, a seasonal step and an amplitude change`() = runTest {
         var now = summer
         val plants = MutableStateFlow(listOf(plant(1)))

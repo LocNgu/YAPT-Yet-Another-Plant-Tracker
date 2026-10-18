@@ -7,8 +7,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.PhotoReminderRequest
 import com.yapt.planttracker.domain.model.Plant
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -44,7 +47,8 @@ class CalendarViewModel(
     private val dataStore: DataStore<Preferences>,
     private val quickLogUseCase: QuickLogUseCase,
     private val dayChangeFlow: Flow<LocalDate> = dayChangeTicker(),
-    private val nowProvider: () -> Long = System::currentTimeMillis
+    private val nowProvider: () -> Long = System::currentTimeMillis,
+    awayPeriodRepository: AwayPeriodRepository? = null
 ) : ViewModel() {
 
     private val allPlants: StateFlow<List<Plant>> = plantRepository.getAllPlants()
@@ -98,13 +102,14 @@ class CalendarViewModel(
         allPlants,
         careLogRepository.logCount,
         dataStore.seasonalAmplitudeFlow(),
+        awayPeriodRepository?.observeAll() ?: flowOf(emptyList()),
         today
-    ) { plants, _, seasonalAmplitude, _ ->
+    ) { plants, _, seasonalAmplitude, awayPeriods, _ ->
         val now = nowProvider()
         val day = now.toLocalDate()
         val statusList = mutableListOf<PlantCareStatus>()
         for (plant in plants) {
-            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, now))
+            statusList.add(buildStatus(careLogRepository, plant, seasonalAmplitude, awayPeriods, now))
         }
         StatusesForDay(day, statusList)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StatusesForDay(LocalDate.now(), emptyList()))
@@ -271,7 +276,8 @@ class CalendarViewModel(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val dataStore: DataStore<Preferences>,
-        private val quickLogUseCase: QuickLogUseCase
+        private val quickLogUseCase: QuickLogUseCase,
+        private val awayPeriodRepository: AwayPeriodRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -280,7 +286,8 @@ class CalendarViewModel(
                 plantRepository,
                 careLogRepository,
                 dataStore,
-                quickLogUseCase
+                quickLogUseCase,
+                awayPeriodRepository = awayPeriodRepository
             ) as T
     }
 }
@@ -289,6 +296,7 @@ private suspend fun buildStatus(
     careLogRepository: CareLogRepository,
     plant: Plant,
     seasonalAmplitude: Double,
+    awayPeriods: List<AwayPeriod>,
     now: Long
 ): PlantCareStatus {
     val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
@@ -300,6 +308,7 @@ private suspend fun buildStatus(
         lastFertilizedAt = lastFertilizing?.loggedAt,
         totalLogs = totalLogs,
         now = now,
-        seasonalAmplitude = seasonalAmplitude
+        seasonalAmplitude = seasonalAmplitude,
+        awayPeriods = awayPeriods
     )
 }

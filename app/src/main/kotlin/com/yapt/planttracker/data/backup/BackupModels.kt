@@ -29,7 +29,8 @@ data class BackupPlant(
     val archivedAt: Long? = null,
     val repotPlanSeasonStartAt: Long? = null,
     val repotPlanMadeAt: Long? = null,
-    val repottingSeasons: String? = null
+    val repottingSeasons: String? = null,
+    val hiddenAt: Long? = null
 )
 
 @Serializable
@@ -101,6 +102,31 @@ data class BackupPlantPhoto(
 )
 
 @Serializable
+data class BackupSitterVisitPlant(
+    val plantId: Long,
+    val watered: Boolean? = null
+)
+
+@Serializable
+data class BackupSitterVisit(
+    val id: Long,
+    val day: String,
+    val state: String = "PLANNED",
+    val createdAt: Long,
+    val plants: List<BackupSitterVisitPlant> = emptyList()
+)
+
+@Serializable
+data class BackupAwayPeriod(
+    val id: Long,
+    val firstDay: String,
+    val lastDay: String,
+    val visitEveryDays: Int? = null,
+    val createdAt: Long,
+    val visits: List<BackupSitterVisit> = emptyList()
+)
+
+@Serializable
 data class BackupRoot(
     val schemaVersion: Int,
     val exportedAt: Long,
@@ -111,5 +137,6 @@ data class BackupRoot(
     val plantPhotos: List<BackupPlantPhoto> = emptyList(),
     val customReminders: List<BackupCustomReminder> = emptyList(),
     val plantIssues: List<BackupPlantIssue> = emptyList(),
-    val wateringAdjustments: List<BackupWateringAdjustment> = emptyList()
+    val wateringAdjustments: List<BackupWateringAdjustment> = emptyList(),
+    val awayPeriods: List<BackupAwayPeriod> = emptyList()
 )

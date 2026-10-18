@@ -37,6 +37,6 @@ fun observeWateringOverview(
             now = nowProvider(),
             hemisphere = hemisphere()
         ),
-        hasActivePlants = activePlants.any { it.archivedAt == null }
+        hasActivePlants = activePlants.any { it.isVisible }
     )
 }

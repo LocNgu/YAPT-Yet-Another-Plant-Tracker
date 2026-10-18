@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -30,6 +31,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Informational benchmark for #841 — logs numbers only, asserts no timings (flaky in CI). Run with
@@ -42,12 +45,21 @@ class TodayCareRepositoryBenchmarkTest {
 
     private lateinit var db: PlantDatabase
     private var firstPlantId = 0L
+    private val selectCount = AtomicInteger()
 
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, PlantDatabase::class.java)
             .allowMainThreadQueries()
+            .setQueryCallback(
+                { sql, _ ->
+                    val isDataRead = sql.trimStart().startsWith("SELECT", ignoreCase = true) &&
+                        !sql.contains("room_table_modification_log")
+                    if (isDataRead) selectCount.incrementAndGet()
+                },
+                Executor { it.run() }
+            )
             .build()
     }
 
@@ -72,6 +84,39 @@ class TodayCareRepositoryBenchmarkTest {
                 "firstEmissionMedianMs=${median(first)} firstEmissionSamplesMs=$first " +
                 "reEmissionMedianMs=${median(reEmission)} reEmissionSamplesMs=$reEmission"
         )
+    }
+
+    @Test
+    fun `benchmark a six week horizon reads Room exactly as often as the default horizon`() = runBlocking {
+        seed()
+        val repository = repository()
+        val sixWeeks = flowOf(LocalDate.now().plusDays(SIX_WEEKS_DAYS))
+
+        repeat(WARMUP_RUNS) {
+            measureFirstEmission(repository)
+            measureFirstEmission(repository, sixWeeks)
+        }
+        val defaultReads = countSelects { measureFirstEmission(repository) }
+        val widenedReads = countSelects { measureFirstEmission(repository, sixWeeks) }
+        val first = List(RUNS) { measureFirstEmission(repository, sixWeeks) }
+        val reEmission = measureReEmissions(repository, sixWeeks)
+
+        println(
+            "YAPT_BENCH today-queue-horizon plants=$PLANTS logs=${PLANTS * LOGS_PER_PLANT} " +
+                "photos=${PLANTS * PHOTOS_PER_PLANT} horizonDays=$SIX_WEEKS_DAYS " +
+                "defaultFirstEmissionSelects=$defaultReads widenedFirstEmissionSelects=$widenedReads " +
+                "firstEmissionMedianMs=${median(first)} firstEmissionSamplesMs=$first " +
+                "reEmissionMedianMs=${median(reEmission)} reEmissionSamplesMs=$reEmission"
+        )
+        check(defaultReads == widenedReads) { "Room reads depend on the horizon: $defaultReads vs $widenedReads" }
+    }
+
+    private suspend fun countSelects(block: suspend () -> Unit): Int {
+        delay(SETTLE_MS)
+        val before = selectCount.get()
+        block()
+        delay(SETTLE_MS)
+        return selectCount.get() - before
     }
 
     private suspend fun seed() {
@@ -138,21 +183,30 @@ class TodayCareRepositoryBenchmarkTest {
         )
     }
 
-    private suspend fun measureFirstEmission(repository: TodayCareRepository): Double {
+    private fun TodayCareRepository.queue(horizonEnd: Flow<LocalDate>?) =
+        if (horizonEnd == null) observeQueue() else observeQueue(horizonEnd)
+
+    private suspend fun measureFirstEmission(
+        repository: TodayCareRepository,
+        horizonEnd: Flow<LocalDate>? = null
+    ): Double {
         val channel = Channel<Unit>(Channel.UNLIMITED)
         val scope = CoroutineScope(Dispatchers.Default)
         val start = System.nanoTime()
-        repository.observeQueue().onEach { channel.trySend(Unit) }.launchIn(scope)
+        repository.queue(horizonEnd).onEach { channel.trySend(Unit) }.launchIn(scope)
         withTimeout(TIMEOUT_MS) { channel.receive() }
         val elapsed = (System.nanoTime() - start) / NANOS_PER_MS
         scope.cancel()
         return elapsed
     }
 
-    private suspend fun measureReEmissions(repository: TodayCareRepository): List<Double> {
+    private suspend fun measureReEmissions(
+        repository: TodayCareRepository,
+        horizonEnd: Flow<LocalDate>? = null
+    ): List<Double> {
         val channel = Channel<Unit>(Channel.UNLIMITED)
         val scope = CoroutineScope(Dispatchers.Default)
-        repository.observeQueue().onEach { channel.trySend(Unit) }.launchIn(scope)
+        repository.queue(horizonEnd).onEach { channel.trySend(Unit) }.launchIn(scope)
         withTimeout(TIMEOUT_MS) { channel.receive() }
         val plantId = firstPlantId
         val samples = ArrayList<Double>()
@@ -189,6 +243,7 @@ class TodayCareRepositoryBenchmarkTest {
         const val PHOTOS_PER_PLANT = 10
         const val WARMUP_RUNS = 3
         const val RUNS = 9
+        const val SIX_WEEKS_DAYS = 42L
         const val SETTLE_MS = 300L
         const val TIMEOUT_MS = 60_000L
         const val NANOS_PER_MS = 1_000_000.0

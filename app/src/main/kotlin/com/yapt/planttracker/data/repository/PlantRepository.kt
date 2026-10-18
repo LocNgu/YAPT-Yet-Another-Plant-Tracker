@@ -44,6 +44,20 @@ class PlantRepository(
 
     fun getArchivedCount(): Flow<Int> = plantDao.getArchivedCount()
 
+    fun getHiddenPlants(): Flow<List<Plant>> =
+        plantDao.getHiddenPlants().map { list -> list.map { it.toDomain() } }
+
+    fun getHiddenCount(): Flow<Int> = plantDao.getHiddenCount()
+
+    fun getAllNonArchivedPlants(): Flow<List<Plant>> =
+        plantDao.getAllNonArchivedPlants().map { list -> list.map { it.toDomain() } }
+
+    /** Column-specific hide (#915) — see [PlantDao.updateHiddenAt]'s doc for why this exists. */
+    suspend fun hidePlant(id: Long, timestamp: Long = System.currentTimeMillis()) =
+        plantDao.updateHiddenAt(id, timestamp)
+
+    suspend fun unhidePlant(id: Long) = plantDao.updateHiddenAt(id, null)
+
     suspend fun archivePlant(id: Long, timestamp: Long = System.currentTimeMillis()) =
         plantDao.archivePlant(id, timestamp)
 
@@ -116,7 +130,8 @@ private fun PlantEntity.toDomain() = Plant(
     dormantWateringIntervalDays = dormantWateringIntervalDays,
     repotPlanSeasonStartAt = repotPlanSeasonStartAt,
     repotPlanMadeAt = repotPlanMadeAt,
-    repottingSeasons = SeasonalFertilizing.decode(repottingSeasons)
+    repottingSeasons = SeasonalFertilizing.decode(repottingSeasons),
+    hiddenAt = hiddenAt
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -145,5 +160,6 @@ private fun Plant.toEntity() = PlantEntity(
     dormantWateringIntervalDays = dormantWateringIntervalDays,
     repotPlanSeasonStartAt = repotPlanSeasonStartAt,
     repotPlanMadeAt = repotPlanMadeAt,
-    repottingSeasons = SeasonalFertilizing.encode(repottingSeasons)
+    repottingSeasons = SeasonalFertilizing.encode(repottingSeasons),
+    hiddenAt = hiddenAt
 )

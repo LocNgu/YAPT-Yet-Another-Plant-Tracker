@@ -25,8 +25,12 @@ data class WateringTaskAction(
     val isGapLong: Boolean,
     val isDormancySpanning: Boolean,
     val computedDueAt: Long?,
-    val effectiveDueAt: Long?
-)
+    val effectiveDueAt: Long?,
+    val isAwaySpanning: Boolean = false
+) {
+    /** Care's reason-prompt gate, the [com.yapt.planttracker.domain.model.PlantCareStatus.skipsWateringReasonPrompt] twin. */
+    val skipsReasonPrompt: Boolean get() = isOnSchedule || isDormancySpanning || isAwaySpanning
+}
 
 data class TodayCareTask(
     val id: String,

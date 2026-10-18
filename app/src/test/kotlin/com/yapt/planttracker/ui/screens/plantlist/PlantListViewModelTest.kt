@@ -73,7 +73,9 @@ class PlantListViewModelTest {
             every { getQuantityString(any(), any(), *anyVararg()) } returns "bulk snackbar"
         }
     }
-    private val plantRepo: PlantRepository = mockk()
+    private val plantRepo: PlantRepository = mockk {
+        every { getHiddenCount() } returns flowOf(0)
+    }
     private val careLogRepo: CareLogRepository = mockk()
     private val dataStore: DataStore<Preferences> = mockk {
         every { data } returns flowOf(emptyPreferences())
@@ -1494,6 +1496,56 @@ class PlantListViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.restorePlant(42L) }
+    }
+
+    @Test
+    fun `undoHide calls unhidePlant`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { plantRepo.unhidePlant(any()) } just runs
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.undoHide(42L)
+        advanceUntilIdle()
+
+        coVerify { plantRepo.unhidePlant(42L) }
+    }
+
+    @Test
+    fun `onPlantHidden emits a hidden event carrying the plant`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.hiddenEvent.test {
+            vm.onPlantHidden(7L, "Fern")
+            val event = awaitItem()
+            assertEquals(7L, event.plantId)
+            assertEquals("Fern", event.plantName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `hiddenCount follows the repository`() = runTest {
+        every { plantRepo.getAllPlants() } returns flowOf(emptyList())
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        every { plantRepo.getHiddenCount() } returns flowOf(3)
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.hiddenCount.test {
+            assertEquals(3, expectMostRecentItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     // Multi-select (tap and hold) bulk care actions

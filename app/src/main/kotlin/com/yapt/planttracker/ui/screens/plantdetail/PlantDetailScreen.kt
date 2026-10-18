@@ -484,8 +484,9 @@ fun PlantDetailScreen(
                 if (p != null) {
                     coroutineScope.launch {
                         val previousWateringAt = viewModel.previousWateringBefore(loggedAt)
+                        val awayPeriods = viewModel.awayPeriods()
                         requestWater(
-                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel),
+                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel, awayPeriods),
                             loggedAt,
                             previousWateringAt
                         ) {
@@ -506,8 +507,9 @@ fun PlantDetailScreen(
                 if (p != null) {
                     coroutineScope.launch {
                         val previousWateringAt = viewModel.previousWateringBefore(loggedAt)
+                        val awayPeriods = viewModel.awayPeriods()
                         requestLiquidFertilize(
-                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel),
+                            QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel, awayPeriods),
                             loggedAt,
                             previousWateringAt
                         ) {

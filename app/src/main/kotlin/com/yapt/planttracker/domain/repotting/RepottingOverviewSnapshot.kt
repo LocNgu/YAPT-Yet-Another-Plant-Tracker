@@ -35,6 +35,6 @@ fun observeRepottingOverview(
             today = day,
             hemisphere = SeasonalWatering.currentHemisphere()
         ),
-        hasActivePlants = activePlants.any { it.archivedAt == null }
+        hasActivePlants = activePlants.any { it.isVisible }
     )
 }

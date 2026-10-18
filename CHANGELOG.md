@@ -12,6 +12,60 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-18
+
+### Added
+- **Confirm your sitter's visits after the trip** — from your first day back, Care offers the visits you planned but
+  never confirmed ("2 sitter visits to confirm"), oldest first, for 14 days after your last away day or until each
+  one is answered. It opens the same checklist as before: every plant ticked, untick what the sitter skipped, then
+  Continue, or **The visit didn't happen**, which logs nothing and isn't offered again. Waterings are dated on the
+  visit day, skip a plant already watered that day (and say so), ask no "Why now?", send no post-watering reminder
+  and stay out of how YAPT learns each plant's interval, so a plant the sitter watered isn't overdue when you
+  return. Settings → Away mode now lists the current or latest trip's visits with their state and lets you confirm
+  a planned one at any time, during the trip or after it.
+- **Hide a plant without moving it to the Graveyard** — **Hide plant** on Edit Plant (below the notes) takes a living
+  plant out of the Plants list, Care, reminders, the Calendar, the Watering and Repotting overviews and the away-mode
+  sitter lists, including **Please don't water these**. A snackbar offers **Undo**, and the app returns to the Plants
+  tab without assuming it was on the back stack. Settings gets a **Hidden plants** row, shown only while at least one
+  plant is hidden, that lists them with an **Unhide** button and opens Plant Detail on tap (care can still be logged
+  there). When every plant is hidden, the Plants tab says so and points to that page. Hiding keeps all history, photos
+  and schedule data and changes no learned interval; moving a hidden plant to the Graveyard unhides it. The hidden state
+  is stored in the database (migration 18 to 19) and in backups (schema 23); older backups import with every plant
+  visible (#915, product ADR-0066)
+- **A plant-sitter list for your trip** — trip setup now asks **How often should a sitter come?** (every 4, 5, 7, 10
+  or 14 days) and shows, for each rhythm, how many plants would go longer than usual (at least 1.5 times their
+  usual interval, assuming everything due is watered on your last day at home). YAPT recommends the longest rhythm
+  with nothing flagged, lists the plants a chosen rhythm would stretch, and writes the text to ask your sitter
+  ("Could you come about once a week? The first time by Wed, Oct 7."). On your last day at home **Before you leave**
+  splits the plants into **Water today** (due before halfway to the first visit, ticked) and **Check the soil**
+  (unticked), and one tap logs the ticked ones as watered with no "Why now?" and no effect on learning. While
+  away, **Plan a sitter visit** (Care banner and Settings) takes a day (Today, Tomorrow or a date inside the trip)
+  and a rough gap to the next visit, then lists the plants due by that visit or before halfway to the next, leaning
+  dry on a tie. A summary card shows the count, room counts and resting plants, and warns about plants missed last
+  time, plants going longer than usual, listed plants with no photo and look-alikes (same name and room, no photo).
+  **Share list (PDF)** builds an offline photo list grouped by room, with a tick box, a **Missed last time** tag
+  and a last page **Please don't water these** for resting plants; **Share as text** is the fallback. Before
+  planning the next visit a checklist confirms the last one (untick what the sitter skipped, or say it didn't
+  happen); Back skips it and the next list assumes it was watered. Nothing here edits a plant directly: the
+  waterings it logs go through the usual quick-log path (#899, product ADR-0065)
+- **Away mode — plan a trip and pause reminders** — a new Away mode section in Settings (always visible, even with
+  notifications off) lets you plan a trip on a date-range picker, edit its dates, cancel it before it starts, or tap
+  **I'm back** when you return early (the last day becomes yesterday, or the trip is removed if it hadn't really
+  begun). Each invalid trip says why: a last day in the past, more than 90 days, overlapping another trip, or another
+  trip already planned. On every away day no care reminder is sent, per plant or combined, and the notification
+  shade is cleared; reminders resume by themselves the day after the last away day, and the "drain the saucer"
+  reminder after you water yourself is unchanged. Starting or ending a trip refreshes today's reminders at once.
+  Nothing about your plants changes: due dates, intervals and confidence stay as they were, so anything that came
+  due while you were away simply shows as due or overdue when you are back. Sitter visits that fall outside an
+  edited or shortened trip are removed, and the count is shown (#898, product ADR-0065)
+- **A Care banner while you are away** — "Away until Oct 21 · reminders paused" with an **I'm back** button, and from a
+  week before a trip starts a note saying when reminders will pause; it appears and disappears at midnight without
+  restarting the app (#898, product ADR-0065)
+- **Waterings logged during a trip no longer skew the adaptive interval** — a watering whose gap overlaps your away
+  days is left out of the learned interval the way a dormancy gap is: the interval doesn't move, no "Why now?" prompt
+  appears (on Care, Plants, Calendar or a backdated Plant Detail watering), and "Why this date?" shows "away — not
+  counted" (#897, product ADR-0065)
+
 ## [0.36.0] - 2026-10-15
 
 ### Added
