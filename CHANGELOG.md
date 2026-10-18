@@ -13,6 +13,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Confirm your sitter's visits after the trip** — from your first day back, Care offers the visits you planned but
+  never confirmed ("2 sitter visits to confirm"), oldest first, for 14 days after your last away day or until each
+  one is answered. It opens the same checklist as before: every plant ticked, untick what the sitter skipped, then
+  Continue, or **The visit didn't happen**, which logs nothing and isn't offered again. Waterings are dated on the
+  visit day, skip a plant already watered that day (and say so), ask no "Why now?", send no post-watering reminder
+  and stay out of how YAPT learns each plant's interval, so a plant the sitter watered isn't overdue when you
+  return. Settings → Away mode now lists the current or latest trip's visits with their state and lets you confirm
+  a planned one at any time, during the trip or after it.
 - **A plant-sitter list for your trip** — trip setup now asks **How often should a sitter come?** (every 4, 5, 7, 10
   or 14 days) and shows, for each rhythm, how many plants would go longer than usual (at least 1.5 times their
   usual interval, assuming everything due is watered on your last day at home). YAPT recommends the longest rhythm

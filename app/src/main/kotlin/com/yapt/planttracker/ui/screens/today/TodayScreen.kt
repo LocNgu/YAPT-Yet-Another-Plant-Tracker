@@ -52,6 +52,7 @@ import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.screens.away.AwayModeBanner
 import com.yapt.planttracker.ui.screens.away.AwayModeNavigation
 import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
+import com.yapt.planttracker.ui.screens.away.ConfirmVisitViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
@@ -71,7 +72,8 @@ fun TodayScreen(
     onNavigateToAdd: () -> Unit,
     onLaunchPhotoCapture: ((Long) -> Unit)? = null,
     awayModeViewModel: AwayModeViewModel? = null,
-    awayModeNavigation: AwayModeNavigation = AwayModeNavigation()
+    awayModeNavigation: AwayModeNavigation = AwayModeNavigation(),
+    confirmVisitViewModel: ConfirmVisitViewModel? = null
 ) {
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -140,7 +142,8 @@ fun TodayScreen(
                 AwayModeBanner(
                     vm,
                     onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
-                    navigation = awayModeNavigation
+                    navigation = awayModeNavigation,
+                    confirmVisitViewModel = confirmVisitViewModel
                 )
             }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

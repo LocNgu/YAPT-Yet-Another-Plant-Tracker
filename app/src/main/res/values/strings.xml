@@ -916,6 +916,28 @@
         <item quantity="other">%d were already watered that day</item>
     </plurals>
 
+    <plurals name="sitter_confirm_prompt">
+        <item quantity="one">%d sitter visit to confirm</item>
+        <item quantity="other">%d sitter visits to confirm</item>
+    </plurals>
+    <string name="sitter_confirm_prompt_oldest">Starting with the visit on %1$s</string>
+    <string name="sitter_confirm_prompt_state">Sitter visits to confirm</string>
+    <string name="sitter_confirm_prompt_action">Confirm visit</string>
+    <string name="sitter_visits_heading">Sitter visits</string>
+    <string name="sitter_visit_state_planned">Planned</string>
+    <string name="sitter_visit_state_confirmed">Confirmed</string>
+    <string name="sitter_visit_state_did_not_happen">Didn\'t happen</string>
+    <plurals name="sitter_visit_plant_count">
+        <item quantity="one">%d plant</item>
+        <item quantity="other">%d plants</item>
+    </plurals>
+    <plurals name="sitter_visit_watered_count">
+        <item quantity="one">%1$d of %2$d plant watered</item>
+        <item quantity="other">%1$d of %2$d plants watered</item>
+    </plurals>
+    <string name="sitter_visit_confirm_description">Confirm the visit on %1$s</string>
+    <string name="sitter_visit_confirm_action">Confirm</string>
+
     <string name="sitter_share_chooser_title">Share plant list</string>
     <string name="sitter_share_failed">Couldn\'t create the PDF. Try Share as text instead.</string>
     <string name="sitter_visit_title">Plants to water on %1$s</string>
