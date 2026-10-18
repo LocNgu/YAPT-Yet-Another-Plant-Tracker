@@ -28,6 +28,7 @@ paths:
 
 ## Sitter visit waterings (#899, product ADR-0065)
 - `QuickLogUseCase.logSitterVisitWaterings(plants, visitDay)` is the confirm step's write: one transaction, `quickWaterWithReasonInternal(plant, reason = null, loggedAt, schedulePostWateringReminder = false)` per plant, never `onWaterLogged`, so there is no reason prompt and no post-watering reminder (the owner isn't there). The log is dated `min(noon of visitDay, nowProvider())` and the same-day duplicate guard applies per plant. A gap touching a trip is already `AWAY_EXCLUDED` by slice 2.
+- **Slice 5 (#900)** reuses the same call for the after-the-trip prompt on Care and for Settings (`ConfirmVisitViewModel`): ticked plants only, logs dated on the visit day, duplicates skipped and reported (`PlanVisitEvent.Confirmed(logged, skipped)`), no reason prompt, no post-watering reminder, every observation `AWAY_EXCLUDED`. "The visit didn't happen" writes no log. Details: `rules/away-mode.md`.
 - **Before you leave** uses the unchanged `bulkLog(plants, WATER)` (Plant List's path; the owner is home, feedback `null`).
 
 ## Post-watering reminder (#519, product ADR-0036)

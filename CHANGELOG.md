@@ -13,6 +13,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Confirm your sitter's visits after the trip** — from your first day back, Care offers the visits you planned but
+  never confirmed ("2 sitter visits to confirm"), oldest first, for 14 days after your last away day or until each
+  one is answered. It opens the same checklist as before: every plant ticked, untick what the sitter skipped, then
+  Continue, or **The visit didn't happen**, which logs nothing and isn't offered again. Waterings are dated on the
+  visit day, skip a plant already watered that day (and say so), ask no "Why now?", send no post-watering reminder
+  and stay out of how YAPT learns each plant's interval, so a plant the sitter watered isn't overdue when you
+  return. Settings → Away mode now lists the current or latest trip's visits with their state and lets you confirm
+  a planned one at any time, during the trip or after it.
 - **Hide a plant without moving it to the Graveyard** — **Hide plant** on Edit Plant (below the notes) takes a living
   plant out of the Plants list, Care, reminders, the Calendar, the Watering and Repotting overviews and the away-mode
   sitter lists, including **Please don't water these**. A snackbar offers **Undo**, and the app returns to the Plants

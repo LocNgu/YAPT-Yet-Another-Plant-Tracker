@@ -14,9 +14,12 @@ import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.away.AwayPeriodValidation
 import com.yapt.planttracker.domain.away.AwayTripStatus
+import com.yapt.planttracker.domain.away.VISIT_CONFIRM_WINDOW_DAYS
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.SitterVisit
+import com.yapt.planttracker.domain.model.SitterVisitPlant
+import com.yapt.planttracker.domain.model.SitterVisitState
 import com.yapt.planttracker.util.MainDispatcherRule
 import com.yapt.planttracker.worker.ReminderScheduler
 import io.mockk.Runs
@@ -101,6 +104,19 @@ class AwayModeViewModelTest {
 
     private suspend fun addVisit(tripId: Long, day: LocalDate) =
         repository.addVisit(SitterVisit(awayPeriodId = tripId, day = day, createdAt = 1L))
+
+    private suspend fun addVisitWithPlant(tripId: Long, day: LocalDate): Long {
+        val plantId = PlantRepository(db.plantDao())
+            .addPlant(Plant(name = "Aloe", wateringIntervalDays = 7, createdAt = 1L, updatedAt = 1L))
+        return repository.addVisit(
+            SitterVisit(
+                awayPeriodId = tripId,
+                day = day,
+                plants = listOf(SitterVisitPlant(plantId)),
+                createdAt = 1L
+            )
+        )
+    }
 
     @Test
     fun `planning a trip stores it and does not touch reminders when it starts later`() = runTest {
@@ -352,6 +368,54 @@ class AwayModeViewModelTest {
             val after = awaitItem()!!
             assertEquals(AwayTripStatus.None, after.status)
             assertFalse(after.showsBanner)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the visits to confirm appear on the first day back and lapse after the window at midnight`() = runTest {
+        val trip = addTrip(today.minusDays(10), today.plusDays(1))
+        addVisitWithPlant(trip.id, today.minusDays(4))
+        addVisitWithPlant(trip.id, today.minusDays(1))
+        val dayChange = MutableSharedFlow<LocalDate>(replay = 1)
+        val vm = viewModel(dayChange)
+
+        vm.uiState.test {
+            assertNull(awaitItem())
+            dayChange.emit(today)
+            assertTrue(awaitItem()!!.visitsToConfirm.isEmpty())
+
+            dayChange.emit(today.plusDays(2))
+            val back = awaitItem()!!
+            assertEquals(2, back.visitsToConfirm.size)
+            assertTrue(back.visitsToConfirm[0].day < back.visitsToConfirm[1].day)
+
+            dayChange.emit(today.plusDays(1 + VISIT_CONFIRM_WINDOW_DAYS))
+            assertEquals(2, awaitItem()!!.visitsToConfirm.size)
+
+            dayChange.emit(today.plusDays(2 + VISIT_CONFIRM_WINDOW_DAYS))
+            assertTrue(awaitItem()!!.visitsToConfirm.isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `an answered visit leaves the offer and Settings keeps listing it`() = runTest {
+        val trip = addTrip(today.minusDays(10), today.minusDays(1))
+        val answered = addVisitWithPlant(trip.id, today.minusDays(4))
+        addVisitWithPlant(trip.id, today.minusDays(2))
+        val stored = repository.getAllWithVisits().single().visits.first { it.id == answered }
+        repository.updateVisit(stored.copy(state = SitterVisitState.DID_NOT_HAPPEN))
+        val vm = viewModel()
+
+        vm.uiState.test {
+            val state = awaitItem() ?: awaitItem()!!
+            assertEquals(1, state.visitsToConfirm.size)
+            assertEquals(2, state.settingsVisits.size)
+            assertEquals(
+                listOf(SitterVisitState.DID_NOT_HAPPEN, SitterVisitState.PLANNED),
+                state.settingsVisits.map { it.state }
+            )
             cancelAndIgnoreRemainingEvents()
         }
     }

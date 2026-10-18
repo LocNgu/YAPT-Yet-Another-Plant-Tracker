@@ -7,10 +7,16 @@ import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.away.AwayModeNavigation
 import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
+import com.yapt.planttracker.ui.screens.away.ConfirmVisitViewModel
 
 @Composable
 internal fun awayModeViewModel(app: YaptApplication): AwayModeViewModel = viewModel(
     factory = AwayModeViewModel.Factory(app, app.awayPeriodRepository, app.settingsDataStore)
+)
+
+@Composable
+internal fun confirmVisitViewModel(app: YaptApplication): ConfirmVisitViewModel = viewModel(
+    factory = ConfirmVisitViewModel.Factory(app.awayPeriodRepository, app.plantRepository, app.quickLogUseCase)
 )
 
 /** Where the Settings section and the Care banner send the owner: the sitter rhythm, Before you leave, plan a visit. */

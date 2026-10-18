@@ -89,7 +89,7 @@ private fun visitToConfirm(visits: List<SitterVisit>, today: LocalDate): SitterV
     .maxWithOrNull(compareBy({ it.day }, { it.id }))
     ?.takeIf { it.state == SitterVisitState.PLANNED }
 
-private fun confirmState(visit: SitterVisit, plants: List<Plant>, unticked: Set<Long>): PlanVisitUiState {
+internal fun confirmState(visit: SitterVisit, plants: List<Plant>, unticked: Set<Long>): PlanVisitUiState.Confirm {
     val byId = plants.filter { it.isVisible }.associateBy { it.id }
     val rows = visit.plants
         .mapNotNull { byId[it.plantId] }
