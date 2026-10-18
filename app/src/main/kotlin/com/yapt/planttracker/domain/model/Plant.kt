@@ -84,5 +84,14 @@ data class Plant(
      * Which hemisphere-aware seasons the recurring [repottingIntervalDays] date may land in (#809,
      * product ADR-0057). Defaults to every season, which keeps every due date exactly as it was.
      */
-    val repottingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet()
-)
+    val repottingSeasons: Set<FertilizingSeason> = FertilizingSeason.entries.toSet(),
+    /**
+     * Instant the owner hid this living plant from every operational surface — Plant list, Care queue,
+     * reminders, Calendar, overviews, away-mode lists (#915, product ADR-0066). `null` = visible. Unlike
+     * [archivedAt] it says nothing about the plant's life; it is cleared when the plant is archived.
+     */
+    val hiddenAt: Long? = null
+) {
+    /** `true` when the plant belongs on operational surfaces: neither archived nor hidden (#915). */
+    val isVisible: Boolean get() = archivedAt == null && hiddenAt == null
+}

@@ -245,6 +245,23 @@ class PlantListViewModel(
         viewModelScope.launch { plantRepository.restorePlant(plantId) }
     }
 
+    /** Drives the "every plant is hidden" empty state, which points at Settings -> Hidden plants (#915). */
+    val hiddenCount: StateFlow<Int> = plantRepository.getHiddenCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    data class HiddenEvent(val plantId: Long, val plantName: String)
+
+    private val _hiddenEvent = MutableSharedFlow<HiddenEvent>()
+    val hiddenEvent: SharedFlow<HiddenEvent> = _hiddenEvent.asSharedFlow()
+
+    fun onPlantHidden(plantId: Long, plantName: String) {
+        viewModelScope.launch { _hiddenEvent.emit(HiddenEvent(plantId, plantName)) }
+    }
+
+    fun undoHide(plantId: Long) {
+        viewModelScope.launch { plantRepository.unhidePlant(plantId) }
+    }
+
     // --- Multi-select (tap and hold) bulk care actions ---
 
     private val _selectedPlantIds = MutableStateFlow<Set<Long>>(emptySet())

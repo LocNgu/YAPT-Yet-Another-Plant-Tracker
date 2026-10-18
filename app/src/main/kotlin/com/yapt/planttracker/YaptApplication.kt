@@ -123,7 +123,7 @@ open class YaptApplication : Application() {
      */
     private suspend fun runSeasonalGraduationFixupIfNeeded() {
         runCatching {
-            val plants = plantRepository.getAllPlants().first() + plantRepository.getArchivedPlants().first()
+            val plants = plantRepository.getAllNonArchivedPlants().first() + plantRepository.getArchivedPlants().first()
             val request = SeasonalGraduationFixup.FixupRequest(
                 plants = plants,
                 amplitude = settingsDataStore.seasonalAmplitudeOnce(),

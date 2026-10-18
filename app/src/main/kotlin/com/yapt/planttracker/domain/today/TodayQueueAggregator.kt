@@ -62,7 +62,7 @@ object TodayQueueAggregator {
             .sortedWith(compareBy<PlantIssue> { it.startedAt }.thenBy { it.id })
             .associateBy { it.linkedReminderId!! }
         val now = input.today.toStartOfDayMillis()
-        val tasks = input.plants.filter { it.archivedAt == null }.flatMap { plant ->
+        val tasks = input.plants.filter { it.isVisible }.flatMap { plant ->
             val logs = logsByPlant[plant.id].orEmpty()
             val status = CareSchedule.computeStatus(
                 plant = plant,
@@ -89,7 +89,7 @@ object TodayQueueAggregator {
         }
 
         return TodayQueueSnapshot(
-            activePlantCount = input.plants.count { it.archivedAt == null },
+            activePlantCount = input.plants.count { it.isVisible },
             tasks = tasks.sortedWith(
                 compareBy<TodayCareTask> { it.dueAt }
                     .thenBy { it.plant.name.lowercase() }

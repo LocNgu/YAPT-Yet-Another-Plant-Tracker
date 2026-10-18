@@ -149,6 +149,18 @@ class BeforeYouLeaveTest {
     }
 
     @Test
+    fun `hidden plants are in neither list and are not counted`() {
+        val entries = listOf(dueOn(1, day(7)))
+        val hidden = plant(2).copy(hiddenAt = 1L)
+
+        val result = plan(entries, extraPlants = listOf(hidden))
+
+        assertEquals(listOf(1L), result.waterToday.ids())
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
     fun `due dates reflect the logged waterings only, nothing is simulated`() {
         val unwatered = plant(1, interval = 30)
 

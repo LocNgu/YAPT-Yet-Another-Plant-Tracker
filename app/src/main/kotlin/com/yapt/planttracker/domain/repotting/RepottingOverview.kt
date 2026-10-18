@@ -61,7 +61,7 @@ object RepottingOverviewBuilder {
         today: LocalDate,
         hemisphere: Hemisphere
     ): RepottingOverview {
-        val active = plants.filter { it.archivedAt == null }
+        val active = plants.filter { it.isVisible }
         val (planned, unplanned) = active.partition { it.repotPlanSeasonStartAt != null }
         return RepottingOverview(
             planned = plannedItems(planned, today, hemisphere),

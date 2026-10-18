@@ -47,7 +47,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 18
+        const val DB_VERSION = 19
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -327,6 +327,15 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #915 (product ADR-0066): when the owner hid a living plant from operational surfaces. Pure ALTER
+        // TABLE — every existing row reads back null, so every plant stays visible.
+        @Suppress("MagicNumber")
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN hiddenAt INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -351,7 +360,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_14_15,
                         MIGRATION_15_16,
                         MIGRATION_16_17,
-                        MIGRATION_17_18
+                        MIGRATION_17_18,
+                        MIGRATION_18_19
                     )
                     .build()
                     .also { INSTANCE = it }

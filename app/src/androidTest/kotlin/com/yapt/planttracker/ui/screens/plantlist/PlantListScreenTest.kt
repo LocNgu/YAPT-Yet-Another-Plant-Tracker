@@ -50,7 +50,8 @@ class PlantListScreenTest {
     private fun makeViewModel(
         plants: List<Plant> = emptyList(),
         rooms: List<String> = emptyList(),
-        activeIssueCounts: Map<Long, Int> = emptyMap()
+        activeIssueCounts: Map<Long, Int> = emptyMap(),
+        hiddenCount: Int = 0
     ): PlantListViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
@@ -62,6 +63,7 @@ class PlantListScreenTest {
         coEvery { dataStore.updateData(any()) } returns emptyPreferences()
         every { plantRepo.getAllPlants() } returns flowOf(plants)
         every { plantRepo.getAllRooms() } returns flowOf(rooms)
+        every { plantRepo.getHiddenCount() } returns flowOf(hiddenCount)
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
@@ -79,6 +81,26 @@ class PlantListScreenTest {
             quickLogUseCase,
             plantIssueRepo
         )
+    }
+
+    @Test
+    fun emptyState_whenEveryPlantIsHidden_pointsToHiddenPlants() {
+        val viewModel = makeViewModel(hiddenCount = 2)
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {}
+            )
+        }
+
+        composeTestRule
+            .onNode(hasText("All your plants are hidden", substring = true))
+            .assertIsDisplayed()
+        composeTestRule
+            .onNode(hasText("No plants yet!", substring = true))
+            .assertDoesNotExist()
     }
 
     @Test

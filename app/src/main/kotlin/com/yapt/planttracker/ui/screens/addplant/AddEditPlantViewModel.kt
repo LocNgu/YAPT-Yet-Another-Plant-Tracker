@@ -95,6 +95,10 @@ class AddEditPlantViewModel(
      */
     private var loadedWateringIntervalDays: Int? = null
 
+    /** Whether the plant is currently hidden (#915); only meaningful in edit mode. Hide/Unhide write at once, not on Save. */
+    var isHidden by mutableStateOf(false)
+        private set
+
     val pendingPhotos = mutableStateListOf<String>()
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
@@ -112,6 +116,7 @@ class AddEditPlantViewModel(
                     room = plant.room ?: ""
                     notes = plant.notes ?: ""
                     coverPhotoUri = plant.coverPhotoUri
+                    isHidden = plant.hiddenAt != null
                     plant.wateringIntervalDays?.let {
                         wateringIntervalDays = it
                         wateringIntervalEnabled = true
@@ -262,6 +267,9 @@ class AddEditPlantViewModel(
                 // carry the stored values over so an unrelated edit can't silently wipe it (#809).
                 repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,
                 repotPlanMadeAt = existing?.repotPlanMadeAt,
+                // Hide/Unhide own this column through column-specific writes (#915):
+                // an unrelated edit must never unhide a plant.
+                hiddenAt = existing?.hiddenAt,
                 wateringConfidence = wateringConfidence,
                 wateringBaseIntervalDays = wateringBaseIntervalDays,
                 // Room-change reset (#571): a fresh wateringResetAt anchor for the post-reset bootstrap
@@ -386,6 +394,26 @@ class AddEditPlantViewModel(
         }
     }
 
+    fun hidePlant() {
+        plantId ?: return
+        viewModelScope.launch {
+            plantRepository.getPlantById(plantId).first()?.let { plant ->
+                plantRepository.hidePlant(plant.id)
+                isHidden = true
+                _events.emit(Event.HiddenForUndo(plant.id, plant.name))
+            }
+        }
+    }
+
+    fun unhidePlant() {
+        plantId ?: return
+        viewModelScope.launch {
+            plantRepository.unhidePlant(plantId)
+            isHidden = false
+            _events.emit(Event.Unhidden)
+        }
+    }
+
     private suspend fun savePendingPhotos(plantId: Long, now: Long) {
         if (pendingPhotos.isEmpty()) return
         plantPhotoRepository.addPhotos(
@@ -396,6 +424,8 @@ class AddEditPlantViewModel(
     sealed class Event {
         data class Saved(val plantId: Long) : Event()
         data class ArchivedForUndo(val plantId: Long, val plantName: String) : Event()
+        data class HiddenForUndo(val plantId: Long, val plantName: String) : Event()
+        object Unhidden : Event()
         data class ValidationError(val message: String) : Event()
     }
 

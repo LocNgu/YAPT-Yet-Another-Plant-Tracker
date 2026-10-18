@@ -73,7 +73,7 @@ object WateringOverviewBuilder {
         hemisphere: Hemisphere
     ): WateringOverview {
         val byGroup = plants
-            .filter { it.archivedAt == null }
+            .filter { it.isVisible }
             .map { item(it, lastWateredAtByPlantId[it.id], seasonalAmplitude, now, hemisphere) }
             .groupBy { groupOf(it) }
         return WateringOverview(

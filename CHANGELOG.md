@@ -21,6 +21,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   and stay out of how YAPT learns each plant's interval, so a plant the sitter watered isn't overdue when you
   return. Settings → Away mode now lists the current or latest trip's visits with their state and lets you confirm
   a planned one at any time, during the trip or after it.
+- **Hide a plant without moving it to the Graveyard** — **Hide plant** on Edit Plant (below the notes) takes a living
+  plant out of the Plants list, Care, reminders, the Calendar, the Watering and Repotting overviews and the away-mode
+  sitter lists, including **Please don't water these**. A snackbar offers **Undo**, and the app returns to the Plants
+  tab without assuming it was on the back stack. Settings gets a **Hidden plants** row, shown only while at least one
+  plant is hidden, that lists them with an **Unhide** button and opens Plant Detail on tap (care can still be logged
+  there). When every plant is hidden, the Plants tab says so and points to that page. Hiding keeps all history, photos
+  and schedule data and changes no learned interval; moving a hidden plant to the Graveyard unhides it. The hidden state
+  is stored in the database (migration 18 to 19) and in backups (schema 23); older backups import with every plant
+  visible (#915, product ADR-0066)
 - **A plant-sitter list for your trip** — trip setup now asks **How often should a sitter come?** (every 4, 5, 7, 10
   or 14 days) and shows, for each rhythm, how many plants would go longer than usual (at least 1.5 times their
   usual interval, assuming everything due is watered on your last day at home). YAPT recommends the longest rhythm

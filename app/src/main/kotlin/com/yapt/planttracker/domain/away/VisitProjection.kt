@@ -59,7 +59,7 @@ data class VisitProjection(
 object VisitProjector {
 
     fun project(input: VisitProjectionInput): VisitProjection {
-        val active = input.plants.filter { it.archivedAt == null }
+        val active = input.plants.filter { it.isVisible }
         val includesDueBy = input.visitDay.plusDays(((input.gapDays - 1) / 2).toLong().coerceAtLeast(0L))
         val simulated = simulatedWaterings(input, active)
         val due = SitterDueDates.wateringsDueBy(

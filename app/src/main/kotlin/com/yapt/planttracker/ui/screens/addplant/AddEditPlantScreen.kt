@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,11 +26,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
@@ -74,7 +80,8 @@ import kotlinx.coroutines.launch
 fun AddEditPlantScreen(
     viewModel: AddEditPlantViewModel,
     onNavigateBack: () -> Unit,
-    onPlantArchived: (plantId: Long, plantName: String) -> Unit = { _, _ -> }
+    onPlantArchived: (plantId: Long, plantName: String) -> Unit = { _, _ -> },
+    onPlantHidden: (plantId: Long, plantName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -82,6 +89,7 @@ fun AddEditPlantScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val unhiddenMessage = stringResource(R.string.snackbar_plant_unhidden)
     val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
     val repottingLastSeasonLockedMessage = stringResource(R.string.repotting_last_season_locked_snackbar)
 
@@ -112,6 +120,10 @@ fun AddEditPlantScreen(
                 is AddEditPlantViewModel.Event.Saved -> onNavigateBack()
                 is AddEditPlantViewModel.Event.ArchivedForUndo ->
                     onPlantArchived(event.plantId, event.plantName)
+                is AddEditPlantViewModel.Event.HiddenForUndo ->
+                    onPlantHidden(event.plantId, event.plantName)
+                is AddEditPlantViewModel.Event.Unhidden ->
+                    snackbarHostState.showSnackbar(unhiddenMessage)
                 is AddEditPlantViewModel.Event.ValidationError ->
                     snackbarHostState.showSnackbar(event.message)
             }
@@ -454,6 +466,35 @@ fun AddEditPlantScreen(
                 minLines = 3,
                 maxLines = 6
             )
+
+            if (viewModel.isEditMode) {
+                HorizontalDivider()
+                ListItem(
+                    modifier = Modifier.clickable(role = Role.Button) {
+                        if (viewModel.isHidden) viewModel.unhidePlant() else viewModel.hidePlant()
+                    },
+                    leadingContent = {
+                        Icon(
+                            if (viewModel.isHidden) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            contentDescription = null
+                        )
+                    },
+                    headlineContent = {
+                        Text(
+                            stringResource(
+                                if (viewModel.isHidden) R.string.unhide_plant else R.string.hide_plant
+                            )
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                if (viewModel.isHidden) R.string.unhide_plant_hint else R.string.hide_plant_hint
+                            )
+                        )
+                    }
+                )
+            }
 
             Spacer(Modifier.height(72.dp))
         }

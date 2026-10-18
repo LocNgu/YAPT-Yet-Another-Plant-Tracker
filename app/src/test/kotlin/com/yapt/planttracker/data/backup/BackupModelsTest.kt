@@ -40,7 +40,8 @@ class BackupModelsTest {
         archivedAt = archivedAt,
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
-        repottingSeasons = repottingSeasons
+        repottingSeasons = repottingSeasons,
+        hiddenAt = hiddenAt
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -67,7 +68,8 @@ class BackupModelsTest {
         archivedAt = archivedAt,
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
-        repottingSeasons = repottingSeasons
+        repottingSeasons = repottingSeasons,
+        hiddenAt = hiddenAt
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -118,7 +120,8 @@ class BackupModelsTest {
         archivedAt = 1_693_000_000_000L,
         repotPlanSeasonStartAt = 1_804_032_000_000L,
         repotPlanMadeAt = 1_790_000_000_000L,
-        repottingSeasons = "SPRING,AUTUMN"
+        repottingSeasons = "SPRING,AUTUMN",
+        hiddenAt = 1_694_000_000_000L
     )
 
     private val fullLog = CareLogEntity(
@@ -161,6 +164,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.repotPlanSeasonStartAt, bp.repotPlanSeasonStartAt)
         assertEquals(fullPlant.repotPlanMadeAt, bp.repotPlanMadeAt)
         assertEquals(fullPlant.repottingSeasons, bp.repottingSeasons)
+        assertEquals(fullPlant.hiddenAt, bp.hiddenAt)
     }
 
     @Test
@@ -174,6 +178,15 @@ class BackupModelsTest {
         val roundTripped = archived.toBackupPlant().toPlantEntity()
         assertEquals(1_700_000_000_000L, roundTripped.archivedAt)
         assertEquals(archived, roundTripped)
+    }
+
+    @Test
+    fun `hidden PlantEntity round-trip stays hidden and a visible one stays visible`() {
+        val hidden = fullPlant.copy(archivedAt = null, hiddenAt = 1_700_000_000_000L)
+        assertEquals(hidden, hidden.toBackupPlant().toPlantEntity())
+        assertEquals(1_700_000_000_000L, hidden.toBackupPlant().hiddenAt)
+        val visible = fullPlant.copy(hiddenAt = null)
+        assertNull(visible.toBackupPlant().toPlantEntity().hiddenAt)
     }
 
     @Test

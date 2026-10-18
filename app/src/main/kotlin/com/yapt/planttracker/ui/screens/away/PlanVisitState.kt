@@ -90,7 +90,7 @@ private fun visitToConfirm(visits: List<SitterVisit>, today: LocalDate): SitterV
     ?.takeIf { it.state == SitterVisitState.PLANNED }
 
 internal fun confirmState(visit: SitterVisit, plants: List<Plant>, unticked: Set<Long>): PlanVisitUiState.Confirm {
-    val byId = plants.filter { it.archivedAt == null }.associateBy { it.id }
+    val byId = plants.filter { it.isVisible }.associateBy { it.id }
     val rows = visit.plants
         .mapNotNull { byId[it.plantId] }
         .sortedWith(compareBy({ it.name.lowercase() }, { it.id }))

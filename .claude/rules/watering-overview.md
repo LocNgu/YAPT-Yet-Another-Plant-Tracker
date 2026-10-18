@@ -13,7 +13,7 @@ A read-only audit of how often every plant needs water. Nested under Settings, i
 
 - **Pipeline:** `observeWateringOverview` (`domain/watering/WateringOverviewSnapshot.kt`) combines `getAllPlants()`, `careLogRepository.observeLastCareAtByPlant(CareType.WATER)`, the seasonal amplitude flow and a day-change trigger. `WateringOverviewViewModel` injects `dayChange: Flow<LocalDate> = dayChangeTicker()` and `nowProvider`; the ticker's value is ignored and `nowProvider()` is read once per emission, so intervals and due dates share one instant.
 - **Builder:** `WateringOverviewBuilder.build()` is pure and the only place groups are decided. It calls `CareSchedule.computeStatus` for `nextWateringDueAt` and `wateringScheduleMode`; it never adds due-date logic or per-plant Room queries.
-- **Groups**, in order, empty ones omitted: 1–3 / 4–7 / 8–14 / 15+ days, Resting, No watering schedule. Every active plant is in exactly one; archived plants are never listed or counted.
+- **Groups**, in order, empty ones omitted: 1–3 / 4–7 / 8–14 / 15+ days, Resting, No watering schedule. Every active plant is in exactly one; archived and hidden plants (#915) are never listed or counted.
   - No `wateringIntervalDays` → No watering schedule (even with a dormancy window); no interval or due date shown.
   - `DORMANT_SUSPENDED` → Resting, "Watering paused", no due date.
   - `DORMANT_CADENCE` → Resting, shows the fixed `dormantWateringIntervalDays` (not the seasonal value) plus `nextWateringDueAt`.
