@@ -45,7 +45,7 @@ class CareScheduleAwayTest {
         today: LocalDate,
         periods: List<AwayPeriod>? = listOf(trip)
     ): PlantCareStatus {
-        val plant = Plant(id = 1L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L)
+        val plant = Plant(id = 1L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
         return if (periods == null) {
             CareSchedule.computeStatus(plant, lastWatered?.let(::ms), null, 0, now = ms(today))
         } else {
