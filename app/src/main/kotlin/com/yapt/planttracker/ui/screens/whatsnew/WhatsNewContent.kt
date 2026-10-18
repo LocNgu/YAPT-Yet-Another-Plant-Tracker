@@ -13,31 +13,32 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(
-        versionCode = 0,
-        versionName = "Unreleased",
-        added = listOf(
-            "Away mode in Settings: plan a trip, edit its dates, cancel it or tap I'm back when you return early. " +
-                "No care reminders are sent on your away days and they resume the day after the last one, while " +
-                "your plants' due dates stay untouched. A banner on Care shows while you're away, and for a week " +
-                "before you leave",
-            "Waterings logged while you're away no longer change how often YAPT thinks a plant needs water, and " +
-                "don't ask \"Why now?\" for them",
-            "A plant-sitter list for your trip: choose how often a sitter should come, water what would run dry on " +
-                "your last day at home, plan each visit while you're away and share a photo list of the plants to " +
-                "water (and the ones to leave dry) as a PDF or as text",
-            "Once you're back, Care offers the sitter visits you never confirmed: tick what the sitter watered (or " +
-                "say the visit didn't happen) and those plants count as watered on the visit day. Settings lists " +
-                "your trip's visits too and can confirm a planned one at any time",
-            "Hide a plant you still own but don't want to see right now: Hide plant on Edit Plant takes it out of " +
-                "Care, reminders, the Calendar and your plant list without moving it to the Graveyard. Find hidden " +
-                "plants again under Settings, Hidden plants, where you can unhide them"
-        )
-    )
+    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 550,
+            versionName = "0.37.0",
+            added = listOf(
+                "Away mode in Settings: plan a trip, edit its dates, cancel it or tap I'm back when you return " +
+                    "early. No care reminders are sent on your away days and they resume the day after the last " +
+                    "one, while your plants' due dates stay untouched. A banner on Care shows while you're away, " +
+                    "and for a week before you leave",
+                "Waterings logged while you're away no longer change how often YAPT thinks a plant needs water, " +
+                    "and don't ask \"Why now?\" for them",
+                "A plant-sitter list for your trip: choose how often a sitter should come, water what would run " +
+                    "dry on your last day at home, plan each visit while you're away and share a photo list of the " +
+                    "plants to water (and the ones to leave dry) as a PDF or as text",
+                "Once you're back, Care offers the sitter visits you never confirmed: tick what the sitter " +
+                    "watered (or say the visit didn't happen) and those plants count as watered on the visit day. " +
+                    "Settings lists your trip's visits too and can confirm a planned one at any time",
+                "Hide a plant you still own but don't want to see right now: Hide plant on Edit Plant takes it " +
+                    "out of Care, reminders, the Calendar and your plant list without moving it to the Graveyard. " +
+                    "Find hidden plants again under Settings, Hidden plants, where you can unhide them"
+            )
+        ),
         ReleaseNotes(
             versionCode = 540,
             versionName = "0.36.0",

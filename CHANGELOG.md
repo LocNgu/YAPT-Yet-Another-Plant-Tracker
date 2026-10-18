@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-18
+
 ### Added
 - **Confirm your sitter's visits after the trip** — from your first day back, Care offers the visits you planned but
   never confirmed ("2 sitter visits to confirm"), oldest first, for 14 days after your last away day or until each
