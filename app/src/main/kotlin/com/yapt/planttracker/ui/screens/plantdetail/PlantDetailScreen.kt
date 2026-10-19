@@ -475,10 +475,21 @@ fun PlantDetailScreen(
         )
     }
 
+    val soilTooDryVisibleFor: suspend (Long) -> Boolean = { loggedAt ->
+        plant?.let { p ->
+            isSoilTooDryOptionVisible(
+                WateringGateInputs(p, seasonalAmplitudeValue, viewModel.awayPeriods()),
+                viewModel.previousWateringBefore(loggedAt),
+                loggedAt
+            )
+        } ?: false
+    }
+
     if (showWaterDatePicker) {
         LogWateringDatePickerDialog(
             onDismiss = { showWaterDatePicker = false },
-            onConfirm = { loggedAt ->
+            soilTooDryVisibleFor = soilTooDryVisibleFor,
+            onConfirm = { loggedAt, soilTooDry ->
                 showWaterDatePicker = false
                 val p = plant
                 if (p != null) {
@@ -488,7 +499,8 @@ fun PlantDetailScreen(
                         requestWater(
                             QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel, awayPeriods),
                             loggedAt,
-                            previousWateringAt
+                            previousWateringAt,
+                            soilTooDry
                         ) {
                             showWaterSheet = PendingReasonPrompt(loggedAt, previousWateringAt)
                         }
@@ -501,7 +513,8 @@ fun PlantDetailScreen(
     if (showLiquidFertilizeDatePicker) {
         LogWateringDatePickerDialog(
             onDismiss = { showLiquidFertilizeDatePicker = false },
-            onConfirm = { loggedAt ->
+            soilTooDryVisibleFor = soilTooDryVisibleFor,
+            onConfirm = { loggedAt, soilTooDry ->
                 showLiquidFertilizeDatePicker = false
                 val p = plant
                 if (p != null) {
@@ -511,7 +524,8 @@ fun PlantDetailScreen(
                         requestLiquidFertilize(
                             QuickWaterGateContext(p, seasonalAmplitudeValue, viewModel, awayPeriods),
                             loggedAt,
-                            previousWateringAt
+                            previousWateringAt,
+                            soilTooDry
                         ) {
                             showLiquidFertilizeSheet = PendingReasonPrompt(loggedAt, previousWateringAt)
                         }

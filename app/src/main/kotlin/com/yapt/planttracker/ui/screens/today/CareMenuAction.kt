@@ -28,10 +28,11 @@ internal fun careMenuActions(kind: TodayCareKind): List<CareMenuAction> = when (
 
 // Every entry routes to the handler the removed inline button used, so the reason prompt, suggestion
 // dialog, reschedule dialog, repot date picker and camera path are reused rather than reimplemented.
+// WATER and WATER_AND_FERTILIZE open the "Log watering" date picker first (#838, product ADR-0067).
 internal fun TodayTaskActions.perform(action: CareMenuAction, task: TodayCareTask) {
     when (action) {
         CareMenuAction.WATER,
-        CareMenuAction.WATER_AND_FERTILIZE,
+        CareMenuAction.WATER_AND_FERTILIZE -> onLogWatering(task)
         CareMenuAction.FERTILIZE,
         CareMenuAction.MARK_DONE -> onComplete(task)
         CareMenuAction.RESCHEDULE -> onReschedule(task)

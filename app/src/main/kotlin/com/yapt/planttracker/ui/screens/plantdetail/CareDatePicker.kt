@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -19,9 +21,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import java.time.Instant
@@ -117,23 +127,63 @@ internal fun localDayToUtcMidnightMillis(
  * (shouldn't happen once a day is pre-selected, but mirrors `RescheduleDatePickerDialog`'s existing
  * null-safety for the same picker API).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.CareDatePickerContent(
     initialSelectedDateMillis: Long,
     onCancel: () -> Unit,
     onConfirm: (loggedAt: Long) -> Unit
 ) {
+    CareDatePickerBody(
+        initialSelectedDateMillis = initialSelectedDateMillis,
+        onCancel = onCancel,
+        soilTooDryVisibleFor = null,
+        onConfirm = { loggedAt, _ -> onConfirm(loggedAt) }
+    )
+}
+
+/**
+ * [CareDatePickerContent]'s implementation, plus the watering-only "Soil was already too dry" option
+ * (#838, product ADR-0067). [soilTooDryVisibleFor] is `null` for every non-watering picker (Repot,
+ * Prune, Add photo), which then never shows the option. Otherwise it is asked, live and off the main
+ * path, whether the option applies to the currently picked date — it depends on that date's own
+ * predecessor, which is a DB read — and the checkbox appears only while the answer is yes. The tick is
+ * reported to [onConfirm] only if the option is visible for the date confirmed, so ticking and then
+ * moving to a late date can never apply a stale answer.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ColumnScope.CareDatePickerBody(
+    initialSelectedDateMillis: Long,
+    onCancel: () -> Unit,
+    soilTooDryVisibleFor: (suspend (loggedAt: Long) -> Boolean)?,
+    onConfirm: (loggedAt: Long, soilTooDry: Boolean) -> Unit
+) {
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = initialSelectedDateMillis,
         selectableDates = TodayOrEarlierSelectableDates
     )
+    var soilTooDryTicked by rememberSaveable { mutableStateOf(false) }
+    val currentVisibleFor = rememberUpdatedState(soilTooDryVisibleFor)
+    val selectedDateMillis = datePickerState.selectedDateMillis
+    val soilTooDryVisible by produceState(initialValue = false, selectedDateMillis) {
+        value = false
+        val visibleFor = currentVisibleFor.value
+        if (visibleFor != null && selectedDateMillis != null) {
+            value = visibleFor(utcMidnightMsToLoggedAtMillis(selectedDateMillis))
+        }
+    }
     Column(
         modifier = Modifier
             .weight(1f, fill = false)
             .verticalScroll(rememberScrollState())
     ) {
         DatePicker(state = datePickerState)
+    }
+    if (soilTooDryVisible) {
+        SoilTooDryOption(
+            checked = soilTooDryTicked,
+            onCheckedChange = { soilTooDryTicked = it }
+        )
     }
     Row(
         modifier = Modifier
@@ -146,11 +196,26 @@ internal fun ColumnScope.CareDatePickerContent(
         TextButton(
             onClick = {
                 datePickerState.selectedDateMillis?.let { utcMidnightMs ->
-                    onConfirm(utcMidnightMsToLoggedAtMillis(utcMidnightMs))
+                    onConfirm(utcMidnightMsToLoggedAtMillis(utcMidnightMs), soilTooDryTicked && soilTooDryVisible)
                 }
                 onCancel()
             }
         ) { Text(stringResource(R.string.ok)) }
+    }
+}
+
+@Composable
+private fun SoilTooDryOption(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.soil_too_dry_option))
     }
 }
 
@@ -167,18 +232,28 @@ internal fun CareDatePickerBottomSheet(
     onConfirm: (loggedAt: Long) -> Unit,
     initialSelectedDateMillis: Long = localTodayAsUtcMidnightMillis()
 ) {
+    CareDatePickerSheetHost(testTag, onDismiss) {
+        CareDatePickerContent(
+            initialSelectedDateMillis = initialSelectedDateMillis,
+            onCancel = onDismiss,
+            onConfirm = onConfirm
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CareDatePickerSheetHost(
+    testTag: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag(testTag)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            CareDatePickerContent(
-                initialSelectedDateMillis = initialSelectedDateMillis,
-                onCancel = onDismiss,
-                onConfirm = onConfirm
-            )
-        }
+        Column(modifier = Modifier.fillMaxWidth(), content = content)
     }
 }
 
@@ -189,20 +264,25 @@ internal fun CareDatePickerBottomSheet(
  * place of the old instant "log now" fast path. Confirming with today selected reproduces that old fast
  * path in one extra confirm tap; picking an earlier date backdates the log.
  *
- * A one-line delegate onto [CareDatePickerBottomSheet] (#694) — this function's name and
- * [LOG_WATERING_DATE_PICKER_TEST_TAG]'s string value are deliberately unchanged so every existing
- * water/liquid-fertilize call site and instrumented test needed no edits.
+ * Also hosts the optional "Soil was already too dry" tick (#838, product ADR-0067), driven by
+ * [soilTooDryVisibleFor] (see [CareDatePickerBody]); [onConfirm] gets the tick as its second argument.
+ * Plant Detail and the Care tiles both open it. [LOG_WATERING_DATE_PICKER_TEST_TAG]'s string value is
+ * deliberately unchanged so every existing instrumented test keeps working.
  */
 @Composable
 internal fun LogWateringDatePickerDialog(
     onDismiss: () -> Unit,
-    onConfirm: (loggedAt: Long) -> Unit
+    soilTooDryVisibleFor: (suspend (loggedAt: Long) -> Boolean)? = null,
+    onConfirm: (loggedAt: Long, soilTooDry: Boolean) -> Unit
 ) {
-    CareDatePickerBottomSheet(
-        testTag = LOG_WATERING_DATE_PICKER_TEST_TAG,
-        onDismiss = onDismiss,
-        onConfirm = onConfirm
-    )
+    CareDatePickerSheetHost(LOG_WATERING_DATE_PICKER_TEST_TAG, onDismiss) {
+        CareDatePickerBody(
+            initialSelectedDateMillis = localTodayAsUtcMidnightMillis(),
+            onCancel = onDismiss,
+            soilTooDryVisibleFor = soilTooDryVisibleFor,
+            onConfirm = onConfirm
+        )
+    }
 }
 
 /**

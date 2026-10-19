@@ -98,19 +98,22 @@ class TodayViewModel(
         viewModelScope.launch { _navigationEvent.emit(TodayNavigationEvent.AddPlant) }
     }
 
-    fun completeWater(taskId: String, reason: WateringReason?) {
+    suspend fun wateringGateFacts(plantId: Long, chosenDate: Long): QuickLogUseCase.WateringGateFacts =
+        quickLogUseCase.wateringGateFacts(plantId, chosenDate)
+
+    fun completeWater(taskId: String, reason: WateringReason?, loggedAt: Long = System.currentTimeMillis()) {
         val task = task(taskId) ?: return
         viewModelScope.launch {
-            executeQuickAction { quickLogUseCase.quickWaterWithReason(task.plant, reason) }
+            executeQuickAction { quickLogUseCase.quickWaterWithReason(task.plant, reason, loggedAt) }
         }
     }
 
-    fun completeFertilizing(taskId: String, reason: WateringReason?) {
+    fun completeFertilizing(taskId: String, reason: WateringReason?, loggedAt: Long = System.currentTimeMillis()) {
         val task = task(taskId) ?: return
         viewModelScope.launch {
             executeQuickAction {
                 if (task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
-                    quickLogUseCase.quickLiquidFertilizeWithReason(task.plant, reason)
+                    quickLogUseCase.quickLiquidFertilizeWithReason(task.plant, reason, loggedAt)
                 } else {
                     quickLogUseCase.quickLog(task.plant, CareType.FERTILIZE)
                 }
