@@ -40,6 +40,7 @@ class CareMenuActionTest {
         val actions = TodayTaskActions(
             onOpen = { _, _ -> calls += "open" },
             onComplete = { calls += "complete" },
+            onLogWatering = { calls += "logWatering" },
             onReschedule = { calls += "reschedule" },
             onRepot = { calls += "repot" },
             onPhoto = { calls += "photo" }
@@ -55,7 +56,7 @@ class CareMenuActionTest {
         for (action in CareMenuAction.entries) actions.perform(action, task)
 
         assertEquals(
-            listOf("complete", "complete", "complete", "reschedule", "repot", "complete", "photo"),
+            listOf("logWatering", "logWatering", "complete", "reschedule", "repot", "complete", "photo"),
             calls
         )
         assertTrue("open" !in calls)

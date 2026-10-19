@@ -86,6 +86,7 @@ private val CARE_BADGE_INSET = 6.dp
 internal data class TodayTaskActions(
     val onOpen: (Long, PlantDetailTab?) -> Unit,
     val onComplete: (TodayCareTask) -> Unit,
+    val onLogWatering: (TodayCareTask) -> Unit,
     val onReschedule: (TodayCareTask) -> Unit,
     val onRepot: (TodayCareTask) -> Unit,
     val onPhoto: (TodayCareTask) -> Unit

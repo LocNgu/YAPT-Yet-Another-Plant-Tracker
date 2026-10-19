@@ -19,6 +19,19 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 560,
+            versionName = "0.38.0",
+            added = listOf(
+                "Tell YAPT when the soil was already too dry: the Log watering date picker now has a \"Soil was " +
+                    "already too dry\" option for a watering that is on time or early, so the plant's interval can " +
+                    "shorten without answering \"Why now?\". It also works for Water & fertilize"
+            ),
+            changed = listOf(
+                "On Care, the Water and Water & fertilize items in a tile's long-press menu now open the Log " +
+                    "watering date picker, so you can pick an earlier date and mark the soil as too dry"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 550,
             versionName = "0.37.0",
             added = listOf(

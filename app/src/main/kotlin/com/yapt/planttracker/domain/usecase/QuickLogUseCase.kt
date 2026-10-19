@@ -14,6 +14,7 @@ import com.yapt.planttracker.data.repository.CustomReminderRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
@@ -61,7 +62,7 @@ class QuickLogUseCase(
     private val nowProvider: () -> Long = System::currentTimeMillis,
     private val onWaterLogged: suspend (Long) -> Unit = {},
     private val customReminderRepository: CustomReminderRepository? = null,
-    awayPeriodRepository: AwayPeriodRepository? = null
+    private val awayPeriodRepository: AwayPeriodRepository? = null
 ) {
 
     private val adaptiveObservation = AdaptiveWateringObservation(
@@ -85,6 +86,23 @@ class QuickLogUseCase(
         val waterPaired: Boolean = false,
         val suggestion: QuickWaterSuggestion? = null,
         val waterLoggedAt: Long? = null
+    )
+
+    /**
+     * What a surface needs to judge a picked watering date against the reason-prompt gate (#838): the
+     * date's own chronological predecessor, the Away trips, and the seasonal amplitude. Care tiles read
+     * it through `TodayViewModel`; Plant Detail has its own copies of the first two.
+     */
+    data class WateringGateFacts(
+        val previousWateringAt: Long?,
+        val awayPeriods: List<AwayPeriod>,
+        val seasonalAmplitude: Double
+    )
+
+    suspend fun wateringGateFacts(plantId: Long, chosenDate: Long): WateringGateFacts = WateringGateFacts(
+        previousWateringAt = careLogRepository.getLastWateringBefore(plantId, chosenDate)?.loggedAt,
+        awayPeriods = awayPeriodRepository?.getAll().orEmpty(),
+        seasonalAmplitude = dataStore.seasonalAmplitudeOnce()
     )
 
     /** Summary of a [bulkLog] run: how many of [totalCount] plants were actually logged vs. skipped. */

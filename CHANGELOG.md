@@ -12,6 +12,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-19
+
+### Added
+- **"Soil was already too dry" when logging a watering** (#838) — the Log watering date picker has an optional
+  checkbox, shown while the picked date is on schedule or early and hidden for a late watering or a gap that spans
+  dormancy or an Away trip. Ticked, the watering saves "the plant needed it", so the interval can shorten even when
+  you watered right on time, and an early watering skips "Why now?". Water & fertilize gets the same option.
+
+### Changed
+- **Care's Water and Water & fertilize menu items open the Log watering picker** (#838) — the long-press actions no
+  longer log at once; they open the same date picker as Plant Detail (one confirm tap, backdating possible), then go
+  through the usual on-schedule, dormancy, Away and "Why now?" checks. See product ADR-0067.
+
 ## [0.37.0] - 2026-10-18
 
 ### Added

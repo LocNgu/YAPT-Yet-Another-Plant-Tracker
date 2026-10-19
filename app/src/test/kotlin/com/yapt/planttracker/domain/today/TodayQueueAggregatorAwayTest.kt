@@ -45,7 +45,6 @@ class TodayQueueAggregatorAwayTest {
 
         assertTrue(action.isAwaySpanning)
         assertFalse(action.isOnSchedule)
-        assertTrue(action.skipsReasonPrompt)
     }
 
     @Test
@@ -53,7 +52,6 @@ class TodayQueueAggregatorAwayTest {
         val action = requireNotNull(waterTask(LocalDate.of(2026, 6, 25), emptyList()).wateringAction)
 
         assertFalse(action.isAwaySpanning)
-        assertFalse(action.skipsReasonPrompt)
     }
 
     @Test
@@ -70,21 +68,5 @@ class TodayQueueAggregatorAwayTest {
 
         assertEquals(home.dueAt, away.dueAt)
         assertEquals(home.bucket, away.bucket)
-    }
-
-    @Test
-    fun `skipsReasonPrompt is true for each clause alone`() {
-        val base = WateringTaskAction(
-            isOnSchedule = false,
-            isGapLong = false,
-            isDormancySpanning = false,
-            computedDueAt = null,
-            effectiveDueAt = null
-        )
-
-        assertFalse(base.skipsReasonPrompt)
-        assertTrue(base.copy(isOnSchedule = true).skipsReasonPrompt)
-        assertTrue(base.copy(isDormancySpanning = true).skipsReasonPrompt)
-        assertTrue(base.copy(isAwaySpanning = true).skipsReasonPrompt)
     }
 }

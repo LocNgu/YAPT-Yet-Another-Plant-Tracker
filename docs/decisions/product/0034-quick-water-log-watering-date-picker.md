@@ -1,6 +1,6 @@
 # Product ADR-0034: Quick-water always opens a "Log watering" date picker (no instant-log fast path)
 
-**Status**: accepted
+**Status**: accepted — Care tiles' scope amended by [ADR-0067](0067-soil-too-dry-option-on-log-watering.md)
 
 **Date**: 2026-09-05
 

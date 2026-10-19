@@ -143,6 +143,8 @@
     <string name="water_reason_question_late">Why was it late?</string>
     <string name="water_reason_soil_still_moist_late">Soil was still moist</string>
     <string name="water_reason_just_my_timing_late">Forgot, or no time</string>
+    <!-- "Log watering" picker option (#838, product ADR-0067): ticked logs TOO_LATE. Says "too" dry and does not blame the user (#649). -->
+    <string name="soil_too_dry_option">Soil was already too dry</string>
     <!-- Check reminders (#570): reframed notification title/actions, flag-gated -->
     <string name="notification_check_title">Check %s</string>
     <string name="notification_action_watered">Watered</string>

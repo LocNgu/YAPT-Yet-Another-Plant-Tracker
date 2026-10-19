@@ -19,6 +19,8 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -37,6 +39,7 @@ import com.yapt.planttracker.data.repository.TodayCareRepository
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
@@ -44,6 +47,7 @@ import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.today.WateringTaskAction
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.plantdetail.LOG_WATERING_DATE_PICKER_TEST_TAG
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.util.toStartOfDayMillis
 import io.mockk.coEvery
@@ -69,7 +73,9 @@ class TodayScreenTest {
 
     private val queue = MutableStateFlow(TodayQueueSnapshot(0, emptyList()))
     private val repository = mockk<TodayCareRepository>()
-    private val quickLogUseCase = mockk<QuickLogUseCase>(relaxed = true)
+    private val quickLogUseCase = mockk<QuickLogUseCase>(relaxed = true).also {
+        coEvery { it.wateringGateFacts(any(), any()) } returns QuickLogUseCase.WateringGateFacts(null, emptyList(), 0.0)
+    }
 
     @Test
     fun noPlantsShowsFirstUseAction() {
@@ -425,6 +431,7 @@ class TodayScreenTest {
         val actions = composeTestRule.onNodeWithTag(careTileTag("water:1")).fetchSemanticsNode()
             .config[SemanticsActions.CustomActions]
         composeTestRule.runOnUiThread { assertTrue(actions.first { it.label == "Water" }.action()) }
+        confirmLogWateringPicker()
 
         composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
         coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
@@ -529,10 +536,119 @@ class TodayScreenTest {
         setContent()
 
         chooseMenuItem("water:1", "Water")
+        confirmLogWateringPicker()
 
         composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
         coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, null, any()) }
         composeTestRule.onNode(menuItem("Reschedule")).assertDoesNotExist()
+    }
+
+    @Test
+    fun waterMenuActionOpensTheLogWateringPickerInsteadOfLoggingImmediately() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        setContent()
+
+        chooseMenuItem("water:1", "Water")
+        waitForLogWateringPicker()
+
+        composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(exactly = 0) { quickLogUseCase.quickWaterWithReason(any(), any(), any()) }
+    }
+
+    @Test
+    fun combinedMenuActionOpensTheLogWateringPickerInsteadOfLoggingImmediately() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE)))
+        setContent()
+
+        chooseMenuItem("water_fertilize:1", "Water & fertilize")
+        waitForLogWateringPicker()
+
+        composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(exactly = 0) { quickLogUseCase.quickLiquidFertilizeWithReason(any(), any(), any()) }
+    }
+
+    @Test
+    fun pickerOffersTheSoilTooDryOptionOnScheduleAndTickingLogsThePlantNeededItReason() {
+        val fern = plant().copy(wateringIntervalDays = 7)
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        stubGateFacts(previousWateringDaysAgo = 7)
+        coEvery { quickLogUseCase.quickWaterWithReason(fern, WateringReason.PLANT_NEEDED_IT, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
+        setContent()
+
+        chooseMenuItem("water:1", "Water")
+        waitForSoilTooDryOption()
+        composeTestRule.onNodeWithText(SOIL_TOO_DRY).performClick()
+        composeTestRule.onNodeWithText("OK").performClick()
+
+        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
+        coVerify(exactly = 1) { quickLogUseCase.quickWaterWithReason(fern, WateringReason.PLANT_NEEDED_IT, any()) }
+        composeTestRule.onNodeWithText("Water Fern?").assertDoesNotExist()
+    }
+
+    @Test
+    fun tickingTheOptionOnAnEarlyDateSkipsTheWhyNowSheet() {
+        val fern = plant().copy(wateringIntervalDays = 7)
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        stubGateFacts(previousWateringDaysAgo = 2)
+        coEvery { quickLogUseCase.quickWaterWithReason(fern, WateringReason.PLANT_NEEDED_IT, any()) } returns
+            QuickLogUseCase.QuickLogOutcome("Watered Fern", logged = true)
+        setContent()
+
+        chooseMenuItem("water:1", "Water")
+        waitForSoilTooDryOption()
+        composeTestRule.onNodeWithText(SOIL_TOO_DRY).performClick()
+        composeTestRule.onNodeWithText("OK").performClick()
+
+        composeTestRule.onNodeWithText("Watered Fern").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Water Fern?").assertDoesNotExist()
+    }
+
+    @Test
+    fun leavingTheOptionUntickedOnAnEarlyDateStillAsksWhyNow() {
+        val fern = plant().copy(wateringIntervalDays = 7)
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        stubGateFacts(previousWateringDaysAgo = 2)
+        setContent()
+
+        chooseMenuItem("water:1", "Water")
+        waitForSoilTooDryOption()
+        composeTestRule.onNodeWithText("OK").performClick()
+
+        composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
+        coVerify(exactly = 0) { quickLogUseCase.quickWaterWithReason(any(), any(), any()) }
+    }
+
+    @Test
+    fun pickerHidesTheSoilTooDryOptionWhenTheGapRanLong() {
+        val fern = plant().copy(wateringIntervalDays = 7)
+        queue.value = TodayQueueSnapshot(1, listOf(task("water:1", fern, TodayCareKind.WATER)))
+        stubGateFacts(previousWateringDaysAgo = 30)
+        setContent()
+
+        chooseMenuItem("water:1", "Water")
+        waitForLogWateringPicker()
+        composeTestRule.waitForIdle()
+
+        coVerify(atLeast = 1) { quickLogUseCase.wateringGateFacts(fern.id, any()) }
+        composeTestRule.onNodeWithText(SOIL_TOO_DRY).assertDoesNotExist()
+    }
+
+    @Test
+    fun repotPickerNeverOffersTheSoilTooDryOption() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(1, listOf(task("repot:1", fern, TodayCareKind.REPOT)))
+        stubGateFacts(previousWateringDaysAgo = 7)
+        setContent()
+
+        chooseMenuItem("repot:1", "Repot…")
+        composeTestRule.onNodeWithTag("today_repot_date_picker").assertIsDisplayed()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(SOIL_TOO_DRY).assertDoesNotExist()
+        coVerify(exactly = 0) { quickLogUseCase.wateringGateFacts(any(), any()) }
     }
 
     @Test
@@ -544,6 +660,7 @@ class TodayScreenTest {
         setContent()
 
         chooseMenuItem("water_fertilize:1", "Water & fertilize")
+        confirmLogWateringPicker()
 
         composeTestRule.onNodeWithText("Watered and fertilized Fern").assertIsDisplayed()
         coVerify(exactly = 1) { quickLogUseCase.quickLiquidFertilizeWithReason(fern, null, any()) }
@@ -634,20 +751,15 @@ class TodayScreenTest {
 
     @Test
     fun reasonSheetSurvivesRecreationAndDoesNotReappearOnceItsTaskIsGone() {
-        val fern = plant()
-        val offSchedule = WateringTaskAction(
-            isOnSchedule = false,
-            isGapLong = false,
-            isDormancySpanning = false,
-            computedDueAt = null,
-            effectiveDueAt = null
-        )
-        val water = task("water:1", fern, TodayCareKind.WATER, wateringAction = offSchedule)
+        val fern = plant().copy(wateringIntervalDays = 7)
+        val water = task("water:1", fern, TodayCareKind.WATER)
         queue.value = TodayQueueSnapshot(1, listOf(water))
+        stubGateFacts(previousWateringDaysAgo = 2)
         val restoration = StateRestorationTester(composeTestRule)
         setContent(restoration = restoration)
 
         chooseMenuItem("water:1", "Water")
+        confirmLogWateringPicker()
         composeTestRule.onNodeWithText("Water Fern?").assertIsDisplayed()
 
         restoration.emulateSavedInstanceStateRestore()
@@ -728,6 +840,31 @@ class TodayScreenTest {
     private fun chooseMenuItem(taskId: String, label: String) {
         openMenu(taskId)
         composeTestRule.onNode(menuItem(label)).performSemanticsAction(SemanticsActions.OnClick)
+    }
+
+    private fun waitForLogWateringPicker() {
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    private fun waitForSoilTooDryOption() {
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(SOIL_TOO_DRY)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    private fun confirmLogWateringPicker() {
+        waitForLogWateringPicker()
+        composeTestRule.onNodeWithText("OK").performClick()
+    }
+
+    private fun stubGateFacts(previousWateringDaysAgo: Long?) {
+        val previous = previousWateringDaysAgo?.let { LocalDate.now().minusDays(it).toStartOfDayMillis() }
+        coEvery { quickLogUseCase.wateringGateFacts(any(), any()) } returns
+            QuickLogUseCase.WateringGateFacts(previous, emptyList(), 0.0)
     }
 
     private fun assertMenuListsOnly(task: TodayCareTask, vararg labels: String) {
@@ -821,6 +958,7 @@ class TodayScreenTest {
     }
 
     private companion object {
+        const val SOIL_TOO_DRY = "Soil was already too dry"
         val TALL_VIEWPORT = 2400.dp
         val ALL_MENU_LABELS = listOf(
             "Water",
