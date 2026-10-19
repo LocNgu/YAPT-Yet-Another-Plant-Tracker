@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-19
+
 ### Added
 - **"Soil was already too dry" when logging a watering** (#838) — the Log watering date picker has an optional
   checkbox, shown while the picked date is on schedule or early and hidden for a late watering or a gap that spans
