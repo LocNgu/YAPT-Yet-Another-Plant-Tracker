@@ -56,6 +56,7 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalRepotting
@@ -182,6 +183,9 @@ class PlantDetailScreenTest {
         loggedAt = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L)
     )
 
+    // Lets a "hidden" assertion prove the screen actually asked for the predecessor first (#838).
+    private var lastMadeCareLogRepo: CareLogRepository? = null
+
     private fun makeViewModel(
         plant: Plant,
         careLogs: List<CareLog> = emptyList(),
@@ -189,6 +193,7 @@ class PlantDetailScreenTest {
     ): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        lastMadeCareLogRepo = careLogRepo
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
@@ -1508,6 +1513,107 @@ class PlantDetailScreenTest {
         composeTestRule.waitForIdle()
 
         coVerify(exactly = 0) { mockQuickLogUseCase.quickWaterWithReason(any(), any(), any()) }
+    }
+
+    private fun openLogWateringPicker(viewModel: PlantDetailViewModel) {
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_DUE_WATER_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(WATERING_DUE_WATER_BUTTON_TEST_TAG).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    private fun waterLogDaysAgo(plantId: Long, days: Long) = CareLog(
+        id = 97L,
+        plantId = plantId,
+        careType = CareType.WATER,
+        loggedAt = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+    )
+
+    /** #838 (product ADR-0067): an on-schedule pick offers "Soil was already too dry"; ticking logs PLANT_NEEDED_IT with no prompt. */
+    @Test
+    fun logWateringPicker_onSchedule_offersSoilTooDryAndTickingLogsThePlantNeededItReason() {
+        val plant = Plant(id = 31L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        coEvery {
+            mockQuickLogUseCase.quickWaterWithReason(plant, WateringReason.PLANT_NEEDED_IT, any())
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
+        val viewModel = makeViewModel(
+            plant,
+            listOf(waterLogDaysAgo(plant.id, 7)),
+            dataStore = mockDataStoreAmplitudeOff
+        )
+
+        openLogWateringPicker(viewModel)
+        val label = str(R.string.soil_too_dry_option)
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(label).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(label).performClick()
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Why now?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, WateringReason.PLANT_NEEDED_IT, any()) }
+    }
+
+    /** #838: an early pick offers the option, and ticking it skips the "Why now?" sheet. */
+    @Test
+    fun logWateringPicker_early_tickingSoilTooDrySkipsTheWhyNowPrompt() {
+        val plant = Plant(id = 32L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        coEvery {
+            mockQuickLogUseCase.quickWaterWithReason(plant, WateringReason.PLANT_NEEDED_IT, any())
+        } returns QuickLogUseCase.QuickLogOutcome(message = "", logged = true)
+        val viewModel = makeViewModel(
+            plant,
+            listOf(waterLogDaysAgo(plant.id, 2)),
+            dataStore = mockDataStoreAmplitudeOff
+        )
+
+        openLogWateringPicker(viewModel)
+        val label = str(R.string.soil_too_dry_option)
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(label).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(label).performClick()
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+        composeTestRule.waitForIdle()
+
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Water Fern?")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
+        coVerify { mockQuickLogUseCase.quickWaterWithReason(plant, WateringReason.PLANT_NEEDED_IT, any()) }
+    }
+
+    /** #838, product ADR-0033: a late gap never shortens, so the picker does not offer the option. */
+    @Test
+    fun logWateringPicker_late_hidesSoilTooDry() {
+        val plant = Plant(id = 33L, name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plant, listOf(offScheduleWaterLog(plant.id)))
+
+        openLogWateringPicker(viewModel)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(atLeast = 1) { lastMadeCareLogRepo!!.getLastWateringBefore(plant.id, any()) }
+        assertTrue(
+            composeTestRule.onAllNodesWithText(str(R.string.soil_too_dry_option))
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        )
     }
 
     /**

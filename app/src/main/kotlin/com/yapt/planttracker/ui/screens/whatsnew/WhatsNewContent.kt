@@ -13,7 +13,17 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        added = listOf(
+            "Tell YAPT when the soil was already too dry: the Log watering date picker now has a \"Soil was " +
+                "already too dry\" option for a watering that is on time or early, so the plant's interval can " +
+                "shorten without answering \"Why now?\". It also works for Water & fertilize",
+            "On Care, the Water and Water & fertilize items in a tile's long-press menu now open the Log " +
+                "watering date picker, so you can pick an earlier date and mark the soil as too dry"
+        )
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).

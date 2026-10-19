@@ -10,6 +10,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
@@ -273,6 +274,62 @@ class TodayViewModelTest {
         coVerify { quickLogUseCase.recordWateringSuggestionDismissal(plant) }
     }
 
+    @Test
+    fun `dated water completion passes the picked date and reason through`() = runTest {
+        val task = task()
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(task)))
+        coEvery { quickLogUseCase.quickWaterWithReason(any(), any(), any()) } returns
+            QuickLogUseCase.QuickLogOutcome("done", logged = true)
+        val viewModel = viewModel()
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        viewModel.messageEvent.test {
+            viewModel.completeWater(task.id, WateringReason.PLANT_NEEDED_IT, PICKED_AT)
+            assertEquals("done", awaitItem())
+        }
+
+        coVerify { quickLogUseCase.quickWaterWithReason(task.plant, WateringReason.PLANT_NEEDED_IT, PICKED_AT) }
+    }
+
+    @Test
+    fun `a rejected same-day duplicate reports its message and no suggestion`() = runTest {
+        val task = task()
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(task)))
+        coEvery { quickLogUseCase.quickWaterWithReason(any(), any(), any()) } returns
+            QuickLogUseCase.QuickLogOutcome("already watered", logged = false)
+        val viewModel = viewModel()
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        viewModel.messageEvent.test {
+            viewModel.completeWater(task.id, null, PICKED_AT)
+            assertEquals("already watered", awaitItem())
+        }
+    }
+
+    @Test
+    fun `dated water and fertilize completion passes the picked date to the paired watering`() = runTest {
+        val combined = task("combined:1", plant(), TodayCareKind.WATER_AND_FERTILIZE)
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(1, listOf(combined)))
+        coEvery { quickLogUseCase.quickLiquidFertilizeWithReason(any(), any(), any()) } returns outcome()
+        val viewModel = viewModel()
+
+        viewModel.uiState.first { it is TodayUiState.Ready }
+        viewModel.completeFertilizing(combined.id, WateringReason.PLANT_NEEDED_IT, PICKED_AT)
+
+        coVerify {
+            quickLogUseCase.quickLiquidFertilizeWithReason(combined.plant, WateringReason.PLANT_NEEDED_IT, PICKED_AT)
+        }
+    }
+
+    @Test
+    fun `gate facts are read from the quick log use case`() = runTest {
+        every { repository.observeQueue() } returns flowOf(TodayQueueSnapshot(0, emptyList()))
+        val facts = QuickLogUseCase.WateringGateFacts(5L, emptyList(), 0.0)
+        coEvery { quickLogUseCase.wateringGateFacts(1L, PICKED_AT) } returns facts
+
+        assertEquals(facts, viewModel().wateringGateFacts(1L, PICKED_AT))
+    }
+
     private fun viewModel() = TodayViewModel(
         application,
         repository,
@@ -301,5 +358,6 @@ class TodayViewModelTest {
 
     private companion object {
         const val STOP_TIMEOUT_PLUS_MS = 5_001L
+        const val PICKED_AT = 1_700_000_000_000L
     }
 }

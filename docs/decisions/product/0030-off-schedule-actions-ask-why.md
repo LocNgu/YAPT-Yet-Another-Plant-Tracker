@@ -4,7 +4,8 @@
 [ADR-0033](0033-late-watering-reason-never-shortens.md); Reschedule-flow mapping superseded by
 [ADR-0039](0039-reschedule-returns-to-model-neutral.md) — the early-direction watering mapping
 still stands as written; due-status visibility gate amended by
-[ADR-0031](0031-watering-actions-always-visible.md))
+[ADR-0031](0031-watering-actions-always-visible.md); on-schedule "asks nothing" row and the early "Why now?"
+prompt amended by [ADR-0067](0067-soil-too-dry-option-on-log-watering.md))
 
 **Date**: 2026-08-25
 

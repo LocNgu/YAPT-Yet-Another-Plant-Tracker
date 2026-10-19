@@ -44,8 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.QuickWaterSuggestion
+import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
+import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
@@ -54,10 +56,16 @@ import com.yapt.planttracker.ui.screens.away.AwayModeNavigation
 import com.yapt.planttracker.ui.screens.away.AwayModeViewModel
 import com.yapt.planttracker.ui.screens.away.ConfirmVisitViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.CareDatePickerBottomSheet
+import com.yapt.planttracker.ui.screens.plantdetail.LogWateringDatePickerDialog
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleDialogActions
 import com.yapt.planttracker.ui.screens.plantdetail.RescheduleWateringDialog
+import com.yapt.planttracker.ui.screens.plantdetail.WateringGateInputs
+import com.yapt.planttracker.ui.screens.plantdetail.WateringGateResult
+import com.yapt.planttracker.ui.screens.plantdetail.evaluateWateringGate
+import com.yapt.planttracker.ui.screens.plantdetail.isChosenDateGapLong
 import com.yapt.planttracker.ui.screens.plantdetail.isRescheduleTodayEnabled
+import com.yapt.planttracker.ui.screens.plantdetail.isSoilTooDryOptionVisible
 import kotlinx.coroutines.launch
 
 private const val TODAY_REPOT_DATE_PICKER_TAG = "today_repot_date_picker"
@@ -78,12 +86,16 @@ fun TodayScreen(
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var waterPickerTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var reasonTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var reasonLoggedAt by rememberSaveable { mutableStateOf<Long?>(null) }
+    var reasonGapLong by rememberSaveable { mutableStateOf(false) }
     var rescheduleTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var repotTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
     var collapsedGroups by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     val readyTasks = (uiState as? TodayUiState.Ready)?.snapshot?.tasks
+    val waterPickerTask = waterPickerTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
     val reasonTask = reasonTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
     val rescheduleTask = rescheduleTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
     val repotTask = repotTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
@@ -116,6 +128,7 @@ fun TodayScreen(
     LaunchedEffect(readyTasks) {
         if (readyTasks != null) {
             val liveIds = readyTasks.mapTo(HashSet()) { it.id }
+            waterPickerTaskId?.let { if (it !in liveIds) waterPickerTaskId = null }
             reasonTaskId?.let { if (it !in liveIds) reasonTaskId = null }
             rescheduleTaskId?.let { if (it !in liveIds) rescheduleTaskId = null }
             repotTaskId?.let { if (it !in liveIds) repotTaskId = null }
@@ -124,7 +137,8 @@ fun TodayScreen(
 
     val actions = TodayTaskActions(
         onOpen = viewModel::openPlant,
-        onComplete = { task -> requestCompletion(task, viewModel) { reasonTaskId = task.id } },
+        onComplete = { task -> requestCompletion(task, viewModel) },
+        onLogWatering = { waterPickerTaskId = it.id },
         onReschedule = { rescheduleTaskId = it.id },
         onRepot = { repotTaskId = it.id },
         onPhoto = {
@@ -166,10 +180,27 @@ fun TodayScreen(
         }
     }
 
+    waterPickerTask?.let { task ->
+        LogWateringDatePickerDialog(
+            onDismiss = { waterPickerTaskId = null },
+            soilTooDryVisibleFor = { loggedAt -> task.isSoilTooDryOptionVisibleAt(viewModel, loggedAt) },
+            onConfirm = { loggedAt, soilTooDry ->
+                waterPickerTaskId = null
+                scope.launch {
+                    completeWateringAt(task, viewModel, loggedAt, soilTooDry) { gapRanLong ->
+                        reasonLoggedAt = loggedAt
+                        reasonGapLong = gapRanLong
+                        reasonTaskId = task.id
+                    }
+                }
+            }
+        )
+    }
+
     reasonTask?.let { task ->
         WateringReasonBottomSheet(
             plantName = task.plant.name,
-            gapRanLong = task.wateringAction?.isGapLong == true,
+            gapRanLong = reasonGapLong,
             title = if (task.kind == TodayCareKind.WATER_AND_FERTILIZE) {
                 stringResource(R.string.water_fertilize_feedback_sheet_title, task.plant.name)
             } else {
@@ -177,11 +208,7 @@ fun TodayScreen(
             },
             onDismiss = { reasonTaskId = null },
             onLog = { reason ->
-                if (task.kind == TodayCareKind.WATER) {
-                    viewModel.completeWater(task.id, reason)
-                } else {
-                    viewModel.completeFertilizing(task.id, reason)
-                }
+                logWatering(task, viewModel, reason, reasonLoggedAt ?: System.currentTimeMillis())
                 reasonTaskId = null
             }
         )
@@ -323,32 +350,49 @@ private fun TodayErrorState(onRetry: () -> Unit) {
 
 private fun Set<String>.toggled(key: String): Set<String> = if (key in this) this - key else this + key
 
-private fun requestCompletion(
-    task: TodayCareTask,
-    viewModel: TodayViewModel,
-    requestReason: () -> Unit
-) {
+private fun requestCompletion(task: TodayCareTask, viewModel: TodayViewModel) {
     when (task.kind) {
-        TodayCareKind.WATER -> {
-            val action = task.wateringAction
-            if (action == null || action.skipsReasonPrompt) {
-                viewModel.completeWater(task.id, null)
-            } else {
-                requestReason()
-            }
-        }
-        TodayCareKind.WATER_AND_FERTILIZE -> {
-            val action = task.wateringAction
-            if (action == null || action.skipsReasonPrompt) {
-                viewModel.completeFertilizing(task.id, null)
-            } else {
-                requestReason()
-            }
-        }
         TodayCareKind.FERTILIZE -> viewModel.completeFertilizing(task.id, null)
         TodayCareKind.CUSTOM_REMINDER,
         TodayCareKind.ISSUE_TREATMENT -> viewModel.completeCustomReminder(task.id)
+        TodayCareKind.WATER,
+        TodayCareKind.WATER_AND_FERTILIZE,
         TodayCareKind.REPOT,
         TodayCareKind.PHOTO -> Unit
+    }
+}
+
+private fun TodayCareTask.gateInputs(facts: QuickLogUseCase.WateringGateFacts) =
+    WateringGateInputs(plant, facts.seasonalAmplitude, facts.awayPeriods)
+
+private suspend fun TodayCareTask.isSoilTooDryOptionVisibleAt(viewModel: TodayViewModel, loggedAt: Long): Boolean {
+    val facts = viewModel.wateringGateFacts(plant.id, loggedAt)
+    return isSoilTooDryOptionVisible(gateInputs(facts), facts.previousWateringAt, loggedAt)
+}
+
+// The same on/off-schedule, dormancy, away and "Soil was already too dry" gate Plant Detail uses
+// (WateringReasonGate.kt), evaluated against the date picked in the "Log watering" sheet (#838).
+private suspend fun completeWateringAt(
+    task: TodayCareTask,
+    viewModel: TodayViewModel,
+    loggedAt: Long,
+    soilTooDry: Boolean,
+    requestReason: (gapRanLong: Boolean) -> Unit
+) {
+    val facts = viewModel.wateringGateFacts(task.plant.id, loggedAt)
+    val inputs = task.gateInputs(facts)
+    when (val result = evaluateWateringGate(inputs, loggedAt, facts.previousWateringAt, soilTooDry)) {
+        is WateringGateResult.Log -> logWatering(task, viewModel, result.reason, loggedAt)
+        WateringGateResult.AskReason -> requestReason(
+            isChosenDateGapLong(task.plant, facts.previousWateringAt, loggedAt, facts.seasonalAmplitude)
+        )
+    }
+}
+
+private fun logWatering(task: TodayCareTask, viewModel: TodayViewModel, reason: WateringReason?, loggedAt: Long) {
+    if (task.kind == TodayCareKind.WATER) {
+        viewModel.completeWater(task.id, reason, loggedAt)
+    } else {
+        viewModel.completeFertilizing(task.id, reason, loggedAt)
     }
 }
