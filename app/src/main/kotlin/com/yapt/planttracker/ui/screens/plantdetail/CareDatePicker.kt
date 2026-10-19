@@ -165,13 +165,13 @@ internal fun ColumnScope.CareDatePickerBody(
     var soilTooDryTicked by rememberSaveable { mutableStateOf(false) }
     val currentVisibleFor = rememberUpdatedState(soilTooDryVisibleFor)
     val selectedDateMillis = datePickerState.selectedDateMillis
-    val soilTooDryVisible by produceState(initialValue = false, selectedDateMillis) {
-        value = false
+    val visibleForDate by produceState<Pair<Long, Boolean>?>(initialValue = null, selectedDateMillis) {
         val visibleFor = currentVisibleFor.value
         if (visibleFor != null && selectedDateMillis != null) {
-            value = visibleFor(utcMidnightMsToLoggedAtMillis(selectedDateMillis))
+            value = selectedDateMillis to visibleFor(utcMidnightMsToLoggedAtMillis(selectedDateMillis))
         }
     }
+    val soilTooDryVisible = visibleForDate?.let { (date, visible) -> visible && date == selectedDateMillis } == true
     Column(
         modifier = Modifier
             .weight(1f, fill = false)

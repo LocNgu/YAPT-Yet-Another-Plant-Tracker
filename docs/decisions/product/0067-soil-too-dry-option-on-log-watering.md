@@ -40,6 +40,8 @@ Alternatives rejected:
   | Late | no | not applicable | "Why was it late?", as product ADR-0033 |
   | Gap spans dormancy or an Away trip | no | not applicable | unchanged (the observation is excluded anyway) |
 
+  "Late" means strictly longer than the effective interval (`isChosenDateGapLong`), even inside
+  `GAP_AGREEMENT_TOLERANCE`, so the option never appears where product ADR-0033 forbids shortening.
   A tick on a date where the option is hidden is ignored, so moving the date after ticking never applies a stale answer.
 - The tick reuses the existing reason path: `WateringReason.PLANT_NEEDED_IT` maps to `WateringFeedback.TOO_LATE`. No
   schema change. The duplicate guard and `CareSchedule.isUnattributedOffScheduleObservation` are unchanged (a tick is
@@ -58,3 +60,5 @@ Alternatives rejected:
 - Plant List, Calendar (being removed, #839), the notification's "Watered" action and Add Care Log are unchanged.
 - #849's "Water only" Care item should open the same picker.
 - The late prompt still never offers a shortening option (product ADR-0033).
+- With no predecessor watering or no effective interval, the option is still shown, and a tick only stores `TOO_LATE`
+  on the log. It doesn't move the model, but it can count toward a later correction streak. The owner accepted this.

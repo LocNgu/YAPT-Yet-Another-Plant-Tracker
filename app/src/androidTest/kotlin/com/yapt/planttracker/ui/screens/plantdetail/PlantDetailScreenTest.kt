@@ -183,6 +183,9 @@ class PlantDetailScreenTest {
         loggedAt = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L)
     )
 
+    // Lets a "hidden" assertion prove the screen actually asked for the predecessor first (#838).
+    private var lastMadeCareLogRepo: CareLogRepository? = null
+
     private fun makeViewModel(
         plant: Plant,
         careLogs: List<CareLog> = emptyList(),
@@ -190,6 +193,7 @@ class PlantDetailScreenTest {
     ): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
+        lastMadeCareLogRepo = careLogRepo
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
@@ -1605,6 +1609,7 @@ class PlantDetailScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag(LOG_WATERING_DATE_PICKER_TEST_TAG).assertIsDisplayed()
+        coVerify(atLeast = 1) { lastMadeCareLogRepo!!.getLastWateringBefore(plant.id, any()) }
         assertTrue(
             composeTestRule.onAllNodesWithText(str(R.string.soil_too_dry_option))
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()

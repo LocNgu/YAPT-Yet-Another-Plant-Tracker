@@ -89,6 +89,23 @@ class PlantDetailScreenGateSoilTooDryTest {
     }
 
     @Test
+    fun `an 8-day gap on a 7-day plant is late even inside the tolerance band so the option is hidden`() {
+        val eightDays = millisAt(LocalDate.of(2026, 6, 16))
+
+        assertTrue(isChosenDateOnSchedule(plant, previousWateringAt, eightDays, seasonalAmplitude = 0.0))
+        assertTrue(isChosenDateGapLong(plant, previousWateringAt, eightDays, seasonalAmplitude = 0.0))
+        assertFalse(isSoilTooDryOptionVisible(inputs(), previousWateringAt, eightDays))
+        assertEquals(
+            WateringGateResult.Log(null),
+            evaluateWateringGate(inputs(), eightDays, previousWateringAt, soilTooDry = true)
+        )
+        assertEquals(
+            WateringGateResult.Log(null),
+            evaluateWateringGate(inputs(), eightDays, previousWateringAt, soilTooDry = false)
+        )
+    }
+
+    @Test
     fun `a tick on a late date is ignored and the late prompt still asks`() {
         assertEquals(
             WateringGateResult.AskReason,

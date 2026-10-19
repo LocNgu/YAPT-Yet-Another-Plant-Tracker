@@ -648,6 +648,7 @@ class TodayScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText(SOIL_TOO_DRY).assertDoesNotExist()
+        coVerify(exactly = 0) { quickLogUseCase.wateringGateFacts(any(), any()) }
     }
 
     @Test
