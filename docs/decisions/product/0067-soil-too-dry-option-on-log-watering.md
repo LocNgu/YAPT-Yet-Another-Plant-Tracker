@@ -35,7 +35,7 @@ Alternatives rejected:
 
   | Picked date | Option shown? | Ticked | Not ticked |
   |---|---|---|---|
-  | On schedule | yes | saves `TOO_LATE` (via `WateringReason.PLANT_NEEDED_IT`); the base shortens and a `WATER_TOO_LATE` adjustment row is written | no reason, as product ADR-0030 |
+  | On schedule | yes | saves `TOO_LATE` (via `WateringReason.PLANT_NEEDED_IT`); the observation shortens the base (surfaced through the usual interval suggestion, as for every `TOO_LATE`) and a `WATER_TOO_LATE` adjustment row is written | no reason, as product ADR-0030 |
   | Early | yes | saves `TOO_LATE` and **skips** "Why now?" (same answer) | "Why now?", as product ADR-0030 |
   | Late | no | not applicable | "Why was it late?", as product ADR-0033 |
   | Gap spans dormancy or an Away trip | no | not applicable | unchanged (the observation is excluded anyway) |
