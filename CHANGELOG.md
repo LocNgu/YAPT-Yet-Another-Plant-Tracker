@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-21
+
 ### Changed
 - **Plant Detail shows today's watering interval, not the one saved at the last edit** (#927) — the 💧 line under the
   plant's name reads e.g. "💧 Every 9 days · winter (base 8d)", and the Water tab's interval card, slider and its
