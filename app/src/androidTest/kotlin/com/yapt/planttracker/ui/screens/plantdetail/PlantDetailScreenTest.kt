@@ -2038,7 +2038,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun hero_tapOpensTheWhyThisDateSheetFromAnyTab() {
+    fun hero_tapOpensTheWhyThisDateSheetFromHomeTab() {
         val plant = seasonalPlant(id = 237L, base = 100.0)
         val live = liveIntervalOnFixedJanuary(plant)
         val season = str(checkNotNull(live.adjustment).season.sentenceLabelRes())
@@ -2050,6 +2050,28 @@ class PlantDetailScreenTest {
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("💧 Every ${live.effectiveDays} days · $season (base 100d)").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+    }
+
+    @Test
+    fun hero_tapOpensTheWhyThisDateSheetFromWaterTab() {
+        val plant = seasonalPlant(id = 238L, base = 100.0)
+        val live = liveIntervalOnFixedJanuary(plant)
+        val season = str(checkNotNull(live.adjustment).season.sentenceLabelRes())
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
             )
         }
 

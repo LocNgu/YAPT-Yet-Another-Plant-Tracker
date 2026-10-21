@@ -3,11 +3,9 @@ package com.yapt.planttracker.ui.screens.plantdetail
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +59,6 @@ internal fun WateringHeroLine(
         val onTap = onWhyThisDate.takeIf { status?.wateringScheduleMode != WateringScheduleMode.DORMANT_SUSPENDED }
         val lineModifier = if (onTap != null) {
             modifier
-                .minimumInteractiveComponentSize()
                 .clickable(
                     onClickLabel = stringResource(R.string.why_this_date_button),
                     role = Role.Button,
@@ -99,18 +96,17 @@ internal fun WateringSeasonalAdjustmentLine(
         stringResource(adjustment.season.sentenceLabelRes()),
         adjustment.baseDays
     )
-    val lineModifier = if (onWhyThisDate != null) {
-        modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable(
+    val lineModifier = modifier.fillMaxWidth().let {
+        if (onWhyThisDate != null) {
+            it.clickable(
                 onClickLabel = stringResource(R.string.why_this_date_button),
                 role = Role.Button,
                 onClick = onWhyThisDate
             )
-    } else {
-        modifier.fillMaxWidth().padding(vertical = 4.dp)
-    }
+        } else {
+            it
+        }
+    }.padding(vertical = 4.dp)
     Box(modifier = lineModifier, contentAlignment = Alignment.CenterStart) {
         Text(
             text = text,
