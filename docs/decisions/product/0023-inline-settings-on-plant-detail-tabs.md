@@ -1,6 +1,6 @@
 # Product ADR-0023: Scheduling settings are editable inline on Plant Detail tabs
 
-**Status**: accepted — slider-control clause amended by [ADR-0048](0048-stepper-buttons-on-interval-sliders.md)
+**Status**: accepted — slider-control clause amended by [ADR-0048](0048-stepper-buttons-on-interval-sliders.md); Water-tab watering-interval value (now today's live interval, not the stored literal) and "mirrors Add/Edit" clause amended by [ADR-0068](0068-watering-interval-shows-todays-live-value.md)
 
 **Date**: 2026-08-01
 

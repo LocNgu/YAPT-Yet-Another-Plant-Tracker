@@ -255,6 +255,15 @@
     <string name="season_summer">Summer</string>
     <string name="season_autumn">Autumn</string>
     <string name="season_winter">Winter</string>
+    <!-- Lowercase season names for mid-sentence use (#927) -->
+    <string name="season_name_spring">spring</string>
+    <string name="season_name_summer">summer</string>
+    <string name="season_name_autumn">autumn</string>
+    <string name="season_name_winter">winter</string>
+    <plurals name="watering_seasonal_adjustment">
+        <item quantity="one">Adjusted for %1$s · base %2$d day</item>
+        <item quantity="other">Adjusted for %1$s · base %2$d days</item>
+    </plurals>
     <string name="fertilizing_current_season">Current season</string>
     <string name="fertilizing_active_seasons_label">Active in</string>
     <string name="fertilizing_last_season_locked_snackbar">At least one season must stay active. To stop fertilizing, turn off the fertilizing reminder.</string>
@@ -410,6 +419,13 @@
         <item quantity="other">%1$d days</item>
     </plurals>
     <string name="plant_detail_watering_interval">💧 Every %1$d days</string>
+    <!-- #927: hero line when today's seasonal interval differs from the base. %2$s = lowercase season name; "d" in "base %3$dd" is deliberate. -->
+    <string name="plant_detail_watering_interval_seasonal">💧 Every %1$d days · %2$s (base %3$dd)</string>
+    <string name="plant_detail_watering_dormant">💧 Dormant</string>
+    <plurals name="plant_detail_watering_dormant_cadence">
+        <item quantity="one">💧 Every %1$d week · dormant</item>
+        <item quantity="other">💧 Every %1$d weeks · dormant</item>
+    </plurals>
     <string name="plant_detail_location">📍 %1$s</string>
     <string name="empty_state_both_due">No plants need both watering\nand fertilizing right now.</string>
     <string name="empty_state_all_assigned">All plants are assigned to a room.</string>

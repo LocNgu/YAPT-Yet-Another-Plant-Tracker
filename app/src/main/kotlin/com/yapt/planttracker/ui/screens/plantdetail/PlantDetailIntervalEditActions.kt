@@ -1,8 +1,10 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.lifecycle.viewModelScope
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
+import com.yapt.planttracker.domain.schedule.LiveWateringInterval
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
@@ -67,6 +69,11 @@ fun PlantDetailViewModel.setWateringInterval(days: Int?, viaButtonTap: Boolean =
 private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?) {
     plantEditMutex.withLock {
         val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
+        // #927 (product ADR-0068): the card shows today's live interval, so committing exactly that
+        // value is "nothing changed" — it must not re-anchor the base, bump updatedAt or add an audit
+        // row. Compared against a live value computed for the fresh `p`, never the cached `plant`
+        // flow or the stored literal.
+        if (days != null && days == liveIntervalDaysOrNull(p)) return@withLock
         // De-seasonalize the newly set value to today (#569), mirroring AddEditPlant's
         // manual-edit handling — unchanged when amplitude is Off, the plant is
         // pinned, or the schedule was just switched off (`days == null`); the prior base
@@ -81,7 +88,7 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
         } else {
             p.wateringBaseIntervalDays
         }
-        val now = System.currentTimeMillis()
+        val now = nowProvider()
         plantRepository.updatePlant(
             p.copy(
                 wateringIntervalDays = days,
@@ -89,7 +96,7 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
                 updatedAt = now
             )
         )
-        if (days != null && days != p.wateringIntervalDays) {
+        if (days != null) {
             // #584 review: log the base-space before/after, not the literal typed value. This
             // deliberately does *not* reuse `wateringBaseIntervalDays` above for "after" — that
             // preserves a stale prior base when season is off, whereas the log's "after" must
@@ -99,27 +106,39 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
             } else {
                 days
             }
-            wateringAdjustmentRepository.addAdjustment(
-                WateringAdjustment(
-                    plantId = p.id,
-                    triggeredAt = now,
-                    trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
-                    beforeIntervalDays = currentBaseIntervalDaysOrLiteral(p, p.wateringIntervalDays ?: days),
-                    afterIntervalDays = loggedAfter
+            val loggedBefore = currentBaseIntervalDaysOrLiteral(p, p.wateringIntervalDays ?: days)
+            // #927: gated on a base-space change, not on the typed literal differing from the stored one.
+            if (loggedAfter != loggedBefore) {
+                wateringAdjustmentRepository.addAdjustment(
+                    WateringAdjustment(
+                        plantId = p.id,
+                        triggeredAt = now,
+                        trigger = WateringAdjustmentTrigger.MANUAL_EDIT,
+                        beforeIntervalDays = loggedBefore,
+                        afterIntervalDays = loggedAfter
+                    )
                 )
-            )
+            }
         }
     }
 }
+
+private suspend fun PlantDetailViewModel.liveIntervalDaysOrNull(plant: Plant): Int? =
+    LiveWateringInterval.compute(
+        plant,
+        nowProvider().toLocalDate(),
+        dataStore.seasonalAmplitudeOnce(),
+        hemisphere()
+    )?.effectiveDays
 
 private suspend fun PlantDetailViewModel.deseasonalizedBaseOrNull(intervalDays: Int): Double? {
     val amplitude = dataStore.seasonalAmplitudeOnce()
     if (amplitude == 0.0) return null
     return SeasonalWatering.deseasonalize(
         intervalDays.toDouble(),
-        System.currentTimeMillis().toLocalDate(),
+        nowProvider().toLocalDate(),
         amplitude,
-        SeasonalWatering.currentHemisphere()
+        hemisphere()
     )
 }
 

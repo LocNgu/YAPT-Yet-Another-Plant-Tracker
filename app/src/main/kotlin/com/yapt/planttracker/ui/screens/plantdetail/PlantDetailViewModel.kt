@@ -30,15 +30,20 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.LiveWateringInterval
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.domain.schedule.WateringExplanationBuilder
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.components.TimeRange
+import com.yapt.planttracker.util.dayChangeTicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -53,6 +58,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.LocalDate
 
 @Suppress("LongParameterList", "TooManyFunctions")
 class PlantDetailViewModel(
@@ -76,7 +82,10 @@ class PlantDetailViewModel(
      * [Factory] passes it explicitly.
      */
     internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    private val awayPeriodRepository: AwayPeriodRepository? = null
+    private val awayPeriodRepository: AwayPeriodRepository? = null,
+    dayChange: Flow<LocalDate> = dayChangeTicker(),
+    internal val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
+    internal val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     /**
@@ -130,6 +139,19 @@ class PlantDetailViewModel(
 
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /**
+     * Today's effective watering interval for the hero line and the Water-tab card (#927, product
+     * ADR-0068), recomputed at midnight via [dayChange] (#550). `null` until the plant loads or while
+     * no watering interval is set; the UI never falls back to `Plant.wateringIntervalDays`.
+     */
+    val liveWateringInterval: StateFlow<LiveWateringInterval?> = combine(
+        plant,
+        dataStore.seasonalAmplitudeFlow(),
+        dayChange
+    ) { p, amplitude, today ->
+        p?.let { LiveWateringInterval.compute(it, today, amplitude, hemisphere()) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val careLogs: StateFlow<List<CareLog>> = careLogRepository.getLogsForPlant(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
