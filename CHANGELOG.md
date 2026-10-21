@@ -12,6 +12,21 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-21
+
+### Changed
+- **Plant Detail shows today's watering interval, not the one saved at the last edit** (#927) — the 💧 line under the
+  plant's name reads e.g. "💧 Every 9 days · winter (base 8d)", and the Water tab's interval card, slider and its
+  screen-reader description use the same live value, with an "Adjusted for winter · base 8 days" line that opens
+  "Why this date?". Pinned plants and Off amplitude show the plain interval; dormant plants show "💧 Dormant" or
+  "💧 Every 3 weeks · dormant". Tap the 💧 line or the "Adjusted for" line to open "Why this date?". Add/Edit Plant is
+  unchanged for now (#928). See product ADR-0068.
+
+### Fixed
+- **Releasing the Water-tab interval slider without moving it no longer rewrites the schedule** (#927) — a commit
+  equal to the live interval is now a full no-op (no base re-anchor, no `updatedAt` bump, no audit row), and a
+  "Watering interval edited" entry is only written when the season-neutral base actually changes.
+
 ## [0.38.0] - 2026-10-19
 
 ### Added

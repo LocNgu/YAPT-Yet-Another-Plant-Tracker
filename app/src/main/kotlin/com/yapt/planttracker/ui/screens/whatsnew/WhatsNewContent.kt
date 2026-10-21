@@ -13,11 +13,26 @@ data class ReleaseNotes(
 @Suppress("LargeClass")
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased"
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 570,
+            versionName = "0.38.1",
+            fixed = listOf(
+                "Letting go of the watering interval slider without moving it no longer changes the plant's schedule"
+            ),
+            changed = listOf(
+                "A plant's watering interval on its Water tab and under its name now shows today's interval, " +
+                    "adjusted for the season, with the base interval next to it. Tap either line to " +
+                    "see why the date is what it is"
+            )
+        ),
         ReleaseNotes(
             versionCode = 560,
             versionName = "0.38.0",

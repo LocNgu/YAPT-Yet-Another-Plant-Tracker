@@ -155,6 +155,14 @@ fun FertilizingSeason.labelRes(): Int = when (this) {
     FertilizingSeason.WINTER -> R.string.season_winter
 }
 
+@StringRes
+fun FertilizingSeason.sentenceLabelRes(): Int = when (this) {
+    FertilizingSeason.SPRING -> R.string.season_name_spring
+    FertilizingSeason.SUMMER -> R.string.season_name_summer
+    FertilizingSeason.AUTUMN -> R.string.season_name_autumn
+    FertilizingSeason.WINTER -> R.string.season_name_winter
+}
+
 /**
  * Daily-notification line for a planned repot whose season is under way (#809, product ADR-0057). One
  * whole sentence per season rather than a season name spliced into a template, so a translation can

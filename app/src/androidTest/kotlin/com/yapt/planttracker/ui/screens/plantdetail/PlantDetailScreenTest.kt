@@ -58,13 +58,17 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.model.PlantPhoto
 import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.LiveWateringInterval
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalRepotting
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.ui.util.repotPlanLabelRes
+import com.yapt.planttracker.ui.util.sentenceLabelRes
 import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.util.dayChangeTicker
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -186,10 +190,14 @@ class PlantDetailScreenTest {
     // Lets a "hidden" assertion prove the screen actually asked for the predecessor first (#838).
     private var lastMadeCareLogRepo: CareLogRepository? = null
 
+    private val fixedJanuary: LocalDate = LocalDate.of(2026, 1, 15)
+    private val fixedJanuaryMillis = fixedJanuary.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
     private fun makeViewModel(
         plant: Plant,
         careLogs: List<CareLog> = emptyList(),
-        dataStore: DataStore<Preferences> = mockDataStore
+        dataStore: DataStore<Preferences> = mockDataStore,
+        pinLiveClockToJanuary: Boolean = false
     ): PlantDetailViewModel {
         val plantRepo = mockk<PlantRepository>()
         val careLogRepo = mockk<CareLogRepository>()
@@ -222,7 +230,18 @@ class PlantDetailScreenTest {
             mockCustomReminderRepo,
             mockPlantIssueRepo,
             database,
-            wateringAdjustmentRepo
+            wateringAdjustmentRepo,
+            dayChange = if (pinLiveClockToJanuary) flowOf(fixedJanuary) else dayChangeTicker(),
+            hemisphere = if (pinLiveClockToJanuary) {
+                { Hemisphere.NORTHERN }
+            } else {
+                SeasonalWatering::currentHemisphere
+            },
+            nowProvider = if (pinLiveClockToJanuary) {
+                { fixedJanuaryMillis }
+            } else {
+                System::currentTimeMillis
+            }
         )
     }
 
@@ -1902,7 +1921,15 @@ class PlantDetailScreenTest {
 
     @Test
     fun waterTab_showsInlineWateringIntervalControl() {
-        val plant = Plant(id = 33L, name = "Calathea", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+        // Pinned, so the live interval equals the literal whatever today's date is.
+        val plant = Plant(
+            id = 33L,
+            name = "Calathea",
+            wateringIntervalDays = 7,
+            pinIntervalToBase = true,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
         val viewModel = makeViewModel(plant)
 
         composeTestRule.setContent {
@@ -1920,6 +1947,157 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText("Water every 7 days"))
         composeTestRule.onNodeWithText("Water every 7 days").assertIsDisplayed()
+    }
+
+    private fun seasonalPlant(id: Long, base: Double) = Plant(
+        id = id,
+        name = "Calathea",
+        wateringIntervalDays = 7,
+        wateringBaseIntervalDays = base,
+        createdAt = 0L,
+        updatedAt = 0L
+    )
+
+    private fun liveIntervalOnFixedJanuary(plant: Plant): LiveWateringInterval = LiveWateringInterval.compute(
+        plant,
+        fixedJanuary,
+        SeasonalAmplitude.STANDARD.value,
+        Hemisphere.NORTHERN
+    )!!
+
+    @Test
+    fun waterTab_headerAndSliderShowTodaysLiveIntervalNotTheStoredLiteral() {
+        val plant = seasonalPlant(id = 233L, base = 20.0)
+        val live = liveIntervalOnFixedJanuary(plant).effectiveDays
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val header = "Water every $live days"
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText(header))
+        composeTestRule.onNodeWithText(header).assertIsDisplayed()
+        composeTestRule.onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, header))
+            .assertExists()
+        composeTestRule.onNodeWithText("Water every 7 days").assertDoesNotExist()
+    }
+
+    @Test
+    fun waterTab_liveIntervalOverSixty_showsTheTrueValueAndDisablesIncrease() {
+        val plant = seasonalPlant(id = 234L, base = 170.0)
+        val live = liveIntervalOnFixedJanuary(plant).effectiveDays
+        check(live > 60)
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val header = "Water every $live days"
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText(header))
+        composeTestRule.onNodeWithText(header).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.watering_interval_increase_cd)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun heroAndWaterTab_withSeasonalAdjustment_showTheBaseAndNeverTheLiteral() {
+        val plant = seasonalPlant(id = 235L, base = 100.0)
+        val live = liveIntervalOnFixedJanuary(plant)
+        val season = str(checkNotNull(live.adjustment).season.sentenceLabelRes())
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        composeTestRule.onNodeWithText("💧 Every ${live.effectiveDays} days · $season (base 100d)")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("💧 Every 7 days", substring = true).assertDoesNotExist()
+        val line = "Adjusted for $season · base 100 days"
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText(line))
+        composeTestRule.onNodeWithText(line).assertIsDisplayed()
+    }
+
+    @Test
+    fun hero_tapOpensTheWhyThisDateSheetFromHomeTab() {
+        val plant = seasonalPlant(id = 237L, base = 100.0)
+        val live = liveIntervalOnFixedJanuary(plant)
+        val season = str(checkNotNull(live.adjustment).season.sentenceLabelRes())
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {}
+            )
+        }
+
+        composeTestRule.onNodeWithText("💧 Every ${live.effectiveDays} days · $season (base 100d)").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+    }
+
+    @Test
+    fun hero_tapOpensTheWhyThisDateSheetFromWaterTab() {
+        val plant = seasonalPlant(id = 238L, base = 100.0)
+        val live = liveIntervalOnFixedJanuary(plant)
+        val season = str(checkNotNull(live.adjustment).season.sentenceLabelRes())
+        val viewModel = makeViewModel(plant, pinLiveClockToJanuary = true)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        composeTestRule.onNodeWithText("💧 Every ${live.effectiveDays} days · $season (base 100d)").performClick()
+
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+    }
+
+    @Test
+    fun heroAndWaterTab_whenPinned_showOneLineWithNoSeasonalText() {
+        val plant = seasonalPlant(id = 236L, base = 20.0).copy(pinIntervalToBase = true)
+        val viewModel = makeViewModel(plant)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        composeTestRule.onNodeWithText("💧 Every 7 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("(base", substring = true).assertDoesNotExist()
     }
 
     @Test

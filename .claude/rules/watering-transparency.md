@@ -61,7 +61,11 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
 - Add Care Log produces no suggestion: it is edit-only and its `savedStateHandle` handoff and `handleSuggestedWateringInterval()` were deleted (technical ADR-0037, superseding technical ADR-0006). The quick-log surfaces are the only source of the suggestion.
 
 ## The sheet (`WateringExplanationSheet.kt`)
-- Entry: a "Why this date?" `TextButton` (`testTag("why_this_date_button")`) in the Water tab's inline-settings card, shown whenever `wateringIntervalDays != null` (or an active dormant cadence).
+- Entry points (#927, product ADR-0068), all setting `showWateringExplanationSheet`, which is screen-level so it works from any tab:
+  - the "Why this date?" `TextButton` (`testTag("why_this_date_button")`) in the Water tab's inline-settings card, shown whenever `computedNextWateringDueAt != null`;
+  - the Water tab's "Adjusted for winter · base 8 days" line (`WateringSeasonalAdjustmentLine`, only while a seasonal adjustment shows);
+  - the hero 💧 line (`WateringHeroLine`, any tab).
+  The last two are `Role.Button`s only while `computedNextWateringDueAt != null`, otherwise plain text; the hero's `DORMANT_SUSPENDED` "💧 Dormant" form is always plain text.
 - Content comes from pure `WateringExplanationBuilder.build()`. It takes `nextWateringDueAt`/`lastWateredAt`/`rescheduleDeltaDays` from `PlantCareStatus` and calls the same `CareSchedule.effectiveWateringIntervalDaysForDisplay()` the schedule uses, so the sheet can't drift from the due date. `PlantDetailViewModel.wateringExplanation` combines `plant`, `careStatus`, the water-log count, `seasonalAmplitudeValue` and `recentWateringAdjustments`. Base and confidence are always populated.
 - **Season row:** only when `seasonalAmplitude != 0.0 && !plant.pinIntervalToBase` (never "× 1.00"). `SeasonBand` (`SLOWER_GROWTH`/`FASTER_GROWTH`/`TRANSITIONAL`) buckets the outer/middle thirds of `[1-amplitude, 1+amplitude]`, one string per band.
 - **Confidence:** `WateringConfidenceLevel` (`STILL_LEARNING`/`GETTING_THERE`/`DIALED_IN` = confidence 0-1/2-3/4-5). The label `Text` is the accessible content; `ConfidenceDots` are decorative. Tests assert the label, never the dot count (#420).
