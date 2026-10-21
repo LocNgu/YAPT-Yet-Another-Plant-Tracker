@@ -41,6 +41,8 @@ Computed, not learned (rationale in product ADR-0026); ships unconditionally (#6
 ## Manual edits reset the base
 `AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterval()` set `base = edited / season(today)` when amplitude is on and the plant is unpinned. With amplitude Off they preserve the prior base, so turning amplitude on later doesn't lose it. A "Pin interval" `Switch` (`pinIntervalToBase`) is always visible on Add/Edit and the Water tab.
 
+On Plant Detail, committing the *live* value (`LiveWateringInterval`, #927) is a no-op: `setWateringInterval()` compares it, inside `plantEditMutex`, with `effectiveWateringIntervalDaysForDisplay()` of the freshly read plant. A `MANUAL_EDIT` row is written only when `round(newBase) != round(storedBase)`. The hero line and the Water card display the live value plus, when it differs from `round(base)`, the season (`SeasonalFertilizing.season()`) and the base; they never display the stored literal (product ADR-0068).
+
 ## App-start reconciliation fixup (#702, `SeasonalGraduationFixup.kt`)
 A one-time backfill run from app-start work. It re-anchors every unpinned plant's base to today, as the migration did, and logs `SEASONAL_GRADUATION_FIXUP` per changed plant. It is gated on `SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE`, which is device-local and excluded from backup.
 - **When `DONE` latches:** only after a real pass with amplitude on and a non-empty plant list. An empty or amplitude-Off install must stay eligible for a later restore or amplitude change.

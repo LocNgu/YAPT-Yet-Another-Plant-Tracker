@@ -137,6 +137,7 @@ fun PlantDetailScreen(
     val activeIssues by viewModel.activeIssues.collectAsStateWithLifecycle()
     val galleryPhotos by viewModel.galleryPhotos.collectAsStateWithLifecycle()
     val careStatus by viewModel.careStatus.collectAsStateWithLifecycle()
+    val liveWateringInterval by viewModel.liveWateringInterval.collectAsStateWithLifecycle()
     val pendingWateringSuggestion by viewModel.pendingWateringSuggestion.collectAsStateWithLifecycle()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsStateWithLifecycle()
     val showRescheduleDialog by viewModel.showRescheduleDialog.collectAsStateWithLifecycle()
@@ -710,13 +711,16 @@ fun PlantDetailScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            plant?.wateringIntervalDays?.let {
-                                Text(
-                                    text = stringResource(R.string.plant_detail_watering_interval, it),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            WateringHeroLine(
+                                status = careStatus,
+                                live = liveWateringInterval,
+                                dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
+                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                    { showWateringExplanationSheet = true }
+                                } else {
+                                    null
+                                }
+                            )
                         }
                     }
 
@@ -803,71 +807,88 @@ fun PlantDetailScreen(
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
-                            item {
-                                InlineIntervalSetting(
-                                    setting = IntervalSetting(
-                                        enabled = plant?.wateringIntervalDays != null,
-                                        days = plant?.wateringIntervalDays
-                                            ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
-                                        range = 1..60,
-                                        enabledLabelRes = R.string.watering_interval_label,
-                                        disabledLabelRes = R.string.watering_reminder_label,
-                                        decreaseCdRes = R.string.watering_interval_decrease_cd,
-                                        increaseCdRes = R.string.watering_interval_increase_cd
-                                    ),
-                                    onIntervalChange = { days, viaButtonTap ->
-                                        viewModel.setWateringInterval(days, viaButtonTap)
-                                    }
-                                ) {
-                                    if (plant?.wateringIntervalDays != null) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.pin_interval_label),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                modifier = Modifier.weight(1f)
+                            // Today's live interval, never the stored literal (#927, product ADR-0068): wait one
+                            // frame for it rather than render the literal while it computes.
+                            val wateringIntervalReady =
+                                plant?.wateringIntervalDays == null || liveWateringInterval != null
+                            if (wateringIntervalReady) {
+                                item {
+                                    InlineIntervalSetting(
+                                        setting = IntervalSetting(
+                                            enabled = plant?.wateringIntervalDays != null,
+                                            days = liveWateringInterval?.effectiveDays
+                                                ?: PlantDetailViewModel.DEFAULT_WATERING_INTERVAL_DAYS,
+                                            range = 1..60,
+                                            enabledLabelRes = R.string.watering_interval_label,
+                                            disabledLabelRes = R.string.watering_reminder_label,
+                                            decreaseCdRes = R.string.watering_interval_decrease_cd,
+                                            increaseCdRes = R.string.watering_interval_increase_cd
+                                        ),
+                                        belowHeader = {
+                                            WateringSeasonalAdjustmentLine(
+                                                status = careStatus,
+                                                live = liveWateringInterval,
+                                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                                    { showWateringExplanationSheet = true }
+                                                } else {
+                                                    null
+                                                }
                                             )
-                                            Switch(
-                                                modifier = Modifier.testTag("pin_interval_switch"),
-                                                checked = plant?.pinIntervalToBase == true,
-                                                onCheckedChange = { viewModel.setPinIntervalToBase(it) }
-                                            )
+                                        },
+                                        onIntervalChange = { days, viaButtonTap ->
+                                            viewModel.setWateringInterval(days, viaButtonTap)
                                         }
-                                    }
-                                    DormancyWindowSetting(
-                                        startMonth = plant?.dormancyStartMonth,
-                                        endMonth = plant?.dormancyEndMonth,
-                                        dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
-                                        onWindowChange = viewModel::setDormancyWindow
-                                    )
-                                    if (plant?.wateringIntervalDays != null) {
-                                        val hemisphere = remember { SeasonalWatering.currentHemisphere() }
-                                        SeasonalWateringCurveChart(
-                                            amplitude = seasonalAmplitudeValue,
-                                            hemisphere = hemisphere,
-                                            modifier = Modifier.padding(top = 12.dp),
-                                            plantContext = SeasonalCurvePlantContext(
-                                                isPinned = plant?.pinIntervalToBase == true,
-                                                baseIntervalDays = plant?.wateringBaseIntervalDays
-                                                    ?: plant?.wateringIntervalDays?.toDouble(),
-                                            )
+                                    ) {
+                                        if (plant?.wateringIntervalDays != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.pin_interval_label),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Switch(
+                                                    modifier = Modifier.testTag("pin_interval_switch"),
+                                                    checked = plant?.pinIntervalToBase == true,
+                                                    onCheckedChange = { viewModel.setPinIntervalToBase(it) }
+                                                )
+                                            }
+                                        }
+                                        DormancyWindowSetting(
+                                            startMonth = plant?.dormancyStartMonth,
+                                            endMonth = plant?.dormancyEndMonth,
+                                            dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
+                                            onWindowChange = viewModel::setDormancyWindow
                                         )
-                                    }
-                                    if (careStatus?.computedNextWateringDueAt != null) {
-                                        TextButton(
-                                            onClick = { showWateringExplanationSheet = true },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("why_this_date_button")
-                                        ) {
-                                            Text(stringResource(R.string.why_this_date_button))
+                                        if (plant?.wateringIntervalDays != null) {
+                                            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
+                                            SeasonalWateringCurveChart(
+                                                amplitude = seasonalAmplitudeValue,
+                                                hemisphere = hemisphere,
+                                                modifier = Modifier.padding(top = 12.dp),
+                                                plantContext = SeasonalCurvePlantContext(
+                                                    isPinned = plant?.pinIntervalToBase == true,
+                                                    baseIntervalDays = plant?.wateringBaseIntervalDays
+                                                        ?: plant?.wateringIntervalDays?.toDouble(),
+                                                )
+                                            )
+                                        }
+                                        if (careStatus?.computedNextWateringDueAt != null) {
+                                            TextButton(
+                                                onClick = { showWateringExplanationSheet = true },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .testTag("why_this_date_button")
+                                            ) {
+                                                Text(stringResource(R.string.why_this_date_button))
+                                            }
                                         }
                                     }
+                                    Spacer(Modifier.height(16.dp))
                                 }
-                                Spacer(Modifier.height(16.dp))
                             }
                             item {
                                 val insights = careTypeInsightItems(
@@ -1389,13 +1410,15 @@ private data class IntervalSetting(
  * while a drag release or the switch still commits immediately; a slider drag persists on release, a
  * stepper-button tap reports `viaButtonTap = true` on that same "finished" call (a discrete tap is
  * already a deliberate, complete change). [extra] renders additional rows inside the card; callers
- * gate rows tied to an enabled schedule.
+ * gate rows tied to an enabled schedule. [belowHeader] renders between the header row and the slider
+ * while the schedule is enabled (the Water tab's seasonal-adjustment line, #927).
  */
 @Composable
 private fun InlineIntervalSetting(
     setting: IntervalSetting,
     onIntervalChange: (Int?, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    belowHeader: @Composable () -> Unit = {},
     extra: @Composable ColumnScope.() -> Unit = {}
 ) {
     var sliderDays by remember(setting.days) { mutableIntStateOf(setting.days) }
@@ -1424,6 +1447,7 @@ private fun InlineIntervalSetting(
                 )
             }
             if (setting.enabled) {
+                belowHeader()
                 SteppedSlider(
                     value = sliderDays,
                     range = setting.range,
