@@ -40,6 +40,8 @@ number they never see on any other surface.
 - **The hero 💧 line is one live line**: "💧 Every 9 days · winter (base 8d)" when adjusted, "💧 Every 9 days" otherwise. Dormancy is driven
   by `careStatus.wateringScheduleMode`: `DORMANT_SUSPENDED` reads "💧 Dormant", `DORMANT_CADENCE` reads "💧 Every 3 weeks · dormant", and
   neither shows a seasonal hint. Nothing is shown until `careStatus` has loaded, and neither surface ever shows the stored literal.
+  Like the Water-tab line, the hero line is tappable and opens "Why this date?" (from any tab) only while
+  `computedNextWateringDueAt != null`; "💧 Dormant" is always plain text.
 - **Home's summary card is unchanged** (dates only, product ADR-0060).
 - **Add/Edit Plant keeps its stored-literal slider for now** (#928). This is an accepted temporary divergence from the
   "mirrors its Add/Edit counterpart" clause of product ADR-0023.

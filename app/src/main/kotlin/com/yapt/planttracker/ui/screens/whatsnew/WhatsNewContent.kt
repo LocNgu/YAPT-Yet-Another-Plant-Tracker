@@ -21,7 +21,7 @@ object WhatsNewContent {
         ),
         changed = listOf(
             "A plant's watering interval on its Water tab and under its name now shows today's interval, " +
-                "adjusted for the season, with the base interval next to it. Tap the \"Adjusted for\" line to " +
+                "adjusted for the season, with the base interval next to it. Tap either line to " +
                 "see why the date is what it is"
         )
     )

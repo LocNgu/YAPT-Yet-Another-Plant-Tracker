@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,13 +26,16 @@ import com.yapt.planttracker.ui.util.sentenceLabelRes
  * The 💧 line under the plant name in the Plant Detail hero (#927, product ADR-0068). Shows today's
  * live interval, never `Plant.wateringIntervalDays`. Hidden until [status] has loaded, so a stale or
  * missing status can neither flash the ordinary form on a dormant plant nor the reverse.
- * [dormantWateringIntervalDays] is only read in `DORMANT_CADENCE`.
+ * [dormantWateringIntervalDays] is only read in `DORMANT_CADENCE`. [onWhyThisDate] is non-null only when
+ * the "Why this date?" sheet has a date to explain, which makes the line tappable; `DORMANT_SUSPENDED`
+ * ("Dormant") stays plain text because there is no schedule to explain.
  */
 @Composable
 internal fun WateringHeroLine(
     status: PlantCareStatus?,
     live: LiveWateringInterval?,
     dormantWateringIntervalDays: Int?,
+    onWhyThisDate: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val text = when (status?.wateringScheduleMode) {
@@ -54,11 +58,23 @@ internal fun WateringHeroLine(
         }
     }
     if (text != null) {
+        val onTap = onWhyThisDate.takeIf { status?.wateringScheduleMode != WateringScheduleMode.DORMANT_SUSPENDED }
+        val lineModifier = if (onTap != null) {
+            modifier
+                .minimumInteractiveComponentSize()
+                .clickable(
+                    onClickLabel = stringResource(R.string.why_this_date_button),
+                    role = Role.Button,
+                    onClick = onTap
+                )
+        } else {
+            modifier
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = modifier
+            modifier = lineModifier
         )
     }
 }

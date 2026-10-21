@@ -24,6 +24,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -87,13 +88,20 @@ class PlantDetailViewModelLiveIntervalTest {
         updatedAt = updatedAt
     )
 
-    private fun makeVm(stored: MutableStateFlow<Plant?>): PlantDetailViewModel {
+    private fun makeVm(
+        stored: MutableStateFlow<Plant?>,
+        plantFlows: List<Flow<Plant?>>? = null
+    ): PlantDetailViewModel {
         every { careLogRepo.getLogsForPlant(1L) } returns flowOf(emptyList())
         every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(emptyList())
         every { customReminderRepo.getRemindersForPlant(1L) } returns flowOf(emptyList())
         every { plantIssueRepo.getActiveIssuesForPlant(1L) } returns flowOf(emptyList())
-        every { plantRepo.getPlantById(1L) } returns stored
+        if (plantFlows == null) {
+            every { plantRepo.getPlantById(1L) } returns stored
+        } else {
+            every { plantRepo.getPlantById(1L) } returnsMany plantFlows
+        }
         coEvery { plantRepo.updatePlant(any()) } coAnswers { stored.value = firstArg() }
         return PlantDetailViewModel(
             plantRepo,
@@ -180,18 +188,43 @@ class PlantDetailViewModelLiveIntervalTest {
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
 
-    @Test
-    fun `the no-op comparison reads the fresh plant, not the cached flow`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val stored = MutableStateFlow<Plant?>(plant(literal = 7, base = 8.0))
-            val vm = makeVm(stored)
-            val liveForNewBase = SeasonalWatering.effectiveInterval(20.0, january, amplitude, hemisphere)
+    // `vm.plant` collects the first flow returned by getPlantById (stale); the write's fresh read in
+    // the lock calls it again and gets the second (fresh), so the two disagree on purpose.
+    private fun makeVmWithStaleCache(stale: Plant, fresh: Plant): PlantDetailViewModel =
+        makeVm(MutableStateFlow(fresh), plantFlows = listOf(flowOf(stale), flowOf(fresh)))
 
-            stored.value = plant(literal = 7, base = 20.0)
-            vm.setWateringInterval(liveForNewBase)
-            advanceUntilIdle()
+    @Test
+    fun `the no-op comparison follows the fresh plant when the cached one is stale`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val stale = plant(literal = 7, base = 8.0)
+            val fresh = plant(literal = 7, base = 20.0)
+            val vm = makeVmWithStaleCache(stale, fresh)
+            val liveForFresh = SeasonalWatering.effectiveInterval(20.0, january, amplitude, hemisphere)
+
+            vm.plant.test {
+                assertEquals(stale, expectMostRecentItem())
+                vm.setWateringInterval(liveForFresh)
+                advanceUntilIdle()
+            }
 
             coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        }
+
+    @Test
+    fun `committing the stale cached live value still writes when the fresh plant differs`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val stale = plant(literal = 7, base = 8.0)
+            val fresh = plant(literal = 7, base = 20.0)
+            val vm = makeVmWithStaleCache(stale, fresh)
+            val liveForStale = SeasonalWatering.effectiveInterval(8.0, january, amplitude, hemisphere)
+
+            vm.plant.test {
+                assertEquals(stale, expectMostRecentItem())
+                vm.setWateringInterval(liveForStale)
+                advanceUntilIdle()
+            }
+
+            coVerify(exactly = 1) { plantRepo.updatePlant(match { it.wateringIntervalDays == liveForStale }) }
         }
 
     @Test

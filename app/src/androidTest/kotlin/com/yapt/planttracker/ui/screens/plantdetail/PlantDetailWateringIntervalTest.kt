@@ -1,5 +1,12 @@
 package com.yapt.planttracker.ui.screens.plantdetail
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -48,9 +55,24 @@ class PlantDetailWateringIntervalTest {
     private fun showHero(
         status: PlantCareStatus? = status(),
         live: LiveWateringInterval? = adjusted,
-        dormantDays: Int? = null
+        dormantDays: Int? = null,
+        onWhyThisDate: (() -> Unit)? = null
     ) = composeTestRule.setContent {
-        WateringHeroLine(status = status, live = live, dormantWateringIntervalDays = dormantDays)
+        WateringHeroLine(
+            status = status,
+            live = live,
+            dormantWateringIntervalDays = dormantDays,
+            onWhyThisDate = onWhyThisDate
+        )
+    }
+
+    private fun SemanticsNodeInteraction.assertIsWhyThisDateButton() {
+        assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        assert(
+            SemanticsMatcher("click label is \"Why this date?\"") {
+                it.config.getOrNull(SemanticsActions.OnClick)?.label == "Why this date?"
+            }
+        )
     }
 
     @Test
@@ -89,6 +111,52 @@ class PlantDetailWateringIntervalTest {
         showHero(status = status(WateringScheduleMode.DORMANT_CADENCE), dormantDays = 7)
 
         composeTestRule.onNodeWithText("💧 Every 1 week · dormant").assertIsDisplayed()
+    }
+
+    @Test
+    fun hero_isAButtonWithTheWhyThisDateLabelWhenThereIsADueDate() {
+        showHero(onWhyThisDate = {})
+
+        val line = composeTestRule.onNodeWithText("💧 Every 9 days · winter (base 8d)")
+        line.assertHasClickAction()
+        line.assertIsWhyThisDateButton()
+    }
+
+    @Test
+    fun hero_tapOpensWhyThisDate() {
+        var taps = 0
+        showHero(onWhyThisDate = { taps++ })
+
+        composeTestRule.onNodeWithText("💧 Every 9 days · winter (base 8d)").performClick()
+
+        assertEquals(1, taps)
+    }
+
+    @Test
+    fun hero_unadjustedAndCadenceFormsAreTappableToo() {
+        showHero(live = unadjusted, onWhyThisDate = {})
+        composeTestRule.onNodeWithText("💧 Every 9 days").assertHasClickAction()
+    }
+
+    @Test
+    fun hero_dormantCadenceIsTappableWhenThereIsADueDate() {
+        showHero(status = status(WateringScheduleMode.DORMANT_CADENCE), dormantDays = 21, onWhyThisDate = {})
+
+        composeTestRule.onNodeWithText("💧 Every 3 weeks · dormant").assertHasClickAction()
+    }
+
+    @Test
+    fun hero_isPlainTextWithoutADueDate() {
+        showHero(onWhyThisDate = null)
+
+        composeTestRule.onNodeWithText("💧 Every 9 days · winter (base 8d)").assertHasNoClickAction()
+    }
+
+    @Test
+    fun hero_suspendedDormancyStaysPlainTextEvenWithADueDateCallback() {
+        showHero(status = status(WateringScheduleMode.DORMANT_SUSPENDED), onWhyThisDate = {})
+
+        composeTestRule.onNodeWithText("💧 Dormant").assertHasNoClickAction()
     }
 
     @Test
@@ -147,7 +215,9 @@ class PlantDetailWateringIntervalTest {
     fun adjustmentLine_isActionableWhenThereIsADueDate() {
         showAdjustmentLine()
 
-        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").assertHasClickAction()
+        val line = composeTestRule.onNodeWithText("Adjusted for winter · base 8 days")
+        line.assertHasClickAction()
+        line.assertIsWhyThisDateButton()
     }
 
     @Test

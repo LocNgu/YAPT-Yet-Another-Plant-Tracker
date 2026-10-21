@@ -714,7 +714,12 @@ fun PlantDetailScreen(
                             WateringHeroLine(
                                 status = careStatus,
                                 live = liveWateringInterval,
-                                dormantWateringIntervalDays = plant?.dormantWateringIntervalDays
+                                dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
+                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                    { showWateringExplanationSheet = true }
+                                } else {
+                                    null
+                                }
                             )
                         }
                     }

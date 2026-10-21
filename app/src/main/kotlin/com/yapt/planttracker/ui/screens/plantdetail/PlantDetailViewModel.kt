@@ -83,8 +83,10 @@ class PlantDetailViewModel(
      */
     internal val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     private val awayPeriodRepository: AwayPeriodRepository? = null,
+    /** Drives the live display value; a test injecting this must inject a [nowProvider] on the same date. */
     dayChange: Flow<LocalDate> = dayChangeTicker(),
     internal val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
+    /** Drives the write guard; a test injecting this must inject a [dayChange] on the same date. */
     internal val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
