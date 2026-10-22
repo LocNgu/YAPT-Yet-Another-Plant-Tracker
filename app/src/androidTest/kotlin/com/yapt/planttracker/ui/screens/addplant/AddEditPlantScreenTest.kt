@@ -338,6 +338,17 @@ class AddEditPlantScreenTest {
         updatedAt = 0L
     )
 
+    private fun wateringLabel(days: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.watering_interval_label, days)
+
+    private fun hintText(season: Int, baseDays: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .getQuantityString(R.plurals.watering_seasonal_adjustment, baseDays, str(season), baseDays)
+
+    private fun winterHint(baseDays: Int) = hintText(R.string.season_name_winter, baseDays)
+
+    private fun hintPrefix() = winterHint(8).substringBefore(str(R.string.season_name_winter))
+
     private val liveDays = SeasonalWatering.effectiveInterval(
         8.0,
         january,
@@ -352,8 +363,8 @@ class AddEditPlantScreenTest {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
-        composeTestRule.onNodeWithText("Water every $liveDays days").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(wateringLabel(liveDays)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(winterHint(8)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -362,11 +373,11 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(winterHint(8)).performScrollTo().assertIsDisplayed()
 
         composeTestRule.runOnIdle { viewModel.pinIntervalToBase = true }
 
-        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -376,8 +387,8 @@ class AddEditPlantScreenTest {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
-        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(wateringLabel(7)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -387,8 +398,8 @@ class AddEditPlantScreenTest {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
-        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(wateringLabel(7)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -397,11 +408,11 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(winterHint(8)).performScrollTo().assertIsDisplayed()
 
         composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = false }
 
-        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -412,7 +423,7 @@ class AddEditPlantScreenTest {
         }
         composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = true }
 
-        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(wateringLabel(7)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
 }

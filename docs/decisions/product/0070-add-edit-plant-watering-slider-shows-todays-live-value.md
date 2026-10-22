@@ -35,6 +35,9 @@ with the stored literal (the bug). Comparing with the seeded live value needs no
   ADR-0068.
 - **Pin toggled on with an untouched slider pins the displayed (live) value** and carries the stored base over. Pin toggled
   off with an untouched slider keeps the stored base and resumes seasonal behaviour. Neither writes a `MANUAL_EDIT` row.
+- **Switching the reminder off and back on without moving the slider is an untouched interval**, so the stored literal is
+  kept (writing the live value would move the base fallback of a plant with no recorded base). A plant loaded with the
+  reminder off that is then enabled writes the slider value and de-seasonalizes it.
 - **New plants are unchanged**: the typed default is de-seasonalized by `saveNew()`, and no hint is shown.
 - **The seasonal hint**, the plain-text "Adjusted for winter · base 8 days" (same string as the Water tab), appears under the
   slider in edit mode only, while the reminder is on, the form's pin switch is off, amplitude is on, the plant is not in its
