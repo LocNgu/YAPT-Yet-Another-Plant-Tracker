@@ -16,7 +16,12 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        fixed = listOf(
+            "Saving a plant in Edit Plant without touching its watering interval no longer changes its schedule"
+        ),
         changed = listOf(
+            "Edit Plant's watering slider now starts at today's seasonal interval, with the base interval " +
+                "shown underneath, matching the plant's own page",
             "On Care, each section's title now stays pinned at the top while you scroll its tiles, and tapping " +
                 "it collapses the section",
             "On Care, watering is now three sections of its own: Watering · Overdue, Watering · Today and " +

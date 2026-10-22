@@ -72,6 +72,7 @@ import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.ui.util.sentenceLabelRes
 import com.yapt.planttracker.ui.util.showSnackbarOnce
 import kotlinx.coroutines.launch
 
@@ -318,6 +319,19 @@ fun AddEditPlantScreen(
                             stateDescription = wateringIntervalLabel
                         )
                     )
+                    val adjustment = viewModel.seasonalAdjustment
+                    if (adjustment != null && !viewModel.pinIntervalToBase) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.watering_seasonal_adjustment,
+                                adjustment.baseDays,
+                                stringResource(adjustment.season.sentenceLabelRes()),
+                                adjustment.baseDays
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

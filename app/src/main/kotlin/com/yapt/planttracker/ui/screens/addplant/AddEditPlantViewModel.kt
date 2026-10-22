@@ -19,6 +19,8 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.LiveWateringInterval
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
@@ -36,7 +38,7 @@ import kotlin.math.roundToInt
 // #571 added the room-change lifecycle-reset check alongside the existing manual-edit reset; splitting
 // it out into its own class would scatter one cohesive save flow across files for no readability gain
 // (cf. QuickLogUseCase/CareLogRepository's identical justification).
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
@@ -46,7 +48,10 @@ class AddEditPlantViewModel(
     private val dataStore: DataStore<Preferences>? = null,
     // Nullable + defaulted for the same reason as [dataStore] — `?.addAdjustment` calls below are
     // safe no-ops for tests that don't pass one (#572).
-    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+    private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+    /** Drives the live seed; a test injecting this must inject a [nowProvider] on the same date. */
+    private val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
@@ -87,13 +92,18 @@ class AddEditPlantViewModel(
     var dormantWateringIntervalDays by mutableStateOf<Int?>(null)
 
     /**
-     * The watering interval as loaded from the DB (or `null` for a new plant), used to detect an
-     * unprompted edit on this screen — as opposed to applying a product ADR-0006 suggestion, which never
-     * routes through this screen. An edit here is a full [Plant.wateringConfidence] reset (#568):
-     * the user is asserting a new baseline (moved the plant, repotted, changed pot size), unlike
-     * fine-tuning the number inside the suggestion dialog itself.
+     * The watering interval the slider was seeded with: today's live value (#928, product ADR-0070), not
+     * the stored literal — `null` for a new plant or when the schedule was off. Save compares the slider
+     * with this, so only a real change counts as an unprompted edit on this screen (as opposed to applying
+     * a product ADR-0006 suggestion, which never routes through here). An edit is a full
+     * [Plant.wateringConfidence] reset (#568): the user is asserting a new baseline (moved the plant,
+     * repotted, changed pot size), unlike fine-tuning the number inside the suggestion dialog itself.
      */
-    private var loadedWateringIntervalDays: Int? = null
+    private var seededWateringIntervalDays: Int? = null
+
+    /** Edit mode only: non-null when today's seasonal value differs from the rounded base and the plant isn't dormant today. */
+    var seasonalAdjustment by mutableStateOf<LiveWateringInterval.SeasonalAdjustment?>(null)
+        private set
 
     /** Whether the plant is currently hidden (#915); only meaningful in edit mode. Hide/Unhide write at once, not on Save. */
     var isHidden by mutableStateOf(false)
@@ -111,6 +121,13 @@ class AddEditPlantViewModel(
         plantId?.let { id ->
             viewModelScope.launch {
                 plantRepository.getPlantById(id).first()?.let { plant ->
+                    val today = nowProvider().toLocalDate()
+                    val live = LiveWateringInterval.compute(
+                        plant,
+                        today,
+                        dataStore?.seasonalAmplitudeOnce() ?: 0.0,
+                        hemisphere()
+                    )
                     name = plant.name
                     species = plant.species ?: ""
                     room = plant.room ?: ""
@@ -118,10 +135,17 @@ class AddEditPlantViewModel(
                     coverPhotoUri = plant.coverPhotoUri
                     isHidden = plant.hiddenAt != null
                     plant.wateringIntervalDays?.let {
-                        wateringIntervalDays = it
+                        val shown = live?.effectiveDays ?: it
+                        wateringIntervalDays = shown
                         wateringIntervalEnabled = true
+                        seededWateringIntervalDays = shown
                     }
-                    loadedWateringIntervalDays = plant.wateringIntervalDays
+                    val dormantToday = DormancyWindow.isDormant(
+                        today.monthValue,
+                        plant.dormancyStartMonth,
+                        plant.dormancyEndMonth
+                    )
+                    seasonalAdjustment = live?.adjustment.takeUnless { dormantToday }
                     plant.fertilizingIntervalDays?.let {
                         fertilizingIntervalDays = it
                         fertilizingIntervalEnabled = true
@@ -190,9 +214,9 @@ class AddEditPlantViewModel(
             return
         }
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
+            val now = nowProvider()
             val newWateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null
-            val intervalChanged = newWateringIntervalDays != loadedWateringIntervalDays
+            val intervalChanged = newWateringIntervalDays != seededWateringIntervalDays
             val plant = Plant(
                 id = plantId ?: 0,
                 name = name.trim(),
@@ -261,6 +285,7 @@ class AddEditPlantViewModel(
             recomputeWateringBase(existing, newWateringIntervalDays, intervalChanged, now)
         plantRepository.updatePlant(
             plant.copy(
+                wateringIntervalDays = literalToStore(existing, newWateringIntervalDays, intervalChanged),
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
                 // The one-off repot plan isn't edited on this screen (Plant Detail's Repot tab owns it):
@@ -291,6 +316,17 @@ class AddEditPlantViewModel(
     }
 
     /**
+     * An untouched slider shows today's live value, which is not necessarily the stored literal. Writing it
+     * back would re-seed the base fallback of a plant that never recorded one, so the stored literal stays
+     * (#928, product ADR-0070). Turning the pin on is the exception: a pinned plant's interval is the literal,
+     * so it pins the value the slider shows.
+     */
+    private fun literalToStore(existing: Plant?, newWateringIntervalDays: Int?, intervalChanged: Boolean): Int? {
+        val newlyPinned = pinIntervalToBase && existing?.pinIntervalToBase != true
+        return if (intervalChanged || newlyPinned) newWateringIntervalDays else existing?.wateringIntervalDays
+    }
+
+    /**
      * #584 review: logs base-space before/after, not the literal typed value — matches
      * `PlantDetailViewModel.setWateringInterval()`'s equivalent `MANUAL_EDIT` fix. Extracted out of
      * [saveEdit] to keep it under Detekt's `LongMethod`/`CyclomaticComplexMethod` thresholds.
@@ -311,6 +347,8 @@ class AddEditPlantViewModel(
         } else {
             newWateringIntervalDays
         }
+        // #928: gated on a base-space change, not on the typed literal differing from the stored one.
+        if (loggedAfter == loggedBefore) return
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(
                 plantId = plantId!!,
@@ -364,7 +402,7 @@ class AddEditPlantViewModel(
                 intervalDays.toDouble(),
                 now.toLocalDate(),
                 amplitude,
-                SeasonalWatering.currentHemisphere()
+                hemisphere()
             )
         }
     }

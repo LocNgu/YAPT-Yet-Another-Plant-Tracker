@@ -20,15 +20,23 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.preferencesOf
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
+import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -40,6 +48,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class AddEditPlantScreenTest {
@@ -291,5 +301,118 @@ class AddEditPlantScreenTest {
 
         composeTestRule.onNodeWithText(str(R.string.repotting_last_season_locked_snackbar)).assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.season_spring)).assertIsSelected()
+    }
+
+    // ---- Live watering interval (#928, product ADR-0070) ----
+
+    private val january = LocalDate.of(2026, 1, 15)
+
+    private fun makeEditViewModel(
+        plant: Plant,
+        amplitude: SeasonalAmplitude = SeasonalAmplitude.STANDARD
+    ): AddEditPlantViewModel {
+        val plantRepo = mockk<PlantRepository>()
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant)
+        val dataStore = mockk<DataStore<Preferences>> {
+            every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to amplitude.name))
+        }
+        return AddEditPlantViewModel(
+            plantRepo,
+            mockk<PlantPhotoRepository>(),
+            1L,
+            dataStore,
+            null,
+            { Hemisphere.NORTHERN },
+            { january.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+        )
+    }
+
+    private fun seasonalPlant(pinned: Boolean = false) = Plant(
+        id = 1L,
+        name = "Monstera",
+        wateringIntervalDays = 7,
+        wateringBaseIntervalDays = 8.0,
+        pinIntervalToBase = pinned,
+        createdAt = 0L,
+        updatedAt = 0L
+    )
+
+    private val liveDays = SeasonalWatering.effectiveInterval(
+        8.0,
+        january,
+        SeasonalAmplitude.STANDARD.value,
+        Hemisphere.NORTHERN
+    )
+
+    @Test
+    fun wateringSlider_showsTheLiveValueAndTheSeasonalHint() {
+        val viewModel = makeEditViewModel(seasonalPlant())
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Water every $liveDays days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun seasonalHint_isHiddenOncePinned() {
+        val viewModel = makeEditViewModel(seasonalPlant())
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+
+        composeTestRule.runOnIdle { viewModel.pinIntervalToBase = true }
+
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonalHint_isHiddenForAPinnedPlantAndShowsTheStoredInterval() {
+        val viewModel = makeEditViewModel(seasonalPlant(pinned = true))
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonalHint_isHiddenWhenAmplitudeIsOff() {
+        val viewModel = makeEditViewModel(seasonalPlant(), SeasonalAmplitude.OFF)
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+
+        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonalHint_isHiddenWhenTheReminderIsSwitchedOff() {
+        val viewModel = makeEditViewModel(seasonalPlant())
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.onNodeWithText("Adjusted for winter · base 8 days").performScrollTo().assertIsDisplayed()
+
+        composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = false }
+
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonalHint_isHiddenForANewPlant() {
+        val viewModel = makeViewModel()
+        composeTestRule.setContent {
+            AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
+        }
+        composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = true }
+
+        composeTestRule.onNodeWithText("Water every 7 days").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adjusted for", substring = true).assertDoesNotExist()
     }
 }

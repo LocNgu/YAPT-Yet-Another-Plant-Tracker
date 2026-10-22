@@ -1,6 +1,6 @@
 # Product ADR-0068: The Water tab and hero show today's live watering interval
 
-**Status**: accepted
+**Status**: accepted — "Add/Edit Plant keeps its stored-literal slider" clause amended by [ADR-0070](0070-add-edit-plant-watering-slider-shows-todays-live-value.md)
 
 **Date**: 2026-10-21
 
