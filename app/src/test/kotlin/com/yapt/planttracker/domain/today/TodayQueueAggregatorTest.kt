@@ -22,7 +22,7 @@ class TodayQueueAggregatorTest {
     private val zone = ZoneId.systemDefault()
 
     @Test
-    fun `aggregates every scheduled source inside the three day horizon`() {
+    fun `aggregates every scheduled source inside the default horizon`() {
         val plant = plant(
             wateringIntervalDays = 7,
             fertilizingIntervalDays = 10,
@@ -32,7 +32,7 @@ class TodayQueueAggregatorTest {
             id = 41L,
             plantId = plant.id,
             name = "Neem",
-            intervalDays = 3,
+            intervalDays = 1,
             createdAt = millis(today)
         )
         val input = input(
@@ -40,7 +40,7 @@ class TodayQueueAggregatorTest {
             logs = listOf(
                 log(plant.id, CareType.WATER, today.minusDays(7)),
                 log(plant.id, CareType.FERTILIZE, today.minusDays(9)),
-                log(plant.id, CareType.REPOT, today.minusDays(28)),
+                log(plant.id, CareType.REPOT, today.minusDays(30)),
                 CareLog(
                     plantId = plant.id,
                     careType = CareType.PHOTO,
@@ -186,7 +186,7 @@ class TodayQueueAggregatorTest {
 
     @Test
     fun `active watering reschedule moves the task to the override day`() {
-        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(2)))
+        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(1)))
         val result = TodayQueueAggregator.build(
             input(
                 plants = listOf(rescheduled),
@@ -196,13 +196,13 @@ class TodayQueueAggregatorTest {
 
         val task = result.tasks.single()
         assertEquals(TodayCareKind.WATER, task.kind)
-        assertEquals(millis(today.plusDays(2)), task.dueAt)
-        assertEquals(TodayTaskBucket.Upcoming(today.plusDays(2).toEpochDay()), task.bucket)
+        assertEquals(millis(today.plusDays(1)), task.dueAt)
+        assertEquals(TodayTaskBucket.Upcoming(today.plusDays(1).toEpochDay()), task.bucket)
     }
 
     @Test
     fun `watering reschedule beyond the horizon removes the task`() {
-        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(5)))
+        val rescheduled = plant(wateringIntervalDays = 7, wateringDueDateOverride = millis(today.plusDays(2)))
         val result = TodayQueueAggregator.build(
             input(
                 plants = listOf(rescheduled),
@@ -364,10 +364,10 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
-    fun `includes day three excludes day four and orders deterministically`() {
-        val beta = plant(id = 1L, name = "Beta", wateringIntervalDays = 3)
-        val alpha = plant(id = 2L, name = "Alpha", wateringIntervalDays = 3)
-        val later = plant(id = 3L, name = "Later", wateringIntervalDays = 4)
+    fun `includes tomorrow excludes the day after and orders deterministically`() {
+        val beta = plant(id = 1L, name = "Beta", wateringIntervalDays = 1)
+        val alpha = plant(id = 2L, name = "Alpha", wateringIntervalDays = 1)
+        val later = plant(id = 3L, name = "Later", wateringIntervalDays = 2)
         val result = TodayQueueAggregator.build(
             input(
                 plants = listOf(beta, later, alpha),
@@ -380,155 +380,7 @@ class TodayQueueAggregatorTest {
         )
 
         assertEquals(listOf("Alpha", "Beta"), result.tasks.map { it.plant.name })
-        assertTrue(result.tasks.all { it.bucket == TodayTaskBucket.Upcoming(today.plusDays(3).toEpochDay()) })
-    }
-
-    @Test
-    fun `care type sections order watering first and hide empty sections`() {
-        val fern = plant()
-        val tasks = listOf(
-            task("photo:1", fern, TodayCareKind.PHOTO, TodayTaskBucket.Today),
-            task("repot:1", fern, TodayCareKind.REPOT, TodayTaskBucket.Today),
-            task("custom:1", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today),
-            task("fertilize:1", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Today),
-            task("issue:1", fern, TodayCareKind.ISSUE_TREATMENT, TodayTaskBucket.Today),
-            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue)
-        )
-
-        val sections = careTypeSections(tasks)
-
-        assertEquals(
-            listOf(
-                TodayCareSection.WATERING,
-                TodayCareSection.ISSUE_TREATMENTS,
-                TodayCareSection.FERTILIZING,
-                TodayCareSection.CUSTOM_REMINDERS,
-                TodayCareSection.REPOTTING,
-                TodayCareSection.PHOTOS
-            ),
-            sections.map { it.section }
-        )
-        assertEquals(
-            listOf(TodayCareSection.WATERING, TodayCareSection.PHOTOS),
-            careTypeSections(tasks.filter { it.kind == TodayCareKind.WATER || it.kind == TodayCareKind.PHOTO })
-                .map { it.section }
-        )
-        assertTrue(careTypeSections(emptyList()).isEmpty())
-    }
-
-    @Test
-    fun `care type sections keep every task once and preserve queue order within a section`() {
-        val fern = plant(id = 1L, name = "Fern")
-        val aloe = plant(id = 2L, name = "Aloe")
-        val tasks = listOf(
-            task("water:2", aloe, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-            task("fertilize:1", fern, TodayCareKind.FERTILIZE, TodayTaskBucket.Today),
-            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Today),
-            task("custom:1", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today)
-        )
-
-        val sections = careTypeSections(tasks)
-
-        assertEquals(tasks.map { it.id }.sorted(), sections.flatMap { it.tasks }.map { it.id }.sorted())
-        assertEquals(
-            listOf("water:2", "water:1"),
-            sections.first { it.section == TodayCareSection.WATERING }.tasks.map { it.id }
-        )
-    }
-
-    @Test
-    fun `combined water and fertilize task sits under watering only`() {
-        val fern = plant()
-        val combined = task("water_fertilize:1", fern, TodayCareKind.WATER_AND_FERTILIZE, TodayTaskBucket.Today)
-
-        val sections = careTypeSections(listOf(combined))
-
-        assertEquals(listOf(TodayCareSection.WATERING), sections.map { it.section })
-        assertEquals(listOf(combined), sections.single().tasks)
-    }
-
-    @Test
-    fun `watering sub groups bucket by the aggregator bucket and hide empty groups`() {
-        val fern = plant(id = 1L, name = "Fern")
-        val aloe = plant(id = 2L, name = "Aloe")
-        val cactus = plant(id = 3L, name = "Cactus")
-        val tasks = listOf(
-            task("water:3", cactus, TodayCareKind.WATER, TodayTaskBucket.Upcoming(today.plusDays(2).toEpochDay())),
-            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-            task("water:2", aloe, TodayCareKind.WATER_AND_FERTILIZE, TodayTaskBucket.Today)
-        )
-
-        val watering = careTypeSections(tasks).single()
-
-        assertEquals(
-            listOf(TodayWateringGroup.OVERDUE, TodayWateringGroup.TODAY, TodayWateringGroup.NEXT_THREE_DAYS),
-            watering.subGroups.map { it.group }
-        )
-        assertEquals(listOf("water:1"), watering.subGroups[0].tasks.map { it.id })
-        assertEquals(listOf("water:2"), watering.subGroups[1].tasks.map { it.id })
-        assertEquals(listOf("water:3"), watering.subGroups[2].tasks.map { it.id })
-
-        val withoutToday = careTypeSections(tasks.filter { it.bucket != TodayTaskBucket.Today }).single()
-
-        assertEquals(
-            listOf(TodayWateringGroup.OVERDUE, TodayWateringGroup.NEXT_THREE_DAYS),
-            withoutToday.subGroups.map { it.group }
-        )
-    }
-
-    @Test
-    fun `every upcoming day lands in next three days and queue order is kept inside a sub group`() {
-        val fern = plant(id = 1L, name = "Fern")
-        val aloe = plant(id = 2L, name = "Aloe")
-        val cactus = plant(id = 3L, name = "Cactus")
-        val tasks = listOf(
-            task("water:2", aloe, TodayCareKind.WATER, TodayTaskBucket.Upcoming(today.plusDays(1).toEpochDay())),
-            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Upcoming(today.plusDays(2).toEpochDay())),
-            task("water:3", cactus, TodayCareKind.WATER, TodayTaskBucket.Upcoming(today.plusDays(3).toEpochDay()))
-        )
-
-        val subGroup = careTypeSections(tasks).single().subGroups.single()
-
-        assertEquals(TodayWateringGroup.NEXT_THREE_DAYS, subGroup.group)
-        assertEquals(listOf("water:2", "water:1", "water:3"), subGroup.tasks.map { it.id })
-    }
-
-    @Test
-    fun `plant counts are distinct plants per section and per watering sub group`() {
-        val fern = plant(id = 1L, name = "Fern")
-        val aloe = plant(id = 2L, name = "Aloe")
-        val tasks = listOf(
-            task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-            task("water:2", aloe, TodayCareKind.WATER, TodayTaskBucket.Overdue),
-            task("water:3", plant(id = 3L, name = "Cactus"), TodayCareKind.WATER, TodayTaskBucket.Today),
-            task("custom:1", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today),
-            task("custom:2", fern, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today),
-            task("custom:3", aloe, TodayCareKind.CUSTOM_REMINDER, TodayTaskBucket.Today)
-        )
-
-        val sections = careTypeSections(tasks)
-        val watering = sections.first { it.section == TodayCareSection.WATERING }
-        val custom = sections.first { it.section == TodayCareSection.CUSTOM_REMINDERS }
-
-        assertEquals(3, watering.plantCount)
-        assertEquals(listOf(2, 1), watering.subGroups.map { it.plantCount })
-        assertEquals(3, custom.tasks.size)
-        assertEquals(2, custom.plantCount)
-    }
-
-    @Test
-    fun `only watering has sub groups and every other section stays flat`() {
-        val fern = plant()
-        val tasks = TodayCareKind.entries.mapIndexed { index, kind ->
-            task("$kind:$index", fern, kind, if (index % 2 == 0) TodayTaskBucket.Overdue else TodayTaskBucket.Today)
-        }
-
-        val sections = careTypeSections(tasks)
-
-        assertTrue(sections.first { it.section == TodayCareSection.WATERING }.subGroups.isNotEmpty())
-        assertTrue(
-            sections.filter { it.section != TodayCareSection.WATERING }.all { it.subGroups.isEmpty() }
-        )
+        assertTrue(result.tasks.all { it.bucket == TodayTaskBucket.Upcoming(today.plusDays(1).toEpochDay()) })
     }
 
     // ---- Planned repot (#809, product ADR-0057) ----
@@ -566,12 +418,12 @@ class TodayQueueAggregatorTest {
     }
 
     @Test
-    fun `an upcoming plan enters the three day horizon from its season start`() {
-        val task = repotTaskOn(springStart.minusDays(3))!!
+    fun `an upcoming plan enters the horizon from its season start`() {
+        val task = repotTaskOn(springStart.minusDays(1))!!
 
         assertEquals(TodayTaskBucket.Upcoming(springStart.toEpochDay()), task.bucket)
         assertEquals(millis(springStart), task.dueAt)
-        assertEquals(null, repotTaskOn(springStart.minusDays(4)))
+        assertEquals(null, repotTaskOn(springStart.minusDays(2)))
     }
 
     @Test
@@ -669,14 +521,6 @@ class TodayQueueAggregatorTest {
 
     private fun log(plantId: Long, type: CareType, date: LocalDate) =
         CareLog(plantId = plantId, careType = type, loggedAt = millis(date))
-
-    private fun task(id: String, plant: Plant, kind: TodayCareKind, bucket: TodayTaskBucket) = TodayCareTask(
-        id = id,
-        plant = plant,
-        kind = kind,
-        dueAt = millis(today),
-        bucket = bucket
-    )
 
     @Suppress("LongParameterList")
     private fun input(

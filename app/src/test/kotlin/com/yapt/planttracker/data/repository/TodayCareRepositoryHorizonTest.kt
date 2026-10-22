@@ -51,17 +51,21 @@ class TodayCareRepositoryHorizonTest {
         val plantPhotoRepository: PlantPhotoRepository
     )
 
-    private fun fixture(dayChange: Flow<LocalDate>): Fixture {
+    private fun fixture(dayChange: Flow<LocalDate>, withFertilizeDueTomorrow: Boolean = false): Fixture {
         val soon = plant(id = 1L, intervalDays = 10)
         val later = plant(id = 2L, intervalDays = 10)
+        val feed = plant(id = 3L, intervalDays = 10).copy(wateringIntervalDays = null, fertilizingIntervalDays = 10)
         val plantRepository = mockk<PlantRepository> {
-            every { getAllPlants() } returns flowOf(listOf(soon, later))
+            every { getAllPlants() } returns flowOf(
+                if (withFertilizeDueTomorrow) listOf(soon, later, feed) else listOf(soon, later)
+            )
         }
         val careLogRepository = mockk<CareLogRepository> {
             every { getAllLogs() } returns flowOf(
                 listOf(
-                    CareLog(plantId = soon.id, careType = CareType.WATER, loggedAt = millis(firstDay.minusDays(8))),
-                    CareLog(plantId = later.id, careType = CareType.WATER, loggedAt = millis(firstDay))
+                    CareLog(plantId = soon.id, careType = CareType.WATER, loggedAt = millis(firstDay.minusDays(9))),
+                    CareLog(plantId = later.id, careType = CareType.WATER, loggedAt = millis(firstDay)),
+                    CareLog(plantId = feed.id, careType = CareType.FERTILIZE, loggedAt = millis(firstDay.minusDays(9)))
                 )
             )
         }
@@ -107,8 +111,37 @@ class TodayCareRepositoryHorizonTest {
         fixture.repository.observeQueue(flowOf(firstDay.plusDays(10))).test {
             val tasks = awaitItem().tasks
             assertEquals(listOf("water:1", "water:2"), tasks.map { it.id })
-            assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(2).toEpochDay()), tasks[0].bucket)
+            assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(1).toEpochDay()), tasks[0].bucket)
             assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(10).toEpochDay()), tasks[1].bucket)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `the default queue drops a non watering task due tomorrow and a widened queue keeps it`() = runTest {
+        val fixture = fixture(flowOf(firstDay), withFertilizeDueTomorrow = true)
+
+        fixture.repository.observeQueue().test {
+            assertEquals(listOf("water:1"), awaitItem().tasks.map { it.id })
+            awaitComplete()
+        }
+
+        fixture.repository.observeQueue(flowOf(firstDay.plusDays(10))).test {
+            val tasks = awaitItem().tasks
+            assertEquals(listOf("water:1", "fertilize:3", "water:2"), tasks.map { it.id })
+            assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(1).toEpochDay()), tasks[1].bucket)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `a task due today on the default path is today for every kind`() = runTest {
+        val fixture = fixture(flowOf(firstDay.plusDays(1)), withFertilizeDueTomorrow = true)
+
+        fixture.repository.observeQueue().test {
+            val tasks = awaitItem().tasks
+            assertEquals(listOf("water:1", "fertilize:3"), tasks.map { it.id })
+            assertEquals(listOf(TodayTaskBucket.Today, TodayTaskBucket.Today), tasks.map { it.bucket })
             awaitComplete()
         }
     }
@@ -136,10 +169,10 @@ class TodayCareRepositoryHorizonTest {
 
         fixture.repository.observeQueue(flowOf(horizon)).test {
             val first = awaitItem().tasks
-            assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(2).toEpochDay()), first[0].bucket)
+            assertEquals(TodayTaskBucket.Upcoming(firstDay.plusDays(1).toEpochDay()), first[0].bucket)
             assertEquals(TodayTaskBucket.Upcoming(horizon.toEpochDay()), first[1].bucket)
 
-            now = millis(firstDay.plusDays(2))
+            now = millis(firstDay.plusDays(1))
             advanceTimeBy(POLL_MS)
             runCurrent()
 
