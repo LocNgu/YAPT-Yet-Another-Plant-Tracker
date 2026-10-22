@@ -82,7 +82,8 @@ class TodayCareRepository(
                     seasonalAmplitude = queueSettings.seasonalAmplitude,
                     photoReminderEnabled = queueSettings.photoReminderEnabled,
                     awayPeriods = queueSettings.awayPeriods,
-                    horizonEnd = queueSettings.horizonEnd ?: TodayQueueInput.defaultHorizonEnd(queueSettings.day)
+                    horizonEnd = queueSettings.horizonEnd ?: TodayQueueInput.defaultHorizonEnd(queueSettings.day),
+                    nonWateringHorizonEnd = queueSettings.horizonEnd ?: queueSettings.day
                 )
             )
         }

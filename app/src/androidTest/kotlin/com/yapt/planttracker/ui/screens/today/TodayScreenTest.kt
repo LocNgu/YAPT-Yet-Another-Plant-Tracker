@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
@@ -95,7 +96,21 @@ class TodayScreenTest {
         queue.value = TodayQueueSnapshot(activePlantCount = 1, tasks = emptyList())
         setContent()
 
-        composeTestRule.onNodeWithText("You’re all caught up for the next three days.").assertIsDisplayed()
+        composeTestRule.onNodeWithText(CAUGHT_UP).assertIsDisplayed()
+    }
+
+    @Test
+    fun queueHoldingOnlyATomorrowWateringTileShowsTheGridNotTheCaughtUpCopy() {
+        val fern = plant()
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 1,
+            tasks = listOf(task("water:1", fern, TodayCareKind.WATER, tomorrowBucket()))
+        )
+        setContent()
+
+        composeTestRule.onNodeWithText(CAUGHT_UP).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Fern, watering").assertIsDisplayed()
     }
 
     @Test
@@ -112,17 +127,17 @@ class TodayScreenTest {
         )
         setContent(tall = true)
 
-        composeTestRule.onNodeWithText("Watering · 1").assertExists()
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assertExists()
         composeTestRule.onNodeWithText("Repotting · 1").assertExists()
         composeTestRule.onNodeWithText("Photos · 1").assertExists()
         composeTestRule.onNodeWithText("Fertilizing", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithText("Issue treatments", substring = true).assertDoesNotExist()
-        assertTrue(topOf("Watering · 1") < topOf("Repotting · 1"))
+        assertTrue(topOf("Watering · Overdue · 1") < topOf("Repotting · 1"))
         assertTrue(topOf("Repotting · 1") < topOf("Photos · 1"))
     }
 
     @Test
-    fun wateringSplitsIntoOverdueTodayAndNextThreeDaysAndHidesEmptySubGroups() {
+    fun wateringIsFlatOverdueTodayAndTomorrowSectionsAndHidesEmptyOnes() {
         val fern = plant()
         val aloe = plant(2L, "Aloe")
         val cactus = plant(3L, "Cactus")
@@ -131,23 +146,47 @@ class TodayScreenTest {
             listOf(
                 task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
                 task("water:2", aloe, TodayCareKind.WATER),
-                task("water:3", cactus, TodayCareKind.WATER, TodayTaskBucket.Upcoming(LocalDate.now().toEpochDay() + 2))
+                task("water:3", cactus, TodayCareKind.WATER, tomorrowBucket())
             )
         )
         setContent(tall = true)
 
-        composeTestRule.onNodeWithText("Watering · 3").assertExists()
-        composeTestRule.onNodeWithText("Overdue · 1").assertExists()
-        composeTestRule.onNodeWithText("Today · 1").assertExists()
-        composeTestRule.onNodeWithText("Next 3 days · 1").assertExists()
-        assertTrue(topOf("Overdue · 1") < topOf("Today · 1"))
-        assertTrue(topOf("Today · 1") < topOf("Next 3 days · 1"))
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assertExists()
+        composeTestRule.onNodeWithText("Watering · Today · 1").assertExists()
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assertExists()
+        composeTestRule.onNodeWithText("Next 3 days", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering · 3").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering", substring = false).assertDoesNotExist()
+        assertTrue(topOf("Watering · Overdue · 1") < topOf("Watering · Today · 1"))
+        assertTrue(topOf("Watering · Today · 1") < topOf("Watering · Tomorrow · 1"))
 
         queue.value = TodayQueueSnapshot(1, listOf(task("water:2", aloe, TodayCareKind.WATER)))
 
-        composeTestRule.onNodeWithText("Today · 1").assertExists()
-        composeTestRule.onNodeWithText("Overdue · 1").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Next 3 days · 1").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering · Today · 1").assertExists()
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assertDoesNotExist()
+    }
+
+    @Test
+    fun headingsReadTitleBucketAndDistinctPlantCount() {
+        val overdue = (1L..2L).map { id ->
+            task("water:$id", plant(id, "Overdue $id"), TodayCareKind.WATER, TodayTaskBucket.Overdue)
+        }
+        val today = (3L..7L).map { id -> task("water:$id", plant(id, "Today $id"), TodayCareKind.WATER) }
+        val tomorrow = (8L..10L).map { id ->
+            task("water:$id", plant(id, "Tomorrow $id"), TodayCareKind.WATER, tomorrowBucket())
+        }
+        val fertilizing = (11L..14L).map { id ->
+            task("fertilize:$id", plant(id, "Feed $id"), TodayCareKind.FERTILIZE)
+        }
+        queue.value = TodayQueueSnapshot(14, overdue + today + tomorrow + fertilizing)
+        setContent(tall = true)
+
+        composeTestRule.onNodeWithText("Watering · Overdue · 2").assertExists()
+        composeTestRule.onNodeWithText("Watering · Today · 5").assertExists()
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 3").assertExists()
+        composeTestRule.onNodeWithText("Fertilizing · 4").assertExists()
+        composeTestRule.onNodeWithText("Next 3 days", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -181,7 +220,7 @@ class TodayScreenTest {
         )
         setContent()
 
-        composeTestRule.onNodeWithText("Watering · 1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watering · Today · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Fertilizing", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Fern, watering and fertilizing").assertIsDisplayed()
     }
@@ -209,7 +248,7 @@ class TodayScreenTest {
     }
 
     @Test
-    fun sectionAndSubGroupHeadersCollapseAndExposeTheirStateToScreenReaders() {
+    fun everyHeaderIsAHeadingWithAStateAndAnActionLabel() {
         val fern = plant()
         val aloe = plant(2L, "Aloe")
         queue.value = TodayQueueSnapshot(
@@ -220,43 +259,90 @@ class TodayScreenTest {
             )
         )
         setContent(tall = true)
-        composeTestRule.onNodeWithText("Watering · 1").assert(hasStateDescription("Expanded"))
+
+        for (header in listOf("Watering · Today · 1", "Fertilizing · 1")) {
+            composeTestRule.onNodeWithText(header)
+                .assert(hasHeading())
+                .assert(hasStateDescription("Expanded"))
+                .assert(hasClickLabel("Collapse"))
+        }
+
+        composeTestRule.onNodeWithText("Fertilizing · 1").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onNodeWithText("Fertilizing · 1")
+            .assert(hasHeading())
+            .assert(hasStateDescription("Collapsed"))
+            .assert(hasClickLabel("Expand"))
+    }
+
+    @Test
+    fun headersCollapseOnlyTheirOwnTilesAndExposeTheirStateToScreenReaders() {
+        val fern = plant()
+        val aloe = plant(2L, "Aloe")
+        val cactus = plant(3L, "Cactus")
+        val bean = plant(4L, "Bean")
+        queue.value = TodayQueueSnapshot(
+            4,
+            listOf(
+                task("water:1", fern, TodayCareKind.WATER, TodayTaskBucket.Overdue),
+                task("water:2", aloe, TodayCareKind.WATER),
+                task("water:3", cactus, TodayCareKind.WATER, tomorrowBucket()),
+                task("fertilize:4", bean, TodayCareKind.FERTILIZE)
+            )
+        )
+        setContent(tall = true)
+        composeTestRule.onNodeWithText("Watering · Today · 1").assert(hasStateDescription("Expanded"))
+        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertExists()
+
+        composeTestRule.onNodeWithText("Watering · Today · 1").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onNodeWithText("Watering · Today · 1").assert(hasStateDescription("Collapsed"))
+        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Fern, watering").assertExists()
+        composeTestRule.onNodeWithContentDescription("Cactus, watering").assertExists()
+        composeTestRule.onNodeWithContentDescription("Bean, fertilizing").assertExists()
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assert(hasStateDescription("Expanded"))
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assert(hasStateDescription("Expanded"))
 
-        composeTestRule.onNodeWithText("Today · 1").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onNodeWithText("Watering · Today · 1").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").performSemanticsAction(SemanticsActions.OnClick)
 
-        composeTestRule.onNodeWithText("Today · 1").assert(hasStateDescription("Collapsed"))
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assert(hasStateDescription("Collapsed"))
         composeTestRule.onNodeWithContentDescription("Fern, watering").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Watering · 1").assert(hasStateDescription("Expanded"))
-
-        composeTestRule.onNodeWithText("Today · 1").performSemanticsAction(SemanticsActions.OnClick)
-        composeTestRule.onNodeWithText("Watering · 1").performSemanticsAction(SemanticsActions.OnClick)
-
-        composeTestRule.onNodeWithText("Watering · 1").assert(hasStateDescription("Collapsed"))
-        composeTestRule.onNodeWithText("Today · 1").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Fern, watering").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertExists()
         composeTestRule.onNodeWithText("Fertilizing · 1").assert(hasStateDescription("Expanded"))
 
-        composeTestRule.onNodeWithText("Watering · 1").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").performSemanticsAction(SemanticsActions.OnClick)
 
-        composeTestRule.onNodeWithText("Watering · 1").assert(hasStateDescription("Expanded"))
+        composeTestRule.onNodeWithText("Watering · Overdue · 1").assert(hasStateDescription("Expanded"))
         composeTestRule.onNodeWithContentDescription("Fern, watering").assertExists()
     }
 
     @Test
     fun collapsedGroupsStayCollapsedAcrossRecreation() {
         val fern = plant()
-        queue.value = TodayQueueSnapshot(1, listOf(task("fertilize:1", fern, TodayCareKind.FERTILIZE)))
+        val aloe = plant(2L, "Aloe")
+        queue.value = TodayQueueSnapshot(
+            2,
+            listOf(
+                task("fertilize:1", fern, TodayCareKind.FERTILIZE),
+                task("water:2", aloe, TodayCareKind.WATER, tomorrowBucket())
+            )
+        )
         val restoration = StateRestorationTester(composeTestRule)
         setContent(restoration = restoration)
 
         composeTestRule.onNodeWithText("Fertilizing · 1").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule.onNodeWithContentDescription("Fern, fertilizing").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertDoesNotExist()
 
         restoration.emulateSavedInstanceStateRestore()
 
         composeTestRule.onNodeWithText("Fertilizing · 1").assert(hasStateDescription("Collapsed"))
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assert(hasStateDescription("Collapsed"))
         composeTestRule.onNodeWithContentDescription("Fern, fertilizing").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Aloe, watering").assertDoesNotExist()
     }
 
     @Test
@@ -787,7 +873,7 @@ class TodayScreenTest {
         composeTestRule.onNode(hasText("Retry").and(hasClickAction()))
             .performSemanticsAction(SemanticsActions.OnClick)
 
-        composeTestRule.onNodeWithText("You’re all caught up for the next three days.").assertIsDisplayed()
+        composeTestRule.onNodeWithText(CAUGHT_UP).assertIsDisplayed()
         assertEquals(2, calls)
     }
 
@@ -806,13 +892,6 @@ class TodayScreenTest {
                     today.plusDays(1).toStartOfDayMillis()
                 ),
                 task(
-                    "repot:1",
-                    fern,
-                    TodayCareKind.REPOT,
-                    TodayTaskBucket.Upcoming(today.plusDays(3).toEpochDay()),
-                    today.plusDays(3).toStartOfDayMillis()
-                ),
-                task(
                     "fertilize:1",
                     fern,
                     TodayCareKind.FERTILIZE,
@@ -824,7 +903,6 @@ class TodayScreenTest {
         setContent(tall = true)
 
         composeTestRule.onNodeWithText("Tomorrow").assertDoesNotExist()
-        composeTestRule.onNodeWithText("In 3 days").assertDoesNotExist()
         composeTestRule.onNodeWithText("Yesterday").assertDoesNotExist()
     }
 
@@ -903,6 +981,14 @@ class TodayScreenTest {
     private fun hasStateDescription(value: String) =
         SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, value)
 
+    private fun hasHeading() = SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+
+    private fun hasClickLabel(label: String) = SemanticsMatcher("has click label \"$label\"") {
+        it.config.getOrNull(SemanticsActions.OnClick)?.label == label
+    }
+
+    private fun tomorrowBucket() = TodayTaskBucket.Upcoming(LocalDate.now().toEpochDay() + 1)
+
     private fun tilesInFirstRow(tasks: List<TodayCareTask>): Int {
         val tops = tasks.map { composeTestRule.onNodeWithTag(careTileTag(it.id)).fetchSemanticsNode().positionInRoot.y }
         return tops.count { it == tops.first() }
@@ -959,6 +1045,7 @@ class TodayScreenTest {
 
     private companion object {
         const val SOIL_TOO_DRY = "Soil was already too dry"
+        const val CAUGHT_UP = "You’re all caught up. Nothing is due today and no watering is due tomorrow."
         val TALL_VIEWPORT = 2400.dp
         val ALL_MENU_LABELS = listOf(
             "Water",

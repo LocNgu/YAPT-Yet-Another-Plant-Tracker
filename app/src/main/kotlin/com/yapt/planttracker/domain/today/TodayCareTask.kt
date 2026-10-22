@@ -59,26 +59,23 @@ enum class TodayCareSection {
 enum class TodayWateringGroup {
     OVERDUE,
     TODAY,
-    NEXT_THREE_DAYS
+    TOMORROW
 }
-
-data class TodayWateringSubGroup(
-    val group: TodayWateringGroup,
-    val tasks: List<TodayCareTask>,
-    val plantCount: Int
-)
 
 /**
  * [plantCount] counts distinct plants, not tasks: a plant with two custom reminders is two tiles but
- * one plant. [subGroups] is populated for [TodayCareSection.WATERING] only and is empty for every flat
- * section.
+ * one plant. [wateringGroup] is set on the up-to-three [TodayCareSection.WATERING] entries (one per
+ * bucket) and is `null` for every other section. [key] is the entry's stable identity, also its
+ * per-session collapse key.
  */
 data class TodayCareTypeSection(
     val section: TodayCareSection,
     val tasks: List<TodayCareTask>,
     val plantCount: Int,
-    val subGroups: List<TodayWateringSubGroup> = emptyList()
-)
+    val wateringGroup: TodayWateringGroup? = null
+) {
+    val key: String get() = wateringGroup?.let { "watering:${it.name}" } ?: "section:${section.name}"
+}
 
 val TodayCareKind.section: TodayCareSection
     get() = when (this) {
@@ -95,27 +92,33 @@ fun careTypeSections(tasks: List<TodayCareTask>): List<TodayCareTypeSection> =
     tasks.groupBy { it.kind.section }
         .entries
         .sortedBy { it.key.ordinal }
-        .map { (section, sectionTasks) ->
-            TodayCareTypeSection(
-                section = section,
-                tasks = sectionTasks,
-                plantCount = distinctPlantCount(sectionTasks),
-                subGroups = if (section == TodayCareSection.WATERING) wateringSubGroups(sectionTasks) else emptyList()
-            )
+        .flatMap { (section, sectionTasks) ->
+            if (section == TodayCareSection.WATERING) {
+                wateringSections(sectionTasks)
+            } else {
+                listOf(TodayCareTypeSection(section, sectionTasks, distinctPlantCount(sectionTasks)))
+            }
         }
 
-private fun wateringSubGroups(tasks: List<TodayCareTask>): List<TodayWateringSubGroup> =
+private fun wateringSections(tasks: List<TodayCareTask>): List<TodayCareTypeSection> =
     tasks.groupBy { it.bucket.wateringGroup() }
         .entries
         .sortedBy { it.key.ordinal }
-        .map { (group, groupTasks) -> TodayWateringSubGroup(group, groupTasks, distinctPlantCount(groupTasks)) }
+        .map { (group, groupTasks) ->
+            TodayCareTypeSection(
+                section = TodayCareSection.WATERING,
+                tasks = groupTasks,
+                plantCount = distinctPlantCount(groupTasks),
+                wateringGroup = group
+            )
+        }
 
 private fun distinctPlantCount(tasks: List<TodayCareTask>): Int = tasks.distinctBy { it.plant.id }.size
 
-// The aggregator's horizon already caps Upcoming at three local days, so every Upcoming bucket is
-// inside "Next 3 days"; no date math is repeated here.
+// Care's screen never widens the aggregator's horizon, which on its default path ends tomorrow, so every
+// Upcoming bucket here is tomorrow; no date math is repeated.
 private fun TodayTaskBucket.wateringGroup(): TodayWateringGroup = when (this) {
     TodayTaskBucket.Overdue -> TodayWateringGroup.OVERDUE
     TodayTaskBucket.Today -> TodayWateringGroup.TODAY
-    is TodayTaskBucket.Upcoming -> TodayWateringGroup.NEXT_THREE_DAYS
+    is TodayTaskBucket.Upcoming -> TodayWateringGroup.TOMORROW
 }

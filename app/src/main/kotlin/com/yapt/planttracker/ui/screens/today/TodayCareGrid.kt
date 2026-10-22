@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -38,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +68,7 @@ import com.yapt.planttracker.domain.today.careTypeSections
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.util.repotPlannedTileRes
+import kotlinx.coroutines.launch
 
 const val TODAY_TASK_LIST_TAG = "today_task_list"
 
@@ -78,6 +79,7 @@ private val CARE_HEADER_MIN_HEIGHT = 48.dp
 private const val CARE_GRID_MIN_COLUMNS = 2
 private const val CARE_GRID_MAX_COLUMNS = 4
 private const val CARE_NAME_MAX_LINES = 2
+private const val CARE_HEADER_CONTENT_TYPE = "care_header"
 private const val CARE_BADGE_ALPHA = 0.85f
 private val CARE_BADGE_SIZE = 28.dp
 private val CARE_BADGE_ICON_SIZE = 18.dp
@@ -112,10 +114,6 @@ internal fun careTilePhotoTag(taskId: String): String = "care_tile_photo_$taskId
 
 internal fun careTileFertilizeBadgeTag(taskId: String): String = "care_tile_fertilize_badge_$taskId"
 
-internal fun sectionCollapseKey(section: TodayCareSection): String = "section:${section.name}"
-
-internal fun wateringGroupCollapseKey(group: TodayWateringGroup): String = "watering:${group.name}"
-
 @Composable
 internal fun TodayCareGrid(
     tasks: List<TodayCareTask>,
@@ -125,16 +123,24 @@ internal fun TodayCareGrid(
     actions: TodayTaskActions
 ) {
     val sections = remember(tasks) { careTypeSections(tasks) }
+    val scope = rememberCoroutineScope()
+    val onToggleSection = { key: String, headerIndex: Int ->
+        // Collapsing a header at or above the viewport top would leave the viewport on tiles that no longer
+        // exist, so land on the collapsed header instead.
+        val scrollToHeader = key !in collapsedGroups && gridState.firstVisibleItemIndex >= headerIndex
+        onToggleGroup(key)
+        if (scrollToHeader) scope.launch { gridState.scrollToItem(headerIndex) }
+    }
     LazyVerticalGrid(
         columns = CareGridCells,
         state = gridState,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(CARE_GRID_SPACING),
         verticalArrangement = Arrangement.spacedBy(CARE_GRID_SPACING),
         modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
         for (section in sections) {
-            careSection(section, collapsedGroups, onToggleGroup, actions)
+            careSection(section, collapsedGroups, onToggleSection, actions)
         }
     }
 }
@@ -142,39 +148,20 @@ internal fun TodayCareGrid(
 private fun LazyGridScope.careSection(
     section: TodayCareTypeSection,
     collapsedGroups: Set<String>,
-    onToggleGroup: (String) -> Unit,
+    onToggle: (key: String, headerIndex: Int) -> Unit,
     actions: TodayTaskActions
 ) {
-    val sectionKey = sectionCollapseKey(section.section)
-    val sectionCollapsed = sectionKey in collapsedGroups
-    item(key = sectionKey, span = { GridItemSpan(maxLineSpan) }) {
+    val key = section.key
+    val collapsed = key in collapsedGroups
+    stickyHeader(key = key, contentType = CARE_HEADER_CONTENT_TYPE) { index ->
         CareGroupHeader(
-            title = careSectionTitle(section.section),
+            title = careSectionTitle(section),
             plantCount = section.plantCount,
-            collapsed = sectionCollapsed,
-            isSubGroup = false,
-            onToggle = { onToggleGroup(sectionKey) }
+            collapsed = collapsed,
+            onToggle = { onToggle(key, index) }
         )
     }
-    if (sectionCollapsed) return
-    if (section.subGroups.isEmpty()) {
-        careTiles(section.tasks, actions)
-        return
-    }
-    for (subGroup in section.subGroups) {
-        val groupKey = wateringGroupCollapseKey(subGroup.group)
-        val groupCollapsed = groupKey in collapsedGroups
-        item(key = groupKey, span = { GridItemSpan(maxLineSpan) }) {
-            CareGroupHeader(
-                title = wateringGroupTitle(subGroup.group),
-                plantCount = subGroup.plantCount,
-                collapsed = groupCollapsed,
-                isSubGroup = true,
-                onToggle = { onToggleGroup(groupKey) }
-            )
-        }
-        if (!groupCollapsed) careTiles(subGroup.tasks, actions)
-    }
+    if (!collapsed) careTiles(section.tasks, actions)
 }
 
 private fun LazyGridScope.careTiles(tasks: List<TodayCareTask>, actions: TodayTaskActions) {
@@ -186,7 +173,6 @@ private fun CareGroupHeader(
     title: String,
     plantCount: Int,
     collapsed: Boolean,
-    isSubGroup: Boolean,
     onToggle: () -> Unit
 ) {
     val label = stringResource(R.string.care_group_header, title, plantCount)
@@ -200,6 +186,7 @@ private fun CareGroupHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
             .heightIn(min = CARE_HEADER_MIN_HEIGHT)
             .clickable(onClickLabel = action, role = Role.Button, onClick = onToggle)
             .semantics {
@@ -207,14 +194,14 @@ private fun CareGroupHeader(
                 contentDescription = description
                 stateDescription = state
             }
-            .padding(top = if (isSubGroup) 0.dp else 8.dp),
+            .padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = if (isSubGroup) FontWeight.Medium else FontWeight.Bold,
-            color = if (isSubGroup) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f)
         )
         Icon(
@@ -366,18 +353,16 @@ private fun tileSecondLine(task: TodayCareTask): String? = when (task.kind) {
 }
 
 @Composable
-private fun careSectionTitle(section: TodayCareSection): String = when (section) {
-    TodayCareSection.WATERING -> stringResource(R.string.care_section_watering)
+private fun careSectionTitle(section: TodayCareTypeSection): String = when (section.section) {
+    TodayCareSection.WATERING -> when (section.wateringGroup) {
+        TodayWateringGroup.OVERDUE -> stringResource(R.string.care_section_watering_overdue)
+        TodayWateringGroup.TODAY -> stringResource(R.string.care_section_watering_today)
+        TodayWateringGroup.TOMORROW -> stringResource(R.string.care_section_watering_tomorrow)
+        null -> stringResource(R.string.care_section_watering)
+    }
     TodayCareSection.ISSUE_TREATMENTS -> stringResource(R.string.care_section_issue_treatments)
     TodayCareSection.FERTILIZING -> stringResource(R.string.care_section_fertilizing)
     TodayCareSection.CUSTOM_REMINDERS -> stringResource(R.string.care_section_custom_reminders)
     TodayCareSection.REPOTTING -> stringResource(R.string.care_section_repotting)
     TodayCareSection.PHOTOS -> stringResource(R.string.care_section_photos)
-}
-
-@Composable
-private fun wateringGroupTitle(group: TodayWateringGroup): String = when (group) {
-    TodayWateringGroup.OVERDUE -> stringResource(R.string.date_group_overdue)
-    TodayWateringGroup.TODAY -> stringResource(R.string.date_group_today)
-    TodayWateringGroup.NEXT_THREE_DAYS -> stringResource(R.string.date_group_next_three_days)
 }

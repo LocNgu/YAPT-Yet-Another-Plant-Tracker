@@ -6,8 +6,10 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.data.repository.AwayPeriodRepository
@@ -24,6 +26,7 @@ import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.ui.screens.today.TODAY_TASK_LIST_TAG
 import com.yapt.planttracker.ui.screens.today.TodayScreen
 import com.yapt.planttracker.ui.screens.today.TodayViewModel
 import io.mockk.coEvery
@@ -173,13 +176,61 @@ class AwayModeBannerTest {
         val banner = composeTestRule.onNodeWithText("reminders paused", substring = true)
         banner.assertIsDisplayed()
         val bannerTop = banner.fetchSemanticsNode().positionInRoot.y
-        val gridTop = composeTestRule.onNodeWithText("Watering · 1").fetchSemanticsNode().positionInRoot.y
+        val gridTop = composeTestRule.onNodeWithText("Watering · Today · 1").fetchSemanticsNode().positionInRoot.y
         assertTrue(bannerTop < gridTop)
 
         composeTestRule.onNodeWithText("I'm back").performClick()
         composeTestRule.waitForIdle()
 
         coVerify(timeout = 5_000) { awayRepository.updatePeriodAndDeleteVisits(any(), any()) }
+    }
+
+    @Test
+    fun theBannerStaysAboveTheGridAndThePinnedSectionHeaderSitsBelowIt() {
+        val now = LocalDate.now()
+        val period = AwayPeriod(id = 3L, firstDay = now.minusDays(1), lastDay = now.plusDays(2))
+        val awayRepository = mockk<AwayPeriodRepository>(relaxed = true) {
+            every { observeAll() } returns flowOf(listOf(period))
+            every { observeAllWithVisits() } returns flowOf(listOf(AwayPeriodWithVisits(period, emptyList())))
+            coEvery { getAllWithVisits() } returns listOf(AwayPeriodWithVisits(period, emptyList()))
+            coEvery { getAll() } returns listOf(period)
+        }
+        val awayViewModel = AwayModeViewModel(awayRepository, onTodaysAwayStateChanged = {}, dayChange = flowOf(now))
+        val tasks = (1L..PINNED_TASK_COUNT).map { id ->
+            TodayCareTask(
+                id = "water:$id",
+                plant = Plant(id = id, name = "Plant $id", createdAt = 0L, updatedAt = 0L),
+                kind = TodayCareKind.WATER,
+                dueAt = System.currentTimeMillis(),
+                bucket = TodayTaskBucket.Today
+            )
+        }
+        val todayRepository = mockk<TodayCareRepository> {
+            every { observeQueue() } returns flowOf(TodayQueueSnapshot(PINNED_TASK_COUNT.toInt(), tasks))
+        }
+        val viewModel = TodayViewModel(
+            ApplicationProvider.getApplicationContext<Application>(),
+            todayRepository,
+            mockk<QuickLogUseCase>(relaxed = true),
+            mockk<PlantRepository>(relaxed = true)
+        )
+        composeTestRule.setContent {
+            TodayScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = { _, _ -> },
+                onNavigateToAdd = {},
+                awayModeViewModel = awayViewModel
+            )
+        }
+        val header = "Watering · Today · $PINNED_TASK_COUNT"
+
+        composeTestRule.onNodeWithTag(TODAY_TASK_LIST_TAG).performScrollToIndex(PINNED_SCROLL_INDEX)
+        composeTestRule.waitForIdle()
+
+        val bannerBottom = composeTestRule.onNodeWithText("reminders paused", substring = true)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot.bottom
+        composeTestRule.onNodeWithText(header).assertIsDisplayed()
+        assertTrue(composeTestRule.onNodeWithText(header).fetchSemanticsNode().boundsInRoot.top >= bannerBottom)
     }
 
     private val confirmed = mutableListOf<Long>()
@@ -232,5 +283,10 @@ class AwayModeBannerTest {
 
         composeTestRule.onNodeWithText("1 sitter visit to confirm").assertDoesNotExist()
         composeTestRule.onNodeWithText("Confirm visit").assertDoesNotExist()
+    }
+
+    private companion object {
+        const val PINNED_TASK_COUNT = 12L
+        const val PINNED_SCROLL_INDEX = 5
     }
 }
