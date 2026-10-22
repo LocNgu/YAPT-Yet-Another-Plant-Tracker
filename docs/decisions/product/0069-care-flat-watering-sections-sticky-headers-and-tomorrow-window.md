@@ -14,10 +14,10 @@ tell which section they were in (#931).
 
 Alternatives considered:
 
-- **Keep three days for everything but shrink the Watering bucket to tomorrow.** Rejected. The aggregator has one
-  window per input, and a task kind that is still shown three days out but not bucketed would need its own
-  presentation. Non-watering tiles carry no due-date text (product ADR-0056), so a fertilizing or custom-reminder tile
-  due in three days would read the same as one due today.
+- **Keep three days for everything but shrink the Watering bucket to tomorrow.** Rejected. A task kind that is
+  still shown three days out but not bucketed would need its own presentation. Non-watering tiles carry no due-date
+  text (product ADR-0056), so a fertilizing or custom-reminder tile due in three days would read the same as one due
+  today.
 - **Shrink one shared window to tomorrow for every kind.** Rejected. Watering is the only care the user routinely
   does a day early; fertilizing, repotting, reminders and photos are not worth acting on before their day, and
   showing them a day ahead dilutes the "due now" list.
