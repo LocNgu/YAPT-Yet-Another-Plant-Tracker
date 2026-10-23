@@ -15,24 +15,28 @@ object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased",
-        fixed = listOf(
-            "Saving a plant in Edit Plant without touching its watering interval no longer changes its schedule"
-        ),
-        changed = listOf(
-            "Edit Plant's watering slider now starts at today's seasonal interval, with the base interval " +
-                "shown underneath, matching the plant's own page",
-            "On Care, each section's title now stays pinned at the top while you scroll its tiles, and tapping " +
-                "it collapses the section",
-            "On Care, watering is now three sections of its own: Watering · Overdue, Watering · Today and " +
-                "Watering · Tomorrow. Everything else shows only what is overdue or due today, so the list " +
-                "stays short"
-        )
+        versionName = "Unreleased"
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 580,
+            versionName = "0.39.0",
+            fixed = listOf(
+                "Saving a plant in Edit Plant without touching its watering interval no longer changes its schedule"
+            ),
+            changed = listOf(
+                "Edit Plant's watering slider now starts at today's seasonal interval, with the base interval " +
+                    "shown underneath, matching the plant's own page",
+                "On Care, each section's title now stays pinned at the top while you scroll its tiles, and tapping " +
+                    "it collapses the section",
+                "On Care, watering is now three sections of its own: Watering · Overdue, Watering · Today and " +
+                    "Watering · Tomorrow. Everything else shows only what is overdue or due today, so the list " +
+                    "stays short"
+            )
+        ),
         ReleaseNotes(
             versionCode = 570,
             versionName = "0.38.1",

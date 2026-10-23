@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-10-23
+
 ### Changed
 - **Edit Plant's watering slider shows today's interval too** (#928) — like Plant Detail, the "Water every N days"
   slider now starts at the interval the schedule is using today, with a plain "Adjusted for winter · base 8 days" line
