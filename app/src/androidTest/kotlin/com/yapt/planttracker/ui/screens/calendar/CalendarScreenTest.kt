@@ -76,6 +76,11 @@ class CalendarScreenTest {
         )
     }
 
+    // Tests that water a plant exactly wateringIntervalDays ago and expect it due today pin the
+    // seasonal amplitude Off: the default Standard curve rounds a 5-day interval to 6 for part of
+    // the year (#936), so the boundary would otherwise depend on the calendar date.
+    private val amplitudeOff = preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF")
+
     private val todayTag get() = "calendar_day_${LocalDate.now()}"
     private val todayBadgeTag get() = "calendar_badge_${LocalDate.now()}"
     private val overdueStateMatcher = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "overdue")
@@ -94,7 +99,7 @@ class CalendarScreenTest {
     @Test
     fun dayDueToday_showsBadgeWithCount() {
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(listOf(plant))
+        val viewModel = makeViewModel(listOf(plant), amplitudeOff)
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
@@ -125,7 +130,7 @@ class CalendarScreenTest {
         // badge's contentDescription, and its merged text must contain only the day number
         // (proving the badge digit was cleared and is not announced separately).
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(listOf(plant))
+        val viewModel = makeViewModel(listOf(plant), amplitudeOff)
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
@@ -187,7 +192,7 @@ class CalendarScreenTest {
     @Test
     fun tappingMarkedDay_opensDaySheetWithPlant() {
         val plant = Plant(id = 1L, name = "Monstera", wateringIntervalDays = 5, createdAt = 0L, updatedAt = 0L)
-        val viewModel = makeViewModel(listOf(plant))
+        val viewModel = makeViewModel(listOf(plant), amplitudeOff)
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
@@ -240,7 +245,7 @@ class CalendarScreenTest {
             createdAt = 0L,
             updatedAt = 0L
         )
-        val viewModel = makeViewModel(listOf(plant))
+        val viewModel = makeViewModel(listOf(plant), amplitudeOff)
         val fiveDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5)
         coEvery { careLogRepo.getLastLogOfType(1L, CareType.WATER) } returns
             CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = fiveDaysAgo)
