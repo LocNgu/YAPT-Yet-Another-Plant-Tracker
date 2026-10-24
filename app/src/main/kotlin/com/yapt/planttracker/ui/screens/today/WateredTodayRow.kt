@@ -28,6 +28,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -36,11 +37,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.today.TodayWateredPlant
 import com.yapt.planttracker.ui.components.PlantPhoto
+import kotlin.math.ceil
 
 internal const val WATERED_TODAY_VISIBLE_COUNT = 5
 
@@ -55,8 +58,13 @@ private val WATERED_BADGE_ICON_SIZE = 14.dp
 private val WATERED_BADGE_RING = 2.dp
 private val NOTHING_DUE_ICON_SIZE = 18.dp
 
-internal fun wateredTodaySlotWidth(available: Dp): Dp =
-    minOf(WATERED_SLOT_MAX_WIDTH, available / WATERED_TODAY_SLOT_COUNT).coerceAtLeast(WATERED_MIN_TARGET)
+// Slots are laid out in whole pixels: dividing the row's pixel width (floor) keeps six slots within it, whereas a
+// Dp width rounds each slot to the nearest pixel and can push the sixth onto the next line.
+internal fun wateredTodaySlotWidthPx(availablePx: Int, density: Density): Int = with(density) {
+    (availablePx / WATERED_TODAY_SLOT_COUNT)
+        .coerceAtMost(WATERED_SLOT_MAX_WIDTH.toPx().toInt())
+        .coerceAtLeast(ceil(WATERED_MIN_TARGET.toPx()).toInt())
+}
 
 internal fun wateredTodayPhotoCount(plantCount: Int, expanded: Boolean): Int =
     if (plantCount > WATERED_TODAY_VISIBLE_COUNT && !expanded) WATERED_TODAY_VISIBLE_COUNT else plantCount
@@ -72,7 +80,8 @@ internal fun WateredTodayRow(
     val overflows = plants.size > WATERED_TODAY_VISIBLE_COUNT
     val shown = plants.take(wateredTodayPhotoCount(plants.size, expanded))
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val slotWidth = wateredTodaySlotWidth(maxWidth)
+        val density = LocalDensity.current
+        val slotWidth = with(density) { wateredTodaySlotWidthPx(constraints.maxWidth, density).toDp() }
         FlowRow(modifier = Modifier.fillMaxWidth()) {
             for (watered in shown) {
                 key(watered.plant.id) {

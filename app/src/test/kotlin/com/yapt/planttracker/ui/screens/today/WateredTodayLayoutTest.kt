@@ -1,6 +1,6 @@
 package com.yapt.planttracker.ui.screens.today
 
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
@@ -9,6 +9,7 @@ import com.yapt.planttracker.domain.today.careTypeSections
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.ceil
 
 class WateredTodayLayoutTest {
 
@@ -80,18 +81,41 @@ class WateredTodayLayoutTest {
         )
     }
 
+    private fun slotPx(availablePx: Int, density: Float) =
+        wateredTodaySlotWidthPx(availablePx, Density(density))
+
     @Test
     fun `a 320dp phone fits six slots of at least 48dp across the 296dp grid width`() {
-        val slot = wateredTodaySlotWidth(296.dp)
+        val slot = slotPx(availablePx = 296, density = 1f)
 
-        assertTrue(slot >= 48.dp)
-        assertTrue(slot * 6 <= 296.dp)
+        assertTrue(slot >= 48)
+        assertTrue(slot * 6 <= 296)
+    }
+
+    @Test
+    fun `six slots never exceed the row width in pixels at any density or remainder`() {
+        for (density in listOf(1f, 1.5f, 2f, 2.625f, 2.8125f, 3f, 3.5f)) {
+            val floorPx = ceil(48f * density).toInt()
+            for (availablePx in (floorPx * 6)..(floorPx * 6 + 600)) {
+                val slot = slotPx(availablePx, density)
+
+                assertTrue("density $density, row ${availablePx}px, slot ${slot}px", slot * 6 <= availablePx)
+                assertTrue("density $density, row ${availablePx}px, slot ${slot}px", slot >= floorPx)
+            }
+        }
+    }
+
+    @Test
+    fun `a 1012px row at density 2_8125 gets 168px slots rather than rounded-up 169px ones`() {
+        assertEquals(168, slotPx(availablePx = 1012, density = 2.8125f))
+        assertEquals(168, slotPx(availablePx = 1013, density = 2.8125f))
     }
 
     @Test
     fun `the slot size is capped on wide screens and never drops below the touch target`() {
-        assertEquals(72.dp, wateredTodaySlotWidth(840.dp))
-        assertEquals(48.dp, wateredTodaySlotWidth(200.dp))
+        assertEquals(72, slotPx(availablePx = 840, density = 1f))
+        assertEquals(48, slotPx(availablePx = 200, density = 1f))
+        assertEquals(144, slotPx(availablePx = 1680, density = 2f))
     }
 
     @Test
