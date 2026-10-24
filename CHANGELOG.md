@@ -12,6 +12,16 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Care shows a "Watered today" section** (#939) — once the day's watering is done, Care no longer starts straight at
+  Watering · Tomorrow. **Watered today · N** lists each plant watered today (a water-and-fertilize log counts) as a
+  compact row of round photos with a check badge and the plant's name, newest first. It sits right after Watering ·
+  Today (first when nothing is overdue or due), is sticky and collapsible like the other sections, and shows five
+  photos plus a **+N** circle that expands the row (**Show less** folds it back). Tapping a photo opens that plant's
+  Water tab. With no tasks left, the row sits above the "You're all caught up" message; with nothing watered and
+  nothing due today but tomorrow tasks, a plain "Nothing due today" line sits above Watering · Tomorrow. No schema or
+  backup change. See product ADR-0071.
+
 ## [0.39.0] - 2026-10-23
 
 ### Changed

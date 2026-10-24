@@ -1,6 +1,6 @@
 # Product ADR-0069: Care shows watering through tomorrow, other kinds through today, with flat sticky section headers
 
-**Status**: accepted
+**Status**: accepted — section list and caught-up state amended by [ADR-0071](0071-care-watered-today-row.md)
 
 **Date**: 2026-10-22
 

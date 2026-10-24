@@ -8,11 +8,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -46,6 +50,7 @@ import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayQueueSnapshot
 import com.yapt.planttracker.domain.today.TodayTaskBucket
+import com.yapt.planttracker.domain.today.TodayWateredPlant
 import com.yapt.planttracker.domain.today.WateringTaskAction
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.ui.screens.plantdetail.LOG_WATERING_DATE_PICKER_TEST_TAG
@@ -939,6 +944,266 @@ class TodayScreenTest {
         composeTestRule.onNodeWithText("OK").performClick()
     }
 
+    @Test
+    fun wateredTodaySitsBetweenWateringTodayAndTomorrowAndEachPlantOpensTheWaterTab() {
+        val fern = plant()
+        val aloe = plant(2L, "Aloe")
+        val wateredPlants = listOf(plant(3L, "Monstera"), plant(4L, "Ficus"), plant(5L, "Bean"))
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 5,
+            tasks = listOf(
+                task("water:1", fern, TodayCareKind.WATER),
+                task("water:2", aloe, TodayCareKind.WATER, tomorrowBucket())
+            ),
+            wateredToday = watered(wateredPlants)
+        )
+        var opened: Pair<Long, PlantDetailTab?>? = null
+        setContent(tall = true, onNavigateToPlant = { id, tab -> opened = id to tab })
+
+        assertTrue(topOf("Watering · Today · 1") < topOf("Watered today · 3"))
+        assertTrue(topOf("Watered today · 3") < topOf("Watering · Tomorrow · 1"))
+        for (wateredPlant in wateredPlants) {
+            composeTestRule.onNodeWithContentDescription("${wateredPlant.name}, watered today").assertHasClickAction()
+        }
+
+        composeTestRule.onNodeWithContentDescription("Ficus, watered today")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.waitForIdle()
+
+        assertEquals(4L to PlantDetailTab.WATER, opened)
+    }
+
+    @Test
+    fun wateredTodayIsTheFirstSectionWhenNoWateringIsOverdueOrDueToday() {
+        val fern = plant()
+        val aloe = plant(2L, "Aloe")
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 4,
+            tasks = listOf(
+                task("fertilize:1", fern, TodayCareKind.FERTILIZE),
+                task("water:2", aloe, TodayCareKind.WATER, tomorrowBucket())
+            ),
+            wateredToday = watered(wateredPlants(2))
+        )
+        setContent(tall = true)
+
+        assertTrue(topOf("Watered today · 2") < topOf("Watering · Tomorrow · 1"))
+        assertTrue(topOf("Watering · Tomorrow · 1") < topOf("Fertilizing · 1"))
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+    }
+
+    @Test
+    fun wateredTodayHeaderBehavesLikeTheOtherHeaders() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 4,
+            tasks = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket())),
+            wateredToday = watered(wateredPlants(3))
+        )
+        setContent(tall = true)
+
+        composeTestRule.onNodeWithText("Watered today · 3")
+            .assert(hasHeading())
+            .assert(hasStateDescription("Expanded"))
+            .assert(hasClickLabel("Collapse"))
+        composeTestRule.onNodeWithContentDescription("Watered today, 3 plants").assertExists()
+        composeTestRule.onNodeWithContentDescription("Plant 1, watered today").assertExists()
+
+        composeTestRule.onNodeWithText("Watered today · 3").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onNodeWithText("Watered today · 3")
+            .assert(hasHeading())
+            .assert(hasStateDescription("Collapsed"))
+            .assert(hasClickLabel("Expand"))
+        composeTestRule.onNodeWithContentDescription("Plant 1, watered today").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watering · Tomorrow · 1").assert(hasStateDescription("Expanded"))
+    }
+
+    @Test
+    fun sevenWateredPlantsShowFivePhotosAndAPlusTwoButtonThatExpandsAndCollapses() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 8,
+            tasks = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket())),
+            wateredToday = watered(wateredPlants(7))
+        )
+        setContent(tall = true)
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(5)
+        composeTestRule.onNodeWithContentDescription("Plant 5, watered today").assertExists()
+        composeTestRule.onNodeWithContentDescription("Plant 6, watered today").assertDoesNotExist()
+        composeTestRule.onNodeWithText("+2").assertExists()
+        composeTestRule.onNodeWithContentDescription("Show 2 more watered plants")
+            .assert(isButton())
+            .assertHasClickAction()
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants").assertDoesNotExist()
+
+        composeTestRule.onNodeWithContentDescription("Show 2 more watered plants")
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(7)
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants")
+            .assert(isButton())
+            .assertHasClickAction()
+        composeTestRule.onNodeWithText("Show less").assertExists()
+        composeTestRule.onNodeWithText("+2").assertDoesNotExist()
+
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants")
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(5)
+        composeTestRule.onNodeWithText("+2").assertExists()
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants").assertDoesNotExist()
+    }
+
+    @Test
+    fun sixWateredPlantsShowPlusOneAndFiveOrFewerShowNoPlusButton() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 6,
+            tasks = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket())),
+            wateredToday = watered(wateredPlants(6))
+        )
+        setContent(tall = true)
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(5)
+        composeTestRule.onNodeWithText("+1").assertExists()
+        composeTestRule.onNodeWithContentDescription("Show 1 more watered plant").assertHasClickAction()
+
+        queue.value = queue.value.copy(wateredToday = watered(wateredPlants(5)))
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(5)
+        composeTestRule.onNodeWithText("+", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Show", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Show less").assertDoesNotExist()
+    }
+
+    @Test
+    fun wateredTodayExpansionSurvivesRecreationAndCollapsingAndReExpandingTheSection() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 8,
+            tasks = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket())),
+            wateredToday = watered(wateredPlants(7))
+        )
+        val restoration = StateRestorationTester(composeTestRule)
+        setContent(restoration = restoration, tall = true)
+        composeTestRule.onNodeWithContentDescription("Show 2 more watered plants")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(7)
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(7)
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants").assertExists()
+
+        composeTestRule.onNodeWithText("Watered today · 7").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onNodeWithText("Watered today · 7").assert(hasStateDescription("Collapsed"))
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(0)
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Watered today · 7").performSemanticsAction(SemanticsActions.OnClick)
+
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(7)
+        composeTestRule.onNodeWithContentDescription("Show fewer watered plants").assertExists()
+    }
+
+    @Test
+    fun noTasksAndWateredPlantsShowTheHeaderTheRowAndTheCaughtUpMessage() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 2,
+            tasks = emptyList(),
+            wateredToday = watered(wateredPlants(2))
+        )
+        setContent(tall = true)
+
+        composeTestRule.onNodeWithText("Watered today · 2").assertExists()
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(2)
+        composeTestRule.onNodeWithText(CAUGHT_UP).assertExists()
+        assertTrue(topOf("Watered today · 2") < topOf(CAUGHT_UP))
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+    }
+
+    @Test
+    fun nothingWateredAndNoTasksKeepsTheCaughtUpScreenWithoutAWateredTodaySection() {
+        queue.value = TodayQueueSnapshot(activePlantCount = 1, tasks = emptyList(), wateredToday = emptyList())
+        setContent()
+
+        composeTestRule.onNodeWithText(CAUGHT_UP).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watered today", substring = true).assertDoesNotExist()
+        composeTestRule.onAllNodes(isWateredPhoto()).assertCountEquals(0)
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+    }
+
+    @Test
+    fun nothingDueTodayLineShowsOnlyWhileNothingIsWateredAndNothingIsDue() {
+        val tomorrowOnly = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket()))
+        queue.value = TodayQueueSnapshot(activePlantCount = 1, tasks = tomorrowOnly)
+        setContent(tall = true)
+
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY)
+            .assertExists()
+            .assertHasNoClickAction()
+            .assert(!hasHeading())
+        assertTrue(topOf(NOTHING_DUE_TODAY) < topOf("Watering · Tomorrow · 1"))
+
+        for (due in listOf(TodayCareKind.WATER, TodayCareKind.FERTILIZE, TodayCareKind.PHOTO)) {
+            queue.value = TodayQueueSnapshot(
+                activePlantCount = 2,
+                tasks = tomorrowOnly + task("due:2", plant(2L, "Aloe"), due)
+            )
+            composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+        }
+
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 2,
+            tasks = tomorrowOnly + task("water:2", plant(2L, "Aloe"), TodayCareKind.WATER, TodayTaskBucket.Overdue)
+        )
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 3,
+            tasks = tomorrowOnly,
+            wateredToday = watered(wateredPlants(1))
+        )
+        composeTestRule.onNodeWithText(NOTHING_DUE_TODAY).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Watered today · 1").assertExists()
+    }
+
+    @Test
+    fun wateredPhotoIsOneButtonWithoutLongPressOrCustomActions() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 1,
+            tasks = emptyList(),
+            wateredToday = watered(listOf(plant(3L, "Monstera")))
+        )
+        setContent(tall = true)
+
+        val node = composeTestRule.onNodeWithContentDescription("Monstera, watered today")
+        node.assert(isButton()).assertHasClickAction()
+        val config = node.fetchSemanticsNode().config
+        assertNull(config.getOrNull(SemanticsActions.OnLongClick))
+        assertTrue(config.getOrNull(SemanticsActions.CustomActions).isNullOrEmpty())
+        composeTestRule.onNodeWithContentDescription("Plant photo").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Monstera").assertExists()
+    }
+
+    @Test
+    fun wateredPhotosKeepA48dpTouchTargetOnANarrowScreenAtLargeFontScale() {
+        queue.value = TodayQueueSnapshot(
+            activePlantCount = 7,
+            tasks = listOf(task("water:1", plant(), TodayCareKind.WATER, tomorrowBucket())),
+            wateredToday = watered(listOf(plant(3L, "A very long houseplant name that cannot fit")) + wateredPlants(5))
+        )
+        setContent(widthDp = 320.dp, fontScale = 2f, tall = true)
+
+        val minPx = with(composeTestRule.density) { 48.dp.toPx() }
+        val nodes = composeTestRule.onAllNodes(isWateredPhoto()).fetchSemanticsNodes()
+        assertEquals(5, nodes.size)
+        for (node in nodes) {
+            assertTrue(node.size.width >= minPx.toInt() - 1)
+            assertTrue(node.size.height >= minPx.toInt() - 1)
+        }
+        composeTestRule.onNodeWithContentDescription("Show 1 more watered plant").assertExists()
+    }
+
     private fun stubGateFacts(previousWateringDaysAgo: Long?) {
         val previous = previousWateringDaysAgo?.let { LocalDate.now().minusDays(it).toStartOfDayMillis() }
         coEvery { quickLogUseCase.wateringGateFacts(any(), any()) } returns
@@ -986,6 +1251,17 @@ class TodayScreenTest {
     private fun hasClickLabel(label: String) = SemanticsMatcher("has click label \"$label\"") {
         it.config.getOrNull(SemanticsActions.OnClick)?.label == label
     }
+
+    private fun wateredPlants(count: Int) = (1..count).map { plant(WATERED_ID_BASE + it, "Plant $it") }
+
+    private fun watered(plants: List<Plant>) =
+        plants.mapIndexed { index, plant -> TodayWateredPlant(plant, WATERED_AT - index) }
+
+    private fun isWateredPhoto() = SemanticsMatcher("is a watered-today photo") { node ->
+        node.config.getOrNull(SemanticsProperties.ContentDescription)?.any { it.endsWith(", watered today") } == true
+    }
+
+    private fun isButton() = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
 
     private fun tomorrowBucket() = TodayTaskBucket.Upcoming(LocalDate.now().toEpochDay() + 1)
 
@@ -1045,6 +1321,9 @@ class TodayScreenTest {
 
     private companion object {
         const val SOIL_TOO_DRY = "Soil was already too dry"
+        const val NOTHING_DUE_TODAY = "Nothing due today"
+        const val WATERED_ID_BASE = 100L
+        const val WATERED_AT = 1_700_000_000_000L
         const val CAUGHT_UP = "You’re all caught up. Nothing is due today and no watering is due tomorrow."
         val TALL_VIEWPORT = 2400.dp
         val ALL_MENU_LABELS = listOf(
