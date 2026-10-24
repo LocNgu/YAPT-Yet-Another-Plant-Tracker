@@ -626,6 +626,16 @@
     <string name="care_section_custom_reminders">Custom reminders</string>
     <string name="care_section_repotting">Repotting</string>
     <string name="care_section_photos">Photos</string>
+    <string name="care_section_watered_today">Watered today</string>
+    <string name="care_watered_today_photo_cd">%1$s, watered today</string>
+    <string name="care_watered_today_more">+%1$d</string>
+    <plurals name="care_watered_today_more_cd">
+        <item quantity="one">Show %1$d more watered plant</item>
+        <item quantity="other">Show %1$d more watered plants</item>
+    </plurals>
+    <string name="care_watered_today_less">Show less</string>
+    <string name="care_watered_today_less_cd">Show fewer watered plants</string>
+    <string name="care_nothing_due_today">Nothing due today</string>
     <string name="care_tile_actions_label">Show quick actions</string>
     <string name="care_tile_water_cd">%1$s, watering</string>
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>

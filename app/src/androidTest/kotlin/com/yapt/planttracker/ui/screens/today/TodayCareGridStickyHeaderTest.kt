@@ -27,6 +27,7 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayTaskBucket
+import com.yapt.planttracker.domain.today.TodayWateredPlant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -67,7 +68,15 @@ class TodayCareGridStickyHeaderTest {
     private fun fertilizeTasks(count: Int) =
         (1..count).map { task("fertilize:$it", (100 + it).toLong(), TodayCareKind.FERTILIZE) }
 
-    private fun setGrid(tasks: List<TodayCareTask>, initiallyCollapsed: Set<String> = emptySet()) {
+    private fun watered(count: Int) = (1..count).map {
+        TodayWateredPlant(plant(WATERED_ID_BASE + it), wateredAt = WATERED_AT - it)
+    }
+
+    private fun setGrid(
+        tasks: List<TodayCareTask>,
+        initiallyCollapsed: Set<String> = emptySet(),
+        wateredToday: List<TodayWateredPlant> = emptyList()
+    ) {
         composeTestRule.setContent {
             val gridState = rememberLazyGridState()
             var collapsed by remember { mutableStateOf(initiallyCollapsed) }
@@ -77,7 +86,8 @@ class TodayCareGridStickyHeaderTest {
                     gridState = gridState,
                     collapsedGroups = collapsed,
                     onToggleGroup = { key -> collapsed = if (key in collapsed) collapsed - key else collapsed + key },
-                    actions = noActions
+                    actions = noActions,
+                    wateredToday = wateredToday
                 )
             }
         }
@@ -185,8 +195,45 @@ class TodayCareGridStickyHeaderTest {
         composeTestRule.onNodeWithContentDescription("Plant 101, fertilizing").assertIsDisplayed()
     }
 
+    @Test
+    fun tappingThePinnedWateredTodayHeaderCollapsesItAndLandsOnThatHeader() {
+        setGrid(fertilizeTasks(FERTILIZE_COUNT), wateredToday = watered(WATERED_COUNT))
+        scrollToIndex(WATERED_ROW_INDEX)
+        assertEquals(gridTop(), headerTop(WATERED_HEADER), POSITION_TOLERANCE)
+        composeTestRule.onAllNodesWithText(WATERED_HEADER).assertCountEquals(1)
+
+        composeTestRule.onNodeWithText(WATERED_HEADER).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(WATERED_HEADER).assert(hasStateDescription("Collapsed"))
+        composeTestRule.onNodeWithContentDescription("Plant 201, watered today").assertDoesNotExist()
+        assertEquals(gridTop(), headerTop(WATERED_HEADER), POSITION_TOLERANCE)
+        composeTestRule.onNodeWithText(FERTILIZING_HEADER).assertIsDisplayed()
+        assertTrue(headerTop(WATERED_HEADER) < headerTop(FERTILIZING_HEADER))
+    }
+
+    @Test
+    fun collapsingAWateredTodayHeaderThatIsOnScreenLeavesTheScrollPositionAlone() {
+        setGrid(waterTasks(2) + fertilizeTasks(FERTILIZE_COUNT), wateredToday = watered(WATERED_COUNT))
+        val wateredTop = headerTop(WATERED_HEADER)
+        assertTrue(wateredTop > gridTop())
+        composeTestRule.onNodeWithContentDescription("Plant 201, watered today").assertExists()
+
+        composeTestRule.onNodeWithText(WATERED_HEADER).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(WATERED_HEADER).assert(hasStateDescription("Collapsed"))
+        composeTestRule.onNodeWithContentDescription("Plant 201, watered today").assertDoesNotExist()
+        assertEquals(wateredTop, headerTop(WATERED_HEADER), POSITION_TOLERANCE)
+    }
+
     private companion object {
         val VIEWPORT = 400.dp
+        const val WATERED_COUNT = 3
+        const val WATERED_ID_BASE = 200L
+        const val WATERED_AT = 1_700_000_000_000L
+        const val WATERED_HEADER = "Watered today · 3"
+        const val WATERED_ROW_INDEX = 1
         const val WATER_COUNT = 12
         const val FERTILIZE_COUNT = 12
         const val WATERING_HEADER = "Watering · Today · 12"

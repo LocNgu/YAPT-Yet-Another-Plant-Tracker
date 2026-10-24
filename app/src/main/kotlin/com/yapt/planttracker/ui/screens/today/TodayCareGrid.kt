@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Spa
@@ -63,6 +65,7 @@ import com.yapt.planttracker.domain.today.TodayCareKind
 import com.yapt.planttracker.domain.today.TodayCareSection
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.domain.today.TodayCareTypeSection
+import com.yapt.planttracker.domain.today.TodayWateredPlant
 import com.yapt.planttracker.domain.today.TodayWateringGroup
 import com.yapt.planttracker.domain.today.careTypeSections
 import com.yapt.planttracker.ui.components.PlantPhoto
@@ -84,6 +87,8 @@ private const val CARE_BADGE_ALPHA = 0.85f
 private val CARE_BADGE_SIZE = 28.dp
 private val CARE_BADGE_ICON_SIZE = 18.dp
 private val CARE_BADGE_INSET = 6.dp
+private val CARE_CAUGHT_UP_PADDING = 24.dp
+private val CARE_CAUGHT_UP_ICON_SIZE = 72.dp
 
 internal data class TodayTaskActions(
     val onOpen: (Long, PlantDetailTab?) -> Unit,
@@ -114,15 +119,35 @@ internal fun careTilePhotoTag(taskId: String): String = "care_tile_photo_$taskId
 
 internal fun careTileFertilizeBadgeTag(taskId: String): String = "care_tile_fertilize_badge_$taskId"
 
+private const val WATERED_TODAY_KEY = "section:WATERED_TODAY"
+private const val NOTHING_DUE_KEY = "nothing_due_today"
+private const val WATERED_TODAY_ROW_KEY = "watered_today_row"
+private const val CAUGHT_UP_KEY = "caught_up"
+
+/**
+ * Where the Watered today section goes among [sections]: right after the last watering Overdue or Today
+ * section, i.e. before the first entry that is neither (or at the end when none follows).
+ */
+internal fun wateredTodayInsertIndex(sections: List<TodayCareTypeSection>): Int =
+    sections.indexOfFirst {
+        it.wateringGroup != TodayWateringGroup.OVERDUE && it.wateringGroup != TodayWateringGroup.TODAY
+    }.let { if (it < 0) sections.size else it }
+
+@Suppress("LongParameterList")
 @Composable
 internal fun TodayCareGrid(
     tasks: List<TodayCareTask>,
     gridState: LazyGridState,
     collapsedGroups: Set<String>,
     onToggleGroup: (String) -> Unit,
-    actions: TodayTaskActions
+    actions: TodayTaskActions,
+    wateredToday: List<TodayWateredPlant> = emptyList(),
+    hasTasksDueNow: Boolean = true,
+    wateredTodayExpanded: Boolean = false,
+    onToggleWateredTodayExpanded: () -> Unit = {}
 ) {
     val sections = remember(tasks) { careTypeSections(tasks) }
+    val wateredTodayState = WateredTodayState(wateredToday, wateredTodayExpanded, onToggleWateredTodayExpanded)
     val scope = rememberCoroutineScope()
     val onToggleSection = { key: String, headerIndex: Int ->
         // Collapsing a header at or above the viewport top would leave the viewport on tiles that no longer
@@ -139,8 +164,23 @@ internal fun TodayCareGrid(
         verticalArrangement = Arrangement.spacedBy(CARE_GRID_SPACING),
         modifier = Modifier.fillMaxSize().testTag(TODAY_TASK_LIST_TAG)
     ) {
-        for (section in sections) {
+        if (tasks.isNotEmpty() && wateredToday.isEmpty() && !hasTasksDueNow) {
+            item(key = NOTHING_DUE_KEY, span = { GridItemSpan(maxLineSpan) }) { NothingDueTodayLine() }
+        }
+        val wateredTodayIndex = wateredTodayInsertIndex(sections)
+        sections.forEachIndexed { index, section ->
+            if (index == wateredTodayIndex) {
+                wateredTodaySection(wateredTodayState, collapsedGroups, onToggleSection, actions)
+            }
             careSection(section, collapsedGroups, onToggleSection, actions)
+        }
+        if (wateredTodayIndex == sections.size) {
+            wateredTodaySection(wateredTodayState, collapsedGroups, onToggleSection, actions)
+        }
+        if (tasks.isEmpty() && wateredToday.isNotEmpty()) {
+            item(key = CAUGHT_UP_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                TodayCaughtUpContent(Modifier.fillMaxWidth().padding(vertical = CARE_CAUGHT_UP_PADDING))
+            }
         }
     }
 }
@@ -162,6 +202,48 @@ private fun LazyGridScope.careSection(
         )
     }
     if (!collapsed) careTiles(section.tasks, actions)
+}
+
+@Composable
+internal fun TodayCaughtUpContent(modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(Icons.Filled.Checklist, contentDescription = null, modifier = Modifier.size(CARE_CAUGHT_UP_ICON_SIZE))
+        Text(stringResource(R.string.today_caught_up), modifier = Modifier.padding(top = 16.dp))
+    }
+}
+
+private data class WateredTodayState(
+    val plants: List<TodayWateredPlant>,
+    val expanded: Boolean,
+    val onToggleExpanded: () -> Unit
+)
+
+private fun LazyGridScope.wateredTodaySection(
+    state: WateredTodayState,
+    collapsedGroups: Set<String>,
+    onToggle: (key: String, headerIndex: Int) -> Unit,
+    actions: TodayTaskActions
+) {
+    if (state.plants.isEmpty()) return
+    val collapsed = WATERED_TODAY_KEY in collapsedGroups
+    stickyHeader(key = WATERED_TODAY_KEY, contentType = CARE_HEADER_CONTENT_TYPE) { index ->
+        CareGroupHeader(
+            title = stringResource(R.string.care_section_watered_today),
+            plantCount = state.plants.size,
+            collapsed = collapsed,
+            onToggle = { onToggle(WATERED_TODAY_KEY, index) }
+        )
+    }
+    if (!collapsed) {
+        item(key = WATERED_TODAY_ROW_KEY, span = { GridItemSpan(maxLineSpan) }) {
+            WateredTodayRow(
+                plants = state.plants,
+                expanded = state.expanded,
+                onToggleExpanded = state.onToggleExpanded,
+                onOpen = { plantId -> actions.onOpen(plantId, PlantDetailTab.WATER) }
+            )
+        }
+    }
 }
 
 private fun LazyGridScope.careTiles(tasks: List<TodayCareTask>, actions: TodayTaskActions) {

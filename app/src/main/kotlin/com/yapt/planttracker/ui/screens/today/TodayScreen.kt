@@ -94,6 +94,7 @@ fun TodayScreen(
     var repotTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
     var collapsedGroups by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
+    var wateredTodayExpanded by rememberSaveable { mutableStateOf(false) }
     val readyTasks = (uiState as? TodayUiState.Ready)?.snapshot?.tasks
     val waterPickerTask = waterPickerTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
     val reasonTask = reasonTaskId?.let { id -> readyTasks?.firstOrNull { it.id == id } }
@@ -166,13 +167,18 @@ fun TodayScreen(
                     TodayUiState.Error -> TodayErrorState(viewModel::retry)
                     is TodayUiState.Ready -> when {
                         state.snapshot.activePlantCount == 0 -> TodayFirstUseState(viewModel::addPlant)
-                        state.snapshot.tasks.isEmpty() -> TodayCaughtUpState()
+                        state.snapshot.tasks.isEmpty() && state.snapshot.wateredToday.isEmpty() ->
+                            TodayCaughtUpState()
                         else -> TodayCareGrid(
                             tasks = state.snapshot.tasks,
                             gridState = gridState,
                             collapsedGroups = collapsedGroups,
                             onToggleGroup = { collapsedGroups = collapsedGroups.toggled(it) },
-                            actions = actions
+                            actions = actions,
+                            wateredToday = state.snapshot.wateredToday,
+                            hasTasksDueNow = state.snapshot.hasTasksDueNow,
+                            wateredTodayExpanded = wateredTodayExpanded,
+                            onToggleWateredTodayExpanded = { wateredTodayExpanded = !wateredTodayExpanded }
                         )
                     }
                 }
@@ -327,8 +333,7 @@ private fun TodayCaughtUpState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.Checklist, contentDescription = null, modifier = Modifier.size(72.dp))
-        Text(stringResource(R.string.today_caught_up), modifier = Modifier.padding(top = 16.dp))
+        TodayCaughtUpContent()
     }
 }
 

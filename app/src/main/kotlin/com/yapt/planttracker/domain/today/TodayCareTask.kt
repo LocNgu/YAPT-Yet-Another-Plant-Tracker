@@ -42,10 +42,26 @@ data class TodayCareTask(
     val repotPlanSeason: FertilizingSeason? = null
 )
 
+/**
+ * A visible plant with a [com.yapt.planttracker.domain.model.CareType.WATER] log on the aggregator's today;
+ * [wateredAt] is its newest such log.
+ */
+data class TodayWateredPlant(
+    val plant: Plant,
+    val wateredAt: Long
+)
+
+/**
+ * [wateredToday] (#939, product ADR-0071) is independent of every horizon and lists each plant once,
+ * newest watering first. The default keeps tests that build a snapshot by hand working.
+ */
 data class TodayQueueSnapshot(
     val activePlantCount: Int,
-    val tasks: List<TodayCareTask>
-)
+    val tasks: List<TodayCareTask>,
+    val wateredToday: List<TodayWateredPlant> = emptyList()
+) {
+    val hasTasksDueNow: Boolean get() = tasks.any { it.bucket !is TodayTaskBucket.Upcoming }
+}
 
 enum class TodayCareSection {
     WATERING,

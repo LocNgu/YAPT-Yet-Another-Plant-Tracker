@@ -1,6 +1,6 @@
 # Product ADR-0056: Care plant grid, Watering date sub-groups, and a long-press quick-action menu
 
-**Status**: accepted — Watering "Overdue / Today / Next 3 days" sub-group clause, its sub-group collapse wording and the "Overdue-through-three-days horizon" wording amended by [ADR-0069](0069-care-flat-watering-sections-sticky-headers-and-tomorrow-window.md)
+**Status**: accepted — Watering "Overdue / Today / Next 3 days" sub-group clause, its sub-group collapse wording and the "Overdue-through-three-days horizon" wording amended by [ADR-0069](0069-care-flat-watering-sections-sticky-headers-and-tomorrow-window.md); "every section is a grid of square tiles" clause amended by [ADR-0071](0071-care-watered-today-row.md)
 
 **Date**: 2026-09-28
 
