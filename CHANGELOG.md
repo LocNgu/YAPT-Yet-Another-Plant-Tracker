@@ -12,6 +12,28 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-10-23
+
+### Changed
+- **Edit Plant's watering slider shows today's interval too** (#928) — like Plant Detail, the "Water every N days"
+  slider now starts at the interval the schedule is using today, with a plain "Adjusted for winter · base 8 days" line
+  under it when the season moves it off the base. Pin interval pins the number you see. See product ADR-0070.
+- **Care section headers stay pinned while you scroll** (#931) — the title of the section you are in sticks to the top
+  of the grid (below the Away banner) until the next section's title pushes it off. Tapping it collapses the section
+  and scrolls so the collapsed header is the first thing on screen; a second tap expands it.
+- **Care's Watering is three flat sections, and the upcoming window shrinks to tomorrow** (#931) — "Watering" is no
+  longer a parent with "Today" / "Next 3 days" sub-groups: the sections read **Watering · Overdue · N**,
+  **Watering · Today · N** and **Watering · Tomorrow · N**, all top-level and collapsible on their own. Only watering
+  (and the combined water-and-fertilize tile) looks ahead to tomorrow; fertilizing, issue treatments, custom
+  reminders, repotting and photos show only what is overdue or due today. The empty state now reads "You're all
+  caught up. Nothing is due today and no watering is due tomorrow." Sitter and Away flows that widen the horizon
+  are unchanged. See product ADR-0069.
+
+### Fixed
+- **Saving a plant in Edit Plant without touching its watering interval no longer reschedules it** (#928) — the
+  interval is only re-anchored (and a "Watering interval edited" entry only written) when you actually move the
+  slider to a different number.
+
 ## [0.38.1] - 2026-10-21
 
 ### Changed

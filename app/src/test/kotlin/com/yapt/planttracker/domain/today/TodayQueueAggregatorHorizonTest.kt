@@ -76,7 +76,7 @@ class TodayQueueAggregatorHorizonTest {
     }
 
     @Test
-    fun `default horizon end is three days after today`() {
+    fun `default horizon end is the day after today`() {
         val input = TodayQueueInput(
             plants = emptyList(),
             careLogs = emptyList(),
@@ -88,7 +88,7 @@ class TodayQueueAggregatorHorizonTest {
             photoReminderEnabled = false
         )
 
-        assertEquals(today.plusDays(3), input.horizonEnd)
+        assertEquals(today.plusDays(1), input.horizonEnd)
     }
 
     @Test
@@ -113,15 +113,15 @@ class TodayQueueAggregatorHorizonTest {
     }
 
     @Test
-    fun `default horizon includes day three and excludes day four`() {
-        val three = plant(id = 1L, wateringIntervalDays = 3)
-        val four = plant(id = 2L, wateringIntervalDays = 4)
-        val logs = listOf(log(three.id, CareType.WATER, today), log(four.id, CareType.WATER, today))
+    fun `default horizon includes tomorrow and excludes the day after`() {
+        val one = plant(id = 1L, wateringIntervalDays = 1)
+        val two = plant(id = 2L, wateringIntervalDays = 2)
+        val logs = listOf(log(one.id, CareType.WATER, today), log(two.id, CareType.WATER, today))
 
-        val byDefault = build(listOf(three, four), logs)
+        val byDefault = build(listOf(one, two), logs)
         assertEquals(listOf("water:1"), byDefault.tasks.map { it.id })
 
-        val widened = build(listOf(three, four), logs, horizonEnd = today.plusDays(4))
+        val widened = build(listOf(one, two), logs, horizonEnd = today.plusDays(2))
         assertEquals(listOf("water:1", "water:2"), widened.tasks.map { it.id })
     }
 

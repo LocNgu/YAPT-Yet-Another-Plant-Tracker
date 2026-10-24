@@ -33,7 +33,8 @@ class TodayQueueAggregatorAwayTest {
                 today = today,
                 seasonalAmplitude = 0.0,
                 photoReminderEnabled = false,
-                awayPeriods = periods
+                awayPeriods = periods,
+                horizonEnd = today.plusDays(7)
             )
         )
         return snapshot.tasks.single { it.kind == TodayCareKind.WATER }

@@ -31,10 +31,15 @@ data class TodayQueueInput(
     val photoReminderEnabled: Boolean,
     val hemisphere: Hemisphere = SeasonalWatering.currentHemisphere(),
     val awayPeriods: List<AwayPeriod> = emptyList(),
-    val horizonEnd: LocalDate = defaultHorizonEnd(today)
+    val horizonEnd: LocalDate = defaultHorizonEnd(today),
+    // Care's default path shows only Overdue and Today for every kind but watering (product ADR-0069).
+    // Null shares horizonEnd, so a widened window (also via copy(horizonEnd = …)) is never clipped.
+    val nonWateringHorizonEnd: LocalDate? = null
 ) {
+    val effectiveNonWateringHorizonEnd: LocalDate get() = nonWateringHorizonEnd ?: horizonEnd
+
     companion object {
-        private const val DEFAULT_UPCOMING_HORIZON_DAYS = 3L
+        private const val DEFAULT_UPCOMING_HORIZON_DAYS = 1L
 
         fun defaultHorizonEnd(today: LocalDate): LocalDate = today.plusDays(DEFAULT_UPCOMING_HORIZON_DAYS)
     }
@@ -131,7 +136,7 @@ object TodayQueueAggregator {
 
     private fun repottingTask(context: PlantTaskContext): TodayCareTask? {
         val dueAt = repottingTaskDueAt(context.status, context.input.today) ?: return null
-        return taskForDueDate(context.input, dueAt) { bucket ->
+        return taskForDueDate(context.input, dueAt, context.input.effectiveNonWateringHorizonEnd) { bucket ->
             TodayCareTask(
                 id = "repot:${context.plant.id}",
                 plant = context.plant,
@@ -174,7 +179,7 @@ object TodayQueueAggregator {
                 )
             }
             ?.let { dueAt ->
-                taskForDueDate(context.input, dueAt) { bucket ->
+                taskForDueDate(context.input, dueAt, context.input.horizonEnd) { bucket ->
                     TodayCareTask(
                         id = "water:${context.plant.id}",
                         plant = context.plant,
@@ -202,7 +207,7 @@ object TodayQueueAggregator {
                     )
             }
             ?.let { dueAt ->
-                taskForDueDate(context.input, dueAt) { bucket ->
+                taskForDueDate(context.input, dueAt, context.input.effectiveNonWateringHorizonEnd) { bucket ->
                     TodayCareTask(
                         id = "fertilize:${context.plant.id}",
                         plant = context.plant,
@@ -216,7 +221,7 @@ object TodayQueueAggregator {
     private fun customReminderTasks(context: PlantTaskContext): List<TodayCareTask> = buildList {
         for (reminderStatus in context.status.customReminderStatuses) {
             val dueAt = reminderStatus.nextDueAt ?: continue
-            taskForDueDate(context.input, dueAt) { bucket ->
+            taskForDueDate(context.input, dueAt, context.input.effectiveNonWateringHorizonEnd) { bucket ->
                 val issue = context.activeIssueByReminderId[reminderStatus.reminder.id]
                 TodayCareTask(
                     id = "custom:${reminderStatus.reminder.id}",
@@ -243,7 +248,7 @@ object TodayQueueAggregator {
         ).filterNotNull().maxOrNull()
         val dueAt = (lastPhotoAt ?: context.plant.createdAt)
             .plusCalendarDays(PhotoReminderPolicy.PHOTO_REMINDER_INTERVAL_DAYS)
-        return taskForDueDate(context.input, dueAt) { bucket ->
+        return taskForDueDate(context.input, dueAt, context.input.effectiveNonWateringHorizonEnd) { bucket ->
             TodayCareTask(
                 id = "photo:${context.plant.id}",
                 plant = context.plant,
@@ -278,6 +283,7 @@ object TodayQueueAggregator {
     private inline fun taskForDueDate(
         input: TodayQueueInput,
         dueAt: Long,
+        horizonEnd: LocalDate,
         build: (TodayTaskBucket) -> TodayCareTask
     ): TodayCareTask? {
         val dueDate = dueAt.toLocalDate()
@@ -285,7 +291,7 @@ object TodayQueueAggregator {
         val bucket = when {
             days < 0L -> TodayTaskBucket.Overdue
             days == 0L -> TodayTaskBucket.Today
-            !dueDate.isAfter(input.horizonEnd) -> TodayTaskBucket.Upcoming(dueDate.toEpochDay())
+            !dueDate.isAfter(horizonEnd) -> TodayTaskBucket.Upcoming(dueDate.toEpochDay())
             else -> return null
         }
         return build(bucket)
