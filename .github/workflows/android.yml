@@ -146,6 +146,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [0, 1]
+    # Backstop for a hung emulator or background build; a shard takes about 7 min.
+    timeout-minutes: 30
     concurrency:
       group: instrumented-${{ github.event.pull_request.number || github.ref }}-shard-${{ matrix.shard }}
       cancel-in-progress: true

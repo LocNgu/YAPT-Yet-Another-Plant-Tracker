@@ -27,6 +27,7 @@ case "${1:-}" in
       echo "$status" > "$dir/exit.tmp"
       mv "$dir/exit.tmp" "$dir/exit"
     ' _ "$dir" "$@" > /dev/null 2>&1 &
+    echo "$!" > "$dir/pid"
     echo "Background build started: gradle $*"
     ;;
   wait)
@@ -34,7 +35,15 @@ case "${1:-}" in
       echo "::error::No background build was started."
       exit 1
     fi
-    while [ ! -f "$dir/exit" ]; do sleep 2; done
+    while [ ! -f "$dir/exit" ]; do
+      # A wrapper killed before it wrote its result (OOM, runner) would otherwise hang the job.
+      if ! kill -0 "$(cat "$dir/pid")" 2> /dev/null && [ ! -f "$dir/exit" ]; then
+        cat "$dir/log"
+        echo "::error::The background build died without reporting a result."
+        exit 1
+      fi
+      sleep 2
+    done
     status="$(cat "$dir/exit")"
     echo "::group::Background build log"
     cat "$dir/log"
