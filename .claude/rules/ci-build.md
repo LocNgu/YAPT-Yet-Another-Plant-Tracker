@@ -20,7 +20,7 @@ paths:
 - **Kotlin and KSP versions needn't match.** KSP has its own release line (the `<kotlin>-<ksp>` scheme is legacy), so a Dependabot PR with different numbers isn't self-evidently broken; validate through CI. The KotlinX/MockK ↔ Kotlin stdlib coupling noted in `.github/dependabot.yml` is real.
 - **AGP 9 compiles Kotlin itself.** Never re-add `org.jetbrains.kotlin.android` (AGP 9 errors). Compose/serialization plugins stay at 2.4.20. Use `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
 - **`gradle-wrapper.properties` is the only Gradle version source** (#726). CI uses `gradle-version: wrapper`; never hardcode one there. Dependabot doesn't bump the wrapper, so do it by hand.
-- `android.onlyEnableUnitTestForTheTestedBuildType=false` keeps `testReleaseUnitTest` for the release job, so `./gradlew test` runs both suites (#496).
+- `android.onlyEnableUnitTestForTheTestedBuildType=false` keeps `testReleaseUnitTest` for `release-build`, so `./gradlew test` runs both suites (#496).
 - Release build: `isMinifyEnabled`/`isShrinkResources` on; ProGuard keeps WorkManager workers and Room DAOs (reflection) (#4).
 
 ## Detekt (#85, #463)
@@ -28,10 +28,11 @@ paths:
 - `config/detekt/baseline.xml` freezes old smells. Regenerate it (`./gradlew detektBaseline`) only when deliberately accepting debt. Use `autoCorrect = true` locally only; CI never auto-corrects.
 - Common splits: `TooManyFunctions` (move helpers to a sibling file) and `LongParameterList` (bundle callbacks in a data class).
 
-## CI job graph (#84, #87, #941)
-- `test` (Detekt + unit tests + `lintDebug`) gates `build` (debug APK) and `release` (`testReleaseUnitTest` + `lintRelease`).
-- PRs are path-filtered: instrumented tests run only for relevant paths, and docs-only PRs skip the Android jobs (any `app/**` or workflow change still runs them). The `instrumented` job has its own job-level concurrency group (per PR number, else per ref) that cancels stacked runs of that job.
-- `android.yml` triggers on PRs and on pushes to `develop` and `main`. A `develop` push runs `test`, `build` and `instrumented` unfiltered (never `release`); only a `main` push also runs `release`, which creates the signed-APK GitHub Release. Workflow-level concurrency groups only `develop` pushes (`android-develop`, newer merge cancels the older run); every other run has a unique `android-<run_id>` group.
+## CI job graph (#84, #87, #941, #951)
+- `test` (Detekt + unit tests + `lintDebug`) and `instrumented` (emulator tests; also uploads `debug-apk-<sha>`) run in parallel after `changes`. There is no `build` job (technical ADR-0040).
+- PRs are path-filtered: instrumented tests run only for relevant paths (a PR that skips them has no debug APK), and docs-only PRs skip the Android jobs (any `app/**` or workflow change still runs them). The `instrumented` job has its own job-level concurrency group (per PR number, else per ref) that cancels stacked runs of that job.
+- `android.yml` triggers on PRs and on pushes to `develop` and `main`. A `develop` push runs `test` and `instrumented` unfiltered (never the release jobs). Only a `main` push also runs `release-build` (`testReleaseUnitTest` + `lintRelease` + `assembleRelease`, in parallel with the tests; the only job with the signing secrets) and `publish` (`needs: [test, instrumented, release-build]`, default `needs` semantics with no `always()`; the only job with `contents: write`), which creates the signed-APK GitHub Release idempotently from the `release-apk-<sha>` artifact. The workflow default is `permissions: contents: read`. CI's `assembleRelease` passes `-x lintVitalRelease -x lintVitalAnalyzeRelease` because `lintRelease` just ran; a local `assembleRelease` keeps the check. If `publish` fails, re-run it or create the release by hand from the artifact. Workflow-level concurrency groups only `develop` pushes (`android-develop`, newer merge cancels the older run); every other run has a unique `android-<run_id>` group.
+- Keep job ids `test` and `instrumented`: setup-gradle's cache keys include the job id.
 - **Gradle cache:** `setup-gradle` writes it only on the default branch, so `develop` runs are the sole writer. PR, release-PR and `main` runs restore it read-only (look for `Entries: N restored` in the job summary; a PR run before the first `develop` run saves one is still cold).
 - **Build cache** (`org.gradle.caching=true`) is on, and every `Test` task is non-cacheable (`outputs.cacheIf { false }` in `app/build.gradle.kts`) because tests depend on the date and clock. App-module compile tasks still miss across commits (`versionCode` is the commit count, in `BuildConfig`) (technical ADR-0039).
 

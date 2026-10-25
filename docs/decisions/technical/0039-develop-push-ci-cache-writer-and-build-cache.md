@@ -1,6 +1,6 @@
 # Technical ADR-0039: Android CI runs on develop pushes to write the Gradle cache; the build cache is on and Test tasks are never cacheable
 
-**Status**: accepted
+**Status**: accepted — job-set clause (the `build` job) amended by [ADR-0040](0040-parallel-ci-job-graph-and-gated-release-publish.md)
 
 **Date**: 2026-10-25
 

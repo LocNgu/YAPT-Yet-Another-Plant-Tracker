@@ -28,6 +28,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   and `main` runs restore it. A newer `develop` merge cancels the older run. `org.gradle.caching` is on, and `Test` tasks
   stay non-cacheable because several tests depend on the date and clock. No user-visible change (#941, technical
   ADR-0039)
+- CI: the job graph is now parallel. The `Build & Test` job is gone (the debug APK is uploaded from `Instrumented Tests`
+  instead), so `Unit Tests & Lint` and `Instrumented Tests` run side by side. On a push to `main` the signed release APK
+  is built by `Build Release APK` in parallel with the tests, and a separate `Publish GitHub Release` job (the only one
+  with write permission) creates the release only when all three succeeded. CI's `assembleRelease` skips AGP's
+  lint-vital tasks because `lintRelease` runs just before. No user-facing change (#951, technical ADR-0040)
 
 ## [0.39.0] - 2026-10-23
 
