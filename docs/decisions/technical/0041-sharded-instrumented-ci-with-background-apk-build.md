@@ -60,6 +60,10 @@ Alternatives considered:
 ## Consequences
 
 - Estimated warm PR wall-clock: about 6 min instead of 9.5 min. `Unit Tests & Lint` becomes the critical path again.
+  The first PR run (1560) took 6m49s. Its shards got exactly the predicted 238 and 245 tests, the test call reused the
+  background build's daemon, and every package task was up to date.
+- setup-gradle's cache key includes a hash of the matrix values, so each shard has its own Gradle-cache entry, written
+  by `develop` runs. Until a shard has one, it restores another `instrumented` entry instead.
 - Instrumented runner-minutes roughly double (each shard pays its own setup and APK build). They are free because the
   repository is public.
 - A test that passed only because an earlier test left state behind can fail once the shards split them. Such a failure
