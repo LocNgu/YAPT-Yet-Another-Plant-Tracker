@@ -28,10 +28,12 @@ paths:
 - `config/detekt/baseline.xml` freezes old smells. Regenerate it (`./gradlew detektBaseline`) only when deliberately accepting debt. Use `autoCorrect = true` locally only; CI never auto-corrects.
 - Common splits: `TooManyFunctions` (move helpers to a sibling file) and `LongParameterList` (bundle callbacks in a data class).
 
-## CI job graph (#84, #87)
+## CI job graph (#84, #87, #941)
 - `test` (Detekt + unit tests + `lintDebug`) gates `build` (debug APK) and `release` (`testReleaseUnitTest` + `lintRelease`).
-- PRs are path-filtered: instrumented tests run only for relevant paths, and docs-only PRs skip the Android jobs (any `app/**` or workflow change still runs them). A concurrency group cancels stacked runs.
-- A push to `main` creates a signed-APK GitHub Release.
+- PRs are path-filtered: instrumented tests run only for relevant paths, and docs-only PRs skip the Android jobs (any `app/**` or workflow change still runs them). The `instrumented` job has its own job-level concurrency group (per PR number, else per ref) that cancels stacked runs of that job.
+- `android.yml` triggers on PRs and on pushes to `develop` and `main`. A `develop` push runs `test`, `build` and `instrumented` unfiltered (never `release`); only a `main` push also runs `release`, which creates the signed-APK GitHub Release. Workflow-level concurrency groups only `develop` pushes (`android-develop`, newer merge cancels the older run); every other run has a unique `android-<run_id>` group.
+- **Gradle cache:** `setup-gradle` writes it only on the default branch, so `develop` runs are the sole writer. PR, release-PR and `main` runs restore it read-only (look for `Entries: N restored` in the job summary; a PR run before the first `develop` run saves one is still cold).
+- **Build cache** (`org.gradle.caching=true`) is on, and every `Test` task is non-cacheable (`outputs.cacheIf { false }` in `app/build.gradle.kts`) because tests depend on the date and clock. App-module compile tasks still miss across commits (`versionCode` is the commit count, in `BuildConfig`) (technical ADR-0039).
 
 ## Robolectric runs `TestYaptApplication` (#757)
 - **What it is:** the production application with `launchAppStartWork()` (the `onCreate` coroutine: default reminder time + `SeasonalGraduationFixup`) overridden to a no-op. That override is the only reason `YaptApplication` and the method are `open`.

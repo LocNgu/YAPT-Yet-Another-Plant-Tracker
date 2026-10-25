@@ -22,6 +22,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   nothing due today but tomorrow tasks, a plain "Nothing due today" line sits above Watering · Tomorrow. No schema or
   backup change. See product ADR-0071.
 
+### Changed
+- CI: `android.yml` now also runs on pushes to `develop`. `setup-gradle` writes its cache only on the default branch, so
+  the Gradle cache had never been populated and every job started cold; `develop` runs now write it and PR, release-PR
+  and `main` runs restore it. A newer `develop` merge cancels the older run. `org.gradle.caching` is on, and `Test` tasks
+  stay non-cacheable because several tests depend on the date and clock. No user-visible change (#941, technical
+  ADR-0039)
+
 ## [0.39.0] - 2026-10-23
 
 ### Changed

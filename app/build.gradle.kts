@@ -130,6 +130,13 @@ tasks.withType<Test>().configureEach {
     )
 }
 
+// With org.gradle.caching on, test results must never come from the build cache: this project has date- and
+// clock-dependent tests (#921 clock race in a unit test; #936 date-dependent rounding in an instrumented test),
+// so a cached test pass from another day could hide a real failure (technical ADR-0039).
+tasks.withType<Test>().configureEach {
+    outputs.cacheIf("tests depend on the calendar date and the clock") { false }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 

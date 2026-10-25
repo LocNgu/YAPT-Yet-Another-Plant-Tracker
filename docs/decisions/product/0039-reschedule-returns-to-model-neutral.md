@@ -59,7 +59,7 @@ mirror of ADR-0033's rule that a late gap never shortens: `1.25 × observedGap` 
 dry-out estimate only at or past the due date, and before it, "still moist" is the expected,
 uninformative outcome — wet soil on day 8 of a 14-day plant is evidence of nothing, yet the
 estimator read it as a reason to pull the interval down. `CareScheduleAdaptiveTest`'s `an early
-TOO_SOON observation still shortens the base (#738 ADR-0039 pinned defect)` pins this arithmetic
+TOO_SOON observation still shortens the base (#738 product ADR-0039 pinned defect)` pins this arithmetic
 permanently, as a property of `CareSchedule.computeAdaptiveInterval()` itself (which is otherwise
 unchanged by this ADR) rather than of the call site being removed.
 
