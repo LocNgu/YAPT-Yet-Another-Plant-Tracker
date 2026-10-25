@@ -33,6 +33,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   is built by `Build Release APK` in parallel with the tests, and a separate `Publish GitHub Release` job (the only one
   with write permission) creates the release only when all three succeeded. CI's `assembleRelease` skips AGP's
   lint-vital tasks because `lintRelease` runs just before. No user-facing change (#951, technical ADR-0040)
+- CI: `Instrumented Tests` now runs in two shards, each on its own emulator, and builds its APKs while the emulator boots
+  instead of after. `Unit Tests & Lint` runs Detekt, the unit tests and lint in one Gradle call. A change to
+  `android.yml` now also runs the instrumented tests on its PR. No user-facing change (#952, technical ADR-0041)
 
 ## [0.39.0] - 2026-10-23
 
