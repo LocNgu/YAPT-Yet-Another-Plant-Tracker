@@ -53,8 +53,9 @@ Alternatives considered and rejected:
 - **`android.yml` sets workflow-level `permissions: contents: read`**, so "only `publish` can write" does not depend on
   the repository's default token permissions. `changes` keeps its own block (it also needs `pull-requests: read`).
 - **CI's `assembleRelease` passes `-x lintVitalRelease -x lintVitalAnalyzeRelease`**, with a comment: `lintRelease` ran
-  the full lint on the same sources in the previous step. Both task names exist under AGP 9.4.1; excluding them removes
-  every `*LintVital*` task from the `assembleRelease` graph.
+  the full lint on the same sources in the previous step. Both task names exist under AGP 9.4.1 (an excluded task that
+  does not exist fails the build); a dry run showed no lint task left in the `assembleRelease` graph, and the first push
+  to `main` confirms the `release-build` path.
 - Both concurrency groups stay as they are: the workflow-level `develop`-only group and `instrumented`'s job-level group.
 
 ## Consequences

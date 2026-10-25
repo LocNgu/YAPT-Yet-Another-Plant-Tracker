@@ -271,6 +271,7 @@ jobs:
         with:
           name: release-apk-${{ github.sha }}
           path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload release test results
