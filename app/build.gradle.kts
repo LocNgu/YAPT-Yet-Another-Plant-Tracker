@@ -165,7 +165,7 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
@@ -182,7 +182,7 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("io.mockk:mockk-android:1.14.11")
-    androidTestImplementation("androidx.datastore:datastore-preferences-core:1.2.1")
+    androidTestImplementation("androidx.datastore:datastore-preferences-core:1.3.0")
 
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
 }
