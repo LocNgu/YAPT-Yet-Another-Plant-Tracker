@@ -1,6 +1,6 @@
 # Technical ADR-0040: CI runs the test jobs in parallel, drops `build`, and publishes the release from a separate gated `publish` job
 
-**Status**: accepted
+**Status**: accepted — `instrumented` concurrency-group and debug-APK-upload clauses amended by [ADR-0041](0041-sharded-instrumented-ci-with-background-apk-build.md)
 
 **Date**: 2026-10-25
 

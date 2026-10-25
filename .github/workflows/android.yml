@@ -65,6 +65,9 @@ jobs:
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
+              # A change to this workflow (e.g. the instrumented job itself) is exercised on its PR (#952).
+              - '.github/workflows/android.yml'
+              - 'scripts/ci-background-build.sh'
 
   test:
     name: Unit Tests & Lint
@@ -112,14 +115,11 @@ jobs:
             echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
           fi
 
-      - name: Run Detekt
-        run: gradle detekt --no-daemon
-
-      - name: Run unit tests
-        run: gradle testDebugUnitTest --no-daemon
-
-      - name: Run lint
-        run: gradle lintDebug --no-daemon
+      - name: Run Detekt, unit tests and lint
+        # One Gradle call instead of three saves two ~10 s Gradle start-ups (#952). --continue runs
+        # all three checks even when one fails; the failure summary at the end of the log names
+        # each failed task (`:app:detekt`, `:app:testDebugUnitTest`, `:app:lintDebug`).
+        run: gradle detekt testDebugUnitTest lintDebug --continue --no-daemon
 
       - name: Upload test results
         if: always()
@@ -133,14 +133,23 @@ jobs:
           retention-days: 7
 
   instrumented:
-    name: Instrumented Tests
+    name: Instrumented Tests (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: changes
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
       (github.event_name == 'pull_request' && needs.changes.outputs.instrumented == 'true')
+    # Two shards on two emulators halve the ~5.5 min test phase (#952, technical ADR-0041).
+    # AndroidJUnitRunner splits the test methods by name hash. fail-fast is off so a failure
+    # in one shard still lets the other report all of its own.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    # Backstop for a hung emulator or background build; a shard takes about 7 min.
+    timeout-minutes: 30
     concurrency:
-      group: instrumented-${{ github.event.pull_request.number || github.ref }}
+      group: instrumented-${{ github.event.pull_request.number || github.ref }}-shard-${{ matrix.shard }}
       cancel-in-progress: true
 
     steps:
@@ -187,26 +196,33 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Build APKs in the background
+        # Overlaps the APK build with the emulator setup and boot of the next step (#952). That
+        # step's script waits for this build, and fails the job if it failed, before running the
+        # tests, which then find both APKs up to date. Both use the Gradle daemon this build starts.
+        run: scripts/ci-background-build.sh start assembleDebug assembleDebugAndroidTest
+
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
-          script: gradle connectedDebugAndroidTest --no-daemon
+          # The runner executes each script line as its own command, so this stays one line.
+          script: scripts/ci-background-build.sh wait && gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.numShards=${{ strategy.job-total }} -Pandroid.testInstrumentationRunnerArguments.shardIndex=${{ matrix.shard }}
 
       - name: Upload instrumented test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: instrumented-test-results-${{ github.sha }}
+          name: instrumented-test-results-${{ github.sha }}-shard-${{ matrix.shard }}
           path: app/build/reports/androidTests/connected/
           retention-days: 7
 
       - name: Upload debug APK
-        # connectedDebugAndroidTest builds the debug APK, so it is uploaded from here (the
-        # former `build` job is gone). always() keeps the APK when a test fails;
+        # The APK build runs in this job (the former `build` job is gone). Every shard builds
+        # the same APK, so only shard 0 uploads it. always() keeps the APK when a test fails;
         # if-no-files-found: ignore covers a build that failed before producing it.
-        if: always()
+        if: always() && matrix.shard == 0
         uses: actions/upload-artifact@v7
         with:
           name: debug-apk-${{ github.sha }}
