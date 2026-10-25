@@ -59,9 +59,11 @@ Alternatives considered:
 
 ## Consequences
 
-- Estimated warm PR wall-clock: about 6 min instead of 9.5 min. `Unit Tests & Lint` becomes the critical path again.
-  The first PR run (1560) took 6m49s. Its shards got exactly the predicted 238 and 245 tests, the test call reused the
-  background build's daemon, and every package task was up to date.
+- Measured warm PR wall-clock (runs 1560 and 1561 x3, the soak): 6m41s to 7m17s, against 9m43s for run 1559. The
+  shards got exactly the predicted 238 and 245 tests, the test call reused the background build's daemon, and every
+  package task was up to date. The estimate was about 6 min; the gap is runner speed. In most runs one shard drew a
+  runner that was about 1.5x slower (background build ~3 min, tests ~3.5 min), and that shard, not `Unit Tests & Lint`
+  (5m11s to 5m42s), set the wall-clock.
 - setup-gradle's cache key includes a hash of the matrix values, so each shard has its own Gradle-cache entry, written
   by `develop` runs. Until a shard has one, it restores another `instrumented` entry instead.
 - Instrumented runner-minutes roughly double (each shard pays its own setup and APK build). They are free because the
