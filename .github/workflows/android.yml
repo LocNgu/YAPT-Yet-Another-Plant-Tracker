@@ -50,18 +50,25 @@ jobs:
         with:
           filters: |
             app:
-              - 'app/src/**'
-              - 'app/build.gradle.kts'
-              - 'build.gradle.kts'
+              - 'app/**'
+              - '*.gradle.kts'
+              - 'gradle.properties'
+              - 'version.properties'
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
+              - 'config/detekt/**'
               - '.github/workflows/**'
             instrumented:
               - 'app/src/androidTest/**'
               - 'app/src/main/**'
+              - 'app/src/debug/**'
+              - 'app/schemas/**'
               - 'app/build.gradle.kts'
               - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle.properties'
+              - 'version.properties'
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
