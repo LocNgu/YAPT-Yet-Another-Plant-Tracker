@@ -1,14 +1,28 @@
 name: Android CI/CD
 
 on:
-  # Only build on direct pushes to main (post-merge release builds). All develop
-  # work goes through PRs, which the pull_request trigger already covers — this
-  # avoids the double CI run when a develop → main release PR is open, where a push
-  # to develop would otherwise fire both `push` (develop) and `pull_request`
-  # (synchronize) events. See #260.
+  # Three triggers (#941, technical ADR-0039):
+  #  - pull_request: the pre-merge gate.
+  #  - push to develop: the Gradle-cache writer — setup-gradle writes its cache only
+  #    on the default branch (develop), so without this every job starts cold — plus
+  #    a post-merge check of the merged result.
+  #  - push to main: the same jobs, and it also builds and publishes the signed release.
+  # #260 kept develop pushes out to avoid a double CI run while a develop → main
+  # release PR was open (a push to develop fired both `push` and the PR's
+  # `synchronize`). That no longer applies: release PRs come from a static
+  # release/X.Y.Z branch that nothing else pushes to (.claude/rules/release.md). A
+  # direct develop → main PR would still double-run; the documented flow doesn't
+  # do that.
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
+
+# Only develop pushes share a group, so a newer merge cancels the older run (whose
+# tree it contains). Every other run gets a unique group, so PR and main runs are
+# never cancelled by this.
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && 'android-develop' || format('android-{0}', github.run_id) }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

@@ -130,6 +130,13 @@ tasks.withType<Test>().configureEach {
     )
 }
 
+// With org.gradle.caching on, test results must never come from the build cache: several unit tests
+// depend on the calendar date or the clock (#921, #936 — #936 failed a release-prep run only because the
+// date moved), so a pass restored from another day could hide a real failure (technical ADR-0039).
+tasks.withType<Test>().configureEach {
+    outputs.cacheIf("unit tests depend on the calendar date and the clock") { false }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
