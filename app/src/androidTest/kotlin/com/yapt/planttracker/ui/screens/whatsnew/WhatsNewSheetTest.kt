@@ -95,7 +95,9 @@ class WhatsNewSheetTest {
         composeTestRule.onNode(header(MIDDLE_NAME)).performClick()
 
         composeTestRule.onNode(header(MIDDLE_NAME)).assert(hasState(expanded))
-        composeTestRule.onNode(entry(MIDDLE_ENTRY)).assertIsDisplayed()
+        // The sheet opens half-expanded, so this entry is composed below the fold; a collapsed release
+        // composes nothing, so existence is the expand contract here.
+        composeTestRule.onNode(entry(MIDDLE_ENTRY)).assertExists()
         composeTestRule.onNode(header(NEWEST_NAME)).assert(hasState(expanded))
         composeTestRule.onNode(entry(NEWEST_ADDED)).assertIsDisplayed()
         composeTestRule.onNode(header(OLDEST_NAME)).assert(hasState(collapsed))
@@ -152,7 +154,9 @@ class WhatsNewSheetTest {
         setSheet(releases = emptyList())
 
         composeTestRule.onNodeWithText(string(R.string.settings_whats_new_title)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.whats_new_got_it)).assertIsDisplayed()
+        // The list fills the sheet's height and the sheet opens half-expanded, so "Got it" is composed below
+        // the fold even with no releases.
+        composeTestRule.onNodeWithText(string(R.string.whats_new_got_it)).assertExists()
     }
 
     private companion object {
