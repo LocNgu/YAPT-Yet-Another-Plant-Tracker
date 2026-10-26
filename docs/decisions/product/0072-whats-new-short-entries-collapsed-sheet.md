@@ -61,8 +61,10 @@ once, by hand, to this style. Product ADR-0061's and product ADR-0062's clause t
 history and are not rewritten" is a deliberate exception here, confirmed by the human on #958. The rewrite keeps what
 each release shipped: a release that introduced or retired a feature still says so (0.35.0 still says misting and
 Note can no longer be logged). Closely related bullets in one release and section were merged, purely internal items
-were dropped, and a release left with nothing user-visible was removed (0.20.1). Retained releases keep their
-`versionCode` and `versionName`. The exception is for this rewrite only: after it, released entries are history
+were dropped, and a release left with nothing user-visible was removed (0.20.1). Each entry was checked against its
+release's `CHANGELOG.md` section: two entries filed under the wrong release moved to the one whose section holds them,
+and two that duplicated a later release's entry were dropped. Retained releases keep their `versionCode` and
+`versionName`. The exception is for this rewrite only: after it, released entries are history
 again. Product ADR-0061 and product ADR-0062 carry a Status-line amendment pointing here, and `CHANGELOG.md`'s
 history is not rewritten.
 

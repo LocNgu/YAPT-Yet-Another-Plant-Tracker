@@ -38,7 +38,7 @@ edit/cancel/I'm-back mechanics and the banner timing spelled out in one 300-char
 - `WhatsNewContent.unreleased` takes this PR's bullets (never `all`); it is promoted into `all` at release-cut
   (`release.md`). Promoted entries are already short, so promotion is a copy, not a rewrite.
 - `WhatsNewContent.all` is the released entries, newest first. `legacyReleaseNotes` (`WhatsNewLegacyReleases.kt`,
-  0.20.1 and older) is appended after it. Source lines stay within 120 columns; split a string literal with `+`.
+  0.20.0 and older) is appended after it. Source lines stay within 120 columns; split a string literal with `+`.
 - Sections stay Added / Fixed / Changed. A release with no entries is not created.
 - Released entries were rewritten once in #958 (a one-time exception recorded in product ADR-0072). They are history
   again: do not rewrite them without a new decision.

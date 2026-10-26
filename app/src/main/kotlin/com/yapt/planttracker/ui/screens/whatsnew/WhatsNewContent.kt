@@ -8,527 +8,300 @@ data class ReleaseNotes(
     val changed: List<String> = emptyList()
 )
 
-// A growing list of release-notes string literals, not accumulated behavior — LargeClass's usual
-// "split this up" signal doesn't apply to a single append-only data table.
-@Suppress("LargeClass")
 object WhatsNewContent {
-    // Implementer appends here per PR (dev workflow step 5) — mirrors CHANGELOG's [Unreleased].
+    // Implementer appends here per PR (dev workflow step 5): one short plain-language sentence per change,
+    // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
-            "Care now has a \"Watered today\" section: the plants you have watered today as a row of round photos " +
-                "with a check mark, so you can see today's watering is done. Tap a photo to open the plant, or " +
-                "\"+N\" to show them all. When nothing is due today, Care says so"
+            "Care has a Watered today section showing the plants you have already watered"
+        ),
+        changed = listOf(
+            "What's New now opens the latest release and folds older ones away until you tap them"
         )
     )
 
-    // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.1 and older
+    // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
             versionCode = 580,
             versionName = "0.39.0",
             fixed = listOf(
-                "Saving a plant in Edit Plant without touching its watering interval no longer changes its schedule"
+                "Saving a plant without touching its watering interval no longer changes its schedule"
             ),
             changed = listOf(
-                "Edit Plant's watering slider now starts at today's seasonal interval, with the base interval " +
-                    "shown underneath, matching the plant's own page",
-                "On Care, each section's title now stays pinned at the top while you scroll its tiles, and tapping " +
-                    "it collapses the section",
-                "On Care, watering is now three sections of its own: Watering · Overdue, Watering · Today and " +
-                    "Watering · Tomorrow. Everything else shows only what is overdue or due today, so the list " +
-                    "stays short"
+                "Edit Plant's watering slider now starts at the interval the plant uses today, matching its page",
+                "Care's section titles now stay pinned at the top as you scroll, and tapping one collapses it",
+                "On Care, watering is split into Overdue, Today and Tomorrow, and other care shows only what is due now"
             )
         ),
         ReleaseNotes(
             versionCode = 570,
             versionName = "0.38.1",
             fixed = listOf(
-                "Letting go of the watering interval slider without moving it no longer changes the plant's schedule"
+                "Letting go of the watering slider without moving it no longer changes a plant's schedule"
             ),
             changed = listOf(
-                "A plant's watering interval on its Water tab and under its name now shows today's interval, " +
-                    "adjusted for the season, with the base interval next to it. Tap either line to " +
-                    "see why the date is what it is"
+                "A plant's watering interval now follows the season, and tapping it shows why"
             )
         ),
         ReleaseNotes(
             versionCode = 560,
             versionName = "0.38.0",
             added = listOf(
-                "Tell YAPT when the soil was already too dry: the Log watering date picker now has a \"Soil was " +
-                    "already too dry\" option for a watering that is on time or early, so the plant's interval can " +
-                    "shorten without answering \"Why now?\". It also works for Water & fertilize"
+                "You can tell YAPT the soil was already too dry when logging a watering, so its interval can shorten"
             ),
             changed = listOf(
-                "On Care, the Water and Water & fertilize items in a tile's long-press menu now open the Log " +
-                    "watering date picker, so you can pick an earlier date and mark the soil as too dry"
+                "On Care, watering from a tile's menu now opens the date picker, with the too-dry option"
             )
         ),
         ReleaseNotes(
             versionCode = 550,
             versionName = "0.37.0",
             added = listOf(
-                "Away mode in Settings: plan a trip, edit its dates, cancel it or tap I'm back when you return " +
-                    "early. No care reminders are sent on your away days and they resume the day after the last " +
-                    "one, while your plants' due dates stay untouched. A banner on Care shows while you're away, " +
-                    "and for a week before you leave",
-                "Waterings logged while you're away no longer change how often YAPT thinks a plant needs water, " +
-                    "and don't ask \"Why now?\" for them",
-                "A plant-sitter list for your trip: choose how often a sitter should come, water what would run " +
-                    "dry on your last day at home, plan each visit while you're away and share a photo list of the " +
-                    "plants to water (and the ones to leave dry) as a PDF or as text",
-                "Once you're back, Care offers the sitter visits you never confirmed: tick what the sitter " +
-                    "watered (or say the visit didn't happen) and those plants count as watered on the visit day. " +
-                    "Settings lists your trip's visits too and can confirm a planned one at any time",
-                "Hide a plant you still own but don't want to see right now: Hide plant on Edit Plant takes it " +
-                    "out of Care, reminders, the Calendar and your plant list without moving it to the Graveyard. " +
-                    "Find hidden plants again under Settings, Hidden plants, where you can unhide them"
+                "Away mode: plan a trip and YAPT pauses care reminders while you're gone",
+                "Waterings logged while you're away no longer affect how often YAPT thinks a plant needs water",
+                "Plan plant-sitter visits for your trip and share a list of what to water as a PDF or text",
+                "Back from a trip, you can confirm what a sitter watered and it counts as watered",
+                "Hide a plant to take it out of Care, reminders, the Calendar and your list, and unhide it later"
             )
         ),
         ReleaseNotes(
             versionCode = 540,
             versionName = "0.36.0",
             added = listOf(
-                "A new Watering overview in Settings, next to Repotting overview in a new Overviews section, " +
-                    "shows how often every plant needs water: plants grouped by every 1–3, 4–7, 8–14 or 15+ " +
-                    "days, those resting for the winter, and those with no watering schedule, each with its next " +
-                    "watering. Tap a plant to open its Water tab"
+                "A new Watering overview in Settings groups your plants by how often they need water"
             ),
             fixed = listOf(
-                "Selecting several plants on the Plants tab now keeps them selected when you switch rooms, sort or " +
-                    "search. Room chips that hold selected plants show a small dot, Select all adds the visible " +
-                    "plants without dropping the others, and bulk Water, Fertilize, Prune and Repot now log every " +
-                    "selected plant, including the hidden ones"
+                "Selected plants stay selected when you change room, sort or search, and bulk actions include them"
             )
         ),
         ReleaseNotes(
             versionCode = 530,
             versionName = "0.35.0",
             added = listOf(
-                "A plant's detail page now opens on a new Home tab: Water, Reschedule and Fertilize (or Water + " +
-                    "Fertilize) buttons up top, then when it was last watered and fertilized and when each is next " +
-                    "due, then its care history",
-                "A plant's detail page has a new Prune tab behind the arrow, after Repot: log a prune on today or " +
-                    "an earlier date, see how many prunings you've logged and when the last one was, and edit or " +
-                    "delete them"
-            ),
-            changed = listOf(
-                "A plant's full care history now appears only on its Home tab instead of repeating under every " +
-                    "tab, and the Water tab lists just its own waterings (five, then Show more) with edit and " +
-                    "delete. The Water tab no longer has its own misting list — misting entries show in the Home " +
-                    "tab's care history",
-                "On a plant's detail page the Repot tab now sits behind the arrow with Reminders and Issues, so the " +
-                    "first row reads Home, Water, Fertilize, Photo. The arrow shows its attention dot when a repot " +
-                    "is overdue, as it already does for an active issue or an overdue reminder",
-                "The Water + Fertilize button for liquid-fertilizer plants now lives on Home and the Fertilize tab " +
-                    "instead of the Water tab",
-                "A plant's Fertilize button now shows even without a fertilizing reminder, so you can log an " +
-                    "occasional feeding without setting a schedule first",
-                "Misting can no longer be logged — Add Care Log and the plant list's multi-select bar no longer " +
-                    "offer it. Mist entries you already logged stay in your history: you can still see them on a " +
-                    "plant's Home tab, edit or delete them, and they still show on the watering chart",
-                "The + button on a plant's detail page is gone: log care from the plant's tabs instead. Add Care " +
-                    "Log now only edits an existing entry (tap its edit button), showing the entry's type at the " +
-                    "top instead of a row of types, so an edit can't change what kind of entry it is. Notes and " +
-                    "amounts for a new entry can be added by editing it afterwards",
-                "Notes can no longer be logged as their own entry. Notes you already logged stay in your plant's " +
-                    "Home history, where you can still edit or delete them"
+                "A plant's page now opens on a new Home tab, with a new Prune tab for logging prunings"
             ),
             fixed = listOf(
-                "A quick second action on a plant's detail page can no longer silently undo the first — " +
-                    "applying, dismissing or undoing a suggested watering interval, reverting a reschedule, " +
-                    "changing the cover photo, or editing the dormancy window right after another setting " +
-                    "(the pin switch, an interval edit, a watering that cleared a reschedule) used to quietly put " +
-                    "the older value back"
+                "A quick second action on a plant's page no longer silently undoes the first"
+            ),
+            changed = listOf(
+                "Care history now shows once, on a plant's Home tab, and the Water tab lists only its waterings",
+                "A plant's Repot tab now sits behind the arrow with Reminders and Issues",
+                "Fertilize now shows even without a reminder, and Water + Fertilize moved to Home and the Fertilize " +
+                    "tab",
+                "Misting and Notes can no longer be logged, and the ones you already logged stay in your history",
+                "The + button on a plant's page is gone, so log care from its tabs instead"
             )
         ),
         ReleaseNotes(
             versionCode = 510,
             versionName = "0.34.0",
             added = listOf(
-                "Plan a repot for a season — the Repot tab has a new Plan repot button offering the next four " +
-                    "seasons, shows \"Planned: spring 2027\" with Edit and Clear, and reminds you in the Care " +
-                    "tab and the daily notification. The plan is due for the whole season and clears itself when " +
-                    "you log a repot. With the repotting reminder on, Add/Edit Plant also lets you pick which " +
-                    "seasons the recurring repot should land in, so a two-year repot can wait for spring instead " +
-                    "of coming due in the middle of winter",
-                "A new Repotting overview in Settings, right after Plant Graveyard, lists the plants you haven't " +
-                    "repotted in a long time — choose Never, 1+, 2+, or 3+ years (plants you've never repotted " +
-                    "count from the day you added them). Planned repots sit on top, tapping a plant opens its " +
-                    "Repot tab, and long-pressing offers Repot… or Plan repot… right from the list"
+                "Plan a repot for a season from the Repot tab, with reminders on Care and in the daily notification",
+                "A recurring repot can now be limited to the seasons you choose when adding or editing a plant",
+                "A new Repotting overview in Settings lists the plants you haven't repotted in a long time"
             ),
             changed = listOf(
-                "Settings now lives in the bottom bar, next to Care, Plants, and Calendar — the gear icon on the " +
-                    "plant list is gone. While a backup or restore is running, the bar's tabs are disabled until it " +
-                    "finishes"
+                "Settings now has its own tab in the bottom bar, replacing the gear icon on the plant list"
             )
         ),
         ReleaseNotes(
             versionCode = 500,
             versionName = "0.33.0",
             added = listOf(
-                "Search your plants by name or species — tap the search icon on the plant list and the list " +
-                    "narrows as you type, accents and all (\"grun\" finds \"Grünlilie\"). Works alongside room " +
-                    "filters and sorting",
-                "Tapping a plant in the Care tab now opens its details on the matching tab — for example a plant " +
-                    "under Photos opens the Photo tab, and a combined water-and-fertilize entry opens Fertilize",
-                "A new Care tab turns every due care item into one queue, and it is now the first tab and the " +
-                    "screen the app opens on — watering, fertilizing, repotting, custom reminders, issue " +
-                    "treatments, and optional progress photos grouped by type with watering first. The tab " +
-                    "order is now Care, Plants, Calendar",
-                "Care shows each task as a square plant tile, with watering split into Overdue, Today, and " +
-                    "Next 3 days. Tap a section title to collapse it, tap a tile to open the plant, or long-press " +
-                    "a tile for just that task's quick actions — water, reschedule, fertilize, repot, mark done, " +
-                    "or take a photo",
-                "Deleted photos now free up storage instead of leaking forever — a background sweep reclaims a " +
-                    "deleted plant's or gallery photo's file, and a second backup restore's leftover files from the " +
-                    "first, once nothing in the app references them anymore"
+                "A new Care tab, now the first screen, lists everything due in one queue, with watering first",
+                "Care shows each task as a plant tile: tap to open the matching tab, long-press for quick actions",
+                "Search your plants by name or species from the search icon on the plant list",
+                "Deleted photos now free up their storage instead of lingering on your phone"
             ),
             fixed = listOf(
-                "\"Cared for today\" and Calendar's due groupings now refresh right at midnight instead of " +
-                    "showing yesterday's snapshot until something else happened to change",
-                "A photo taken with the camera is no longer silently lost if Android closes the app in the " +
-                    "background while the camera is open",
-                "Moving to a new phone on Android 12+ now carries your plants, history, settings, and photos " +
-                    "over during phone-to-phone transfer, which previously moved nothing. YAPT deliberately " +
-                    "stays out of Google's cloud backup on Android 12+, so use a backup export for an " +
-                    "off-device copy there",
-                "Backdating a forgotten watering in Add Care Log now adjusts the watering schedule from the " +
-                    "watering just before it, instead of from your two most recent waterings",
-                "Due dates could land a day early right after a daylight saving time change; watering, " +
-                    "fertilizing, repotting, custom reminders, and reschedule/skip-watering now always land " +
-                    "on the correct day"
+                "Cared for today and the Calendar now refresh at midnight instead of showing yesterday",
+                "A photo taken with the camera is no longer lost if Android closes the app meanwhile",
+                "Moving to a new phone on Android 12+ now carries over your plants, history, settings and photos",
+                "Backdating a forgotten watering now adjusts the schedule from the watering just before it",
+                "Due dates no longer land a day early right after a daylight saving time change"
             )
         ),
         ReleaseNotes(
             versionCode = 490,
             versionName = "0.32.1",
             fixed = listOf(
-                "Selected filter chips now clearly read as selected across the app — a green fill instead of a " +
-                    "grey-brown (light theme) or grey-purple (dark theme) that made unselected chips look more " +
-                    "\"on\" than selected ones",
-                "Fertilizing season chips now clearly show which seasons are selected — a green fill instead " +
-                    "of a muted grey that looked unselected. The last remaining active season stays " +
-                    "tappable instead of greying out unexplained; tapping it now shows a message explaining that " +
-                    "at least one season must stay active",
-                "Backup exports now include archived plants and their full history (care logs, photos, custom " +
-                    "reminders, issues, watering adjustments) instead of silently dropping them, and restore " +
-                    "keeps them archived. A photo whose source can no longer be opened is now skipped instead of " +
-                    "leaving a broken reference after restore, and the export success message reports how many " +
-                    "photos were skipped",
-                "Backup exports now avoid a rare dangling-photo-reference edge case and count it accurately; " +
-                    "restoring an older or corrupted backup no longer writes a broken photo reference into the " +
-                    "database"
+                "Selected chips, fertilizing seasons included, now clearly look selected, with a green fill",
+                "The last active fertilizing season stays tappable and explains why it can't be turned off",
+                "Backups now include archived plants and their history, and restores no longer leave broken photos"
             )
         ),
         ReleaseNotes(
             versionCode = 480,
             versionName = "0.32.0",
             added = listOf(
-                "Dormant plants can now keep watering fully paused or use a simple 1–12 week " +
-                    "watering schedule. Dormant watering appears in reminders and due dates while " +
-                    "fertilizing stays paused",
-                "Choose which seasons a plant fertilizes in — Spring, Summer, Autumn, Winter, any combination — " +
-                    "at its one existing interval. An inactive season is never due or overdue, and the plant " +
-                    "becomes due again exactly on the first day of its next active season. Seasons follow your " +
-                    "device's hemisphere and default to every season, so existing plants are unchanged; a " +
-                    "configured dormancy window pauses fertilizing reminders on top of this",
-                "Watering, fertilizing, repotting, and dormant watering interval sliders now have −/+ buttons " +
-                    "for exact one-step nudges — a day, week, or month depending on the setting — with a " +
-                    "light haptic tick while dragging"
+                "Dormant plants can keep watering paused or use a simple 1-12 week schedule",
+                "Choose which seasons a plant is fertilized in, from any combination of the four",
+                "Interval sliders now have −/+ buttons for exact one-step nudges"
             ),
             changed = listOf(
-                "A plant's dormancy window now pauses its fertilizing reminders too, not just watering. " +
-                    "While dormant it's left out of the daily fertilizing reminder, grouped under Dormant when " +
-                    "sorting by fertilizing, shows Dormant on its plant card instead of a countdown, and its " +
-                    "fertilizing dates are left off the Calendar; fertilizing picks back up from its normal " +
-                    "schedule afterwards"
+                "A plant's dormancy window now pauses its fertilizing reminders too, not just watering"
             )
         ),
         ReleaseNotes(
             versionCode = 470,
             versionName = "0.31.0",
             added = listOf(
-                "You can now give a plant a dormancy window — the months it rests, set on Add/Edit Plant or " +
-                    "the Water tab's settings. Watering reminders pause during those months, and a watering " +
-                    "that spans the rest period no longer throws off the plant's learned watering rhythm",
-                "Plants inside a dormancy window now show as Dormant on the Plant List and Calendar. " +
-                    "Their watering schedule is suspended, and Why this date? explains that while keeping " +
-                    "their recent watering adjustments visible"
-            ),
-            changed = listOf(
-                "Watering logs now use the same adaptive schedule logic whether you use a quick action or " +
-                    "the full Add Care Log form; this keeps their existing behavior consistent",
-                "Plant Detail has a new look: it's now always the tabbed Water / Fertilize / Repot / Photo / " +
-                    "Custom Reminders / Issues layout, instead of one long scrolling page. The old watering and " +
-                    "fertilizing quick-tap chips are gone, replaced by always-visible Water/Fertilize buttons on " +
-                    "their own tabs — Water still works even for a plant with no set schedule. Custom Reminders " +
-                    "and Issues now live behind their own tabs too; tap the expand arrow (it shows a dot when " +
-                    "something there needs attention) to see all six tabs at once",
-                "Rescheduling a watering is now a single tap on the date you want, with no \"why\" question in " +
-                    "the way — it just moves the due date. The reminder notification's \"Still moist\" button is " +
-                    "gone for the same reason (Watered and Not now are still there); watering itself still asks " +
-                    "why when it's off schedule, and that's still what teaches YAPT your plant's rhythm",
-                "New and existing photos taken inside YAPT now use substantially less app storage. Backup export " +
-                    "can also optimize its copies of photos—including gallery photos—without changing your originals"
+                "Give a plant a dormancy window, the months it rests, and watering reminders pause during them",
+                "Dormant plants now show as Dormant on the Plant List and Calendar"
             ),
             fixed = listOf(
-                "A late watering marked \"Soil was still moist\" in Add Care Log can no longer shorten " +
-                    "a plant's watering interval when its schedule first learns from history or learns again after a reset",
-                "Reschedule watering now shows the date each +N-day choice will set, so you " +
-                    "can see exactly when the next reminder is due",
-                "Retyping a watering suggestion after logging an earlier watering now uses today's season " +
-                    "consistently when saving the new interval",
-                "The suggested-interval dialog no longer pops up just because the season moved on since you " +
-                    "last touched the interval — it now only appears when watering actually taught YAPT " +
-                    "something, so it's no longer wrongly blamed on whichever watering you just logged",
-                "Adaptive watering now keeps small, sub-day schedule refinements and no longer lets seasonal " +
-                    "rounding nudge the underlying interval when a suggested interval is applied — whether " +
-                    "you accept it yourself or YAPT applies it for you",
-                "Fixed a bug where tapping the reminder notification's \"Not now\" button could take several " +
-                    "taps to actually clear an overdue plant, instead of always pushing the due date to at " +
-                    "least tomorrow on the first tap",
-                "Rescheduling watering to a custom date on or before the plant's current watering due date no " +
-                    "longer silently does nothing — that date is no longer offered in the picker",
-                "Rescheduling watering's \"Today\" option is no longer greyed out in cases where tapping it " +
-                    "would actually pull the due date in sooner"
+                "A late watering marked Soil was still moist can no longer shorten a plant's watering interval",
+                "Reschedule watering now shows the date each choice will set",
+                "Reschedule watering no longer offers dates that do nothing, and Today is no longer wrongly greyed out",
+                "The suggested-interval dialog now appears only when a watering actually taught YAPT something",
+                "Applying or retyping a suggested watering interval now saves the interval you expect",
+                "The reminder's Not now button now pushes an overdue plant to at least tomorrow in one tap"
+            ),
+            changed = listOf(
+                "A plant's page is now always the tabbed layout, with always-visible Water and Fertilize buttons",
+                "Custom Reminders and Issues now have their own tabs behind the expand arrow",
+                "Rescheduling watering no longer asks why, and the reminder's Still moist button is gone",
+                "Photos taken in YAPT now use much less storage, and backups can optionally shrink photos too"
             )
         ),
         ReleaseNotes(
             versionCode = 460,
             versionName = "0.30.0",
-            changed = listOf(
-                "The \"Log watering\" date picker now slides up as a bottom sheet instead of popping up as a " +
-                    "centered dialog, matching the style of the other prompts on Plant Detail",
-                "The Repot and Photo tab quick actions on Plant Detail now ask for a date before logging, " +
-                    "instead of logging immediately. Add photo now opens a single sheet with a date field and " +
-                    "both Take photo and Choose from gallery, right on Plant Detail, rather than opening the " +
-                    "full Add Care Log screen (which stays available with its notes field via the + button)"
-            ),
             fixed = listOf(
-                "Fixed a bug where turning on the always-available seasonal watering setting could silently " +
-                    "revert a plant's watering interval to an old, stale value. A one-time fix now runs " +
-                    "automatically to re-sync affected plants' intervals",
-                "Dismissing a suggested watering interval from Calendar or Plant List now shows up in the " +
-                    "\"Why this date?\" sheet's \"Recent adjustments\" list, matching Plant Detail"
+                "Turning on seasonal watering no longer silently reverts a plant's interval to an old value",
+                "Dismissing a suggested interval from Calendar or Plant List now shows up under Why this date?"
+            ),
+            changed = listOf(
+                "The Log watering date picker now slides up as a bottom sheet instead of a centered dialog",
+                "Repot and Photo actions now ask for a date, and Add photo offers camera or gallery in one sheet"
             )
         ),
         ReleaseNotes(
             versionCode = 450,
             versionName = "0.29.0",
             added = listOf(
-                "After you water, YAPT can now remind you 30 minutes after the end of your watering round to " +
-                    "check plant saucers and pour away standing water. It appears in the app while YAPT is open " +
-                    "or as a notification in the background, and can be turned off in Settings → Reminders",
-                "The Repot and Photo tabs on Plant Detail now have their own quick actions — Repot logs " +
-                    "immediately, while Add photo opens the existing log screen with Photo already selected"
-            ),
-            changed = listOf(
-                "Seasonal watering (stretching intervals in winter, compressing them in summer) and its amplitude " +
-                    "picker in Settings are now always on — no more developer-mode flag to turn it on. Existing " +
-                    "unpinned plants without an explicit amplitude choice now default to Standard seasonal " +
-                    "adjustment; use Settings, or a plant's own \"Pin interval\" switch, to opt back out",
-                "The \"Check {plant}\" watering reminder (with Watered, Still moist, and Not now actions) is now " +
-                    "always on — no more developer-mode flag to turn it on"
+                "After you water, YAPT can remind you to check plant saucers and pour away standing water",
+                "The Repot and Photo tabs on a plant's page now have their own quick actions"
             ),
             fixed = listOf(
-                "Fixed three edge cases when backdating a \"Log watering\" entry to before an already-existing " +
-                    "later watering: backfilling an old watering no longer discards an unrelated active " +
-                    "reschedule, the on/off-schedule prompt now compares against the backdated date's own " +
-                    "prior watering instead of your most recent one, and a bootstrap triggered by a backdated " +
-                    "entry no longer shows a briefly stale \"currently every N days\" figure"
+                "Backdating a watering no longer discards an active reschedule or compares against the wrong watering"
+            ),
+            changed = listOf(
+                "Seasonal watering, which stretches intervals in winter and shortens them in summer, is now always on",
+                "Plants that aren't pinned now default to Standard seasonal adjustment, which Settings can change",
+                "The Check reminder for watering, with Watered, Still moist and Not now buttons, is now always on"
             )
         ),
         ReleaseNotes(
             versionCode = 440,
             versionName = "0.28.0",
-            changed = listOf(
-                "Tapping the Water button (or its liquid-fertilizer counterpart) on Plant Detail now always opens " +
-                    "a \"Log watering\" date picker first, pre-selected to today — confirm it as-is for the old " +
-                    "instant-log behavior, or pick an earlier date to backfill a watering you forgot to log",
-                "The confidence-weighted adaptive watering model (interval suggestions that adjust based on your " +
-                    "watering feedback and get calmer once the schedule proves itself) is now always on — no more " +
-                    "developer-mode flag to turn it on"
-            ),
             fixed = listOf(
-                "With seasonal watering on, a plant's \"currently every N days\" figure could briefly show a " +
-                    "stale number right after adaptive watering cold-started its estimate from that plant's " +
-                    "own watering history — it's now converted the same way a suggested-interval apply already was"
+                "A plant's current interval no longer briefly shows a stale number after YAPT learns from its history"
+            ),
+            changed = listOf(
+                "Water on a plant's page now always opens a date picker first, so you can backdate a forgotten " +
+                    "watering",
+                "Watering interval suggestions that learn from your feedback are now always on"
             )
         ),
         ReleaseNotes(
             versionCode = 430,
             versionName = "0.27.1",
             fixed = listOf(
-                "The confusing \"It was dry by then\" answer on the late-watering prompt is now \"Soil was still " +
-                    "moist\" — a late watering can no longer shorten your watering interval, only hold it steady " +
-                    "or lengthen it"
+                "The late-watering prompt now says Soil was still moist, and a late watering can't shorten the interval"
             )
         ),
         ReleaseNotes(
             versionCode = 420,
             versionName = "0.27.0",
             added = listOf(
-                "Plant Detail now shows a \"Rescheduled +N days\" chip when a reschedule is currently pushing " +
-                    "a plant's watering due date out — tap it to revert instantly (with an Undo Snackbar). The " +
-                    "\"Why this date?\" sheet shows a matching read-only row"
+                "A Rescheduled +N days chip on a plant's page shows a pending reschedule and reverts it in one tap"
             ),
             fixed = listOf(
-                "Applying a suggested watering interval (with seasonal watering on and the plant not pinned) " +
-                    "no longer silently drifts the plant's watering interval a little further every time you " +
-                    "apply one — it was writing an internal value instead of the number the app actually " +
-                    "shows you",
-                "Applying a suggested watering interval from the Calendar or Plant List dialogs is now " +
-                    "consistent with Plant Detail — those two had their own separate (and buggy) copy of " +
-                    "this logic"
+                "Applying a suggested watering interval no longer drifts, and works the same on every screen"
+            ),
+            changed = listOf(
+                "A plant's seasonal watering curve preview now shows days, such as 6d, instead of a multiplier"
             )
         ),
         ReleaseNotes(
             versionCode = 400,
             versionName = "0.26.0",
             added = listOf(
-                "A new \"Active issues\" option in the Plant List sort menu narrows the list to only plants " +
-                    "currently flagged with a pest/health issue",
-                "Adaptive watering now resets its learned confidence when you repot a plant or move it to a " +
-                    "different room, and can cold-start its estimate from a plant's own watering history " +
-                    "instead of starting from scratch — both show up in the \"Why this date?\" sheet's " +
-                    "Recent adjustments"
+                "A new Active issues option in the Plant List sort menu shows only plants with a pest or health issue",
+                "Watering suggestions restart after a repot or room move, and can learn from a plant's own history"
             ),
             fixed = listOf(
-                "With both adaptive and seasonal watering on, the \"Water every N days?\" suggestion dialog " +
-                    "(on Plant Detail, Calendar, and Plant List alike) no longer shows a misleadingly large " +
-                    "jump (or pops up at all) when the whole apparent change was just a unit mismatch between " +
-                    "the suggestion's underlying value and the seasonally adjusted current interval"
-            ),
-            changed = listOf(
-                "Plant Detail's seasonal watering curve preview now shows actual days (e.g. \"6d\", \"9d\") " +
-                    "instead of the raw multiplier, based on that plant's watering interval. The Settings " +
-                    "screen's version of the chart is unchanged, since it isn't tied to a specific plant"
+                "The watering interval suggestion no longer shows a misleading jump or pops up when it shouldn't"
             )
         ),
         ReleaseNotes(
             versionCode = 390,
             versionName = "0.25.1",
             fixed = listOf(
-                "\"Soil still moist\" reschedules (in-app or from the notification) now actually clear the " +
-                    "plant's due/overdue status when adaptive watering is on, instead of silently reverting a " +
-                    "moment later"
+                "A Soil still moist reschedule now clears a plant's overdue status instead of reverting a moment later"
             ),
             changed = listOf(
-                "The Water/Reschedule watering row and Fertilize's action button now use the same margins as " +
-                    "every other card on Plant Detail, instead of the wide gaps introduced to avoid overlapping " +
-                    "the pinned Back/Edit/\"Log care\" buttons. Instead, the Edit button now fades out once " +
-                    "you've scrolled past the plant's cover photo, and Back and \"Log care\" stay put"
+                "On a plant's page, the Edit button now fades out after the cover photo and cards use normal margins"
             )
         ),
         ReleaseNotes(
             versionCode = 380,
             versionName = "0.25.0",
             changed = listOf(
-                "Plant Detail's Water and Reschedule watering buttons are now always visible, not just when " +
-                    "watering is due — Reschedule watering had no other way to reach it before this. With the " +
-                    "\"Plant Detail tabs\" flag on, the now-redundant quick-log summary above the tabs is gone; " +
-                    "Fertilize gets its own always-visible action button under its tab instead",
-                "The off-schedule watering reason prompt now words itself for the direction the schedule was " +
-                    "missed — a late watering asks \"Why was it late?\" — \"It was dry by then\" / \"Forgot, or " +
-                    "no time\", naming forgetting outright instead of an abstract excuse. An early watering " +
-                    "still asks \"Why now?\" — \"The plant needed it\" / \"Just my schedule\". What the " +
-                    "adaptive model learns from either answer is unchanged — only the wording",
-                "With the \"Plant Detail tabs\" flag on, the Water/Reschedule watering row (and Fertilize's " +
-                    "action button) now sits above the interval settings on its tab instead of below. Water is " +
-                    "a filled button with a water-drop icon; Reschedule watering is now an icon-only button, " +
-                    "freeing up more width for Water"
+                "Water and Reschedule watering now stay visible on a plant's page even before it is due",
+                "The watering prompt now asks Why was it late? for late waterings and keeps Why now? for early ones"
             )
         ),
         ReleaseNotes(
             versionCode = 370,
             versionName = "0.24.0",
             added = listOf(
-                "\"Why this date?\" watering transparency sheet — see exactly how a plant's next watering date " +
-                    "was worked out (base interval, seasonal adjustment, learned confidence) and a log of the " +
-                    "last few automatic adjustments, from the Water tab's inline settings. A new \"Ask before " +
-                    "changing intervals\" setting lets you apply a suggested interval silently instead of " +
-                    "confirming it every time",
-                "Developer mode now has three more experimental feature flags, off by default: adaptive " +
-                    "watering (a confidence-weighted interval model that learns faster early on and settles " +
-                    "down over time), seasonal watering (stretches/compresses intervals for winter/summer using " +
-                    "your device's timezone, with a per-plant \"Pin interval\" opt-out and a preview chart in " +
-                    "Settings), and Check reminders (a \"Check {plant}\" notification with Watered/Still-moist " +
-                    "actions instead of an instruction to water)"
+                "A Why this date? sheet explains a plant's next watering date and its recent adjustments",
+                "A new Ask before changing intervals setting lets you apply suggestions without confirming each one"
             ),
             changed = listOf(
-                "Plant Detail's watering-due actions are now just Water and Reschedule watering, and ask a " +
-                    "quick reason whenever the action is off schedule (\"The plant needed it\" / \"Just my " +
-                    "timing\" for watering; \"Soil still moist\" / \"I can't right now\" for rescheduling) — " +
-                    "declining to answer records no data. Reschedule watering now offers Today / +1 / +2 / +3 " +
-                    "days / a custom date",
-                "Fertilizing interval slider now goes up to 180 days (was 90), for long-term or slow-release " +
-                    "fertilizers",
-                "With the \"Plant Detail tabs\" flag on, Custom Reminders and Active Issues become their own " +
-                    "tabs behind a collapsible toggle instead of always-visible cards",
-                "Plant Detail's Water and Reschedule watering buttons are now always available, not just when " +
-                    "watering is due — Reschedule had no other way to reach it. With the \"Plant Detail tabs\" " +
-                    "flag on, the quick-log summary above the tabs is gone (now redundant); Fertilize gets its " +
-                    "own always-available button under the Fertilize tab instead, and the \"last watered\"/" +
-                    "\"last fertilized\" text that summary used to show now appears in each tab's insights " +
-                    "card instead. The classic layout is unchanged",
-                "With the \"Plant Detail tabs\" flag on, the Water/Reschedule watering row (and Fertilize's " +
-                    "action button) now sits above the interval settings on its tab instead of below. Water is " +
-                    "a filled green button with a water-drop icon; Reschedule watering is now an icon-only " +
-                    "button, freeing up more width for Water"
+                "A plant's watering actions are now just Water and Reschedule watering, which ask why when off " +
+                    "schedule",
+                "Reschedule watering now offers Today, +1, +2, +3 days or a custom date",
+                "The fertilizing interval slider now goes up to 180 days, for slow-release fertilizers"
             )
         ),
         ReleaseNotes(
             versionCode = 360,
             versionName = "0.23.0",
             added = listOf(
-                "Plant issues — report an ongoing pest or disease problem from a new \"Active issues\" card on " +
-                    "the plant detail screen; it tracks how many days the issue has been going on, and a plant " +
-                    "with an active issue gets a purple badge on its list card. Reporting an issue can " +
-                    "optionally also set up a linked treatment reminder in the same step. Mark an issue resolved " +
-                    "when it clears up, with an optional note on how you fixed it"
+                "Report a plant's pest or health issue, track how long it lasts, and spot it by its purple badge",
+                "Reporting an issue can set up a linked treatment reminder, and resolving it can include a note"
             )
         ),
         ReleaseNotes(
             versionCode = 350,
             versionName = "0.22.0",
             added = listOf(
-                "Custom reminders — every plant now has a \"Custom reminders\" card on its detail screen where you " +
-                    "can add any number of free-text recurring reminders (\"apply neem oil every 7 days\") for " +
-                    "things no built-in care type covers. Mark one done and it writes a journal entry and starts " +
-                    "its next interval; anything overdue or due today joins the daily care notification"
+                "Custom reminders: add recurring free-text reminders to a plant, like applying neem oil every 7 days",
+                "Overdue and due-today custom reminders now join the daily care notification"
             ),
             fixed = listOf(
-                "Watering or fertilizing the same plant twice on one day is no longer possible — a stray " +
-                    "double-tap on a quick-log button now shows an \"Already watered today\" message instead of " +
-                    "adding a duplicate entry. Bulk actions skip the plants already logged and tell you how many",
-                "The \"How was the soil?\" chips in the quick-water sheet can be deselected again by tapping the " +
-                    "selected one, like every other chip group in the app"
+                "Watering or fertilizing a plant twice in one day is no longer possible, including in bulk actions",
+                "The soil-feedback chips in quick-water can be deselected again by tapping the selected one"
             )
         ),
         ReleaseNotes(
             versionCode = 340,
             versionName = "0.21.0",
             added = listOf(
-                "Repotting reminder — give a plant its own repotting interval in months (3–36) on the " +
-                    "Add/Edit Plant screen. A due or overdue repotting joins the daily care notification, and " +
-                    "logging a Repot resets the schedule",
-                "Settings → Reminders: new \"Notify for fertilizing\" toggle. Turn it off and a plant that only " +
-                    "needs fertilizing won't notify you — plants that also need water still get their full " +
-                    "reminder. On by default",
-                "Developer mode — tap the version row in Settings → About five times to unlock a hidden " +
-                    "Developer section with build info, feature flags, and debug actions (reset the What's New " +
-                    "sheet, run the reminder check now, or seed and remove a set of demo plants)",
-                "New Plant Detail layout with per-action tabs (Water · Fertilize · Repot · Photo), inline " +
-                    "schedule editing, and per-tab insights — available as an opt-in \"Plant Detail tabs\" " +
-                    "feature flag under Developer mode"
+                "Set a repotting interval in months for a plant and get reminded when a repot is due",
+                "A new Notify for fertilizing setting lets you skip notifications for plants that only need " +
+                    "fertilizing",
+                "A hidden Developer section in Settings offers debug tools and an optional tabbed plant page"
             ),
             fixed = listOf(
-                "Watering history chart labels and gridlines now follow the app's own Light/Dark theme setting, " +
-                    "so they're no longer white-on-white when the app is set to Light on a dark device",
+                "Watering chart labels are no longer white-on-white when the app is set to Light on a dark device",
                 "Settings messages no longer cut each other off when several appear in quick succession"
             )
         )

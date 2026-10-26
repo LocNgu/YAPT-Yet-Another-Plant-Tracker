@@ -33,8 +33,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   uses internal vocabulary (issue numbers, ADR, base interval, horizon, override). All released entries in
   `WhatsNewContent.all` and `WhatsNewLegacyReleases.kt` were rewritten once by hand to this style: related bullets
   merged, internal-only items dropped, release 0.20.1 (a build-pipeline fix only) removed, every other release kept
-  under its version code and name. `CHANGELOG.md` is unchanged history and stays the detailed record; What's New is
-  no longer a mirror of it. New writing rule in `.claude/rules/whats-new.md`. See product ADR-0072.
+  under its version code and name. Entries were checked against each release's section here: two filed under the
+  wrong release moved, and two that duplicated a later release's entry were dropped. `CHANGELOG.md` is unchanged
+  history and stays the detailed record; What's New is no longer a mirror of it. New writing rule in
+  `.claude/rules/whats-new.md`. See product ADR-0072.
 - CI: `android.yml` now also runs on pushes to `develop`. `setup-gradle` writes its cache only on the default branch, so
   the Gradle cache had never been populated and every job started cold; `develop` runs now write it and PR, release-PR
   and `main` runs restore it. A newer `develop` merge cancels the older run. `org.gradle.caching` is on, and `Test` tasks
