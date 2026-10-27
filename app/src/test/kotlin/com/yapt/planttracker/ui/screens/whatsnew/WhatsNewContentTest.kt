@@ -28,7 +28,8 @@ class WhatsNewContentTest {
         val violations = allEntries().filter { shapeViolation(it.text) != null }
 
         assertTrue(
-            "What's New entries must be one non-blank, trimmed, single-line sentence:\n" +
+            "What's New entries must be one non-blank, trimmed, single-line sentence " +
+                "(an abbreviation such as 'e.g. ' also reads as a second sentence; rephrase it):\n" +
                 violations.joinToString("\n") { "  ${it.where()} (${shapeViolation(it.text)}): ${it.text}" },
             violations.isEmpty()
         )
@@ -76,9 +77,10 @@ class WhatsNewContentTest {
     fun denylistCatchesInternalVocabularyCaseInsensitively() {
         assertEquals(null, denylistHit("Away mode pauses care reminders while you're gone"))
         assertEquals("#\\d+", denylistHit("Fixes the sheet (#958)"))
-        assertEquals("ADR", denylistHit("See product adr-0072"))
+        assertEquals("\\bADR\\b", denylistHit("See product adr-0072"))
         assertEquals("base interval", denylistHit("Shows the Base Interval next to it"))
-        assertEquals("horizon", denylistHit("A wider Horizon for sitters"))
+        assertEquals("\\bhorizon\\b", denylistHit("A wider Horizon for sitters"))
+        assertEquals(null, denylistHit("Plant photos from Madrid now scroll horizontally"))
         assertEquals("override", denylistHit("Clears the due-date OVERRIDE"))
     }
 
@@ -108,6 +110,6 @@ class WhatsNewContentTest {
 
     private companion object {
         const val MAX_ENTRY_LENGTH = 120
-        val DENYLIST = listOf("#\\d+", "ADR", "base interval", "horizon", "override")
+        val DENYLIST = listOf("#\\d+", "\\bADR\\b", "base interval", "\\bhorizon\\b", "override")
     }
 }

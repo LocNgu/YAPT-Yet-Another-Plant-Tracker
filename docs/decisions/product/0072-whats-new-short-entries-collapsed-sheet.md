@@ -8,7 +8,7 @@
 
 The What's New sheet renders every release since the first one, fully expanded, in one scrolling list (product
 ADR-0010, superseded by product ADR-0032, which kept that behaviour and added the `unreleased` tier). On `develop`
-that was 49 releases and roughly 6,000 words. Nobody reads it, and the per-entry detail is the main reason:
+that was 48 releases and roughly 6,000 words. Nobody reads it, and the per-entry detail is the main reason:
 
 - `WhatsNewContent.kt` held 103 entries averaging about 42 words each, the longest 92 words. Half of them ran over
   40 words.
@@ -79,7 +79,7 @@ superseded.
 
 ## Consequences
 
-- The sheet opens short: one expanded release plus about 48 collapsed header rows. A user who wants an old release
+- The sheet opens short: one expanded release plus about 46 collapsed header rows. A user who wants an old release
   taps its header; there is no "since you last opened" filter, no "Show all" button and no cap on the number of
   releases.
 - Each PR with a user-visible change now writes two texts, a detailed `CHANGELOG.md` bullet and a short What's New

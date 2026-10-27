@@ -47,10 +47,10 @@ edit/cancel/I'm-back mechanics and the banner timing spelled out in one 300-char
 
 `WhatsNewContentTest` runs over `listOf(WhatsNewContent.unreleased) + WhatsNewContent.all` (and `all` already ends
 with the legacy releases). It fails on: length over 120 (`MAX_ENTRY_LENGTH`), blank / untrimmed / multi-line, a second
-sentence (`". "`), a denylist hit (`#\d+`, `ADR`, `base interval`, `horizon`, `override`, case-insensitive), a release
-with no entries, duplicate `versionCode`s. The failure message names the version, section and text; rephrase the
-entry, do not allow-list it. `topEntryMatchesCurrentVersionName` is unchanged. The `unreleased` sentinel passes every
-check trivially.
+sentence (`". "`), a denylist hit (`#\d+`, whole-word `ADR`, `base interval`, whole-word `horizon`, `override`,
+case-insensitive), a release with no entries, duplicate `versionCode`s. An abbreviation such as "e.g. " also trips the
+one-sentence check. The failure message names the version, section and text; rephrase the entry, do not allow-list
+it. `topEntryMatchesCurrentVersionName` is unchanged. The `unreleased` sentinel passes every check trivially.
 
 ## Sheet behaviour
 

@@ -229,7 +229,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         fixed = listOf(
             "Plants past their due date now show Overdue, and Due today stays correct throughout the day",
             "Care-type chips no longer say next: when care is already overdue",
-            "Watering interval suggestions based on Still wet, Just right and Too dry are more accurate",
+            "Watering interval suggestions based on your feedback are now more accurate",
             "The keyboard no longer covers the Notes field when editing a plant or care log"
         )
     ),
@@ -271,7 +271,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
             "Plant library: add, edit and delete plants with a cover photo",
             "Care logging for Water, Fertilize, Prune, Mist, Repot, Note and Photo, with custom dates and editable " +
                 "history",
-            "Adaptive watering interval: suggestions based on Still wet, Just right and Too dry feedback",
+            "Adaptive watering interval: suggestions based on your feedback after each watering",
             "Daily care reminders at a time you choose in Settings",
             "Local backup and restore by exporting and importing a .yapt archive"
         )
