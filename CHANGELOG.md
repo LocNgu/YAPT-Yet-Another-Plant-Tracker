@@ -23,6 +23,25 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   backup change. See product ADR-0071.
 
 ### Changed
+- **What's New is shorter and folds older releases away** (#958) — the sheet now opens with only the newest release
+  expanded (after an update that skipped releases, the auto-shown sheet opens every release newer than the stored
+  `LAST_SEEN_VERSION_CODE` instead, so nothing skipped is hidden; a fresh install and Settings open only the newest);
+  every other release shows just its version header, and tapping it expands the entries (any header,
+  including the newest, toggles; several can be open at once). The open set is per sheet-open and never persisted, so
+  each open starts fresh, and a collapsed release composes none of its content. The header is
+  a button row with heading semantics, an Expanded / Collapsed state description and an Expand / Collapse click
+  label, like Care's section headers. Every entry is now one plain-language sentence (aim ~100 characters), and
+  `WhatsNewContentTest` fails any entry over 120 characters, any multi-sentence or multi-line entry, and any entry that
+  uses internal vocabulary (issue numbers, ADR, base interval, horizon, override). All released entries in
+  `WhatsNewContent.all` and `WhatsNewLegacyReleases.kt` were rewritten once by hand to this style: related bullets
+  merged, internal-only items dropped, release 0.20.1 (a build-pipeline fix only) removed, every other release kept
+  under its version code and name. On-screen labels are now quoted ("Not now", "Soil was still moist"), component
+  jargon ("chip", "bulk actions", "tabbed layout") replaced with what the user sees, and four layout-polish or
+  developer-only entries dropped (0.25.1's margins, 0.21.0's Developer section, 0.12.1's dialog-button width, 0.7.1's
+  temp-file clean-up). Entries were checked against each release's section here: two filed under the
+  wrong release moved, and two that duplicated a later release's entry were dropped. `CHANGELOG.md` is unchanged
+  history and stays the detailed record; What's New is no longer a mirror of it. New writing rule in
+  `.claude/rules/whats-new.md`. See product ADR-0072.
 - CI: `android.yml` now also runs on pushes to `develop`. `setup-gradle` writes its cache only on the default branch, so
   the Gradle cache had never been populated and every job started cold; `develop` runs now write it and PR, release-PR
   and `main` runs restore it. A newer `develop` merge cancels the older run. `org.gradle.caching` is on, and `Test` tasks

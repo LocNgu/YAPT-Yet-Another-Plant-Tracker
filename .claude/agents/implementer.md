@@ -142,7 +142,8 @@ NEXT: human | reason: issue is larger than one PR — proposing a sub-task split
      feature detail, issue/review history, or test minutiae there.
    - `CHANGELOG.md` `[Unreleased]`.
    - `WhatsNewContent.kt` — append to `WhatsNewContent.unreleased` (never `all`), for a user-visible
-     change.
+     change. Write one short plain-language sentence per change (about 100 characters; CI fails above 120),
+     not a copy of the `CHANGELOG.md` bullet — follow `.claude/rules/whats-new.md`.
    - `chore:`/docs-only PRs may omit the `CHANGELOG.md` and What's New entries.
 2. **Write an ADR if this PR records a significant new design decision.** If the change makes a product or technical decision that would shape how a future implementer approaches the same area — a new default, a chosen framework/pattern, a non-obvious behavioural rule — create a new ADR rather than burying it in `CLAUDE.md` prose or the PR body:
    - Copy `docs/decisions/template.md` into `docs/decisions/product/` (product/UX decisions) or `docs/decisions/technical/` (implementation/framework constraints).
