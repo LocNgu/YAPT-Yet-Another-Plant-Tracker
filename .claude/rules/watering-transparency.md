@@ -48,6 +48,7 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
   - `DIALOG_DISMISSAL` and `DIALOG_EDIT` come from the suggestion dialog.
   - `MANUAL_EDIT` comes from `AddEditPlantViewModel.saveEdit()` and `PlantDetailViewModel.setWateringInterval()`.
   - `REPOT_RESET`/`ROOM_CHANGE_RESET` are lifecycle resets that change confidence only (`before == after`).
+  - `PROPAGATE_CONFIDENCE_DROP` is a new PROPAGATE log lowering confidence by 2 (`before == after`; `rules/care-logging.md`). Written only when the confidence changed.
   - `HISTORY_BOOTSTRAP` is the one-time cold start from watering history.
   - `CHECK_STILL_MOIST` is **historical only** (product ADR-0039). It is never written now, but old rows still render read-only in Recent adjustments.
 - `getRecentForPlant(plantId, limit)` is `ORDER BY triggeredAt DESC LIMIT :limit`; Plant Detail uses `RECENT_ADJUSTMENTS_LIMIT = 5`.

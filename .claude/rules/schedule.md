@@ -59,6 +59,7 @@ The only watering-suggestion path; the old ±1-day nudge and the `ADAPTIVE_WATER
 - **Confidence (`Plant.wateringConfidence: Int?`, 0–5, null = never adapted):**
   - It rises only on gap agreement (within `GAP_AGREEMENT_TOLERANCE` = 15% of base) or a dialog dismissal (capped at `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowered by it).
   - It drops by 2 (floor 0) when `correctionStreak()` ≥ 2 in one direction.
+  - It also drops by 2 (floor 0, `null` stays `null`) once, when a PROPAGATE log is created (#960, product ADR-0072); see `rules/care-logging.md`.
   - The first observation bootstraps it to 0 but still corrects `base`.
   - `correctionStreak()` is derived from `getRecentWaterings(limit = 3)` and never cached in a column, so edits and deletes take effect.
 - **Manual edits:** an Add/Edit interval change resets confidence to 0. Editing the number inside the dialog applies the normal rules within tolerance, and −2 outside it. The dialog's Dismiss button and `onDismissRequest` go to `dismissSuggestedInterval()`.

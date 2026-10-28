@@ -1,6 +1,6 @@
 # Technical ADR-0021: Multiplicative + confidence-weighted watering interval adaptation
 
-**Status**: accepted — whole-day-granularity clause amended by [ADR-0027](0027-preserve-fractional-adaptive-watering-state.md)
+**Status**: accepted — whole-day-granularity clause amended by [ADR-0027](0027-preserve-fractional-adaptive-watering-state.md); confidence-fall conditions amended by [product ADR-0072](../product/0072-propagate-care-type-and-plant-families.md)
 
 **Date**: 2026-08-19
 

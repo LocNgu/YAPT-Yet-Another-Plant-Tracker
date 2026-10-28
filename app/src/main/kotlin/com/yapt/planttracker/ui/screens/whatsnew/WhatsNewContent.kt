@@ -19,7 +19,10 @@ object WhatsNewContent {
         added = listOf(
             "Care now has a \"Watered today\" section: the plants you have watered today as a row of round photos " +
                 "with a check mark, so you can see today's watering is done. Tap a photo to open the plant, or " +
-                "\"+N\" to show them all. When nothing is due today, Care says so"
+                "\"+N\" to show them all. When nothing is due today, Care says so",
+            "New Propagate tab on a plant's page: log cuttings, divisions and offsets, then add the new plant " +
+                "right away or link one you already have. A Family card shows where a plant came from and what " +
+                "it has produced. Propagating makes the watering schedule re-learn a little faster"
         )
     )
 
