@@ -291,6 +291,7 @@
     <string name="care_log_photo_label_required">Photo</string>
     <string name="care_log_error_already_watered">This plant already has a watering logged for this day.</string>
     <string name="care_log_error_already_fertilized">This plant already has a fertilizing logged for this day.</string>
+    <string name="care_log_error_already_propagated">This plant already has a propagation logged for this day.</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
     <!-- Custom reminders card (#232) -->
@@ -391,6 +392,38 @@
     <string name="repot_plan_next_due">Next repot due %1$s</string>
     <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Propagate tab and plant families (#960, product ADR-0072) -->
+    <string name="plant_detail_tab_propagate">Propagate</string>
+    <string name="plant_detail_tab_propagate_empty">No propagations logged yet.</string>
+    <string name="propagate_action">Propagate</string>
+    <string name="quick_log_propagated">Propagated %s</string>
+    <string name="insight_propagations">Propagations</string>
+    <string name="insight_last_propagated">Last propagated</string>
+    <string name="propagate_offer_title">Add the new plant?</string>
+    <string name="propagate_offer_message">Link a plant to %s as a child, so the family stays together.</string>
+    <string name="propagate_offer_new">New plant</string>
+    <string name="propagate_offer_existing">Existing plant</string>
+    <string name="propagate_offer_not_now">Not now</string>
+    <string name="propagate_child_name">%s (cutting)</string>
+    <string name="add_plant_propagated_from">Propagated from %s</string>
+    <string name="family_title">Family</string>
+    <string name="family_propagated_from">Propagated from</string>
+    <string name="family_link_parent">Link parent…</string>
+    <string name="family_children">Children</string>
+    <string name="family_no_children">No children yet</string>
+    <string name="family_link_existing">Link existing plant…</string>
+    <string name="family_add_new">Add new plant</string>
+    <string name="family_unlink">Unlink</string>
+    <string name="family_row_actions_label">Show family actions</string>
+    <string name="family_relative_archived">%s, archived</string>
+    <string name="family_relative_hidden">%s, hidden</string>
+    <string name="family_picker_title_parent">Link parent</string>
+    <string name="family_picker_title_child">Link existing plant</string>
+    <string name="family_picker_search">Search plants</string>
+    <string name="family_picker_empty">No plants to link</string>
+    <string name="family_picker_no_match">No plants match your search</string>
+    <string name="family_picker_currently_from">Currently from %s</string>
+    <string name="family_link_refused">That link isn\'t possible: a plant can\'t descend from itself.</string>
     <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
     <string name="plant_detail_tab_issues">Issues</string>

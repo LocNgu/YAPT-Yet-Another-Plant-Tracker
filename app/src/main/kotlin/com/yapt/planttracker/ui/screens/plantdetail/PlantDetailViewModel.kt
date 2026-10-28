@@ -41,6 +41,7 @@ import com.yapt.planttracker.ui.components.TimeRange
 import com.yapt.planttracker.util.dayChangeTicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -51,8 +52,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -141,6 +147,21 @@ class PlantDetailViewModel(
 
     val plant: StateFlow<Plant?> = plantRepository.getPlantById(plantId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** The plant this one was propagated from, archived or hidden included (#960); `null` when there is none. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val parentPlant: StateFlow<Plant?> = plant
+        .map { it?.propagatedFromId }
+        .distinctUntilChanged()
+        .flatMapLatest { parentId -> if (parentId == null) flowOf(null) else plantRepository.getPlantById(parentId) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /**
+     * Direct children of this plant, archived and hidden ones included (#960), by name. The repository call
+     * is deferred into the flow so nothing reaches it until the Propagate tab actually subscribes.
+     */
+    val childPlants: StateFlow<List<Plant>> = flow { emitAll(plantRepository.getChildren(plantId)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * Today's effective watering interval for the hero line and the Water-tab card (#927, product
@@ -619,6 +640,12 @@ class PlantDetailViewModel(
          * write sharing it.
          */
         object FertilizingSeasonToggleRejected : Event()
+
+        /** A PROPAGATE log was just saved: the screen offers to add or link the new plant (#960). */
+        object PropagateLogged : Event()
+
+        /** The repository refused a family link (self, missing plant or cycle, #960). */
+        object FamilyLinkRefused : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */
@@ -627,6 +654,8 @@ class PlantDetailViewModel(
         data class Fertilized(val plantName: String) : QuickLogMessage()
         data class Repotted(val plantName: String) : QuickLogMessage()
         data class Pruned(val plantName: String) : QuickLogMessage()
+        data class Propagated(val plantName: String) : QuickLogMessage()
+        data class AlreadyPropagatedToday(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()

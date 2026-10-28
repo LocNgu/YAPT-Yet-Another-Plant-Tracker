@@ -107,9 +107,9 @@ class AddCareLogViewModel(
         }
     }
 
-    /** Sets [duplicateLogError] and returns true if [careType]/[loggedAt] is a same-day WATER/FERTILIZE duplicate. */
+    /** Sets [duplicateLogError] and returns true if [careType]/[loggedAt] is a same-day WATER/FERTILIZE/PROPAGATE duplicate. */
     private suspend fun isDuplicateLog(): Boolean {
-        if (careType != CareType.WATER && careType != CareType.FERTILIZE) return false
+        if (careType !in DUPLICATE_GUARDED_TYPES) return false
         val isDuplicate = careLogRepository.hasLogOfTypeOnDay(plantId, careType, loggedAt, careLogId)
         if (isDuplicate) duplicateLogError = duplicateErrorRes(careType)
         return isDuplicate
@@ -146,7 +146,12 @@ class AddCareLogViewModel(
     private fun duplicateErrorRes(careType: CareType): Int = when (careType) {
         CareType.WATER -> R.string.care_log_error_already_watered
         CareType.FERTILIZE -> R.string.care_log_error_already_fertilized
+        CareType.PROPAGATE -> R.string.care_log_error_already_propagated
         else -> error("No duplicate guard defined for $careType")
+    }
+
+    private companion object {
+        val DUPLICATE_GUARDED_TYPES = setOf(CareType.WATER, CareType.FERTILIZE, CareType.PROPAGATE)
     }
 
     sealed class Event {

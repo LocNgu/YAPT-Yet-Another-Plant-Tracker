@@ -9,7 +9,8 @@ package com.yapt.planttracker.data.backup
 internal fun sanitizePropagatedLinks(plantIds: Set<Long>, rawLinks: Map<Long, Long?>): Map<Long, Long> {
     val candidates = mutableMapOf<Long, Long>()
     for ((child, parent) in rawLinks) {
-        if (parent != null && child in plantIds && parent in plantIds && parent != child) candidates[child] = parent
+        val validParent = parent?.takeIf { it in plantIds && it != child }
+        if (child in plantIds && validParent != null) candidates[child] = validParent
     }
     return candidates.filter { (child, _) -> !isOnCycle(child, candidates) }
 }

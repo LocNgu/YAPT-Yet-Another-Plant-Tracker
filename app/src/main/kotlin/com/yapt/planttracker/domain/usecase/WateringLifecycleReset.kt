@@ -50,9 +50,9 @@ object WateringLifecycleReset {
         wateringAdjustmentRepository: WateringAdjustmentRepository?,
         now: Long = System.currentTimeMillis()
     ): Boolean {
-        val before = plant.wateringConfidence ?: return false
-        val after = maxOf(before - PROPAGATE_CONFIDENCE_PENALTY, 0)
-        if (after == before) return false
+        val before = plant.wateringConfidence
+        val after = before?.let { maxOf(it - PROPAGATE_CONFIDENCE_PENALTY, 0) }
+        if (after == null || after == before) return false
         plantRepository.updateWateringConfidence(plant.id, after, now)
         val interval = currentIntervalOrZero(plant)
         wateringAdjustmentRepository?.addAdjustment(

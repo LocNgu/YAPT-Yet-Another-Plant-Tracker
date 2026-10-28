@@ -238,6 +238,14 @@ fun AddEditPlantScreen(
                 }
             }
 
+            viewModel.propagatedFromName?.let { parentName ->
+                Text(
+                    text = stringResource(R.string.add_plant_propagated_from, parentName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             OutlinedTextField(
                 value = viewModel.name,
                 onValueChange = { viewModel.name = it },
