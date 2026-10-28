@@ -41,7 +41,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
-        hiddenAt = hiddenAt
+        hiddenAt = hiddenAt,
+        propagatedFromId = propagatedFromId
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -69,7 +70,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
-        hiddenAt = hiddenAt
+        hiddenAt = hiddenAt,
+        propagatedFromId = propagatedFromId
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -121,7 +123,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = 1_804_032_000_000L,
         repotPlanMadeAt = 1_790_000_000_000L,
         repottingSeasons = "SPRING,AUTUMN",
-        hiddenAt = 1_694_000_000_000L
+        hiddenAt = 1_694_000_000_000L,
+        propagatedFromId = 7L
     )
 
     private val fullLog = CareLogEntity(
@@ -165,6 +168,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.repotPlanMadeAt, bp.repotPlanMadeAt)
         assertEquals(fullPlant.repottingSeasons, bp.repottingSeasons)
         assertEquals(fullPlant.hiddenAt, bp.hiddenAt)
+        assertEquals(fullPlant.propagatedFromId, bp.propagatedFromId)
     }
 
     @Test

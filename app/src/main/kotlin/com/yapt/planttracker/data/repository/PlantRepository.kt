@@ -87,6 +87,34 @@ class PlantRepository(
     suspend fun clearRepotPlan(id: Long, updatedAt: Long) =
         plantDao.updateRepotPlan(id, null, null, updatedAt)
 
+    /** Column-specific update — see [PlantDao.updateWateringConfidence]'s doc for why this exists. */
+    suspend fun updateWateringConfidence(id: Long, confidence: Int?, updatedAt: Long) =
+        plantDao.updateWateringConfidence(id, confidence, updatedAt)
+
+    /** Direct children of [parentId] — archived and hidden ones included — by name (#960). */
+    fun getChildren(parentId: Long): Flow<List<Plant>> =
+        plantDao.getChildren(parentId).map { list -> list.map { it.toDomain() } }
+
+    /** Every plant, archived and hidden included — the family picker's candidate source (#960). */
+    fun getAllPlantsIncludingArchived(): Flow<List<Plant>> =
+        plantDao.getAllPlantsIncludingArchived().map { list -> list.map { it.toDomain() } }
+
+    suspend fun getDescendantIds(id: Long): Set<Long> = plantDao.getDescendantIds(id).toSet()
+
+    suspend fun getAncestorIds(id: Long): Set<Long> = plantDao.getAncestorIds(id).toSet()
+
+    /**
+     * Links [childId] under [parentId] (#960, product ADR-0072). Returns `false` — and changes nothing —
+     * when that would make a plant its own parent, point at a missing plant, or create a cycle; the check
+     * runs inside the same statement as the write ([PlantDao.linkToParent]), so the picker's exclusions
+     * are a convenience, not the guarantee.
+     */
+    suspend fun linkParent(childId: Long, parentId: Long): Boolean =
+        plantDao.linkToParent(childId, parentId) > 0
+
+    /** Clears [childId]'s parent link (#960); the former parent and the child both stay. */
+    suspend fun unlinkParent(childId: Long) = plantDao.setPropagatedFrom(childId, null)
+
     /** Archives every id in a single atomic statement (bulk graveyard action, #448). */
     suspend fun archivePlants(ids: List<Long>, timestamp: Long = System.currentTimeMillis()) =
         plantDao.archivePlants(ids, timestamp)
@@ -131,7 +159,8 @@ private fun PlantEntity.toDomain() = Plant(
     repotPlanSeasonStartAt = repotPlanSeasonStartAt,
     repotPlanMadeAt = repotPlanMadeAt,
     repottingSeasons = SeasonalFertilizing.decode(repottingSeasons),
-    hiddenAt = hiddenAt
+    hiddenAt = hiddenAt,
+    propagatedFromId = propagatedFromId
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -161,5 +190,6 @@ private fun Plant.toEntity() = PlantEntity(
     repotPlanSeasonStartAt = repotPlanSeasonStartAt,
     repotPlanMadeAt = repotPlanMadeAt,
     repottingSeasons = SeasonalFertilizing.encode(repottingSeasons),
-    hiddenAt = hiddenAt
+    hiddenAt = hiddenAt,
+    propagatedFromId = propagatedFromId
 )

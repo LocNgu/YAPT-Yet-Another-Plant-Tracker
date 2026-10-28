@@ -90,7 +90,13 @@ data class Plant(
      * reminders, Calendar, overviews, away-mode lists (#915, product ADR-0066). `null` = visible. Unlike
      * [archivedAt] it says nothing about the plant's life; it is cleared when the plant is archived.
      */
-    val hiddenAt: Long? = null
+    val hiddenAt: Long? = null,
+    /**
+     * The parent this plant was propagated from (#960, product ADR-0072); `null` = no recorded parent.
+     * Never edited through Add/Edit Plant — it is carried over by `saveEdit()` and changed only from the
+     * Propagate tab's Family card. Deleting the parent resets it to `null` (`ON DELETE SET NULL`).
+     */
+    val propagatedFromId: Long? = null
 ) {
     /** `true` when the plant belongs on operational surfaces: neither archived nor hidden (#915). */
     val isVisible: Boolean get() = archivedAt == null && hiddenAt == null

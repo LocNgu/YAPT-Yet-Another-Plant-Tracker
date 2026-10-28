@@ -427,4 +427,90 @@ class PlantDaoTest {
         dao.restorePlants(listOf(single, bulkA, bulkB))
         assertEquals(listOf("BulkA", "BulkB", "Single"), dao.getAllPlants().first().map { it.name })
     }
+
+    @Test
+    fun `updateWateringConfidence writes only the confidence and updatedAt`() = runTest {
+        val id = dao.insertPlant(plant(name = "Fern").copy(wateringConfidence = 4, pinIntervalToBase = true))
+
+        dao.updateWateringConfidence(id, 2, 5_000L)
+
+        val saved = dao.getPlantById(id).first()!!
+        assertEquals(2, saved.wateringConfidence)
+        assertEquals(5_000L, saved.updatedAt)
+        assertEquals(true, saved.pinIntervalToBase)
+    }
+
+    @Test
+    fun `linkToParent sets the parent and getChildren lists children including archived and hidden`() = runTest {
+        val parent = dao.insertPlant(plant(name = "Mother"))
+        val visible = dao.insertPlant(plant(name = "B child"))
+        val archived = dao.insertPlant(plant(name = "A child"))
+        val hidden = dao.insertPlant(plant(name = "C child"))
+        dao.archivePlant(archived, 3_000L)
+        dao.updateHiddenAt(hidden, 4_000L)
+
+        listOf(visible, archived, hidden).forEach { assertEquals(1, dao.linkToParent(it, parent)) }
+
+        assertEquals(listOf("A child", "B child", "C child"), dao.getChildren(parent).first().map { it.name })
+        assertEquals(parent, dao.getPlantById(visible).first()!!.propagatedFromId)
+        assertEquals(1_000_000L, dao.getPlantById(visible).first()!!.updatedAt)
+    }
+
+    @Test
+    fun `linkToParent refuses a self link, a missing parent and every cycle`() = runTest {
+        val a = dao.insertPlant(plant(name = "A"))
+        val b = dao.insertPlant(plant(name = "B"))
+        val c = dao.insertPlant(plant(name = "C"))
+        assertEquals(1, dao.linkToParent(b, a))
+        assertEquals(1, dao.linkToParent(c, b))
+
+        assertEquals(0, dao.linkToParent(a, a))
+        assertEquals(0, dao.linkToParent(a, 999L))
+        assertEquals("a parent under its own child", 0, dao.linkToParent(a, b))
+        assertEquals("a parent under its own grandchild", 0, dao.linkToParent(a, c))
+
+        assertNull(dao.getPlantById(a).first()!!.propagatedFromId)
+        assertEquals(setOf(b, c), dao.getDescendantIds(a).toSet())
+        assertEquals(setOf(a, b), dao.getAncestorIds(c).toSet())
+        assertTrue(dao.getAncestorIds(a).isEmpty())
+    }
+
+    @Test
+    fun `linkToParent re-parents a plant that already has a different parent`() = runTest {
+        val first = dao.insertPlant(plant(name = "First"))
+        val second = dao.insertPlant(plant(name = "Second"))
+        val child = dao.insertPlant(plant(name = "Child"))
+        dao.linkToParent(child, first)
+
+        assertEquals(1, dao.linkToParent(child, second))
+
+        assertEquals(second, dao.getPlantById(child).first()!!.propagatedFromId)
+        assertTrue(dao.getChildren(first).first().isEmpty())
+    }
+
+    @Test
+    fun `setPropagatedFrom null unlinks and leaves both plants`() = runTest {
+        val parent = dao.insertPlant(plant(name = "Mother"))
+        val child = dao.insertPlant(plant(name = "Child"))
+        dao.linkToParent(child, parent)
+
+        dao.setPropagatedFrom(child, null)
+
+        assertNull(dao.getPlantById(child).first()!!.propagatedFromId)
+        assertEquals(2, dao.getAllPlantsIncludingArchived().first().size)
+    }
+
+    @Test
+    fun `deleting a parent nulls its children's link and keeps the children`() = runTest {
+        val parent = dao.insertPlant(plant(name = "Mother"))
+        val child = dao.insertPlant(plant(name = "Child"))
+        val grandchild = dao.insertPlant(plant(name = "Grandchild"))
+        dao.linkToParent(child, parent)
+        dao.linkToParent(grandchild, child)
+
+        dao.deletePlant(dao.getPlantById(parent).first()!!)
+
+        assertNull(dao.getPlantById(child).first()!!.propagatedFromId)
+        assertEquals(child, dao.getPlantById(grandchild).first()!!.propagatedFromId)
+    }
 }

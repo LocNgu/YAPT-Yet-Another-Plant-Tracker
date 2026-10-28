@@ -1052,6 +1052,54 @@ class BackupManagerTest {
     }
 
     @Test
+    fun plantFamily_roundTrip_restoresLinksAndPropagateLogs() = runBlocking {
+        fun plant(id: Long, name: String) = PlantEntity(
+            id = id,
+            name = name,
+            species = null,
+            room = null,
+            coverPhotoUri = null,
+            notes = null,
+            wateringIntervalDays = null,
+            fertilizingIntervalDays = null,
+            createdAt = 1000L,
+            updatedAt = 1000L
+        )
+        db.plantDao().insertPlant(plant(1L, "Mother"))
+        db.plantDao().insertPlant(plant(2L, "Cutting"))
+        db.plantDao().insertPlant(plant(3L, "Grandcutting"))
+        db.plantDao().linkToParent(2L, 1L)
+        db.plantDao().linkToParent(3L, 2L)
+        db.careLogDao().insertLog(
+            CareLogEntity(
+                plantId = 1L,
+                careType = "PROPAGATE",
+                loggedAt = 5000L,
+                notes = null,
+                photoUri = null,
+                amount = null,
+                wateringFeedback = null
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("family_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        assertTrue(backupManager.exportBackup(exportUri, includePhotos = false) is BackupResult.ExportSuccess)
+
+        val importResult = backupManager.importBackup(exportUri)
+        assertTrue("Expected ImportSuccess", importResult is BackupResult.ImportSuccess)
+
+        val byName = db.plantDao().getAllPlants().first().associateBy { it.name }
+        assertNull(byName.getValue("Mother").propagatedFromId)
+        assertEquals(1L, byName.getValue("Cutting").propagatedFromId)
+        assertEquals(2L, byName.getValue("Grandcutting").propagatedFromId)
+        assertEquals(
+            listOf("PROPAGATE"),
+            db.careLogDao().getAllLogs().first().map { it.careType }
+        )
+    }
+
+    @Test
     fun unreadablePhoto_isSkippedWithoutDanglingUri() = runBlocking {
         val plant = PlantEntity(
             id = 1L,
