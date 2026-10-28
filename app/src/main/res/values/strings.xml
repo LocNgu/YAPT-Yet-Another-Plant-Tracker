@@ -164,6 +164,7 @@
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
     <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
+    <string name="quick_log_already_propagated">Already logged a propagation for %s that day</string>
     <string name="care_history_show_less">Show less</string>
     <plurals name="care_history_show_more">
         <item quantity="one">Show 1 more</item>
@@ -471,6 +472,7 @@
     <string name="care_type_photo">Photo</string>
     <string name="care_type_custom">Custom care</string>
     <string name="care_type_check">Checked</string>
+    <string name="care_type_propagated">Propagated</string>
     <string name="feedback_still_wet">Still wet</string>
     <string name="feedback_just_right">Just right</string>
     <string name="feedback_too_dry">Too dry</string>
@@ -811,6 +813,7 @@
     <string name="adjustment_trigger_dormancy_excluded">dormant — not counted</string>
     <string name="adjustment_trigger_dormancy_exit">left dormancy</string>
     <string name="adjustment_trigger_away_excluded">away — not counted</string>
+    <string name="adjustment_trigger_propagate_confidence_drop">propagated — relearning faster</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

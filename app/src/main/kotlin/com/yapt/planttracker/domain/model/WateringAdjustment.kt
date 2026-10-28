@@ -133,5 +133,14 @@ enum class WateringAdjustmentTrigger {
      * equal. Precedence: [DORMANCY_EXCLUDED] > this > [FROZEN_POST_REPOT]. There is never an exit
      * decrement for it. Appended last, so no stored ordinal moves.
      */
-    AWAY_EXCLUDED
+    AWAY_EXCLUDED,
+
+    /**
+     * A new `PROPAGATE` log lowered `wateringConfidence` by 2, floored at 0 (#960, product ADR-0072) —
+     * [com.yapt.planttracker.domain.usecase.WateringLifecycleReset.applyPropagateConfidenceDrop].
+     * Propagating may or may not change the mother's water use, so the model is made quicker to re-tune
+     * rather than reset. Written only when the confidence actually changed, with
+     * `beforeIntervalDays`/`afterIntervalDays` always equal. Appended last, so no stored ordinal moves.
+     */
+    PROPAGATE_CONFIDENCE_DROP
 }
