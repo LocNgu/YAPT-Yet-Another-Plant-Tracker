@@ -1,7 +1,7 @@
 package com.yapt.planttracker.data.backup
 
 /**
- * The parent links a restore may apply (#960, product ADR-0072). A link is kept only when its parent is
+ * The parent links a restore may apply (#960, product ADR-0073). A link is kept only when its parent is
  * one of [plantIds] and it isn't part of a cycle; self-links, dangling links and every link on a cycle
  * are dropped, so a hand-edited or corrupt backup can never plant a loop in the family tree. The links
  * are applied in a second pass after every plant row exists, which is also why none can dangle at insert.

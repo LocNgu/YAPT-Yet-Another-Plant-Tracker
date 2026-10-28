@@ -1,6 +1,6 @@
 # Product ADR-0062: Plant Detail's tabs replace the + FAB; Add Care Log becomes edit-only; Note is retired
 
-**Status**: accepted — set of types a new log can have and tab order amended (Propagate) by [ADR-0072](0072-propagate-care-type-and-plant-families.md)
+**Status**: accepted — "released changelog and What's New entries … are not rewritten" clause (What's New part) amended by [ADR-0072](0072-whats-new-short-entries-collapsed-sheet.md); set of types a new log can have and tab order amended (Propagate) by [ADR-0073](0073-propagate-care-type-and-plant-families.md)
 
 **Date**: 2026-10-06
 

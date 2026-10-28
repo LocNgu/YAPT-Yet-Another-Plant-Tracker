@@ -73,7 +73,7 @@ data class FamilyNavigation(
     val onAddChild: (parentId: Long) -> Unit = {}
 )
 
-/** The Family card's data (#960, product ADR-0072): this plant's parent, if any, and its direct children. */
+/** The Family card's data (#960, product ADR-0073): this plant's parent, if any, and its direct children. */
 internal data class FamilyCardState(val parent: Plant?, val children: List<Plant>)
 
 /** The Family card's callbacks, bundled for Detekt's `LongParameterList`. */
@@ -95,7 +95,7 @@ internal data class PropagateTabActions(
 )
 
 /**
- * The Propagate tab (#960, product ADR-0072), mirroring the Prune tab: a filled "Propagate" button that
+ * The Propagate tab (#960, product ADR-0073), mirroring the Prune tab: a filled "Propagate" button that
  * opens the shared date sheet, then the Family card, a summary card and the plant's own PROPAGATE logs
  * (keys `"propagate-${id}"`, edit and delete). The family flows are collected inside the Family item, so
  * they only run while this tab is on screen. There is no notes field here; notes and a photo are added

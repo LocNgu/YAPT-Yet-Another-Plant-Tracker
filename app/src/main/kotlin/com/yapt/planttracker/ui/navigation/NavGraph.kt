@@ -201,6 +201,7 @@ fun YaptNavGraph(
     val scope = rememberCoroutineScope()
     var showWhatsNew by remember { mutableStateOf(false) }
     var updateStoreOnWhatsNewDismiss by remember { mutableStateOf(false) }
+    var whatsNewLastSeenVersionCode by remember { mutableStateOf<Int?>(null) }
     var pendingCaredTodayDeepLink by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -208,6 +209,7 @@ fun YaptNavGraph(
         if (BuildConfig.VERSION_CODE > lastSeen) {
             showWhatsNew = true
             updateStoreOnWhatsNewDismiss = true
+            whatsNewLastSeenVersionCode = lastSeen
         }
     }
 
@@ -463,7 +465,10 @@ fun YaptNavGraph(
                 SettingsScreen(
                     viewModel = vm,
                     onRestoreSuccess = navController::showRestoredPlantList,
-                    onShowWhatsNew = { showWhatsNew = true },
+                    onShowWhatsNew = {
+                        whatsNewLastSeenVersionCode = null
+                        showWhatsNew = true
+                    },
                     onNavigateToGraveyard = { navController.navigate(Screen.Graveyard.route) },
                     onNavigateToHiddenPlants = { navController.navigate(Screen.HiddenPlants.route) },
                     onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
@@ -614,16 +619,19 @@ fun YaptNavGraph(
     }
 
     if (showWhatsNew) {
-        WhatsNewSheet(onDismiss = {
-            showWhatsNew = false
-            if (updateStoreOnWhatsNewDismiss) {
-                updateStoreOnWhatsNewDismiss = false
-                scope.launch {
-                    app.settingsDataStore.edit {
-                        it[SettingsKeys.LAST_SEEN_VERSION_CODE] = BuildConfig.VERSION_CODE
+        WhatsNewSheet(
+            onDismiss = {
+                showWhatsNew = false
+                if (updateStoreOnWhatsNewDismiss) {
+                    updateStoreOnWhatsNewDismiss = false
+                    scope.launch {
+                        app.settingsDataStore.edit {
+                            it[SettingsKeys.LAST_SEEN_VERSION_CODE] = BuildConfig.VERSION_CODE
+                        }
                     }
                 }
-            }
-        })
+            },
+            lastSeenVersionCode = whatsNewLastSeenVersionCode
+        )
     }
 }

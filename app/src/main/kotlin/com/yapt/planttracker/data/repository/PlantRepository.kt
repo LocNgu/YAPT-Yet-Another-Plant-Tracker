@@ -104,7 +104,7 @@ class PlantRepository(
     suspend fun getAncestorIds(id: Long): Set<Long> = plantDao.getAncestorIds(id).toSet()
 
     /**
-     * Links [childId] under [parentId] (#960, product ADR-0072). Returns `false` — and changes nothing —
+     * Links [childId] under [parentId] (#960, product ADR-0073). Returns `false` — and changes nothing —
      * when that would make a plant its own parent, point at a missing plant, or create a cycle; the check
      * runs inside the same statement as the write ([PlantDao.linkToParent]), so the picker's exclusions
      * are a convenience, not the guarantee.

@@ -20,7 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * The Propagate tab's Family card, plant picker and post-log offer (#960, product ADR-0072). Assertions
+ * The Propagate tab's Family card, plant picker and post-log offer (#960, product ADR-0073). Assertions
  * are on user-visible text and on what each action reports back, never on tree structure (#420).
  */
 class PlantFamilyUiTest {

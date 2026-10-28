@@ -77,7 +77,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 2. **Implement** (`implementer` agent) — pushes a `claude/*` branch; the orchestrator opens the PR against `develop`.
 3. **Review** (`reviewer` agent) — **never skipped**, runs in parallel with CI; one combined fix round (CI + BLOCKING + SMALL); review is capped at two rounds total (`pipeline.md`).
 4. **QA** (`qa` agent) — only when the reviewer lists "needs a device" items.
-5. **Update docs** in the feature PR: `CHANGELOG.md` `[Unreleased]`, `WhatsNewContent.unreleased` (never `all`), and the relevant `.claude/rules/*.md` (this file only for repo-wide rules). `chore:`/docs-only PRs may skip the changelog/What's New.
+5. **Update docs** in the feature PR: `CHANGELOG.md` `[Unreleased]`, `WhatsNewContent.unreleased` (never `all`; one short plain-language bullet per change, not a `CHANGELOG.md` copy — `rules/whats-new.md`), and the relevant `.claude/rules/*.md` (this file only for repo-wide rules). `chore:`/docs-only PRs may skip the changelog/What's New.
 6. **Merge** — **human only**; Claude never merges.
 
 **Before orchestrating, read `.claude/pipeline.md`** — fast-path criteria, review-on-push and CI-line format, fix-round limits, resuming the implementer, comment cadence. Release steps: `.claude/rules/release.md`.
@@ -97,5 +97,5 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 ## Pointers — `.claude/rules/` (path-scoped: each loads automatically when you touch matching files)
 - Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md` · `hidden-plants.md` · `away-mode.md` (trip storage, date logic, backup; feature design is product ADR-0065)
 - Screens: `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
-- Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `adr.md` · `permissions.md`
+- Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `whats-new.md` (What's New writing rule, length test, collapsible sheet) · `adr.md` · `permissions.md`
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference.

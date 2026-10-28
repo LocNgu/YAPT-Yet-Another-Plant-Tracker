@@ -134,7 +134,7 @@ interface PlantDao {
     )
 
     /**
-     * Column-specific update touching only `wateringConfidence`/`updatedAt` (#960, product ADR-0072;
+     * Column-specific update touching only `wateringConfidence`/`updatedAt` (#960, product ADR-0073;
      * technical ADR-0036 point 3) — the PROPAGATE confidence drop re-reads the plant fresh and then writes
      * just this column, so it can't revert a concurrent edit to any other one.
      */
@@ -151,7 +151,7 @@ interface PlantDao {
 
     /**
      * Sets [id]'s parent to [parentId] unless that would link a plant to itself, to a missing plant, or to
-     * one of its own descendants (#960, product ADR-0072). One statement, so the cycle check and the write
+     * one of its own descendants (#960, product ADR-0073). One statement, so the cycle check and the write
      * are atomic. Returns the number of rows changed: 0 means the link was refused.
      */
     @Query(

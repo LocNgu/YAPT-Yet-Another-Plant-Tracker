@@ -1,6 +1,6 @@
 # Product ADR-0032: `WhatsNewContent.kt` gets a two-tier `unreleased`/`all` shape, mirroring `CHANGELOG.md`
 
-**Status**: accepted
+**Status**: accepted — "mirroring `CHANGELOG.md`" content clause and "`WhatsNewSheet` is untouched" clause amended by [ADR-0072](0072-whats-new-short-entries-collapsed-sheet.md)
 **Date**: 2026-09-03
 
 ## Context

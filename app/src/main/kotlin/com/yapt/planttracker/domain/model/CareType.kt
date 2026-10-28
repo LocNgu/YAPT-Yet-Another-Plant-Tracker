@@ -40,7 +40,7 @@ enum class CareType {
     CHECK,
 
     /**
-     * A propagation event — cuttings, division, offsets (#960, product ADR-0072). **Log-only**: no
+     * A propagation event — cuttings, division, offsets (#960, product ADR-0073). **Log-only**: no
      * interval, no reminder, never in the Care queue, Calendar or notifications. One event is one log,
      * however many child plants it produces, so it joins WATER/FERTILIZE in the same-day duplicate
      * guard. Logging one lowers the plant's `wateringConfidence` by 2 (once, at creation); it does not

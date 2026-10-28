@@ -40,7 +40,7 @@ Two independent features, both unset by default, so due dates are unchanged unle
 - This goes through the shared `RepotPlanReset.clearIfSuperseded()` and the column-specific `PlantDao.updateRepotPlan()`, called from `QuickLogUseCase`.
 - **Order matters:** call it *after* `WateringLifecycleReset.applyRepotReset()`, whose full-row write would otherwise restore the plan. `QuickLogUseCase.maybeApplyRepotReset()` re-reads the plant fresh first, because callers pass stale snapshots.
 - Editing or deleting a REPOT log never clears or resurrects a plan.
-- A PROPAGATE log never clears a plan (taking cuttings leaves the mother in her pot, #960, product ADR-0072); a division at the root is logged as a Repot too, which does.
+- A PROPAGATE log never clears a plan (taking cuttings leaves the mother in her pot, #960, product ADR-0073); a division at the root is logged as a Repot too, which does.
 
 ## Surfaces
 - **Notification:** "Repot planned this spring" in season; "Planned repot overdue by N days" after, counted from the season's last day (`rules/notifications.md`).

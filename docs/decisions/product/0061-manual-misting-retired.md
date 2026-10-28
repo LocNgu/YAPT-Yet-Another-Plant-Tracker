@@ -1,6 +1,6 @@
 # Product ADR-0061: Manual misting is retired app-wide; existing mist entries stay
 
-**Status**: accepted — Add Care Log type-picker, `careType=MIST` route-argument and edit-time Mist-chip clauses, and the "a NOTE can carry the same information" consequence, amended by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md)
+**Status**: accepted — Add Care Log type-picker, `careType=MIST` route-argument and edit-time Mist-chip clauses, and the "a NOTE can carry the same information" consequence, amended by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md); "Released changelog and What's New entries that mention misting … are not rewritten" clause amended by [ADR-0072](0072-whats-new-short-entries-collapsed-sheet.md)
 
 **Date**: 2026-10-04
 

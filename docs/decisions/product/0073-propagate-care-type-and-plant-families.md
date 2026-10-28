@@ -1,4 +1,4 @@
-# Product ADR-0072: Propagate is a log-only care type, and plants can record where they came from
+# Product ADR-0073: Propagate is a log-only care type, and plants can record where they came from
 
 **Status**: accepted
 

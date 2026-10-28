@@ -37,7 +37,7 @@ import java.time.ZoneId
 import java.util.TimeZone
 
 /**
- * PROPAGATE logging (#960, product ADR-0072) against a real in-memory Room database: the log-only type,
+ * PROPAGATE logging (#960, product ADR-0073) against a real in-memory Room database: the log-only type,
  * the same-day duplicate guard, and the once-at-creation confidence drop of 2 with its single
  * `PROPAGATE_CONFIDENCE_DROP` row.
  */

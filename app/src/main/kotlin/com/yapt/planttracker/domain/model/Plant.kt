@@ -92,7 +92,7 @@ data class Plant(
      */
     val hiddenAt: Long? = null,
     /**
-     * The parent this plant was propagated from (#960, product ADR-0072); `null` = no recorded parent.
+     * The parent this plant was propagated from (#960, product ADR-0073); `null` = no recorded parent.
      * Never edited through Add/Edit Plant — it is carried over by `saveEdit()` and changed only from the
      * Propagate tab's Family card. Deleting the parent resets it to `null` (`ON DELETE SET NULL`).
      */

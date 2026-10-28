@@ -99,6 +99,10 @@
     <string name="whats_new_section_added">Added</string>
     <string name="whats_new_section_fixed">Fixed</string>
     <string name="whats_new_section_changed">Changed</string>
+    <string name="whats_new_release_state_expanded">Expanded</string>
+    <string name="whats_new_release_state_collapsed">Collapsed</string>
+    <string name="whats_new_release_expand_action">Expand</string>
+    <string name="whats_new_release_collapse_action">Collapse</string>
     <string name="settings_whats_new_title">What\'s New</string>
     <string name="settings_whats_new_subtitle">View the release history</string>
     <!-- Reschedule watering (#508, product ADR-0029, renamed from "Skip watering") — shared by the
@@ -392,7 +396,7 @@
     <string name="repot_plan_next_due">Next repot due %1$s</string>
     <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
-    <!-- Propagate tab and plant families (#960, product ADR-0072) -->
+    <!-- Propagate tab and plant families (#960, product ADR-0073) -->
     <string name="plant_detail_tab_propagate">Propagate</string>
     <string name="plant_detail_tab_propagate_empty">No propagations logged yet.</string>
     <string name="propagate_action">Propagate</string>

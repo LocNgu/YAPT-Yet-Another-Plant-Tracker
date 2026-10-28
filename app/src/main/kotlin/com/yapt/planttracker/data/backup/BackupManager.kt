@@ -31,7 +31,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 24 (#960, product ADR-0072): propagatedFromId added to BackupPlant — the plant-family parent link.
+// Schema 24 (#960, product ADR-0073): propagatedFromId added to BackupPlant — the plant-family parent link.
 // Restore inserts plants unlinked and applies the links in a second pass, dropping dangling and cyclic
 // ones. Old backups deserialize it to null: no recorded parent.
 // Schema 23 (#915, product ADR-0066): hiddenAt added to BackupPlant — when the owner hid a living plant

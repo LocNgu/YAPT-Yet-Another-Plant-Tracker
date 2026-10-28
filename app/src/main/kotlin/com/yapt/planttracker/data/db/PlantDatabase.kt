@@ -336,7 +336,7 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
-        // #960 (product ADR-0072): self-referencing parent link for plant families. SQLite allows ADD COLUMN
+        // #960 (product ADR-0073): self-referencing parent link for plant families. SQLite allows ADD COLUMN
         // with a REFERENCES clause when the default is NULL, so no table rebuild is needed; every existing
         // row reads back null (no recorded parent).
         @Suppress("MagicNumber")

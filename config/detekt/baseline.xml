@@ -55,7 +55,6 @@
     <ID>MaximumLineLength:QuickLogUseCase.kt$QuickLogUseCase$ </ID>
     <ID>MaximumLineLength:QuickLogUseCaseTest.kt$QuickLogUseCaseTest$ </ID>
     <ID>MaximumLineLength:SettingsViewModelTest.kt$SettingsViewModelTest$ </ID>
-    <ID>MaximumLineLength:WhatsNewContent.kt$WhatsNewContent$ </ID>
     <ID>NestedBlockDepth:WateringHistoryChart.kt$CareEventDecoration$override fun drawOverLayers(context: CartesianDrawingContext)</ID>
     <ID>NoWildcardImports:CareLogDao.kt$import androidx.room.*</ID>
     <ID>NoWildcardImports:PlantDao.kt$import androidx.room.*</ID>

@@ -18,7 +18,9 @@ Triggered when the human asks to cut a release ("do a release", "bump to X.Y.Z",
      the real release values, prepend the resulting entry to `all`, then reset `unreleased` back to
      `ReleaseNotes(versionCode = 0, versionName = "Unreleased")`. If `unreleased` is still at that empty
      sentinel (a chore-only release cycle with nothing user-visible), skip prepending it to `all` entirely —
-     don't create an empty-bulleted entry — the reset is then a no-op
+     don't create an empty-bulleted entry — the reset is then a no-op. Promoted entries are already short
+     (`rules/whats-new.md`, product ADR-0072) and CI's `WhatsNewContentTest` length cap covers `all`, so promotion
+     is a copy, never a rewrite
      (**`WhatsNewContentTest` fails at CI if the version bump is skipped** — `topEntryMatchesCurrentVersionName`
      asserts `all.first().versionName == BuildConfig.VERSION_NAME`; correctly clearing `unreleased` back to
      its sentinel at release-cut is a manual step enforced by this checklist, not by CI — same posture as

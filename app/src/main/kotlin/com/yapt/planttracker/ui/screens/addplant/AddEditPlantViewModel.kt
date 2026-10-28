@@ -52,7 +52,7 @@ class AddEditPlantViewModel(
     /** Drives the live seed; a test injecting this must inject a [nowProvider] on the same date. */
     private val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
     private val nowProvider: () -> Long = System::currentTimeMillis,
-    /** Set when Add Plant was opened from Propagate's "New plant" offer (#960, product ADR-0072); add mode only. */
+    /** Set when Add Plant was opened from Propagate's "New plant" offer (#960, product ADR-0073); add mode only. */
     private val propagatedFromId: Long? = null,
     /** Builds the prefilled "<Parent> (cutting)" name from the parent's name; the string lives in resources. */
     private val childNameFor: (parentName: String) -> String = { it }

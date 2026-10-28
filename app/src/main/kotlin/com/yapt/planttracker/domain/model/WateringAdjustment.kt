@@ -136,7 +136,7 @@ enum class WateringAdjustmentTrigger {
     AWAY_EXCLUDED,
 
     /**
-     * A new `PROPAGATE` log lowered `wateringConfidence` by 2, floored at 0 (#960, product ADR-0072) —
+     * A new `PROPAGATE` log lowered `wateringConfidence` by 2, floored at 0 (#960, product ADR-0073) —
      * [com.yapt.planttracker.domain.usecase.WateringLifecycleReset.applyPropagateConfidenceDrop].
      * Propagating may or may not change the mother's water use, so the model is made quicker to re-tune
      * rather than reset. Written only when the confidence actually changed, with

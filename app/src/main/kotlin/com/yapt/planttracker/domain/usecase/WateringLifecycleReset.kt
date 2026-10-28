@@ -29,12 +29,12 @@ object WateringLifecycleReset {
     /** A REPOT-triggered reset also freezes live per-observation base-learning for 4 weeks (#571 spec). */
     const val REPOT_FREEZE_WINDOW_DAYS = 28L
 
-    /** How many confidence levels a new PROPAGATE log removes (#960, product ADR-0072); matches `STREAK_CONFIDENCE_PENALTY`. */
+    /** How many confidence levels a new PROPAGATE log removes (#960, product ADR-0073); matches `STREAK_CONFIDENCE_PENALTY`. */
     const val PROPAGATE_CONFIDENCE_PENALTY = 2
 
     /**
      * Lowers [Plant.wateringConfidence] by [PROPAGATE_CONFIDENCE_PENALTY], floored at 0 (#960, product
-     * ADR-0072). Deliberately *not* [applyRepotReset]: propagating may or may not change the mother's
+     * ADR-0073). Deliberately *not* [applyRepotReset]: propagating may or may not change the mother's
      * water use, so there is no reset anchor, no freeze, and the base interval and due date stay put —
      * a lower confidence just makes the next waterings re-tune the interval faster. A `null` confidence
      * (never adapted) stays `null`, and nothing is written when it is already 0.

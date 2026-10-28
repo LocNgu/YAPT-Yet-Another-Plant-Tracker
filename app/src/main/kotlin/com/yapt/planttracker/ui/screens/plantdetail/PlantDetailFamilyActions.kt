@@ -7,14 +7,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
-/** Which side of the family link the picker is choosing (#960, product ADR-0072). */
+/** Which side of the family link the picker is choosing (#960, product ADR-0073). */
 enum class FamilyPickerMode { PARENT, CHILD }
 
 /** A plant the picker offers, with the parent it already has so the row can say it will be re-parented. */
 data class FamilyCandidate(val plant: Plant, val currentParent: Plant?)
 
 /**
- * Quick-logs a propagation from the Propagate tab's date picker (#960, product ADR-0072) through
+ * Quick-logs a propagation from the Propagate tab's date picker (#960, product ADR-0073) through
  * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.quickLog], which also applies the once-only
  * confidence drop. A same-day duplicate is rejected there; on success the screen is told to offer
  * adding or linking the new plant.
@@ -33,7 +33,7 @@ fun PlantDetailViewModel.quickPropagate(loggedAt: Long = System.currentTimeMilli
 }
 
 /**
- * The plants the picker may offer for [mode] (#960, product ADR-0072). Every plant counts, archived and
+ * The plants the picker may offer for [mode] (#960, product ADR-0073). Every plant counts, archived and
  * hidden ones included, but never this plant itself. [FamilyPickerMode.PARENT] also excludes this plant's
  * descendants; [FamilyPickerMode.CHILD] also excludes its ancestors and its existing children. A candidate
  * that already has a different parent stays selectable and is re-parented when picked. These exclusions

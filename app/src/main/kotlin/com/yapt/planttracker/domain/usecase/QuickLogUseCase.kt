@@ -815,7 +815,7 @@ class QuickLogUseCase(
     }
 
     /**
-     * The #960 confidence drop for a newly inserted PROPAGATE log (product ADR-0072), reached only from
+     * The #960 confidence drop for a newly inserted PROPAGATE log (product ADR-0073), reached only from
      * [quickLogInternal] — the create path — so editing or deleting the log can never re-apply it. Like
      * [maybeApplyRepotReset] it works from a fresh read of the plant (the caller's snapshot may be
      * stale), and it ignores the log's date and any freeze window: it is a statement about the plant

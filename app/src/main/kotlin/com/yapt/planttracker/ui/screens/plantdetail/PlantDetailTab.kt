@@ -23,7 +23,7 @@ import com.yapt.planttracker.R
  * own WATER entries. New logs come only from the in-pane actions: the `+` FAB is gone and Add Care Log
  * only edits an existing log (#532, product ADR-0062).
  * [HOME] (#530, product ADR-0060) is the first tab and the landing tab ([DEFAULT]); Repot and Prune sit
- * behind the collapsed row's chevron (#532, product ADR-0062). [PROPAGATE] (#960, product ADR-0072) sits
+ * behind the collapsed row's chevron (#532, product ADR-0062). [PROPAGATE] (#960, product ADR-0073) sits
  * after Prune, which makes the expanded strip nine tabs.
  * [CUSTOM_REMINDERS]/[ISSUES] (#590, product ADR-0043) fold what used to be the always-visible
  * `CustomRemindersCard`/`PlantIssuesCard` sections into the tab strip's collapsed-by-default second
