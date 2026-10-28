@@ -48,11 +48,14 @@ texts, a detailed changelog bullet and a short What's New bullet. A change that 
 refactor, tests, dev-mode plumbing) gets a changelog entry and no What's New entry.
 
 **A sheet that folds older releases away.** `WhatsNewSheet` opens with only the newest release (highest
-`versionCode`) expanded. Every other release shows just its version header, a one-tap button that expands it.
-Several releases can be open at once; any header, the newest included, can be collapsed again. The expanded set is
-per sheet-open: a `rememberSaveable` set of `versionCode`s inside the sheet, never written to DataStore, so each
-open starts with only the newest expanded. A collapsed release composes none of its sections or bullets. The
-auto-shown sheet and the Settings sheet are the same composable with the same default. The header mirrors the Care
+`versionCode`) expanded, except after an update that skipped releases: the auto-shown sheet then opens every release
+newer than the stored `LAST_SEEN_VERSION_CODE`, so a user going from 0.36.0 to 0.39.0 also sees 0.37.0 and 0.38.0.
+It reuses the number the auto-show trigger already reads, so this adds no persisted state. A fresh install (nothing
+stored) and the Settings sheet open only the newest. Every other release shows just its version header, a one-tap
+button that expands it. Several releases can be open at once; any header, the newest included, can be collapsed
+again. The expanded set is per sheet-open: a `rememberSaveable` set of `versionCode`s inside the sheet, never written
+to DataStore. A collapsed release composes none of its sections or bullets. The auto-shown sheet and the Settings
+sheet are the same composable; only the auto-shown one passes the last-seen version code. The header mirrors the Care
 section header's semantics: one clickable button row with `heading()`, an Expanded or Collapsed state description and
 an Expand or Collapse click label.
 
@@ -70,8 +73,9 @@ history is not rewritten.
 
 **What stays.** The auto-show trigger (`LAST_SEEN_VERSION_CODE`), the `unreleased` to `all` promotion at release-cut,
 the `unreleased` sentinel, `WhatsNewContentTest.topEntryMatchesCurrentVersionName` (byte-for-byte unchanged), and the
-full history in `all` plus `legacyReleaseNotes`. `ReleaseNotes`, `NavGraph`, the Settings row and the dev-mode reset
-action are unchanged. There is no DB, backup or schema change.
+full history in `all` plus `legacyReleaseNotes`. `ReleaseNotes`, the Settings row and the dev-mode reset action are
+unchanged; `NavGraph` only passes the last-seen version code it already reads into the auto-shown sheet. There is no
+DB, backup or schema change.
 
 **Amends.** Product ADR-0032's "mirroring `CHANGELOG.md`" wording (the content now follows the writing rule above
 instead) and its "`WhatsNewSheet` is untouched" clause (the sheet now folds older releases). Product ADR-0010 stays
@@ -79,9 +83,9 @@ superseded.
 
 ## Consequences
 
-- The sheet opens short: one expanded release plus about 46 collapsed header rows. A user who wants an old release
-  taps its header; there is no "since you last opened" filter, no "Show all" button and no cap on the number of
-  releases.
+- The sheet opens short: one expanded release (or the few a user skipped) plus collapsed header rows for the rest. A
+  user who wants an old release taps its header; there is no "since you last opened" filter, no "Show all" button
+  and no cap on the number of releases.
 - Each PR with a user-visible change now writes two texts, a detailed `CHANGELOG.md` bullet and a short What's New
   bullet. The cost is one extra sentence; the benefit is that the sheet stays readable.
 - A long or jargon-heavy entry now fails CI instead of creeping back. The cap and the denylist are blunt: a

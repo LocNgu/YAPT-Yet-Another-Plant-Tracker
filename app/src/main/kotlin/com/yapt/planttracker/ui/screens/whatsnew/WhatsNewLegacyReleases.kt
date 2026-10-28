@@ -12,12 +12,12 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionCode = 320,
         versionName = "0.20.0",
         added = listOf(
-            "Combine reminders: a Settings toggle sends one daily digest instead of a notification per plant",
+            "A \"Combine reminders\" setting sends one daily digest instead of a notification per plant",
             "The full-screen photo viewer now shows each photo's exact date as you swipe",
             "The Photo reminder setting is now saved in backups, so it survives a move to a new phone"
         ),
         fixed = listOf(
-            "Bulk care and Move to Graveyard on several plants no longer leave a batch half-done if interrupted"
+            "Caring for several plants or moving them to the Graveyard at once no longer stops half-done if interrupted"
         )
     ),
     ReleaseNotes(
@@ -27,7 +27,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
             "The full-screen photo viewer no longer shows a strip of the screen behind the status bar"
         ),
         changed = listOf(
-            "Add Care Log's Photo type now has Take photo and Choose from gallery buttons, with no pop-up"
+            "Add Care Log's Photo type now has \"Take photo\" and \"Choose from gallery\" buttons, with no pop-up"
         )
     ),
     ReleaseNotes(
@@ -36,7 +36,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         added = listOf(
             "Long-press a plant to select several, then water, fertilize, prune, mist, repot or send them to the " +
                 "Graveyard",
-            "A new Cared for today option in the plant list sort menu shows the plants you have cared for today"
+            "A new \"Cared for today\" option in the plant list sort menu shows the plants you have cared for today"
         ),
         fixed = listOf(
             "Two waterings on the same day no longer suggest a 0-day interval or a fractional chart average"
@@ -46,7 +46,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionCode = 290,
         versionName = "0.17.0",
         added = listOf(
-            "Tap the Watering or Fertilizing chip on a plant's page to log it without opening Add Care Log"
+            "Tap the Watering or Fertilizing status on a plant's page to log it without opening Add Care Log"
         ),
         fixed = listOf(
             "The Calendar day sheet now has a water-only button for liquid-fertilizer plants"
@@ -59,7 +59,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionCode = 280,
         versionName = "0.16.0",
         changed = listOf(
-            "A plant with a watering interval but no waterings yet is now due today instead of Not scheduled",
+            "A plant with a watering interval but no waterings yet is now due today instead of \"Not scheduled\"",
             "A plant with a fertilizing interval but never fertilized becomes due 30 days after you added it"
         )
     ),
@@ -111,11 +111,10 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionName = "0.12.1",
         fixed = listOf(
             "Care history and Plant Graveyard entries older than 14 days now show an exact date",
-            "A late error during a backup restore no longer leaves restored plants pointing at deleted photos",
-            "The Skip watering dialog's +/− buttons now fill its width evenly"
+            "A late error during a backup restore no longer leaves restored plants pointing at deleted photos"
         ),
         changed = listOf(
-            "The Skip watering button on a plant's page is now an outlined button below the watering stats"
+            "The \"Skip watering\" button on a plant's page is now an outlined button below the watering stats"
         )
     ),
     ReleaseNotes(
@@ -136,7 +135,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         ),
         fixed = listOf(
             "The daily reminder now fires at your configured time on first install",
-            "Last: X days ago on plant cards and the detail screen now counts calendar days",
+            "\"Last: X days ago\" on plant cards and the detail screen now counts calendar days",
             "The watering history chart refreshes immediately when a watering is logged while it's open"
         ),
         changed = listOf(
@@ -154,7 +153,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         ),
         changed = listOf(
             "Saving a Photo care log entry now sets the plant's cover photo to the attached image",
-            "The quick-water button now opens a soil feedback sheet with Still wet, Just right and Too dry"
+            "The quick-water button now opens a soil feedback sheet with \"Still wet\", \"Just right\" and \"Too dry\""
         )
     ),
     ReleaseNotes(
@@ -166,7 +165,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
             "Add photos by taking one with the in-app camera or picking one from the gallery"
         ),
         fixed = listOf(
-            "The Photo care log's Save button stays disabled until a photo is attached, with a hint below",
+            "The Photo care log's \"Save\" button stays disabled until a photo is attached, with a hint below",
             "Duplicate photos can no longer be added to the gallery"
         )
     ),
@@ -177,20 +176,20 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
             "Care history shows the 5 most recent logs, with a chevron to expand or collapse the rest"
         ),
         fixed = listOf(
-            "The Got it button in What's New is now always visible, even with many releases",
-            "Liquid-fertilizer plant cards now show a time-based countdown instead of a static With watering label"
+            "The \"Got it\" button in What's New is now always visible, even with many releases",
+            "Liquid-fertilizer plant cards now show a time-based countdown instead of a static \"With watering\" label"
         )
     ),
     ReleaseNotes(
         versionCode = 130,
         versionName = "0.8.0",
         added = listOf(
-            "Liquid fertilizer mode pairs every fertilize log with a watering and marks the plant as With watering",
+            "Liquid fertilizer mode pairs every fertilize log with a watering and marks the plant as \"With watering\"",
             "Add Care Log has a Liquid or Solid fertilizer selector, preset from the plant's default",
             "What's New now shows the full release history, grouped by version, and can be reopened from Settings"
         ),
         changed = listOf(
-            "Watering feedback is now Still wet, Just right or Too dry, asked as What did you find?"
+            "Watering feedback is now \"Still wet\", \"Just right\" or \"Too dry\", asked as \"What did you find?\""
         )
     ),
     ReleaseNotes(
@@ -198,20 +197,19 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionName = "0.7.1",
         fixed = listOf(
             "Restoring a large backup with many photos no longer crashes the app",
-            "Exporting a backup to cloud destinations such as Google Drive no longer produces an empty ZIP",
-            "Cancelling the warning shown during a restore now cleans up its temporary files"
+            "Exporting a backup to cloud destinations such as Google Drive no longer produces an empty ZIP"
         )
     ),
     ReleaseNotes(
         versionCode = 108,
         versionName = "0.7.0",
         added = listOf(
-            "Tap Unassigned on the plant list to show only plants without a room",
+            "Tap \"Unassigned\" on the plant list to show only plants without a room",
             "Add/Edit Plant suggests rooms you've used before as tappable chips",
-            "Skip watering pushes the next due date forward 1-7 days from a plant's page"
+            "\"Skip watering\" pushes the next due date forward 1-7 days from a plant's page"
         ),
         fixed = listOf(
-            "No interval suggestion appears when you water on the due day with Just right feedback",
+            "No interval suggestion appears when you water on the due day with \"Just right\" feedback",
             "The watering chart now also shows for rarely watered plants and plants with only two waterings",
             "The reminder schedule updates immediately after restoring a backup",
             "The backup error message is now readable when importing a non-YAPT file",
@@ -223,12 +221,12 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionName = "0.6.0",
         added = listOf(
             "A What's New sheet shows what changed after each update",
-            "A Keep screen on toggle in Settings keeps the screen awake while you water",
+            "A \"Keep screen on\" toggle in Settings keeps the screen awake while you water",
             "The interval suggestion is now an editable dialog, so you can adjust the value before applying"
         ),
         fixed = listOf(
-            "Plants past their due date now show Overdue, and Due today stays correct throughout the day",
-            "Care-type chips no longer say next: when care is already overdue",
+            "Plants past their due date now show \"Overdue\", and \"Due today\" stays correct throughout the day",
+            "Care-type labels no longer say \"next:\" when care is already overdue",
             "Watering interval suggestions based on your feedback are now more accurate",
             "The keyboard no longer covers the Notes field when editing a plant or care log"
         )
@@ -237,7 +235,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionCode = 70,
         versionName = "0.4.1",
         added = listOf(
-            "A Water + Fertilize due filter in the sort dropdown shows only plants where both are due",
+            "A \"Water + Fertilize due\" filter in the sort dropdown shows only plants where both are due",
             "Tapping a care reminder notification opens that plant's page directly"
         )
     ),
@@ -260,7 +258,7 @@ internal val legacyReleaseNotes: List<ReleaseNotes> = listOf(
         versionName = "0.2.0",
         added = listOf(
             "Sort the plant list by name, watering due, fertilizing due or recently added, remembered across restarts",
-            "Plant cards show countdown chips: In X days, Due today or Overdue by X days",
+            "Plant cards show a countdown: \"In X days\", \"Due today\" or \"Overdue by X days\"",
             "Each plant card has quick Water and Fertilize buttons"
         )
     ),

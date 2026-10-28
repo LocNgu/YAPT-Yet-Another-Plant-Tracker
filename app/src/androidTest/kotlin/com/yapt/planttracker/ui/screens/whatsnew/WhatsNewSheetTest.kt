@@ -19,9 +19,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The What's New sheet opens with only the newest release expanded and folds older ones under their
- * version header (#958, product ADR-0072). Assertions are on the header's state description and on whether
- * entry text exists — never on tree structure (#420). The fixtures are declared out of order on purpose.
+ * The What's New sheet opens with only the newest release expanded (or, after skipped updates, every
+ * unseen one) and folds older ones under their version header (#958, product ADR-0072). Assertions are on
+ * the header's state description and on whether entry text exists — never on tree structure (#420). The fixtures are declared out of order on purpose.
  */
 @RunWith(AndroidJUnit4::class)
 class WhatsNewSheetTest {
@@ -55,11 +55,12 @@ class WhatsNewSheetTest {
 
     private fun setSheet(
         releases: List<ReleaseNotes> = listOf(oldest, newest, middle),
+        lastSeenVersionCode: Int? = null,
         onDismiss: () -> Unit = {}
     ) {
         composeTestRule.setContent {
             YaptTheme {
-                WhatsNewSheet(onDismiss = onDismiss, releases = releases)
+                WhatsNewSheet(onDismiss = onDismiss, releases = releases, lastSeenVersionCode = lastSeenVersionCode)
             }
         }
     }
@@ -85,6 +86,18 @@ class WhatsNewSheetTest {
         composeTestRule.onNode(header(MIDDLE_NAME)).assert(hasState(collapsed))
         composeTestRule.onNode(header(OLDEST_NAME)).assert(hasState(collapsed))
         composeTestRule.onNode(entry(MIDDLE_ENTRY)).assertDoesNotExist()
+        composeTestRule.onNode(entry(OLDEST_ENTRY)).assertDoesNotExist()
+    }
+
+    @Test
+    fun afterSkippedUpdates_everyUnseenReleaseStartsExpanded_andSeenOnesStayCollapsed() {
+        setSheet(lastSeenVersionCode = OLDEST_CODE)
+
+        composeTestRule.onNode(header(NEWEST_NAME)).assert(hasState(expanded))
+        composeTestRule.onNode(header(MIDDLE_NAME)).assert(hasState(expanded))
+        // Below the half-expanded sheet's fold; a collapsed release composes nothing, so existence is the contract.
+        composeTestRule.onNode(entry(MIDDLE_ENTRY)).assertExists()
+        composeTestRule.onNode(header(OLDEST_NAME)).assert(hasState(collapsed))
         composeTestRule.onNode(entry(OLDEST_ENTRY)).assertDoesNotExist()
     }
 

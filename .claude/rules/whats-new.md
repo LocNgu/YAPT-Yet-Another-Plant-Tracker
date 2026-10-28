@@ -16,6 +16,11 @@ A user-visible PR writes two texts: a detailed changelog bullet and a short What
 - One sentence, one change. Aim for 100 characters or fewer; CI fails above 120.
 - Write from the user's side: what they can do now, or what no longer goes wrong.
 - Use the app's own words (Care, Plants, Settings, Home tab), at most once per entry.
+- Put an on-screen label in quotes when the entry names it: a button, option, setting, prompt or status text
+  (`The reminder's "Not now" button…`, `marked "Soil was still moist"`). Screen, tab and feature names stay unquoted
+  (Care, Home tab, Away mode, Watering overview). In Kotlin, escape them: `\"Not now\"`.
+- Say what the user sees, not the component: a label, option or button, never "chip", "tile menu", "bulk action" or
+  "tabbed layout".
 - Merge related changes from one PR into one bullet; a large feature gets two or three. Detail goes in `CHANGELOG.md`.
 - Added is a new capability, Fixed is something that was wrong, Changed is an existing thing that now behaves or
   looks different.
@@ -26,7 +31,8 @@ A user-visible PR writes two texts: a detailed changelog bullet and a short What
 - Cite issue, PR or ADR numbers.
 - Describe tap-by-tap mechanics, defaults, edge cases or caveats.
 - Write entries for internal-only work: CI, toolchain, refactors, tests, dev-mode plumbing. Those get a
-  `CHANGELOG.md` entry only.
+  `CHANGELOG.md` entry only. Pure layout polish (margins, spacing, a button filling its width) gets none either.
+- Write "no longer" about a brand-new feature: it never did the thing, so say "doesn't".
 - Copy a `CHANGELOG.md` bullet and trim it.
 - End with a full stop or use emoji (no existing entry does).
 
@@ -55,11 +61,14 @@ it. `topEntryMatchesCurrentVersionName` is unchanged. The `unreleased` sentinel 
 ## Sheet behaviour
 
 - `WhatsNewSheet(onDismiss, releases = WhatsNewContent.all)`; releases sorted by `versionCode` descending.
-- Only the highest `versionCode` starts expanded. Every header is a clickable `Role.Button` row with `heading()`, an
+- Only the highest `versionCode` starts expanded, except in the auto-shown sheet after skipped updates:
+  `NavGraph` passes the stored `LAST_SEEN_VERSION_CODE` as `lastSeenVersionCode`, and every release newer than it
+  starts expanded (`initialExpandedReleases()`, unit-tested in `WhatsNewInitialExpandedTest`). `null` or `0` (Settings,
+  fresh install) means newest only. Every header is a clickable `Role.Button` row with `heading()`, an
   Expanded / Collapsed `stateDescription` and an Expand / Collapse `onClickLabel`, mirroring `CareGroupHeader`
   (`TodayCareGrid.kt`). Several can be open at once.
 - Expanded state is a `rememberSaveable` set of `versionCode`s inside the sheet, never written to DataStore: each
-  open starts with only the newest expanded. A collapsed release composes none of its sections or bullets.
+  open starts again from `initialExpandedReleases()`. A collapsed release composes none of its sections or bullets.
 - Auto-shown and Settings sheets are the same composable; dismissing the auto-shown one stores
   `LAST_SEEN_VERSION_CODE` (unchanged, in `NavGraph`).
 - UI test: `WhatsNewSheetTest` (androidTest) asserts state description and presence/absence, not tree structure.

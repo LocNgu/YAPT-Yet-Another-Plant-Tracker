@@ -43,15 +43,30 @@ private val ExpandedReleasesSaver = listSaver<Set<Int>, Int>(
     restore = { it.toSet() }
 )
 
+/**
+ * The releases a sheet opens expanded: every release newer than [lastSeenVersionCode], so a user who skipped
+ * updates sees all of them, or just the newest when nothing was seen before (fresh install, Settings) or none
+ * is newer.
+ */
+internal fun initialExpandedReleases(releases: List<ReleaseNotes>, lastSeenVersionCode: Int?): Set<Int> {
+    val newest = releases.maxOfOrNull { it.versionCode } ?: return emptySet()
+    val unseen = lastSeenVersionCode
+        ?.takeIf { it > 0 }
+        ?.let { seen -> releases.map { it.versionCode }.filter { it > seen }.toSet() }
+        .orEmpty()
+    return unseen.ifEmpty { setOf(newest) }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WhatsNewSheet(
     onDismiss: () -> Unit,
-    releases: List<ReleaseNotes> = WhatsNewContent.all
+    releases: List<ReleaseNotes> = WhatsNewContent.all,
+    lastSeenVersionCode: Int? = null
 ) {
     val sorted = remember(releases) { releases.sortedByDescending { it.versionCode } }
     var expanded by rememberSaveable(stateSaver = ExpandedReleasesSaver) {
-        mutableStateOf(sorted.firstOrNull()?.let { setOf(it.versionCode) } ?: emptySet())
+        mutableStateOf(initialExpandedReleases(releases, lastSeenVersionCode))
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
