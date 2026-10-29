@@ -28,6 +28,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   on its own row. DB 20 (`plants.propagatedFromId`, self-referencing, `ON DELETE SET NULL`); backup schema 24 (restore
   applies links in a second pass and drops dangling or cyclic ones). A family-tree screen is a follow-up. See product
   ADR-0073.
+
+## [0.40.0] - 2026-10-28
+
+### Added
 - **Care shows a "Watered today" section** (#939) — once the day's watering is done, Care no longer starts straight at
   Watering · Tomorrow. **Watered today · N** lists each plant watered today (a water-and-fertilize log counts) as a
   compact row of round photos with a check badge and the plant's name, newest first. It sits right after Watering ·
@@ -70,6 +74,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 - CI: `Instrumented Tests` now runs in two shards, each on its own emulator, and builds its APKs while the emulator boots
   instead of after. `Unit Tests & Lint` runs Detekt, the unit tests and lint in one Gradle call. A change to
   `android.yml` now also runs the instrumented tests on its PR. No user-facing change (#952, technical ADR-0041)
+- Dependencies: AndroidX DataStore (`datastore-preferences` and `datastore-preferences-core`) moved from 1.2.1 to 1.3.0
+  and the Gradle wrapper from 9.8.1 to 9.8.2 — both within their existing lines, so no user-visible change (#947, #948,
+  #949)
 
 ## [0.39.0] - 2026-10-23
 
