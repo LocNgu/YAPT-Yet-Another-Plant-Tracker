@@ -13,18 +13,22 @@ object WhatsNewContent {
     // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased",
-        added = listOf(
-            "Care has a \"Watered today\" section showing the plants you have already watered"
-        ),
-        changed = listOf(
-            "What's New now opens the releases you haven't seen yet and folds older ones away until you tap them"
-        )
+        versionName = "Unreleased"
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 582,
+            versionName = "0.40.0",
+            added = listOf(
+                "Care has a \"Watered today\" section showing the plants you have already watered"
+            ),
+            changed = listOf(
+                "What's New now opens the releases you haven't seen yet and folds older ones away until you tap them"
+            )
+        ),
         ReleaseNotes(
             versionCode = 580,
             versionName = "0.39.0",
