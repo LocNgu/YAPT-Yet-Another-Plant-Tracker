@@ -67,7 +67,8 @@ object TodayQueueAggregator {
             .sortedWith(compareBy<PlantIssue> { it.startedAt }.thenBy { it.id })
             .associateBy { it.linkedReminderId!! }
         val now = input.today.toStartOfDayMillis()
-        val tasks = input.plants.filter { it.isVisible }.flatMap { plant ->
+        val visiblePlants = input.plants.filter { it.isVisible }
+        val tasks = visiblePlants.flatMap { plant ->
             val logs = logsByPlant[plant.id].orEmpty()
             val status = CareSchedule.computeStatus(
                 plant = plant,
@@ -94,12 +95,35 @@ object TodayQueueAggregator {
         }
 
         return TodayQueueSnapshot(
-            activePlantCount = input.plants.count { it.isVisible },
+            activePlantCount = visiblePlants.size,
             tasks = tasks.sortedWith(
                 compareBy<TodayCareTask> { it.dueAt }
                     .thenBy { it.plant.name.lowercase() }
                     .thenBy { it.id }
-            )
+            ),
+            wateredToday = wateredToday(visiblePlants, logsByPlant, input.today)
+        )
+    }
+
+    private fun wateredToday(
+        plants: List<Plant>,
+        logsByPlant: Map<Long, List<CareLog>>,
+        today: LocalDate
+    ): List<TodayWateredPlant> {
+        val dayStart = today.toStartOfDayMillis()
+        val dayEnd = today.plusDays(1).toStartOfDayMillis()
+        val watered = mutableListOf<TodayWateredPlant>()
+        for (plant in plants) {
+            val wateredAt = logsByPlant[plant.id].orEmpty()
+                .asSequence()
+                .filter { it.careType == CareType.WATER && it.loggedAt >= dayStart && it.loggedAt < dayEnd }
+                .maxOfOrNull { it.loggedAt } ?: continue
+            watered += TodayWateredPlant(plant, wateredAt)
+        }
+        return watered.sortedWith(
+            compareByDescending<TodayWateredPlant> { it.wateredAt }
+                .thenBy { it.plant.name.lowercase() }
+                .thenBy { it.plant.id }
         )
     }
 

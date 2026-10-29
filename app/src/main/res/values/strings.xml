@@ -99,6 +99,10 @@
     <string name="whats_new_section_added">Added</string>
     <string name="whats_new_section_fixed">Fixed</string>
     <string name="whats_new_section_changed">Changed</string>
+    <string name="whats_new_release_state_expanded">Expanded</string>
+    <string name="whats_new_release_state_collapsed">Collapsed</string>
+    <string name="whats_new_release_expand_action">Expand</string>
+    <string name="whats_new_release_collapse_action">Collapse</string>
     <string name="settings_whats_new_title">What\'s New</string>
     <string name="settings_whats_new_subtitle">View the release history</string>
     <!-- Reschedule watering (#508, product ADR-0029, renamed from "Skip watering") — shared by the
@@ -626,6 +630,16 @@
     <string name="care_section_custom_reminders">Custom reminders</string>
     <string name="care_section_repotting">Repotting</string>
     <string name="care_section_photos">Photos</string>
+    <string name="care_section_watered_today">Watered today</string>
+    <string name="care_watered_today_photo_cd">%1$s, watered today</string>
+    <string name="care_watered_today_more">+%1$d</string>
+    <plurals name="care_watered_today_more_cd">
+        <item quantity="one">Show %1$d more watered plant</item>
+        <item quantity="other">Show %1$d more watered plants</item>
+    </plurals>
+    <string name="care_watered_today_less">Show less</string>
+    <string name="care_watered_today_less_cd">Show fewer watered plants</string>
+    <string name="care_nothing_due_today">Nothing due today</string>
     <string name="care_tile_actions_label">Show quick actions</string>
     <string name="care_tile_water_cd">%1$s, watering</string>
     <string name="care_tile_fertilize_cd">%1$s, fertilizing</string>

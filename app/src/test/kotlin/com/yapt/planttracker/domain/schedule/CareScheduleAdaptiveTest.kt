@@ -629,10 +629,10 @@ class CareScheduleAdaptiveTest {
         assertEquals(2, result.confidence)
     }
 
-    // --- #738/ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---
+    // --- #738/product ADR-0039: the day-8 "still moist" shortening defect, pinned permanently ---
 
     /**
-     * Pins the #738/ADR-0039 defect: a `TOO_SOON` observation taken well *before* the interval has
+     * Pins the #738/product ADR-0039 defect: a `TOO_SOON` observation taken well *before* the interval has
      * elapsed still shortens the base, exactly the mirror-image bug product ADR-0033 already fixed for the
      * late direction ("a late gap never shortens"). This was reachable via the "Soil still moist"
      * Reschedule flow (`QuickLogUseCase.recordStillMoistAdaptiveObservation()`, itself removed in the
@@ -650,7 +650,7 @@ class CareScheduleAdaptiveTest {
      * `clampStep()` rounds to 13.
      */
     @Test
-    fun `an early TOO_SOON observation still shortens the base (#738 ADR-0039 pinned defect)`() {
+    fun `an early TOO_SOON observation still shortens the base (#738 product ADR-0039 pinned defect)`() {
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = TOO_SOON,
             observedIntervalDays = 8,

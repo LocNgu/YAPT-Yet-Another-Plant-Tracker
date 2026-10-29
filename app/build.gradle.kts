@@ -130,6 +130,13 @@ tasks.withType<Test>().configureEach {
     )
 }
 
+// With org.gradle.caching on, test results must never come from the build cache: this project has date- and
+// clock-dependent tests (#921 clock race in a unit test; #936 date-dependent rounding in an instrumented test),
+// so a cached test pass from another day could hide a real failure (technical ADR-0039).
+tasks.withType<Test>().configureEach {
+    outputs.cacheIf("tests depend on the calendar date and the clock") { false }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
@@ -165,7 +172,7 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
@@ -182,7 +189,7 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("io.mockk:mockk-android:1.14.11")
-    androidTestImplementation("androidx.datastore:datastore-preferences-core:1.2.1")
+    androidTestImplementation("androidx.datastore:datastore-preferences-core:1.3.0")
 
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
 }

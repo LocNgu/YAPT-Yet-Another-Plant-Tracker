@@ -12,6 +12,55 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-10-28
+
+### Added
+- **Care shows a "Watered today" section** (#939) — once the day's watering is done, Care no longer starts straight at
+  Watering · Tomorrow. **Watered today · N** lists each plant watered today (a water-and-fertilize log counts) as a
+  compact row of round photos with a check badge and the plant's name, newest first. It sits right after Watering ·
+  Today (first when nothing is overdue or due), is sticky and collapsible like the other sections, and shows five
+  photos plus a **+N** circle that expands the row (**Show less** folds it back). Tapping a photo opens that plant's
+  Water tab. With no tasks left, the row sits above the "You're all caught up" message; with nothing watered and
+  nothing due today but tomorrow tasks, a plain "Nothing due today" line sits above Watering · Tomorrow. No schema or
+  backup change. See product ADR-0071.
+
+### Changed
+- **What's New is shorter and folds older releases away** (#958) — the sheet now opens with only the newest release
+  expanded (after an update that skipped releases, the auto-shown sheet opens every release newer than the stored
+  `LAST_SEEN_VERSION_CODE` instead, so nothing skipped is hidden; a fresh install and Settings open only the newest);
+  every other release shows just its version header, and tapping it expands the entries (any header,
+  including the newest, toggles; several can be open at once). The open set is per sheet-open and never persisted, so
+  each open starts fresh, and a collapsed release composes none of its content. The header is
+  a button row with heading semantics, an Expanded / Collapsed state description and an Expand / Collapse click
+  label, like Care's section headers. Every entry is now one plain-language sentence (aim ~100 characters), and
+  `WhatsNewContentTest` fails any entry over 120 characters, any multi-sentence or multi-line entry, and any entry that
+  uses internal vocabulary (issue numbers, ADR, base interval, horizon, override). All released entries in
+  `WhatsNewContent.all` and `WhatsNewLegacyReleases.kt` were rewritten once by hand to this style: related bullets
+  merged, internal-only items dropped, release 0.20.1 (a build-pipeline fix only) removed, every other release kept
+  under its version code and name. On-screen labels are now quoted ("Not now", "Soil was still moist"), component
+  jargon ("chip", "bulk actions", "tabbed layout") replaced with what the user sees, and four layout-polish or
+  developer-only entries dropped (0.25.1's margins, 0.21.0's Developer section, 0.12.1's dialog-button width, 0.7.1's
+  temp-file clean-up). Entries were checked against each release's section here: two filed under the
+  wrong release moved, and two that duplicated a later release's entry were dropped. `CHANGELOG.md` is unchanged
+  history and stays the detailed record; What's New is no longer a mirror of it. New writing rule in
+  `.claude/rules/whats-new.md`. See product ADR-0072.
+- CI: `android.yml` now also runs on pushes to `develop`. `setup-gradle` writes its cache only on the default branch, so
+  the Gradle cache had never been populated and every job started cold; `develop` runs now write it and PR, release-PR
+  and `main` runs restore it. A newer `develop` merge cancels the older run. `org.gradle.caching` is on, and `Test` tasks
+  stay non-cacheable because several tests depend on the date and clock. No user-visible change (#941, technical
+  ADR-0039)
+- CI: the job graph is now parallel. The `Build & Test` job is gone (the debug APK is uploaded from `Instrumented Tests`
+  instead), so `Unit Tests & Lint` and `Instrumented Tests` run side by side. On a push to `main` the signed release APK
+  is built by `Build Release APK` in parallel with the tests, and a separate `Publish GitHub Release` job (the only one
+  with write permission) creates the release only when all three succeeded. CI's `assembleRelease` skips AGP's
+  lint-vital tasks because `lintRelease` runs just before. No user-facing change (#951, technical ADR-0040)
+- CI: `Instrumented Tests` now runs in two shards, each on its own emulator, and builds its APKs while the emulator boots
+  instead of after. `Unit Tests & Lint` runs Detekt, the unit tests and lint in one Gradle call. A change to
+  `android.yml` now also runs the instrumented tests on its PR. No user-facing change (#952, technical ADR-0041)
+- Dependencies: AndroidX DataStore (`datastore-preferences` and `datastore-preferences-core`) moved from 1.2.1 to 1.3.0
+  and the Gradle wrapper from 9.8.1 to 9.8.2 — both within their existing lines, so no user-visible change (#947, #948,
+  #949)
+
 ## [0.39.0] - 2026-10-23
 
 ### Changed

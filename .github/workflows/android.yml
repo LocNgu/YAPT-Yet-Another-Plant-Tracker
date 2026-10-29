@@ -1,14 +1,34 @@
 name: Android CI/CD
 
 on:
-  # Only build on direct pushes to main (post-merge release builds). All develop
-  # work goes through PRs, which the pull_request trigger already covers — this
-  # avoids the double CI run when a develop → main release PR is open, where a push
-  # to develop would otherwise fire both `push` (develop) and `pull_request`
-  # (synchronize) events. See #260.
+  # Three triggers (#941, technical ADR-0039):
+  #  - pull_request: the pre-merge gate.
+  #  - push to develop: the Gradle-cache writer — setup-gradle writes its cache only
+  #    on the default branch (develop), so without this every job starts cold — plus
+  #    a post-merge check of the merged result.
+  #  - push to main: the same jobs, plus `release-build` (signed release APK, in parallel
+  #    with the tests) and `publish` (GitHub Release, only after test, instrumented and
+  #    release-build all succeed; technical ADR-0040).
+  # #260 kept develop pushes out to avoid a double CI run while a develop → main
+  # release PR was open (a push to develop fired both `push` and the PR's
+  # `synchronize`). That no longer applies: release PRs come from a static
+  # release/X.Y.Z branch that nothing else pushes to (.claude/rules/release.md). A
+  # direct develop → main PR would still double-run; the documented flow doesn't
+  # do that.
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
+
+# Only develop pushes share a group, so a newer merge cancels the older run (whose
+# tree it contains). Every other run gets a unique group, so PR and main runs are
+# never cancelled by this.
+concurrency:
+  group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && 'android-develop' || format('android-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+# Read-only by default; `publish` is the only job that raises it (technical ADR-0040).
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -30,21 +50,31 @@ jobs:
         with:
           filters: |
             app:
-              - 'app/src/**'
-              - 'app/build.gradle.kts'
-              - 'build.gradle.kts'
+              - 'app/**'
+              - '*.gradle.kts'
+              - 'gradle.properties'
+              - 'version.properties'
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
+              - 'config/detekt/**'
               - '.github/workflows/**'
             instrumented:
               - 'app/src/androidTest/**'
               - 'app/src/main/**'
+              - 'app/src/debug/**'
+              - 'app/schemas/**'
               - 'app/build.gradle.kts'
               - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle.properties'
+              - 'version.properties'
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
+              # A change to this workflow (e.g. the instrumented job itself) is exercised on its PR (#952).
+              - '.github/workflows/android.yml'
+              - 'scripts/ci-background-build.sh'
 
   test:
     name: Unit Tests & Lint
@@ -92,14 +122,11 @@ jobs:
             echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
           fi
 
-      - name: Run Detekt
-        run: gradle detekt --no-daemon
-
-      - name: Run unit tests
-        run: gradle testDebugUnitTest --no-daemon
-
-      - name: Run lint
-        run: gradle lintDebug --no-daemon
+      - name: Run Detekt, unit tests and lint
+        # One Gradle call instead of three saves two ~10 s Gradle start-ups (#952). --continue runs
+        # all three checks even when one fails; the failure summary at the end of the log names
+        # each failed task (`:app:detekt`, `:app:testDebugUnitTest`, `:app:lintDebug`).
+        run: gradle detekt testDebugUnitTest lintDebug --continue --no-daemon
 
       - name: Upload test results
         if: always()
@@ -112,68 +139,24 @@ jobs:
             app/build/reports/detekt/
           retention-days: 7
 
-  build:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v6.1.0
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle (wrapper version)
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: wrapper
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses 2>/dev/null || true
-
-      - name: Decode debug keystore
-        # Dependabot (and fork) PR runs don't receive Actions secrets, so the
-        # secret resolves to an empty string and a naive decode would write a
-        # 0-byte keystore that keytool rejects ("Tag number over 30 is not
-        # supported"). Guard in the shell rather than in `if:` — the `secrets`
-        # context is NOT allowed in step `if:` conditionals (it's a workflow
-        # validation error that fails the whole run at startup with 0 jobs), so
-        # the secret is mapped to env and checked with the shell. When it's
-        # absent, build.gradle.kts falls back to AGP's auto-generated debug key.
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > app/debug.keystore
-          else
-            echo "No debug keystore secret (Dependabot/fork PR); AGP will use its auto-generated debug key."
-          fi
-
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: debug-apk-${{ github.sha }}
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) && '5' || '1' }}
-
   instrumented:
-    name: Instrumented Tests
+    name: Instrumented Tests (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    needs: [build, changes]
+    needs: changes
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
       (github.event_name == 'pull_request' && needs.changes.outputs.instrumented == 'true')
+    # Two shards on two emulators halve the ~5.5 min test phase (#952, technical ADR-0041).
+    # AndroidJUnitRunner splits the test methods by name hash. fail-fast is off so a failure
+    # in one shard still lets the other report all of its own.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    # Backstop for a hung emulator or background build; a shard takes about 7 min.
+    timeout-minutes: 30
     concurrency:
-      group: instrumented-${{ github.event.pull_request.number || github.ref }}
+      group: instrumented-${{ github.event.pull_request.number || github.ref }}-shard-${{ matrix.shard }}
       cancel-in-progress: true
 
     steps:
@@ -220,28 +203,44 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Build APKs in the background
+        # Overlaps the APK build with the emulator setup and boot of the next step (#952). That
+        # step's script waits for this build, and fails the job if it failed, before running the
+        # tests, which then find both APKs up to date. Both use the Gradle daemon this build starts.
+        run: scripts/ci-background-build.sh start assembleDebug assembleDebugAndroidTest
+
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
-          script: gradle connectedDebugAndroidTest --no-daemon
+          # The runner executes each script line as its own command, so this stays one line.
+          script: scripts/ci-background-build.sh wait && gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.numShards=${{ strategy.job-total }} -Pandroid.testInstrumentationRunnerArguments.shardIndex=${{ matrix.shard }}
 
       - name: Upload instrumented test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: instrumented-test-results-${{ github.sha }}
+          name: instrumented-test-results-${{ github.sha }}-shard-${{ matrix.shard }}
           path: app/build/reports/androidTests/connected/
           retention-days: 7
 
-  release:
+      - name: Upload debug APK
+        # The APK build runs in this job (the former `build` job is gone). Every shard builds
+        # the same APK, so only shard 0 uploads it. always() keeps the APK when a test fails;
+        # if-no-files-found: ignore covers a build that failed before producing it.
+        if: always() && matrix.shard == 0
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-apk-${{ github.sha }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: ignore
+          retention-days: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) && '5' || '1' }}
+
+  release-build:
     name: Build Release APK
     runs-on: ubuntu-latest
-    needs: instrumented
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -281,7 +280,10 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Build release APK
-        run: gradle assembleRelease --no-daemon
+        # lintRelease above already ran the full lint on these sources; AGP's lint-vital
+        # tasks would re-analyse them (~1m30s). Only CI skips them, a local assembleRelease
+        # keeps the check.
+        run: gradle assembleRelease -x lintVitalRelease -x lintVitalAnalyzeRelease --no-daemon
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -292,6 +294,7 @@ jobs:
         with:
           name: release-apk-${{ github.sha }}
           path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload release test results
@@ -304,12 +307,30 @@ jobs:
             app/build/reports/lint-results-release.html
           retention-days: 7
 
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [test, instrumented, release-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Read version
         id: version
         run: |
           source version.properties
           echo "name=$MAJOR.$MINOR.$PATCH" >> $GITHUB_OUTPUT
           echo "tag=v$MAJOR.$MINOR.$PATCH" >> $GITHUB_OUTPUT
+
+      - name: Download release APK
+        uses: actions/download-artifact@v8
+        with:
+          name: release-apk-${{ github.sha }}
+          path: release-apk
 
       - name: Create GitHub Release
         env:
@@ -319,7 +340,7 @@ jobs:
             echo "Release ${{ steps.version.outputs.tag }} already exists, skipping."
           else
             gh release create "${{ steps.version.outputs.tag }}" \
-              app/build/outputs/apk/release/app-release.apk \
+              release-apk/app-release.apk \
               --title "YAPT ${{ steps.version.outputs.name }}" \
               --target "${{ github.sha }}" \
               --generate-notes
