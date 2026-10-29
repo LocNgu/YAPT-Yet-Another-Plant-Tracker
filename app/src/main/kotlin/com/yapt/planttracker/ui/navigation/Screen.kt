@@ -14,6 +14,13 @@ sealed class Screen(val route: String) {
             }
     }
     object AddPlant : Screen("add_plant")
+
+    /** Add Plant opened from Propagate's "New plant" offer: prefilled and linked to [parentId] (#960). */
+    object AddPropagatedPlant : Screen("add_propagated_plant/{parentId}") {
+        const val PARENT_ARG = "parentId"
+
+        fun createRoute(parentId: Long) = "add_propagated_plant/$parentId"
+    }
     object Settings : Screen("settings")
 
     object EditPlant : Screen("edit_plant/{plantId}") {

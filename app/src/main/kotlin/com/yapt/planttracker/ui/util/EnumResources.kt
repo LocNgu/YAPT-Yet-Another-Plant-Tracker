@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.util
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCut
@@ -58,6 +59,7 @@ fun CareType.labelRes(): Int = when (this) {
     // CareType.CHECK is retained for historical data (#738, product ADR-0039) — no longer written,
     // but existing rows still need a label to render.
     CareType.CHECK -> R.string.care_type_check
+    CareType.PROPAGATE -> R.string.care_type_propagated
 }
 
 fun CareType.icon(): ImageVector = when (this) {
@@ -76,6 +78,7 @@ fun CareType.icon(): ImageVector = when (this) {
     // CareType.CHECK is retained for historical data (#738, product ADR-0039) — no longer written,
     // but existing rows still need an icon to render.
     CareType.CHECK -> Icons.Filled.FactCheck
+    CareType.PROPAGATE -> Icons.AutoMirrored.Filled.CallSplit
 }
 
 @StringRes
@@ -131,6 +134,7 @@ fun WateringAdjustmentTrigger.labelRes(): Int = when (this) {
     WateringAdjustmentTrigger.DORMANCY_EXCLUDED -> R.string.adjustment_trigger_dormancy_excluded
     WateringAdjustmentTrigger.DORMANCY_EXIT -> R.string.adjustment_trigger_dormancy_exit
     WateringAdjustmentTrigger.AWAY_EXCLUDED -> R.string.adjustment_trigger_away_excluded
+    WateringAdjustmentTrigger.PROPAGATE_CONFIDENCE_DROP -> R.string.adjustment_trigger_propagate_confidence_drop
 }
 
 @StringRes

@@ -13,7 +13,11 @@ object WhatsNewContent {
     // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        added = listOf(
+            "New Propagate tab: log cuttings, then add a new plant that starts with the parent's care settings",
+            "A plant's Family card shows the plant it came from and the plants grown from it"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older

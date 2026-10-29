@@ -12,6 +12,25 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Propagate: log cuttings, divisions and offsets, and keep track of plant families** (#960) — a new **Propagate**
+  tab on Plant Detail (after Prune) lists the plant's propagations and logs a new one with the shared date sheet. It
+  is log-only: no interval, reminder or Care task. Any number of propagations per day are accepted. Logging one lowers
+  the plant's watering confidence by 2 (never below 0, at most once per plant per day, and not at all when the plant
+  has not started learning), so the next waterings re-tune the interval faster if its needs changed; the "Why this
+  date?" sheet lists it as "propagated — relearning faster". The base interval, due date and learning are otherwise
+  untouched, and a repot plan is never cleared. After saving, a dialog offers **New plant** (Add Plant prefilled with
+  the species, room and "<Parent> (cutting)", already linked, with a read-only "Propagated from" line and the parent's
+  care settings copied in: dormancy, the fertilizing reminder, repotting seasons, the pin switch and the watering
+  reminder starting at the parent's interval for today; the repotting reminder, repot plan, learned watering, notes
+  and photo are not copied, and everything stays editable), **Existing plant** (a searchable picker) or **Not now**. A
+  **Family** card on the tab shows "Propagated from" (or **Link parent…**) and the children (with **Link existing
+  plant…** and **Add new plant**); rows open the relative, a long-press offers **Unlink**, and archived or hidden
+  relatives are labelled. Deleting a parent just unlinks its children. The expanded tab strip now has nine tabs, so
+  the last one sits on its own row. DB 20 (`plants.propagatedFromId`, self-referencing, `ON DELETE SET NULL`); backup
+  schema 24 (restore applies links in a second pass and drops dangling or cyclic ones). A family-tree screen is a
+  follow-up. See product ADR-0073.
+
 ## [0.40.0] - 2026-10-28
 
 ### Added

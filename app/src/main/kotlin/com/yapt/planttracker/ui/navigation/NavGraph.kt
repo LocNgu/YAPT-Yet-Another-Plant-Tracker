@@ -57,6 +57,7 @@ import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsScreen
 import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsViewModel
+import com.yapt.planttracker.ui.screens.plantdetail.FamilyNavigation
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailViewModel
@@ -327,6 +328,28 @@ fun YaptNavGraph(
             }
 
             composable(
+                route = Screen.AddPropagatedPlant.route,
+                arguments = listOf(navArgument(Screen.AddPropagatedPlant.PARENT_ARG) { type = NavType.LongType })
+            ) { backStackEntry ->
+                val parentId = backStackEntry.arguments!!.getLong(Screen.AddPropagatedPlant.PARENT_ARG)
+                val vm: AddEditPlantViewModel = viewModel(
+                    factory = AddEditPlantViewModel.Factory(
+                        app.plantRepository,
+                        app.plantPhotoRepository,
+                        null,
+                        app.settingsDataStore,
+                        app.wateringAdjustmentRepository,
+                        propagatedFromId = parentId,
+                        childNameFor = { parentName -> app.getString(R.string.propagate_child_name, parentName) }
+                    )
+                )
+                AddEditPlantScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) }
+                )
+            }
+
+            composable(
                 route = Screen.EditPlant.route,
                 arguments = listOf(navArgument("plantId") { type = NavType.LongType })
             ) { backStackEntry ->
@@ -393,7 +416,15 @@ fun YaptNavGraph(
                     },
                     onNavigateToEditLog = { careLogId ->
                         navController.navigate(Screen.AddCareLog.createRoute(plantId, careLogId))
-                    }
+                    },
+                    familyNavigation = FamilyNavigation(
+                        onOpenPlant = { relativeId ->
+                            navController.navigate(Screen.PlantDetail.createRoute(relativeId, PlantDetailTab.PROPAGATE))
+                        },
+                        onAddChild = { parentId ->
+                            navController.navigate(Screen.AddPropagatedPlant.createRoute(parentId))
+                        }
+                    )
                 )
             }
 

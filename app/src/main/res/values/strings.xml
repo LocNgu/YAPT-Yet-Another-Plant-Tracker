@@ -394,6 +394,39 @@
     <string name="repot_plan_next_due">Next repot due %1$s</string>
     <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Propagate tab and plant families (#960, product ADR-0073) -->
+    <string name="plant_detail_tab_propagate">Propagate</string>
+    <string name="plant_detail_tab_propagate_empty">No propagations logged yet.</string>
+    <string name="propagate_action">Propagate</string>
+    <string name="quick_log_propagated">Propagated %s</string>
+    <string name="insight_propagations">Propagations</string>
+    <string name="insight_last_propagated">Last propagated</string>
+    <string name="propagate_offer_title">Add the new plant?</string>
+    <string name="propagate_offer_message">Link a plant to %s as a child, so the family stays together.</string>
+    <string name="propagate_offer_new">New plant</string>
+    <string name="propagate_offer_existing">Existing plant</string>
+    <string name="propagate_offer_not_now">Not now</string>
+    <string name="propagate_child_name">%s (cutting)</string>
+    <string name="add_plant_propagated_from">Propagated from %s</string>
+    <string name="add_plant_care_settings_copied">Care settings copied from %s; change them below</string>
+    <string name="family_title">Family</string>
+    <string name="family_propagated_from">Propagated from</string>
+    <string name="family_link_parent">Link parent…</string>
+    <string name="family_children">Children</string>
+    <string name="family_no_children">No children yet</string>
+    <string name="family_link_existing">Link existing plant…</string>
+    <string name="family_add_new">Add new plant</string>
+    <string name="family_unlink">Unlink</string>
+    <string name="family_row_actions_label">Show family actions</string>
+    <string name="family_relative_archived">%s, archived</string>
+    <string name="family_relative_hidden">%s, hidden</string>
+    <string name="family_picker_title_parent">Link parent</string>
+    <string name="family_picker_title_child">Link existing plant</string>
+    <string name="family_picker_search">Search plants</string>
+    <string name="family_picker_empty">No plants to link</string>
+    <string name="family_picker_no_match">No plants match your search</string>
+    <string name="family_picker_currently_from">Currently from %s</string>
+    <string name="family_link_refused">That link isn\'t possible: a plant can\'t descend from itself.</string>
     <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
     <string name="plant_detail_tab_issues">Issues</string>
@@ -475,6 +508,7 @@
     <string name="care_type_photo">Photo</string>
     <string name="care_type_custom">Custom care</string>
     <string name="care_type_check">Checked</string>
+    <string name="care_type_propagated">Propagated</string>
     <string name="feedback_still_wet">Still wet</string>
     <string name="feedback_just_right">Just right</string>
     <string name="feedback_too_dry">Too dry</string>
@@ -815,6 +849,7 @@
     <string name="adjustment_trigger_dormancy_excluded">dormant — not counted</string>
     <string name="adjustment_trigger_dormancy_exit">left dormancy</string>
     <string name="adjustment_trigger_away_excluded">away — not counted</string>
+    <string name="adjustment_trigger_propagate_confidence_drop">propagated — relearning faster</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>

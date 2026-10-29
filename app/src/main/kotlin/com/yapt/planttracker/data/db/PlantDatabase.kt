@@ -47,7 +47,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 19
+        const val DB_VERSION = 20
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -336,6 +336,22 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #960 (product ADR-0073): self-referencing parent link for plant families. SQLite allows ADD COLUMN
+        // with a REFERENCES clause when the default is NULL, so no table rebuild is needed; every existing
+        // row reads back null (no recorded parent).
+        @Suppress("MagicNumber")
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE plants ADD COLUMN propagatedFromId INTEGER " +
+                        "REFERENCES plants(id) ON UPDATE NO ACTION ON DELETE SET NULL"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_plants_propagatedFromId` ON `plants` (`propagatedFromId`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -361,7 +377,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_15_16,
                         MIGRATION_16_17,
                         MIGRATION_17_18,
-                        MIGRATION_18_19
+                        MIGRATION_18_19,
+                        MIGRATION_19_20
                     )
                     .build()
                     .also { INSTANCE = it }

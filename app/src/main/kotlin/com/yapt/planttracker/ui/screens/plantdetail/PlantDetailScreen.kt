@@ -68,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -128,7 +129,8 @@ fun PlantDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
     onNavigateToEditLog: (careLogId: Long) -> Unit,
-    initialTab: PlantDetailTab? = null
+    initialTab: PlantDetailTab? = null,
+    familyNavigation: FamilyNavigation = FamilyNavigation()
 ) {
     val plant by viewModel.plant.collectAsStateWithLifecycle()
     val careLogs by viewModel.careLogs.collectAsStateWithLifecycle()
@@ -158,6 +160,9 @@ fun PlantDetailScreen(
     var showRepotDatePicker by remember { mutableStateOf(false) }
     var showRepotPlanDialog by remember { mutableStateOf(false) }
     var showPruneDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showPropagateDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showPropagateOffer by rememberSaveable { mutableStateOf(false) }
+    var familyPickerMode by rememberSaveable { mutableStateOf<FamilyPickerMode?>(null) }
     // #694: null hides the Add-photo sheet; non-null is both "sheet visible" and the currently
     // picked date. pendingPhotoLoggedAt is rememberSaveable because the camera app can kill this
     // Activity while a capture is in flight — the picked date has to survive to the result callback.
@@ -240,6 +245,7 @@ fun PlantDetailScreen(
     val rescheduleRevertedMessage = stringResource(R.string.reschedule_reverted_snackbar)
     val undoLabel = stringResource(R.string.snackbar_undo)
     val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
+    val familyLinkRefusedMessage = stringResource(R.string.family_link_refused)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -265,6 +271,9 @@ fun PlantDetailScreen(
                 }
                 is PlantDetailViewModel.Event.FertilizingSeasonToggleRejected ->
                     snackbarHostState.showSnackbarOnce(lastSeasonLockedMessage)
+                is PlantDetailViewModel.Event.PropagateLogged -> showPropagateOffer = true
+                is PlantDetailViewModel.Event.FamilyLinkRefused ->
+                    snackbarHostState.showSnackbarOnce(familyLinkRefusedMessage)
                 else -> {}
             }
         }
@@ -276,6 +285,7 @@ fun PlantDetailScreen(
     val fertilizedTemplate = stringResource(R.string.quick_log_fertilized)
     val repottedTemplate = stringResource(R.string.quick_log_repotted)
     val prunedTemplate = stringResource(R.string.quick_log_pruned)
+    val propagatedTemplate = stringResource(R.string.quick_log_propagated)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -290,6 +300,8 @@ fun PlantDetailScreen(
                     String.format(repottedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Pruned ->
                     String.format(prunedTemplate, message.plantName)
+                is PlantDetailViewModel.QuickLogMessage.Propagated ->
+                    String.format(propagatedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->
@@ -555,6 +567,50 @@ fun PlantDetailScreen(
                 showPruneDatePicker = false
                 viewModel.quickPrune(loggedAt)
             }
+        )
+    }
+
+    if (showPropagateDatePicker) {
+        CareDatePickerBottomSheet(
+            testTag = PROPAGATE_DATE_PICKER_TEST_TAG,
+            onDismiss = { showPropagateDatePicker = false },
+            onConfirm = { loggedAt ->
+                showPropagateDatePicker = false
+                viewModel.quickPropagate(loggedAt)
+            }
+        )
+    }
+
+    if (showPropagateOffer) {
+        PropagateOfferDialog(
+            plantName = plant?.name.orEmpty(),
+            onNewPlant = {
+                showPropagateOffer = false
+                familyNavigation.onAddChild(viewModel.plantId)
+            },
+            onExistingPlant = {
+                showPropagateOffer = false
+                familyPickerMode = FamilyPickerMode.CHILD
+            },
+            onDismiss = { showPropagateOffer = false }
+        )
+    }
+
+    familyPickerMode?.let { mode ->
+        val candidates by produceState<List<FamilyCandidate>?>(initialValue = null, mode) {
+            value = viewModel.familyCandidates(mode)
+        }
+        FamilyPlantPickerSheet(
+            mode = mode,
+            candidates = candidates,
+            onSelect = { selectedId ->
+                familyPickerMode = null
+                when (mode) {
+                    FamilyPickerMode.PARENT -> viewModel.linkParent(selectedId)
+                    FamilyPickerMode.CHILD -> viewModel.linkChild(selectedId)
+                }
+            },
+            onDismiss = { familyPickerMode = null }
         )
     }
 
@@ -1117,6 +1173,25 @@ fun PlantDetailScreen(
                             onPruneClick = { showPruneDatePicker = true },
                             onEdit = { onNavigateToEditLog(it.id) },
                             onDelete = { viewModel.deleteLog(it) }
+                        )
+
+                        PlantDetailTab.PROPAGATE -> propagateTabItems(
+                            careLogs = careLogs,
+                            parentPlant = viewModel.parentPlant,
+                            childPlants = viewModel.childPlants,
+                            actions = PropagateTabActions(
+                                family = FamilyCardActions(
+                                    onOpenPlant = familyNavigation.onOpenPlant,
+                                    onLinkParent = { familyPickerMode = FamilyPickerMode.PARENT },
+                                    onLinkExisting = { familyPickerMode = FamilyPickerMode.CHILD },
+                                    onAddNew = { familyNavigation.onAddChild(viewModel.plantId) },
+                                    onUnlinkParent = { viewModel.unlinkParent() },
+                                    onUnlinkChild = { viewModel.unlinkChild(it) }
+                                ),
+                                onPropagateClick = { showPropagateDatePicker = true },
+                                onEdit = { onNavigateToEditLog(it.id) },
+                                onDelete = { viewModel.deleteLog(it) }
+                            )
                         )
 
                         PlantDetailTab.PHOTO -> {

@@ -445,6 +445,27 @@ class AddCareLogViewModelTest {
     }
 
     @Test
+    fun `a PROPAGATE edit is never duplicate-guarded`() = runTest {
+        val vm = editVm(CareLog(plantId = 1L, careType = CareType.PROPAGATE, loggedAt = now))
+        advanceUntilIdle()
+
+        assertTrue(save(vm) is AddCareLogViewModel.Event.Saved)
+
+        assertNull(vm.duplicateLogError)
+        coVerify(exactly = 0) { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a REPOT edit is never duplicate-guarded`() = runTest {
+        val vm = editVm(CareLog(plantId = 1L, careType = CareType.REPOT, loggedAt = now))
+        advanceUntilIdle()
+
+        save(vm)
+
+        coVerify(exactly = 0) { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) }
+    }
+
+    @Test
     fun `a PRUNE edit is never duplicate-guarded`() = runTest {
         val vm = editVm(CareLog(plantId = 1L, careType = CareType.PRUNE, loggedAt = now))
         advanceUntilIdle()

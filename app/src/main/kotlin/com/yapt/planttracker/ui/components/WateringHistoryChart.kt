@@ -99,6 +99,7 @@ private val careTypeColors = mapOf(
     CareType.REPOT to 0xFFFF8F00.toInt(),
     CareType.NOTE to 0xFF9E9E9E.toInt(),
     CareType.PHOTO to 0xFF7B1FA2.toInt(),
+    CareType.PROPAGATE to 0xFF00897B.toInt(),
 )
 
 internal enum class TimeRange(val labelRes: Int, val daysBack: Int) {
