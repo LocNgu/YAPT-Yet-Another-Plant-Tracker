@@ -15,7 +15,7 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         added = listOf(
-            "New Propagate tab: log cuttings and divisions, then add or link the new plant",
+            "New Propagate tab: log cuttings, then add a new plant that starts with the parent's care settings",
             "A plant's Family card shows the plant it came from and the plants grown from it"
         )
     )

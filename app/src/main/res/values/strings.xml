@@ -410,6 +410,7 @@
     <string name="propagate_offer_not_now">Not now</string>
     <string name="propagate_child_name">%s (cutting)</string>
     <string name="add_plant_propagated_from">Propagated from %s</string>
+    <string name="add_plant_care_settings_copied">Care settings copied from %s; change them below</string>
     <string name="family_title">Family</string>
     <string name="family_propagated_from">Propagated from</string>
     <string name="family_link_parent">Link parent…</string>

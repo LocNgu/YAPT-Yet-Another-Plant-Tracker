@@ -135,11 +135,19 @@ class AddEditPlantViewModel(
         if (plantId == null && propagatedFromId != null) {
             viewModelScope.launch {
                 plantRepository.getPlantById(propagatedFromId).first()?.let { parent ->
+                    // The only suspending step, so every guarded write below sees the user's edits so far.
+                    val live = LiveWateringInterval.compute(
+                        parent,
+                        nowProvider().toLocalDate(),
+                        dataStore?.seasonalAmplitudeOnce() ?: 0.0,
+                        hemisphere()
+                    )
                     linkedParentId = parent.id
                     propagatedFromName = parent.name
                     if (name.isEmpty()) name = childNameFor(parent.name)
                     if (species.isEmpty()) species = parent.species.orEmpty()
                     if (room.isEmpty()) room = parent.room.orEmpty()
+                    prefillCareSettings(parent, live)
                 }
             }
         }
@@ -191,6 +199,48 @@ class AddEditPlantViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * A new plant from a propagation starts with the parent's care settings (#960, product ADR-0073), all
+     * still editable. Each one is written only while it holds its untouched default, like name, species and
+     * room, so a slow parent read never overwrites what the user already changed. Copied: the dormancy
+     * window and its watering cadence, the fertilizing reminder (on/off, interval, seasons, liquid), the
+     * repotting seasons, the pin switch and the watering reminder with the parent's live effective interval
+     * for today ([live]), never the stored literal. Not copied: the repotting reminder and plan, learned
+     * watering state (the cutting learns from scratch), notes, photos, reminders, issues, hidden/archived.
+     */
+    private fun prefillCareSettings(parent: Plant, live: LiveWateringInterval?) {
+        if (!wateringIntervalEnabled && wateringIntervalDays == DEFAULT_WATERING_INTERVAL_DAYS && live != null) {
+            wateringIntervalDays = live.effectiveDays
+            wateringIntervalEnabled = true
+        }
+        prefillFertilizing(parent)
+        if (repottingSeasons == ALL_SEASONS) repottingSeasons = parent.repottingSeasons
+        if (!pinIntervalToBase) pinIntervalToBase = parent.pinIntervalToBase
+        val dormancyUntouched = dormancyStartMonth == null && dormancyEndMonth == null &&
+            dormantWateringIntervalDays == null
+        val parentStart = parent.dormancyStartMonth
+        val parentEnd = parent.dormancyEndMonth
+        if (dormancyUntouched && parentStart != null && parentEnd != null) {
+            setDormancyWindow(
+                parentStart,
+                parentEnd,
+                DormancyWindow.validWateringInterval(parent.dormantWateringIntervalDays)
+            )
+        }
+    }
+
+    private fun prefillFertilizing(parent: Plant) {
+        val parentFertilizing = parent.fertilizingIntervalDays
+        if (!fertilizingIntervalEnabled && fertilizingIntervalDays == DEFAULT_FERTILIZING_INTERVAL_DAYS &&
+            parentFertilizing != null
+        ) {
+            fertilizingIntervalDays = parentFertilizing
+            fertilizingIntervalEnabled = true
+        }
+        if (fertilizingSeasons == ALL_SEASONS) fertilizingSeasons = parent.fertilizingSeasons
+        if (!useLiquidFertilizer) useLiquidFertilizer = parent.useLiquidFertilizer
     }
 
     fun addPhoto(uri: String) {
@@ -517,6 +567,9 @@ class AddEditPlantViewModel(
         const val MIN_REPOTTING_MONTHS = 3
         const val MAX_REPOTTING_MONTHS = 36
         const val DEFAULT_REPOTTING_MONTHS = 12
+        private const val DEFAULT_WATERING_INTERVAL_DAYS = 7
+        private const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
+        private val ALL_SEASONS = FertilizingSeason.entries.toSet()
     }
 
     class Factory(

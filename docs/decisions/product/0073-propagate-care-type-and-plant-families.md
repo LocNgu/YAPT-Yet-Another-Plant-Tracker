@@ -71,8 +71,22 @@ picked.
 
 **After a log is saved**, a dialog offers **New plant** (Add Plant prefilled with the parent's species and room and the
 name "<Parent> (cutting)", already linked), **Existing plant** (the picker) or **Not now**. Add Plant gets no editable
-parent field; when opened from the offer it shows only a read-only "Propagated from <Parent>" line. The Family card
-offers both again later, for a child the user forgot.
+parent field; when opened from the offer it shows only a read-only "Propagated from <Parent>" line and a supporting line,
+"Care settings copied from <Parent>; change them below". The Family card offers both again later, for a child the user
+forgot.
+
+**A new plant inherits the parent's care settings.** The form opened by "New plant" (and the Family card's "Add new
+plant") is prefilled from the parent, and every value stays editable. Copied: the dormancy window and its watering
+cadence; the fertilizing reminder (on/off, interval, seasons, liquid fertilizer); the repotting seasons; the pin switch;
+and the watering reminder's on/off, with the interval starting at the parent's **live effective interval for today**
+(`LiveWateringInterval`, never the stored literal), from which the new plant derives its own base like any new plant.
+Not copied: the repotting reminder and repot plan (a young plant outgrows its pot much sooner, so it stays at Add Plant's
+default, off), learned watering state (the cutting learns from scratch: `wateringConfidence` stays `null`, with no
+anchors, override or adjustment rows), notes, photo, custom reminders, issues, and hidden or archived state. Each field is
+written only while it still holds its untouched default, the same guard as name, species and room, so a slow parent read
+never overwrites the user's edits. "Existing plant" (linking) copies nothing. No extra fertilizing pause is added: the
+existing 30-day first-fertilize grace from `createdAt` already holds the first reminder off while the cutting roots (a
+repot-triggered fertilizing pause is tracked separately in #965).
 
 **Backup.** Schema 24 adds `BackupPlant.propagatedFromId`. Restore inserts every plant unlinked, then applies the links
 in a second pass, so insert order never trips the foreign key. A dangling, self or cyclic link becomes `null`; a tail that
