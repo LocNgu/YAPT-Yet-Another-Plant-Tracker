@@ -29,9 +29,9 @@ Alternatives considered:
 ## Decision
 
 **Propagate is a log-only care type.** `CareType.PROPAGATE` is appended last. It has no interval, no reminder and no
-due state, and never appears in the Care queue, Calendar quick-log, notifications, Plant List or the bulk bar. One
-propagation event is one log (more are allowed), however many child plants it produces (splitting a plant into five is one log on the
-mother and four new plants).
+due state, and never appears in the Care queue, Calendar quick-log, notifications, Plant List or the bulk bar. A
+propagation event is normally one log, however many child plants it produces (splitting a plant into five is one log
+on the mother and four new plants), but several per day are allowed (see below).
 
 **Surface.** A new `PlantDetailTab.PROPAGATE` sits after Prune in the collapsed second row. Its filled "Propagate" button
 opens the shared `CareDatePickerBottomSheet` (the Prune pattern). The tab lists the plant's PROPAGATE logs (editable

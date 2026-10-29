@@ -445,7 +445,7 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `moving a PROPAGATE log onto a day with another PROPAGATE log is accepted`() = runTest {
+    fun `a PROPAGATE edit is never duplicate-guarded`() = runTest {
         val vm = editVm(CareLog(plantId = 1L, careType = CareType.PROPAGATE, loggedAt = now))
         advanceUntilIdle()
 
