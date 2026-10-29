@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -194,20 +193,33 @@ class QuickLogUseCasePropagateTest {
     }
 
     @Test
-    fun `a second PROPAGATE on the same day is rejected and drops nothing more`() = runTest {
+    fun `a second PROPAGATE on the same day is accepted but drops nothing more`() = runTest {
         val plant = plant(confidence = 5)
         useCase.quickLog(plant, CareType.PROPAGATE, today)
 
         val second = useCase.quickLog(plant, CareType.PROPAGATE, today + 1_000L)
 
-        assertFalse(second.logged)
+        assertTrue(second.logged)
         assertEquals(3, reload(plant).wateringConfidence)
-        assertEquals(1, careLogRepo.getLogsForPlant(plant.id).first().size)
+        assertEquals(2, careLogRepo.getLogsForPlant(plant.id).first().size)
         assertEquals(1, dropRows(plant).size)
     }
 
     @Test
-    fun `PROPAGATE on a different day is allowed`() = runTest {
+    fun `any number of same-day PROPAGATE logs drop once, whatever order they are dated in`() = runTest {
+        val plant = plant(confidence = 5)
+
+        useCase.quickLog(plant, CareType.PROPAGATE, today + 5_000L)
+        useCase.quickLog(plant, CareType.PROPAGATE, today)
+        useCase.quickLog(plant, CareType.PROPAGATE, today + 9_000L)
+
+        assertEquals(3, reload(plant).wateringConfidence)
+        assertEquals(3, careLogRepo.getLogsForPlant(plant.id).first().size)
+        assertEquals(1, dropRows(plant).size)
+    }
+
+    @Test
+    fun `PROPAGATE on the next day drops confidence again`() = runTest {
         val plant = plant(confidence = 5)
         useCase.quickLog(plant, CareType.PROPAGATE, today)
 
@@ -215,6 +227,7 @@ class QuickLogUseCasePropagateTest {
 
         assertTrue(next.logged)
         assertEquals(1, reload(plant).wateringConfidence)
+        assertEquals(2, dropRows(plant).size)
     }
 
     @Test

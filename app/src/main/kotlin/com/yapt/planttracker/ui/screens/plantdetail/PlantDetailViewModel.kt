@@ -655,7 +655,6 @@ class PlantDetailViewModel(
         data class Repotted(val plantName: String) : QuickLogMessage()
         data class Pruned(val plantName: String) : QuickLogMessage()
         data class Propagated(val plantName: String) : QuickLogMessage()
-        data class AlreadyPropagatedToday(val plantName: String) : QuickLogMessage()
         data class WateredAndFertilized(val plantName: String) : QuickLogMessage()
         data class AlreadyWateredToday(val plantName: String) : QuickLogMessage()
         data class AlreadyFertilizedToday(val plantName: String) : QuickLogMessage()

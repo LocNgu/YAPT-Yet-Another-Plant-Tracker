@@ -93,17 +93,17 @@ class PlantDetailViewModelFamilyTest {
     }
 
     @Test
-    fun `quickPropagate on a day that already has one reports it and offers nothing`() = runTest {
+    fun `quickPropagate offers nothing when the use case logged nothing`() = runTest {
         val me = plant(1L, "Pothos")
         coEvery { quickLogUseCase.quickLog(me, CareType.PROPAGATE, any()) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Already", logged = false)
+            QuickLogUseCase.QuickLogOutcome(message = "Nothing", logged = false)
         val vm = makeVm(me)
         vm.plant.test {
             assertEquals(me, awaitItem())
-            vm.quickLogMessage.test {
+            vm.events.test {
                 vm.quickPropagate(5_000L)
-                assertEquals(PlantDetailViewModel.QuickLogMessage.AlreadyPropagatedToday("Pothos"), awaitItem())
-                cancelAndIgnoreRemainingEvents()
+                advanceUntilIdle()
+                expectNoEvents()
             }
             cancelAndIgnoreRemainingEvents()
         }

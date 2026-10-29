@@ -168,7 +168,6 @@
     <string name="quick_log_other">%1$s %2$s</string>
     <string name="quick_log_already_watered">Already watered %s that day</string>
     <string name="quick_log_already_fertilized">Already fertilized %s that day</string>
-    <string name="quick_log_already_propagated">Already logged a propagation for %s that day</string>
     <string name="care_history_show_less">Show less</string>
     <plurals name="care_history_show_more">
         <item quantity="one">Show 1 more</item>
@@ -295,7 +294,6 @@
     <string name="care_log_photo_label_required">Photo</string>
     <string name="care_log_error_already_watered">This plant already has a watering logged for this day.</string>
     <string name="care_log_error_already_fertilized">This plant already has a fertilizing logged for this day.</string>
-    <string name="care_log_error_already_propagated">This plant already has a propagation logged for this day.</string>
     <string name="plant_detail_photos_section">Photos</string>
     <string name="plant_detail_care_logs_count">%d logs</string>
     <!-- Custom reminders card (#232) -->

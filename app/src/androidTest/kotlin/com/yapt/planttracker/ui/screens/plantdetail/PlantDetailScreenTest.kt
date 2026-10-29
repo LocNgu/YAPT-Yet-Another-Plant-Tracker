@@ -2331,30 +2331,6 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun propagateTab_duplicateSameDay_showsMessageAndNoOffer() {
-        val plant = Plant(id = 61L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
-        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.PROPAGATE, any()) } returns
-            QuickLogUseCase.QuickLogOutcome(message = "Already", logged = false)
-        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PROPAGATE)
-
-        scrollDetailTo(hasTestTag(PROPAGATE_TAB_ACTION_BUTTON_TEST_TAG))
-        composeTestRule.onNodeWithTag(PROPAGATE_TAB_ACTION_BUTTON_TEST_TAG).performClick()
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithTag(PROPAGATE_DATE_PICKER_TEST_TAG)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
-
-        val expected = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(R.string.quick_log_already_propagated, "Pothos")
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText(expected)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        assertNoNodeWithText(str(R.string.propagate_offer_title))
-    }
-
-    @Test
     fun propagateTab_withNoLogs_showsFamilyCardAndEmptyState() {
         val plant = Plant(id = 62L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
         showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PROPAGATE)

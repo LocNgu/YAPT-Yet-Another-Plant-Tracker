@@ -286,7 +286,6 @@ fun PlantDetailScreen(
     val repottedTemplate = stringResource(R.string.quick_log_repotted)
     val prunedTemplate = stringResource(R.string.quick_log_pruned)
     val propagatedTemplate = stringResource(R.string.quick_log_propagated)
-    val alreadyPropagatedTemplate = stringResource(R.string.quick_log_already_propagated)
     val wateredAndFertilizedTemplate = stringResource(R.string.quick_log_watered_and_fertilized)
     val alreadyWateredTemplate = stringResource(R.string.quick_log_already_watered)
     val alreadyFertilizedTemplate = stringResource(R.string.quick_log_already_fertilized)
@@ -303,8 +302,6 @@ fun PlantDetailScreen(
                     String.format(prunedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.Propagated ->
                     String.format(propagatedTemplate, message.plantName)
-                is PlantDetailViewModel.QuickLogMessage.AlreadyPropagatedToday ->
-                    String.format(alreadyPropagatedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.WateredAndFertilized ->
                     String.format(wateredAndFertilizedTemplate, message.plantName)
                 is PlantDetailViewModel.QuickLogMessage.AlreadyWateredToday ->

@@ -30,7 +30,7 @@ Alternatives considered:
 
 **Propagate is a log-only care type.** `CareType.PROPAGATE` is appended last. It has no interval, no reminder and no
 due state, and never appears in the Care queue, Calendar quick-log, notifications, Plant List or the bulk bar. One
-propagation event is one log, however many child plants it produces (splitting a plant into five is one log on the
+propagation event is one log (more are allowed), however many child plants it produces (splitting a plant into five is one log on the
 mother and four new plants).
 
 **Surface.** A new `PlantDetailTab.PROPAGATE` sits after Prune in the collapsed second row. Its filled "Propagate" button
@@ -38,9 +38,9 @@ opens the shared `CareDatePickerBottomSheet` (the Prune pattern). The tab lists 
 and deletable, also shown in Home's combined history). It has no notes field; notes and a photo are added by editing the
 log in Add Care Log, which stays edit-only (product ADR-0062).
 
-**Same-day duplicate guard.** PROPAGATE joins WATER and FERTILIZE in `CareLogRepository.hasLogOfTypeOnDay()`, checked in
-`QuickLogUseCase` and when editing in Add Care Log (excluding the edited row). Because one event is one log, a second
-one on the same day is a user error. REPOT and PRUNE stay unguarded; changing that is a separate decision.
+**No same-day duplicate guard.** Any number of PROPAGATE logs per plant per day are accepted, in `QuickLogUseCase` and
+when editing in Add Care Log: the guard stays on WATER and FERTILIZE only, and REPOT and PRUNE stay unguarded. A user can
+log each batch of cuttings as it happens; the once-per-day confidence drop below keeps repeats from compounding.
 
 **Effect on watering: a confidence drop, not a reset.** A newly created PROPAGATE log sets
 `wateringConfidence = max(c - 2, 0)` on the 0-5 scale (technical ADR-0021), matching `STREAK_CONFIDENCE_PENALTY`. A `null`
@@ -48,8 +48,10 @@ confidence stays `null`. Lower confidence raises the adaptive gain, so the next 
 the plant's needs changed; if they did not, gap agreement raises confidence again. The base interval, due date,
 `wateringResetAt` and `wateringFreezeUntil` are untouched. One `WateringAdjustmentTrigger.PROPAGATE_CONFIDENCE_DROP` row
 (appended last, `before == after`) is written, and only when the confidence actually changed. The drop is applied once,
-at creation, from `QuickLogUseCase` after a fresh read of the plant; it ignores the log's date and any freeze window,
-and editing or deleting the log never re-applies or reverses it. Technical ADR-0023 is deliberately **not** used, so
+at creation, from `QuickLogUseCase` after a fresh read of the plant, and **at most once per plant per calendar day**: a
+new PROPAGATE log whose day already has another PROPAGATE log for that plant (`hasLogOfTypeOnDay` with the new log
+excluded) drops nothing and writes no row. It ignores any freeze window, and editing or deleting a log never re-applies
+or reverses it. Technical ADR-0023 is deliberately **not** used, so
 nobody later "fixes" PROPAGATE to behave like REPOT. On the same day, PROPAGATE then REPOT ends in the same state as a
 lone REPOT (both rows are kept when the drop changed anything), and REPOT then PROPAGATE leaves the drop a no-op.
 A PROPAGATE log never clears a pending repot plan; dividing at the root is logged as a Repot too, which does.
@@ -102,7 +104,8 @@ Issues. At product ADR-0043's fixed 25% width the expanded strip is 4 + 4 + 1, l
   Status-line amendments; technical ADR-0021 gets one for its confidence-fall conditions.
 - Propagating costs the mother plant some confidence even when its water use did not change; the model recovers through
   normal gap agreement. Accepted over assuming a reset.
-- A second PROPAGATE on the same day is refused, so a user who splits one plant twice in a day logs it as one event.
+- Several PROPAGATE logs on one day are all kept, but only the first lowers confidence, so logging each batch of cuttings
+  separately costs the mother plant no more than one drop a day.
 - The expanded tab strip has a lone ninth tab on its own row. Needs a device check.
 - Out of scope, as follow-ups: a family-tree screen, duplicate guards for REPOT/PRUNE, and detecting relationships
   automatically.

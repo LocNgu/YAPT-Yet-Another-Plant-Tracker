@@ -284,9 +284,9 @@ class QuickLogUseCase(
             wateringFeedback = null,
             fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
         )
-        careLogRepository.addLog(log)
+        val newLogId = careLogRepository.addLog(log)
         maybeApplyRepotReset(plant, careType, loggedAt)
-        maybeApplyPropagateConfidenceDrop(plant, careType)
+        maybeApplyPropagateConfidenceDrop(plant, careType, loggedAt, newLogId)
         val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
         if (waterPaired) {
             // No reason: the user fertilized, and the watering came along with it (product ADR-0008) — they
@@ -696,7 +696,7 @@ class QuickLogUseCase(
     }
 
     private fun isDuplicateGuarded(careType: CareType) =
-        careType == CareType.WATER || careType == CareType.FERTILIZE || careType == CareType.PROPAGATE
+        careType == CareType.WATER || careType == CareType.FERTILIZE
 
     /**
      * [dayTimestampMs] defaults to "now" but a caller backdating a log (#654) passes the chosen date
@@ -718,7 +718,6 @@ class QuickLogUseCase(
     private fun alreadyLoggedMessage(plant: Plant, careType: CareType): String = when (careType) {
         CareType.WATER -> application.getString(R.string.quick_log_already_watered, plant.name)
         CareType.FERTILIZE -> application.getString(R.string.quick_log_already_fertilized, plant.name)
-        CareType.PROPAGATE -> application.getString(R.string.quick_log_already_propagated, plant.name)
         else -> error("No duplicate guard defined for $careType")
     }
 
@@ -818,19 +817,28 @@ class QuickLogUseCase(
      * The #960 confidence drop for a newly inserted PROPAGATE log (product ADR-0073), reached only from
      * [quickLogInternal] — the create path — so editing or deleting the log can never re-apply it. Like
      * [maybeApplyRepotReset] it works from a fresh read of the plant (the caller's snapshot may be
-     * stale), and it ignores the log's date and any freeze window: it is a statement about the plant
-     * now, not about the logged day. A REPOT logged earlier the same day has already set the confidence
-     * to 0, so the drop is then a no-op.
+     * stale), and it ignores any freeze window: it is a statement about the plant now. Any number of
+     * PROPAGATE logs are allowed per day, but the drop happens at most once per plant per calendar day: a
+     * log whose day already has another PROPAGATE log ([newLogId] excluded) drops nothing and writes no row.
+     * A REPOT logged earlier the same day has already set the confidence to 0, so the drop is then a no-op.
      */
-    private suspend fun maybeApplyPropagateConfidenceDrop(plant: Plant, careType: CareType) {
+    private suspend fun maybeApplyPropagateConfidenceDrop(
+        plant: Plant,
+        careType: CareType,
+        loggedAt: Long,
+        newLogId: Long
+    ) {
         if (careType != CareType.PROPAGATE) return
-        val fresh = plantRepository.getPlantById(plant.id).first() ?: return
-        WateringLifecycleReset.applyPropagateConfidenceDrop(
-            fresh,
-            plantRepository,
-            wateringAdjustmentRepository,
-            nowProvider()
-        )
+        val droppedToday = careLogRepository.hasLogOfTypeOnDay(plant.id, CareType.PROPAGATE, loggedAt, newLogId)
+        val fresh = plantRepository.getPlantById(plant.id).first()
+        if (!droppedToday && fresh != null) {
+            WateringLifecycleReset.applyPropagateConfidenceDrop(
+                fresh,
+                plantRepository,
+                wateringAdjustmentRepository,
+                nowProvider()
+            )
+        }
     }
 
     private suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double =

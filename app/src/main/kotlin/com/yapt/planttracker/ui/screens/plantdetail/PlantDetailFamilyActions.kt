@@ -16,17 +16,14 @@ data class FamilyCandidate(val plant: Plant, val currentParent: Plant?)
 /**
  * Quick-logs a propagation from the Propagate tab's date picker (#960, product ADR-0073) through
  * [com.yapt.planttracker.domain.usecase.QuickLogUseCase.quickLog], which also applies the once-only
- * confidence drop. A same-day duplicate is rejected there; on success the screen is told to offer
- * adding or linking the new plant.
+ * confidence drop (at most once per plant per day). On success the screen is told to offer adding or
+ * linking the new plant; any number of propagations per day are accepted.
  */
 fun PlantDetailViewModel.quickPropagate(loggedAt: Long = System.currentTimeMillis()) {
     viewModelScope.launch {
         val p = plant.value ?: return@launch
         val outcome = quickLogUseCase.quickLog(p, CareType.PROPAGATE, loggedAt)
-        if (!outcome.logged) {
-            emitQuickLogMessage(PlantDetailViewModel.QuickLogMessage.AlreadyPropagatedToday(p.name))
-            return@launch
-        }
+        if (!outcome.logged) return@launch
         emitEvent(PlantDetailViewModel.Event.PropagateLogged)
         emitQuickLogMessage(PlantDetailViewModel.QuickLogMessage.Propagated(p.name))
     }
