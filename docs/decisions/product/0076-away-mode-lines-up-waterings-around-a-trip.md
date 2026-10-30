@@ -100,7 +100,7 @@ Learning needs no new rule; this is how the existing ones treat each shift.
 
 | Shift | What happens |
 |---|---|
-| Hold (at most 15% late) | An ordinary on-schedule watering with null feedback: a nudge of at most 0.15 gain and confidence +1, the same as any 1 to 3 days late watering today. No "Why was it late?" prompt appears on any surface, because the same predicate gates the prompt. |
+| Hold (at most 15% late) | An ordinary on-schedule watering with null feedback: a nudge of at most 0.15 gain and confidence +1 when the gap agrees (capped at 5), the same as any watering up to 15% late. No "Why was it late?" prompt appears on any surface, because the same predicate gates the prompt. |
 | Bring-forward, 85% elapsed or more | On schedule, so the same on-schedule nudge. |
 | Bring-forward, 70% to under 85% elapsed | `WATER_NOT_ATTRIBUTED`, excluded from learning (product ADR-0030). It is logged through Before you leave's bulk log, which asks no reason, so the feedback is null. |
 | The next gap, from `L` to the first watering after the trip | `AWAY_EXCLUDED`, because the gap spans the trip. |

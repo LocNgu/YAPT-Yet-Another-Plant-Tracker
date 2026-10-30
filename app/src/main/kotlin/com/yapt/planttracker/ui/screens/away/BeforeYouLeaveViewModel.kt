@@ -66,8 +66,8 @@ sealed interface BeforeYouLeaveEvent {
  * the first visit (ticked) and those due from halfway up to it (unticked), from [BeforeYouLeave.plan]. Check
  * the soil also lists plants that would otherwise come due during the trip and are about 70% through their
  * interval (product ADR-0076). One tap logs the ticked ones through [QuickLogUseCase.bulkLog], Plant List's
- * bulk path: no reason prompt, and the duplicate-day guard applies. The logs carry no feedback, so they stay
- * out of learning exactly as a "Just my timing" answer does.
+ * bulk path: no reason prompt, and the duplicate-day guard applies. The logs carry no feedback: an off-schedule
+ * one stays out of learning like "Just my timing", and an on-schedule one is an ordinary nudge (product ADR-0076).
  */
 @Suppress("LongParameterList")
 class BeforeYouLeaveViewModel(

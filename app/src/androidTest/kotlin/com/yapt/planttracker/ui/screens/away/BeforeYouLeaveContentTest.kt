@@ -9,6 +9,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.Plant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -27,6 +29,8 @@ class BeforeYouLeaveContentTest {
     private var logCalls = 0
 
     private fun plant(id: Long, name: String) = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L)
+
+    private fun string(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
     private fun state(
         water: List<BeforeYouLeaveRow> = listOf(
@@ -49,8 +53,7 @@ class BeforeYouLeaveContentTest {
 
         composeTestRule.onNodeWithText("Water today · 2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Check the soil · 1").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Water only if dry; otherwise the sitter waters them on the first visit.")
-            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.before_leave_check_soil_hint)).assertIsDisplayed()
         composeTestRule.onNodeWithText("4 other plants can wait").assertIsDisplayed()
     }
 

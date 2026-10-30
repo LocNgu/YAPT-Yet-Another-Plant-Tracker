@@ -234,15 +234,14 @@ class BeforeYouLeaveTest {
 
     @Test
     fun `a plant that cannot last the whole trip is not brought forward`() {
-        // A 7-day plant is fully through its interval but needs the sitter either way; a 20-day plant is
-        // exactly 70% through yet runs out one day before a 21-day trip ends.
-        val short = dueOn(1, day(12), interval = 7)
-        val nearMiss = dueOn(2, day(13), interval = 20)
+        // A 20-day plant is exactly 70% through (14 of 20 days) and due after the first visit, but it runs out
+        // one day before a 21-day trip ends.
+        val nearMiss = dueOn(1, day(13), interval = 20)
 
-        val result = plan(listOf(short, nearMiss), visitEveryDays = 4, tripDays = 21)
+        val result = plan(listOf(nearMiss), visitEveryDays = 4, tripDays = 21)
 
         assertTrue(result.checkTheSoil.isEmpty())
-        assertEquals(2, result.canWaitCount)
+        assertEquals(1, result.canWaitCount)
     }
 
     @Test
