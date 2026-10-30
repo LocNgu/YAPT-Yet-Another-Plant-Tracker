@@ -2191,8 +2191,10 @@ class PlantDetailScreenTest {
         )
         openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 45)))
 
+        // Reminder on → the control shows its enabled label; "Fertilizing reminder" is the disabled one.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText("Fertilizing reminder"))
+            .performScrollToNode(hasText("Fertilize every 30 days"))
+        composeTestRule.onNodeWithText("Fertilize every 30 days").assertIsDisplayed()
         composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertDoesNotExist()
     }
 
