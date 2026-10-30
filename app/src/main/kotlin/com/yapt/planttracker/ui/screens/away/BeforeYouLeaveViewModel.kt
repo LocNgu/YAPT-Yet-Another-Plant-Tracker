@@ -63,10 +63,11 @@ sealed interface BeforeYouLeaveEvent {
 
 /**
  * Before you leave (product ADR-0065): on the last day at home, the plants due strictly before halfway to
- * the first visit (ticked) and those due from halfway up to it (unticked), from [BeforeYouLeave.plan]. One
- * tap logs the ticked ones through [QuickLogUseCase.bulkLog], Plant List's bulk path: no reason prompt, and
- * the duplicate-day guard applies. The logs carry no feedback, so they stay out of learning exactly as a
- * "Just my timing" answer does.
+ * the first visit (ticked) and those due from halfway up to it (unticked), from [BeforeYouLeave.plan]. Check
+ * the soil also lists plants that would otherwise come due during the trip and are about 70% through their
+ * interval (product ADR-0076). One tap logs the ticked ones through [QuickLogUseCase.bulkLog], Plant List's
+ * bulk path: no reason prompt, and the duplicate-day guard applies. The logs carry no feedback, so they stay
+ * out of learning exactly as a "Just my timing" answer does.
  */
 @Suppress("LongParameterList")
 class BeforeYouLeaveViewModel(
@@ -136,7 +137,9 @@ class BeforeYouLeaveViewModel(
                 today = inputs.today,
                 visitEveryDays = trip.visitEveryDays,
                 seasonalAmplitude = inputs.amplitude,
-                hemisphere = hemisphere
+                hemisphere = hemisphere,
+                tripFirstDay = trip.firstDay,
+                tripLastDay = trip.lastDay
             )
         )
         fun rows(dues: List<WateringDue>, default: Boolean) =

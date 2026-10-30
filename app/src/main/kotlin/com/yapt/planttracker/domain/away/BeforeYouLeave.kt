@@ -10,7 +10,10 @@ data class BeforeYouLeavePlan(
     val firstVisit: LocalDate,
     /** Due strictly before halfway to the first visit: ticked by default. */
     val waterToday: List<WateringDue>,
-    /** Due from halfway up to the first visit: water only if the soil is dry. Unticked by default. */
+    /**
+     * Due from halfway up to the first visit, then plants due later inside the trip that are about 70% through
+     * their interval (product ADR-0076). Water only if the soil is dry. Unticked by default.
+     */
     val checkTheSoil: List<WateringDue>,
     val canWaitCount: Int
 )
@@ -21,13 +24,20 @@ data class BeforeYouLeaveInput(
     val today: LocalDate,
     val visitEveryDays: Int?,
     val seasonalAmplitude: Double,
-    val hemisphere: Hemisphere
+    val hemisphere: Hemisphere,
+    /** The trip being left for: [today] is the day before [tripFirstDay]. */
+    val tripFirstDay: LocalDate,
+    val tripLastDay: LocalDate
 )
 
 /**
  * Before you leave (product ADR-0065): on the last day at home, which plants to water now. Due dates come
  * from the Care queue's aggregator, widened to the first visit, with no simulated waterings: the owner is
  * about to do the real ones. It leans dry: a plant due exactly halfway is only a "check the soil".
+ *
+ * On top of that, a plant that would otherwise come due inside the trip and is about 70% through its interval
+ * is added to Check the soil, so it can last the whole trip ([TripWateringShifts.bringForward], product
+ * ADR-0076). Those plants are due after the first visit, so they are never in the two lists above.
  */
 object BeforeYouLeave {
 
@@ -45,6 +55,23 @@ object BeforeYouLeave {
             hemisphere = input.hemisphere
         )
         val (water, check) = due.partition { it.dueDate <= lastWaterTodayDay }
-        return BeforeYouLeavePlan(firstVisit, water, check, active.size - due.size)
+        val listed = due.mapTo(HashSet()) { it.plant.id }
+        val broughtForward = TripWateringShifts.bringForward(
+            TripShiftInput(
+                plants = active,
+                careLogs = input.careLogs,
+                tripFirstDay = input.tripFirstDay,
+                tripLastDay = input.tripLastDay,
+                seasonalAmplitude = input.seasonalAmplitude,
+                hemisphere = input.hemisphere
+            ),
+            firstVisit
+        ).filter { it.plant.id !in listed }
+        return BeforeYouLeavePlan(
+            firstVisit = firstVisit,
+            waterToday = water,
+            checkTheSoil = check + broughtForward,
+            canWaitCount = active.size - due.size - broughtForward.size
+        )
     }
 }

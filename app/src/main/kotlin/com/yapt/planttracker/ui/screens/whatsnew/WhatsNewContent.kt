@@ -20,7 +20,8 @@ object WhatsNewContent {
             "Fertilizing reminders now wait 30 days after you repot a plant"
         ),
         changed = listOf(
-            "Editing a care log drops the \"Amount\" field and the photo option, except on Photo logs"
+            "Editing a care log drops the \"Amount\" field and the photo option, except on Photo logs",
+            "On your last day at home, Before you leave also suggests plants that would need water during the trip"
         )
     )
 
