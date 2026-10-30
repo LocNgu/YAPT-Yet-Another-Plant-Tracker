@@ -9,8 +9,8 @@
 Issue #442. The edit-only Add Care Log screen (product ADR-0062) still carried two redundant controls. A free-text
 **Amount** field sat next to the free-text **Notes** field, so it added a second place to type the same thing. Every
 care type also offered an optional photo attachment (a "Photo (optional)" label and an add-photo icon that opened the
-photo-source sheet), which cluttered Water, Fertilize, Prune and Repot logs for a photo almost nobody attaches that
-way: the Photo quick action and the plant gallery are where photos are added (product ADR-0038, product ADR-0013).
+photo-source sheet). That attachment is redundant with the Photo quick action and the plant gallery, which are where
+photos are added (product ADR-0038, product ADR-0013), and it is clutter on Water, Fertilize, Prune and Repot logs.
 
 Alternatives considered: folding existing amounts into Notes during the migration (rejected: nobody has used the
 field yet, and appending text to user notes is a silent edit), keeping the Amount column but hiding the field

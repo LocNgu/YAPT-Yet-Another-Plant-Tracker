@@ -174,20 +174,24 @@ class AddCareLogScreenTest {
             .assertIsDisplayed()
     }
 
-    private val photoActionLabels = listOf("Add photo", "Take photo", "Choose from gallery")
-
     private fun assertNoPhotoActions() {
-        photoActionLabels.forEach { label ->
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        listOf(
+            context.getString(R.string.cd_add_photo),
+            context.getString(R.string.photo_source_take_photo),
+            context.getString(R.string.photo_source_choose_gallery)
+        ).forEach { label ->
             composeTestRule.onNodeWithText(label).assertDoesNotExist()
             composeTestRule.onNodeWithContentDescription(label).assertDoesNotExist()
         }
-        composeTestRule.onNodeWithText("Photo").assertDoesNotExist()
+        composeTestRule.onNodeWithText(context.getString(R.string.care_log_photo_label_required)).assertDoesNotExist()
     }
 
     private fun assertHasNoAmountField(type: CareType) {
         showScreen(makeViewModel(type))
 
-        // #442: Notes covers the amount, so no separate Amount field is offered.
+        // #442: Notes covers the amount, so no separate Amount field is offered. Literal on purpose: the
+        // field_amount_optional resource no longer exists.
         composeTestRule.onNodeWithText("Amount (optional)").assertDoesNotExist()
         composeTestRule.onNodeWithText(notesLabel).assertExists()
     }

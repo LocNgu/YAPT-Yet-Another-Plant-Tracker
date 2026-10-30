@@ -58,7 +58,7 @@ gallery-owned source image.
 | v23 | `BackupPlant.hiddenAt: Long?` (hidden from operational surfaces; export already includes every plant) | `null` = visible (#915, product ADR-0066) |
 | v24 | `BackupPlant.propagatedFromId: Long?` (plant-family parent link); PROPAGATE logs round-trip as plain `careType` strings | `null` = no recorded parent (#960, product ADR-0073) |
 
-**Removing a field needs no version bump** (#442): `BackupCareLog.amount` was dropped, the version stays at v24, and `BackupSerializerTest` pins that an older backup carrying `amount` still deserializes (`ignoreUnknownKeys = true`). Older apps reading a newer backup see the field default to `null`. Only additions get a row above.
+**Removing a field needs no version bump** (#442): `BackupCareLog.amount` was dropped, the version stays at v24, and `BackupCareLogAmountRemovalTest` pins that an older backup carrying `amount` still deserializes (`ignoreUnknownKeys = true`). Older apps reading a newer backup see the field default to `null`. Only additions get a row above.
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.
