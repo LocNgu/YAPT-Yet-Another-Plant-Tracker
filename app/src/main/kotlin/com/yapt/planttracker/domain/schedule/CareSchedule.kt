@@ -36,6 +36,18 @@ object CareSchedule {
      */
     const val FIRST_FERTILIZE_GRACE_DAYS = 30
 
+    /**
+     * Fertilizing is held for this many calendar days after the newest REPOT log (#965, product
+     * ADR-0074): fresh potting mix feeds the plant and fresh roots burn easily. Derived from
+     * `lastRepottedAt`, never stored.
+     */
+    const val POST_REPOT_FERTILIZE_PAUSE_DAYS = 30
+
+    fun postRepotFertilizingPauseEndAt(lastRepottedAt: Long?, nowDate: LocalDate): Long? {
+        val endAt = lastRepottedAt?.plusCalendarDays(POST_REPOT_FERTILIZE_PAUSE_DAYS.toLong()) ?: return null
+        return endAt.takeIf { nowDate.isBefore(it.toLocalDate()) }
+    }
+
     @Suppress("LongParameterList")
     fun computeStatus(
         plant: Plant,
@@ -62,7 +74,7 @@ object CareSchedule {
         val wateringDue = computeWateringDue(plant, lastWateredAt, now, nowDate, seasonalAmplitude, hemisphere)
         val (nextDueAt, wateringOverdue, wateringDueSoon) = wateringDue.dueStatus
         val (nextFertilizingDueAt, fertilizingOverdue, fertilizingDueSoon) =
-            computeFertilizingDue(plant, lastFertilizedAt, nowDate, hemisphere)
+            computeFertilizingDue(plant, lastFertilizedAt, lastRepottedAt, nowDate, hemisphere)
         val repottingDue = computeRepottingDue(plant, lastRepottedAt, nowDate, hemisphere)
         val (nextRepottingDueAt, isRepottingOverdue, isRepottingDueSoon) = repottingDue.dueStatus
         val customReminderStatuses = computeCustomReminderStatuses(customReminders, nowDate)
@@ -309,6 +321,7 @@ object CareSchedule {
     private fun computeFertilizingDue(
         plant: Plant,
         lastFertilizedAt: Long?,
+        lastRepottedAt: Long?,
         nowDate: LocalDate,
         hemisphere: Hemisphere
     ): DueStatus {
@@ -316,11 +329,14 @@ object CareSchedule {
         val nextFertilizingDueAt = if (intervalDays == null) {
             null
         } else {
-            val rawDueAt = if (lastFertilizedAt != null) {
+            val intervalDueAt = if (lastFertilizedAt != null) {
                 lastFertilizedAt.plusCalendarDays(intervalDays.toLong())
             } else {
                 plant.createdAt.plusCalendarDays(FIRST_FERTILIZE_GRACE_DAYS.toLong())
             }
+            // #965 (product ADR-0074): the post-repot pause only ever pushes the raw date later.
+            val pauseEndAt = lastRepottedAt?.plusCalendarDays(POST_REPOT_FERTILIZE_PAUSE_DAYS.toLong())
+            val rawDueAt = if (pauseEndAt != null) maxOf(intervalDueAt, pauseEndAt) else intervalDueAt
             // #795 (product ADR-0049): shift out of an inactive season, including the grace date.
             SeasonalFertilizing.nextActiveDueAtMillis(rawDueAt, plant.fertilizingSeasons, hemisphere, nowDate)
         }

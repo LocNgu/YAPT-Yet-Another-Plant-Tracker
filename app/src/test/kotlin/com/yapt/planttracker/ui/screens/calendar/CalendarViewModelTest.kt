@@ -17,6 +17,7 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.util.plusCalendarDays
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -122,6 +123,24 @@ class CalendarViewModelTest {
         }
 
         coVerify { quickLogUseCase.quickWaterWithReason(monstera, null, any()) }
+    }
+
+    @Test
+    fun `a recent repot holds the fertilizing due date on the calendar too (#965)`() = runTest {
+        val fern = Plant(id = 1L, name = "Fern", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L)
+        val repottedAt = System.currentTimeMillis().plusCalendarDays(-5)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(fern))
+        coEvery { careLogRepo.getLastLogOfType(1L, CareType.REPOT) } returns
+            CareLog(plantId = 1L, careType = CareType.REPOT, loggedAt = repottedAt)
+        vm = CalendarViewModel(
+            application, plantRepo, careLogRepo, dataStore, quickLogUseCase, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            val status = awaitItem().single()
+            assertEquals(repottedAt.plusCalendarDays(30), status.nextFertilizingDueAt)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

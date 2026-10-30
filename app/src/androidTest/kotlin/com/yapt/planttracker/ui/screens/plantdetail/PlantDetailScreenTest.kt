@@ -2149,6 +2149,65 @@ class PlantDetailScreenTest {
         composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(1)
     }
 
+    private fun openFertilizeTabWith(plant: Plant, careLogs: List<CareLog>) {
+        val viewModel = makeViewModel(plant, careLogs)
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {}
+            )
+        }
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    private fun repotLogDaysAgo(plantId: Long, days: Long) = CareLog(
+        id = 98L,
+        plantId = plantId,
+        careType = CareType.REPOT,
+        loggedAt = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+    )
+
+    @Test
+    fun fertilizeTab_recentRepot_showsPausedAfterRepottingNote() {
+        val plant = Plant(
+            id = 35L, name = "Basil", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L
+        )
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 5)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Paused after repotting until", substring = true))
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_repotPauseEnded_hidesPausedAfterRepottingNote() {
+        val plant = Plant(
+            id = 36L, name = "Basil", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L
+        )
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 45)))
+
+        // Reminder on → the control shows its enabled label; "Fertilizing reminder" is the disabled one.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize every 30 days"))
+        composeTestRule.onNodeWithText("Fertilize every 30 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun fertilizeTab_recentRepotButReminderOff_hidesPausedAfterRepottingNote() {
+        val plant = Plant(id = 37L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 5)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilizing reminder"))
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertDoesNotExist()
+    }
+
     @Test
     fun fertilizeTab_regularPlantWithoutInterval_showsFertilizeAndTapLogsDirectly() {
         val plant = Plant(id = 35L, name = "Sage", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)

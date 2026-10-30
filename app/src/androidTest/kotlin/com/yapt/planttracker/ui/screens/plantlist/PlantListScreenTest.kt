@@ -67,6 +67,7 @@ class PlantListScreenTest {
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
+        coEvery { careLogRepo.getLastLogOfType(any(), CareType.REPOT) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         coEvery { plantIssueRepo.getActiveIssueCountForPlant(any()) } answers {
             activeIssueCounts[firstArg<Long>()] ?: 0
