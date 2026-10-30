@@ -64,6 +64,7 @@ class CalendarScreenTest {
         every { careLogRepo.logCount } returns flowOf(0)
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(any(), CareType.FERTILIZE) } returns null
+        coEvery { careLogRepo.getLastLogOfType(any(), CareType.REPOT) } returns null
         coEvery { careLogRepo.getCareLogCount(any()) } returns 0
         val application = ApplicationProvider.getApplicationContext<Application>()
         val quickLogUseCase = QuickLogUseCase(application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, mockk<PlantDatabase>(), mockk(relaxed = true))

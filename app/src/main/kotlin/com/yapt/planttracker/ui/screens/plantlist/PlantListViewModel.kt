@@ -588,12 +588,14 @@ class PlantListViewModel(
     private suspend fun buildStatus(plant: Plant, inputs: StatusInputs, now: Long): PlantCareStatus {
         val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
         val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
+        val lastRepotting = careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
         val totalLogs = careLogRepository.getCareLogCount(plant.id)
         val activeIssueCount = plantIssueRepository.getActiveIssueCountForPlant(plant.id)
         return CareSchedule.computeStatus(
             plant = plant,
             lastWateredAt = lastWatering?.loggedAt,
             lastFertilizedAt = lastFertilizing?.loggedAt,
+            lastRepottedAt = lastRepotting?.loggedAt,
             totalLogs = totalLogs,
             now = now,
             seasonalAmplitude = inputs.seasonalAmplitude,

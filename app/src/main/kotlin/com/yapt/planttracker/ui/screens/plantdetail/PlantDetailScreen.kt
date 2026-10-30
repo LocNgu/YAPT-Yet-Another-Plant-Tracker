@@ -94,6 +94,7 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.GalleryPhoto
 import com.yapt.planttracker.domain.model.PlantIssue
+import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
@@ -1042,6 +1043,19 @@ fun PlantDetailScreen(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                 }
+                                            }
+                                            CareSchedule.postRepotFertilizingPauseEndAt(
+                                                careStatus?.lastRepottedAt,
+                                                LocalDate.now()
+                                            )?.let { pauseEndAt ->
+                                                Text(
+                                                    text = stringResource(
+                                                        R.string.fertilizing_post_repot_pause_note,
+                                                        DateUtils.formatDate(pauseEndAt)
+                                                    ),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
                                             }
                                             if (p.dormancyStartMonth != null && p.dormancyEndMonth != null) {
                                                 Text(

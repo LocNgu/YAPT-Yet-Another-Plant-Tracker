@@ -13,6 +13,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Fertilizing reminders pause for 30 days after a repot** (#965, product ADR-0074) — the fertilizing due date is
+  now `max(usual due date, repot day + 30 days)` for both fed and never-fed plants, then shifted out of inactive
+  seasons as before. It is derived from the newest REPOT log (no migration or backup change), holds even if you
+  fertilize after the repot, and Plant List and Calendar now agree with Care and Plant Detail. The Fertilize tab
+  shows "Paused after repotting until <date>" while it applies. Propagating has no effect.
 - **Propagate: log cuttings, divisions and offsets, and keep track of plant families** (#960) — a new **Propagate**
   tab on Plant Detail (after Prune) lists the plant's propagations and logs a new one with the shared date sheet. It
   is log-only: no interval, reminder or Care task. Any number of propagations per day are accepted. Logging one lowers

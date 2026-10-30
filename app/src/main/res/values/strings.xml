@@ -272,6 +272,7 @@
     <string name="fertilizing_active_seasons_label">Active in</string>
     <string name="fertilizing_last_season_locked_snackbar">At least one season must stay active. To stop fertilizing, turn off the fertilizing reminder.</string>
     <string name="fertilizing_out_of_season">Out of season — next fertilizing %1$s</string>
+    <string name="fertilizing_post_repot_pause_note">Paused after repotting until %1$s</string>
     <string name="fertilizing_dormancy_pause_note">Fertilizing reminders pause during this plant’s dormancy window.</string>
     <plurals name="repotting_interval_label">
         <item quantity="one">Repot every month</item>

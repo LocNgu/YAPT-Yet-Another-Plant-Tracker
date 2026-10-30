@@ -20,6 +20,7 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
 import com.yapt.planttracker.util.MainDispatcherRule
+import com.yapt.planttracker.util.plusCalendarDays
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -229,6 +230,7 @@ class PlantListViewModelTest {
         coEvery { careLogRepo.getCareLogCount(3L) } returns 5
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
         coEvery { careLogRepo.getLastLogOfType(3L, CareType.FERTILIZE) } returns null
+        coEvery { careLogRepo.getLastLogOfType(3L, CareType.REPOT) } returns null
         vm = PlantListViewModel(
             application, plantRepo, careLogRepo, dataStore,
             quickLogUseCase, plantIssueRepo, dayChangeFlow
@@ -238,6 +240,29 @@ class PlantListViewModelTest {
             val items = awaitItem()
             assertEquals(1, items.size)
             assertEquals(5, items[0].totalCareLogs)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a recent repot holds the fertilizing due date on the list too (#965)`() = runTest {
+        val fern = Plant(id = 3L, name = "Fern", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L)
+        val repottedAt = System.currentTimeMillis().plusCalendarDays(-5)
+        every { plantRepo.getAllPlants() } returns flowOf(listOf(fern))
+        every { plantRepo.getAllRooms() } returns flowOf(emptyList())
+        coEvery { careLogRepo.getCareLogCount(3L) } returns 1
+        coEvery { careLogRepo.getLastLogOfType(3L, CareType.WATER) } returns null
+        coEvery { careLogRepo.getLastLogOfType(3L, CareType.FERTILIZE) } returns null
+        coEvery { careLogRepo.getLastLogOfType(3L, CareType.REPOT) } returns
+            CareLog(plantId = 3L, careType = CareType.REPOT, loggedAt = repottedAt)
+        vm = PlantListViewModel(
+            application, plantRepo, careLogRepo, dataStore,
+            quickLogUseCase, plantIssueRepo, dayChangeFlow
+        )
+
+        vm.plantsWithStatus.test {
+            val status = awaitItem().single()
+            assertEquals(repottedAt.plusCalendarDays(30), status.nextFertilizingDueAt)
             cancelAndIgnoreRemainingEvents()
         }
     }
