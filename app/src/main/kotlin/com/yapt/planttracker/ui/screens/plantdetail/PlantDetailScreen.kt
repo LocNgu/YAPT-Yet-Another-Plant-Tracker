@@ -1044,10 +1044,14 @@ fun PlantDetailScreen(
                                                     )
                                                 }
                                             }
-                                            CareSchedule.postRepotFertilizingPauseEndAt(
-                                                careStatus?.lastRepottedAt,
-                                                LocalDate.now()
-                                            )?.let { pauseEndAt ->
+                                            val lastRepottedAt = careStatus?.lastRepottedAt
+                                            val repotPauseEndAt = remember(lastRepottedAt) {
+                                                CareSchedule.postRepotFertilizingPauseEndAt(
+                                                    lastRepottedAt,
+                                                    LocalDate.now()
+                                                )
+                                            }
+                                            repotPauseEndAt?.let { pauseEndAt ->
                                                 Text(
                                                     text = stringResource(
                                                         R.string.fertilizing_post_repot_pause_note,
