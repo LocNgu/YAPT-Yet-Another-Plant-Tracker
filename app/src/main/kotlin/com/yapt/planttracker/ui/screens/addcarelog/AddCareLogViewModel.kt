@@ -47,7 +47,6 @@ class AddCareLogViewModel(
         private set
     var notes by mutableStateOf("")
     var photoUri by mutableStateOf<String?>(null)
-    var amount by mutableStateOf("")
     var loggedAt by mutableStateOf(System.currentTimeMillis())
 
     // Nothing pre-selected (#570, product ADR-0027) — the 3-way soil-state chip collapsed to one
@@ -78,7 +77,6 @@ class AddCareLogViewModel(
             }
             careType = log.careType
             notes = log.notes ?: ""
-            amount = log.amount ?: ""
             photoUri = log.photoUri
             selectedFeedback = log.wateringFeedback
             selectedFertilizerType = log.fertilizerType
@@ -122,7 +120,6 @@ class AddCareLogViewModel(
         loggedAt = loggedAt,
         notes = notes.trim().ifBlank { null },
         photoUri = photoUri,
-        amount = amount.trim().ifBlank { null },
         wateringFeedback = wateringFeedback,
         fertilizerType = if (careType == CareType.FERTILIZE) selectedFertilizerType else FertilizerType.UNSPECIFIED,
         customReminderId = customReminderId

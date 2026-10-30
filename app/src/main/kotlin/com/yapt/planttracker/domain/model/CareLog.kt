@@ -7,7 +7,6 @@ data class CareLog(
     val loggedAt: Long = System.currentTimeMillis(),
     val notes: String? = null,
     val photoUri: String? = null,
-    val amount: String? = null,
     val wateringFeedback: WateringFeedback? = null,
     val fertilizerType: FertilizerType = FertilizerType.UNSPECIFIED,
     /**

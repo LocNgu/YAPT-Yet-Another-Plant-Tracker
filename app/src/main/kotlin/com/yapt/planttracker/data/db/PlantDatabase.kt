@@ -47,7 +47,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 20
+        const val DB_VERSION = 21
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -352,6 +352,39 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #442: the free-text Amount field is gone (Notes covers it), so care_logs.amount is dropped and
+        // existing values are discarded. Rebuilt rather than ALTER TABLE DROP COLUMN, which needs SQLite
+        // 3.35 (Android 14+) while minSdk is 26. Nothing references care_logs, so the rebuild is FK-safe.
+        @Suppress("MagicNumber")
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `care_logs_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`plantId` INTEGER NOT NULL, " +
+                        "`careType` TEXT NOT NULL, " +
+                        "`loggedAt` INTEGER NOT NULL, " +
+                        "`notes` TEXT, " +
+                        "`photoUri` TEXT, " +
+                        "`wateringFeedback` TEXT, " +
+                        "`fertilizerType` TEXT NOT NULL, " +
+                        "`customReminderId` INTEGER, " +
+                        "FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "INSERT INTO care_logs_new (id, plantId, careType, loggedAt, notes, photoUri, " +
+                        "wateringFeedback, fertilizerType, customReminderId) " +
+                        "SELECT id, plantId, careType, loggedAt, notes, photoUri, " +
+                        "wateringFeedback, fertilizerType, customReminderId FROM care_logs"
+                )
+                db.execSQL("DROP TABLE care_logs")
+                db.execSQL("ALTER TABLE care_logs_new RENAME TO care_logs")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_care_logs_plantId` ON `care_logs` (`plantId`)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -378,7 +411,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_16_17,
                         MIGRATION_17_18,
                         MIGRATION_18_19,
-                        MIGRATION_19_20
+                        MIGRATION_19_20,
+                        MIGRATION_20_21
                     )
                     .build()
                     .also { INSTANCE = it }

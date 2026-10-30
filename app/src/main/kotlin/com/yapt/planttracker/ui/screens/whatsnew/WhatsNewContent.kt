@@ -18,6 +18,9 @@ object WhatsNewContent {
             "New Propagate tab: log cuttings, then add a new plant that starts with the parent's care settings",
             "A plant's Family card shows the plant it came from and the plants grown from it",
             "Fertilizing reminders now wait 30 days after you repot a plant"
+        ),
+        changed = listOf(
+            "Editing a care log drops the \"Amount\" field and the photo option, except on Photo logs"
         )
     )
 

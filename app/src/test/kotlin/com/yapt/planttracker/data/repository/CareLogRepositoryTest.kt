@@ -83,7 +83,6 @@ class CareLogRepositoryTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = null,
         wateringFeedback = wateringFeedback
     )
 
@@ -316,7 +315,6 @@ class CareLogRepositoryTest {
                 loggedAt = 1L,
                 notes = null,
                 photoUri = null,
-                amount = null,
                 wateringFeedback = null
             )
         )
@@ -340,7 +338,6 @@ class CareLogRepositoryTest {
                 loggedAt = 1L,
                 notes = null,
                 photoUri = null,
-                amount = null,
                 wateringFeedback = "DELETED_FEEDBACK"
             )
         )

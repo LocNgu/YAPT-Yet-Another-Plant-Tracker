@@ -36,6 +36,17 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   schema 24 (restore applies links in a second pass and drops dangling or cyclic ones). A family-tree screen is a
   follow-up. See product ADR-0073.
 
+### Changed
+- **Add Care Log drops the Amount field and the optional photo** (#442, product ADR-0075) — editing a log no longer
+  shows an **Amount** field; Notes covers it, and Water and Fertilize logs hint "e.g. watering amount" in Notes. The
+  photo block (label, preview, Take photo / Choose from gallery) now appears only when editing a **Photo** log, which
+  still needs a photo and still updates the cover; the "Photo (optional)" label, the add-photo icon and its
+  photo-source sheet are gone from every other type. A photo that a non-Photo log already carries is kept untouched
+  on save (no thumbnail, no way to clear it here), so it stays in the gallery. DB 21 (`MIGRATION_20_21` rebuilds
+  `care_logs` without `amount`, since `DROP COLUMN` needs SQLite 3.35 and minSdk is 26): existing amounts are
+  discarded, not copied into Notes. `.yapt` backups drop the field too; the schema stays 24 and older backups that
+  carry `amount` still restore (unknown keys are ignored).
+
 ## [0.40.0] - 2026-10-28
 
 ### Added

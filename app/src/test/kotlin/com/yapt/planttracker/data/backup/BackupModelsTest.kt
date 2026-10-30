@@ -81,7 +81,6 @@ class BackupModelsTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = amount,
         wateringFeedback = wateringFeedback
     )
 
@@ -92,7 +91,6 @@ class BackupModelsTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = amount,
         wateringFeedback = wateringFeedback
     )
 
@@ -134,7 +132,6 @@ class BackupModelsTest {
         loggedAt = 1_600_000_000_000L,
         notes = "Good watering",
         photoUri = "content://uri/log.jpg",
-        amount = "300ml",
         wateringFeedback = "JUST_RIGHT"
     )
 
@@ -218,7 +215,6 @@ class BackupModelsTest {
         assertEquals(fullLog.loggedAt, bl.loggedAt)
         assertEquals(fullLog.notes, bl.notes)
         assertEquals(fullLog.photoUri, bl.photoUri)
-        assertEquals(fullLog.amount, bl.amount)
         assertEquals(fullLog.wateringFeedback, bl.wateringFeedback)
     }
 
@@ -236,7 +232,6 @@ class BackupModelsTest {
             loggedAt = 1_600_000_000_000L,
             notes = null,
             photoUri = null,
-            amount = null,
             wateringFeedback = null
         )
         assertEquals(minimal, minimal.toBackupCareLog().toCareLogEntity())
