@@ -70,7 +70,6 @@ class BackupSerializerTest {
         loggedAt = 1_600_000_000_000L,
         notes = "Watered well",
         photoUri = "content://uri/log.jpg",
-        amount = "500ml",
         wateringFeedback = "JUST_RIGHT",
         fertilizerType = "LIQUID"
     )
@@ -161,7 +160,6 @@ class BackupSerializerTest {
         val log = backupJson.decodeFromString(BackupRoot.serializer(), json).careLogs[0]
         assertNull(log.notes)
         assertNull(log.photoUri)
-        assertNull(log.amount)
         assertNull(log.wateringFeedback)
     }
 

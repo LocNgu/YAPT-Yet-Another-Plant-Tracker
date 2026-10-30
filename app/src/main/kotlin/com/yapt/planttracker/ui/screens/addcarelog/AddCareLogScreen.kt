@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
@@ -66,7 +64,6 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.FertilizerType
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
-import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
 import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.components.yaptFilterChipColors
@@ -92,8 +89,6 @@ fun AddCareLogScreen(
     val datePickerState = key(viewModel.isLoaded) {
         rememberDatePickerState(initialSelectedDateMillis = viewModel.loggedAt)
     }
-
-    var showPhotoSourceSheet by remember { mutableStateOf(false) }
 
     val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
         viewModel.photoUri = uri.toString()
@@ -153,23 +148,6 @@ fun AddCareLogScreen(
     }
 
     CameraPhotoDialogs(cameraState)
-
-    if (showPhotoSourceSheet) {
-        PhotoSourceBottomSheet(
-            onDismiss = { showPhotoSourceSheet = false },
-            onTakePhoto = {
-                showPhotoSourceSheet = false
-                cameraState.launch()
-            },
-            onChooseGallery = {
-                showPhotoSourceSheet = false
-                cameraState.onGallerySelected()
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            }
-        )
-    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -296,93 +274,68 @@ fun AddCareLogScreen(
                 }
             }
 
-            if (viewModel.careType in listOf(CareType.WATER, CareType.FERTILIZE)) {
-                OutlinedTextField(
-                    value = viewModel.amount,
-                    onValueChange = { viewModel.amount = it },
-                    label = { Text(stringResource(R.string.field_amount_optional)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(stringResource(R.string.placeholder_amount)) },
-                    singleLine = true
-                )
-            }
-
-            Column {
-                Text(
-                    text = if (viewModel.careType == CareType.PHOTO) {
-                        stringResource(R.string.care_log_photo_label_required)
-                    } else {
-                        stringResource(R.string.care_log_photo_label)
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(8.dp))
-                if (viewModel.photoUri != null) {
-                    PlantPhoto(
-                        uri = viewModel.photoUri,
-                        size = 72.dp,
-                        rounded = false
+            if (viewModel.careType == CareType.PHOTO) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.care_log_photo_label_required),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(8.dp))
-                }
-                // A PHOTO log reveals the two source actions inline (Take photo /
-                // Choose from gallery) as full-width buttons so the user goes straight
-                // to the camera or picker with no intermediate sheet. Other care types
-                // keep the compact icon that opens the source sheet, since a photo is
-                // only an optional attachment there (#443).
-                AnimatedContent(
-                    targetState = viewModel.careType == CareType.PHOTO,
-                    label = "photoSourceActions"
-                ) { isPhotoCareType ->
-                    if (isPhotoCareType) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(
-                                onClick = { cameraState.launch() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Filled.CameraAlt,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(ButtonDefaults.IconSize)
-                                )
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text(stringResource(R.string.photo_source_take_photo))
-                            }
-                            FilledTonalButton(
-                                onClick = {
-                                    cameraState.onGallerySelected()
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    Icons.Filled.PhotoLibrary,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(ButtonDefaults.IconSize)
-                                )
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text(stringResource(R.string.photo_source_choose_gallery))
-                            }
-                        }
-                    } else {
-                        IconButton(onClick = { showPhotoSourceSheet = true }) {
+                    if (viewModel.photoUri != null) {
+                        PlantPhoto(
+                            uri = viewModel.photoUri,
+                            size = 72.dp,
+                            rounded = false
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(
+                            onClick = { cameraState.launch() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Icon(
-                                Icons.Filled.AddAPhoto,
-                                contentDescription = stringResource(R.string.cd_add_photo),
-                                modifier = Modifier.size(32.dp)
+                                Icons.Filled.CameraAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
                             )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.photo_source_take_photo))
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                cameraState.onGallerySelected()
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Filled.PhotoLibrary,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
+                            )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.photo_source_choose_gallery))
                         }
                     }
                 }
             }
 
+            // The free-text Amount field is gone (#442); only the two types that used to carry one get the hint.
+            val notesPlaceholder: (@Composable () -> Unit)? =
+                if (viewModel.careType == CareType.WATER || viewModel.careType == CareType.FERTILIZE) {
+                    { Text(stringResource(R.string.placeholder_notes_amount)) }
+                } else {
+                    null
+                }
             OutlinedTextField(
                 value = viewModel.notes,
                 onValueChange = { viewModel.notes = it },
                 label = { Text(stringResource(R.string.field_notes_optional)) },
                 modifier = Modifier.fillMaxWidth(),
+                placeholder = notesPlaceholder,
                 minLines = 2,
                 maxLines = 5
             )

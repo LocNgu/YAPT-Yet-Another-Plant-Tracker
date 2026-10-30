@@ -105,7 +105,6 @@ class BackupManagerTest {
             loggedAt = 2000L,
             notes = null,
             photoUri = null,
-            amount = null,
             wateringFeedback = null
         )
         db.careLogDao().insertLog(log)
@@ -980,7 +979,6 @@ class BackupManagerTest {
                 loggedAt = 2000L,
                 notes = null,
                 photoUri = null,
-                amount = null,
                 wateringFeedback = null
             )
         )
@@ -1077,7 +1075,6 @@ class BackupManagerTest {
                 loggedAt = 5000L,
                 notes = null,
                 photoUri = null,
-                amount = null,
                 wateringFeedback = null
             )
         )

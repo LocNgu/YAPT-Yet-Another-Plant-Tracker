@@ -263,7 +263,6 @@ class BackupManager(
                                 loggedAt = entity.loggedAt,
                                 notes = entity.notes,
                                 photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
-                                amount = entity.amount,
                                 wateringFeedback = entity.wateringFeedback,
                                 fertilizerType = entity.fertilizerType,
                                 customReminderId = entity.customReminderId
@@ -489,7 +488,6 @@ class BackupManager(
                     loggedAt = bl.loggedAt,
                     notes = bl.notes,
                     photoUri = bl.photoUri?.let { zipPathToLocalPath[it] },
-                    amount = bl.amount,
                     wateringFeedback = bl.wateringFeedback,
                     fertilizerType = runCatching {
                         FertilizerType.valueOf(

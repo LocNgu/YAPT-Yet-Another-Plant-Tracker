@@ -25,7 +25,6 @@ data class CareLogEntity(
     val loggedAt: Long,
     val notes: String?,
     val photoUri: String?,
-    val amount: String?,
     val wateringFeedback: String?,
     val fertilizerType: String = "UNSPECIFIED",
     val customReminderId: Long? = null

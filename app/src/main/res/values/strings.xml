@@ -229,9 +229,8 @@
     <string name="cd_back">Back</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_add_photo">Add photo</string>
-    <string name="field_amount_optional">Amount (optional)</string>
-    <string name="placeholder_amount">e.g. 200ml</string>
     <string name="field_notes_optional">Notes (optional)</string>
+    <string name="placeholder_notes_amount">e.g. watering amount</string>
     <string name="cd_pick_date">Pick date</string>
     <string name="cd_plant_cover_photo">Plant cover photo</string>
     <string name="cd_plant_photo_fullscreen">Full-screen plant photo</string>
@@ -291,7 +290,6 @@
     <string name="care_log_fertilizer_type_label">Fertilizer type</string>
     <string name="fertilizer_type_liquid">Liquid</string>
     <string name="fertilizer_type_solid">Solid</string>
-    <string name="care_log_photo_label">Photo (optional)</string>
     <string name="care_log_photo_label_required">Photo</string>
     <string name="care_log_error_already_watered">This plant already has a watering logged for this day.</string>
     <string name="care_log_error_already_fertilized">This plant already has a fertilizing logged for this day.</string>

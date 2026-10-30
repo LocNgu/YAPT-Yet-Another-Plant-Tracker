@@ -152,7 +152,6 @@ class TodayCareRepositoryBenchmarkTest {
                     loggedAt = dayMs(1L + i * 3L),
                     notes = null,
                     photoUri = if (type == "PHOTO") "file://photo/$plantId/$i.jpg" else null,
-                    amount = null,
                     wateringFeedback = null
                 )
             }
@@ -223,7 +222,6 @@ class TodayCareRepositoryBenchmarkTest {
                     loggedAt = System.currentTimeMillis() + run,
                     notes = null,
                     photoUri = null,
-                    amount = null,
                     wateringFeedback = null
                 )
             )
