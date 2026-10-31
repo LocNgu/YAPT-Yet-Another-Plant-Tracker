@@ -4,15 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -24,18 +22,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
-import com.yapt.planttracker.ui.util.relativeDateText
-import com.yapt.planttracker.util.toStartOfDayMillis
+import com.yapt.planttracker.ui.components.CareGroupHeader
+import com.yapt.planttracker.ui.components.PlantDueRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +78,8 @@ fun BeforeYouLeaveScreen(viewModel: BeforeYouLeaveViewModel, onNavigateBack: () 
     }
 }
 
+private fun Set<Int>.toggled(key: Int): Set<Int> = if (key in this) this - key else this + key
+
 @Composable
 internal fun BeforeYouLeaveContent(
     state: BeforeYouLeaveUiState.Ready,
@@ -86,11 +88,12 @@ internal fun BeforeYouLeaveContent(
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val tickedCount = state.tickedPlants.size
+    var collapsedSections by rememberSaveable { mutableStateOf(emptySet<Int>()) }
     Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
                 Text(
@@ -104,19 +107,23 @@ internal fun BeforeYouLeaveContent(
                 title = R.string.before_leave_water_today,
                 hint = null,
                 rows = state.waterToday,
+                collapsed = R.string.before_leave_water_today in collapsedSections,
+                onToggleSection = { collapsedSections = collapsedSections.toggled(R.string.before_leave_water_today) },
                 onToggle = onToggle
             )
             plantSection(
                 title = R.string.before_leave_check_soil,
                 hint = R.string.before_leave_check_soil_hint,
                 rows = state.checkTheSoil,
+                collapsed = R.string.before_leave_check_soil in collapsedSections,
+                onToggleSection = { collapsedSections = collapsedSections.toggled(R.string.before_leave_check_soil) },
                 onToggle = onToggle
             )
             item {
                 Text(
                     pluralStringResource(R.plurals.before_leave_can_wait, state.canWaitCount, state.canWaitCount),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 12.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
@@ -128,19 +135,23 @@ internal fun BeforeYouLeaveContent(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.plantSection(
+@Suppress("LongParameterList")
+private fun LazyListScope.plantSection(
     title: Int,
     hint: Int?,
     rows: List<BeforeYouLeaveRow>,
+    collapsed: Boolean,
+    onToggleSection: () -> Unit,
     onToggle: (Long) -> Unit
 ) {
     if (rows.isEmpty()) return
     item(key = "header-$title") {
-        Column(modifier = Modifier.padding(top = 12.dp)) {
-            Text(
-                stringResource(R.string.before_leave_section_title, stringResource(title), rows.size),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+        Column {
+            CareGroupHeader(
+                title = stringResource(title),
+                plantCount = rows.size,
+                collapsed = collapsed,
+                onToggle = onToggleSection
             )
             if (hint != null) {
                 Text(
@@ -151,23 +162,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.plantSection(
             }
         }
     }
+    if (collapsed) return
     items(rows, key = { "$title-${it.plant.id}" }) { row ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .toggleable(value = row.ticked, role = Role.Checkbox, onValueChange = { onToggle(row.plant.id) })
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(checked = row.ticked, onCheckedChange = null)
-            Column(modifier = Modifier.padding(start = 16.dp)) {
-                Text(row.plant.name, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    relativeDateText(row.dueDate.toStartOfDayMillis()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        PlantDueRow(
+            plant = row.plant,
+            dueDate = row.dueDate,
+            checked = row.ticked,
+            onCheckedChange = { onToggle(row.plant.id) }
+        )
     }
 }

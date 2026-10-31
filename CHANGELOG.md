@@ -37,6 +37,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   follow-up. See product ADR-0073.
 
 ### Changed
+- **Before you leave lists plants like the rest of the app** (#970) — **Water today** and **Check the soil** now use
+  the Care section header (tap to collapse) over Plant List-style rows with the plant's photo (or the usual
+  placeholder), name, room when set and due date. Each row is still one tick, announced with its name, room, due
+  date and tick state, and the bottom **Log N as watered** button, the default ticks and which plants appear where
+  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are what the
+  coming **Hold for your last day** list will reuse.
 - **Before you leave also lists plants that would need water during the trip** (#969, part 1 of 2, product ADR-0076) —
   on the last day at home, **Check the soil** now also lists (unticked) plants that would otherwise come due inside
   the trip and are at least 70% through their interval, so they can last the whole trip without the sitter. A plant
