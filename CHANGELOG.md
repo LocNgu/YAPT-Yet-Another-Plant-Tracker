@@ -54,8 +54,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   the Care section header (tap to collapse) over Plant List-style rows with the plant's photo (or the usual
   placeholder), name, room when set and due date. Each row is still one tick, announced with its name, room, due
   date and tick state, and the bottom **Log N as watered** button, the default ticks and which plants appear where
-  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are what the
-  coming **Hold for your last day** list will reuse.
+  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are reused by the
+  **Hold for your last day** list.
 - **Before you leave also lists plants that would need water during the trip** (#969, part 1 of 2, product ADR-0076) —
   on the last day at home, **Check the soil** now also lists (unticked) plants that would otherwise come due inside
   the trip and are at least 70% through their interval, so they can last the whole trip without the sitter. A plant
@@ -64,8 +64,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   and never-watered plants are left out. Water today, the ticks and the "can wait" count are otherwise unchanged. It
   is a suggestion only: no due date moves and no plant row is written. Learning follows the existing rules (a
   watering at least 85% through its interval is an on-schedule nudge; between 70% and 85% it is
-  `WATER_NOT_ATTRIBUTED`). The pure **hold for your last day** rule ships with its tests but isn't shown anywhere yet;
-  the lead-in window and the hold list follow in part 2. No migration or backup change.
+  `WATER_NOT_ATTRIBUTED`). The pure **hold for your last day** rule is shown by the lead-in list below.
+  No migration or backup change.
 - **Add Care Log drops the Amount field and the optional photo** (#442, product ADR-0075) — editing a log no longer
   shows an **Amount** field; Notes covers it, and Water and Fertilize logs hint "e.g. watering amount" in Notes. The
   photo block (label, preview, Take photo / Choose from gallery) now appears only when editing a **Photo** log, which

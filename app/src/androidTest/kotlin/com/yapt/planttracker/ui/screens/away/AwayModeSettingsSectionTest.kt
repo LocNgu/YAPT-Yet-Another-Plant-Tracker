@@ -240,7 +240,7 @@ class AwayModeSettingsSectionTest {
         setSection(listOf(trip(today.plusDays(8), today.plusDays(12))))
 
         composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Sitter rhythm").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sitter rhythm").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -248,7 +248,7 @@ class AwayModeSettingsSectionTest {
         setSection(listOf(trip(today, today.plusDays(5))))
 
         composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Plan a sitter visit").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Plan a sitter visit").performScrollTo().assertIsDisplayed()
     }
 
     @Test
