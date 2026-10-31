@@ -922,11 +922,11 @@
 
     <string name="before_leave_title">Before you leave</string>
     <string name="before_leave_not_available">Before you leave is for your last day at home. Come back then to water what would run dry while you\'re away.</string>
-    <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then.</string>
+    <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then, and check the soil of what might run dry later.</string>
     <string name="before_leave_section_title">%1$s · %2$d</string>
     <string name="before_leave_water_today">Water today</string>
     <string name="before_leave_check_soil">Check the soil</string>
-    <string name="before_leave_check_soil_hint">Water only if dry; otherwise the sitter waters them on the first visit.</string>
+    <string name="before_leave_check_soil_hint">Water only if the soil is dry; otherwise the sitter will water them.</string>
     <plurals name="before_leave_can_wait">
         <item quantity="one">%d other plant can wait</item>
         <item quantity="other">%d other plants can wait</item>

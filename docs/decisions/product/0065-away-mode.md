@@ -1,6 +1,6 @@
 # Product ADR-0065: Away mode — trips pause reminders, stay out of learning, and feed a plant-sitter list
 
-**Status**: accepted
+**Status**: accepted — Before you leave availability and listing rules amended by [ADR-0076](0076-away-mode-lines-up-waterings-around-a-trip.md)
 
 **Date**: 2026-10-15
 

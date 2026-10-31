@@ -19,7 +19,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Before you leave (#899, product ADR-0065): the lists, the one bulk log, and what the log does not do. */
+/**
+ * Before you leave (#899, product ADR-0065): the lists, the one bulk log, and what the log does not do; and the
+ * plants brought forward for a trip they would not otherwise last (#969, product ADR-0076).
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -167,5 +170,67 @@ class BeforeYouLeaveViewModelTest {
             fixture.adjustments.getByTrigger(early.id, WateringAdjustmentTrigger.WATER_NOT_ATTRIBUTED).size
         )
         assertTrue(fixture.postWateringReminders.size <= 1)
+    }
+
+    @Test
+    fun `check the soil also lists a plant that would come due during the trip`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(21), visitEveryDays = 4)
+        // 15 of 21 days in: due in six days, after the first visit (day 4) and inside the 21-day trip.
+        fixture.addPlant("Long haul", interval = 21, lastWatered = today.minusDays(15))
+        // 14 of 21 days in is short of 70%, so it can wait.
+        fixture.addPlant("Not far enough", interval = 21, lastWatered = today.minusDays(14))
+        fixture.addPlant("Due now", interval = 4, lastWatered = today.minusDays(4))
+
+        val ready = viewModel().ready()
+
+        assertEquals(listOf("Due now"), ready.waterToday.map { it.plant.name })
+        assertEquals(listOf("Long haul"), ready.checkTheSoil.map { it.plant.name })
+        assertEquals(today.plusDays(6), ready.checkTheSoil.single().dueDate)
+        assertTrue(ready.checkTheSoil.none { it.ticked })
+        assertEquals(1, ready.canWaitCount)
+    }
+
+    @Test
+    fun `a plant brought forward is logged only when the owner ticks it`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(21), visitEveryDays = 4)
+        val longHaul = fixture.addPlant("Long haul", interval = 21, lastWatered = today.minusDays(15))
+        val vm = viewModel()
+        val events = mutableListOf<BeforeYouLeaveEvent>()
+        backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.events.collect { events += it } }
+
+        vm.logTicked().join()
+        assertEquals(1, fixture.waterLogs(longHaul.id).size)
+
+        vm.toggle(longHaul.id)
+        vm.logTicked().join()
+
+        assertEquals(2, fixture.waterLogs(longHaul.id).size)
+        assertEquals(listOf(BeforeYouLeaveEvent.Logged(logged = 1, skipped = 0)), events)
+    }
+
+    @Test
+    fun `a plant already in check the soil is listed once`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(21), visitEveryDays = 7)
+        fixture.addPlant("Long haul", interval = 21, lastWatered = today.minusDays(15))
+
+        val ready = viewModel().ready()
+
+        assertEquals(listOf("Long haul"), ready.checkTheSoil.map { it.plant.name })
+        assertEquals(0, ready.canWaitCount)
+    }
+
+    @Test
+    fun `a trip longer than the plant's interval adds nothing`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(22), visitEveryDays = 4)
+        fixture.addPlant("Long haul", interval = 21, lastWatered = today.minusDays(15))
+
+        val ready = viewModel().ready()
+
+        assertTrue(ready.checkTheSoil.isEmpty())
+        assertEquals(1, ready.canWaitCount)
     }
 }
