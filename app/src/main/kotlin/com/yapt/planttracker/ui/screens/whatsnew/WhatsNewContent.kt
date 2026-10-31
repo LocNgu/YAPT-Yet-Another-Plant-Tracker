@@ -21,7 +21,8 @@ object WhatsNewContent {
         ),
         changed = listOf(
             "Editing a care log drops the \"Amount\" field and the photo option, except on Photo logs",
-            "On your last day at home, Before you leave also suggests plants that would need water during the trip"
+            "On your last day at home, Before you leave also suggests plants that would need water during the trip",
+            "Before you leave shows each plant with its photo, room and due date, under Care-style headings"
         )
     )
 

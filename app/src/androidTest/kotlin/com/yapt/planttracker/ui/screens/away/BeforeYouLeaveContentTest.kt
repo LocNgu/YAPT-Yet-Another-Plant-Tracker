@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -28,7 +29,8 @@ class BeforeYouLeaveContentTest {
     private val toggled = mutableListOf<Long>()
     private var logCalls = 0
 
-    private fun plant(id: Long, name: String) = Plant(id = id, name = name, createdAt = 0L, updatedAt = 0L)
+    private fun plant(id: Long, name: String, room: String? = null) =
+        Plant(id = id, name = name, room = room, createdAt = 0L, updatedAt = 0L)
 
     private fun string(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
@@ -102,5 +104,37 @@ class BeforeYouLeaveContentTest {
 
         composeTestRule.onNodeWithText("1 other plant can wait").assertIsDisplayed()
         composeTestRule.onNodeWithText("Log 1 as watered").assertIsDisplayed()
+    }
+
+    @Test
+    fun eachRowReadsNameRoomDueDateAndTickTogether() {
+        setContent(
+            state(
+                water = listOf(BeforeYouLeaveRow(plant(1, "Basil", room = "Kitchen"), today, ticked = true)),
+                check = listOf(
+                    BeforeYouLeaveRow(plant(3, "Cactus", room = "Hall"), today.plusDays(1), ticked = false),
+                    BeforeYouLeaveRow(plant(4, "Aloe"), today.plusDays(2), ticked = false)
+                )
+            )
+        )
+
+        composeTestRule.onNode(hasText("Basil") and hasText("Kitchen") and hasText(string(R.string.date_relative_today)))
+            .assertIsOn()
+        composeTestRule.onNode(hasText("Cactus") and hasText("Hall") and hasText(string(R.string.date_group_tomorrow)))
+            .assertIsOff()
+        composeTestRule.onNodeWithText("Aloe").assertIsOff()
+    }
+
+    @Test
+    fun tappingASectionHeaderHidesAndShowsItsPlants() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Check the soil · 1").performClick()
+        composeTestRule.onNodeWithText("Cactus").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Basil").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Log 2 as watered").assertIsEnabled()
+
+        composeTestRule.onNodeWithText("Check the soil · 1").performClick()
+        composeTestRule.onNodeWithText("Cactus").assertIsOff()
     }
 }
