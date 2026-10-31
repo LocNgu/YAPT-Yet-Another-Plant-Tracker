@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.away.AwayPeriodValidation
 import com.yapt.planttracker.domain.away.AwayPeriods
 import com.yapt.planttracker.domain.away.AwayTripStatus
 import com.yapt.planttracker.domain.away.awayTripStatus
+import com.yapt.planttracker.domain.away.canOpenBeforeYouLeave
 import com.yapt.planttracker.domain.away.settingsVisitTrip
 import com.yapt.planttracker.domain.away.showsBanner
 import com.yapt.planttracker.domain.away.visitsToConfirmAfterTrip
@@ -43,8 +44,8 @@ data class AwayModeUiState(
     val status: AwayTripStatus = awayTripStatus(periods, today)
     val showsBanner: Boolean get() = status.showsBanner(today)
 
-    /** The owner's last day at home: the trip is upcoming and starts tomorrow. */
-    val isLastDayAtHome: Boolean get() = (status as? AwayTripStatus.Upcoming)?.trip?.firstDay == today.plusDays(1)
+    /** Before you leave is open: the trip is upcoming and starts within the banner's lead window (ADR-0076). */
+    val canOpenBeforeYouLeave: Boolean get() = status.canOpenBeforeYouLeave(today)
 
     /** The unconfirmed sitter visits Care offers after a trip, oldest first (slice 5). */
     val visitsToConfirm: List<SitterVisit> get() = visitsToConfirmAfterTrip(trips, today)

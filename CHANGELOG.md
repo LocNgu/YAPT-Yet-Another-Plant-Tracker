@@ -13,6 +13,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Before you leave opens a week before a trip, with a Hold for your last day list** (#969, part 2 of 2, product
+  ADR-0076) — the screen, and the **Before you leave** button on the Care banner and in Settings, is now available from
+  `AWAY_BANNER_LEAD_DAYS` (7) days before the trip through the last day at home, from the dates alone (never from when
+  the trip was saved); it stays closed on the trip's first day and while away. Before the last day it shows a read-only
+  **Hold for your last day · N** list: plants that come due before you leave, can wait until the last day and would
+  then last the whole trip, under the Care section header with the real due date on each row, no ticks and no log
+  button. With nothing to hold it says "Nothing to hold. Come back on <date> for your last-day plan." The hint says
+  they can wait until the last day and may need water again during the trip if watered sooner; it does not claim Care
+  lists them, because a hold's due date can still be a few days ahead. The last day at home is unchanged. It is a
+  suggestion only: no due date moves and nothing is written to a plant row or a log. Watering a held plant from Care,
+  Plant List or Plant Detail is an ordinary watering through the unchanged reason gate (on schedule from its due date
+  through the last day, so no "Why was it late?"; earlier it may ask as usual). `AwayModeUiState.isLastDayAtHome` is
+  replaced by `canOpenBeforeYouLeave`. No migration or backup change.
 - **Fertilizing reminders pause for 30 days after a repot** (#965, product ADR-0074) — the fertilizing due date is
   now `max(usual due date, repot day + 30 days)` for both fed and never-fed plants, then shifted out of inactive
   seasons as before. It is derived from the newest REPOT log (no migration or backup change), holds even if you

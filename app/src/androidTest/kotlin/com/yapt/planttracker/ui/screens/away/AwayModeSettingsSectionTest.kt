@@ -211,7 +211,7 @@ class AwayModeSettingsSectionTest {
     }
 
     @Test
-    fun beforeYouLeaveIsOfferedOnTheLastDayAtHomeOnly() {
+    fun beforeYouLeaveIsOfferedOnTheLastDayAtHome() {
         setSection(listOf(trip(today.plusDays(1), today.plusDays(8))))
 
         composeTestRule.onNodeWithText("Before you leave").performScrollTo().performClick()
@@ -220,10 +220,35 @@ class AwayModeSettingsSectionTest {
     }
 
     @Test
-    fun beforeYouLeaveIsNotOfferedTwoDaysAhead() {
+    fun beforeYouLeaveIsOfferedDuringTheLeadInBeforeTheLastDay() {
         setSection(listOf(trip(today.plusDays(2), today.plusDays(8))))
 
+        composeTestRule.onNodeWithText("Before you leave").performScrollTo().performClick()
+
+        assertEquals(listOf("before"), opened)
+    }
+
+    @Test
+    fun beforeYouLeaveIsOfferedAWeekAhead() {
+        setSection(listOf(trip(today.plusDays(7), today.plusDays(12))))
+
+        composeTestRule.onNodeWithText("Before you leave").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun beforeYouLeaveIsNotOfferedMoreThanAWeekAhead() {
+        setSection(listOf(trip(today.plusDays(8), today.plusDays(12))))
+
         composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Sitter rhythm").assertIsDisplayed()
+    }
+
+    @Test
+    fun beforeYouLeaveIsNotOfferedOnTheFirstDayOfTheTrip() {
+        setSection(listOf(trip(today, today.plusDays(5))))
+
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertIsDisplayed()
     }
 
     @Test

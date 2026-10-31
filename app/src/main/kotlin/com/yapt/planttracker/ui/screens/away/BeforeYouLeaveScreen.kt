@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.away.AWAY_BANNER_LEAD_DAYS
 import com.yapt.planttracker.ui.components.CareGroupHeader
 import com.yapt.planttracker.ui.components.PlantDueRow
 
@@ -63,11 +64,15 @@ fun BeforeYouLeaveScreen(viewModel: BeforeYouLeaveViewModel, onNavigateBack: () 
             BeforeYouLeaveUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 CircularProgressIndicator()
             }
-            BeforeYouLeaveUiState.NotAvailable -> Text(
-                text = stringResource(R.string.before_leave_not_available),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(padding).padding(16.dp)
-            )
+            BeforeYouLeaveUiState.NotAvailable -> {
+                val leadDays = AWAY_BANNER_LEAD_DAYS.toInt()
+                Text(
+                    text = pluralStringResource(R.plurals.before_leave_not_available, leadDays, leadDays),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(padding).padding(16.dp)
+                )
+            }
+            is BeforeYouLeaveUiState.LeadIn -> BeforeYouLeaveLeadInContent(state = current, contentPadding = padding)
             is BeforeYouLeaveUiState.Ready -> BeforeYouLeaveContent(
                 state = current,
                 onToggle = viewModel::toggle,

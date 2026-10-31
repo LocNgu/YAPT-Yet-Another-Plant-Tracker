@@ -30,7 +30,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.AwayTripStatus
 
-/** The Care banner (product ADR-0065): shown while away and for a week before a trip starts. */
+/**
+ * The Care banner (product ADR-0065): shown while away and for a week before a trip starts, with **Before you
+ * leave** for the days at home before the trip (product ADR-0076).
+ */
 @Composable
 fun AwayModeBanner(
     viewModel: AwayModeViewModel,
@@ -158,7 +161,7 @@ private fun AwayTripBanner(
                     TextButton(onClick = onPlanVisit) { Text(stringResource(R.string.away_action_plan_visit)) }
                     TextButton(onClick = onImBack) { Text(stringResource(R.string.away_action_back)) }
                 }
-                if (state.isLastDayAtHome) {
+                if (state.canOpenBeforeYouLeave) {
                     TextButton(onClick = onBeforeYouLeave) { Text(stringResource(R.string.away_action_before_leave)) }
                 }
             }

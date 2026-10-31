@@ -921,7 +921,13 @@
     <string name="sitter_ask_copy">Copy</string>
 
     <string name="before_leave_title">Before you leave</string>
-    <string name="before_leave_not_available">Before you leave is for your last day at home. Come back then to water what would run dry while you\'re away.</string>
+    <plurals name="before_leave_not_available">
+        <item quantity="one">Before you leave opens %d day before a trip starts. Come back then to line up your waterings.</item>
+        <item quantity="other">Before you leave opens %d days before a trip starts. Come back then to line up your waterings.</item>
+    </plurals>
+    <string name="before_leave_hold_title">Hold for your last day</string>
+    <string name="before_leave_hold_hint">They come due before you leave, but can wait until %1$s. Watered then, they last the whole trip; watered sooner, they may need water again while you\'re away.</string>
+    <string name="before_leave_hold_empty">Nothing to hold. Come back on %1$s for your last-day plan.</string>
     <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then, and check the soil of what might run dry later.</string>
     <string name="before_leave_water_today">Water today</string>
     <string name="before_leave_check_soil">Check the soil</string>

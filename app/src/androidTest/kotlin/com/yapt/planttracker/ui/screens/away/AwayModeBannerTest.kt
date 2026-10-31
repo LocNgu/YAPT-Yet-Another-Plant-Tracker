@@ -101,27 +101,49 @@ class AwayModeBannerTest {
     }
 
     @Test
-    fun earlierThanTheLastDayAtHomeThereIsNoBeforeYouLeave() {
+    fun duringTheLeadInBeforeTheLastDayItOffersBeforeYouLeave() {
         setBanner(listOf(trip(today.plusDays(4), today.plusDays(9))))
 
+        composeTestRule.onNodeWithText("Before you leave").assertIsDisplayed().performClick()
+
+        assertEquals(1, beforeLeaveCalls)
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertDoesNotExist()
+    }
+
+    @Test
+    fun aWeekBeforeTheTripItOffersBeforeYouLeave() {
+        setBanner(listOf(trip(today.plusDays(7), today.plusDays(12))))
+
+        composeTestRule.onNodeWithText("Before you leave").assertIsDisplayed().performClick()
+
+        assertEquals(1, beforeLeaveCalls)
+    }
+
+    @Test
+    fun onTheFirstDayOfTheTripThereIsNoBeforeYouLeave() {
+        setBanner(listOf(trip(today, today.plusDays(5))))
+
+        composeTestRule.onNodeWithText("I'm back").assertIsDisplayed()
         composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
     }
 
     @Test
-    fun beforeTheTripItSaysWhenRemindersPauseAndHasNoAction() {
+    fun beforeTheTripItSaysWhenRemindersPauseAndOffersNoImBack() {
         setBanner(listOf(trip(LocalDate.of(today.year, 10, 18), LocalDate.of(today.year, 10, 25))))
 
         composeTestRule.onNodeWithText("Reminders pause on Oct 18 · away until Oct 25")
             .assertIsDisplayed()
             .assert(hasStateDescription("Trip coming up"))
         composeTestRule.onNodeWithText("I'm back").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Plan a sitter visit").assertDoesNotExist()
     }
 
     @Test
-    fun aTripMoreThanAWeekAwayShowsNoBanner() {
+    fun aTripMoreThanAWeekAwayShowsNoBannerAndNoBeforeYouLeave() {
         setBanner(listOf(trip(today.plusDays(8), today.plusDays(12))))
 
         composeTestRule.onNodeWithText("Reminders pause", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Before you leave").assertDoesNotExist()
     }
 
     @Test
