@@ -81,7 +81,6 @@ def build_backup(src: Path) -> dict:
             "loggedAt": int(a["timestamp"]) * 1000,
             "notes": None,
             "photoUri": None,
-            "amount": None,
             "wateringFeedback": None,
         })
         next_id += 1

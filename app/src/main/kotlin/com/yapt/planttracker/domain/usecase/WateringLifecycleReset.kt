@@ -29,6 +29,44 @@ object WateringLifecycleReset {
     /** A REPOT-triggered reset also freezes live per-observation base-learning for 4 weeks (#571 spec). */
     const val REPOT_FREEZE_WINDOW_DAYS = 28L
 
+    /** How many confidence levels a new PROPAGATE log removes (#960, product ADR-0073); matches `STREAK_CONFIDENCE_PENALTY`. */
+    const val PROPAGATE_CONFIDENCE_PENALTY = 2
+
+    /**
+     * Lowers [Plant.wateringConfidence] by [PROPAGATE_CONFIDENCE_PENALTY], floored at 0 (#960, product
+     * ADR-0073). Deliberately *not* [applyRepotReset]: propagating may or may not change the mother's
+     * water use, so there is no reset anchor, no freeze, and the base interval and due date stay put —
+     * a lower confidence just makes the next waterings re-tune the interval faster. A `null` confidence
+     * (never adapted) stays `null`, and nothing is written when it is already 0.
+     *
+     * Returns whether anything changed. Writes only the confidence column ([PlantRepository
+     * .updateWateringConfidence], technical ADR-0036) plus one [WateringAdjustmentTrigger
+     * .PROPAGATE_CONFIDENCE_DROP] row with `before == after`. Called once at log creation, from
+     * [QuickLogUseCase] — editing or deleting the log never re-applies or reverses it.
+     */
+    suspend fun applyPropagateConfidenceDrop(
+        plant: Plant,
+        plantRepository: PlantRepository,
+        wateringAdjustmentRepository: WateringAdjustmentRepository?,
+        now: Long = System.currentTimeMillis()
+    ): Boolean {
+        val before = plant.wateringConfidence
+        val after = before?.let { maxOf(it - PROPAGATE_CONFIDENCE_PENALTY, 0) }
+        if (after == null || after == before) return false
+        plantRepository.updateWateringConfidence(plant.id, after, now)
+        val interval = currentIntervalOrZero(plant)
+        wateringAdjustmentRepository?.addAdjustment(
+            WateringAdjustment(
+                plantId = plant.id,
+                triggeredAt = now,
+                trigger = WateringAdjustmentTrigger.PROPAGATE_CONFIDENCE_DROP,
+                beforeIntervalDays = interval,
+                afterIntervalDays = interval
+            )
+        )
+        return true
+    }
+
     /**
      * Writes the REPOT-triggered lifecycle reset: `wateringConfidence` -> 0, a fresh
      * [Plant.wateringResetAt] anchor (at [resetAnchorMs], the REPOT log's own `loggedAt` — not

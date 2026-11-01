@@ -230,7 +230,7 @@ private fun AwayModeSitterButtons(state: AwayModeUiState, navigation: AwayModeNa
         OutlinedButton(onClick = navigation.onPlanVisit) {
             Text(stringResource(R.string.away_action_plan_visit))
         }
-        if (state.isLastDayAtHome) {
+        if (state.canOpenBeforeYouLeave) {
             OutlinedButton(onClick = navigation.onBeforeYouLeave) {
                 Text(stringResource(R.string.away_action_before_leave))
             }

@@ -58,6 +58,7 @@ class PlantListViewModelAwayTest {
             coEvery { getLastLogOfType(1L, CareType.WATER) } returns
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = millis(LocalDate.of(2026, 6, 25)))
             coEvery { getLastLogOfType(1L, CareType.FERTILIZE) } returns null
+            coEvery { getLastLogOfType(1L, CareType.REPOT) } returns null
             coEvery { getCareLogCount(any()) } returns 1
         }
         val plantIssueRepo: PlantIssueRepository = mockk {

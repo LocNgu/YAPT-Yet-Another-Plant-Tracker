@@ -164,7 +164,6 @@ class OrphanPhotoSweeperTest {
                 loggedAt = 1L,
                 notes = null,
                 photoUri = file.absolutePath,
-                amount = null,
                 wateringFeedback = null
             )
         )

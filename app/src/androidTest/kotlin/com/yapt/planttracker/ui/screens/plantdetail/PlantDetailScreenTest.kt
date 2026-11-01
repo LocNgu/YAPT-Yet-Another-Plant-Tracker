@@ -204,6 +204,7 @@ class PlantDetailScreenTest {
         lastMadeCareLogRepo = careLogRepo
         val plantPhotoRepo = mockk<PlantPhotoRepository>()
         every { plantRepo.getPlantById(plant.id) } returns flowOf(plant)
+        every { plantRepo.getChildren(plant.id) } returns flowOf(emptyList())
         every { careLogRepo.getLogsForPlant(plant.id) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
         // #679: PlantDetailViewModel.previousWateringBefore() calls this from the "Log watering"
@@ -2148,6 +2149,65 @@ class PlantDetailScreenTest {
         composeTestRule.onAllNodesWithTag(FERTILIZE_DUE_ACTION_BUTTON_TEST_TAG).assertCountEquals(1)
     }
 
+    private fun openFertilizeTabWith(plant: Plant, careLogs: List<CareLog>) {
+        val viewModel = makeViewModel(plant, careLogs)
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {}
+            )
+        }
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(fertilizeTabMatcher)
+        composeTestRule.onNode(fertilizeTabMatcher).performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    private fun repotLogDaysAgo(plantId: Long, days: Long) = CareLog(
+        id = 98L,
+        plantId = plantId,
+        careType = CareType.REPOT,
+        loggedAt = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+    )
+
+    @Test
+    fun fertilizeTab_recentRepot_showsPausedAfterRepottingNote() {
+        val plant = Plant(
+            id = 35L, name = "Basil", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L
+        )
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 5)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Paused after repotting until", substring = true))
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun fertilizeTab_repotPauseEnded_hidesPausedAfterRepottingNote() {
+        val plant = Plant(
+            id = 36L, name = "Basil", fertilizingIntervalDays = 30, createdAt = 0L, updatedAt = 0L
+        )
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 45)))
+
+        // Reminder on → the control shows its enabled label; "Fertilizing reminder" is the disabled one.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilize every 30 days"))
+        composeTestRule.onNodeWithText("Fertilize every 30 days").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun fertilizeTab_recentRepotButReminderOff_hidesPausedAfterRepottingNote() {
+        val plant = Plant(id = 37L, name = "Basil", createdAt = 0L, updatedAt = 0L)
+        openFertilizeTabWith(plant, listOf(repotLogDaysAgo(plant.id, 5)))
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText("Fertilizing reminder"))
+        composeTestRule.onNodeWithText("Paused after repotting until", substring = true).assertDoesNotExist()
+    }
+
     @Test
     fun fertilizeTab_regularPlantWithoutInterval_showsFertilizeAndTapLogsDirectly() {
         val plant = Plant(id = 35L, name = "Sage", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
@@ -2297,6 +2357,67 @@ class PlantDetailScreenTest {
         composeTestRule.waitForIdle()
 
         coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.REPOT, any()) }
+    }
+
+    @Test
+    fun propagateTab_actionQuickLogsPropagate_thenOffersTheNewPlant() {
+        val plant = Plant(id = 60L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
+        coEvery { mockQuickLogUseCase.quickLog(plant, CareType.PROPAGATE, any()) } returns
+            QuickLogUseCase.QuickLogOutcome(message = "Propagated Pothos", logged = true)
+        var addChildOf: Long? = null
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PROPAGATE) { addChildOf = it }
+
+        scrollDetailTo(hasTestTag(PROPAGATE_TAB_ACTION_BUTTON_TEST_TAG))
+        composeTestRule.onNodeWithTag(PROPAGATE_TAB_ACTION_BUTTON_TEST_TAG)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithTag(PROPAGATE_DATE_PICKER_TEST_TAG)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        coVerify(exactly = 0) { mockQuickLogUseCase.quickLog(any(), CareType.PROPAGATE, any()) }
+        composeTestRule.onNodeWithText(str(R.string.ok)).performClick()
+
+        coVerify(exactly = 1, timeout = 5000) { mockQuickLogUseCase.quickLog(plant, CareType.PROPAGATE, any()) }
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule.onAllNodesWithText(str(R.string.propagate_offer_title))
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(str(R.string.propagate_offer_new)).performClick()
+
+        assertEquals(60L, addChildOf)
+    }
+
+    @Test
+    fun propagateTab_withNoLogs_showsFamilyCardAndEmptyState() {
+        val plant = Plant(id = 62L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
+        showDetail(makeViewModel(plant), initialTab = PlantDetailTab.PROPAGATE)
+
+        scrollDetailTo(hasText(str(R.string.family_title)))
+        composeTestRule.onNodeWithText(str(R.string.family_link_parent)).assertIsDisplayed()
+        scrollDetailTo(hasText(str(R.string.plant_detail_tab_propagate_empty)))
+        composeTestRule.onNodeWithText(str(R.string.plant_detail_tab_propagate_empty)).assertIsDisplayed()
+        assertNoNodeWithText(str(R.string.insight_propagations))
+    }
+
+    @Test
+    fun propagateTab_listsOnlyPropagateLogsWithInsights() {
+        val plant = Plant(id = 63L, name = "Pothos", createdAt = 0L, updatedAt = 0L)
+        val logs = listOf(
+            historyLog(1L, plant.id, CareType.PROPAGATE),
+            historyLog(2L, plant.id, CareType.PRUNE),
+            historyLog(3L, plant.id, CareType.REPOT)
+        )
+        showDetail(makeViewModel(plant, logs), initialTab = PlantDetailTab.PROPAGATE)
+
+        scrollDetailTo(hasText(str(R.string.insight_propagations)))
+        composeTestRule.onNodeWithText(str(R.string.insight_propagations)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.insight_last_propagated)).assertIsDisplayed()
+        scrollDetailToEnd()
+        assertNoNodeWithText(str(R.string.care_type_pruned))
+        assertNoNodeWithText(str(R.string.care_type_repotted))
+        assertNoNodeWithText(str(R.string.plant_detail_tab_propagate_empty))
     }
 
     @Test
@@ -2731,14 +2852,19 @@ class PlantDetailScreenTest {
 
     // ---- Home tab (#530, product ADR-0060) ----
 
-    private fun showDetail(viewModel: PlantDetailViewModel, initialTab: PlantDetailTab? = null) {
+    private fun showDetail(
+        viewModel: PlantDetailViewModel,
+        initialTab: PlantDetailTab? = null,
+        onNavigateToAddChild: (Long) -> Unit = {}
+    ) {
         composeTestRule.setContent {
             PlantDetailScreen(
                 viewModel = viewModel,
                 onNavigateBack = {},
                 onNavigateToEdit = {},
                 onNavigateToEditLog = {},
-                initialTab = initialTab
+                initialTab = initialTab,
+                familyNavigation = FamilyNavigation(onAddChild = onNavigateToAddChild)
             )
         }
     }

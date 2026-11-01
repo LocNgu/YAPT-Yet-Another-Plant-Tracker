@@ -133,6 +133,62 @@ interface PlantDao {
         updatedAt: Long
     )
 
+    /**
+     * Column-specific update touching only `wateringConfidence`/`updatedAt` (#960, product ADR-0073;
+     * technical ADR-0036 point 3) — the PROPAGATE confidence drop re-reads the plant fresh and then writes
+     * just this column, so it can't revert a concurrent edit to any other one.
+     */
+    @Query("UPDATE plants SET wateringConfidence = :confidence, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateWateringConfidence(id: Long, confidence: Int?, updatedAt: Long)
+
+    /**
+     * Unconditional parent-link write (#960): unlink (`null`) and backup restore, which validates its own
+     * links. Touches only `propagatedFromId` and leaves `updatedAt` alone — a link is not an edit of the
+     * plant's care data. Anything that can introduce a cycle goes through [linkToParent] instead.
+     */
+    @Query("UPDATE plants SET propagatedFromId = :parentId WHERE id = :id")
+    suspend fun setPropagatedFrom(id: Long, parentId: Long?)
+
+    /**
+     * Sets [id]'s parent to [parentId] unless that would link a plant to itself, to a missing plant, or to
+     * one of its own descendants (#960, product ADR-0073). One statement, so the cycle check and the write
+     * are atomic. Returns the number of rows changed: 0 means the link was refused.
+     */
+    @Query(
+        "UPDATE plants SET propagatedFromId = :parentId " +
+            "WHERE id = :id AND id != :parentId " +
+            "AND EXISTS (SELECT 1 FROM plants WHERE id = :parentId) " +
+            "AND :parentId NOT IN (" +
+            "WITH RECURSIVE descendants(id) AS (" +
+            "SELECT id FROM plants WHERE propagatedFromId = :id " +
+            "UNION SELECT p.id FROM plants p JOIN descendants d ON p.propagatedFromId = d.id) " +
+            "SELECT id FROM descendants)"
+    )
+    suspend fun linkToParent(id: Long, parentId: Long): Int
+
+    /** Direct children of [parentId], archived and hidden ones included (#960), by name. */
+    @Query("SELECT * FROM plants WHERE propagatedFromId = :parentId ORDER BY name ASC, id ASC")
+    fun getChildren(parentId: Long): Flow<List<PlantEntity>>
+
+    /** Every transitive child of [id] (#960); the cycle guard and the picker's "Link parent…" exclusion. */
+    @Query(
+        "WITH RECURSIVE descendants(id) AS (" +
+            "SELECT id FROM plants WHERE propagatedFromId = :id " +
+            "UNION SELECT p.id FROM plants p JOIN descendants d ON p.propagatedFromId = d.id) " +
+            "SELECT id FROM descendants"
+    )
+    suspend fun getDescendantIds(id: Long): List<Long>
+
+    /** Every transitive parent of [id] (#960); the picker's "Link existing" exclusion. */
+    @Query(
+        "WITH RECURSIVE ancestors(id) AS (" +
+            "SELECT propagatedFromId FROM plants WHERE id = :id AND propagatedFromId IS NOT NULL " +
+            "UNION SELECT p.propagatedFromId FROM plants p JOIN ancestors a ON p.id = a.id " +
+            "WHERE p.propagatedFromId IS NOT NULL) " +
+            "SELECT id FROM ancestors"
+    )
+    suspend fun getAncestorIds(id: Long): List<Long>
+
     // Single-statement batch variants so bulk archive/restore apply atomically — a killed
     // process can't leave some of the selected plants archived and others not (#448).
     @Query("UPDATE plants SET archivedAt = :timestamp, hiddenAt = NULL WHERE id IN (:ids)")

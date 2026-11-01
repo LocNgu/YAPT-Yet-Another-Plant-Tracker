@@ -32,9 +32,12 @@ import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.ui.util.labelRes
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.runs
 import io.mockk.unmockkAll
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
@@ -54,13 +57,18 @@ class AddCareLogScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun makeViewModel(storedCareType: CareType = CareType.WATER): AddCareLogViewModel {
-        val careLogRepo = mockk<CareLogRepository>()
+    private val careLogRepo = mockk<CareLogRepository>()
+
+    private fun makeViewModel(
+        storedCareType: CareType = CareType.WATER,
+        photoUri: String? = null
+    ): AddCareLogViewModel {
         val plantRepo = mockk<PlantRepository>()
         val plant = Plant(id = 1L, name = "TestPlant", createdAt = 0L, updatedAt = 0L)
         every { plantRepo.getPlantById(1L) } returns flowOf(plant)
+        coEvery { plantRepo.updatePlant(any()) } just runs
         coEvery { careLogRepo.getLogById(99L) } returns
-            CareLog(id = 99L, plantId = 1L, careType = storedCareType, loggedAt = 0L)
+            CareLog(id = 99L, plantId = 1L, careType = storedCareType, loggedAt = 0L, photoUri = photoUri)
         coEvery { careLogRepo.addLog(any()) } returns 99L
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         return AddCareLogViewModel(careLogRepo, plantRepo, plantId = 1L, careLogId = 99L)
@@ -72,6 +80,9 @@ class AddCareLogScreenTest {
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
     }
+
+    private val notesLabel: String
+        get() = InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.field_notes_optional)
 
     private fun careTypeLabel(careType: CareType): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(careType.labelRes())
@@ -163,24 +174,110 @@ class AddCareLogScreenTest {
             .assertIsDisplayed()
     }
 
-    @Test
-    fun photoButton_tapped_showsPhotoSourceSheet() {
-        showScreen(makeViewModel())
+    private fun assertNoPhotoActions() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        listOf(
+            context.getString(R.string.cd_add_photo),
+            context.getString(R.string.photo_source_take_photo),
+            context.getString(R.string.photo_source_choose_gallery)
+        ).forEach { label ->
+            composeTestRule.onNodeWithText(label).assertDoesNotExist()
+            composeTestRule.onNodeWithContentDescription(label).assertDoesNotExist()
+        }
+        composeTestRule.onNodeWithText(context.getString(R.string.care_log_photo_label_required)).assertDoesNotExist()
+    }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
+    private fun assertHasNoAmountField(type: CareType) {
+        showScreen(makeViewModel(type))
+
+        // #442: Notes covers the amount, so no separate Amount field is offered. Literal on purpose: the
+        // field_amount_optional resource no longer exists.
+        composeTestRule.onNodeWithText("Amount (optional)").assertDoesNotExist()
+        composeTestRule.onNodeWithText(notesLabel).assertExists()
+    }
+
+    @Test
+    fun editingAWaterLog_hasNoAmountField() = assertHasNoAmountField(CareType.WATER)
+
+    @Test
+    fun editingAFertilizeLog_hasNoAmountField() = assertHasNoAmountField(CareType.FERTILIZE)
+
+    // #442: only a PHOTO log carries a photo; every other type loses the optional attachment.
+    @Test
+    fun editingAWaterLog_offersNoPhotoAttachment() {
+        showScreen(makeViewModel(CareType.WATER))
+
+        assertNoPhotoActions()
+    }
+
+    @Test
+    fun editingAPruneLog_offersNoPhotoAttachment() {
+        showScreen(makeViewModel(CareType.PRUNE))
+
+        assertNoPhotoActions()
+    }
+
+    @Test
+    fun editingALegacyWaterLogWithAPhoto_offersNoPhotoActionButStillSavesThePhoto() {
+        showScreen(makeViewModel(CareType.WATER, photoUri = "content://media/legacy.jpg"))
+
+        assertNoPhotoActions()
+        composeTestRule.onNodeWithContentDescription("Save").performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Choose from gallery").assertIsDisplayed()
+        coVerify(timeout = LOAD_TIMEOUT_MS) {
+            careLogRepo.addLog(match { it.careType == CareType.WATER && it.photoUri == "content://media/legacy.jpg" })
+        }
     }
+
+    @Test
+    fun editingAPhotoLogWithoutAPhoto_cannotBeSaved() {
+        showScreen(makeViewModel(CareType.PHOTO, photoUri = null))
+
+        composeTestRule.onNodeWithContentDescription("Save").performClick()
+        composeTestRule.waitForIdle()
+
+        coVerify(exactly = 0) { careLogRepo.addLog(any()) }
+    }
+
+    private fun focusNotes() {
+        composeTestRule.onNodeWithText(notesLabel).performScrollTo().performClick()
+    }
+
+    private fun amountHint(): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.placeholder_notes_amount)
+
+    private fun assertNotesShowsAmountHint(type: CareType) {
+        showScreen(makeViewModel(type))
+
+        focusNotes()
+        composeTestRule.onNodeWithText(amountHint()).assertIsDisplayed()
+    }
+
+    private fun assertNotesShowsNoAmountHint(type: CareType) {
+        showScreen(makeViewModel(type))
+
+        focusNotes()
+        composeTestRule.onNodeWithText(amountHint()).assertDoesNotExist()
+    }
+
+    @Test
+    fun editingAWaterLog_showsTheAmountHintInNotes() = assertNotesShowsAmountHint(CareType.WATER)
+
+    @Test
+    fun editingAFertilizeLog_showsTheAmountHintInNotes() = assertNotesShowsAmountHint(CareType.FERTILIZE)
+
+    @Test
+    fun editingAPruneLog_showsNoAmountHintInNotes() = assertNotesShowsNoAmountHint(CareType.PRUNE)
+
+    @Test
+    fun editingARepotLog_showsNoAmountHintInNotes() = assertNotesShowsNoAmountHint(CareType.REPOT)
 
     @Test
     fun inlineTakePhotoButton_tapped_routesThroughCameraPermissionFlow() {
         showScreen(makeViewModel(CareType.PHOTO))
 
-        // Mock after the inline source buttons are composed so composition is unaffected,
-        // matching the sheet-path camera tests.
-
+        // Mock after the inline source buttons are composed so composition is unaffected.
         mockkStatic(ContextCompat::class)
         mockkStatic(ActivityCompat::class)
         every {
@@ -190,8 +287,7 @@ class AddCareLogScreenTest {
             ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
         } returns true
 
-        // Tapping the inline Take photo button drives the same shared
-        // cameraState.launch() permission flow as the sheet path (#443).
+        // Tapping the inline Take photo button drives the shared cameraState.launch() permission flow (#443).
         composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
 
         composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
@@ -208,7 +304,7 @@ class AddCareLogScreenTest {
             override fun getPackageManager(): PackageManager = mockPm
         }
 
-        val viewModel = makeViewModel()
+        val viewModel = makeViewModel(CareType.PHOTO)
         composeTestRule.setContent {
             CompositionLocalProvider(
                 LocalContext provides noHardwareContext,
@@ -219,20 +315,14 @@ class AddCareLogScreenTest {
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
 
-        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Take photo").performClick()
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
 
         composeTestRule.onNodeWithText("No camera available on this device").assertIsDisplayed()
     }
 
     @Test
     fun takePhoto_rationaleNeeded_showsRationaleDialog() {
-        showScreen(makeViewModel())
-
-        // Open the sheet before mocking so FilterChip composition is unaffected.
-        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
-        composeTestRule.waitForIdle()
+        showScreen(makeViewModel(CareType.PHOTO))
 
         mockkStatic(ContextCompat::class)
         mockkStatic(ActivityCompat::class)
@@ -243,7 +333,7 @@ class AddCareLogScreenTest {
             ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
         } returns true
 
-        composeTestRule.onNodeWithText("Take photo").performClick()
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
 
         composeTestRule.onNodeWithText("Camera permission needed").assertIsDisplayed()
         composeTestRule.onNodeWithText("Camera access is required to take photos of your plants.").assertIsDisplayed()
@@ -268,17 +358,13 @@ class AddCareLogScreenTest {
             override val activityResultRegistry = testRegistry
         }
 
-        val viewModel = makeViewModel()
+        val viewModel = makeViewModel(CareType.PHOTO)
         composeTestRule.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
                 AddCareLogScreen(viewModel = viewModel, onNavigateBack = {})
             }
         }
         composeTestRule.waitUntil(timeoutMillis = LOAD_TIMEOUT_MS) { viewModel.isLoaded }
-
-        // Open the sheet before mocking so FilterChip composition is unaffected.
-        composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
-        composeTestRule.waitForIdle()
 
         mockkStatic(ContextCompat::class)
         mockkStatic(ActivityCompat::class)
@@ -289,7 +375,7 @@ class AddCareLogScreenTest {
             ActivityCompat.shouldShowRequestPermissionRationale(any(), Manifest.permission.CAMERA)
         } returns false
 
-        composeTestRule.onNodeWithText("Take photo").performClick()
+        composeTestRule.onNodeWithText("Take photo").performScrollTo().performClick()
 
         composeTestRule.onNodeWithText("Camera access denied").assertIsDisplayed()
         composeTestRule.onNodeWithText("Open Settings").assertIsDisplayed()

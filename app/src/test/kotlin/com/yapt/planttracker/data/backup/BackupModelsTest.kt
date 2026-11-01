@@ -41,7 +41,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
-        hiddenAt = hiddenAt
+        hiddenAt = hiddenAt,
+        propagatedFromId = propagatedFromId
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -69,7 +70,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = repotPlanSeasonStartAt,
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
-        hiddenAt = hiddenAt
+        hiddenAt = hiddenAt,
+        propagatedFromId = propagatedFromId
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -79,7 +81,6 @@ class BackupModelsTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = amount,
         wateringFeedback = wateringFeedback
     )
 
@@ -90,7 +91,6 @@ class BackupModelsTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = amount,
         wateringFeedback = wateringFeedback
     )
 
@@ -121,7 +121,8 @@ class BackupModelsTest {
         repotPlanSeasonStartAt = 1_804_032_000_000L,
         repotPlanMadeAt = 1_790_000_000_000L,
         repottingSeasons = "SPRING,AUTUMN",
-        hiddenAt = 1_694_000_000_000L
+        hiddenAt = 1_694_000_000_000L,
+        propagatedFromId = 7L
     )
 
     private val fullLog = CareLogEntity(
@@ -131,7 +132,6 @@ class BackupModelsTest {
         loggedAt = 1_600_000_000_000L,
         notes = "Good watering",
         photoUri = "content://uri/log.jpg",
-        amount = "300ml",
         wateringFeedback = "JUST_RIGHT"
     )
 
@@ -165,6 +165,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.repotPlanMadeAt, bp.repotPlanMadeAt)
         assertEquals(fullPlant.repottingSeasons, bp.repottingSeasons)
         assertEquals(fullPlant.hiddenAt, bp.hiddenAt)
+        assertEquals(fullPlant.propagatedFromId, bp.propagatedFromId)
     }
 
     @Test
@@ -214,7 +215,6 @@ class BackupModelsTest {
         assertEquals(fullLog.loggedAt, bl.loggedAt)
         assertEquals(fullLog.notes, bl.notes)
         assertEquals(fullLog.photoUri, bl.photoUri)
-        assertEquals(fullLog.amount, bl.amount)
         assertEquals(fullLog.wateringFeedback, bl.wateringFeedback)
     }
 
@@ -232,7 +232,6 @@ class BackupModelsTest {
             loggedAt = 1_600_000_000_000L,
             notes = null,
             photoUri = null,
-            amount = null,
             wateringFeedback = null
         )
         assertEquals(minimal, minimal.toBackupCareLog().toCareLogEntity())

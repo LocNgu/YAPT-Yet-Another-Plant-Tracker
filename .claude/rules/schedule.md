@@ -30,6 +30,7 @@ Dates:
     - Today inactive: move to the 1st of the next active month (not due).
     - Today active: find the start of the contiguous run of active months ending this month (it may wrap the year, e.g. Autumn+Winter). Keep the raw date if it falls in that run (still overdue); otherwise the run start becomes the due date (due today in its first month, overdue after).
   - So a plant is never due during an inactive season. There is no learning, confidence or adjustment history for fertilizing.
+  - **Post-repot pause** (#965, product ADR-0074): the raw date is `max(raw, newest REPOT day + POST_REPOT_FERTILIZE_PAUSE_DAYS (30))` (`plusCalendarDays`), for fertilized and never-fertilized plants, before the season shift. Derived from `lastRepottedAt` (no stored state); a fertilize after the repot doesn't cancel it; PROPAGATE has no effect. Every `computeStatus()` caller must pass `lastRepottedAt`. `CareSchedule.postRepotFertilizingPauseEndAt()` is non-null only while the pause is active. Tests: `CareSchedulePostRepotFertilizingTest`.
 - **Repotting** (product ADR-0022, #809, product ADR-0057):
   - The first due date for a never-repotted plant is `createdAt + interval` (via `extendedCareDueAt()`).
   - A one-off plan *replaces* the interval date outright, even when it is earlier. `isRepottingDueSoon` covers the whole season; `isRepottingOverdue` starts only after the season ends. `repottingPlanSeasonEndAt` and `repottingPlanSeason` are non-null exactly for a plan.
@@ -59,6 +60,7 @@ The only watering-suggestion path; the old ±1-day nudge and the `ADAPTIVE_WATER
 - **Confidence (`Plant.wateringConfidence: Int?`, 0–5, null = never adapted):**
   - It rises only on gap agreement (within `GAP_AGREEMENT_TOLERANCE` = 15% of base) or a dialog dismissal (capped at `DISMISSAL_CONFIDENCE_CEILING` = 3, never lowered by it).
   - It drops by 2 (floor 0) when `correctionStreak()` ≥ 2 in one direction.
+  - It also drops by 2 (floor 0, `null` stays `null`) at most once per plant per day, when a PROPAGATE log is created (#960, product ADR-0073); see `rules/care-logging.md`.
   - The first observation bootstraps it to 0 but still corrects `base`.
   - `correctionStreak()` is derived from `getRecentWaterings(limit = 3)` and never cached in a column, so edits and deletes take effect.
 - **Manual edits:** an Add/Edit interval change resets confidence to 0. Editing the number inside the dialog applies the normal rules within tolerance, and −2 outside it. The dialog's Dismiss button and `onDismissRequest` go to `dismissSuggestedInterval()`.

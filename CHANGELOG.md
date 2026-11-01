@@ -12,6 +12,72 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-01
+
+### Added
+- **Before you leave opens a week before a trip, with a Hold for your last day list** (#969, part 2 of 2, product
+  ADR-0076) — the screen, and the **Before you leave** button on the Care banner and in Settings, is now available from
+  `AWAY_BANNER_LEAD_DAYS` (7) days before the trip through the last day at home, from the dates alone (never from when
+  the trip was saved); it stays closed on the trip's first day and while away. Before the last day it shows a read-only
+  **Hold for your last day · N** list: plants that come due before you leave, can wait until the last day and would
+  then last the whole trip, under the Care section header with the real due date on each row, no ticks and no log
+  button. With nothing to hold it says "Nothing to hold. Come back on <date> for your last-day plan." The hint says
+  they can wait until the last day and may need water again during the trip if watered sooner; it does not claim Care
+  lists them, because a hold's due date can still be a few days ahead. The last day at home is unchanged. It is a
+  suggestion only: no due date moves and nothing is written to a plant row or a log. Watering a held plant from Care,
+  Plant List or Plant Detail is an ordinary watering through the unchanged reason gate (on schedule from its due date
+  through the last day, so no "Why was it late?"; earlier it may ask as usual). `AwayModeUiState.isLastDayAtHome` is
+  replaced by `canOpenBeforeYouLeave`. No migration or backup change.
+- **Fertilizing reminders pause for 30 days after a repot** (#965, product ADR-0074) — the fertilizing due date is
+  now `max(usual due date, repot day + 30 days)` for both fed and never-fed plants, then shifted out of inactive
+  seasons as before. It is derived from the newest REPOT log (no migration or backup change), holds even if you
+  fertilize after the repot, and Plant List and Calendar now agree with Care and Plant Detail. The Fertilize tab
+  shows "Paused after repotting until <date>" while it applies. Propagating has no effect.
+- **Propagate: log cuttings, divisions and offsets, and keep track of plant families** (#960) — a new **Propagate**
+  tab on Plant Detail (after Prune) lists the plant's propagations and logs a new one with the shared date sheet. It
+  is log-only: no interval, reminder or Care task. Any number of propagations per day are accepted. Logging one lowers
+  the plant's watering confidence by 2 (never below 0, at most once per plant per day, and not at all when the plant
+  has not started learning), so the next waterings re-tune the interval faster if its needs changed; the "Why this
+  date?" sheet lists it as "propagated — relearning faster". The base interval, due date and learning are otherwise
+  untouched, and a repot plan is never cleared. After saving, a dialog offers **New plant** (Add Plant prefilled with
+  the species, room and "<Parent> (cutting)", already linked, with a read-only "Propagated from" line and the parent's
+  care settings copied in: dormancy, the fertilizing reminder, repotting seasons, the pin switch and the watering
+  reminder starting at the parent's interval for today; the repotting reminder, repot plan, learned watering, notes
+  and photo are not copied, and everything stays editable), **Existing plant** (a searchable picker) or **Not now**. A
+  **Family** card on the tab shows "Propagated from" (or **Link parent…**) and the children (with **Link existing
+  plant…** and **Add new plant**); rows open the relative, a long-press offers **Unlink**, and archived or hidden
+  relatives are labelled. Deleting a parent just unlinks its children. The expanded tab strip now has nine tabs, so
+  the last one sits on its own row. DB 20 (`plants.propagatedFromId`, self-referencing, `ON DELETE SET NULL`); backup
+  schema 24 (restore applies links in a second pass and drops dangling or cyclic ones). A family-tree screen is a
+  follow-up. See product ADR-0073.
+
+### Changed
+- **Before you leave lists plants like the rest of the app** (#970) — **Water today** and **Check the soil** now use
+  the Care section header (tap to collapse) over Plant List-style rows with the plant's photo (or the usual
+  placeholder), name, room when set and due date. Each row is still one tick, announced with its name, room, due
+  date and tick state, and the bottom **Log N as watered** button, the default ticks and which plants appear where
+  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are reused by the
+  **Hold for your last day** list.
+- **Before you leave also lists plants that would need water during the trip** (#969, part 1 of 2, product ADR-0076) —
+  on the last day at home, **Check the soil** now also lists (unticked) plants that would otherwise come due inside
+  the trip and are at least 70% through their interval, so they can last the whole trip without the sitter. A plant
+  qualifies only if its own effective interval is at least the trip length (a plant due on the trip's last day counts)
+  and its next watering is after the first visit, so it isn't already listed; resting, unscheduled, hidden, archived
+  and never-watered plants are left out. Water today, the ticks and the "can wait" count are otherwise unchanged. It
+  is a suggestion only: no due date moves and no plant row is written. Learning follows the existing rules (a
+  watering at least 85% through its interval is an on-schedule nudge; between 70% and 85% it is
+  `WATER_NOT_ATTRIBUTED`). The pure **hold for your last day** rule is shown by the lead-in list below.
+  No migration or backup change.
+- **Add Care Log drops the Amount field and the optional photo** (#442, product ADR-0075) — editing a log no longer
+  shows an **Amount** field; Notes covers it, and Water and Fertilize logs hint "e.g. watering amount" in Notes. The
+  photo block (label, preview, Take photo / Choose from gallery) now appears only when editing a **Photo** log, which
+  still needs a photo and still updates the cover; the "Photo (optional)" label, the add-photo icon and its
+  photo-source sheet are gone from every other type. A photo that a non-Photo log already carries is kept untouched
+  on save (no thumbnail, no way to clear it here), so it stays in the gallery. DB 21 (`MIGRATION_20_21` rebuilds
+  `care_logs` without `amount`, since `DROP COLUMN` needs SQLite 3.35 and minSdk is 26): existing amounts are
+  discarded, not copied into Notes. `.yapt` backups drop the field too; the schema stays 24 and older backups that
+  carry `amount` still restore (unknown keys are ignored).
+
 ## [0.40.0] - 2026-10-28
 
 ### Added

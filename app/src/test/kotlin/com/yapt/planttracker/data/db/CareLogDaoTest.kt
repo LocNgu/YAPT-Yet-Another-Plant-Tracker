@@ -78,7 +78,6 @@ class CareLogDaoTest {
         loggedAt = loggedAt,
         notes = notes,
         photoUri = photoUri,
-        amount = null,
         wateringFeedback = wateringFeedback
     )
 

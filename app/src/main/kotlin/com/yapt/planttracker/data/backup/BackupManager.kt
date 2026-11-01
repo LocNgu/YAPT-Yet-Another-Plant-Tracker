@@ -31,6 +31,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 24 (#960, product ADR-0073): propagatedFromId added to BackupPlant — the plant-family parent link.
+// Restore inserts plants unlinked and applies the links in a second pass, dropping dangling and cyclic
+// ones. Old backups deserialize it to null: no recorded parent.
 // Schema 23 (#915, product ADR-0066): hiddenAt added to BackupPlant — when the owner hid a living plant
 // from operational surfaces. Old backups deserialize it to null: every plant visible.
 // Schema 22 (#896, product ADR-0065): awayPeriods added to BackupRoot — each trip carries its sitter
@@ -87,7 +90,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 23
+const val CURRENT_SCHEMA_VERSION = 24
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -247,7 +250,8 @@ class BackupManager(
                                 repottingSeasons = SeasonalFertilizing.encode(
                                     SeasonalFertilizing.decode(entity.repottingSeasons)
                                 ),
-                                hiddenAt = entity.hiddenAt
+                                hiddenAt = entity.hiddenAt,
+                                propagatedFromId = entity.propagatedFromId
                             )
                         }
 
@@ -259,7 +263,6 @@ class BackupManager(
                                 loggedAt = entity.loggedAt,
                                 notes = entity.notes,
                                 photoUri = if (includePhotos) entity.photoUri?.let { photoMapping[it] } else null,
-                                amount = entity.amount,
                                 wateringFeedback = entity.wateringFeedback,
                                 fertilizerType = entity.fertilizerType,
                                 customReminderId = entity.customReminderId
@@ -485,7 +488,6 @@ class BackupManager(
                     loggedAt = bl.loggedAt,
                     notes = bl.notes,
                     photoUri = bl.photoUri?.let { zipPathToLocalPath[it] },
-                    amount = bl.amount,
                     wateringFeedback = bl.wateringFeedback,
                     fertilizerType = runCatching {
                         FertilizerType.valueOf(
@@ -540,6 +542,11 @@ class BackupManager(
                 )
             }
 
+            val propagatedLinks = sanitizePropagatedLinks(
+                plantIds = backup.plants.mapTo(mutableSetOf()) { it.id },
+                rawLinks = backup.plants.associate { it.id to it.propagatedFromId }
+            )
+
             val awayData = backup.awayPeriods.toRestoredAwayData(plantEntities.mapTo(mutableSetOf()) { it.id })
 
             database.withTransaction {
@@ -551,6 +558,9 @@ class BackupManager(
                 database.careLogDao().deleteAll()
                 database.plantDao().deleteAll()
                 database.plantDao().insertAll(plantEntities)
+                for ((childId, parentId) in propagatedLinks) {
+                    database.plantDao().setPropagatedFrom(childId, parentId)
+                }
                 database.customReminderDao().insertAll(customReminderEntities)
                 database.plantIssueDao().insertAll(plantIssueEntities)
                 database.careLogDao().insertAll(careLogEntities)

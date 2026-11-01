@@ -301,11 +301,13 @@ private suspend fun buildStatus(
 ): PlantCareStatus {
     val lastWatering = careLogRepository.getLastLogOfType(plant.id, CareType.WATER)
     val lastFertilizing = careLogRepository.getLastLogOfType(plant.id, CareType.FERTILIZE)
+    val lastRepotting = careLogRepository.getLastLogOfType(plant.id, CareType.REPOT)
     val totalLogs = careLogRepository.getCareLogCount(plant.id)
     return CareSchedule.computeStatus(
         plant = plant,
         lastWateredAt = lastWatering?.loggedAt,
         lastFertilizedAt = lastFertilizing?.loggedAt,
+        lastRepottedAt = lastRepotting?.loggedAt,
         totalLogs = totalLogs,
         now = now,
         seasonalAmplitude = seasonalAmplitude,

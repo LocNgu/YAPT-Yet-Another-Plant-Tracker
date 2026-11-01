@@ -15,6 +15,7 @@ paths:
 ## Model
 - **Data:** one `fertilizingIntervalDays` plus a per-plant active-season set, `Plant.fertilizingSeasons: Set<FertilizingSeason>` (default all four). It is stored as comma-separated names in `PlantEntity.fertilizingSeasons: String?` (`null` = every season). `SeasonalFertilizing.encode()`/`decode()` is the one normalizer, shared by the repository and `BackupManager`.
 - **Due date:** `computeFertilizingDue()` computes the raw date, then `SeasonalFertilizing.nextActiveDueAtMillis(raw, activeSeasons, hemisphere, nowDate)` moves it out of inactive seasons. A plant is never due during an inactive season and becomes due on the first day of re-entry, not "overdue by 3 months". The branch-by-branch rule is in `rules/schedule.md`.
+- **Post-repot pause** (#965, product ADR-0074): the raw date is first raised to `newest REPOT day + 30 days` (`CareSchedule.POST_REPOT_FERTILIZE_PAUSE_DAYS`), then season-shifted; the pause end is shifted like any raw date. The Fertilize tab shows `fertilizing_post_repot_pause_note` while `postRepotFertilizingPauseEndAt()` is non-null and the reminder is on.
 - The hemisphere comes from `SeasonalWatering.currentHemisphere()`. There is no learning, confidence or history; dormancy is a separate, additional pause.
 
 ## `FertilizingSeasonsSelector` chip row (`ui/components/`)

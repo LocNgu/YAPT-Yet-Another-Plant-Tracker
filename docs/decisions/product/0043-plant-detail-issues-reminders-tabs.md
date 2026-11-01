@@ -1,6 +1,6 @@
 # Product ADR-0043: Custom Reminders and Active Issues become their own Plant Detail tabs, with a collapsible tab row
 
-**Status**: accepted — tab set and order, collapsed row, orphan-reset target and attention-badge clauses amended by [ADR-0060](0060-plant-detail-home-tab.md); tab set and order amended again (Prune) by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md)
+**Status**: accepted — tab set and order, collapsed row, orphan-reset target and attention-badge clauses amended by [ADR-0060](0060-plant-detail-home-tab.md); tab set and order amended again (Prune) by [ADR-0062](0062-plant-detail-actions-replace-add-care-log-fab.md); tab set and order amended a third time (Propagate, nine tabs) by [ADR-0073](0073-propagate-care-type-and-plant-families.md)
 
 **Date**: 2026-08-28
 

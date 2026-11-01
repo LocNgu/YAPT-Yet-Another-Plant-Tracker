@@ -13,7 +13,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.TimeZone
 
-/** Before you leave (#899, product ADR-0065): the halfway split, its strict boundary, and who is left out. */
+/**
+ * Before you leave (#899, product ADR-0065): the halfway split, its strict boundary, and who is left out; and the
+ * plants brought forward for a trip they would otherwise not last (#969, product ADR-0076).
+ */
 class BeforeYouLeaveTest {
 
     private val originalTimeZone: TimeZone = TimeZone.getDefault()
@@ -62,7 +65,8 @@ class BeforeYouLeaveTest {
     private fun plan(
         entries: List<Pair<Plant, CareLog>>,
         visitEveryDays: Int? = 7,
-        extraPlants: List<Plant> = emptyList()
+        extraPlants: List<Plant> = emptyList(),
+        tripDays: Int = 10
     ) = BeforeYouLeave.plan(
         BeforeYouLeaveInput(
             plants = entries.map { it.first } + extraPlants,
@@ -70,7 +74,9 @@ class BeforeYouLeaveTest {
             today = today,
             visitEveryDays = visitEveryDays,
             seasonalAmplitude = 0.0,
-            hemisphere = Hemisphere.NORTHERN
+            hemisphere = Hemisphere.NORTHERN,
+            tripFirstDay = today.plusDays(1),
+            tripLastDay = today.plusDays(tripDays.toLong())
         )
     )
 
@@ -169,5 +175,82 @@ class BeforeYouLeaveTest {
         // Never watered, so due today: Water today, with no assumed earlier watering.
         assertEquals(listOf(1L), result.waterToday.ids())
         assertEquals(today, result.waterToday.single().dueDate)
+    }
+
+    @Test
+    fun `a plant that would come due inside the trip is checked once it is 70 percent through`() {
+        // 21-day plant watered 15 days ago, due in 6 days: after the first visit (Oct 11), inside the 21-day trip.
+        val result = plan(listOf(dueOn(1, day(13), interval = 21)), visitEveryDays = 4, tripDays = 21)
+
+        assertTrue(result.waterToday.isEmpty())
+        assertEquals(listOf(1L), result.checkTheSoil.ids())
+        assertEquals(day(13), result.checkTheSoil.single().dueDate)
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
+    fun `a plant just short of 70 percent through is not added`() {
+        val result = plan(listOf(dueOn(1, day(14), interval = 21)), visitEveryDays = 4, tripDays = 21)
+
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(1, result.canWaitCount)
+    }
+
+    @Test
+    fun `a plant already in check the soil is not listed twice`() {
+        // With a 7-day rhythm the first visit is Oct 14, so a plant due Oct 13 is already Check the soil.
+        val result = plan(listOf(dueOn(1, day(13), interval = 21)), visitEveryDays = 7, tripDays = 21)
+
+        assertEquals(listOf(1L), result.checkTheSoil.ids())
+        assertTrue(result.waterToday.isEmpty())
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
+    fun `brought-forward plants follow the existing check the soil rows`() {
+        val entries = listOf(
+            dueOn(1, day(13), interval = 21),
+            dueOn(2, day(10), interval = 7),
+            dueOn(3, day(12), interval = 7)
+        )
+
+        val result = plan(entries, visitEveryDays = 4, tripDays = 21)
+
+        // First visit Oct 11: plant 2 (Oct 10) is Check the soil, plant 3 (Oct 12) is later but only 4 of 7 days
+        // through, and plant 1 is brought forward after the rows that were already there.
+        assertEquals(listOf(2L, 1L), result.checkTheSoil.ids())
+        assertEquals(1, result.canWaitCount)
+    }
+
+    @Test
+    fun `the can wait count leaves out brought-forward plants`() {
+        val entries = listOf(dueOn(1, day(13), interval = 21), dueOn(2, day(30), interval = 30))
+
+        val result = plan(entries, visitEveryDays = 4, tripDays = 21)
+
+        assertEquals(listOf(1L), result.checkTheSoil.ids())
+        assertEquals(1, result.canWaitCount)
+    }
+
+    @Test
+    fun `a plant that cannot last the whole trip is not brought forward`() {
+        // A 20-day plant is exactly 70% through (14 of 20 days) and due after the first visit, but it runs out
+        // one day before a 21-day trip ends.
+        val nearMiss = dueOn(1, day(13), interval = 20)
+
+        val result = plan(listOf(nearMiss), visitEveryDays = 4, tripDays = 21)
+
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(1, result.canWaitCount)
+    }
+
+    @Test
+    fun `a hidden plant that fits the rule is neither brought forward nor counted`() {
+        val (plant, log) = dueOn(1, day(13), interval = 21)
+
+        val result = plan(listOf(plant.copy(hiddenAt = 1L) to log), visitEveryDays = 4, tripDays = 21)
+
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(0, result.canWaitCount)
     }
 }

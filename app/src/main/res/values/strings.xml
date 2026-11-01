@@ -229,9 +229,8 @@
     <string name="cd_back">Back</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_add_photo">Add photo</string>
-    <string name="field_amount_optional">Amount (optional)</string>
-    <string name="placeholder_amount">e.g. 200ml</string>
     <string name="field_notes_optional">Notes (optional)</string>
+    <string name="placeholder_notes_amount">e.g. watering amount</string>
     <string name="cd_pick_date">Pick date</string>
     <string name="cd_plant_cover_photo">Plant cover photo</string>
     <string name="cd_plant_photo_fullscreen">Full-screen plant photo</string>
@@ -272,6 +271,7 @@
     <string name="fertilizing_active_seasons_label">Active in</string>
     <string name="fertilizing_last_season_locked_snackbar">At least one season must stay active. To stop fertilizing, turn off the fertilizing reminder.</string>
     <string name="fertilizing_out_of_season">Out of season — next fertilizing %1$s</string>
+    <string name="fertilizing_post_repot_pause_note">Paused after repotting until %1$s</string>
     <string name="fertilizing_dormancy_pause_note">Fertilizing reminders pause during this plant’s dormancy window.</string>
     <plurals name="repotting_interval_label">
         <item quantity="one">Repot every month</item>
@@ -290,7 +290,6 @@
     <string name="care_log_fertilizer_type_label">Fertilizer type</string>
     <string name="fertilizer_type_liquid">Liquid</string>
     <string name="fertilizer_type_solid">Solid</string>
-    <string name="care_log_photo_label">Photo (optional)</string>
     <string name="care_log_photo_label_required">Photo</string>
     <string name="care_log_error_already_watered">This plant already has a watering logged for this day.</string>
     <string name="care_log_error_already_fertilized">This plant already has a fertilizing logged for this day.</string>
@@ -394,6 +393,39 @@
     <string name="repot_plan_next_due">Next repot due %1$s</string>
     <string name="repot_plan_preferred_seasons">Repots in %1$s</string>
     <string name="plant_detail_tab_photo_empty">No photos yet.</string>
+    <!-- Propagate tab and plant families (#960, product ADR-0073) -->
+    <string name="plant_detail_tab_propagate">Propagate</string>
+    <string name="plant_detail_tab_propagate_empty">No propagations logged yet.</string>
+    <string name="propagate_action">Propagate</string>
+    <string name="quick_log_propagated">Propagated %s</string>
+    <string name="insight_propagations">Propagations</string>
+    <string name="insight_last_propagated">Last propagated</string>
+    <string name="propagate_offer_title">Add the new plant?</string>
+    <string name="propagate_offer_message">Link a plant to %s as a child, so the family stays together.</string>
+    <string name="propagate_offer_new">New plant</string>
+    <string name="propagate_offer_existing">Existing plant</string>
+    <string name="propagate_offer_not_now">Not now</string>
+    <string name="propagate_child_name">%s (cutting)</string>
+    <string name="add_plant_propagated_from">Propagated from %s</string>
+    <string name="add_plant_care_settings_copied">Care settings copied from %s; change them below</string>
+    <string name="family_title">Family</string>
+    <string name="family_propagated_from">Propagated from</string>
+    <string name="family_link_parent">Link parent…</string>
+    <string name="family_children">Children</string>
+    <string name="family_no_children">No children yet</string>
+    <string name="family_link_existing">Link existing plant…</string>
+    <string name="family_add_new">Add new plant</string>
+    <string name="family_unlink">Unlink</string>
+    <string name="family_row_actions_label">Show family actions</string>
+    <string name="family_relative_archived">%s, archived</string>
+    <string name="family_relative_hidden">%s, hidden</string>
+    <string name="family_picker_title_parent">Link parent</string>
+    <string name="family_picker_title_child">Link existing plant</string>
+    <string name="family_picker_search">Search plants</string>
+    <string name="family_picker_empty">No plants to link</string>
+    <string name="family_picker_no_match">No plants match your search</string>
+    <string name="family_picker_currently_from">Currently from %s</string>
+    <string name="family_link_refused">That link isn\'t possible: a plant can\'t descend from itself.</string>
     <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
     <string name="plant_detail_tab_custom_reminders">Reminders</string>
     <string name="plant_detail_tab_issues">Issues</string>
@@ -475,6 +507,7 @@
     <string name="care_type_photo">Photo</string>
     <string name="care_type_custom">Custom care</string>
     <string name="care_type_check">Checked</string>
+    <string name="care_type_propagated">Propagated</string>
     <string name="feedback_still_wet">Still wet</string>
     <string name="feedback_just_right">Just right</string>
     <string name="feedback_too_dry">Too dry</string>
@@ -815,6 +848,7 @@
     <string name="adjustment_trigger_dormancy_excluded">dormant — not counted</string>
     <string name="adjustment_trigger_dormancy_exit">left dormancy</string>
     <string name="adjustment_trigger_away_excluded">away — not counted</string>
+    <string name="adjustment_trigger_propagate_confidence_drop">propagated — relearning faster</string>
     <!-- "Ask before changing intervals" toggle (#572) -->
     <string name="ask_before_changing_intervals_title">Ask before changing intervals</string>
     <string name="ask_before_changing_intervals_subtitle">Show a confirmation dialog before applying an adaptive watering suggestion. Off applies silently, with an undo.</string>
@@ -887,12 +921,17 @@
     <string name="sitter_ask_copy">Copy</string>
 
     <string name="before_leave_title">Before you leave</string>
-    <string name="before_leave_not_available">Before you leave is for your last day at home. Come back then to water what would run dry while you\'re away.</string>
-    <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then.</string>
-    <string name="before_leave_section_title">%1$s · %2$d</string>
+    <plurals name="before_leave_not_available">
+        <item quantity="one">Before you leave opens %d day before a trip starts. Come back then to line up your waterings.</item>
+        <item quantity="other">Before you leave opens %d days before a trip starts. Come back then to line up your waterings.</item>
+    </plurals>
+    <string name="before_leave_hold_title">Hold for your last day</string>
+    <string name="before_leave_hold_hint">They come due before you leave, but can wait until %1$s. Watered then, they last the whole trip; watered sooner, they may need water again while you\'re away.</string>
+    <string name="before_leave_hold_empty">Nothing to hold. Come back on %1$s for your last-day plan.</string>
+    <string name="before_leave_intro">The first visit is around %1$s. Water what would run dry before then, and check the soil of what might run dry later.</string>
     <string name="before_leave_water_today">Water today</string>
     <string name="before_leave_check_soil">Check the soil</string>
-    <string name="before_leave_check_soil_hint">Water only if dry; otherwise the sitter waters them on the first visit.</string>
+    <string name="before_leave_check_soil_hint">Water only if the soil is dry; otherwise the sitter will water them.</string>
     <plurals name="before_leave_can_wait">
         <item quantity="one">%d other plant can wait</item>
         <item quantity="other">%d other plants can wait</item>

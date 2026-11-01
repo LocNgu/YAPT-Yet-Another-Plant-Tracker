@@ -373,6 +373,55 @@ class AwayModeViewModelTest {
     }
 
     @Test
+    fun `before you leave opens a week out and closes on the first day, following the day change`() = runTest {
+        addTrip(today.plusDays(10), today.plusDays(12))
+        val dayChange = MutableSharedFlow<LocalDate>(replay = 1)
+        val vm = viewModel(dayChange)
+
+        vm.uiState.test {
+            assertNull(awaitItem())
+            dayChange.emit(today.plusDays(2))
+            assertFalse(awaitItem()!!.canOpenBeforeYouLeave)
+
+            dayChange.emit(today.plusDays(3))
+            assertTrue(awaitItem()!!.canOpenBeforeYouLeave)
+
+            dayChange.emit(today.plusDays(8))
+            assertTrue(awaitItem()!!.canOpenBeforeYouLeave)
+
+            dayChange.emit(today.plusDays(9))
+            assertTrue(awaitItem()!!.canOpenBeforeYouLeave)
+
+            dayChange.emit(today.plusDays(10))
+            val away = awaitItem()!!
+            assertTrue(away.status is AwayTripStatus.Away)
+            assertFalse(away.canOpenBeforeYouLeave)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `before you leave follows a trip edit and a cancel with no restart`() = runTest {
+        val trip = addTrip(today.plusDays(3), today.plusDays(8))
+        val vm = viewModel()
+
+        vm.uiState.test {
+            val planned = awaitItem() ?: awaitItem()!!
+            assertTrue(planned.canOpenBeforeYouLeave)
+
+            vm.saveTrip(today.plusDays(12), today.plusDays(15), trip.id).join()
+            assertFalse(awaitItem()!!.canOpenBeforeYouLeave)
+
+            vm.saveTrip(today.plusDays(2), today.plusDays(15), trip.id).join()
+            assertTrue(awaitItem()!!.canOpenBeforeYouLeave)
+
+            vm.cancelTrip().join()
+            assertFalse(awaitItem()!!.canOpenBeforeYouLeave)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `the visits to confirm appear on the first day back and lapse after the window at midnight`() = runTest {
         val trip = addTrip(today.minusDays(10), today.plusDays(1))
         addVisitWithPlant(trip.id, today.minusDays(4))

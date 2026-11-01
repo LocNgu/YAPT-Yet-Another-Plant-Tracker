@@ -20,6 +20,21 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 590,
+            versionName = "0.41.0",
+            added = listOf(
+                "New Propagate tab: log cuttings, then add a new plant that starts with the parent's care settings",
+                "A plant's Family card shows the plant it came from and the plants grown from it",
+                "Fertilizing reminders now wait 30 days after you repot a plant",
+                "Before you leave opens a week before a trip and suggests plants to hold until your last day at home"
+            ),
+            changed = listOf(
+                "Editing a care log drops the \"Amount\" field and the photo option, except on Photo logs",
+                "On your last day at home, Before you leave also suggests plants that would need water during the trip",
+                "Before you leave shows each plant with its photo, room and due date, under Care-style headings"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 582,
             versionName = "0.40.0",
             added = listOf(

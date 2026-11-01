@@ -176,7 +176,6 @@ class AddCareLogViewModelTest {
                 careType = CareType.FERTILIZE,
                 loggedAt = now,
                 notes = "Monthly feed",
-                amount = "5 ml",
                 fertilizerType = FertilizerType.SOLID
             )
         )
@@ -185,7 +184,6 @@ class AddCareLogViewModelTest {
         assertTrue(vm.isLoaded)
         assertEquals(CareType.FERTILIZE, vm.careType)
         assertEquals("Monthly feed", vm.notes)
-        assertEquals("5 ml", vm.amount)
         assertEquals(FertilizerType.SOLID, vm.selectedFertilizerType)
         assertEquals(now, vm.loggedAt)
     }
@@ -237,14 +235,13 @@ class AddCareLogViewModelTest {
     }
 
     @Test
-    fun `editing a WATER log keeps its feedback and amount and never touches the plant`() = runTest {
+    fun `editing a WATER log keeps its feedback and never touches the plant`() = runTest {
         val vm = editVm(
             CareLog(
                 plantId = 1L,
                 careType = CareType.WATER,
                 loggedAt = now,
-                wateringFeedback = WateringFeedback.TOO_LATE,
-                amount = "250 ml"
+                wateringFeedback = WateringFeedback.TOO_LATE
             ),
             plant = plant(wateringIntervalDays = 7)
         )
@@ -252,11 +249,7 @@ class AddCareLogViewModelTest {
 
         assertEquals(AddCareLogViewModel.Event.Saved, save(vm))
         coVerify {
-            careLogRepo.addLog(
-                match {
-                    it.id == 99L && it.wateringFeedback == WateringFeedback.TOO_LATE && it.amount == "250 ml"
-                }
-            )
+            careLogRepo.addLog(match { it.id == 99L && it.wateringFeedback == WateringFeedback.TOO_LATE })
         }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
@@ -379,6 +372,28 @@ class AddCareLogViewModelTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(match { it.coverPhotoUri == "content://photo.jpg" }) }
     }
 
+    // #442: the edit screen no longer offers a photo on non-PHOTO logs, but a photo attached before that
+    // must survive an edit so the log keeps surfacing in the plant gallery (product ADR-0013).
+    @Test
+    fun `saving a legacy non-PHOTO log keeps its attached photo`() = runTest {
+        listOf(CareType.WATER, CareType.FERTILIZE, CareType.PRUNE, CareType.REPOT).forEach { type ->
+            val vm = editVm(
+                CareLog(plantId = 1L, careType = type, loggedAt = now, photoUri = "content://legacy-$type.jpg"),
+                plant = plant(wateringIntervalDays = 7)
+            )
+            advanceUntilIdle()
+            vm.notes = "Edited"
+
+            assertEquals(AddCareLogViewModel.Event.Saved, save(vm))
+
+            coVerify {
+                careLogRepo.addLog(
+                    match { it.careType == type && it.photoUri == "content://legacy-$type.jpg" && it.notes == "Edited" }
+                )
+            }
+        }
+    }
+
     // Same-day duplicate rejection on edit (#509)
 
     @Test
@@ -442,6 +457,27 @@ class AddCareLogViewModelTest {
         assertTrue(save(vm) is AddCareLogViewModel.Event.Saved)
 
         assertNull(vm.duplicateLogError)
+    }
+
+    @Test
+    fun `a PROPAGATE edit is never duplicate-guarded`() = runTest {
+        val vm = editVm(CareLog(plantId = 1L, careType = CareType.PROPAGATE, loggedAt = now))
+        advanceUntilIdle()
+
+        assertTrue(save(vm) is AddCareLogViewModel.Event.Saved)
+
+        assertNull(vm.duplicateLogError)
+        coVerify(exactly = 0) { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a REPOT edit is never duplicate-guarded`() = runTest {
+        val vm = editVm(CareLog(plantId = 1L, careType = CareType.REPOT, loggedAt = now))
+        advanceUntilIdle()
+
+        save(vm)
+
+        coVerify(exactly = 0) { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) }
     }
 
     @Test

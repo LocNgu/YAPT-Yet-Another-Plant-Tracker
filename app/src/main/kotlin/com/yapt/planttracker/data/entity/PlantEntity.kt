@@ -1,9 +1,22 @@
 package com.yapt.planttracker.data.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "plants")
+@Entity(
+    tableName = "plants",
+    foreignKeys = [
+        ForeignKey(
+            entity = PlantEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["propagatedFromId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [Index("propagatedFromId")]
+)
 data class PlantEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -37,5 +50,7 @@ data class PlantEntity(
     /** Comma-separated [com.yapt.planttracker.domain.schedule.FertilizingSeason] names; `null` = every season. */
     val repottingSeasons: String? = null,
     /** Instant the plant was hidden from every operational surface; `null` = visible. Independent of [archivedAt] (#915). */
-    val hiddenAt: Long? = null
+    val hiddenAt: Long? = null,
+    /** The plant this one was propagated from (#960, product ADR-0073); self-FK, `ON DELETE SET NULL`. */
+    val propagatedFromId: Long? = null
 )

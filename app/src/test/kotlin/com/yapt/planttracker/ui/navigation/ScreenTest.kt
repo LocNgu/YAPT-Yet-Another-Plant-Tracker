@@ -81,6 +81,19 @@ class ScreenTest {
     }
 
     @Test
+    fun `a deep link to PROPAGATE selects the second-row tab`() {
+        assertEquals("plant_detail/7?tab=PROPAGATE", Screen.PlantDetail.createRoute(7L, PlantDetailTab.PROPAGATE))
+        assertEquals(PlantDetailTab.PROPAGATE, PlantDetailTab.fromRouteArg("PROPAGATE"))
+        assertEquals(true, PlantDetailTab.PROPAGATE.isInCollapsedRow)
+    }
+
+    @Test
+    fun `addPropagatedPlant route carries the parent id`() {
+        assertEquals("add_propagated_plant/{parentId}", Screen.AddPropagatedPlant.route)
+        assertEquals("add_propagated_plant/7", Screen.AddPropagatedPlant.createRoute(7L))
+    }
+
+    @Test
     fun `plantDetail tab arg parses defensively`() {
         assertEquals(null, PlantDetailTab.fromRouteArg(null))
         assertEquals(PlantDetailTab.FERTILIZE, PlantDetailTab.fromRouteArg("FERTILIZE"))
@@ -94,6 +107,7 @@ class ScreenTest {
             setOf(
                 PlantDetailTab.REPOT,
                 PlantDetailTab.PRUNE,
+                PlantDetailTab.PROPAGATE,
                 PlantDetailTab.CUSTOM_REMINDERS,
                 PlantDetailTab.ISSUES
             ),
@@ -113,11 +127,13 @@ class ScreenTest {
                 PlantDetailTab.PHOTO,
                 PlantDetailTab.REPOT,
                 PlantDetailTab.PRUNE,
+                PlantDetailTab.PROPAGATE,
                 PlantDetailTab.CUSTOM_REMINDERS,
                 PlantDetailTab.ISSUES
             ),
             PlantDetailTab.entries
         )
+        assertEquals(4, PlantDetailTab.COLLAPSED_TAB_COUNT)
     }
 
     @Test

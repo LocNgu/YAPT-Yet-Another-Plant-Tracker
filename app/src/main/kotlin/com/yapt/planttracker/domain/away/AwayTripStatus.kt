@@ -24,3 +24,14 @@ fun AwayTripStatus.showsBanner(today: LocalDate): Boolean = when (this) {
     is AwayTripStatus.Away -> true
     is AwayTripStatus.Upcoming -> trip.firstDay <= today.plusDays(AWAY_BANNER_LEAD_DAYS)
 }
+
+/**
+ * Before you leave opens for the same [AWAY_BANNER_LEAD_DAYS] days as the banner's upcoming line, up to and
+ * including the last day at home (product ADR-0076). Dates only, never when the trip was saved: true exactly when
+ * the trip is upcoming and `firstDay - AWAY_BANNER_LEAD_DAYS <= today <= firstDay - 1`.
+ */
+fun AwayTripStatus.canOpenBeforeYouLeave(today: LocalDate): Boolean = when (this) {
+    AwayTripStatus.None, is AwayTripStatus.Away -> false
+    is AwayTripStatus.Upcoming ->
+        trip.firstDay > today && trip.firstDay <= today.plusDays(AWAY_BANNER_LEAD_DAYS)
+}

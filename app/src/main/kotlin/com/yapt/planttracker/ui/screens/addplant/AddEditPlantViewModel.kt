@@ -51,7 +51,11 @@ class AddEditPlantViewModel(
     private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
     /** Drives the live seed; a test injecting this must inject a [nowProvider] on the same date. */
     private val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
-    private val nowProvider: () -> Long = System::currentTimeMillis
+    private val nowProvider: () -> Long = System::currentTimeMillis,
+    /** Set when Add Plant was opened from Propagate's "New plant" offer (#960, product ADR-0073); add mode only. */
+    private val propagatedFromId: Long? = null,
+    /** Builds the prefilled "<Parent> (cutting)" name from the parent's name; the string lives in resources. */
+    private val childNameFor: (parentName: String) -> String = { it }
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
@@ -61,9 +65,9 @@ class AddEditPlantViewModel(
     var room by mutableStateOf("")
     var notes by mutableStateOf("")
     var coverPhotoUri by mutableStateOf<String?>(null)
-    var wateringIntervalDays by mutableIntStateOf(7)
+    var wateringIntervalDays by mutableIntStateOf(DEFAULT_WATERING_INTERVAL_DAYS)
     var wateringIntervalEnabled by mutableStateOf(false)
-    var fertilizingIntervalDays by mutableIntStateOf(30)
+    var fertilizingIntervalDays by mutableIntStateOf(DEFAULT_FERTILIZING_INTERVAL_DAYS)
     var fertilizingIntervalEnabled by mutableStateOf(false)
     var fertilizingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
     var useLiquidFertilizer by mutableStateOf(false)
@@ -109,6 +113,16 @@ class AddEditPlantViewModel(
     var isHidden by mutableStateOf(false)
         private set
 
+    /**
+     * Add mode only: the parent's name for the read-only "Propagated from" line (#960). Not editable here —
+     * the link is set only through the Propagate tab's Family card, so this form stays uncluttered. `null`
+     * when not opened from the offer, or when the parent no longer exists.
+     */
+    var propagatedFromName by mutableStateOf<String?>(null)
+        private set
+
+    private var linkedParentId: Long? = null
+
     val pendingPhotos = mutableStateListOf<String>()
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
@@ -118,6 +132,25 @@ class AddEditPlantViewModel(
     val events: SharedFlow<Event> = _events
 
     init {
+        if (plantId == null && propagatedFromId != null) {
+            viewModelScope.launch {
+                plantRepository.getPlantById(propagatedFromId).first()?.let { parent ->
+                    // The only suspending step, so every guarded write below sees the user's edits so far.
+                    val live = LiveWateringInterval.compute(
+                        parent,
+                        nowProvider().toLocalDate(),
+                        dataStore?.seasonalAmplitudeOnce() ?: 0.0,
+                        hemisphere()
+                    )
+                    linkedParentId = parent.id
+                    propagatedFromName = parent.name
+                    if (name.isEmpty()) name = childNameFor(parent.name)
+                    if (species.isEmpty()) species = parent.species.orEmpty()
+                    if (room.isEmpty()) room = parent.room.orEmpty()
+                    prefillCareSettings(parent, live)
+                }
+            }
+        }
         plantId?.let { id ->
             viewModelScope.launch {
                 plantRepository.getPlantById(id).first()?.let { plant ->
@@ -166,6 +199,48 @@ class AddEditPlantViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * A new plant from a propagation starts with the parent's care settings (#960, product ADR-0073), all
+     * still editable. Each one is written only while it holds its untouched default, like name, species and
+     * room, so a slow parent read never overwrites what the user already changed. Copied: the dormancy
+     * window and its watering cadence, the fertilizing reminder (on/off, interval, seasons, liquid), the
+     * repotting seasons, the pin switch and the watering reminder with the parent's live effective interval
+     * for today ([live]), never the stored literal. Not copied: the repotting reminder and plan, learned
+     * watering state (the cutting learns from scratch), notes, photos, reminders, issues, hidden/archived.
+     */
+    private fun prefillCareSettings(parent: Plant, live: LiveWateringInterval?) {
+        if (!wateringIntervalEnabled && wateringIntervalDays == DEFAULT_WATERING_INTERVAL_DAYS && live != null) {
+            wateringIntervalDays = live.effectiveDays
+            wateringIntervalEnabled = true
+        }
+        prefillFertilizing(parent)
+        if (repottingSeasons == ALL_SEASONS) repottingSeasons = parent.repottingSeasons
+        if (!pinIntervalToBase) pinIntervalToBase = parent.pinIntervalToBase
+        val dormancyUntouched = dormancyStartMonth == null && dormancyEndMonth == null &&
+            dormantWateringIntervalDays == null
+        val parentStart = parent.dormancyStartMonth
+        val parentEnd = parent.dormancyEndMonth
+        if (dormancyUntouched && parentStart != null && parentEnd != null) {
+            setDormancyWindow(
+                parentStart,
+                parentEnd,
+                DormancyWindow.validWateringInterval(parent.dormantWateringIntervalDays)
+            )
+        }
+    }
+
+    private fun prefillFertilizing(parent: Plant) {
+        val parentFertilizing = parent.fertilizingIntervalDays
+        if (!fertilizingIntervalEnabled && fertilizingIntervalDays == DEFAULT_FERTILIZING_INTERVAL_DAYS &&
+            parentFertilizing != null
+        ) {
+            fertilizingIntervalDays = parentFertilizing
+            fertilizingIntervalEnabled = true
+        }
+        if (fertilizingSeasons == ALL_SEASONS) fertilizingSeasons = parent.fertilizingSeasons
+        if (!useLiquidFertilizer) useLiquidFertilizer = parent.useLiquidFertilizer
     }
 
     fun addPhoto(uri: String) {
@@ -297,6 +372,9 @@ class AddEditPlantViewModel(
                 hiddenAt = existing?.hiddenAt,
                 wateringConfidence = wateringConfidence,
                 wateringBaseIntervalDays = wateringBaseIntervalDays,
+                // The parent link is changed only from the Propagate tab's Family card (#960): an unrelated
+                // edit must carry it over, like hiddenAt above.
+                propagatedFromId = existing?.propagatedFromId,
                 // Room-change reset (#571): a fresh wateringResetAt anchor for the post-reset bootstrap
                 // check, but deliberately no freeze window — a moved plant relies purely on the normal
                 // confidence-0 gain ramp-up, unlike a REPOT reset. A manual interval edit alone leaves
@@ -384,7 +462,11 @@ class AddEditPlantViewModel(
         } else {
             null
         }
-        val newId = plantRepository.addPlant(plant.copy(wateringBaseIntervalDays = wateringBaseIntervalDays))
+        // Re-read the parent: it may have been deleted since the form opened, and a dangling id would fail the FK.
+        val parentId = linkedParentId?.takeIf { plantRepository.getPlantById(it).first() != null }
+        val newId = plantRepository.addPlant(
+            plant.copy(wateringBaseIntervalDays = wateringBaseIntervalDays, propagatedFromId = parentId)
+        )
         savePendingPhotos(newId, now)
         _events.emit(Event.Saved(newId))
     }
@@ -485,6 +567,9 @@ class AddEditPlantViewModel(
         const val MIN_REPOTTING_MONTHS = 3
         const val MAX_REPOTTING_MONTHS = 36
         const val DEFAULT_REPOTTING_MONTHS = 12
+        private const val DEFAULT_WATERING_INTERVAL_DAYS = 7
+        private const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
+        private val ALL_SEASONS = FertilizingSeason.entries.toSet()
     }
 
     class Factory(
@@ -492,7 +577,9 @@ class AddEditPlantViewModel(
         private val plantPhotoRepository: PlantPhotoRepository,
         private val plantId: Long?,
         private val dataStore: DataStore<Preferences>? = null,
-        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null
+        private val wateringAdjustmentRepository: WateringAdjustmentRepository? = null,
+        private val propagatedFromId: Long? = null,
+        private val childNameFor: (parentName: String) -> String = { it }
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -501,7 +588,9 @@ class AddEditPlantViewModel(
                 plantPhotoRepository,
                 plantId,
                 dataStore,
-                wateringAdjustmentRepository
+                wateringAdjustmentRepository,
+                propagatedFromId = propagatedFromId,
+                childNameFor = childNameFor
             ) as T
     }
 }

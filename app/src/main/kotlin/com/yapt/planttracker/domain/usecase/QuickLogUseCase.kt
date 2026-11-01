@@ -284,8 +284,9 @@ class QuickLogUseCase(
             wateringFeedback = null,
             fertilizerType = if (careType == CareType.FERTILIZE && plant.useLiquidFertilizer) FertilizerType.LIQUID else FertilizerType.UNSPECIFIED
         )
-        careLogRepository.addLog(log)
+        val newLogId = careLogRepository.addLog(log)
         maybeApplyRepotReset(plant, careType, loggedAt)
+        maybeApplyPropagateConfidenceDrop(plant, careType, loggedAt, newLogId)
         val waterPaired = careType == CareType.FERTILIZE && plant.useLiquidFertilizer && !alreadyWateredToday
         if (waterPaired) {
             // No reason: the user fertilized, and the watering came along with it (product ADR-0008) — they
@@ -809,6 +810,34 @@ class QuickLogUseCase(
             val fresh = plantRepository.getPlantById(plant.id).first() ?: plant
             WateringLifecycleReset.applyRepotReset(fresh, now, plantRepository, wateringAdjustmentRepository)
             RepotPlanReset.clearIfSuperseded(plant.id, now, plantRepository, nowProvider())
+        }
+    }
+
+    /**
+     * The #960 confidence drop for a newly inserted PROPAGATE log (product ADR-0073), reached only from
+     * [quickLogInternal] — the create path — so editing or deleting the log can never re-apply it. Like
+     * [maybeApplyRepotReset] it works from a fresh read of the plant (the caller's snapshot may be
+     * stale), and it ignores any freeze window: it is a statement about the plant now. Any number of
+     * PROPAGATE logs are allowed per day, but the drop happens at most once per plant per calendar day: a
+     * log whose day already has another PROPAGATE log ([newLogId] excluded) drops nothing and writes no row.
+     * A REPOT logged earlier the same day has already set the confidence to 0, so the drop is then a no-op.
+     */
+    private suspend fun maybeApplyPropagateConfidenceDrop(
+        plant: Plant,
+        careType: CareType,
+        loggedAt: Long,
+        newLogId: Long
+    ) {
+        if (careType != CareType.PROPAGATE) return
+        val droppedToday = careLogRepository.hasLogOfTypeOnDay(plant.id, CareType.PROPAGATE, loggedAt, newLogId)
+        val fresh = plantRepository.getPlantById(plant.id).first()
+        if (!droppedToday && fresh != null) {
+            WateringLifecycleReset.applyPropagateConfidenceDrop(
+                fresh,
+                plantRepository,
+                wateringAdjustmentRepository,
+                nowProvider()
+            )
         }
     }
 

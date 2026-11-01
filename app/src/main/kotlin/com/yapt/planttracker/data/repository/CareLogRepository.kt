@@ -138,7 +138,6 @@ private fun CareLogEntity.toDomain() = CareLog(
     loggedAt = loggedAt,
     notes = notes,
     photoUri = photoUri,
-    amount = amount,
     wateringFeedback = wateringFeedback?.let {
         runCatching { WateringFeedback.valueOf(it) }.getOrNull()
     },
@@ -153,7 +152,6 @@ private fun CareLog.toEntity() = CareLogEntity(
     loggedAt = loggedAt,
     notes = notes,
     photoUri = photoUri,
-    amount = amount,
     wateringFeedback = wateringFeedback?.name,
     fertilizerType = fertilizerType.name,
     customReminderId = customReminderId

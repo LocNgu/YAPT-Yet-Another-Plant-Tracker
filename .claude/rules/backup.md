@@ -56,12 +56,18 @@ gallery-owned source image.
 | v21 | `BackupPlant.repotPlanSeasonStartAt: Long?` + `BackupPlant.repotPlanMadeAt: Long?` + `BackupPlant.repottingSeasons: String?` (comma-separated `FertilizingSeason` names via `SeasonalFertilizing.encode`/`decode`) | `null` / `null` / `null` = no plan, every season (#809, product ADR-0057) |
 | v22 | `BackupRoot.awayPeriods: List<BackupAwayPeriod>`; each trip carries its `visits` and their `plants`, dates as ISO-8601 strings | `emptyList()` = no trips (#896, product ADR-0065) |
 | v23 | `BackupPlant.hiddenAt: Long?` (hidden from operational surfaces; export already includes every plant) | `null` = visible (#915, product ADR-0066) |
+| v24 | `BackupPlant.propagatedFromId: Long?` (plant-family parent link); PROPAGATE logs round-trip as plain `careType` strings | `null` = no recorded parent (#960, product ADR-0073) |
+
+**Removing a field needs no version bump** (#442): `BackupCareLog.amount` was dropped, the version stays at v24, and `BackupCareLogAmountRemovalTest` pins that an older backup carrying `amount` still deserializes (`ignoreUnknownKeys = true`). Older apps reading a newer backup see the field default to `null`. Only additions get a row above.
 
 The device-local `post_watering_reminder_pending_at` modal token is transient operational state and is intentionally
 excluded from `BackupSettings`; import clears it together with pending post-watering work and notification state.
 
+- **Restore applies parent links in a second pass (#960):** plants are inserted with `propagatedFromId = null`, then `sanitizePropagatedLinks()` (`PlantFamilyRestore.kt`) keeps only links whose parent is in the backup, isn't the plant itself and isn't on a cycle, and `PlantDao.setPropagatedFrom` applies them inside the same transaction. Dangling, self and cyclic links become `null`; a tail leading into a cycle keeps its link.
+
 ## Tests
 - `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
+- `PlantFamilyBackupTest` (plain JVM) covers v24 (`CURRENT_SCHEMA_VERSION == 24`, link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
 - `AwayPeriodBackupTest` (plain JVM) covers the away-trip restore rules: bad dates skipped, visits re-filtered into their trip, visit plants of missing plants dropped.
 - Instrumented `BackupManager` tests cover:
   - round-trips with and without photos, an empty DB, and settings
