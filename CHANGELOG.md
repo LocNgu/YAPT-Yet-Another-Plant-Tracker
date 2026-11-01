@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-01
+
 ### Added
 - **Before you leave opens a week before a trip, with a Hold for your last day list** (#969, part 2 of 2, product
   ADR-0076) — the screen, and the **Before you leave** button on the Care banner and in Settings, is now available from
