@@ -21,11 +21,15 @@ data class BeforeYouLeavePlan(
 data class BeforeYouLeaveInput(
     val plants: List<Plant>,
     val careLogs: List<CareLog>,
+    /**
+     * The day being looked at. [BeforeYouLeave.plan] is for the last day at home only, so there it is the day
+     * before [tripFirstDay]; [BeforeYouLeave.holds] takes any earlier day of the lead-in window.
+     */
     val today: LocalDate,
     val visitEveryDays: Int?,
     val seasonalAmplitude: Double,
     val hemisphere: Hemisphere,
-    /** The trip being left for: [today] is the day before [tripFirstDay]. */
+    /** The trip being left for. */
     val tripFirstDay: LocalDate,
     val tripLastDay: LocalDate
 )
@@ -38,8 +42,18 @@ data class BeforeYouLeaveInput(
  * On top of that, a plant that would otherwise come due inside the trip and is about 70% through its interval
  * is added to Check the soil, so it can last the whole trip ([TripWateringShifts.bringForward], product
  * ADR-0076). Those plants are due after the first visit, so they are never in the two lists above.
+ *
+ * In the days before the last day at home, [holds] lists the plants to hold until it (product ADR-0076).
  */
 object BeforeYouLeave {
+
+    /**
+     * Plants to hold for the last day at home ([TripWateringShifts.holds]): due before it, still on schedule when
+     * watered then, and due again inside the trip if left alone. Only while [BeforeYouLeaveInput.today] is before
+     * the last day; on it a held plant is simply due. A suggestion: nothing is logged or moved.
+     */
+    fun holds(input: BeforeYouLeaveInput): List<WateringDue> =
+        TripWateringShifts.holds(input.toShiftInput(input.plants), input.today)
 
     fun plan(input: BeforeYouLeaveInput): BeforeYouLeavePlan {
         val gap = (input.visitEveryDays ?: SitterRhythm.DEFAULT_EVERY_DAYS).coerceAtLeast(1)
@@ -56,17 +70,8 @@ object BeforeYouLeave {
         )
         val (water, check) = due.partition { it.dueDate <= lastWaterTodayDay }
         val listed = due.mapTo(HashSet()) { it.plant.id }
-        val broughtForward = TripWateringShifts.bringForward(
-            TripShiftInput(
-                plants = active,
-                careLogs = input.careLogs,
-                tripFirstDay = input.tripFirstDay,
-                tripLastDay = input.tripLastDay,
-                seasonalAmplitude = input.seasonalAmplitude,
-                hemisphere = input.hemisphere
-            ),
-            firstVisit
-        ).filter { it.plant.id !in listed }
+        val broughtForward = TripWateringShifts.bringForward(input.toShiftInput(active), firstVisit)
+            .filter { it.plant.id !in listed }
         return BeforeYouLeavePlan(
             firstVisit = firstVisit,
             waterToday = water,
@@ -74,4 +79,13 @@ object BeforeYouLeave {
             canWaitCount = active.size - due.size - broughtForward.size
         )
     }
+
+    private fun BeforeYouLeaveInput.toShiftInput(plants: List<Plant>) = TripShiftInput(
+        plants = plants,
+        careLogs = careLogs,
+        tripFirstDay = tripFirstDay,
+        tripLastDay = tripLastDay,
+        seasonalAmplitude = seasonalAmplitude,
+        hemisphere = hemisphere
+    )
 }

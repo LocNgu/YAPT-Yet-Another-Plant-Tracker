@@ -419,7 +419,8 @@ class TripWateringShiftsTest {
         val gaps = 1..MAX_GAP_DAYS
         val plants = gaps.map { gap -> plant(gap.toLong(), interval) }
         val logs = gaps.map { gap -> water(gap.toLong(), lastDay.minusDays(gap.toLong())) }
-        val held = holds(plants, logs, tripDays).map { it.plant.id.toInt() }.toSet()
+        val heldDues = holds(plants, logs, tripDays)
+        val held = heldDues.map { it.plant.id.toInt() }.toSet()
         for (gap in gaps) {
             val lastWateredAt = logs[gap - 1].loggedAt
             val onSchedule = isChosenDateOnSchedule(plants[gap - 1], lastWateredAt, noon, 0.0)
@@ -430,8 +431,72 @@ class TripWateringShiftsTest {
             if (gap in held) {
                 assertTrue(label, CareSchedule.isWateringOnScheduleAt(lastWateredAt, interval, noon))
                 assertEquals(label, WateringGateResult.Log(null), gateResult(plants[gap - 1], noon, lastWateredAt))
+                val dueDate = heldDues.first { it.plant.id.toInt() == gap }.dueDate
+                assertOnScheduleFromDueDateThroughLastDay(plants[gap - 1], lastWateredAt, dueDate, label)
             }
         }
+    }
+
+    /** Watering a held plant on any day from its due date through L is on schedule, so no surface asks why. */
+    private fun assertOnScheduleFromDueDateThroughLastDay(
+        plant: Plant,
+        lastWateredAt: Long,
+        dueDate: LocalDate,
+        label: String
+    ) {
+        var day = dueDate
+        while (day <= lastDay) {
+            val chosen = day.toNoonMillis()
+            val onSchedule = CareSchedule.isWateringOnScheduleAt(lastWateredAt, plant.wateringIntervalDays, chosen)
+            assertTrue("$label day=$day", onSchedule)
+            assertEquals("$label day=$day", WateringGateResult.Log(null), gateResult(plant, chosen, lastWateredAt))
+            day = day.plusDays(1)
+        }
+    }
+
+    // --- a hold whose due date is still ahead: what watering it early from another surface does ---
+
+    // The hold list is read-only, so the only way to water one early is Care, Plant List or Plant Detail on the
+    // owner's own. They run the ordinary reason gate, which this change leaves alone (#969, product ADR-0076).
+
+    @Test
+    fun `a hold whose due date is still ahead is on schedule when watered from its due date through the last day`() {
+        val earlyToday = lastDay.minusDays(6)
+        val held = holds(
+            listOf(plant()),
+            listOf(water(1, lastDay.minusDays(24))),
+            tripDays = 21,
+            today = earlyToday
+        )
+
+        assertEquals(1, held.size)
+        val dueDate = held.single().dueDate
+        assertEquals(lastDay.minusDays(3), dueDate)
+        assertTrue("due date is still ahead of today", dueDate > earlyToday)
+        assertOnScheduleFromDueDateThroughLastDay(plant(), millis(lastDay.minusDays(24)), dueDate, "21-day hold")
+    }
+
+    @Test
+    fun `watering that hold well before its due date is off schedule and asks why`() {
+        val wateredAt = millis(lastDay.minusDays(24))
+        val tenDaysIn = lastDay.minusDays(14).toNoonMillis()
+        val seventeenDaysIn = lastDay.minusDays(7).toNoonMillis()
+
+        assertFalse(CareSchedule.isWateringOnScheduleAt(wateredAt, 21, tenDaysIn))
+        assertEquals(WateringGateResult.AskReason, gateResult(plant(), tenDaysIn, wateredAt))
+        assertFalse(CareSchedule.isWateringOnScheduleAt(wateredAt, 21, seventeenDaysIn))
+        assertEquals(WateringGateResult.AskReason, gateResult(plant(), seventeenDaysIn, wateredAt))
+    }
+
+    @Test
+    fun `the tolerance reaches three days before a 21-day hold's due date and no further`() {
+        val wateredAt = millis(lastDay.minusDays(24))
+        val dueDate = lastDay.minusDays(3)
+        val threeDaysBefore = dueDate.minusDays(3).toNoonMillis()
+        val fourDaysBefore = dueDate.minusDays(4).toNoonMillis()
+
+        assertTrue(CareSchedule.isWateringOnScheduleAt(wateredAt, 21, threeDaysBefore))
+        assertFalse(CareSchedule.isWateringOnScheduleAt(wateredAt, 21, fourDaysBefore))
     }
 
     private fun gateResult(plant: Plant, loggedAt: Long, previousWateringAt: Long) = evaluateWateringGate(

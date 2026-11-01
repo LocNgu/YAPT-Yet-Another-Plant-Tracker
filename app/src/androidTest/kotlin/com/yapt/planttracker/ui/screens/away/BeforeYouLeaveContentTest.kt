@@ -1,5 +1,9 @@
 package com.yapt.planttracker.ui.screens.away
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -32,7 +36,9 @@ class BeforeYouLeaveContentTest {
     private fun plant(id: Long, name: String, room: String? = null) =
         Plant(id = id, name = name, room = room, createdAt = 0L, updatedAt = 0L)
 
-    private fun string(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+    private fun context() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    private fun string(id: Int): String = context().getString(id)
 
     private fun state(
         water: List<BeforeYouLeaveRow> = listOf(
@@ -136,5 +142,80 @@ class BeforeYouLeaveContentTest {
 
         composeTestRule.onNodeWithText("Check the soil · 1").performClick()
         composeTestRule.onNodeWithText("Cactus").assertIsOff()
+    }
+
+    // --- the lead-in: a read-only hold list (#969, product ADR-0076) ---
+
+    private val lastDay = today.plusDays(4)
+
+    private fun leadIn(
+        holds: List<BeforeYouLeaveHoldRow> = listOf(
+            BeforeYouLeaveHoldRow(plant(1, "Basil", room = "Kitchen"), today),
+            BeforeYouLeaveHoldRow(plant(2, "Fern"), today.plusDays(1))
+        )
+    ) = BeforeYouLeaveUiState.LeadIn(today, lastDay, holds)
+
+    private fun setLeadInContent(state: BeforeYouLeaveUiState.LeadIn = leadIn()) {
+        composeTestRule.setContent { BeforeYouLeaveLeadInContent(state) }
+    }
+
+    private fun lastDayText(): String = awayDayText(lastDay, today)
+
+    @Test
+    fun leadInListsThePlantsToHoldUnderTheirHeadingWithAHint() {
+        setLeadInContent()
+
+        composeTestRule.onNodeWithText("Hold for your last day · 2").assertIsDisplayed()
+        composeTestRule.onNodeWithText(context().getString(R.string.before_leave_hold_hint, lastDayText()))
+            .assertIsDisplayed()
+        composeTestRule.onNode(
+            hasText("Basil") and hasText("Kitchen") and hasText(string(R.string.date_relative_today))
+        ).assertIsDisplayed()
+        composeTestRule.onNode(hasText("Fern") and hasText(string(R.string.date_group_tomorrow)))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun leadInRowsCannotBeTickedOrTapped() {
+        setLeadInContent()
+
+        composeTestRule.onNode(hasText("Basil") and hasText("Kitchen"))
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ToggleableState))
+            .assertHasNoClickAction()
+        composeTestRule.onNodeWithText("Fern")
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ToggleableState))
+            .assertHasNoClickAction()
+    }
+
+    @Test
+    fun leadInHasNoLogActionAndNoLastDayLists() {
+        setLeadInContent()
+
+        composeTestRule.onNodeWithText("as watered", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Water today", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Check the soil", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun leadInWithNothingToHoldSaysWhenToComeBack() {
+        setLeadInContent(leadIn(holds = emptyList()))
+
+        composeTestRule.onNodeWithText("Nothing to hold. Come back on ${lastDayText()} for your last-day plan.")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Hold for your last day", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("as watered", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun tappingTheHoldHeadingHidesAndShowsItsPlants() {
+        setLeadInContent()
+
+        composeTestRule.onNodeWithText("Hold for your last day · 2").performClick()
+        composeTestRule.onNodeWithText("Fern").assertDoesNotExist()
+        composeTestRule.onNodeWithText(context().getString(R.string.before_leave_hold_hint, lastDayText()))
+            .assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Hold for your last day · 2").performClick()
+        composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
     }
 }

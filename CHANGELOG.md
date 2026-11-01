@@ -13,6 +13,19 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Before you leave opens a week before a trip, with a Hold for your last day list** (#969, part 2 of 2, product
+  ADR-0076) — the screen, and the **Before you leave** button on the Care banner and in Settings, is now available from
+  `AWAY_BANNER_LEAD_DAYS` (7) days before the trip through the last day at home, from the dates alone (never from when
+  the trip was saved); it stays closed on the trip's first day and while away. Before the last day it shows a read-only
+  **Hold for your last day · N** list: plants that come due before you leave, can wait until the last day and would
+  then last the whole trip, under the Care section header with the real due date on each row, no ticks and no log
+  button. With nothing to hold it says "Nothing to hold. Come back on <date> for your last-day plan." The hint says
+  they can wait until the last day and may need water again during the trip if watered sooner; it does not claim Care
+  lists them, because a hold's due date can still be a few days ahead. The last day at home is unchanged. It is a
+  suggestion only: no due date moves and nothing is written to a plant row or a log. Watering a held plant from Care,
+  Plant List or Plant Detail is an ordinary watering through the unchanged reason gate (on schedule from its due date
+  through the last day, so no "Why was it late?"; earlier it may ask as usual). `AwayModeUiState.isLastDayAtHome` is
+  replaced by `canOpenBeforeYouLeave`. No migration or backup change.
 - **Fertilizing reminders pause for 30 days after a repot** (#965, product ADR-0074) — the fertilizing due date is
   now `max(usual due date, repot day + 30 days)` for both fed and never-fed plants, then shifted out of inactive
   seasons as before. It is derived from the newest REPOT log (no migration or backup change), holds even if you
@@ -41,8 +54,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   the Care section header (tap to collapse) over Plant List-style rows with the plant's photo (or the usual
   placeholder), name, room when set and due date. Each row is still one tick, announced with its name, room, due
   date and tick state, and the bottom **Log N as watered** button, the default ticks and which plants appear where
-  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are what the
-  coming **Hold for your last day** list will reuse.
+  are unchanged. The new shared `PlantDueRow` (read-only when it has no tick) and `CareGroupHeader` are reused by the
+  **Hold for your last day** list.
 - **Before you leave also lists plants that would need water during the trip** (#969, part 1 of 2, product ADR-0076) —
   on the last day at home, **Check the soil** now also lists (unticked) plants that would otherwise come due inside
   the trip and are at least 70% through their interval, so they can last the whole trip without the sitter. A plant
@@ -51,8 +64,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   and never-watered plants are left out. Water today, the ticks and the "can wait" count are otherwise unchanged. It
   is a suggestion only: no due date moves and no plant row is written. Learning follows the existing rules (a
   watering at least 85% through its interval is an on-schedule nudge; between 70% and 85% it is
-  `WATER_NOT_ATTRIBUTED`). The pure **hold for your last day** rule ships with its tests but isn't shown anywhere yet;
-  the lead-in window and the hold list follow in part 2. No migration or backup change.
+  `WATER_NOT_ATTRIBUTED`). The pure **hold for your last day** rule is shown by the lead-in list below.
+  No migration or backup change.
 - **Add Care Log drops the Amount field and the optional photo** (#442, product ADR-0075) — editing a log no longer
   shows an **Amount** field; Notes covers it, and Water and Fertilize logs hint "e.g. watering amount" in Notes. The
   photo block (label, preview, Take photo / Choose from gallery) now appears only when editing a **Photo** log, which

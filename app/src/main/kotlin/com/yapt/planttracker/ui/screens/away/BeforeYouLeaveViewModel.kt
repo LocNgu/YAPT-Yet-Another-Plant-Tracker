@@ -8,10 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.repository.AwayPeriodRepository
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantRepository
-import com.yapt.planttracker.domain.away.AwayPeriods
+import com.yapt.planttracker.domain.away.AwayTripStatus
 import com.yapt.planttracker.domain.away.BeforeYouLeave
 import com.yapt.planttracker.domain.away.BeforeYouLeaveInput
+import com.yapt.planttracker.domain.away.SitterRhythm
 import com.yapt.planttracker.domain.away.WateringDue
+import com.yapt.planttracker.domain.away.awayTripStatus
+import com.yapt.planttracker.domain.away.canOpenBeforeYouLeave
+import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
@@ -38,11 +42,24 @@ import java.time.LocalDate
 
 data class BeforeYouLeaveRow(val plant: Plant, val dueDate: LocalDate, val ticked: Boolean)
 
+/** A plant to hold for the last day at home: read-only, so it has no tick. */
+data class BeforeYouLeaveHoldRow(val plant: Plant, val dueDate: LocalDate)
+
 sealed interface BeforeYouLeaveUiState {
     data object Loading : BeforeYouLeaveUiState
 
-    /** Before you leave is offered on the last day at home only. */
+    /** No trip, a trip more than `AWAY_BANNER_LEAD_DAYS` days out, or a trip that has started. */
     data object NotAvailable : BeforeYouLeaveUiState
+
+    /**
+     * The days before the last day at home (product ADR-0076): only the plants to hold until [lastDayAtHome],
+     * read-only. Nothing here can be ticked or logged.
+     */
+    data class LeadIn(
+        val today: LocalDate,
+        val lastDayAtHome: LocalDate,
+        val holds: List<BeforeYouLeaveHoldRow>
+    ) : BeforeYouLeaveUiState
 
     data class Ready(
         val today: LocalDate,
@@ -62,12 +79,16 @@ sealed interface BeforeYouLeaveEvent {
 }
 
 /**
- * Before you leave (product ADR-0065): on the last day at home, the plants due strictly before halfway to
- * the first visit (ticked) and those due from halfway up to it (unticked), from [BeforeYouLeave.plan]. Check
- * the soil also lists plants that would otherwise come due during the trip and are about 70% through their
- * interval (product ADR-0076). One tap logs the ticked ones through [QuickLogUseCase.bulkLog], Plant List's
- * bulk path: no reason prompt, and the duplicate-day guard applies. The logs carry no feedback: an off-schedule
- * one stays out of learning like "Just my timing", and an on-schedule one is an ordinary nudge (product ADR-0076).
+ * Before you leave (product ADR-0065, product ADR-0076) is available from `AWAY_BANNER_LEAD_DAYS` days before a trip
+ * until the day before it starts ([canOpenBeforeYouLeave], dates only). Before the last day at home it is the
+ * read-only [BeforeYouLeaveUiState.LeadIn] hold list ([BeforeYouLeave.holds]); nothing in it writes anything.
+ *
+ * On the last day at home, [BeforeYouLeaveUiState.Ready]: the plants due strictly before halfway to the first visit
+ * (ticked) and those due from halfway up to it (unticked), from [BeforeYouLeave.plan]. Check the soil also lists
+ * plants that would otherwise come due during the trip and are about 70% through their interval. One tap logs the
+ * ticked ones through [QuickLogUseCase.bulkLog], Plant List's bulk path: no reason prompt, and the duplicate-day
+ * guard applies. The logs carry no feedback: an off-schedule one stays out of learning like "Just my timing", and
+ * an on-schedule one is an ordinary nudge (product ADR-0076).
  */
 @Suppress("LongParameterList")
 class BeforeYouLeaveViewModel(
@@ -81,7 +102,7 @@ class BeforeYouLeaveViewModel(
 ) : ViewModel() {
 
     private data class Inputs(
-        val trips: List<com.yapt.planttracker.domain.model.AwayPeriod>,
+        val trips: List<AwayPeriod>,
         val plants: List<Plant>,
         val logs: List<CareLog>,
         val amplitude: Double,
@@ -128,24 +149,35 @@ class BeforeYouLeaveViewModel(
         overrides: Map<Long, Boolean>,
         hemisphere: Hemisphere
     ): BeforeYouLeaveUiState {
-        val trip = AwayPeriods.currentOrUpcoming(inputs.trips, inputs.today)
-        if (trip == null || trip.firstDay != inputs.today.plusDays(1)) return BeforeYouLeaveUiState.NotAvailable
-        val plan = BeforeYouLeave.plan(
-            BeforeYouLeaveInput(
-                plants = inputs.plants,
-                careLogs = inputs.logs,
-                today = inputs.today,
-                visitEveryDays = trip.visitEveryDays,
-                seasonalAmplitude = inputs.amplitude,
-                hemisphere = hemisphere,
-                tripFirstDay = trip.firstDay,
-                tripLastDay = trip.lastDay
-            )
+        val status = awayTripStatus(inputs.trips, inputs.today)
+        val trip = (status as? AwayTripStatus.Upcoming)?.trip
+        if (trip == null || !status.canOpenBeforeYouLeave(inputs.today)) return BeforeYouLeaveUiState.NotAvailable
+        val input = BeforeYouLeaveInput(
+            plants = inputs.plants,
+            careLogs = inputs.logs,
+            today = inputs.today,
+            visitEveryDays = trip.visitEveryDays,
+            seasonalAmplitude = inputs.amplitude,
+            hemisphere = hemisphere,
+            tripFirstDay = trip.firstDay,
+            tripLastDay = trip.lastDay
         )
+        val lastDayAtHome = SitterRhythm.lastDayAtHome(trip.firstDay)
+        return if (inputs.today < lastDayAtHome) leadIn(input, lastDayAtHome) else ready(input, overrides)
+    }
+
+    private fun leadIn(input: BeforeYouLeaveInput, lastDayAtHome: LocalDate) = BeforeYouLeaveUiState.LeadIn(
+        today = input.today,
+        lastDayAtHome = lastDayAtHome,
+        holds = BeforeYouLeave.holds(input).map { BeforeYouLeaveHoldRow(it.plant, it.dueDate) }
+    )
+
+    private fun ready(input: BeforeYouLeaveInput, overrides: Map<Long, Boolean>): BeforeYouLeaveUiState.Ready {
+        val plan = BeforeYouLeave.plan(input)
         fun rows(dues: List<WateringDue>, default: Boolean) =
             dues.map { BeforeYouLeaveRow(it.plant, it.dueDate, overrides[it.plant.id] ?: default) }
         return BeforeYouLeaveUiState.Ready(
-            today = inputs.today,
+            today = input.today,
             firstVisit = plan.firstVisit,
             waterToday = rows(plan.waterToday, default = true),
             checkTheSoil = rows(plan.checkTheSoil, default = false),

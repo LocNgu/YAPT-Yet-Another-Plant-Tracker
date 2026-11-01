@@ -63,6 +63,62 @@ class AwayTripStatusTest {
         assertEquals(7L, AWAY_BANNER_LEAD_DAYS)
     }
 
+    private fun statusFor(daysOut: Long, createdAt: Long = 1L) = awayTripStatus(
+        listOf(AwayPeriod(1L, today.plusDays(daysOut), today.plusDays(daysOut + 5), createdAt = createdAt)),
+        today
+    )
+
+    @Test
+    fun `before you leave opens a week out and not at eight days`() {
+        assertFalse(statusFor(AWAY_BANNER_LEAD_DAYS + 1).canOpenBeforeYouLeave(today))
+        assertTrue(statusFor(AWAY_BANNER_LEAD_DAYS).canOpenBeforeYouLeave(today))
+    }
+
+    @Test
+    fun `before you leave stays open through the last day at home and closes on the first day`() {
+        assertTrue(statusFor(daysOut = 2).canOpenBeforeYouLeave(today))
+        assertTrue(statusFor(daysOut = 1).canOpenBeforeYouLeave(today))
+        assertTrue(statusFor(daysOut = 0) is AwayTripStatus.Away)
+        assertFalse(statusFor(daysOut = 0).canOpenBeforeYouLeave(today))
+    }
+
+    @Test
+    fun `before you leave is open exactly from the banner lead days to the day before the trip`() {
+        for (daysOut in 0L..AWAY_BANNER_LEAD_DAYS + 3) {
+            assertEquals(
+                "daysOut=$daysOut",
+                daysOut in 1L..AWAY_BANNER_LEAD_DAYS,
+                statusFor(daysOut).canOpenBeforeYouLeave(today)
+            )
+        }
+    }
+
+    @Test
+    fun `before you leave is closed while away, after the trip and with no trip`() {
+        val away = awayTripStatus(listOf(trip(today.minusDays(3), today.plusDays(3))), today)
+        val ended = awayTripStatus(listOf(trip(today.minusDays(10), today.minusDays(1))), today)
+
+        assertTrue(away is AwayTripStatus.Away)
+        assertFalse(away.canOpenBeforeYouLeave(today))
+        assertFalse(ended.canOpenBeforeYouLeave(today))
+        assertFalse(AwayTripStatus.None.canOpenBeforeYouLeave(today))
+    }
+
+    @Test
+    fun `the window depends on dates only, never on when the trip was saved`() {
+        assertTrue(statusFor(daysOut = 3, createdAt = 0L).canOpenBeforeYouLeave(today))
+        assertTrue(statusFor(daysOut = 3, createdAt = Long.MAX_VALUE).canOpenBeforeYouLeave(today))
+        assertFalse(statusFor(daysOut = 9, createdAt = 0L).canOpenBeforeYouLeave(today))
+        assertFalse(statusFor(daysOut = 9, createdAt = Long.MAX_VALUE).canOpenBeforeYouLeave(today))
+    }
+
+    @Test
+    fun `an upcoming status whose trip already started is not open`() {
+        val started = AwayTripStatus.Upcoming(trip(today, today.plusDays(4)))
+
+        assertFalse(started.canOpenBeforeYouLeave(today))
+    }
+
     @Test
     fun `the status follows the earliest unfinished trip`() {
         val past = trip(today.minusDays(30), today.minusDays(20), id = 1L)
