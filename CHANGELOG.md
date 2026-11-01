@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- Instrumented Compose tests now use the non-deprecated `createComposeRule` from `androidx.compose.ui.test.junit4.v2` (#350).
+
 ## [0.41.0] - 2026-11-01
 
 ### Added
