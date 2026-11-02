@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -138,8 +137,14 @@ class PlanVisitViewModel(
         ) { (picked, gap, ticks), (selection, skipped, busy) ->
             PlanVisitInput(picked, gap, ticks, selection, skipped, busy)
         }
-    ) { data, input -> planVisitState(data, input, hemisphere()) }
-        .onEach { state -> if (state is PlanVisitUiState.Plan) sitterSelection.value = state.selectionState }
+    ) { data, input ->
+        planVisitState(data, input, hemisphere()).also { state ->
+            // Compare-and-set, so a toggle that landed after this snapshot was read is never overwritten.
+            if (state is PlanVisitUiState.Plan && state.selectionState != input.sitterSelection) {
+                sitterSelection.compareAndSet(input.sitterSelection, state.selectionState)
+            }
+        }
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), PlanVisitUiState.Loading)
 
     fun pickDay(day: LocalDate) {
@@ -150,19 +155,19 @@ class PlanVisitViewModel(
         gapDays.value = days.coerceIn(MIN_GAP_DAYS, MAX_GAP_DAYS)
     }
 
-    /** Ticks or unticks a plant on the suggested list: a listed plant is removed, any other one is added. */
+    /**
+     * Flips a plant's tick. Whether it is ticked comes from the selected list, and both override sets are kept
+     * consistent, so a gap change that moves the plant between listed and not listed cannot flip it back.
+     */
     fun toggleSitterPlant(plantId: Long) {
         val plan = uiState.value as? PlanVisitUiState.Plan ?: return
         val suggested = plan.projection.listed.any { it.plant.id == plantId }
+        val ticked = plan.selected.listed.any { it.plant.id == plantId }
         sitterSelection.update { state ->
             val selection = state.selection
-            state.copy(
-                selection = if (suggested) {
-                    selection.copy(removed = selection.removed.toggled(plantId))
-                } else {
-                    selection.copy(added = selection.added.toggled(plantId))
-                }
-            )
+            val removed = if (suggested && ticked) selection.removed + plantId else selection.removed - plantId
+            val added = if (!suggested && !ticked) selection.added + plantId else selection.added - plantId
+            state.copy(selection = selection.copy(added = added, removed = removed))
         }
     }
 
@@ -245,8 +250,6 @@ class PlanVisitViewModel(
             deps.repository.addVisit(SitterVisit(awayPeriodId = trip.period.id, day = plan.visitDay, plants = plants))
         }
     }
-
-    private fun Set<Long>.toggled(id: Long): Set<Long> = if (id in this) this - id else this + id
 
     class Factory(
         private val application: Application,

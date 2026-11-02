@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.away
 
 import com.yapt.planttracker.domain.away.SitterList
+import com.yapt.planttracker.domain.away.applySelection
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.SitterVisitState
@@ -546,14 +547,59 @@ class PlanVisitViewModelTest {
         val vm = viewModel()
         vm.toggleSitterPlant(a.id)
         assertTrue(vm.listedIds().none { it == a.id })
+        val selectionBefore = vm.plan().selectionState
 
         fixture.addVisit(trip, today.minusDays(2), SitterVisitState.PLANNED, a to null, b to null)
         assertTrue(vm.confirm().rows.all { it.ticked })
         vm.toggleConfirmRow(b.id)
+        assertEquals(listOf(true, false), vm.confirm().rows.map { it.ticked })
         vm.confirmVisit().join()
 
         val watered = fixture.visits().single().plants.associate { it.plantId to it.watered }
         assertEquals(mapOf(a.id to true, b.id to false), watered)
         assertEquals(setOf(a.id), vm.plan().selectionState.selection.removed)
+        assertEquals(selectionBefore, vm.plan().selectionState)
+    }
+
+    @Test
+    fun `a tick survives gap changes that move the plant between listed and not listed`() = runTest {
+        startTrip()
+        val soon = fixture.addPlant("Soon", interval = 8, lastWatered = today.minusDays(6))
+        val vm = viewModel()
+        assertEquals(listOf(soon.id), vm.listedIds())
+
+        vm.toggleSitterPlant(soon.id)
+        vm.setGapDays(1)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.toggleSitterPlant(soon.id)
+        assertEquals(listOf(soon.id), vm.listedIds())
+        vm.setGapDays(7)
+        assertEquals(listOf(soon.id), vm.listedIds())
+
+        vm.toggleSitterPlant(soon.id)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.setGapDays(1)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.setGapDays(7)
+        assertTrue(vm.listedIds().isEmpty())
+    }
+
+    @Test
+    fun `the list is the same after sharing re-seeds the selection from the saved visit`() = runTest {
+        val (due, later, resting) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(later.id)
+        vm.toggleSitterPlant(resting.id)
+        val before = vm.listedIds()
+        assertEquals(setOf(later.id, resting.id), before.toSet())
+
+        vm.share(asText = true).join()
+
+        val plan = vm.plan()
+        assertEquals(today, plan.selectionState.seededDay)
+        assertEquals(before, vm.listedIds())
+        assertEquals(before, plan.projection.applySelection(plan.selectionState.selection).listed.map { it.plant.id })
+        assertEquals(setOf(later.id, resting.id), fixture.visits().single().plants.map { it.plantId }.toSet())
     }
 }
