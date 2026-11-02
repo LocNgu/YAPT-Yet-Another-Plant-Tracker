@@ -165,6 +165,19 @@ class SitterListTest {
         (0 until count).map { listed(plant(firstId + it, room = room)) }
 
     private val rowHeight = SitterPdfLayout.TILE_HEIGHT + SitterPdfLayout.ROW_GAP
+    private val headerHeight = SitterPdfLayout.ROOM_HEADER_HEIGHT
+    private val firstPageRows = (SitterPdfLayout.FIRST_PAGE_BODY_HEIGHT - headerHeight) / rowHeight
+    private val laterPageRows = (SitterPdfLayout.BODY_HEIGHT - headerHeight) / rowHeight
+
+    private fun rowCounts(page: SitterPdfLayout.Page) =
+        page.blocks.filterIsInstance<SitterPdfLayout.Block.TileRow>().size
+
+    @Test
+    fun `page 1 is shorter than the others and fits one tile row fewer`() {
+        assertEquals(laterPageRows - 1, firstPageRows)
+        assertEquals(SitterPdfLayout.BODY_HEIGHT, headerHeight + laterPageRows * rowHeight)
+        assertEquals(SitterPdfLayout.BODY_HEIGHT - SitterPdfLayout.TIPS_HEIGHT, SitterPdfLayout.FIRST_PAGE_BODY_HEIGHT)
+    }
 
     @Test
     fun `a small list fits one visit page and nothing rests so there is no resting page`() {
@@ -182,31 +195,66 @@ class SitterListTest {
 
     @Test
     fun `tiles fill rows of three`() {
-        val rows = SitterPdfLayout.paginate(compose(roomOf(7, "A"))).single().blocks
+        val rows = SitterPdfLayout.paginate(compose(roomOf(7, "A"))).flatMap { it.blocks }
             .filterIsInstance<SitterPdfLayout.Block.TileRow>()
 
         assertEquals(listOf(3, 3, 1), rows.map { it.plants.size })
     }
 
     @Test
-    fun `a room that overflows a page continues on the next with a continued header`() {
-        val rowsPerPage = (SitterPdfLayout.BODY_HEIGHT - SitterPdfLayout.ROOM_HEADER_HEIGHT) / rowHeight
-        val plants = roomOf((rowsPerPage + 1) * SitterPdfLayout.COLUMNS, "Big")
+    fun `only page 1 shows the tips, never a resting page`() {
+        val pages = SitterPdfLayout.paginate(
+            compose(roomOf((firstPageRows + 1) * SitterPdfLayout.COLUMNS, "Big"), resting = listOf(plant(50)))
+        )
+
+        assertEquals(listOf(true, false, false), pages.map { it.showsTips })
+        assertEquals(
+            listOf(SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.RESTING),
+            pages.map { it.kind }
+        )
+    }
+
+    @Test
+    fun `a room that overflows page 1 continues on page 2 with a continued header`() {
+        val plants = roomOf((firstPageRows + 1) * SitterPdfLayout.COLUMNS, "Big")
 
         val pages = SitterPdfLayout.paginate(compose(plants))
 
         assertEquals(2, pages.size)
+        assertEquals(firstPageRows, rowCounts(pages[0]))
+        assertEquals(SitterPdfLayout.Block.RoomHeader("Big", continued = true), pages[1].blocks.first())
+        assertEquals(1, rowCounts(pages[1]))
+    }
+
+    @Test
+    fun `a room fitting page 1 exactly stays whole and one more row breaks it`() {
+        val exact = SitterPdfLayout.paginate(compose(roomOf(firstPageRows * SitterPdfLayout.COLUMNS, "A")))
+        assertEquals(1, exact.size)
+        assertEquals(firstPageRows, rowCounts(exact.single()))
+
+        val over = SitterPdfLayout.paginate(compose(roomOf(firstPageRows * SitterPdfLayout.COLUMNS + 1, "A")))
+        assertEquals(2, over.size)
+        assertEquals(1, rowCounts(over[1]))
+        assertEquals(SitterPdfLayout.Block.RoomHeader("A", continued = true), over[1].blocks.first())
+    }
+
+    @Test
+    fun `later pages hold a full body and a continued page breaks right after its last whole row`() {
+        val firstAndSecondRows = firstPageRows + laterPageRows
+        val full = SitterPdfLayout.paginate(compose(roomOf(firstAndSecondRows * SitterPdfLayout.COLUMNS, "A")))
+        assertEquals(listOf(firstPageRows, laterPageRows), full.map { rowCounts(it) })
+
+        val over = SitterPdfLayout.paginate(compose(roomOf(firstAndSecondRows * SitterPdfLayout.COLUMNS + 1, "A")))
+        assertEquals(listOf(firstPageRows, laterPageRows, 1), over.map { rowCounts(it) })
         assertEquals(
-            SitterPdfLayout.Block.RoomHeader("Big", continued = true),
-            pages[1].blocks.first()
+            SitterPdfLayout.Block.RoomHeader("A", continued = true),
+            over[2].blocks.first()
         )
-        assertEquals(1, pages[1].blocks.filterIsInstance<SitterPdfLayout.Block.TileRow>().size)
     }
 
     @Test
     fun `a new room that does not fit under its header starts the next page`() {
-        val rowsPerPage = (SitterPdfLayout.BODY_HEIGHT - SitterPdfLayout.ROOM_HEADER_HEIGHT) / rowHeight
-        val filling = roomOf(rowsPerPage * SitterPdfLayout.COLUMNS, "A")
+        val filling = roomOf(firstPageRows * SitterPdfLayout.COLUMNS, "A")
         val next = roomOf(1, "B", firstId = 100L)
 
         val pages = SitterPdfLayout.paginate(compose(filling + next))
@@ -216,16 +264,36 @@ class SitterListTest {
     }
 
     @Test
-    fun `resting plants go on their own pages after the visit pages`() {
+    fun `a second room that still fits under page 1 shares it`() {
+        val pages = SitterPdfLayout.paginate(
+            compose(roomOf(SitterPdfLayout.COLUMNS * (firstPageRows - 1), "A") + roomOf(1, "B", firstId = 100L))
+        )
+
+        assertEquals(1, pages.size)
+    }
+
+    @Test
+    fun `resting plants go on their own pages after the visit pages and never show tips`() {
         val pages = SitterPdfLayout.paginate(
             compose(roomOf(2, "Kitchen"), resting = listOf(plant(50, room = "Bedroom"), plant(51)))
         )
 
         assertEquals(listOf(SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.RESTING), pages.map { it.kind })
+        assertEquals(listOf(true, false), pages.map { it.showsTips })
         assertEquals(
             listOf("Bedroom", null),
             pages.last().blocks.filterIsInstance<SitterPdfLayout.Block.RoomHeader>().map { it.room }
         )
+    }
+
+    @Test
+    fun `resting pages use the full body height`() {
+        val resting = (1..(laterPageRows * SitterPdfLayout.COLUMNS)).map { plant(500L + it, room = "Rest") }
+
+        val pages = SitterPdfLayout.paginate(compose(roomOf(1, "Kitchen"), resting = resting))
+
+        assertEquals(2, pages.size)
+        assertEquals(laterPageRows, rowCounts(pages.last()))
     }
 
     @Test

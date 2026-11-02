@@ -13,6 +13,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- **The sitter list is branded and lightly themed, with watering tips** (#978, product ADR-0065) — every PDF page now
+  opens with a SageGreen header band holding the white YAPT leaf (new tight-viewport `drawable/ic_yapt_leaf.xml`) and
+  "YAPT", room headers are SageGreen with a rule, and plant tiles are rounded WarmCream cards, all on a white page so
+  it still prints cleanly (colours from `Color.kt`). Page 1 shows a fixed "Watering tips" box (four one-line tips);
+  resting pages never do. Every footer gains `Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker`
+  (printed text, no link or QR). **Share as text** starts with the same tips and ends with the branding line.
+  `SitterPdfLayout.paginate` now plans page 1 with a shorter body (`FIRST_PAGE_BODY_HEIGHT`), so it fits one tile row
+  fewer. Nothing is written to the database.
 - Instrumented Compose tests now use the non-deprecated `createComposeRule` from `androidx.compose.ui.test.junit4.v2` (#350).
 
 ## [0.41.0] - 2026-11-01
