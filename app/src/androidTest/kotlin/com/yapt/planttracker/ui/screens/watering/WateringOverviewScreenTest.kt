@@ -1,12 +1,15 @@
 package com.yapt.planttracker.ui.screens.watering
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
@@ -151,7 +154,9 @@ class WateringOverviewScreenTest {
 
         composeTestRule.onNodeWithText("Show all 6").performScrollTo().performClick()
 
-        composeTestRule.onNodeWithTag(wateringRowTag(6)).performScrollTo().assertIsDisplayed()
+        // Row 6 is lazily composed once "Show all" expands the group; scroll the list to it.
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(wateringRowTag(6)))
+        composeTestRule.onNodeWithTag(wateringRowTag(6)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Show all 6").assertDoesNotExist()
     }
 
