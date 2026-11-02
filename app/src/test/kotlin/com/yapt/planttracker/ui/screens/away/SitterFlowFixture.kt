@@ -73,7 +73,7 @@ class SitterFlowFixture {
     fun millis(day: LocalDate, hour: Int = 12): Long =
         day.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    /** A plant on a fixed [interval] (never reseasoned), last watered on [lastWatered] when given. */
+    /** A plant on a fixed [interval] (never reseasoned), last watered on [lastWatered] when given; [resting] suspends watering this month. */
     @Suppress("LongParameterList")
     suspend fun addPlant(
         name: String,
@@ -81,7 +81,8 @@ class SitterFlowFixture {
         lastWatered: LocalDate? = null,
         room: String? = null,
         photo: String? = null,
-        confidence: Int? = 3
+        confidence: Int? = 3,
+        resting: Boolean = false
     ): Plant {
         val plant = Plant(
             name = name,
@@ -90,6 +91,8 @@ class SitterFlowFixture {
             wateringIntervalDays = interval,
             wateringConfidence = confidence,
             pinIntervalToBase = true,
+            dormancyStartMonth = if (resting) today.monthValue else null,
+            dormancyEndMonth = if (resting) today.monthValue else null,
             createdAt = 0L,
             updatedAt = 0L
         )

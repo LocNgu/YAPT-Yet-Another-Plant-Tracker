@@ -2,8 +2,12 @@ package com.yapt.planttracker.ui.screens.away
 
 import com.yapt.planttracker.domain.away.AwayPeriods
 import com.yapt.planttracker.domain.away.SitterRhythm
+import com.yapt.planttracker.domain.away.SitterSelection
+import com.yapt.planttracker.domain.away.VisitProjection
 import com.yapt.planttracker.domain.away.VisitProjectionInput
 import com.yapt.planttracker.domain.away.VisitProjector
+import com.yapt.planttracker.domain.away.applySelection
+import com.yapt.planttracker.domain.away.seedSelection
 import com.yapt.planttracker.domain.away.summary
 import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
 import com.yapt.planttracker.domain.model.CareLog
@@ -21,10 +25,18 @@ internal data class PlanVisitData(
     val today: LocalDate
 )
 
+/**
+ * The owner's edits to the suggested sitter list, kept apart from [PlanVisitInput.unticked] (the Confirm
+ * checklist). [seededDay] is the saved-visit day [selection] was last replaced from, so landing on that day
+ * again after leaving it seeds afresh, while a gap change on it keeps the edits.
+ */
+data class SitterSelectionState(val selection: SitterSelection = SitterSelection(), val seededDay: LocalDate? = null)
+
 internal data class PlanVisitInput(
     val pickedDay: LocalDate?,
     val gapDays: Int?,
     val unticked: Set<Long>,
+    val sitterSelection: SitterSelectionState,
     val confirmSkipped: Boolean,
     val sharing: Boolean
 )
@@ -67,6 +79,8 @@ private fun planState(
             hemisphere = hemisphere
         )
     )
+    val selectionState = resolveSelection(projection, tripWithVisits.visits, input.sitterSelection)
+    val selected = projection.applySelection(selectionState.selection)
     return PlanVisitUiState.Plan(
         today = data.today,
         trip = trip,
@@ -75,9 +89,31 @@ private fun planState(
         visitDay = visitDay,
         gapDays = gap,
         projection = projection,
-        summary = projection.summary(),
+        selected = selected,
+        selectionState = selectionState,
+        summary = selected.summary(),
         sharing = input.sharing
     )
+}
+
+/**
+ * A day with a saved PLANNED visit starts from that list; any other day keeps the edits as they are. The
+ * projector ignores a same-day PLANNED visit, so the saved list never feeds back into [projection].
+ */
+private fun resolveSelection(
+    projection: VisitProjection,
+    visits: List<SitterVisit>,
+    current: SitterSelectionState
+): SitterSelectionState {
+    val saved = visits.firstOrNull { it.day == projection.visitDay && it.state == SitterVisitState.PLANNED }
+    return when {
+        saved == null -> if (current.seededDay == null) current else current.copy(seededDay = null)
+        current.seededDay == projection.visitDay -> current
+        else -> SitterSelectionState(
+            seedSelection(projection, saved.plants.mapTo(HashSet()) { it.plantId }),
+            projection.visitDay
+        )
+    }
 }
 
 /**

@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -62,7 +63,10 @@ sealed interface PlanVisitUiState {
         val latestDay: LocalDate,
         val visitDay: LocalDate,
         val gapDays: Int,
+        /** The raw suggestion; [selected] is it after the owner's edits, and the one shared and saved. */
         val projection: VisitProjection,
+        val selected: VisitProjection,
+        val selectionState: SitterSelectionState,
         val summary: VisitPlanSummary,
         val sharing: Boolean
     ) : PlanVisitUiState {
@@ -112,6 +116,7 @@ class PlanVisitViewModel(
     private val pickedDay = MutableStateFlow<LocalDate?>(null)
     private val gapDays = MutableStateFlow<Int?>(null)
     private val unticked = MutableStateFlow<Set<Long>>(emptySet())
+    private val sitterSelection = MutableStateFlow(SitterSelectionState())
     private val confirmSkipped = MutableStateFlow(false)
     private val sharing = MutableStateFlow(false)
     private val mutationLock = Mutex()
@@ -127,8 +132,14 @@ class PlanVisitViewModel(
             deps.seasonalAmplitude,
             dayChange
         ) { trips, plants, logs, amplitude, today -> PlanVisitData(trips, plants, logs, amplitude, today) },
-        combine(pickedDay, gapDays, unticked, confirmSkipped, sharing, ::PlanVisitInput)
+        combine(
+            combine(pickedDay, gapDays, unticked, ::Triple),
+            combine(sitterSelection, confirmSkipped, sharing, ::Triple)
+        ) { (picked, gap, ticks), (selection, skipped, busy) ->
+            PlanVisitInput(picked, gap, ticks, selection, skipped, busy)
+        }
     ) { data, input -> planVisitState(data, input, hemisphere()) }
+        .onEach { state -> if (state is PlanVisitUiState.Plan) sitterSelection.value = state.selectionState }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), PlanVisitUiState.Loading)
 
     fun pickDay(day: LocalDate) {
@@ -137,6 +148,22 @@ class PlanVisitViewModel(
 
     fun setGapDays(days: Int) {
         gapDays.value = days.coerceIn(MIN_GAP_DAYS, MAX_GAP_DAYS)
+    }
+
+    /** Ticks or unticks a plant on the suggested list: a listed plant is removed, any other one is added. */
+    fun toggleSitterPlant(plantId: Long) {
+        val plan = uiState.value as? PlanVisitUiState.Plan ?: return
+        val suggested = plan.projection.listed.any { it.plant.id == plantId }
+        sitterSelection.update { state ->
+            val selection = state.selection
+            state.copy(
+                selection = if (suggested) {
+                    selection.copy(removed = selection.removed.toggled(plantId))
+                } else {
+                    selection.copy(added = selection.added.toggled(plantId))
+                }
+            )
+        }
     }
 
     fun toggleConfirmRow(plantId: Long) {
@@ -180,13 +207,13 @@ class PlanVisitViewModel(
     fun share(asText: Boolean): Job = viewModelScope.launch {
         mutationLock.withLock {
             val plan = uiState.value as? PlanVisitUiState.Plan ?: return@withLock
-            if (plan.visitDay !in plan.earliestDay..plan.latestDay || plan.projection.listed.isEmpty()) {
+            if (plan.visitDay !in plan.earliestDay..plan.latestDay || plan.selected.listed.isEmpty()) {
                 return@withLock
             }
             sharing.value = true
             try {
                 saveVisit(plan)
-                val list = SitterListComposer.compose(plan.projection)
+                val list = SitterListComposer.compose(plan.selected)
                 _events.tryEmit(
                     if (asText) {
                         PlanVisitEvent.ShareText(deps.output.text(list))
@@ -210,7 +237,7 @@ class PlanVisitViewModel(
     /** A same-day planned visit has its list replaced; otherwise a new planned visit is added. */
     private suspend fun saveVisit(plan: PlanVisitUiState.Plan) {
         val trip = deps.repository.getAllWithVisits().firstOrNull { it.period.id == plan.trip.id } ?: return
-        val plants = plan.projection.listed.map { SitterVisitPlant(it.plant.id) }
+        val plants = plan.selected.listed.map { SitterVisitPlant(it.plant.id) }
         val existing = trip.visits.firstOrNull { it.day == plan.visitDay && it.state == SitterVisitState.PLANNED }
         if (existing != null) {
             deps.repository.updateVisit(existing.copy(plants = plants))
@@ -218,6 +245,8 @@ class PlanVisitViewModel(
             deps.repository.addVisit(SitterVisit(awayPeriodId = trip.period.id, day = plan.visitDay, plants = plants))
         }
     }
+
+    private fun Set<Long>.toggled(id: Long): Set<Long> = if (id in this) this - id else this + id
 
     class Factory(
         private val application: Application,
