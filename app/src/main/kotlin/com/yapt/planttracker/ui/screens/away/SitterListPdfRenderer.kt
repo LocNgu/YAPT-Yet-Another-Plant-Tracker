@@ -5,11 +5,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.text.TextPaint
 import android.text.TextUtils
+import androidx.compose.ui.graphics.toArgb
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.SitterList
 import com.yapt.planttracker.domain.away.SitterListPlant
@@ -17,13 +19,18 @@ import com.yapt.planttracker.domain.away.SitterPdfLayout
 import com.yapt.planttracker.domain.away.SitterPdfLayout.Block
 import com.yapt.planttracker.domain.away.SitterPdfLayout.Page
 import com.yapt.planttracker.domain.away.SitterPdfLayout.PageKind
+import com.yapt.planttracker.ui.theme.OnSageGreen
+import com.yapt.planttracker.ui.theme.SageGreen
+import com.yapt.planttracker.ui.theme.SageGreenContainer
+import com.yapt.planttracker.ui.theme.WarmCream
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
 
 /**
  * Draws the sitter PDF (A4 portrait, `android.graphics.pdf.PdfDocument`) from [SitterPdfLayout]'s page plan and
- * the string resources, offline. A plant without a (readable) photo gets a dashed "No photo" box.
+ * the string resources, offline: a SageGreen header band with the leaf logo, the watering tips on page 1, rounded
+ * WarmCream tiles and a branding footer on a white page. A plant without a (readable) photo gets a dashed "No photo" box.
  */
 internal object SitterListPdfRenderer {
 
@@ -55,10 +62,17 @@ private const val NAME_SIZE = 11f
 private const val SMALL_SIZE = 9f
 private const val TAG_SIZE = 8f
 private const val FOOTER_SIZE = 10f
+private const val BRAND_SIZE = 8f
+private const val BAND_TITLE_SIZE = 16f
+private const val TIPS_HEADING_SIZE = 11f
+private const val TIP_SIZE = 10f
 private const val DASH = 6f
 private val INK = Color.rgb(33, 37, 41)
 private val MUTED = Color.rgb(108, 117, 125)
-private val ACCENT = Color.rgb(121, 85, 72)
+private val BRAND = SageGreen.toArgb()
+private val ON_BRAND = OnSageGreen.toArgb()
+private val CARD_FILL = WarmCream.toArgb()
+private val CARD_OUTLINE = SageGreenContainer.toArgb()
 private val TAG_FILL = Color.rgb(255, 224, 178)
 
 private class Pens {
@@ -77,7 +91,11 @@ private class Pens {
 
     val title = text(TITLE_SIZE, INK, bold = true)
     val subtitle = text(SUBTITLE_SIZE, MUTED)
-    val room = text(ROOM_SIZE, ACCENT, bold = true)
+    val room = text(ROOM_SIZE, BRAND, bold = true)
+    val bandTitle = text(BAND_TITLE_SIZE, ON_BRAND, bold = true)
+    val tipsHeading = text(TIPS_HEADING_SIZE, BRAND, bold = true)
+    val tip = text(TIP_SIZE, INK)
+    val brand = text(BRAND_SIZE, MUTED)
     val name = text(NAME_SIZE, INK, bold = true)
     val species = text(SMALL_SIZE, MUTED)
     val tag = text(TAG_SIZE, INK, bold = true)
@@ -88,6 +106,16 @@ private class Pens {
         style = Paint.Style.FILL
         color = TAG_FILL
     }
+    val band = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = BRAND
+    }
+    val card = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = CARD_FILL
+    }
+    val cardOutline = stroke().apply { color = CARD_OUTLINE }
+    val rule = stroke().apply { color = BRAND }
     val bitmap = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 }
 
@@ -104,6 +132,10 @@ private class PagePainter(
     fun draw(page: Page, pageNumber: Int) {
         drawHeader(page.kind)
         var y = (SitterPdfLayout.MARGIN + SitterPdfLayout.HEADER_HEIGHT).toFloat()
+        if (page.showsTips) {
+            drawTips(y)
+            y += SitterPdfLayout.TIPS_HEIGHT
+        }
         for (block in page.blocks) {
             when (block) {
                 is Block.RoomHeader -> {
@@ -132,20 +164,73 @@ private class PagePainter(
             PageKind.RESTING -> context.getString(R.string.sitter_resting_title) to
                 resources.getQuantityString(R.plurals.sitter_resting_subtitle, list.restingCount, list.restingCount)
         }
-        val top = SitterPdfLayout.MARGIN.toFloat()
+        drawBand()
+        val top = (SitterPdfLayout.MARGIN + SitterPdfLayout.BAND_HEIGHT + BAND_GAP).toFloat()
         canvas.drawText(ellipsized(title, pens.title, contentWidth), left, top + pens.title.textSize, pens.title)
         canvas.drawText(subtitle, left, top + pens.title.textSize + pens.subtitle.textSize + 6f, pens.subtitle)
+    }
+
+    private fun drawBand() {
+        val top = SitterPdfLayout.MARGIN.toFloat()
+        val band = RectF(left, top, left + contentWidth, top + SitterPdfLayout.BAND_HEIGHT)
+        canvas.drawRoundRect(band, BAND_CORNER, BAND_CORNER, pens.band)
+        val logoLeft = band.left + BAND_PADDING
+        val logoTop = band.centerY() - LOGO_SIZE / 2
+        context.getDrawable(R.drawable.ic_yapt_leaf)?.let {
+            it.setBounds(
+                logoLeft.toInt(),
+                logoTop.toInt(),
+                (logoLeft + LOGO_SIZE).toInt(),
+                (logoTop + LOGO_SIZE).toInt()
+            )
+            it.draw(canvas)
+        }
+        canvas.drawText(
+            context.getString(R.string.sitter_brand_name),
+            logoLeft + LOGO_SIZE + BAND_PADDING,
+            band.centerY() + pens.bandTitle.textSize * 0.35f,
+            pens.bandTitle
+        )
+    }
+
+    private fun drawTips(top: Float) {
+        val box = RectF(left, top, left + contentWidth, top + SitterPdfLayout.TIPS_HEIGHT - TIPS_GAP)
+        canvas.drawRoundRect(box, CARD_CORNER, CARD_CORNER, pens.card)
+        canvas.drawRoundRect(box, CARD_CORNER, CARD_CORNER, pens.cardOutline)
+        val textLeft = box.left + TIPS_PADDING
+        canvas.drawText(
+            context.getString(R.string.sitter_tips_heading),
+            textLeft,
+            box.top + TIPS_PADDING + pens.tipsHeading.textSize,
+            pens.tipsHeading
+        )
+        val textWidth = contentWidth - TIPS_PADDING * 2 - TIP_INDENT
+        SITTER_TIP_STRINGS.forEachIndexed { index, id ->
+            val baseline = box.top + TIPS_FIRST_BASELINE + index * TIP_LINE
+            canvas.drawCircle(textLeft + BULLET_RADIUS, baseline - pens.tip.textSize * 0.35f, BULLET_RADIUS, pens.band)
+            val tip = ellipsized(context.getString(id), pens.tip, textWidth)
+            canvas.drawText(tip, textLeft + TIP_INDENT, baseline, pens.tip)
+        }
     }
 
     private fun drawRoomHeader(block: Block.RoomHeader, y: Float) {
         val name = block.room ?: context.getString(R.string.sitter_room_none)
         val text = if (block.continued) context.getString(R.string.sitter_room_continued, name) else name
-        canvas.drawText(ellipsized(text, pens.room, contentWidth), left, y + pens.room.textSize + 4f, pens.room)
+        val shown = ellipsized(text, pens.room, contentWidth)
+        val baseline = y + pens.room.textSize + 4f
+        canvas.drawText(shown, left, baseline, pens.room)
+        val ruleLeft = left + pens.room.measureText(shown) + RULE_GAP
+        val ruleY = baseline - pens.room.textSize * 0.3f
+        if (ruleLeft < left + contentWidth) canvas.drawLine(ruleLeft, ruleY, left + contentWidth, ruleY, pens.rule)
     }
 
     private fun drawTile(plant: SitterListPlant, x: Float, y: Float, kind: PageKind) {
         val width = SitterPdfLayout.TILE_WIDTH.toFloat()
-        val photoBox = RectF(x, y, x + width, y + PHOTO_HEIGHT)
+        val tile = RectF(x, y, x + width, y + SitterPdfLayout.TILE_HEIGHT)
+        canvas.drawRoundRect(tile, CARD_CORNER, CARD_CORNER, pens.card)
+        canvas.drawRoundRect(tile, CARD_CORNER, CARD_CORNER, pens.cardOutline)
+        val photoTop = y + TILE_PADDING
+        val photoBox = RectF(x + TILE_PADDING, photoTop, x + width - TILE_PADDING, photoTop + PHOTO_HEIGHT)
         drawPhoto(plant, photoBox)
         val textWidth = width - TILE_PADDING * 2
         var textY = photoBox.bottom + pens.name.textSize + TILE_PADDING
@@ -165,7 +250,10 @@ private class PagePainter(
     private fun drawPhoto(plant: SitterListPlant, box: RectF) {
         val bitmap = plant.coverPhotoUri?.let { SitterPhotoLoader.load(context, it) }
         if (bitmap != null) {
+            canvas.save()
+            canvas.clipPath(Path().apply { addRoundRect(box, CORNER, CORNER, Path.Direction.CW) })
             canvas.drawBitmap(bitmap, SitterPhotoLoader.centerCrop(bitmap, box), box, pens.bitmap)
+            canvas.restore()
             bitmap.recycle()
             return
         }
@@ -193,7 +281,10 @@ private class PagePainter(
     }
 
     private fun drawFooter(kind: PageKind, pageNumber: Int) {
-        val baseline = (SitterPdfLayout.PAGE_HEIGHT - SitterPdfLayout.MARGIN).toFloat()
+        val brandBaseline = (SitterPdfLayout.PAGE_HEIGHT - SitterPdfLayout.MARGIN).toFloat()
+        val baseline = brandBaseline - FOOTER_LINE
+        val url = context.getString(R.string.sitter_brand_url)
+        canvas.drawText(context.getString(R.string.sitter_brand_line, url), left, brandBaseline, pens.brand)
         if (kind == PageKind.VISIT) {
             canvas.drawText(context.getString(R.string.sitter_footer_only_water), left, baseline, pens.footer)
         }
@@ -206,7 +297,20 @@ private class PagePainter(
 
     private companion object {
         const val PHOTO_HEIGHT = 120f
-        const val TILE_PADDING = 4f
+        const val TILE_PADDING = 6f
+        const val BAND_GAP = 10
+        const val BAND_CORNER = 8f
+        const val BAND_PADDING = 10f
+        const val LOGO_SIZE = 20f
+        const val CARD_CORNER = 8f
+        const val TIPS_GAP = 8f
+        const val TIPS_PADDING = 10f
+        const val TIPS_FIRST_BASELINE = 34f
+        const val TIP_LINE = 13f
+        const val TIP_INDENT = 12f
+        const val BULLET_RADIUS = 2f
+        const val RULE_GAP = 8f
+        const val FOOTER_LINE = 14f
         const val CHECKBOX_SIZE = 12f
         const val TAG_HEIGHT = 14f
         const val TAG_PADDING = 5f

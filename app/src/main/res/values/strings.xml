@@ -1046,6 +1046,14 @@
     <string name="sitter_missed_tag">Missed last time</string>
     <string name="sitter_footer_only_water">Only water the plants on this page</string>
     <string name="sitter_footer_page">Page %1$d of %2$d</string>
+    <string name="sitter_brand_name">YAPT</string>
+    <string name="sitter_brand_url" translatable="false">github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker</string>
+    <string name="sitter_brand_line">Made with YAPT · %1$s</string>
+    <string name="sitter_tips_heading">Watering tips</string>
+    <string name="sitter_tip_soil">Feel the soil first: if it\'s dry 2–3 cm down, water.</string>
+    <string name="sitter_tip_slowly">Water slowly until a little runs out of the bottom.</string>
+    <string name="sitter_tip_saucer">Empty saucers after about 15 minutes.</string>
+    <string name="sitter_tip_doubt">When in doubt, leave it dry.</string>
     <string name="sitter_text_bullet">- %1$s</string>
     <string name="sitter_text_name_species">%1$s (%2$s)</string>
     <string name="sitter_text_with_missed">%1$s · %2$s</string>

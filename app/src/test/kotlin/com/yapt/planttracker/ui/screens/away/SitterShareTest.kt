@@ -141,4 +141,15 @@ class SitterShareTest {
             output.caption(list(visitPlants = 12, resting = 2))
         )
     }
+
+    @Test
+    fun `the caption counts the shorter first page, so 20 plants span three visit pages`() {
+        val output = AndroidSitterListOutput(application)
+
+        assertEquals(
+            "Plants to water on $dayText, by room. Only water what's on pages 1 to 3; " +
+                "page 4 onwards shows the ones to leave dry.",
+            output.caption(list(visitPlants = 20, resting = 2))
+        )
+    }
 }

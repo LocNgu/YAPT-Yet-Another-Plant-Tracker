@@ -13,7 +13,10 @@ object WhatsNewContent {
     // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
-        versionName = "Unreleased"
+        versionName = "Unreleased",
+        changed = listOf(
+            "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
