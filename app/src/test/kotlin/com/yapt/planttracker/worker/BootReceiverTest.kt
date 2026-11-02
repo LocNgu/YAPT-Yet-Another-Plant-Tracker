@@ -1,7 +1,9 @@
 package com.yapt.planttracker.worker
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.os.Looper
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.Configuration
@@ -18,11 +20,14 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -47,6 +52,27 @@ class BootReceiverTest {
         BootReceiver().onReceive(context, Intent("com.example.SOMETHING_ELSE"))
 
         assertEquals(0, reminderWork().size)
+    }
+
+    // Dispatched through sendBroadcast, not a direct onReceive call: only a dispatched broadcast carries
+    // the PendingResult that goAsync() hands out. A real device can't be used, because BOOT_COMPLETED is
+    // a protected broadcast that neither the app nor the shell uid may send (#499).
+    @Test
+    fun `boot broadcast goes async, enqueues the daily reminder and finishes the pending result`() {
+        runBlocking { context.settingsDataStore.edit { it[SettingsKeys.NOTIFICATIONS_ENABLED] = true } }
+        val intent = Intent(Intent.ACTION_BOOT_COMPLETED)
+        val receiver = shadowOf(context as Application).getReceiversForIntent(intent)
+            .filterIsInstance<BootReceiver>().single()
+        assertEquals(0, reminderWork().size)
+
+        context.sendBroadcast(intent)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(shadowOf(receiver).wentAsync())
+        shadowOf(shadowOf(receiver).originalPendingResult).future.get(FINISH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        val infos = reminderWork()
+        assertEquals(1, infos.size)
+        assertEquals(WorkInfo.State.ENQUEUED, infos[0].state)
     }
 
     @Test
@@ -86,5 +112,9 @@ class BootReceiverTest {
         } finally {
             unmockkObject(ReminderScheduler)
         }
+    }
+
+    private companion object {
+        const val FINISH_TIMEOUT_SECONDS = 5L
     }
 }
