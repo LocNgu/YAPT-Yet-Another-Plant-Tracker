@@ -68,6 +68,8 @@ class PlanVisitContentTest {
             visitDay = visitDay,
             gapDays = gap,
             projection = projection,
+            selected = projection,
+            selectionState = SitterSelectionState(),
             summary = projection.summary(),
             sharing = sharing
         )

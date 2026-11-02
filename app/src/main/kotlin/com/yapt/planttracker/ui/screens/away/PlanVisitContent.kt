@@ -67,7 +67,7 @@ internal fun PlanVisitContent(
         WhenSection(state, actions.onPickDay)
         GapSection(state, actions.onSetGap)
         SummaryCard(state)
-        val canShare = state.projection.listed.isNotEmpty() && !state.sharing
+        val canShare = state.selected.listed.isNotEmpty() && !state.sharing
         Button(onClick = actions.onSharePdf, enabled = canShare, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.sitter_plan_share_pdf))
         }
