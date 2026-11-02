@@ -53,7 +53,7 @@ class SitterListTextRendererTest {
             Water 3 plants
 
             Watering tips
-            - Feel the soil first: if it's dry 2-3 cm down, water.
+            - Feel the soil first: if it's dry 2–3 cm down, water.
             - Water slowly until a little runs out of the bottom.
             - Empty saucers after about 15 minutes.
             - When in doubt, leave it dry.
@@ -87,7 +87,7 @@ class SitterListTextRendererTest {
             Water 1 plant
 
             Watering tips
-            - Feel the soil first: if it's dry 2-3 cm down, water.
+            - Feel the soil first: if it's dry 2–3 cm down, water.
             - Water slowly until a little runs out of the bottom.
             - Empty saucers after about 15 minutes.
             - When in doubt, leave it dry.
