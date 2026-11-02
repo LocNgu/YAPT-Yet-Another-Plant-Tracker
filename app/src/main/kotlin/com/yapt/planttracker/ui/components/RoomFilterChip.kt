@@ -1,4 +1,4 @@
-package com.yapt.planttracker.ui.screens.plantlist
+package com.yapt.planttracker.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
@@ -17,7 +17,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
-import com.yapt.planttracker.ui.components.yaptFilterChipColors
 
 @Composable
 internal fun RoomFilterChip(
