@@ -28,6 +28,7 @@ paths:
 - **Generation:** pure, deterministic `DemoData.generate(now)` (10 plants). Helpers are split into `DemoDataTime`/`DemoPlantBuilders` (Detekt).
 - **Writes:** `DemoDataSeeder` runs in one `withTransaction {}`. Every demo row has the `DemoData.NAME_PREFIX = "[Demo] "` prefix. `seed()` removes existing demo plants first (idempotent); `remove()` hard-deletes only prefixed plants (logs cascade).
 - **No MIST logs** are generated (#875).
+- **Tests (#533):** VM plumbing runs against a real in-memory DB (`SettingsViewModelDemoDataTest`, Robolectric, synchronous Room executors) rather than a mockable seeder seam, keeping the constructor under `LongParameterList`. Dialogs: `SettingsScreenDemoDataTest`.
 - **Fixtures for manual testing (#571):**
   - ZZ Plant (confidence 3): log a REPOT to see the reset + freeze.
   - Rubber Plant (4): change its room to see a reset without a freeze.
