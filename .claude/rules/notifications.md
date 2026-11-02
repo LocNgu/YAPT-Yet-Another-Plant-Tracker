@@ -18,6 +18,7 @@ paths:
 - **What it posts:** one notification per overdue/due-soon plant (ID `plant.id.toInt()`), with care items joined by `" · "`. Tapping opens `MainActivity` with a `plantId` extra → Plant Detail (#7). It does nothing when POST_NOTIFICATIONS is denied.
 - **Reminder time:** the default (`SettingsDefaults.REMINDER_HOUR`/`MINUTE` = 9:00) is written to DataStore on first launch, so `?: 9` fallbacks never re-anchor (#356). `MainActivity` passes the **stored** time to `ReminderScheduler.schedule()` on every launch (#394).
 - `BootReceiver` reschedules via an `internal suspend fun` pulled out of `goAsync()` for testability.
+- The `goAsync()` → `finish()` glue is covered by the Robolectric `BootReceiverTest` case that dispatches a real `BOOT_COMPLETED` through `sendBroadcast` (#499). Don't retry an instrumented test: `BOOT_COMPLETED` is protected, and neither the app nor the shell uid may send it (a shell `am broadcast` was tried and delivered nothing).
 - Custom reminders are fetched per plant (`getRemindersForPlantOnce()`) before `computeStatus()`.
 
 ## Pure composer (`ReminderNotificationComposer`, no Context)

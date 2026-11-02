@@ -55,7 +55,7 @@ class BootReceiverTest {
     }
 
     // Dispatched through sendBroadcast, not a direct onReceive call: only a dispatched broadcast carries
-    // the PendingResult that goAsync() hands out. A real device can't be used, because BOOT_COMPLETED is
+    // the PendingResult that goAsync() hands out. An instrumented test can't send it: BOOT_COMPLETED is
     // a protected broadcast that neither the app nor the shell uid may send (#499).
     @Test
     fun `boot broadcast goes async, enqueues the daily reminder and finishes the pending result`() {
