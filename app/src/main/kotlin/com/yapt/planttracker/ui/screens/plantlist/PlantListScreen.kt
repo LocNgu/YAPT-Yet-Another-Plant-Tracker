@@ -82,6 +82,7 @@ import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
 import com.yapt.planttracker.ui.components.PlantCard
+import com.yapt.planttracker.ui.components.RoomFilterChip
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.components.yaptFilterChipColors
