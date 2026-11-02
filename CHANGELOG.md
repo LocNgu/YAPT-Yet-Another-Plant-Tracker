@@ -13,6 +13,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- **New app icon: "Dew Y"** (#984) — a white water drop holding a small Y of two leaves on a SageGreen background,
+  replacing the old leaf. Themed icons (Android 13+) now get a dedicated monochrome layer (the drop with the Y cut
+  out) instead of the full-colour fallback, and reminder notifications use the same mark (new `drawable/ic_notification.xml`,
+  replacing `ic_plant_placeholder`). The adaptive-icon XMLs are consolidated into `mipmap-anydpi-v26/`.
 - **The sitter list is branded and lightly themed, with watering tips** (#978, product ADR-0065) — every PDF page now
   opens with a SageGreen header band holding the white YAPT leaf (new tight-viewport `drawable/ic_yapt_leaf.xml`) and
   "YAPT", room headers are SageGreen with a rule, and plant tiles are rounded WarmCream cards, all on a white page so

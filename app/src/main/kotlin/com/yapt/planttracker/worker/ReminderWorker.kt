@@ -153,7 +153,7 @@ class ReminderWorker(
         )
 
         val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_plant_placeholder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
@@ -186,7 +186,7 @@ class ReminderWorker(
         )
 
         val notificationBuilder = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_plant_placeholder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(
                 if (isWateringDue) context.getString(R.string.notification_check_title, plant.name) else plant.name
             )
