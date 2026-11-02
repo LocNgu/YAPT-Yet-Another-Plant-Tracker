@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -124,7 +125,7 @@ class SettingsScreenDemoDataTest {
         composeTestRule.onNodeWithText("Seed demo plants?").assertDoesNotExist()
         val names = plantNames()
         assertEquals(10, names.size)
-        assertEquals(true, names.all { it.startsWith(DemoData.NAME_PREFIX) })
+        assertTrue(names.all { it.startsWith(DemoData.NAME_PREFIX) })
     }
 
     @Test

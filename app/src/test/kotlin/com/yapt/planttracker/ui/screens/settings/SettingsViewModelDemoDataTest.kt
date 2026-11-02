@@ -90,7 +90,8 @@ class SettingsViewModelDemoDataTest {
     @After
     fun tearDown() = database.close()
 
-    private suspend fun allPlantNames(): List<String> = database.plantDao().getAllPlants().first().map { it.name }
+    private suspend fun allPlantNames(): List<String> =
+        database.plantDao().getAllPlantsIncludingArchived().first().map { it.name }
 
     @Test
     fun `seedDemoPlants writes the demo set and emits the seeded count`() = runTest {
