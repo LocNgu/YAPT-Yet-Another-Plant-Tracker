@@ -7,18 +7,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.domain.away.ProjectedPlant
 import com.yapt.planttracker.domain.away.SitterSelection
@@ -119,7 +123,10 @@ class PlanVisitContentTest {
         }
     }
 
-    /** Applies each tap the way the ViewModel would, so a tap changes what the next frame shows. */
+    /**
+     * Applies each tap the way the ViewModel would, so a tap changes what the next frame shows. It is only a
+     * stand-in: `PlanVisitViewModelTest` is the source of truth for the toggle and room-filter semantics.
+     */
     @Suppress("LongParameterList")
     private fun setStatefulContent(
         listed: List<ProjectedPlant>,
@@ -149,22 +156,41 @@ class PlanVisitContentTest {
         }
     }
 
+    private val verticalList = SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)
+
+    /** A node whose only text is [label]: a chip, never a card whose status line happens to read the same. */
+    private fun hasOnlyText(label: String) = SemanticsMatcher("has only the text \"$label\"") { node ->
+        node.config.getOrNull(SemanticsProperties.Text)?.map { it.text } == listOf(label)
+    }
+
+    private fun whenChip(label: String) = composeTestRule.onNode(hasOnlyText(label))
+
+    /** Items below the viewport are not composed, so scroll the list to the target before acting on it. */
+    private fun listNode(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+        composeTestRule.onNode(verticalList).performScrollToNode(matcher)
+        return composeTestRule.onNode(matcher)
+    }
+
+    private fun listNode(text: String, substring: Boolean = false) = listNode(hasText(text, substring = substring))
+
+    private fun roomChip(label: String) = listNode(hasOnlyText(label))
+
     private val twoPlants get() = listOf(listed(plant(1, "Basil", "Kitchen")), listed(plant(2, "Fern")))
 
     @Test
     fun theWhenChipsOfferTodayTomorrowAndADate() {
         setContent(state(twoPlants))
 
-        composeTestRule.onNodeWithText("Today").assertIsDisplayed().assertIsSelected().assertIsEnabled()
-        composeTestRule.onNodeWithText("Tomorrow").assertIsDisplayed().assertIsEnabled()
-        composeTestRule.onNodeWithText("Pick a date").assertIsDisplayed()
+        whenChip("Today").assertIsDisplayed().assertIsSelected().assertIsEnabled()
+        whenChip("Tomorrow").assertIsDisplayed().assertIsEnabled()
+        whenChip("Pick a date").assertIsDisplayed()
     }
 
     @Test
     fun tomorrowReportsTheNextDay() {
         setContent(state(twoPlants))
 
-        composeTestRule.onNodeWithText("Tomorrow").performClick()
+        whenChip("Tomorrow").performClick()
 
         assertEquals(listOf(today.plusDays(1)), picked)
     }
@@ -173,16 +199,16 @@ class PlanVisitContentTest {
     fun todayAndTomorrowAreDisabledWhenTheyAreOutsideTheTrip() {
         setContent(state(twoPlants, visitDay = today.plusDays(2), todayAllowed = false, tomorrowAllowed = true))
 
-        composeTestRule.onNodeWithText("Today").assertIsNotEnabled()
-        composeTestRule.onNodeWithText("Tomorrow").assertIsNotEnabled()
+        whenChip("Today").assertIsNotEnabled()
+        whenChip("Tomorrow").assertIsNotEnabled()
     }
 
     @Test
     fun aPickedDateReplacesThePickADateLabel() {
         setContent(state(twoPlants, visitDay = today.plusDays(5)))
 
-        composeTestRule.onNodeWithText("Pick a date").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Today").assertIsNotSelected()
+        whenChip("Pick a date").assertDoesNotExist()
+        whenChip("Today").assertIsNotSelected()
     }
 
     @Test
@@ -284,42 +310,42 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setStatefulContent(listed, notListed, resting)
 
-        composeTestRule.onNodeWithText("Basil").assertIsSelected()
-        composeTestRule.onNodeWithText("Fern").assertIsSelected()
-        composeTestRule.onNodeWithText("Not on this visit · 1").performClick()
-        composeTestRule.onNodeWithText("Ficus").assertIsNotSelected()
+        listNode("Basil").assertIsSelected()
+        listNode("Fern").assertIsSelected()
+        listNode("Not on this visit · 1").performClick()
+        listNode("Ficus").assertIsNotSelected()
     }
 
     @Test
     fun tappingACardTogglesItAndUpdatesTheSummary() {
         val (listed, notListed, resting) = threeSections
         setStatefulContent(listed, notListed, resting)
-        composeTestRule.onNodeWithText("Water 2 plants").assertIsDisplayed()
+        listNode("Water 2 plants").assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Basil").performClick()
+        listNode("Basil").performClick()
 
-        composeTestRule.onNodeWithText("Basil").assertIsNotSelected()
-        composeTestRule.onNodeWithText("Water 1 plant").assertIsDisplayed()
-        composeTestRule.onNodeWithText("On this visit · 2").assertIsDisplayed()
+        listNode("Basil").assertIsNotSelected()
+        listNode("Water 1 plant").assertIsDisplayed()
+        listNode("On this visit · 2").assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Basil").performClick()
+        listNode("Basil").performClick()
 
-        composeTestRule.onNodeWithText("Basil").assertIsSelected()
-        composeTestRule.onNodeWithText("Water 2 plants").assertIsDisplayed()
+        listNode("Basil").assertIsSelected()
+        listNode("Water 2 plants").assertIsDisplayed()
     }
 
     @Test
     fun tickingAPlantInACollapsedSectionKeepsItWhereItWas() {
         val (listed, notListed, resting) = threeSections
         setStatefulContent(listed, notListed, resting)
-        composeTestRule.onNodeWithText("Not on this visit · 1").performClick()
+        listNode("Not on this visit · 1").performClick()
 
-        composeTestRule.onNodeWithText("Ficus").performClick()
+        listNode("Ficus").performClick()
 
-        composeTestRule.onNodeWithText("Ficus").assertIsSelected()
-        composeTestRule.onNodeWithText("Not on this visit · 1").assertIsDisplayed()
-        composeTestRule.onNodeWithText("On this visit · 2").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Water 3 plants").assertIsDisplayed()
+        listNode("Ficus").assertIsSelected()
+        listNode("Not on this visit · 1").assertIsDisplayed()
+        listNode("On this visit · 2").assertIsDisplayed()
+        listNode("Water 3 plants").assertIsDisplayed()
     }
 
     @Test
@@ -327,7 +353,7 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("Fern").performClick()
+        listNode("Fern").performClick()
 
         assertEquals(listOf(2L), toggled)
     }
@@ -337,7 +363,7 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("Basil").assert(noLongClick)
+        listNode("Basil").assert(noLongClick)
     }
 
     @Test
@@ -345,12 +371,12 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("On this visit · 2").assertIsDisplayed().assert(hasState("Expanded"))
-        composeTestRule.onNodeWithText("Not on this visit · 1").assertIsDisplayed().assert(hasState("Collapsed"))
-        composeTestRule.onNodeWithText("Resting · 1").assertIsDisplayed().assert(hasState("Collapsed"))
+        listNode("On this visit · 2").assertIsDisplayed().assert(hasState("Expanded"))
+        listNode("Not on this visit · 1").assertIsDisplayed().assert(hasState("Collapsed"))
+        listNode("Resting · 1").assertIsDisplayed().assert(hasState("Collapsed"))
         composeTestRule.onNodeWithText("Ficus").assertDoesNotExist()
         composeTestRule.onNodeWithText("Cactus").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Normally left dry", substring = true).assertIsDisplayed()
+        listNode("Normally left dry", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -358,17 +384,18 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("Resting · 1").performClick()
+        listNode("Resting · 1").performClick()
 
-        composeTestRule.onNodeWithText("Resting · 1").assert(hasState("Expanded"))
-        composeTestRule.onNodeWithText("Cactus").assertIsNotSelected()
-        composeTestRule.onNodeWithText("Dormant", substring = true).assertIsDisplayed()
+        listNode("Resting · 1").assert(hasState("Expanded"))
+        listNode("Cactus").assertIsNotSelected()
+        listNode("Dormant", substring = true).assertIsDisplayed()
     }
 
     @Test
     fun anEmptySectionIsHidden() {
         setContent(state(twoPlants))
 
+        listNode("On this visit · 2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Not on this visit", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithText("Resting", substring = true).assertDoesNotExist()
     }
@@ -378,16 +405,17 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("All").assertIsSelected()
-        composeTestRule.onNodeWithText("Kitchen").assertIsNotSelected()
-        composeTestRule.onNodeWithText("Study").assertIsNotSelected()
-        composeTestRule.onNodeWithText("No room").assertIsNotSelected()
+        roomChip("All").assertIsSelected()
+        roomChip("Kitchen").assertIsNotSelected()
+        roomChip("Study").assertIsNotSelected()
+        roomChip("No room").assertIsNotSelected()
     }
 
     @Test
     fun noRoomChipIsAbsentWhenEveryPlantHasARoom() {
         setContent(state(listOf(listed(plant(1, "Basil", "Kitchen")))))
 
+        roomChip("All").assertIsDisplayed()
         composeTestRule.onNodeWithText("No room").assertDoesNotExist()
     }
 
@@ -396,8 +424,8 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed))
 
-        composeTestRule.onNodeWithText("Kitchen").assert(hasState("Contains selected plants"))
-        composeTestRule.onNodeWithText("No room")
+        roomChip("Kitchen").assert(hasState("Contains selected plants"))
+        roomChip("No room")
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
     }
 
@@ -406,12 +434,13 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed), roomFilter = "study")
 
-        composeTestRule.onNodeWithText("Study").assertIsSelected()
-        composeTestRule.onNodeWithText("Fern").assertIsDisplayed()
+        roomChip("Study").assertIsSelected()
+        listNode("Fern").assertIsDisplayed()
+        listNode("On this visit · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Basil").assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Kitchen").performClick()
-        composeTestRule.onNodeWithText("All").performClick()
+        roomChip("Kitchen").performClick()
+        roomChip("All").performClick()
 
         assertEquals(listOf<String?>("kitchen", null), roomsPicked)
     }
@@ -421,13 +450,13 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setStatefulContent(listed, notListed, resting)
 
-        composeTestRule.onNodeWithText("Study").performClick()
+        roomChip("Study").performClick()
 
+        listNode("Fern").assertIsSelected()
+        listNode("On this visit · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Basil").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Fern").assertIsSelected()
-        composeTestRule.onNodeWithText("On this visit · 1").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Water 2 plants").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Kitchen").assert(hasState("Contains selected plants"))
+        listNode("Water 2 plants").assertIsDisplayed()
+        roomChip("Kitchen").assert(hasState("Contains selected plants"))
     }
 
     @Test
@@ -435,9 +464,9 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setContent(state(listed, resting, notListed), roomFilter = "kitchen")
 
+        listNode("On this visit · 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Not on this visit", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithText("Resting", substring = true).assertDoesNotExist()
-        composeTestRule.onNodeWithText("On this visit · 1").assertIsDisplayed()
     }
 
     @Test
@@ -445,9 +474,9 @@ class PlanVisitContentTest {
         val twin = plant(1, "Basil", "Kitchen")
         setContent(state(listOf(listed(twin, missed = true, longer = true))))
 
-        composeTestRule.onNodeWithText("Kitchen · Today", substring = true).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Missed last time").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Longer than usual").assertIsDisplayed()
+        listNode("Kitchen · Today", substring = true).assertIsDisplayed()
+        listNode("Missed last time").assertIsDisplayed()
+        listNode("Longer than usual").assertIsDisplayed()
     }
 
     @Test
@@ -464,8 +493,8 @@ class PlanVisitContentTest {
         val (listed, notListed, resting) = threeSections
         setStatefulContent(listed, notListed, resting)
 
-        composeTestRule.onNodeWithText("Basil").performClick()
-        composeTestRule.onNodeWithText("Fern").performClick()
+        listNode("Basil").performClick()
+        listNode("Fern").performClick()
 
         composeTestRule.onNodeWithText("Share list (PDF)").assertIsNotEnabled()
         composeTestRule.onNodeWithText("Share as text").assertIsNotEnabled()

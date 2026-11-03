@@ -235,8 +235,8 @@ private fun PickerStatusLine(row: PickerRow) {
                 if (row.missed) {
                     PickerTag(
                         stringResource(R.string.sitter_missed_tag),
-                        MaterialTheme.colorScheme.tertiaryContainer,
-                        MaterialTheme.colorScheme.onTertiaryContainer
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
                 if (row.longer) {
