@@ -14,6 +14,9 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "Choose exactly which plants go on your sitter's list before you share it"
+        ),
         changed = listOf(
             "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them"
         )

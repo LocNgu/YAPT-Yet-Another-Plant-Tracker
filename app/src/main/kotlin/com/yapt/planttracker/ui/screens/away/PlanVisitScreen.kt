@@ -31,7 +31,9 @@ fun PlanVisitScreen(viewModel: PlanVisitViewModel, onNavigateBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     PlanVisitEventsEffect(viewModel, snackbarHostState)
+    val roomFilter by viewModel.roomFilter.collectAsStateWithLifecycle()
     val confirming = state is PlanVisitUiState.Confirm
+    val actions = remember(viewModel) { viewModel.planActions() }
     BackHandler(enabled = confirming) { viewModel.skipConfirm() }
 
     Scaffold(
@@ -49,6 +51,9 @@ fun PlanVisitScreen(viewModel: PlanVisitViewModel, onNavigateBack: () -> Unit) {
                     AwayBackNavigationIcon(if (confirming) viewModel::skipConfirm else onNavigateBack)
                 }
             )
+        },
+        bottomBar = {
+            (state as? PlanVisitUiState.Plan)?.let { PlanVisitShareBar(it, actions) }
         }
     ) { padding ->
         when (val current = state) {
@@ -72,17 +77,22 @@ fun PlanVisitScreen(viewModel: PlanVisitViewModel, onNavigateBack: () -> Unit) {
             )
             is PlanVisitUiState.Plan -> PlanVisitContent(
                 state = current,
-                actions = PlanVisitActions(
-                    onPickDay = viewModel::pickDay,
-                    onSetGap = viewModel::setGapDays,
-                    onSharePdf = { viewModel.share(asText = false) },
-                    onShareText = { viewModel.share(asText = true) }
-                ),
+                actions = actions,
+                roomFilter = roomFilter,
                 contentPadding = padding
             )
         }
     }
 }
+
+private fun PlanVisitViewModel.planActions() = PlanVisitActions(
+    onPickDay = ::pickDay,
+    onSetGap = ::setGapDays,
+    onSharePdf = { share(asText = false) },
+    onShareText = { share(asText = true) },
+    onToggleSitterPlant = ::toggleSitterPlant,
+    onSelectRoom = ::selectRoom
+)
 
 @Composable
 private fun PlanVisitEventsEffect(viewModel: PlanVisitViewModel, snackbarHostState: SnackbarHostState) {

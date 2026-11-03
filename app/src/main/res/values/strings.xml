@@ -992,6 +992,11 @@
         <item quantity="one">%1$d plant shares a name and room with another and has no photo to tell them apart: %2$s</item>
         <item quantity="other">%1$d plants share a name and room with another and have no photo to tell them apart: %2$s</item>
     </plurals>
+    <string name="sitter_pick_section_listed">On this visit</string>
+    <string name="sitter_pick_section_not_listed">Not on this visit</string>
+    <string name="sitter_pick_section_resting">Resting</string>
+    <string name="sitter_pick_resting_hint">Normally left dry. Tick one to add it to this visit.</string>
+    <string name="sitter_pick_longer_tag">Longer than usual</string>
     <string name="sitter_plan_share_pdf">Share list (PDF)</string>
     <string name="sitter_plan_share_text">Share as text</string>
 

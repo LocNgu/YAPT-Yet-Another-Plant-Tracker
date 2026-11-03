@@ -12,6 +12,20 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Choose exactly which plants go on the sitter's list** (#979 parts 2 and 3, #981, #982, product ADR-0077) — Plan a
+  sitter visit now shows the Plants tab's cards (always in selection mode, no long-press, quick-log buttons,
+  fertilizer line, issue badge or due-status colours) in three collapsible sections built from the suggested list:
+  **On this visit** (expanded, ticked), **Not on this visit** and **Resting** (collapsed, unticked, with a one-line
+  hint). Tapping a card ticks or unticks it, the summary and notes follow, and rows never move between sections.
+  Room chips (All, rooms alphabetically, No room) filter all three sections without changing a tick (sticky
+  selection, product ADR-0063); a chip shows the selected-plants dot when a ticked plant is in that room, and the
+  summary counts ticks across all rooms. Each card shows its room, the projected date (or "Dormant" for a resting
+  plant) and **Missed last time** / **Longer than usual** labels in neutral colours. **Share list (PDF)** and
+  **Share as text** moved to a bottom bar so they are always reachable. Only ticked plants are shared and saved; a
+  ticked resting plant goes on the visit pages and off the "don't water" pages. The selected room chip lives in
+  the ViewModel in memory only.
+
 ### Changed
 - **The sitter list is branded and lightly themed, with watering tips** (#978, product ADR-0065) — every PDF page now
   opens with a SageGreen header band holding the white YAPT leaf (new tight-viewport `drawable/ic_yapt_leaf.xml`) and

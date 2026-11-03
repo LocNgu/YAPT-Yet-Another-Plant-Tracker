@@ -6,7 +6,9 @@ internal data class PlanVisitActions(
     val onPickDay: (LocalDate) -> Unit,
     val onSetGap: (Int) -> Unit,
     val onSharePdf: () -> Unit,
-    val onShareText: () -> Unit
+    val onShareText: () -> Unit,
+    val onToggleSitterPlant: (plantId: Long) -> Unit,
+    val onSelectRoom: (String?) -> Unit
 )
 
 internal data class ConfirmVisitActions(

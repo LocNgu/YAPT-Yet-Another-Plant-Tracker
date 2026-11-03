@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -116,12 +117,15 @@ class PlanVisitViewModel(
     private val gapDays = MutableStateFlow<Int?>(null)
     private val unticked = MutableStateFlow<Set<Long>>(emptySet())
     private val sitterSelection = MutableStateFlow(SitterSelectionState())
+    private val _roomFilter = MutableStateFlow<String?>(null)
     private val confirmSkipped = MutableStateFlow(false)
     private val sharing = MutableStateFlow(false)
     private val mutationLock = Mutex()
 
     private val _events = MutableSharedFlow<PlanVisitEvent>(extraBufferCapacity = EVENT_BUFFER)
     val events: SharedFlow<PlanVisitEvent> = _events.asSharedFlow()
+
+    val roomFilter: StateFlow<String?> = _roomFilter.asStateFlow()
 
     val uiState: StateFlow<PlanVisitUiState> = combine(
         combine(
@@ -169,6 +173,14 @@ class PlanVisitViewModel(
             val added = if (!suggested && !ticked) selection.added + plantId else selection.added - plantId
             state.copy(selection = selection.copy(added = added, removed = removed))
         }
+    }
+
+    /**
+     * The sitter picker's room chip: a [SitterRoomChip.key], [NO_ROOM_FILTER], or `null` for All. Only a view
+     * filter, in memory and cleared with the ViewModel, so it never changes which plants are ticked (product ADR-0063).
+     */
+    fun selectRoom(room: String?) {
+        _roomFilter.value = room
     }
 
     fun toggleConfirmRow(plantId: Long) {
