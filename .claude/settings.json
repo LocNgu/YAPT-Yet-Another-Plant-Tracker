@@ -173,7 +173,25 @@
       "Bash(gh pr comment* --delete-last*)",
       "Bash(gh pr create* --base main*)",
       "Bash(gh pr create* --base=main*)",
-      "Bash(gh pr create* -B main*)"
+      "Bash(gh pr create* -B main*)",
+      "Bash(gh pr create* --base \"main\"*)",
+      "Bash(gh pr create* --base 'main'*)",
+      "Bash(gh pr create* --base=\"main\"*)",
+      "Bash(gh pr create* --base='main'*)",
+      "Bash(gh pr create* -Bmain*)",
+      "Bash(gh pr create* -B=main*)",
+      "Bash(gh pr create* -B \"main\"*)",
+      "Bash(gh pr create* -B 'main'*)",
+      "Bash(gh pr create* -B\"main\"*)",
+      "Bash(gh pr create* -B'main'*)",
+      "Bash(gh * *hosts.yml*)",
+      "Bash(gh * *.ssh/*)",
+      "Bash(gh * *.aws/*)",
+      "Bash(gh * *.netrc*)",
+      "Bash(gh * *.git-credentials*)",
+      "Bash(gh * *.env)",
+      "Bash(gh * *.env *)",
+      "Bash(gh * *.env.*)"
     ],
     "additionalDirectories": []
   }

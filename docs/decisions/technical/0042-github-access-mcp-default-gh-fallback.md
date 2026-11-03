@@ -45,9 +45,9 @@ ADR-0025's flag test, with deny entries for the flags that fail it:
 
 | Allow entry | Flags that pass | Flags denied / accepted explicitly |
 |---|---|---|
-| `Bash(gh issue comment *)` | `-b`, `-F`, `-e`, `-w` — each only adds a new comment | `--delete-last` (+ `--yes`) **denied** (`gh issue comment* --delete-last*`): it destroys a comment. `--edit-last` / `--create-if-none` **accepted**: they can only rewrite the session account's own latest comment, and GitHub keeps the edit history. |
+| `Bash(gh issue comment *)` | `-b`, `-e`, `-w` — each only adds a new comment | `-F`/`--body-file` **fails the flag test**: it posts any local file, so it could publish a credential file. It is kept (scratchpad body files are the recommended form) and guarded by deny entries on the known secret paths for every `gh` command — `gh * *hosts.yml*`, `*.ssh/*`, `*.aws/*`, `*.netrc*`, `*.git-credentials*`, `*.env` / `*.env *` / `*.env.*` — mirroring technical ADR-0025's `cat`/`grep` set; see *Accepted residual risk*. `--delete-last` (+ `--yes`) **denied** (`gh issue comment* --delete-last*`): it destroys a comment. `--edit-last` / `--create-if-none` **accepted**: they can only rewrite the session account's own latest comment, and GitHub keeps the edit history. |
 | `Bash(gh pr comment *)` | same as above | same as above (`gh pr comment* --delete-last*` denied) |
-| `Bash(gh pr create --base develop *)` | title/body/label/reviewer/draft flags — they shape the new PR only | The allow entry pins `--base develop` as the first argument, so every other shape (including a bare `gh pr create`) still prompts. `--base main`, `--base=main` and `-B main` later on the line are **denied** (`gh pr create* --base main*`, `gh pr create* --base=main*`, `gh pr create* -B main*`), so a repeated, later `--base` cannot retarget the PR at `main`. |
+| `Bash(gh pr create --base develop *)` | title/body/label/reviewer/draft flags — they shape the new PR only (`--body-file` as above) | The allow entry pins `--base develop` as the first argument, so every other shape (including a bare `gh pr create`) still prompts. `gh` string flags are last-wins, so a repeated, later `--base` would retarget the PR; the common spellings of that are **denied**: `--base main`, `--base=main`, `-B main`, their single- and double-quoted forms, and the attached `-Bmain` / `-B=main` / `-B"main"` / `-B'main'`. This covers careless use, not every shell spelling (see *Accepted residual risk*). A blanket `*main*` deny is avoided because it would block PR titles that mention "main". |
 
 `gh pr create` never merges; merging stays human-only (`CLAUDE.md` Forbidden list). The orchestrator
 pushes the `claude/*` branch with `git push` before creating the PR, so `gh` has nothing to push.
@@ -64,8 +64,12 @@ lines). A human may still approve a `gh pr review --comment` at the prompt.
 **Accepted residual risk.** All three commands accept the inherited `-R/--repo` flag, so an allowlisted
 comment or PR can target another repository the token reaches. The write is still only a comment or a
 PR, never a merge, close or edit of someone else's content, so this is accepted rather than pinned —
-flag order is free, so a literal pattern cannot pin it. As in technical ADR-0025, these deny entries
-guard against careless use; they are not a security boundary.
+flag order is free, so a literal pattern cannot pin it. Likewise, the secret-path and `--base main`
+deny entries match the common spellings only — a path reached through a symlink, variable or other
+shell indirection, or an unusual quoting of `main`, slips past them. Because the patterns match the
+whole command line, they also deny an inline `-b "…"` body that merely contains one of those strings;
+`--body-file` avoids that. As in technical ADR-0025, these deny entries guard against careless use;
+they are not a security boundary.
 
 **Orchestrator-only writes stay a written rule.** `settings.json` is shared by every agent, so a
 subagent with `Bash` could technically run the allowlisted commands. The rule "subagents never post;

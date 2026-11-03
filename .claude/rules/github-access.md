@@ -36,12 +36,15 @@ though the shared `settings.json` would let any agent with `Bash` run the allowl
 | Comment on issue | `add_issue_comment` | `gh issue comment <n> --body-file <file>` | **allowlisted write** |
 | Comment on PR | `add_issue_comment` (PR number) | `gh pr comment <n> --body-file <file>` | **allowlisted write** |
 | Create PR | `create_pull_request` (base `develop`) | `gh pr create --base develop --title … --body-file <file>` | **allowlisted write** — `--base develop` must come first |
-| Post review (review + CI result) | `pull_request_review_write` + `add_comment_to_pending_review`, `event: COMMENT` | `gh pr comment <n> --body-file <file>`, inline findings written as `File.kt:42 — **BLOCKING**: …` in the body | allowlisted (`gh pr review` stays **prompted**) |
+| Post review (review + CI result) | `pull_request_review_write` + `add_comment_to_pending_review`, `event: COMMENT` | `gh pr comment <n> --body-file <file>`, opening with "Review (posted as a PR comment — `gh` fallback) for `<sha>`" and inline findings written as `File.kt:42 — **BLOCKING**: …` in the body; re-check the PR head against `<sha>` before posting, as on the MCP path | allowlisted (`gh pr review` stays **prompted**) |
 
 - Prefer `--body-file` (a file in your scratchpad) over `-b "…"` for multi-line Markdown — it avoids
-  shell-quoting mistakes.
-- **Denied:** `--delete-last` on `gh issue comment`/`gh pr comment`; `gh pr create` with `--base main`,
-  `--base=main` or `-B main`. **Prompted:** `gh pr review` (any form), `gh pr create` without a leading
+  shell-quoting mistakes, and an inline `-b "…"` body that merely contains a denied string below
+  (`--delete-last`, `--base main`, `hosts.yml`, `.ssh/`, `.env`, …) is itself denied.
+- **Denied:** `--delete-last` on `gh issue comment`/`gh pr comment`; `gh pr create` with `--base main`
+  in any common spelling (`--base=main`, `-B main`, quoted, `-Bmain`); any `gh` command line naming a
+  known secret path (`gh` token file, `~/.ssh`, `~/.aws`, `.netrc`, `.git-credentials`, `.env`), so
+  `--body-file` can't post one. **Prompted:** `gh pr review` (any form), `gh pr create` without a leading
   `--base develop`, and every other `gh` write (merge, close, edit, label). Rationale per flag:
   technical ADR-0042.
 - Every comment ends with the attribution footer the session's instructions require.
