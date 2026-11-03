@@ -165,15 +165,30 @@ class PlanVisitContentTest {
 
     private fun whenChip(label: String) = composeTestRule.onNode(hasOnlyText(label))
 
+    private val horizontalList = SemanticsMatcher.keyIsDefined(SemanticsProperties.HorizontalScrollAxisRange)
+
+    /** A prefetched lazy item is composed but not placed, so its bounds are wrong; never stop on one (#350). */
+    private val isPlaced = SemanticsMatcher("is placed") { it.layoutInfo.isPlaced }
+
     /** Items below the viewport are not composed, so scroll the list to the target before acting on it. */
     private fun listNode(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-        composeTestRule.onNode(verticalList).performScrollToNode(matcher)
-        return composeTestRule.onNode(matcher)
+        val placed = matcher and isPlaced
+        composeTestRule.onNode(verticalList).performScrollToNode(placed)
+        return composeTestRule.onNode(placed)
     }
 
     private fun listNode(text: String, substring: Boolean = false) = listNode(hasText(text, substring = substring))
 
-    private fun roomChip(label: String) = listNode(hasOnlyText(label))
+    /**
+     * The chips sit in a horizontal `LazyRow` inside the list: bring the row into view, then scroll the row
+     * itself to the chip, so a tap never lands outside a chip that is clipped at the screen's edge.
+     */
+    private fun roomChip(label: String): SemanticsNodeInteraction {
+        val chip = hasOnlyText(label) and isPlaced
+        composeTestRule.onNode(verticalList).performScrollToNode(horizontalList)
+        composeTestRule.onNode(horizontalList).performScrollToNode(chip)
+        return composeTestRule.onNode(chip)
+    }
 
     private val twoPlants get() = listOf(listed(plant(1, "Basil", "Kitchen")), listed(plant(2, "Fern")))
 
@@ -451,6 +466,7 @@ class PlanVisitContentTest {
         setStatefulContent(listed, notListed, resting)
 
         roomChip("Study").performClick()
+        roomChip("Study").assertIsSelected()
 
         listNode("Fern").assertIsSelected()
         listNode("On this visit · 1").assertIsDisplayed()
