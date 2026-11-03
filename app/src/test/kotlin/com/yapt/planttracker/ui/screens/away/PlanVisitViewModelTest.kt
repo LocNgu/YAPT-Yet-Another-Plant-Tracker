@@ -602,4 +602,52 @@ class PlanVisitViewModelTest {
         assertEquals(before, plan.projection.applySelection(plan.selectionState.selection).listed.map { it.plant.id })
         assertEquals(setOf(later.id, resting.id), fixture.visits().single().plants.map { it.plantId }.toSet())
     }
+
+    @Test
+    fun `the room filter starts on All and follows the chosen room`() = runTest {
+        sitterScenario()
+        val vm = viewModel()
+        assertNull(vm.roomFilter.value)
+
+        vm.selectRoom("kitchen")
+        assertEquals("kitchen", vm.roomFilter.value)
+        vm.selectRoom(NO_ROOM_FILTER)
+        assertEquals(NO_ROOM_FILTER, vm.roomFilter.value)
+        vm.selectRoom(null)
+        assertNull(vm.roomFilter.value)
+    }
+
+    @Test
+    fun `filtering by room never adds or removes a tick`() = runTest {
+        startTrip()
+        val kitchen = fixture.addPlant("Basil", interval = 5, lastWatered = today.minusDays(5), room = "Kitchen")
+        val study = fixture.addPlant("Fern", interval = 5, lastWatered = today.minusDays(5), room = "Study")
+        val vm = viewModel()
+        vm.toggleSitterPlant(study.id)
+        val before = vm.plan()
+
+        vm.selectRoom("kitchen")
+        vm.selectRoom("study")
+        vm.selectRoom(NO_ROOM_FILTER)
+        vm.selectRoom(null)
+
+        assertEquals(listOf(kitchen.id), vm.listedIds())
+        assertEquals(before.selected, vm.plan().selected)
+        assertEquals(before.selectionState, vm.plan().selectionState)
+        assertEquals(1, vm.plan().summary.plantCount)
+    }
+
+    @Test
+    fun `the room filter survives edits and sharing`() = runTest {
+        val (due, later, _) = sitterScenario()
+        val vm = viewModel()
+        vm.selectRoom("kitchen")
+
+        vm.toggleSitterPlant(later.id)
+        vm.setGapDays(3)
+        vm.share(asText = true).join()
+
+        assertEquals("kitchen", vm.roomFilter.value)
+        assertEquals(setOf(due.id, later.id), vm.listedIds().toSet())
+    }
 }

@@ -14,6 +14,9 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "Choose exactly which plants go on your sitter's list before you share it"
+        ),
         fixed = listOf(
             "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one"
         ),

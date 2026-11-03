@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.away
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,11 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -21,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,28 +52,28 @@ internal fun isSelectableVisitDay(utcMillis: Long, earliest: LocalDate, latest: 
 internal fun PlanVisitContent(
     state: PlanVisitUiState.Plan,
     actions: PlanVisitActions,
+    roomFilter: String? = null,
     contentPadding: PaddingValues = PaddingValues()
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    val expansion = rememberSitterSectionExpansion()
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(contentPadding),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
-        WhenSection(state, actions.onPickDay)
-        GapSection(state, actions.onSetGap)
-        SummaryCard(state)
-        val canShare = state.selected.listed.isNotEmpty() && !state.sharing
-        Button(onClick = actions.onSharePdf, enabled = canShare, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.sitter_plan_share_pdf))
-        }
-        OutlinedButton(onClick = actions.onShareText, enabled = canShare, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.sitter_plan_share_text))
-        }
+        item(key = "when") { Box(LeadingItem) { WhenSection(state, actions.onPickDay) } }
+        item(key = "gap") { Box(LeadingItem) { GapSection(state, actions.onSetGap) } }
+        item(key = "summary") { Box(LeadingItem) { SummaryCard(state) } }
+        sitterPicker(
+            projection = state.projection,
+            selected = state.selected,
+            roomFilter = roomFilter,
+            expansion = expansion,
+            callbacks = SitterPickerCallbacks(actions.onSelectRoom, actions.onToggleSitterPlant)
+        )
     }
 }
+
+private val LeadingItem = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
