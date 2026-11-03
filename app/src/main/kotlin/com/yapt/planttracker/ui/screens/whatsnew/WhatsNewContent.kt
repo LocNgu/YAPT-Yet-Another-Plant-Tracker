@@ -17,8 +17,12 @@ object WhatsNewContent {
         added = listOf(
             "Choose exactly which plants go on your sitter's list before you share it"
         ),
+        fixed = listOf(
+            "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one"
+        ),
         changed = listOf(
-            "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them"
+            "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them",
+            "A new app icon: a water drop with a leafy Y, now also used for themed icons and reminders"
         )
     )
 

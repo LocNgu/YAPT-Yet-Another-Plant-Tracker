@@ -176,7 +176,7 @@ private class PagePainter(
         canvas.drawRoundRect(band, BAND_CORNER, BAND_CORNER, pens.band)
         val logoLeft = band.left + BAND_PADDING
         val logoTop = band.centerY() - LOGO_SIZE / 2
-        context.getDrawable(R.drawable.ic_yapt_leaf)?.let {
+        context.getDrawable(R.drawable.ic_yapt_logo)?.let {
             it.setBounds(
                 logoLeft.toInt(),
                 logoTop.toInt(),
