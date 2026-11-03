@@ -16,12 +16,15 @@ the baseline's remaining wildcards narrowed `git branch*` to its read-only listi
 entries for branch mutation, `git stash drop`/`clear`, `find`'s action primaries, `git push
 --force-with-lease` and `git switch` against `main`/`develop`, and known secret-file paths for
 `cat`/`grep` — none of the latter is a security boundary, only a guard against accidental disclosure
-via the commands people actually reach for (technical ADR-0025).
+via the commands people actually reach for (technical ADR-0025). Technical ADR-0042 adds exactly three
+pinned `gh` writes (issue/PR comment, PR create against `develop`) for sessions without the GitHub MCP
+server, with deny entries for the flags that fail the flag test; `gh pr review` stays prompted.
 
 | Action | Permission |
 |---|---|
 | Read files · read-only git (branch listing narrowed to its named forms, #683) · `add`/`commit`/`stash` (excl. `drop`/`clear`)/`cherry-pick` · checkout/push `claude/*` · `./gradlew *` | Allowed, no prompt |
-| `mcp__github__*` **writes** (issue/PR/review/comment/create_pr) | **Orchestrator only** — subagents return text, orchestrator posts |
+| GitHub **writes** — `mcp__github__*`, or the allowlisted `gh issue comment` / `gh pr comment` / `gh pr create --base develop` (technical ADR-0042) | **Orchestrator only** — subagents return text, orchestrator posts. Path selection and command mapping: `rules/github-access.md` |
+| `gh pr review` (any form) · `gh pr create` without a leading `--base develop` · any other `gh` write | Prompts |
 | `git checkout develop` · `git push origin develop` · `git push --force origin claude/*` | Prompts — approve when appropriate |
-| `git checkout main` · `git push origin main` · force-push (`--force`/`-f`/`--force-with-lease`) main/develop · `git switch main` · `git branch -d`/`-D`/`-m`/`-M`/`--delete`/`--move` · `git stash drop`/`clear` · `find`'s action primaries (`-exec`/`-delete`/etc.) · `git reset --hard` · `cat`/`grep` of known secret paths (`~/.ssh`, `~/.aws`, `gh` token file, `.env`, etc., non-exhaustive) | **Forbidden** — blocked mechanically |
+| `git checkout main` · `git push origin main` · force-push (`--force`/`-f`/`--force-with-lease`) main/develop · `git switch main` · `git branch -d`/`-D`/`-m`/`-M`/`--delete`/`--move` · `git stash drop`/`clear` · `find`'s action primaries (`-exec`/`-delete`/etc.) · `git reset --hard` · `gh issue comment`/`gh pr comment --delete-last` · `gh pr create` against `main` · `cat`/`grep` of known secret paths (`~/.ssh`, `~/.aws`, `gh` token file, `.env`, etc., non-exhaustive) | **Forbidden** — blocked mechanically |
 | Merging PRs by any means | **Forbidden** — human only |

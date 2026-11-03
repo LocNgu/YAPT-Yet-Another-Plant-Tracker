@@ -29,4 +29,4 @@ restarted or compacted, a fresh dispatch is unavoidable and that's fine. This is
 unchanged; a resumed implementer does not mean a resumed reviewer.
 
 ## Comment cadence
-one comment per phase, in order: spec→issue (`add_issue_comment`); the combined review+CI result→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR, only when QA actually ran; summary→PR.
+one comment per phase, in order: spec→issue (`add_issue_comment`); the combined review+CI result→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR, only when QA actually ran; summary→PR. Without the GitHub MCP tools, post the same comments through the `gh` fallback in `rules/github-access.md` (the review+CI result becomes a `gh pr comment`); if neither path works, tell the human — never skip a comment.

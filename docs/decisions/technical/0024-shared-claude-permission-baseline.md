@@ -1,6 +1,6 @@
 # Technical ADR-0024: Shared Claude permissions use project settings
 
-**Status**: accepted
+**Status**: accepted — read-only-`gh` allowlist clause amended by [ADR-0042](0042-github-access-mcp-default-gh-fallback.md) (three pinned `gh` comment/PR-create writes)
 
 **Date**: 2026-09-05
 

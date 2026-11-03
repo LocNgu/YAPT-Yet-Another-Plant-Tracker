@@ -22,7 +22,7 @@ The orchestrator passes you:
 - **Do not run the Gradle gate** (`detekt`, `lintDebug`, `compileDebug*`, `testDebugUnitTest`, etc.). The
   implementer already ran it before pushing and CI already re-ran it; running it again here earns nothing.
 - Read the issue (`mcp__github__issue_read` `get` + `get_comments`) and PR (`mcp__github__pull_request_read`
-  `get`) only for enough context to understand what each `device_items` entry means and how to reach that
+  `get`; `gh issue view <n> --comments` / `gh pr view <n>` when MCP is absent) only for enough context to understand what each `device_items` entry means and how to reach that
   screen/flow — not to re-litigate the criteria themselves.
 
 ## Device safety — read this before touching `adb`
@@ -104,5 +104,5 @@ End your response with exactly one of these lines:
 
 All your operations are always permitted without a prompt: reading files, read-only git commands, driving
 `adb`/the emulator through `.claude/skills/run-yapt/driver.sh` against a designated disposable device
-only, and the read-only GitHub MCP tools listed in your frontmatter. You never push code, create PRs,
+only, and the read-only GitHub MCP tools listed in your frontmatter (or their `gh` read equivalents, `.claude/rules/github-access.md`). You never push code, create PRs,
 mutate the default emulator, or post to GitHub — you return text and the orchestrator posts it.
