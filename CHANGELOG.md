@@ -12,6 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Deleting a cover photo no longer leaves a dangling cover or skips Photo-tab photos** (#323, product ADR-0078) —
+  deleting the cover now moves it to the newest remaining `plant_photos` or `PHOTO`-log photo (other logs' photos are
+  never promoted), or clears it when none remain. Previously a deleted PHOTO-log cover kept pointing at the removed
+  photo, and a Photo-tab-only plant cleared its cover even when other photos remained. Deleting a whole PHOTO care-log
+  entry follows the same rule.
+
 ### Changed
 - **New app icon: "Dew Y"** (#984) — a white water drop holding a small Y of two leaves on a SageGreen background,
   replacing the old leaf. Themed icons (Android 13+) now get a dedicated monochrome layer (the drop with the Y cut
