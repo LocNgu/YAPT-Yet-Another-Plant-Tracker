@@ -55,7 +55,7 @@ class PostWateringReminderWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_plant_placeholder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(content.titleRes))
             .setContentText(context.getString(content.bodyRes))
             .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(content.bodyRes)))

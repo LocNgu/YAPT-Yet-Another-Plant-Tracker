@@ -15,7 +15,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
-            "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them"
+            "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them",
+            "A new app icon: a water drop with a leafy Y, now also used for themed icons and reminders"
         )
     )
 
