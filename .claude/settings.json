@@ -165,7 +165,12 @@
       "Bash(cat */.env)",
       "Bash(cat */.env.*)",
       "Bash(grep * ~/.config/gh/hosts.yml*)",
-      "Bash(grep * */.config/gh/hosts.yml*)"
+      "Bash(grep * */.config/gh/hosts.yml*)",
+      "Bash(gh issue comment* --delete-last*)",
+      "Bash(gh pr comment* --delete-last*)",
+      "Bash(gh pr create* --base main*)",
+      "Bash(gh pr create* --base=main*)",
+      "Bash(gh pr create* -B main*)"
     ],
     "additionalDirectories": []
   }
