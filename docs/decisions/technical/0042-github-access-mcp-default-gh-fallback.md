@@ -67,8 +67,10 @@ PR, never a merge, close or edit of someone else's content, so this is accepted 
 flag order is free, so a literal pattern cannot pin it. Likewise, the secret-path and `--base main`
 deny entries match the common spellings only — a path reached through a symlink, variable or other
 shell indirection, or an unusual quoting of `main`, slips past them. Because the patterns match the
-whole command line, they also deny an inline `-b "…"` body that merely contains one of those strings;
-`--body-file` avoids that. As in technical ADR-0025, these deny entries guard against careless use;
+whole command line, they also deny an inline `-b "…"` body that merely contains one of those strings —
+`--body-file` avoids that — and the `.env` patterns likewise deny an otherwise-allowed `gh search` term
+or a PR title that contains `.env` (e.g. `process.env.FOO`); rephrase the term or title rather than
+loosening the patterns. As in technical ADR-0025, these deny entries guard against careless use;
 they are not a security boundary.
 
 **Orchestrator-only writes stay a written rule.** `settings.json` is shared by every agent, so a

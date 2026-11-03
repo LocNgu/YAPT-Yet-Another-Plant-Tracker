@@ -44,7 +44,8 @@ though the shared `settings.json` would let any agent with `Bash` run the allowl
 - **Denied:** `--delete-last` on `gh issue comment`/`gh pr comment`; `gh pr create` with `--base main`
   in any common spelling (`--base=main`, `-B main`, quoted, `-Bmain`); any `gh` command line naming a
   known secret path (`gh` token file, `~/.ssh`, `~/.aws`, `.netrc`, `.git-credentials`, `.env`), so
-  `--body-file` can't post one. **Prompted:** `gh pr review` (any form), `gh pr create` without a leading
+  `--body-file` can't post one — this also denies a `gh search` term or PR title containing `.env`
+  (e.g. `process.env.FOO`); rephrase it. **Prompted:** `gh pr review` (any form), `gh pr create` without a leading
   `--base develop`, and every other `gh` write (merge, close, edit, label). Rationale per flag:
   technical ADR-0042.
 - Every comment ends with the attribution footer the session's instructions require.
