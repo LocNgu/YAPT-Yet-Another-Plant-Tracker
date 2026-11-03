@@ -74,6 +74,7 @@ import com.yapt.planttracker.ui.screens.watering.WateringOverviewViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 // Rapid double-taps on a back button can fire two clicks in the same frame,
 // causing popBackStack() to run twice before Navigation processes the first
@@ -562,7 +563,17 @@ fun YaptNavGraph(
                 BeforeYouLeaveScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })
             }
 
-            composable(Screen.PlanSitterVisit.route) { backStackEntry ->
+            composable(
+                route = Screen.PlanSitterVisit.route,
+                arguments = listOf(
+                    navArgument(Screen.PlanSitterVisit.DAY_ARG) {
+                        type = NavType.LongType
+                        defaultValue = Screen.PlanSitterVisit.NO_DAY
+                    }
+                )
+            ) { backStackEntry ->
+                val epochDay = backStackEntry.arguments?.getLong(Screen.PlanSitterVisit.DAY_ARG)
+                    ?: Screen.PlanSitterVisit.NO_DAY
                 val vm: PlanVisitViewModel = viewModel(
                     factory = PlanVisitViewModel.Factory(
                         app,
@@ -570,7 +581,9 @@ fun YaptNavGraph(
                         app.plantRepository,
                         app.careLogRepository,
                         app.quickLogUseCase,
-                        app.settingsDataStore
+                        app.settingsDataStore,
+                        initialDay = epochDay.takeIf { it != Screen.PlanSitterVisit.NO_DAY }
+                            ?.let { LocalDate.ofEpochDay(it) }
                     )
                 )
                 PlanVisitScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })

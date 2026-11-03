@@ -1032,6 +1032,11 @@
     </plurals>
     <string name="sitter_visit_confirm_description">Confirm the visit on %1$s</string>
     <string name="sitter_visit_confirm_action">Confirm</string>
+    <string name="sitter_visit_edit_description">Edit visit on %1$s</string>
+    <string name="sitter_visit_more_options">More options for visit on %1$s</string>
+    <string name="sitter_visit_menu_edit">Edit</string>
+    <string name="sitter_visit_delete_title">Delete this visit?</string>
+    <string name="sitter_visit_delete_message">The visit and its plant list are removed. Those plants may come up again on the next visit.</string>
 
     <string name="sitter_share_chooser_title">Share plant list</string>
     <string name="sitter_share_failed">Couldn\'t create the PDF. Try Share as text instead.</string>

@@ -19,6 +19,7 @@ import com.yapt.planttracker.domain.away.visitsToConfirmAfterTrip
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.AwayPeriodWithVisits
 import com.yapt.planttracker.domain.model.SitterVisit
+import com.yapt.planttracker.domain.model.SitterVisitState
 import com.yapt.planttracker.util.dayChangeTicker
 import com.yapt.planttracker.worker.ReminderScheduler
 import kotlinx.coroutines.Job
@@ -62,7 +63,8 @@ sealed interface AwayModeEvent {
 internal data class AwayModeActions(
     val onSave: (firstDay: LocalDate, lastDay: LocalDate, editingId: Long?) -> Unit,
     val onCancelTrip: () -> Unit,
-    val onImBack: () -> Unit
+    val onImBack: () -> Unit,
+    val onDeleteVisit: (visitId: Long) -> Unit = {}
 )
 
 /**
@@ -126,6 +128,12 @@ class AwayModeViewModel(
             repository.updatePeriodAndDeleteVisits(shortened, stranded.map { it.id })
             reportRemovedVisits(stranded.size)
         }
+    }
+
+    /** Removes a still-planned visit and its plants; a visit that was confirmed or deleted meanwhile is left alone. */
+    fun deleteVisit(visitId: Long): Job = mutate { _, trips ->
+        val visit = trips.flatMap { it.visits }.firstOrNull { it.id == visitId }
+        if (visit?.state == SitterVisitState.PLANNED) repository.deleteVisits(listOf(visitId))
     }
 
     private fun currentId(trips: List<AwayPeriodWithVisits>, today: LocalDate): Long? =
