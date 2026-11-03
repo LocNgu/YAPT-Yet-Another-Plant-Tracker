@@ -570,29 +570,43 @@ class PlantDetailViewModel(
     fun deletePhoto(photo: GalleryPhoto) {
         viewModelScope.launch {
             when (val src = photo.source) {
-                is GalleryPhotoSource.FromPlant -> {
-                    plantPhotoRepository.deletePhoto(src.photo)
-                    // Whether the deleted photo is the cover is decided from a fresh read inside the lock
-                    // (#808): a cover just set by another photo action may not have reached the cached
-                    // plant yet. The clear is a column write, so it can't revert any other column.
-                    plantEditMutex.withLock {
-                        val currentPlant = plantRepository.getPlantById(plantId).first() ?: return@withLock
-                        if (photo.uri == currentPlant.coverPhotoUri) {
-                            val nextCover = plantPhotoRepository.getPhotosForPlantOnce(plantId).firstOrNull()
-                            plantRepository.updateCoverPhotoUri(plantId, nextCover?.uri, System.currentTimeMillis())
-                        }
-                    }
-                }
+                is GalleryPhotoSource.FromPlant -> plantPhotoRepository.deletePhoto(src.photo)
                 is GalleryPhotoSource.FromCareLog -> {
                     val log = careLogRepository.getLogById(src.logId) ?: return@launch
                     careLogRepository.updateLog(log.copy(photoUri = null))
                 }
             }
+            moveCoverIfDeleted(photo.uri)
+        }
+    }
+
+    /**
+     * If [deletedUri] is the plant's cover, moves the cover to the newest remaining cover-eligible photo —
+     * `plant_photos` plus `CareType.PHOTO` log photos, never other logs' photos — or clears it (#323, product
+     * ADR-0078). Decided from a fresh read inside the lock (#808): a cover just set by another photo action may
+     * not have reached the cached plant yet. The write is a column write, so it can't revert any other column.
+     */
+    private suspend fun moveCoverIfDeleted(deletedUri: String) {
+        plantEditMutex.withLock {
+            val currentPlant = plantRepository.getPlantById(plantId).first() ?: return@withLock
+            if (deletedUri != currentPlant.coverPhotoUri) return@withLock
+            val fromPlantPhotos = plantPhotoRepository.getPhotosForPlantOnce(plantId)
+                .map { it.uri to it.capturedAt }
+            val fromPhotoLogs = careLogRepository.getPhotoLogsForPlant(plantId).first()
+                .filter { it.careType == CareType.PHOTO }
+                .mapNotNull { log -> log.photoUri?.let { it to log.loggedAt } }
+            val nextCover = (fromPlantPhotos + fromPhotoLogs)
+                .filter { it.first != deletedUri }
+                .maxByOrNull { it.second }?.first
+            plantRepository.updateCoverPhotoUri(plantId, nextCover, System.currentTimeMillis())
         }
     }
 
     fun deleteLog(log: CareLog) {
-        viewModelScope.launch { careLogRepository.deleteLog(log) }
+        viewModelScope.launch {
+            careLogRepository.deleteLog(log)
+            log.photoUri?.let { moveCoverIfDeleted(it) }
+        }
     }
 
     companion object {

@@ -617,6 +617,117 @@ class PlantDetailViewModelTest {
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
+    private fun coverDeleteSetup(
+        cover: String?,
+        plantPhotos: List<PlantPhoto> = emptyList(),
+        logs: List<CareLog> = emptyList()
+    ) {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant().copy(coverPhotoUri = cover))
+        every { plantPhotoRepo.getPhotosForPlant(1L) } returns flowOf(plantPhotos)
+        coEvery { plantPhotoRepo.deletePhoto(any()) } just runs
+        coEvery { plantPhotoRepo.getPhotosForPlantOnce(1L) } returns plantPhotos
+        every { careLogRepo.getPhotoLogsForPlant(1L) } returns flowOf(logs)
+        coEvery { careLogRepo.getLogById(any()) } answers { logs.firstOrNull { it.id == firstArg<Long>() } }
+        coEvery { careLogRepo.updateLog(any()) } just runs
+        coEvery { careLogRepo.deleteLog(any()) } just runs
+        coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } just runs
+    }
+
+    private fun photoLog(id: Long, uri: String, at: Long, type: CareType = CareType.PHOTO) =
+        CareLog(id = id, plantId = 1L, careType = type, loggedAt = at, photoUri = uri)
+
+    private fun logPhoto(log: CareLog) = GalleryPhoto(
+        uri = log.photoUri!!,
+        timestamp = log.loggedAt,
+        source = GalleryPhotoSource.FromCareLog(log.id)
+    )
+
+    @Test
+    fun `deleting cover plant photo falls back to a newer PHOTO-log photo over an older plant photo`() = runTest {
+        val deleted = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///cover.jpg", capturedAt = 3000L)
+        val older = PlantPhoto(id = 2L, plantId = 1L, uri = "file:///old.jpg", capturedAt = 100L)
+        val newer = photoLog(7L, "file:///log.jpg", 2000L)
+        coverDeleteSetup("file:///cover.jpg", listOf(deleted, older), listOf(newer))
+        val vm = makeVm()
+
+        vm.deletePhoto(GalleryPhoto(deleted.uri, deleted.capturedAt, GalleryPhotoSource.FromPlant(deleted)))
+
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///log.jpg", any()) }
+    }
+
+    @Test
+    fun `deleting a PHOTO-log cover falls back to the newest remaining PHOTO-log photo`() = runTest {
+        val cover = photoLog(5L, "file:///cover.jpg", 3000L)
+        val other = photoLog(6L, "file:///other.jpg", 1000L)
+        coverDeleteSetup("file:///cover.jpg", logs = listOf(cover, other))
+        val vm = makeVm()
+
+        vm.deletePhoto(logPhoto(cover))
+
+        coVerify { careLogRepo.updateLog(match { it.id == 5L && it.photoUri == null }) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///other.jpg", any()) }
+    }
+
+    @Test
+    fun `deleting the cover never promotes a non-PHOTO log photo`() = runTest {
+        val cover = photoLog(5L, "file:///cover.jpg", 3000L)
+        val water = photoLog(6L, "file:///water.jpg", 2000L, CareType.WATER)
+        coverDeleteSetup("file:///cover.jpg", logs = listOf(cover, water))
+        val vm = makeVm()
+
+        vm.deletePhoto(logPhoto(cover))
+
+        coVerify { plantRepo.updateCoverPhotoUri(1L, null, any()) }
+    }
+
+    @Test
+    fun `deleting the last eligible photo clears the cover`() = runTest {
+        val cover = photoLog(5L, "file:///cover.jpg", 3000L)
+        coverDeleteSetup("file:///cover.jpg", logs = listOf(cover))
+        val vm = makeVm()
+
+        vm.deletePhoto(logPhoto(cover))
+
+        coVerify { plantRepo.updateCoverPhotoUri(1L, null, any()) }
+    }
+
+    @Test
+    fun `deleting a non-cover photo leaves the cover unchanged`() = runTest {
+        val cover = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///cover.jpg", capturedAt = 3000L)
+        val other = photoLog(6L, "file:///other.jpg", 1000L)
+        coverDeleteSetup("file:///cover.jpg", listOf(cover), listOf(other))
+        val vm = makeVm()
+
+        vm.deletePhoto(logPhoto(other))
+
+        coVerify(exactly = 0) { plantRepo.updateCoverPhotoUri(any(), any(), any()) }
+    }
+
+    @Test
+    fun `deleting a legacy non-PHOTO log photo that is the cover falls back`() = runTest {
+        val water = photoLog(6L, "file:///water.jpg", 2000L, CareType.WATER)
+        val plantPhoto = PlantPhoto(id = 2L, plantId = 1L, uri = "file:///p.jpg", capturedAt = 100L)
+        coverDeleteSetup("file:///water.jpg", listOf(plantPhoto), listOf(water))
+        val vm = makeVm()
+
+        vm.deletePhoto(logPhoto(water))
+
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///p.jpg", any()) }
+    }
+
+    @Test
+    fun `deleting a PHOTO care-log entry that is the cover falls back`() = runTest {
+        val cover = photoLog(5L, "file:///cover.jpg", 3000L)
+        val other = photoLog(6L, "file:///other.jpg", 1000L)
+        coverDeleteSetup("file:///cover.jpg", logs = listOf(cover, other))
+        val vm = makeVm()
+
+        vm.deleteLog(cover)
+
+        coVerify { careLogRepo.deleteLog(cover) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///other.jpg", any()) }
+    }
+
     // saveReminderPhoto/savePhotoLog coverage lives in PlantDetailViewModelQuickActionsTest
     // (#694), to keep this file under Detekt's LargeClass threshold.
 
