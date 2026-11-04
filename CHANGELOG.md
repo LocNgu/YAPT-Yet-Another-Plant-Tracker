@@ -37,6 +37,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   never promoted), or clears it when none remain. Previously a deleted PHOTO-log cover kept pointing at the removed
   photo, and a Photo-tab-only plant cleared its cover even when other photos remained. Deleting a whole PHOTO care-log
   entry follows the same rule.
+- **In Plants selection mode, tapping a card's right edge now selects it** (#990) — the hidden quick-log buttons were
+  still composed as disabled `IconButton`s, and a disabled `clickable` still consumes the pointer down/up, so taps and
+  long-presses over that strip (about 48 dp wide, two per card) reached neither the button nor the card's selection
+  toggle. While selecting, `PlantCard` now shows `QuickLogButtonsPlaceholder` (same-size spacers, no pointer input or
+  semantics) instead, so the card keeps its height and the whole card toggles. `QuickLogButtons` loses its unused
+  `enabled` parameter. New instrumented tests tap the strip for real (`PlantCardSelectionModeTest`,
+  `PlantListScreenTest`), since the #450 test only checked semantics.
 
 ### Changed
 - **New app icon: "Dew Y"** (#984) — a white water drop holding a small Y of two leaves on a SageGreen background,

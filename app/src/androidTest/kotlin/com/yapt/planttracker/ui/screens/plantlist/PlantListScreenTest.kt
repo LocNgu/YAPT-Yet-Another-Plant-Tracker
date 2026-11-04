@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -349,14 +350,48 @@ class PlantListScreenTest {
         composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
 
-        // While selecting, the quick-log buttons stay composed (so the card keeps its height) but
-        // are disabled and dropped from the semantics tree (alpha 0 + clearAndSetSemantics), so
-        // they expose no announced/actionable target. A tap over that region therefore can't
-        // trigger a quick-log — it can only fall through to the card's selection toggle. We assert
-        // the user-visible contract (the affordance is inert) rather than pixel-level tap geometry,
-        // per the Compose-testing convention in CLAUDE.md.
+        // While selecting, same-size placeholders replace the quick-log buttons (so the card keeps
+        // its height), so they expose no announced/actionable target. That a tap over the region
+        // reaches the card's selection toggle is asserted separately, with real taps, in
+        // selectionMode_tapOnHiddenQuickLogStrip_togglesSelection (#990).
         composeTestRule.onNodeWithContentDescription("Quick water").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Quick fertilize").assertDoesNotExist()
+    }
+
+    @Test
+    fun selectionMode_tapOnHiddenQuickLogStrip_togglesSelection() {
+        // #990: the strip used to be a dead zone (the disabled buttons consumed the tap). Two plants,
+        // so un-selecting Fern never empties the selection and exits selection mode.
+        val monstera = Plant(id = 1L, name = "Monstera", createdAt = 0L, updatedAt = 0L)
+        val fern = Plant(id = 2L, name = "Fern", createdAt = 0L, updatedAt = 0L)
+        val viewModel = makeViewModel(plants = listOf(monstera, fern))
+
+        composeTestRule.setContent {
+            PlantListScreen(
+                viewModel = viewModel,
+                onNavigateToPlant = {},
+                onNavigateToAdd = {}
+            )
+        }
+
+        // Read Fern's button positions in normal mode, as offsets inside Fern's card.
+        val fernCard = composeTestRule.onNodeWithText("Fern")
+        val fernBounds = fernCard.fetchSemanticsNode().boundsInRoot
+        fun fernButtonOffset(contentDescription: String) = composeTestRule
+            .onAllNodesWithContentDescription(contentDescription)
+            .fetchSemanticsNodes()
+            .map { it.boundsInRoot.center }
+            .single { fernBounds.contains(it) } - fernBounds.topLeft
+        val water = fernButtonOffset("Quick water")
+        val fertilize = fernButtonOffset("Quick fertilize")
+
+        composeTestRule.onNodeWithText("Monstera").performTouchInput { longClick() }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        fernCard.performTouchInput { click(water) }
+        composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
+        fernCard.performTouchInput { click(fertilize) }
+        composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
     }
 
     @Test

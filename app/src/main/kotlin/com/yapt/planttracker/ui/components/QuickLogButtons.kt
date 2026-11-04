@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -16,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yapt.planttracker.R
@@ -36,8 +38,7 @@ fun QuickLogButtons(
     status: PlantCareStatus,
     onQuickWater: () -> Unit,
     onQuickFertilize: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
@@ -46,8 +47,7 @@ fun QuickLogButtons(
     ) {
         IconButton(
             onClick = onQuickWater,
-            enabled = enabled,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(WATER_BUTTON_SIZE)
         ) {
             Icon(
                 Icons.Filled.WaterDrop,
@@ -58,8 +58,7 @@ fun QuickLogButtons(
         }
         IconButton(
             onClick = onQuickFertilize,
-            enabled = enabled,
-            modifier = Modifier.size(if (status.plant.useLiquidFertilizer) 44.dp else 36.dp)
+            modifier = Modifier.size(fertilizeButtonSize(status))
         ) {
             if (status.plant.useLiquidFertilizer) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,3 +92,30 @@ fun QuickLogButtons(
         }
     }
 }
+
+/**
+ * Takes the exact space of [QuickLogButtons] for the same [status] but draws nothing, has no pointer
+ * input and no semantics. [PlantCard] shows it in selection mode so the card keeps its height while
+ * taps over that strip reach the card's selection toggle (#990). Hiding the real buttons instead
+ * (`alpha(0f)` + `enabled = false`) leaves a dead zone: a disabled `clickable` still consumes the
+ * pointer down/up, so the card's `combinedClickable` never sees the gesture.
+ */
+@Composable
+fun QuickLogButtonsPlaceholder(
+    status: PlantCareStatus,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.size(WATER_BUTTON_SIZE))
+        Spacer(Modifier.size(fertilizeButtonSize(status)))
+    }
+}
+
+private val WATER_BUTTON_SIZE = 36.dp
+
+private fun fertilizeButtonSize(status: PlantCareStatus): Dp =
+    if (status.plant.useLiquidFertilizer) 44.dp else 36.dp

@@ -19,12 +19,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -75,29 +73,20 @@ fun PlantCard(
             }
         },
         trailing = {
-            // Always compose the quick-log buttons so the card keeps the same height in
-            // selection mode; while selecting they're hidden (alpha 0) and disabled, so taps
-            // over that area fall through to the card's selection toggle instead of quick-logging.
-            QuickLogButtons(
-                status = status,
-                onQuickWater = onQuickWater,
-                onQuickFertilize = onQuickFertilize,
-                enabled = !selectionMode,
-                modifier = Modifier
-                    .padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
-                    // While selecting, hide them and drop them from the a11y tree so TalkBack
-                    // doesn't stop on two dimmed buttons per card — the card's own `selected`
-                    // Button semantics are the only thing that should be announced.
-                    .then(
-                        if (selectionMode) {
-                            Modifier
-                                .alpha(0f)
-                                .clearAndSetSemantics {}
-                        } else {
-                            Modifier
-                        }
-                    )
-            )
+            val quickLogModifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
+            // While selecting, a same-size placeholder keeps the card's height but has no buttons:
+            // taps over that strip reach the card's selection toggle, and TalkBack announces only
+            // the card's own `selected` state, not two hidden buttons (#990).
+            if (selectionMode) {
+                QuickLogButtonsPlaceholder(status = status, modifier = quickLogModifier)
+            } else {
+                QuickLogButtons(
+                    status = status,
+                    onQuickWater = onQuickWater,
+                    onQuickFertilize = onQuickFertilize,
+                    modifier = quickLogModifier
+                )
+            }
         }
     )
 }
