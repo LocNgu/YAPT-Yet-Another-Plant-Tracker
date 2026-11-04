@@ -882,26 +882,32 @@ fun PlantDetailScreen(
                                             increaseCdRes = R.string.watering_interval_increase_cd
                                         ),
                                         belowHeader = {
-                                            val onWhyThisDate: (() -> Unit)? =
-                                                if (careStatus?.computedNextWateringDueAt != null) {
+                                            WateringSeasonalAdjustmentLine(
+                                                status = careStatus,
+                                                live = liveWateringInterval,
+                                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
                                                     { showWateringExplanationSheet = true }
                                                 } else {
                                                     null
                                                 }
-                                            WateringSeasonalAdjustmentLine(
-                                                status = careStatus,
-                                                live = liveWateringInterval,
-                                                onWhyThisDate = onWhyThisDate
-                                            )
-                                            WateringConfidenceRow(
-                                                score = plant?.wateringConfidence,
-                                                onWhyThisDate = onWhyThisDate
                                             )
                                         },
                                         onIntervalChange = { days, viaButtonTap ->
                                             viewModel.setWateringInterval(days, viaButtonTap)
                                         }
                                     ) {
+                                        // Directly under the slider (#510); `extra` also renders with the
+                                        // schedule off, so gate it like the pin row below.
+                                        if (plant?.wateringIntervalDays != null) {
+                                            WateringConfidenceRow(
+                                                score = plant?.wateringConfidence,
+                                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                                    { showWateringExplanationSheet = true }
+                                                } else {
+                                                    null
+                                                }
+                                            )
+                                        }
                                         if (plant?.wateringIntervalDays != null) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),

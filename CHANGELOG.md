@@ -14,7 +14,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ### Added
 - **How sure the app is about a watering schedule, on the Water tab** (#510) — the watering-interval card now has a
-  row under the header with a five-bar meter, the level (**Still learning**, **Getting there** or **Dialed in**, the
+  row under the slider with a five-bar meter, the level (**Still learning**, **Getting there** or **Dialed in**, the
   same labels as the "Why this date?" sheet) and "Each watering you log fine-tunes this date". Tapping it (**Why?**)
   opens "Why this date?". It is hidden for a plant the app has never adapted. Plant cards are unchanged.
 - **Edit or delete a planned sitter visit** (#993, product ADR-0079) — in Settings, a planned visit from today on is
