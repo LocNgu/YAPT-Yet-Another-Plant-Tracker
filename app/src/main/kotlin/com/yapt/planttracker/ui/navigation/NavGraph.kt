@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -74,6 +75,7 @@ import com.yapt.planttracker.ui.screens.watering.WateringOverviewViewModel
 import com.yapt.planttracker.ui.screens.whatsnew.WhatsNewSheet
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 // Rapid double-taps on a back button can fire two clicks in the same frame,
 // causing popBackStack() to run twice before Navigation processes the first
@@ -562,7 +564,17 @@ fun YaptNavGraph(
                 BeforeYouLeaveScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })
             }
 
-            composable(Screen.PlanSitterVisit.route) { backStackEntry ->
+            composable(
+                route = Screen.PlanSitterVisit.route,
+                arguments = listOf(
+                    navArgument(Screen.PlanSitterVisit.DAY_ARG) {
+                        type = NavType.LongType
+                        defaultValue = Screen.PlanSitterVisit.NO_DAY
+                    }
+                )
+            ) { backStackEntry ->
+                val epochDay = backStackEntry.arguments?.getLong(Screen.PlanSitterVisit.DAY_ARG)
+                    ?: Screen.PlanSitterVisit.NO_DAY
                 val vm: PlanVisitViewModel = viewModel(
                     factory = PlanVisitViewModel.Factory(
                         app,
@@ -573,6 +585,15 @@ fun YaptNavGraph(
                         app.settingsDataStore
                     )
                 )
+                // Saveable, so a rotation never re-applies the day over the owner's own pick. An unselectable day
+                // (past, beyond the trip) is ignored by the ViewModel, which falls back to the default day.
+                var dayApplied by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(vm) {
+                    if (!dayApplied) {
+                        dayApplied = true
+                        if (epochDay != Screen.PlanSitterVisit.NO_DAY) vm.pickDay(LocalDate.ofEpochDay(epochDay))
+                    }
+                }
                 PlanVisitScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })
             }
 

@@ -13,6 +13,11 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Edit or delete a planned sitter visit** (#993, product ADR-0079) — in Settings, a planned visit from today on is
+  tappable to reopen Plan a sitter visit on that day with its saved list, and has a menu with **Edit** and
+  **Delete**. Delete asks first, removes the visit and its plants, and writes no care log; those plants may come up
+  again on the next visit. Past, confirmed and didn't-happen visits are unchanged. Moving a visit isn't offered:
+  delete it and plan the new day.
 - **Choose exactly which plants go on the sitter's list** (#979 parts 2 and 3, #981, #982, product ADR-0077) — Plan a
   sitter visit now shows the Plants tab's cards (always in selection mode, no long-press, quick-log buttons,
   fertilizer line, issue badge or due-status colours) in three collapsible sections built from the suggested list:

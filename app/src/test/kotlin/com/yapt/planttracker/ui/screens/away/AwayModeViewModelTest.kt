@@ -240,6 +240,49 @@ class AwayModeViewModelTest {
     }
 
     @Test
+    fun `deleting a planned visit removes it with its plants and writes no care log or plant row`() = runTest {
+        val trip = addTrip(today.minusDays(1), today.plusDays(8))
+        val visitId = addVisitWithPlant(trip.id, today.plusDays(2))
+        val keepId = addVisit(trip.id, today.plusDays(5))
+        val plantsBefore = db.plantDao().getAllPlants().first()
+        val vm = viewModel()
+
+        vm.deleteVisit(visitId).join()
+
+        assertEquals(listOf(keepId), repository.getAllWithVisits().single().visits.map { it.id })
+        assertEquals(plantsBefore, db.plantDao().getAllPlants().first())
+        assertTrue(db.careLogDao().getAllLogs().first().isEmpty())
+    }
+
+    @Test
+    fun `deleting a visit that was confirmed meanwhile or no longer exists does nothing`() = runTest {
+        val trip = addTrip(today.minusDays(1), today.plusDays(8))
+        val confirmedId = repository.addVisit(
+            SitterVisit(
+                awayPeriodId = trip.id,
+                day = today.plusDays(2),
+                state = SitterVisitState.CONFIRMED,
+                createdAt = 1L
+            )
+        )
+        val missedId = repository.addVisit(
+            SitterVisit(
+                awayPeriodId = trip.id,
+                day = today.plusDays(3),
+                state = SitterVisitState.DID_NOT_HAPPEN,
+                createdAt = 1L
+            )
+        )
+        val vm = viewModel()
+
+        vm.deleteVisit(confirmedId).join()
+        vm.deleteVisit(missedId).join()
+        vm.deleteVisit(9_999L).join()
+
+        assertEquals(2, repository.getAllWithVisits().single().visits.size)
+    }
+
+    @Test
     fun `cancelling an upcoming trip removes it without refreshing reminders`() = runTest {
         addTrip(today.plusDays(5), today.plusDays(10))
         val vm = viewModel()

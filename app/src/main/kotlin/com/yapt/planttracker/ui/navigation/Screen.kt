@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.navigation
 
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
+import java.time.LocalDate
 
 sealed class Screen(val route: String) {
     object PlantList : Screen("plant_list?restoreMessage={restoreMessage}") {
@@ -50,7 +51,13 @@ sealed class Screen(val route: String) {
 
     object BeforeYouLeave : Screen("before_you_leave")
 
-    object PlanSitterVisit : Screen("plan_sitter_visit")
+    object PlanSitterVisit : Screen("plan_sitter_visit?day={day}") {
+        const val DAY_ARG = "day"
+        const val NO_DAY = -1L
+
+        fun createRoute(day: LocalDate? = null) =
+            if (day != null) "plan_sitter_visit?day=${day.toEpochDay()}" else "plan_sitter_visit"
+    }
 
     object Today : Screen("today")
 

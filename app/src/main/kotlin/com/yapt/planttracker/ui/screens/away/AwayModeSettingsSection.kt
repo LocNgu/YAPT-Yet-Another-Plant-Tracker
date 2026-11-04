@@ -1,5 +1,6 @@
 package com.yapt.planttracker.ui.screens.away
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -11,16 +12,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FlightTakeoff
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,7 +76,8 @@ fun AwayModeSettingsSection(
                     }
                 },
                 onCancelTrip = { viewModel.cancelTrip() },
-                onImBack = { viewModel.imBack() }
+                onImBack = { viewModel.imBack() },
+                onDeleteVisit = { id -> viewModel.deleteVisit(id) }
             ),
             navigation = navigation,
             onConfirmVisit = { id -> confirmVisitViewModel?.open(id) }
@@ -105,7 +114,7 @@ internal fun AwayModeSettingsContent(
     AwayModeStatusRow(state)
     AwayModeTripButtons(state, actions, onEditDates = { showSheet = true }, onPlan = { showSheet = true })
     AwayModeSitterButtons(state, navigation)
-    AwayModeVisitList(state, onConfirmVisit)
+    AwayModeVisitList(state, navigation, actions.onDeleteVisit, onConfirmVisit)
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
     if (showSheet) {
@@ -238,21 +247,64 @@ private fun AwayModeSitterButtons(state: AwayModeUiState, navigation: AwayModeNa
     }
 }
 
-/** The current or most recent trip's sitter visits with their state; a planned one can be confirmed from here. */
+/**
+ * The current or most recent trip's sitter visits with their state; a planned one can be confirmed from here,
+ * and a planned one from today on can also be edited or deleted (product ADR-0079).
+ */
 @Composable
-private fun AwayModeVisitList(state: AwayModeUiState, onConfirmVisit: (visitId: Long) -> Unit) {
+private fun AwayModeVisitList(
+    state: AwayModeUiState,
+    navigation: AwayModeNavigation,
+    onDeleteVisit: (visitId: Long) -> Unit,
+    onConfirmVisit: (visitId: Long) -> Unit
+) {
     val visits = state.settingsVisits
     if (visits.isEmpty()) return
+    var pendingDeleteId by rememberSaveable { mutableLongStateOf(NO_VISIT) }
     Text(
         text = stringResource(R.string.sitter_visits_heading),
         style = MaterialTheme.typography.labelLarge,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
     )
-    visits.forEach { visit -> AwayModeVisitRow(visit, state.today, onConfirmVisit) }
+    visits.forEach { visit ->
+        AwayModeVisitRow(
+            visit = visit,
+            today = state.today,
+            onEdit = { navigation.onEditVisit(visit.day) },
+            onAskDelete = { pendingDeleteId = visit.id },
+            onConfirmVisit = onConfirmVisit
+        )
+    }
+    if (pendingDeleteId != NO_VISIT) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = NO_VISIT },
+            title = { Text(stringResource(R.string.sitter_visit_delete_title)) },
+            text = { Text(stringResource(R.string.sitter_visit_delete_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteVisit(pendingDeleteId)
+                        pendingDeleteId = NO_VISIT
+                    }
+                ) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteId = NO_VISIT }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
 }
 
+private const val NO_VISIT = -1L
+
 @Composable
-private fun AwayModeVisitRow(visit: SitterVisit, today: LocalDate, onConfirmVisit: (visitId: Long) -> Unit) {
+private fun AwayModeVisitRow(
+    visit: SitterVisit,
+    today: LocalDate,
+    onEdit: () -> Unit,
+    onAskDelete: () -> Unit,
+    onConfirmVisit: (visitId: Long) -> Unit
+) {
     val stateText = stringResource(
         when (visit.state) {
             SitterVisitState.PLANNED -> R.string.sitter_visit_state_planned
@@ -268,6 +320,8 @@ private fun AwayModeVisitRow(visit: SitterVisit, today: LocalDate, onConfirmVisi
         pluralStringResource(R.plurals.sitter_visit_plant_count, total, total)
     }
     val dayText = awayWeekdayDayText(visit.day, today)
+    val editable = visit.state == SitterVisitState.PLANNED && visit.day >= today
+    val editLabel = stringResource(R.string.sitter_visit_edit_description, dayText)
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -275,6 +329,7 @@ private fun AwayModeVisitRow(visit: SitterVisit, today: LocalDate, onConfirmVisi
         Column(
             modifier = Modifier
                 .weight(1f)
+                .then(if (editable) Modifier.clickable(onClickLabel = editLabel, onClick = onEdit) else Modifier)
                 .semantics(mergeDescendants = true) { stateDescription = stateText }
         ) {
             Text(dayText, style = MaterialTheme.typography.bodyLarge)
@@ -293,5 +348,33 @@ private fun AwayModeVisitRow(visit: SitterVisit, today: LocalDate, onConfirmVisi
                 Text(stringResource(R.string.sitter_visit_confirm_action))
             }
         }
+        if (editable) {
+            AwayModeVisitMenu(dayText, onEdit, onAskDelete)
+        }
+    }
+}
+
+@Composable
+private fun AwayModeVisitMenu(dayText: String, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val description = stringResource(R.string.sitter_visit_more_options, dayText)
+    IconButton(onClick = { expanded = true }) {
+        Icon(Icons.Filled.MoreVert, contentDescription = description)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.sitter_visit_menu_edit)) },
+            onClick = {
+                expanded = false
+                onEdit()
+            }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delete)) },
+            onClick = {
+                expanded = false
+                onDelete()
+            }
+        )
     }
 }

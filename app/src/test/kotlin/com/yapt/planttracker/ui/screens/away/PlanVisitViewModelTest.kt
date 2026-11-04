@@ -77,7 +77,7 @@ class PlanVisitViewModelTest {
         trip = fixture.addTrip(today.minusDays(6), today.plusDays(10), visitEveryDays)
     }
 
-    private fun TestScope.viewModel(): PlanVisitViewModel {
+    private fun TestScope.viewModel(initialDay: LocalDate? = null): PlanVisitViewModel {
         val vm = PlanVisitViewModel(
             PlanVisitDependencies(
                 fixture.awayRepo,
@@ -90,6 +90,7 @@ class PlanVisitViewModelTest {
             dayChange = flowOf(today),
             ioDispatcher = mainDispatcherRule.testDispatcher
         )
+        initialDay?.let(vm::pickDay)
         backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.uiState.collect {} }
         return vm
     }
@@ -131,6 +132,22 @@ class PlanVisitViewModelTest {
         assertEquals(today.plusDays(4), vm.plan().visitDay)
         assertTrue(vm.plan().todayAllowed)
         assertTrue(vm.plan().tomorrowAllowed)
+    }
+
+    @Test
+    fun `an initial day inside the trip opens the plan on that day`() = runTest {
+        startTrip()
+
+        assertEquals(today.plusDays(4), viewModel(today.plusDays(4)).plan().visitDay)
+    }
+
+    @Test
+    fun `an initial day in the past, beyond the trip or missing falls back to the default day`() = runTest {
+        startTrip()
+
+        assertEquals(today, viewModel(today.minusDays(2)).plan().visitDay)
+        assertEquals(today, viewModel(today.plusDays(11)).plan().visitDay)
+        assertEquals(today, viewModel(null).plan().visitDay)
     }
 
     @Test
@@ -264,6 +281,21 @@ class PlanVisitViewModelTest {
         val listed = vm.plan().projection.listed
         assertEquals(listOf("Basil"), listed.map { it.plant.name })
         assertTrue(listed.single().missedLastTime)
+    }
+
+    @Test
+    fun `a deleted planned visit no longer counts its plants as watered on the next projection`() = runTest {
+        startTrip()
+        val a = fixture.addPlant("Aloe", interval = 10, lastWatered = today.minusDays(8))
+        val planned = fixture.addVisit(trip, today.plusDays(1), SitterVisitState.PLANNED, a to null)
+        val vm = viewModel(today.plusDays(5))
+        assertTrue(vm.plan().projection.listed.isEmpty())
+        val logsBefore = fixture.careLogRepo.getAllLogs().first().size
+
+        fixture.awayRepo.deleteVisits(listOf(planned.id))
+
+        assertEquals(listOf("Aloe"), vm.plan().projection.listed.map { it.plant.name })
+        assertEquals(logsBefore, fixture.careLogRepo.getAllLogs().first().size)
     }
 
     @Test
