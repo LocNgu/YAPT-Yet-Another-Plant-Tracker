@@ -21,7 +21,8 @@ object WhatsNewContent {
             "The Water tab shows how well a watering schedule is tuned, from \"Still learning\" to \"Dialed in\""
         ),
         fixed = listOf(
-            "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one"
+            "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one",
+            "When selecting plants on the Plants tab, tapping a plant's right edge now selects it too"
         ),
         changed = listOf(
             "The sitter list now has the YAPT look and a short box of watering tips, and Share as text includes them",
