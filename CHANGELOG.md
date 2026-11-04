@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-04
+
 ### Added
 - **Set any gallery photo as the cover** (#511, product ADR-0080) — the full-screen photo viewer has a **Set as cover**
   star next to the trash icon (shown selected and disabled on the current cover). Choosing it closes the viewer and
@@ -38,7 +40,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   **Share as text** moved to a bottom bar so they are always reachable. Only ticked plants are shared and saved; a
   ticked resting plant goes on the visit pages and off the "don't water" pages. The selected room chip lives in
   the ViewModel in memory only.
-  
+
 ### Fixed
 - **Deleting a cover photo no longer leaves a dangling cover or skips Photo-tab photos** (#323, product ADR-0078) —
   deleting the cover now moves it to the newest remaining `plant_photos` or `PHOTO`-log photo (other logs' photos are
