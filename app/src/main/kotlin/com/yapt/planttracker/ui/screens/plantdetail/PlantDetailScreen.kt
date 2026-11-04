@@ -247,6 +247,7 @@ fun PlantDetailScreen(
     val undoLabel = stringResource(R.string.snackbar_undo)
     val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
     val familyLinkRefusedMessage = stringResource(R.string.family_link_refused)
+    val coverPhotoUpdatedMessage = stringResource(R.string.cover_photo_updated)
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -275,6 +276,8 @@ fun PlantDetailScreen(
                 is PlantDetailViewModel.Event.PropagateLogged -> showPropagateOffer = true
                 is PlantDetailViewModel.Event.FamilyLinkRefused ->
                     snackbarHostState.showSnackbarOnce(familyLinkRefusedMessage)
+                is PlantDetailViewModel.Event.CoverPhotoUpdated ->
+                    snackbarHostState.showSnackbarOnce(coverPhotoUpdatedMessage)
                 else -> {}
             }
         }
@@ -335,6 +338,11 @@ fun PlantDetailScreen(
         FullScreenPhotoViewer(
             photos = galleryPhotos,
             initialIndex = index,
+            coverUri = plant?.coverPhotoUri,
+            onSetCover = { uri ->
+                viewModel.setCoverPhoto(uri)
+                fullScreenPhotoIndex = null
+            },
             onDismiss = { fullScreenPhotoIndex = null },
             onDelete = { uri ->
                 photoToDelete = galleryPhotos.firstOrNull { it.uri == uri }
@@ -1251,6 +1259,7 @@ fun PlantDetailScreen(
                                 item {
                                     PhotoGallery(
                                         photoUris = galleryUris,
+                                        coverUri = plant?.coverPhotoUri,
                                         onPhotoClick = { uri ->
                                             fullScreenPhotoIndex =
                                                 galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }

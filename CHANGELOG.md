@@ -13,6 +13,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Set any gallery photo as the cover** (#511, product ADR-0080) — the full-screen photo viewer has a **Set as cover**
+  star next to the trash icon (shown selected and disabled on the current cover). Choosing it closes the viewer and
+  shows "Cover photo updated"; the current cover's thumbnail carries a star badge. A photo added afterwards still
+  becomes the cover. No schema change.
 - **Edit or delete a planned sitter visit** (#993, product ADR-0079) — in Settings, a planned visit from today on is
   tappable to reopen Plan a sitter visit on that day with its saved list, and has a menu with **Edit** and
   **Delete**. Delete asks first, removes the visit and its plants, and writes no care log; those plants may come up

@@ -242,6 +242,10 @@
     <string name="cd_plant_photo">Plant photo</string>
     <string name="cd_care_log_photo">Care log photo</string>
     <string name="cd_delete_photo">Delete photo</string>
+    <string name="cd_set_cover_photo">Set as cover photo</string>
+    <string name="cd_cover_photo_current">Current cover photo</string>
+    <string name="cd_cover_photo">Cover photo</string>
+    <string name="cover_photo_updated">Cover photo updated</string>
     <string name="fert_label_never_fertilized">Never fertilized</string>
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>

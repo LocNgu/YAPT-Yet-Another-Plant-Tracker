@@ -14,6 +14,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -29,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -45,6 +48,8 @@ fun FullScreenPhotoViewer(
     photos: List<GalleryPhoto>,
     initialIndex: Int = 0,
     onDismiss: () -> Unit,
+    coverUri: String? = null,
+    onSetCover: ((uri: String) -> Unit)? = null,
     onDelete: ((uri: String) -> Unit)? = null
 ) {
     if (photos.isEmpty()) return
@@ -134,6 +139,31 @@ fun FullScreenPhotoViewer(
                     .statusBarsPadding()
                     .padding(8.dp)
             ) {
+                if (onSetCover != null) {
+                    val currentUri = photos[pagerState.currentPage].uri
+                    val isCover = currentUri == coverUri
+                    val coverStateText = stringResource(
+                        if (isCover) R.string.cd_cover_photo_current else R.string.cd_set_cover_photo
+                    )
+                    IconButton(
+                        onClick = { onSetCover(currentUri) },
+                        enabled = !isCover,
+                        modifier = Modifier.semantics {
+                            contentDescription = coverStateText
+                            selected = isCover
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.60f),
+                            disabledContainerColor = Color.Black.copy(alpha = 0.60f)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isCover) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                            contentDescription = null,
+                            tint = if (isCover) Color.White.copy(alpha = 0.9f) else Color.White
+                        )
+                    }
+                }
                 if (onDelete != null) {
                     IconButton(
                         onClick = { onDelete(photos[pagerState.currentPage].uri) },
