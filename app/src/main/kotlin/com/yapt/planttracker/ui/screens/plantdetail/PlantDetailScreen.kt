@@ -99,6 +99,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
+import com.yapt.planttracker.ui.components.CoverPhotoAction
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
@@ -338,8 +339,7 @@ fun PlantDetailScreen(
         FullScreenPhotoViewer(
             photos = galleryPhotos,
             initialIndex = index,
-            coverUri = plant?.coverPhotoUri,
-            onSetCover = { uri ->
+            cover = CoverPhotoAction(plant?.coverPhotoUri) { uri ->
                 viewModel.setCoverPhoto(uri)
                 fullScreenPhotoIndex = null
             },

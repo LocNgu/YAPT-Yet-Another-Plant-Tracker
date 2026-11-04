@@ -37,8 +37,7 @@ class CoverPhotoSemanticsTest {
             FullScreenPhotoViewer(
                 photos = photos,
                 initialIndex = 1,
-                coverUri = "file:///a.jpg",
-                onSetCover = { picked = it },
+                cover = CoverPhotoAction("file:///a.jpg") { picked = it },
                 onDismiss = {}
             )
         }
@@ -55,8 +54,7 @@ class CoverPhotoSemanticsTest {
             FullScreenPhotoViewer(
                 photos = photos,
                 initialIndex = 0,
-                coverUri = "file:///a.jpg",
-                onSetCover = {},
+                cover = CoverPhotoAction("file:///a.jpg") {},
                 onDismiss = {}
             )
         }

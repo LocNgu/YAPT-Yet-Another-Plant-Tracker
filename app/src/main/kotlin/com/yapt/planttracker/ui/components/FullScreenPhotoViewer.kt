@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -48,39 +49,16 @@ fun FullScreenPhotoViewer(
     photos: List<GalleryPhoto>,
     initialIndex: Int = 0,
     onDismiss: () -> Unit,
-    coverUri: String? = null,
-    onSetCover: ((uri: String) -> Unit)? = null,
+    cover: CoverPhotoAction? = null,
     onDelete: ((uri: String) -> Unit)? = null
 ) {
     if (photos.isEmpty()) return
     val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, photos.lastIndex)) { photos.size }
-    val photoDateCd = stringResource(R.string.cd_photo_viewer_date)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        // The dialog window cannot reliably extend behind the status bar on all devices, so any
-        // screen area the window doesn't cover would reveal the underlying PlantDetail content
-        // (#444). Instead of fighting the window bounds, paint everything behind the dialog fully
-        // black via the window dim (a dialog's dim layer spans the whole screen, including the
-        // status-bar strip) so the viewer reads as one deliberate full-dark overlay. Light
-        // status-bar icons keep the bar legible over black; `statusBarsPadding()` below keeps the
-        // action buttons clear of the status bar.
-        val view = LocalView.current
-        val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
-        if (dialogWindow != null) {
-            SideEffect {
-                dialogWindow.setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT
-                )
-                WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
-                dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                dialogWindow.setDimAmount(1f)
-                WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
-                    .isAppearanceLightStatusBars = false
-            }
-        }
+        BlackoutDialogWindow()
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -97,100 +75,142 @@ fun FullScreenPhotoViewer(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            // The date label is shown for every photo (even a single one, when the "N / M"
-            // indicator is hidden); the page indicator sits above it when there's more than one.
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp)
-            ) {
-                if (photos.size > 1) {
-                    Text(
-                        text = stringResource(
-                            R.string.photo_viewer_page_indicator,
-                            pagerState.currentPage + 1,
-                            photos.size
-                        ),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-                val photoDate = DateUtils.formatDate(photos[pagerState.currentPage].timestamp)
-                Text(
-                    text = photoDate,
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier
-                        .semantics {
-                            contentDescription = photoDateCd.format(photoDate)
-                        }
-                        .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(8.dp)
-            ) {
-                if (onSetCover != null) {
-                    val currentUri = photos[pagerState.currentPage].uri
-                    val isCover = currentUri == coverUri
-                    val coverStateText = stringResource(
-                        if (isCover) R.string.cd_cover_photo_current else R.string.cd_set_cover_photo
-                    )
-                    IconButton(
-                        onClick = { onSetCover(currentUri) },
-                        enabled = !isCover,
-                        modifier = Modifier.semantics {
-                            contentDescription = coverStateText
-                            selected = isCover
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.60f),
-                            disabledContainerColor = Color.Black.copy(alpha = 0.60f)
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (isCover) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = null,
-                            tint = if (isCover) Color.White.copy(alpha = 0.9f) else Color.White
-                        )
-                    }
-                }
-                if (onDelete != null) {
-                    IconButton(
-                        onClick = { onDelete(photos[pagerState.currentPage].uri) },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.60f)
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.cd_delete_photo),
-                            tint = Color.White
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.60f)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cd_close_photo_viewer),
-                        tint = Color.White
-                    )
-                }
-            }
+            ViewerCaption(
+                photos = photos,
+                currentPage = pagerState.currentPage,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+            ViewerActionRow(
+                currentUri = photos[pagerState.currentPage].uri,
+                cover = cover,
+                onDelete = onDelete,
+                onDismiss = onDismiss,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
         }
+    }
+}
+
+@Composable
+private fun BlackoutDialogWindow() {
+    // The dialog window cannot reliably extend behind the status bar on all devices, so any
+    // screen area the window doesn't cover would reveal the underlying PlantDetail content
+    // (#444). Instead of fighting the window bounds, paint everything behind the dialog fully
+    // black via the window dim (a dialog's dim layer spans the whole screen, including the
+    // status-bar strip) so the viewer reads as one deliberate full-dark overlay. Light
+    // status-bar icons keep the bar legible over black; `statusBarsPadding()` below keeps the
+    // action buttons clear of the status bar.
+    val view = LocalView.current
+    val dialogWindow = remember(view) { (view.parent as? DialogWindowProvider)?.window }
+    if (dialogWindow != null) {
+        SideEffect {
+            dialogWindow.setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+            WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
+            dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            dialogWindow.setDimAmount(1f)
+            WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
+                .isAppearanceLightStatusBars = false
+        }
+    }
+}
+
+@Composable
+private fun ViewerActionRow(
+    currentUri: String,
+    cover: CoverPhotoAction?,
+    onDelete: ((uri: String) -> Unit)?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier.statusBarsPadding().padding(8.dp)) {
+        if (cover != null) {
+            val isCover = currentUri == cover.coverUri
+            val coverStateText = stringResource(
+                if (isCover) R.string.cd_cover_photo_current else R.string.cd_set_cover_photo
+            )
+            ViewerIconButton(
+                icon = if (isCover) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                contentDescription = null,
+                onClick = { cover.onSetCover(currentUri) },
+                enabled = !isCover,
+                modifier = Modifier.semantics {
+                    contentDescription = coverStateText
+                    selected = isCover
+                }
+            )
+        }
+        if (onDelete != null) {
+            ViewerIconButton(
+                icon = Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.cd_delete_photo),
+                onClick = { onDelete(currentUri) }
+            )
+        }
+        ViewerIconButton(
+            icon = Icons.Filled.Close,
+            contentDescription = stringResource(R.string.cd_close_photo_viewer),
+            onClick = onDismiss
+        )
+    }
+}
+
+@Composable
+private fun ViewerIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val scrim = Color.Black.copy(alpha = 0.60f)
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        colors = IconButtonDefaults.iconButtonColors(containerColor = scrim, disabledContainerColor = scrim)
+    ) {
+        Icon(imageVector = icon, contentDescription = contentDescription, tint = Color.White)
+    }
+}
+
+@Composable
+private fun ViewerCaption(photos: List<GalleryPhoto>, currentPage: Int, modifier: Modifier = Modifier) {
+    val photoDateCd = stringResource(R.string.cd_photo_viewer_date)
+    // The date label is shown for every photo (even a single one, when the "N / M"
+    // indicator is hidden); the page indicator sits above it when there's more than one.
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier.padding(bottom = 24.dp)
+    ) {
+        if (photos.size > 1) {
+            Text(
+                text = stringResource(
+                    R.string.photo_viewer_page_indicator,
+                    currentPage + 1,
+                    photos.size
+                ),
+                color = Color.White,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+        val photoDate = DateUtils.formatDate(photos[currentPage].timestamp)
+        Text(
+            text = photoDate,
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .semantics {
+                    contentDescription = photoDateCd.format(photoDate)
+                }
+                .background(Color.Black.copy(alpha = 0.55f), shape = MaterialTheme.shapes.small)
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        )
     }
 }
