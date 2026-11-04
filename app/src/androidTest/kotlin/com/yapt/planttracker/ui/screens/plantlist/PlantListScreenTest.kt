@@ -392,6 +392,12 @@ class PlantListScreenTest {
         composeTestRule.onNodeWithText("2 selected").assertIsDisplayed()
         fernCard.performTouchInput { click(fertilize) }
         composeTestRule.onNodeWithText("1 selected").assertIsDisplayed()
+
+        // Nothing was quick-logged: no confirmation snackbar and no water / water-and-fertilize sheet.
+        composeTestRule.onNodeWithText("Watered Fern").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Fertilized Fern").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Water Fern?").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Water & fertilize Fern?").assertDoesNotExist()
     }
 
     @Test
