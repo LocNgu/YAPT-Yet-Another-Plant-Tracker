@@ -602,6 +602,22 @@ class PlantDetailViewModel(
         }
     }
 
+    /**
+     * Hand-picks [uri] as the plant's cover (#511, product ADR-0080). A one-time set, not a lock: the next added
+     * photo still becomes the cover. Fresh read inside the lock (never `plant.value`); a no-op on the current cover.
+     */
+    fun setCoverPhoto(uri: String) {
+        viewModelScope.launch {
+            val changed = plantEditMutex.withLock {
+                val currentPlant = plantRepository.getPlantById(plantId).first() ?: return@withLock false
+                if (currentPlant.coverPhotoUri == uri) return@withLock false
+                plantRepository.updateCoverPhotoUri(plantId, uri, System.currentTimeMillis())
+                true
+            }
+            if (changed) _events.emit(Event.CoverPhotoUpdated)
+        }
+    }
+
     fun deleteLog(log: CareLog) {
         viewModelScope.launch {
             careLogRepository.deleteLog(log)
@@ -660,6 +676,9 @@ class PlantDetailViewModel(
 
         /** The repository refused a family link (self, missing plant or cycle, #960). */
         object FamilyLinkRefused : Event()
+
+        /** The user hand-picked a new cover photo from the viewer (#511). */
+        object CoverPhotoUpdated : Event()
     }
 
     /** One-shot snackbar messages emitted after a quick-log from the tappable stat chips or watering-due actions row. */

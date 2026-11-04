@@ -19,6 +19,7 @@ paths:
 - **`CameraPhotoState`** keeps the in-flight capture file/URI in `rememberSaveable` via `CameraPhotoState.Saver` (#706). `TakePicture` returns only a `Boolean`, so the target must survive Activity recreation on the app's side. New camera surfaces use `rememberCameraPhotoState()`, never their own launcher.
 - **Gallery-picked originals are never modified.** The export dialog's "Optimize photos" checkbox (default off) compresses only the archive copies; PNG stays PNG, and any failure falls back to the original bytes.
 
+- **Hand-picking a cover** (#511, product ADR-0080): the viewer's Set-as-cover button calls `PlantDetailViewModel.setCoverPhoto(uri)` (`plantEditMutex`, fresh read, `updateCoverPhotoUri`; no-op on the current cover). Any gallery photo qualifies; the next added photo still overrides it.
 - **Deleting the cover photo** moves the cover to the newest remaining `plant_photos` or `PHOTO`-log photo, else `null` (#323, product ADR-0078); `PlantDetailViewModel.moveCoverIfDeleted`.
 
 ## Orphaned photo reclamation (#736, #559, technical ADR-0031)

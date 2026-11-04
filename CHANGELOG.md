@@ -13,6 +13,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
+- **Set any gallery photo as the cover** (#511, product ADR-0080) — the full-screen photo viewer has a **Set as cover**
+  star next to the trash icon (shown selected and disabled on the current cover). Choosing it closes the viewer and
+  shows "Cover photo updated"; the current cover's thumbnail carries a star badge. A photo added afterwards still
+  becomes the cover. No schema change.
 - **How sure the app is about a watering schedule, on the Water tab** (#510) — the watering-interval card now has a
   row under the slider with a five-bar meter, the level (**Still learning**, **Getting there** or **Dialed in**, the
   same labels as the "Why this date?" sheet) and "Each watering you log fine-tunes this date". Tapping it (**Why?**)

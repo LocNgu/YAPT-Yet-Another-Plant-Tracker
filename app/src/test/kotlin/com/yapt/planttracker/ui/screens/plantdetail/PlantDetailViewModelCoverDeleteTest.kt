@@ -183,4 +183,29 @@ class PlantDetailViewModelCoverDeleteTest {
         coVerify { careLogRepo.deleteLog(cover) }
         coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///other.jpg", any()) }
     }
+
+    @Test
+    fun `setCoverPhoto hand-picks a plant photo a PHOTO-log photo and a legacy non-PHOTO log photo`() = runTest {
+        val plantPhoto = PlantPhoto(id = 1L, plantId = 1L, uri = "file:///p.jpg", capturedAt = 100L)
+        val photoLog = photoLog(7L, "file:///log.jpg", 200L)
+        val waterLog = photoLog(8L, "file:///water.jpg", 300L, CareType.WATER)
+        setup("file:///other.jpg", listOf(plantPhoto), listOf(photoLog, waterLog))
+        val vm = makeVm()
+
+        listOf("file:///p.jpg", "file:///log.jpg", "file:///water.jpg").forEach { vm.setCoverPhoto(it) }
+
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///p.jpg", any()) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///log.jpg", any()) }
+        coVerify { plantRepo.updateCoverPhotoUri(1L, "file:///water.jpg", any()) }
+    }
+
+    @Test
+    fun `setCoverPhoto on the current cover writes nothing`() = runTest {
+        setup("file:///cover.jpg")
+        val vm = makeVm()
+
+        vm.setCoverPhoto("file:///cover.jpg")
+
+        coVerify(exactly = 0) { plantRepo.updateCoverPhotoUri(any(), any(), any()) }
+    }
 }
