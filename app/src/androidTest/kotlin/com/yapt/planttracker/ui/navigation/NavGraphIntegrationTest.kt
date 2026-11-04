@@ -3,7 +3,9 @@ package com.yapt.planttracker.ui.navigation
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -23,6 +25,7 @@ import com.yapt.planttracker.YaptApplication
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
+import com.yapt.planttracker.ui.screens.plantdetail.PLANT_DETAIL_CONTENT_TEST_TAG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -95,10 +98,12 @@ class NavGraphIntegrationTest {
     private fun assertOnPlantDetailFor(plantId: Long, plantName: String) {
         waitForRoute(Screen.PlantDetail.route)
         assertEquals(plantId, navController.currentBackStackEntry?.arguments?.getLong("plantId"))
+        // Scoped to Plant Detail's content so the outgoing Care tile or Plants row can't satisfy it.
+        val nameOnDetail = hasText(plantName).and(hasAnyAncestor(hasTestTag(PLANT_DETAIL_CONTENT_TEST_TAG)))
         composeTestRule.waitUntil(TIMEOUT_MS) {
-            composeTestRule.onAllNodesWithText(plantName).fetchSemanticsNodes().isNotEmpty()
+            composeTestRule.onAllNodes(nameOnDetail).fetchSemanticsNodes().isNotEmpty()
         }
-        composeTestRule.onAllNodesWithText(plantName).onFirst().assertIsDisplayed()
+        composeTestRule.onAllNodes(nameOnDetail).onFirst().assertIsDisplayed()
     }
 
     private fun tab(label: String) = composeTestRule.onNode(hasText(label).and(hasClickAction()))
@@ -143,6 +148,7 @@ class NavGraphIntegrationTest {
         assertEquals(1, deepLinkConsumedCount)
 
         // Recomposing the graph (tab switches change its bottom-bar state) must not re-consume the link.
+        // Rotation is deliberately not exercised: the remembered TestNavHostController wouldn't survive it.
         composeTestRule.onNodeWithContentDescription(BACK).performClick()
         waitForRoute(Screen.Today.route)
         tab(PLANTS).performClick()
