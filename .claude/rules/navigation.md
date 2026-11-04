@@ -18,3 +18,4 @@ paths:
 - **During backup/restore:** `SettingsScreen.onBackupInProgressChanged` (`LaunchedEffect` + reset on dispose, the `onSelectionModeChanged` precedent) feeds a flag in `YaptNavGraph`. That flag **disables — not hides —** every `YaptBottomNavigationBar` item while the operation runs, so the progress dialog can't be abandoned. The screen keeps its own `BackHandler` too.
 - **Restore success** is `NavController.showRestoredPlantList()`: reset to Care, then open Plants with the message.
 - **Bottom bar visibility:** `shouldShowBottomNavigation()` takes only Plant List's selection flag; Care never hides the bar.
+- **Test seam (#472):** `YaptNavGraph(navController = rememberNavController())` is a defaulted parameter for tests only; `NavGraphIntegrationTest` (androidTest) injects a `TestNavHostController` to cover plant taps from Care/Plants, both deep links and Back from a deep-linked Plant Detail.

@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -193,13 +194,14 @@ private fun ApplyCaredTodayDeepLink(
     }
 }
 
+// navController is a test seam only (#472): instrumented tests inject a TestNavHostController.
 @Composable
 fun YaptNavGraph(
     app: YaptApplication,
     initialPlantId: Long? = null,
-    onDeepLinkConsumed: () -> Unit = {}
+    onDeepLinkConsumed: () -> Unit = {},
+    navController: NavHostController = rememberNavController()
 ) {
-    val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     var showWhatsNew by remember { mutableStateOf(false) }
     var updateStoreOnWhatsNewDismiss by remember { mutableStateOf(false) }

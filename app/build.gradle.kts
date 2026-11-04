@@ -188,6 +188,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.navigation:navigation-testing:2.10.2")
     androidTestImplementation("io.mockk:mockk-android:1.14.11")
     androidTestImplementation("androidx.datastore:datastore-preferences-core:1.3.0")
 
