@@ -7,7 +7,7 @@ name: ADR Lint
 #
 # Both triggers are needed. The pull_request run is where a collision is cheap
 # to fix, before merge. It cannot catch the interleaving case: two PRs each add
-# ADR-0042, each is green against develop at the time it ran, and GitHub does
+# the same next ADR number, each is green against develop at the time it ran, and GitHub does
 # not re-run the second after the first merges unless branch protection
 # requires the branch be up to date. The develop push run closes that gap.
 on:
