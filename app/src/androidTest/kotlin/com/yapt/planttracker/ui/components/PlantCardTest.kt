@@ -1,9 +1,11 @@
 package com.yapt.planttracker.ui.components
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.yapt.planttracker.domain.model.Plant
@@ -120,5 +122,62 @@ class PlantCardTest {
 
         composeTestRule.onNodeWithText("Overdue by 3 days").assertIsDisplayed()
         composeTestRule.onNode(hasText("Dormant")).assertDoesNotExist()
+    }
+
+    private fun normalStatus(confidence: Int?) = PlantCareStatus(
+        plant = basePlant().copy(wateringConfidence = confidence),
+        lastWateredAt = threeDaysAgo,
+        lastFertilizedAt = threeDaysAgo,
+        daysSinceLastWatering = 3,
+        nextWateringDueAt = threeDaysAgo,
+        isOverdue = true,
+        isDueSoon = false,
+        nextFertilizingDueAt = inTwoDays,
+        isFertilizingOverdue = false,
+        isFertilizingDueSoon = false,
+        totalCareLogs = 2,
+        isDormant = false,
+        wateringScheduleMode = WateringScheduleMode.NORMAL
+    )
+
+    private fun setCard(confidence: Int?) {
+        composeTestRule.setContent {
+            PlantCard(status = normalStatus(confidence), onClick = {}, onQuickWater = {}, onQuickFertilize = {})
+        }
+    }
+
+    // #510: the card shows the watering-confidence indicator only at the extremes, with a text
+    // form (visible label + content description) alongside the overdue countdown.
+    @Test
+    fun confidenceStillLearning_showsIndicatorAlongsideOverdueCountdown() {
+        setCard(confidence = 0)
+
+        composeTestRule.onNodeWithContentDescription("Watering schedule: Still learning", substring = true)
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Overdue by 3 days").assertIsDisplayed()
+    }
+
+    @Test
+    fun confidenceDialedIn_showsIndicator() {
+        setCard(confidence = 5)
+
+        composeTestRule.onNodeWithContentDescription("Watering schedule: Dialed in", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun confidenceGettingThere_showsNoIndicator() {
+        setCard(confidence = 3)
+
+        composeTestRule.onNode(hasContentDescription("Watering schedule", substring = true)).assertDoesNotExist()
+        composeTestRule.onNode(hasText("Getting there")).assertDoesNotExist()
+    }
+
+    @Test
+    fun confidenceNull_showsNoIndicator_notAFalseStillLearning() {
+        setCard(confidence = null)
+
+        composeTestRule.onNode(hasContentDescription("Watering schedule", substring = true)).assertDoesNotExist()
+        composeTestRule.onNode(hasText("Still learning")).assertDoesNotExist()
     }
 }

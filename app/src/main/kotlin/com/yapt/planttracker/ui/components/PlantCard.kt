@@ -3,6 +3,7 @@ package com.yapt.planttracker.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Icon
@@ -31,10 +33,12 @@ import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.PlantCareStatus
 import com.yapt.planttracker.domain.model.WateringScheduleMode
+import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
 import com.yapt.planttracker.ui.theme.IssuePurple
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
+import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.util.DateUtils
 
@@ -66,12 +70,19 @@ fun PlantCard(
             }
         },
         statusLine = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                WaterStatusLabel(status)
-                FertilizerStatusLabel(status)
+            // The confidence indicator sits on its own line below the countdowns so it never
+            // squeezes them at large font scales (#510).
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    WaterStatusLabel(status)
+                    FertilizerStatusLabel(status)
+                }
+                WateringConfidenceLevel.cardLevelOrNull(status.plant.wateringConfidence)?.let {
+                    WateringConfidenceLabel(it)
+                }
             }
         },
         trailing = {
@@ -129,6 +140,34 @@ private fun BoxScope.IssueBadge(count: Int) {
                 color = Color.White
             )
         }
+    }
+}
+
+/**
+ * Text-bearing watering-confidence indicator (#510). Neutral tint only — never the due-status
+ * colours or IssuePurple (technical ADR-0020); the icon is decorative, the text carries the level.
+ */
+@Composable
+private fun WateringConfidenceLabel(level: WateringConfidenceLevel) {
+    val label = stringResource(level.labelRes())
+    val description = stringResource(R.string.cd_plant_card_watering_confidence, label)
+    val tint = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Filled.Insights,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = tint
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint
+        )
     }
 }
 

@@ -3722,9 +3722,79 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("why_this_date_button").performClick()
 
         composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
+        // Scoped to the sheet: the Water tab's insights card also shows the label since #510.
+        composeTestRule.onNode(
+            hasText(
+                InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
+            ).and(hasAnyAncestor(hasTestTag("watering_explanation_sheet")))
         ).assertIsDisplayed()
+    }
+
+    /**
+     * #510: the Water tab's insights card carries a "Confidence" row for any non-null level, using
+     * the sheet's strings. Asserts the visible text only (#420).
+     */
+    @Test
+    fun waterTabInsights_showConfidenceRow_forNonNullLevel() {
+        val plant = Plant(
+            id = 83L,
+            name = "Calathea",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringConfidence = 2
+        )
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithSeasonal)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(context.getString(R.string.confidence_getting_there)))
+        composeTestRule.onNodeWithText(context.getString(R.string.confidence_getting_there)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(context.getString(R.string.watering_explanation_confidence))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTabInsights_showNoConfidenceRow_whenNeverAdapted() {
+        val plant = Plant(
+            id = 84L,
+            name = "Fern",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringConfidence = null
+        )
+        // One watering so the insights card itself renders; only the confidence row must be absent.
+        val viewModel = makeViewModel(plant, careLogs = listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(context.getString(R.string.insight_waterings)))
+        composeTestRule.onNodeWithText(context.getString(R.string.insight_waterings)).assertIsDisplayed()
+        composeTestRule.onNode(hasText(context.getString(R.string.watering_explanation_confidence)))
+            .assertDoesNotExist()
+        composeTestRule.onNode(hasText(context.getString(R.string.confidence_still_learning)))
+            .assertDoesNotExist()
     }
 
     /**

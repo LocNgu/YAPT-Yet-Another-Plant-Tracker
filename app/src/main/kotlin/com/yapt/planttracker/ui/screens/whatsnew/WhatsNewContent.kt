@@ -16,7 +16,8 @@ object WhatsNewContent {
         versionName = "Unreleased",
         added = listOf(
             "Choose exactly which plants go on your sitter's list before you share it",
-            "Edit or delete a planned sitter visit from Settings"
+            "Edit or delete a planned sitter visit from Settings",
+            "Plant cards and the Water tab now show when a watering schedule is \"Still learning\" or \"Dialed in\""
         ),
         fixed = listOf(
             "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one"

@@ -337,6 +337,8 @@
         <item quantity="one">1 active issue</item>
         <item quantity="other">%d active issues</item>
     </plurals>
+    <!-- PlantCard watering-confidence indicator (#510): the visible text reuses confidence_* -->
+    <string name="cd_plant_card_watering_confidence">Watering schedule: %1$s</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
