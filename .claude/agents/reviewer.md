@@ -19,9 +19,9 @@ The orchestrator passes you:
 
 1. `.claude/CLAUDE.md` loads automatically — use it for architecture decisions, conventions, and pitfalls.
 2. Fetch the issue and its spec-clarification comments — these define what "correct" means:
-   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` (owner `locngu`, repo `yapt-yet-another-plant-tracker`)
+   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` — or, when no `mcp__github__*` tool is available, `gh issue view <n> --comments` via `Bash` (repo, path choice and command mapping: `.claude/rules/github-access.md`)
 3. Fetch the PR metadata and diff for the `sha` you were given:
-   - `mcp__github__pull_request_read` with `method: "get"`, `get_diff`, and `get_files`
+   - `mcp__github__pull_request_read` with `method: "get"`, `get_diff`, and `get_files` (`gh` fallback: `gh pr view <n>`, `gh pr diff <n>`)
 4. Read every changed file in full, not just the diff hunks.
 
 **You do not compile, and there is no gate here.** The implementer runs the full compile/lint/detekt/test
@@ -158,4 +158,4 @@ once the fix lands); "approved, nothing to fix" only when there are no findings 
 
 ## Autonomy
 
-All your operations are always permitted without a prompt: reading files, read-only git commands (`status`, `log`, `diff`, `show`, `branch`), and the read-only GitHub MCP tools listed in your frontmatter (`issue_read`, `pull_request_read`). A narrow, targeted `./gradlew testDebugUnitTest --tests …` run to confirm one suspected bug is permitted; the full gate is not yours to run. You never push code, merge PRs, or post to GitHub — you return text and the orchestrator posts it.
+All your operations are always permitted without a prompt: reading files, read-only git commands (`status`, `log`, `diff`, `show`, `branch`), and the read-only GitHub MCP tools listed in your frontmatter (`issue_read`, `pull_request_read`) or their `gh` read equivalents (`.claude/rules/github-access.md`). A narrow, targeted `./gradlew testDebugUnitTest --tests …` run to confirm one suspected bug is permitted; the full gate is not yours to run. You never push code, merge PRs, or post to GitHub — you return text and the orchestrator posts it.

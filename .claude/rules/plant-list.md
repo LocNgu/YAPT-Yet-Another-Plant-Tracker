@@ -1,9 +1,12 @@
 ---
-description: Plant List search and multi-select
+description: Plant List search, multi-select and the shared PlantCard shell
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/plantlist/**/*"
   - "app/src/test/**/plantlist/**/*"
   - "app/src/androidTest/**/plantlist/**/*"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/PlantCard*.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/RoomFilterChip.kt"
+  - "app/src/androidTest/**/ui/components/PlantCard*.kt"
 ---
 
 # Plant List
@@ -29,3 +32,10 @@ paths:
 - **Room-chip dots:** in selection mode, a room chip (Unassigned included, never "All") whose room holds ≥ 1 selected plant shows a primary-color dot and a `stateDescription` ("Contains selected plants"), via `RoomFilterChip`. The bar stays a plain `N selected`.
   - `roomsWithSelection` (StateFlow<Set<String>>) joins `selectedPlantIds` with the full active plant list (`allPlants`), **not** `plantsWithStatus`, so hidden rooms still get a dot. Keys match the chips: the room name, or `UNASSIGNED_ROOM` for `room == null`. No per-plant Room queries.
 - **`selectAll()` is a union** with the visible plants. **`bulkLog()` resolves plants from `plantRepository.getAllPlants()`**, not `plantsWithStatus`, so hidden plants are logged. Ids that no longer resolve to an active plant are skipped silently. `bulkArchive()` and its dialog text are unchanged.
+
+## Shared card shell (#980)
+- **`PlantCardLayout`** (`ui/components/`) owns the card chrome: `Card` + selected colour, the 90 dp photo box (or placeholder), the selection checkbox, name/species, and the `combinedClickable` + selection-mode `selected` semantics. It fills three slots: `badge` (`BoxScope` over the photo; the shell doesn't position it, so the slot aligns itself, e.g. `Modifier.align(Alignment.TopEnd)` like `PlantCard`'s issue badge), `statusLine` (under name/species; the 6 dp gap is only added when non-null) and `trailing` (`RowScope`). Composition order is photo → checkbox → badge → name → species → status line → trailing; the card is one merged node, so reordering changes the TalkBack announcement.
+- **`onLongClick` is nullable.** `null` means no long-click action and no `cd_bulk_select_plant` label (the sitter picker has no long-press select).
+- **The shell never takes a `PlantCareStatus`.** `PlantCard` supplies the real-status badge, water/fertilizer line and `QuickLogButtons`; projected-date callers (sitter picker) supply their own slots. While selecting, `PlantCard`'s trailing slot (not the shell) swaps `QuickLogButtons` for `QuickLogButtonsPlaceholder`: same-size spacers with no pointer input or semantics, so the card keeps its height and taps there reach the card's toggle. Never hide the buttons with `alpha(0f)` / `enabled = false` instead: a disabled `clickable` still consumes the pointer events, which made that strip a dead zone (#990).
+- **Slots sit in a `Row(IntrinsicSize.Max)`**, so slot content must not be a subcompose layout (`BoxWithConstraints`, lazy lists).
+- **`RoomFilterChip`** lives in `ui/components/` (still `internal`) so the sitter picker can reuse it.

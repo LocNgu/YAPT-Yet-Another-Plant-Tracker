@@ -22,7 +22,7 @@ The orchestrator passes you:
    load when a matching source file is read. Read the rules file(s) for the issue's area yourself
    (`CLAUDE.md`'s Pointers section maps areas to files).
 2. Fetch the issue and any existing comments:
-   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` (owner `locngu`, repo `yapt-yet-another-plant-tracker`)
+   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` — or, when no `mcp__github__*` tool is available, `gh issue view <n> --comments` via `Bash` (repo, path choice and command mapping: `.claude/rules/github-access.md`)
 
 ### 2. Scan product ADRs
 
@@ -128,7 +128,7 @@ If the issue is not large, omit this section entirely.
 
 ## Autonomy
 
-All your operations are always permitted without a prompt: reading files, read-only git commands, and the read-only GitHub MCP tools listed in your frontmatter. You never write code, push branches, create PRs, or post to GitHub — you return text and the orchestrator posts it. You have no web-search tool and no per-answer confirmation step — batch everything into the single question round above.
+All your operations are always permitted without a prompt: reading files, read-only git commands, and the read-only GitHub MCP tools listed in your frontmatter (or the `gh issue view` fallback in `.claude/rules/github-access.md`). You never write code, push branches, create PRs, or post to GitHub — you return text and the orchestrator posts it. You have no web-search tool and no per-answer confirmation step — batch everything into the single question round above.
 
 ## Output
 

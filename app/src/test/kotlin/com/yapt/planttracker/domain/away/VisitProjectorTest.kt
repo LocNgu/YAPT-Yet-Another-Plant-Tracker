@@ -430,4 +430,81 @@ class VisitProjectorTest {
 
         assertEquals(4, result.listed.single().usualIntervalDays)
     }
+
+    @Test
+    fun `not listed holds every scheduled plant due after the list reaches, by due date then name`() {
+        val plants = listOf(
+            plant(1, interval = 3, name = "Due"),
+            plant(2, interval = 20, name = "Zed"),
+            plant(3, interval = 20, name = "Alpha"),
+            plant(4, interval = 60, name = "Far")
+        )
+        val logs = listOf(water(1, day(11)), water(2, day(13)), water(3, day(13)), water(4, day(13)))
+
+        val result = project(plants, logs)
+
+        assertEquals(listOf(1L), result.listedIds())
+        assertEquals(listOf(3L, 2L, 4L), result.notListed.map { it.plant.id })
+        val nov2 = LocalDate.of(2026, 11, 2)
+        assertEquals(listOf(nov2, nov2, LocalDate.of(2026, 12, 12)), result.notListed.map { it.dueDate })
+    }
+
+    @Test
+    fun `not listed does not change what is listed`() {
+        val plants = listOf(plant(1, interval = 3), plant(2, interval = 40))
+        val logs = listOf(water(1, day(10)), water(2, day(13)))
+
+        val result = project(plants, logs)
+
+        assertEquals(listOf(1L), result.listedIds())
+        assertEquals(listOf(day(13)), result.listed.map { it.dueDate })
+        assertEquals(listOf(2L), result.notListed.map { it.plant.id })
+    }
+
+    @Test
+    fun `a not listed plant carries its usual interval and the longer than usual flag`() {
+        val result = project(listOf(plant(1, interval = 4)), listOf(water(1, day(14))), gap = 7)
+
+        val only = result.notListed.single()
+        assertEquals(4, only.usualIntervalDays)
+        assertTrue(only.longerThanUsual)
+    }
+
+    @Test
+    fun `a dormant plant due after the list reaches is resting and not not listed`() {
+        val slower = plant(2, interval = 3, dormancyStart = 10, dormancyEnd = 11, cadence = 28)
+        val suspended = plant(1, interval = 3, dormancyStart = 10, dormancyEnd = 11)
+
+        val result = project(listOf(slower, suspended), listOf(water(2, day(8)), water(1, day(8))))
+
+        assertEquals(listOf(1L, 2L), result.resting.map { it.id })
+        assertTrue(result.notListed.isEmpty())
+    }
+
+    @Test
+    fun `archived and hidden plants and plants without a schedule are never not listed`() {
+        val plants = listOf(
+            plant(1, archived = true),
+            plant(2, interval = null),
+            plant(3, interval = 20),
+            plant(4, interval = 20).copy(hiddenAt = 1L)
+        )
+
+        val result = project(plants, listOf(water(3, day(13))))
+
+        assertEquals(listOf(3L), result.notListed.map { it.plant.id })
+    }
+
+    @Test
+    fun `a resting plant carries what it becomes when added`() {
+        val suspended = plant(1, interval = 3, dormancyStart = 10, dormancyEnd = 11)
+        val previous = visit(day(8), SitterVisitState.CONFIRMED, 1L to false)
+
+        val result = project(listOf(suspended), visits = listOf(previous))
+
+        val becomes = result.restingAsListed.getValue(1L)
+        assertEquals(today, becomes.dueDate)
+        assertTrue(becomes.missedLastTime)
+        assertFalse(becomes.longerThanUsual)
+    }
 }

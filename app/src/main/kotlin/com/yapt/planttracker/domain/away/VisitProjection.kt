@@ -44,7 +44,11 @@ data class VisitProjection(
     val includesDueBy: LocalDate,
     val listed: List<ProjectedPlant>,
     /** Resting plants (dormant, or watering suspended) that are not on the list: the "don't water these" page. */
-    val resting: List<Plant>
+    val resting: List<Plant>,
+    /** Scheduled, non-resting plants due after [includesDueBy] (or removed from [listed] by the owner): addable. */
+    val notListed: List<ProjectedPlant> = emptyList(),
+    /** What each [resting] plant becomes if the owner adds it: due on the visit day. Keyed by plant id. */
+    val restingAsListed: Map<Long, ProjectedPlant> = emptyMap()
 )
 
 /**
@@ -58,6 +62,9 @@ data class VisitProjection(
  */
 object VisitProjector {
 
+    /** How far past [VisitProjection.includesDueBy] the not-listed plants reach, in the same aggregator call. */
+    const val NOT_LISTED_HORIZON_DAYS = 366L
+
     fun project(input: VisitProjectionInput): VisitProjection {
         val active = input.plants.filter { it.isVisible }
         val includesDueBy = input.visitDay.plusDays(((input.gapDays - 1) / 2).toLong().coerceAtLeast(0L))
@@ -68,7 +75,7 @@ object VisitProjector {
                 SitterDueDates.syntheticWaterLog(plantId, day)
             },
             today = input.today,
-            horizonEnd = includesDueBy,
+            horizonEnd = includesDueBy.plusDays(NOT_LISTED_HORIZON_DAYS),
             seasonalAmplitude = input.seasonalAmplitude,
             hemisphere = input.hemisphere
         )
@@ -78,7 +85,7 @@ object VisitProjector {
             .flatMap { it.items.map { item -> item to it.group } }
         val itemByPlant = items.associate { (item, _) -> item.plant.id to item }
         val missed = missedLastTime(input)
-        val listed = due.map { watering ->
+        val projected = due.map { watering ->
             val interval = itemByPlant[watering.plant.id]?.intervalDays
             ProjectedPlant(
                 plant = watering.plant,
@@ -88,13 +95,33 @@ object VisitProjector {
                 longerThanUsual = interval != null && SitterRhythm.isLongerThanUsual(input.gapDays, interval)
             )
         }
+        val (listed, beyond) = projected.partition { it.dueDate <= includesDueBy }
         val listedIds = listed.mapTo(HashSet()) { it.plant.id }
         val resting = items
             .filter { (_, group) -> group == WateringOverviewGroup.RESTING }
             .map { (item, _) -> item.plant }
             .filter { it.id !in listedIds }
             .sortedWith(compareBy({ it.name.lowercase() }, { it.id }))
-        return VisitProjection(input.visitDay, input.gapDays, includesDueBy, listed, resting)
+        val restingIds = resting.mapTo(HashSet()) { it.id }
+        val notListed = beyond.filter { it.plant.id !in restingIds }
+        val restingAsListed = resting.associate { plant ->
+            plant.id to ProjectedPlant(
+                plant = plant,
+                dueDate = input.visitDay,
+                usualIntervalDays = itemByPlant[plant.id]?.intervalDays,
+                missedLastTime = plant.id in missed,
+                longerThanUsual = false
+            )
+        }
+        return VisitProjection(
+            visitDay = input.visitDay,
+            gapDays = input.gapDays,
+            includesDueBy = includesDueBy,
+            listed = listed,
+            resting = resting,
+            notListed = notListed,
+            restingAsListed = restingAsListed
+        )
     }
 
     /**
@@ -162,4 +189,44 @@ object VisitProjector {
         if (previous == null || previous.state != SitterVisitState.CONFIRMED) return emptySet()
         return previous.plants.filter { it.watered == false }.mapTo(HashSet()) { it.plantId }
     }
+}
+
+/** The owner's edits to a suggested list: plants unticked from [VisitProjection.listed] and plants added to it. */
+data class SitterSelection(val added: Set<Long> = emptySet(), val removed: Set<Long> = emptySet())
+
+private val projectedOrder = compareBy<ProjectedPlant>({ it.dueDate }, { it.plant.name.lowercase() }, { it.plant.id })
+
+/**
+ * The suggestion after the owner's edits (product ADR-0077). An added resting plant moves onto the list, due
+ * on the visit day, and off the "don't water these" page; a removed plant is kept in [VisitProjection.notListed]
+ * so it can be shown unticked. Ids that resolve to nothing, and overrides that no longer matter, are ignored.
+ */
+fun VisitProjection.applySelection(selection: SitterSelection): VisitProjection {
+    val removedListed = listed.filter { it.plant.id in selection.removed }
+    val addedNotListed = notListed.filter { it.plant.id in selection.added }
+    val addedResting = resting.filter { it.id in selection.added }.map { plant ->
+        restingAsListed[plant.id]
+            ?: ProjectedPlant(plant, visitDay, null, missedLastTime = false, longerThanUsual = false)
+    }
+    val newListed = (listed.filter { it.plant.id !in selection.removed } + addedNotListed + addedResting)
+        .sortedWith(projectedOrder)
+    val newNotListed = (notListed.filter { it.plant.id !in selection.added } + removedListed)
+        .sortedWith(projectedOrder)
+    return copy(
+        listed = newListed,
+        resting = resting.filter { it.id !in selection.added },
+        notListed = newNotListed
+    )
+}
+
+/** The selection that reproduces [saved] from [projection]: what was shared, as edits to today's suggestion. */
+fun seedSelection(projection: VisitProjection, saved: Set<Long>): SitterSelection {
+    val listedIds = projection.listed.mapTo(HashSet()) { it.plant.id }
+    val known = listedIds +
+        projection.notListed.map { it.plant.id } +
+        projection.resting.map { it.id }
+    return SitterSelection(
+        added = (saved - listedIds).filterTo(HashSet()) { it in known },
+        removed = listedIds - saved
+    )
 }

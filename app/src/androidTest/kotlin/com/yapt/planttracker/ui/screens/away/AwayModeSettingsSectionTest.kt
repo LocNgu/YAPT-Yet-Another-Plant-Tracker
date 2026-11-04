@@ -12,8 +12,12 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -49,7 +53,8 @@ class AwayModeSettingsSectionTest {
     private val actions = AwayModeActions(
         onSave = { first, last, id -> saves += Triple(first, last, id) },
         onCancelTrip = { cancelCalls++ },
-        onImBack = { imBackCalls++ }
+        onImBack = { imBackCalls++ },
+        onDeleteVisit = { deletedVisits += it }
     )
 
     private fun trip(first: LocalDate, last: LocalDate) = AwayPeriod(id = 7L, firstDay = first, lastDay = last)
@@ -58,8 +63,11 @@ class AwayModeSettingsSectionTest {
     private val navigation = AwayModeNavigation(
         onSitterRhythm = { opened += "rhythm" },
         onBeforeYouLeave = { opened += "before" },
-        onPlanVisit = { opened += "plan" }
+        onPlanVisit = { opened += "plan" },
+        onEditVisit = { editedDays += it }
     )
+    private val editedDays = mutableListOf<LocalDate>()
+    private val deletedVisits = mutableListOf<Long>()
 
     private fun setSection(periods: List<AwayPeriod>) {
         composeTestRule.setContent {
@@ -347,4 +355,74 @@ class AwayModeSettingsSectionTest {
 
         assertEquals(listOf(1L), confirmRequests)
     }
+
+    private val moreOptions = "More options for visit on "
+
+    @Test
+    fun aPlannedVisitFromTodayOnOpensEditWhenTappedAndOffersEditAndDeleteInItsMenu() {
+        val period = trip(today.minusDays(3), today.plusDays(5))
+        setSectionWithVisits(period, listOf(visit(2L, today.plusDays(2), SitterVisitState.PLANNED, null)))
+
+        composeTestRule.onNode(hasClickAction() and hasTextContaining("Planned · 1 plant")).performScrollTo()
+            .performClick()
+        assertEquals(listOf(today.plusDays(2)), editedDays)
+
+        composeTestRule.onNodeWithContentDescription(moreOptions, substring = true).performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Edit").assertIsDisplayed().performClick()
+        assertEquals(listOf(today.plusDays(2), today.plusDays(2)), editedDays)
+    }
+
+    @Test
+    fun deletingAPlannedVisitAsksForConfirmationFirst() {
+        val period = trip(today.minusDays(3), today.plusDays(5))
+        setSectionWithVisits(period, listOf(visit(2L, today.plusDays(2), SitterVisitState.PLANNED, null)))
+
+        composeTestRule.onNodeWithContentDescription(moreOptions, substring = true).performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete").performClick()
+
+        composeTestRule.onNodeWithText("Delete this visit?").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            "The visit and its plant list are removed. Those plants may come up again on the next visit."
+        ).assertIsDisplayed()
+        assertTrue(deletedVisits.isEmpty())
+
+        composeTestRule.onNodeWithText("Delete").performClick()
+
+        assertEquals(listOf(2L), deletedVisits)
+        composeTestRule.onNodeWithText("Delete this visit?").assertDoesNotExist()
+    }
+
+    @Test
+    fun cancellingTheDeleteDialogKeepsTheVisit() {
+        val period = trip(today.minusDays(3), today.plusDays(5))
+        setSectionWithVisits(period, listOf(visit(2L, today.plusDays(2), SitterVisitState.PLANNED, null)))
+
+        composeTestRule.onNodeWithContentDescription(moreOptions, substring = true).performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete").performClick()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+
+        assertTrue(deletedVisits.isEmpty())
+        composeTestRule.onNodeWithText("Delete this visit?").assertDoesNotExist()
+    }
+
+    @Test
+    fun aPastPlannedVisitAndFinalVisitsHaveNoEditOrMenu() {
+        val period = trip(today.minusDays(10), today.plusDays(5))
+        setSectionWithVisits(
+            period,
+            listOf(
+                visit(1L, today.minusDays(8), SitterVisitState.CONFIRMED, true),
+                visit(2L, today.minusDays(5), SitterVisitState.DID_NOT_HAPPEN, null),
+                visit(3L, today.minusDays(2), SitterVisitState.PLANNED, null)
+            )
+        )
+
+        composeTestRule.onAllNodesWithContentDescription(moreOptions, substring = true).assertCountEquals(0)
+        composeTestRule.onNode(hasClickAction() and hasTextContaining("Planned · 1 plant")).assertDoesNotExist()
+        composeTestRule.onNode(hasClickAction() and hasTextContaining("Confirmed")).assertDoesNotExist()
+        composeTestRule.onNode(hasClickAction() and hasTextContaining("Didn't happen")).assertDoesNotExist()
+        composeTestRule.onAllNodesWithText("Confirm").assertCountEquals(1)
+    }
+
+    private fun hasTextContaining(text: String) = hasText(text, substring = true)
 }

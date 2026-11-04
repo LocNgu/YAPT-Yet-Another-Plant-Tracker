@@ -63,6 +63,12 @@ enum class WateringConfidenceLevel {
         private const val STILL_LEARNING_MAX = 1
         private const val GETTING_THERE_MAX = 3
 
+        /**
+         * `null` when the plant has never been adapted ([score] `null`), so surfaces outside the
+         * sheet show nothing rather than a false "Still learning" (#510).
+         */
+        fun fromScoreOrNull(score: Int?): WateringConfidenceLevel? = score?.let { fromScore(it) }
+
         fun fromScore(score: Int?): WateringConfidenceLevel {
             val value = score ?: 0
             return when {

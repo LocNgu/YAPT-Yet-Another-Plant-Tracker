@@ -7,15 +7,24 @@ import com.yapt.planttracker.domain.away.SitterListPlant
 import com.yapt.planttracker.domain.away.SitterListRoom
 import java.time.LocalDate
 
+internal val SITTER_TIP_STRINGS = listOf(
+    R.string.sitter_tip_soil,
+    R.string.sitter_tip_slowly,
+    R.string.sitter_tip_saucer,
+    R.string.sitter_tip_doubt
+)
+
 /**
  * The plain-text fallback of the sitter list (product ADR-0065): the same structure as the PDF, laid out from
- * string resources. [today] only decides whether the date carries a year.
+ * string resources, with the watering tips after the count and the YAPT branding line last. [today] only decides
+ * whether the date carries a year.
  */
 internal object SitterListTextRenderer {
 
     fun render(context: Context, list: SitterList, today: LocalDate = LocalDate.now()): String = buildString {
         appendLine(context.getString(R.string.sitter_visit_title, awayWeekdayDayText(list.visitDay, today)))
         appendLine(context.resources.getQuantityString(R.plurals.sitter_water_count, list.plantCount, list.plantCount))
+        appendTips(context)
         appendRooms(context, list.rooms)
         if (list.restingCount > 0) {
             appendLine()
@@ -28,7 +37,17 @@ internal object SitterListTextRenderer {
             )
             appendRooms(context, list.restingRooms)
         }
+        appendLine()
+        appendLine(context.getString(R.string.sitter_brand_line, context.getString(R.string.sitter_brand_url)))
     }.trimEnd()
+
+    private fun StringBuilder.appendTips(context: Context) {
+        appendLine()
+        appendLine(context.getString(R.string.sitter_tips_heading))
+        for (tip in SITTER_TIP_STRINGS) {
+            appendLine(context.getString(R.string.sitter_text_bullet, context.getString(tip)))
+        }
+    }
 
     private fun StringBuilder.appendRooms(context: Context, rooms: List<SitterListRoom>) {
         for (room in rooms) {

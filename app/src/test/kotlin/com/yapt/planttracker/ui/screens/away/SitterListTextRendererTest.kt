@@ -7,6 +7,7 @@ import com.yapt.planttracker.domain.away.SitterListPlant
 import com.yapt.planttracker.domain.away.SitterListRoom
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -51,12 +52,20 @@ class SitterListTextRendererTest {
             Plants to water on Mon, Oct 12
             Water 3 plants
 
+            Watering tips
+            - Feel the soil first: if it's dry 2–3 cm down, water.
+            - Water slowly until a little runs out of the bottom.
+            - Empty saucers after about 15 minutes.
+            - When in doubt, leave it dry.
+
             Kitchen
             - Basil (Ocimum basilicum) · Missed last time
             - Fern
 
             No room
             - Pothos
+
+            Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker
             """.trimIndent(),
             render(list)
         )
@@ -77,6 +86,12 @@ class SitterListTextRendererTest {
             Plants to water on Mon, Oct 12
             Water 1 plant
 
+            Watering tips
+            - Feel the soil first: if it's dry 2–3 cm down, water.
+            - Water slowly until a little runs out of the bottom.
+            - Empty saucers after about 15 minutes.
+            - When in doubt, leave it dry.
+
             Kitchen
             - Fern
 
@@ -85,6 +100,8 @@ class SitterListTextRendererTest {
             Bedroom
             - Cactus (Echinocactus)
             - Aloe
+
+            Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker
             """.trimIndent(),
             render(list)
         )
@@ -107,5 +124,30 @@ class SitterListTextRendererTest {
 
         assertEquals("Plants to water on Mon, Jan 4, 2027", render(nextYear).lines().first())
         assertEquals(Locale.US, Locale.getDefault())
+    }
+
+    @Test
+    fun `the tips come before the first room and the branding line is last`() {
+        val list = SitterList(visitDay, listOf(SitterListRoom("A", listOf(plant(1, "Fern")))), emptyList())
+
+        val lines = render(list).lines()
+
+        assertTrue(lines.indexOf("Watering tips") in 1 until lines.indexOf("A"))
+        assertEquals(4, lines.count { it.startsWith("- ") && it.indexOf("Fern") < 0 })
+        assertEquals("Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker", lines.last())
+    }
+
+    @Test
+    fun `the branding line follows the resting plants`() {
+        val list = SitterList(
+            visitDay,
+            listOf(SitterListRoom("A", listOf(plant(1, "Fern")))),
+            listOf(SitterListRoom("B", listOf(plant(2, "Cactus"))))
+        )
+
+        val lines = render(list).lines()
+
+        assertEquals("- Cactus", lines[lines.size - 3])
+        assertEquals("Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker", lines.last())
     }
 }

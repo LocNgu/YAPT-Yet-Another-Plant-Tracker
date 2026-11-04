@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.away
 
 import com.yapt.planttracker.domain.away.SitterList
+import com.yapt.planttracker.domain.away.applySelection
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.SitterVisitState
@@ -76,7 +77,7 @@ class PlanVisitViewModelTest {
         trip = fixture.addTrip(today.minusDays(6), today.plusDays(10), visitEveryDays)
     }
 
-    private fun TestScope.viewModel(): PlanVisitViewModel {
+    private fun TestScope.viewModel(initialDay: LocalDate? = null): PlanVisitViewModel {
         val vm = PlanVisitViewModel(
             PlanVisitDependencies(
                 fixture.awayRepo,
@@ -89,6 +90,7 @@ class PlanVisitViewModelTest {
             dayChange = flowOf(today),
             ioDispatcher = mainDispatcherRule.testDispatcher
         )
+        initialDay?.let(vm::pickDay)
         backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.uiState.collect {} }
         return vm
     }
@@ -130,6 +132,22 @@ class PlanVisitViewModelTest {
         assertEquals(today.plusDays(4), vm.plan().visitDay)
         assertTrue(vm.plan().todayAllowed)
         assertTrue(vm.plan().tomorrowAllowed)
+    }
+
+    @Test
+    fun `an initial day inside the trip opens the plan on that day`() = runTest {
+        startTrip()
+
+        assertEquals(today.plusDays(4), viewModel(today.plusDays(4)).plan().visitDay)
+    }
+
+    @Test
+    fun `an initial day in the past, beyond the trip or missing falls back to the default day`() = runTest {
+        startTrip()
+
+        assertEquals(today, viewModel(today.minusDays(2)).plan().visitDay)
+        assertEquals(today, viewModel(today.plusDays(11)).plan().visitDay)
+        assertEquals(today, viewModel(null).plan().visitDay)
     }
 
     @Test
@@ -266,6 +284,21 @@ class PlanVisitViewModelTest {
     }
 
     @Test
+    fun `a deleted planned visit no longer counts its plants as watered on the next projection`() = runTest {
+        startTrip()
+        val a = fixture.addPlant("Aloe", interval = 10, lastWatered = today.minusDays(8))
+        val planned = fixture.addVisit(trip, today.plusDays(1), SitterVisitState.PLANNED, a to null)
+        val vm = viewModel(today.plusDays(5))
+        assertTrue(vm.plan().projection.listed.isEmpty())
+        val logsBefore = fixture.careLogRepo.getAllLogs().first().size
+
+        fixture.awayRepo.deleteVisits(listOf(planned.id))
+
+        assertEquals(listOf("Aloe"), vm.plan().projection.listed.map { it.plant.name })
+        assertEquals(logsBefore, fixture.careLogRepo.getAllLogs().first().size)
+    }
+
+    @Test
     fun `a visit planned for the future is not offered for confirmation`() = runTest {
         startTrip()
         val a = fixture.addPlant("Aloe")
@@ -360,5 +393,293 @@ class PlanVisitViewModelTest {
 
         assertEquals(before, fixture.plantRepo.getAllPlants().first())
         assertEquals(1, fixture.waterLogs(due.id).size)
+    }
+
+    private suspend fun sitterScenario(): Triple<Plant, Plant, Plant> {
+        startTrip()
+        val due = fixture.addPlant("Due", interval = 5, lastWatered = today.minusDays(5))
+        val later = fixture.addPlant("Later", interval = 30, lastWatered = today)
+        val resting = fixture.addPlant("Resting", interval = 7, lastWatered = today.minusDays(7), resting = true)
+        return Triple(due, later, resting)
+    }
+
+    private fun PlanVisitViewModel.listedIds() = plan().selected.listed.map { it.plant.id }
+
+    @Test
+    fun `the suggestion separates listed, not listed and resting plants`() = runTest {
+        val (due, later, resting) = sitterScenario()
+
+        val plan = viewModel().plan()
+
+        assertEquals(listOf(due.id), plan.projection.listed.map { it.plant.id })
+        assertEquals(listOf(later.id), plan.projection.notListed.map { it.plant.id })
+        assertEquals(listOf(resting.id), plan.projection.resting.map { it.id })
+        assertEquals(plan.projection, plan.selected)
+    }
+
+    @Test
+    fun `toggling a listed plant unticks it and toggling again ticks it back`() = runTest {
+        val (due, _, _) = sitterScenario()
+        val vm = viewModel()
+
+        vm.toggleSitterPlant(due.id)
+        assertTrue(vm.listedIds().isEmpty())
+        assertEquals(listOf(due.id), vm.plan().selected.notListed.map { it.plant.id }.filter { it == due.id })
+        assertEquals(0, vm.plan().summary.plantCount)
+
+        vm.toggleSitterPlant(due.id)
+        assertEquals(listOf(due.id), vm.listedIds())
+    }
+
+    @Test
+    fun `toggling a not listed plant adds it and toggling again removes it`() = runTest {
+        val (due, later, _) = sitterScenario()
+        val vm = viewModel()
+
+        vm.toggleSitterPlant(later.id)
+        assertEquals(listOf(due.id, later.id), vm.listedIds())
+        assertEquals(2, vm.plan().summary.plantCount)
+
+        vm.toggleSitterPlant(later.id)
+        assertEquals(listOf(due.id), vm.listedIds())
+    }
+
+    @Test
+    fun `toggling a resting plant moves it onto the list and back`() = runTest {
+        val (due, _, resting) = sitterScenario()
+        val vm = viewModel()
+
+        vm.toggleSitterPlant(resting.id)
+        assertEquals(setOf(due.id, resting.id), vm.listedIds().toSet())
+        assertTrue(vm.plan().selected.resting.isEmpty())
+        assertEquals(today, vm.plan().selected.listed.first { it.plant.id == resting.id }.dueDate)
+
+        vm.toggleSitterPlant(resting.id)
+        assertEquals(listOf(due.id), vm.listedIds())
+        assertEquals(listOf(resting.id), vm.plan().selected.resting.map { it.id })
+    }
+
+    @Test
+    fun `changing the gap keeps the owner's edits`() = runTest {
+        val (due, later, resting) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(later.id)
+        vm.toggleSitterPlant(resting.id)
+
+        vm.setGapDays(14)
+        vm.setGapDays(2)
+
+        assertEquals(setOf(later.id, resting.id), vm.listedIds().toSet())
+    }
+
+    @Test
+    fun `picking a day without a saved visit keeps the owner's edits`() = runTest {
+        val (due, later, _) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(later.id)
+
+        vm.pickDay(today.plusDays(3))
+
+        assertEquals(today.plusDays(3), vm.plan().visitDay)
+        assertEquals(listOf(later.id), vm.listedIds())
+    }
+
+    @Test
+    fun `picking a day with a saved visit starts from the saved list`() = runTest {
+        val (due, later, resting) = sitterScenario()
+        val savedDay = today.plusDays(2)
+        fixture.addVisit(trip, savedDay, SitterVisitState.PLANNED, later to null, resting to null)
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        assertTrue(vm.listedIds().isEmpty())
+
+        vm.pickDay(savedDay)
+
+        assertEquals(setOf(later.id, resting.id), vm.listedIds().toSet())
+        vm.toggleSitterPlant(later.id)
+        vm.setGapDays(3)
+        assertEquals(listOf(resting.id), vm.listedIds())
+
+        vm.pickDay(today.plusDays(1))
+        assertEquals(listOf(resting.id), vm.listedIds())
+        vm.pickDay(savedDay)
+        assertEquals(setOf(later.id, resting.id), vm.listedIds().toSet())
+    }
+
+    @Test
+    fun `opening on a day that already has a saved visit starts from it`() = runTest {
+        val (_, later, _) = sitterScenario()
+        fixture.addVisit(trip, today, SitterVisitState.PLANNED, later to null)
+
+        assertEquals(listOf(later.id), viewModel().listedIds())
+    }
+
+    @Test
+    fun `sharing saves and sends only the ticked plants and moves an added resting one`() = runTest {
+        val (due, later, resting) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(later.id)
+        vm.toggleSitterPlant(resting.id)
+
+        vm.share(asText = false).join()
+
+        assertEquals(setOf(later.id, resting.id), fixture.visits().single().plants.map { it.plantId }.toSet())
+        val list = output.pdfLists.single()
+        assertEquals(setOf(later.id, resting.id), list.rooms.flatMap { it.plants }.map { it.plantId }.toSet())
+        assertEquals(0, list.restingCount)
+    }
+
+    @Test
+    fun `sharing as text uses the selected list too`() = runTest {
+        val (due, _, resting) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(resting.id)
+
+        vm.share(asText = true).join()
+
+        val list = output.textLists.single()
+        assertEquals(listOf("Resting"), list.rooms.flatMap { it.plants }.map { it.name })
+    }
+
+    @Test
+    fun `re-sharing the same day after unticking replaces the saved list with the ticked plants`() = runTest {
+        val (due, later, _) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(later.id)
+        vm.share(asText = true).join()
+        assertEquals(setOf(due.id, later.id), fixture.visits().single().plants.map { it.plantId }.toSet())
+
+        vm.toggleSitterPlant(due.id)
+        vm.share(asText = true).join()
+
+        assertEquals(listOf(later.id), fixture.visits().single().plants.map { it.plantId })
+    }
+
+    @Test
+    fun `sharing is guarded when nothing is ticked`() = runTest {
+        val (due, _, _) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+
+        vm.share(asText = false).join()
+
+        assertTrue(fixture.visits().isEmpty())
+        assertTrue(output.pdfLists.isEmpty())
+    }
+
+    @Test
+    fun `sitter toggles and the confirm checklist do not touch each other`() = runTest {
+        startTrip()
+        val a = fixture.addPlant("Aloe", interval = 10, lastWatered = today.minusDays(12))
+        val b = fixture.addPlant("Basil", interval = 10, lastWatered = today.minusDays(12))
+        val vm = viewModel()
+        vm.toggleSitterPlant(a.id)
+        assertTrue(vm.listedIds().none { it == a.id })
+        val selectionBefore = vm.plan().selectionState
+
+        fixture.addVisit(trip, today.minusDays(2), SitterVisitState.PLANNED, a to null, b to null)
+        assertTrue(vm.confirm().rows.all { it.ticked })
+        vm.toggleConfirmRow(b.id)
+        assertEquals(listOf(true, false), vm.confirm().rows.map { it.ticked })
+        vm.confirmVisit().join()
+
+        val watered = fixture.visits().single().plants.associate { it.plantId to it.watered }
+        assertEquals(mapOf(a.id to true, b.id to false), watered)
+        assertEquals(setOf(a.id), vm.plan().selectionState.selection.removed)
+        assertEquals(selectionBefore, vm.plan().selectionState)
+    }
+
+    @Test
+    fun `a tick survives gap changes that move the plant between listed and not listed`() = runTest {
+        startTrip()
+        val soon = fixture.addPlant("Soon", interval = 8, lastWatered = today.minusDays(6))
+        val vm = viewModel()
+        assertEquals(listOf(soon.id), vm.listedIds())
+
+        vm.toggleSitterPlant(soon.id)
+        vm.setGapDays(1)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.toggleSitterPlant(soon.id)
+        assertEquals(listOf(soon.id), vm.listedIds())
+        vm.setGapDays(7)
+        assertEquals(listOf(soon.id), vm.listedIds())
+
+        vm.toggleSitterPlant(soon.id)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.setGapDays(1)
+        assertTrue(vm.listedIds().isEmpty())
+        vm.setGapDays(7)
+        assertTrue(vm.listedIds().isEmpty())
+    }
+
+    @Test
+    fun `the list is the same after sharing re-seeds the selection from the saved visit`() = runTest {
+        val (due, later, resting) = sitterScenario()
+        val vm = viewModel()
+        vm.toggleSitterPlant(due.id)
+        vm.toggleSitterPlant(later.id)
+        vm.toggleSitterPlant(resting.id)
+        val before = vm.listedIds()
+        assertEquals(setOf(later.id, resting.id), before.toSet())
+
+        vm.share(asText = true).join()
+
+        val plan = vm.plan()
+        assertEquals(today, plan.selectionState.seededDay)
+        assertEquals(before, vm.listedIds())
+        assertEquals(before, plan.projection.applySelection(plan.selectionState.selection).listed.map { it.plant.id })
+        assertEquals(setOf(later.id, resting.id), fixture.visits().single().plants.map { it.plantId }.toSet())
+    }
+
+    @Test
+    fun `the room filter starts on All and follows the chosen room`() = runTest {
+        sitterScenario()
+        val vm = viewModel()
+        assertNull(vm.roomFilter.value)
+
+        vm.selectRoom("kitchen")
+        assertEquals("kitchen", vm.roomFilter.value)
+        vm.selectRoom(NO_ROOM_FILTER)
+        assertEquals(NO_ROOM_FILTER, vm.roomFilter.value)
+        vm.selectRoom(null)
+        assertNull(vm.roomFilter.value)
+    }
+
+    @Test
+    fun `filtering by room never adds or removes a tick`() = runTest {
+        startTrip()
+        val kitchen = fixture.addPlant("Basil", interval = 5, lastWatered = today.minusDays(5), room = "Kitchen")
+        val study = fixture.addPlant("Fern", interval = 5, lastWatered = today.minusDays(5), room = "Study")
+        val vm = viewModel()
+        vm.toggleSitterPlant(study.id)
+        val before = vm.plan()
+
+        vm.selectRoom("kitchen")
+        vm.selectRoom("study")
+        vm.selectRoom(NO_ROOM_FILTER)
+        vm.selectRoom(null)
+
+        assertEquals(listOf(kitchen.id), vm.listedIds())
+        assertEquals(before.selected, vm.plan().selected)
+        assertEquals(before.selectionState, vm.plan().selectionState)
+        assertEquals(1, vm.plan().summary.plantCount)
+    }
+
+    @Test
+    fun `the room filter survives edits and sharing`() = runTest {
+        val (due, later, _) = sitterScenario()
+        val vm = viewModel()
+        vm.selectRoom("kitchen")
+
+        vm.toggleSitterPlant(later.id)
+        vm.setGapDays(3)
+        vm.share(asText = true).join()
+
+        assertEquals("kitchen", vm.roomFilter.value)
+        assertEquals(setOf(due.id, later.id), vm.listedIds().toSet())
     }
 }

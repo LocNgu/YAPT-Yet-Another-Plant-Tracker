@@ -87,15 +87,15 @@ One branch and one PR per change — never mix unrelated work. Always branch fro
 ```bash
 git fetch origin develop && git checkout -b claude/<kebab-desc> origin/develop
 ```
-PR targets `develop`. Return to an up-to-date `develop` before starting anything new. `gh` is not installed — use `mcp__github__*` tools.
+PR targets `develop`. Return to an up-to-date `develop` before starting anything new. GitHub access — `mcp__github__*` by default, `gh` as the fallback: `rules/github-access.md`.
 
 ## Permissions (enforced by `.claude/settings.json`; editing it: `rules/permissions.md`)
-- `mcp__github__*` **writes** are **orchestrator only** — subagents return text, the orchestrator posts.
+- GitHub **writes** (MCP or `gh`) are **orchestrator only** — subagents return text, the orchestrator posts (`rules/github-access.md`).
 - Allowed: reads, read-only git, `add`/`commit`/`stash`/`cherry-pick`, checkout/push `claude/*`, `./gradlew *`. Prompts: checkout/push `develop`, force-push `claude/*`.
 - **Forbidden:** anything touching `main`, force-pushing `develop`, branch deletion/rename, `git reset --hard`, `git stash drop`/`clear`, `find`'s action primaries, reading secret files, and **merging PRs by any means**.
 
 ## Pointers — `.claude/rules/` (path-scoped: each loads automatically when you touch matching files)
 - Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md` · `hidden-plants.md` · `away-mode.md` (trip storage, date logic, backup; feature design is product ADR-0065)
 - Screens: `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
-- Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `whats-new.md` (What's New writing rule, length test, collapsible sheet) · `adr.md` · `permissions.md`
+- Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `whats-new.md` (What's New writing rule, length test, collapsible sheet) · `adr.md` · `permissions.md` · `github-access.md` (MCP vs `gh`, allowlisted `gh` writes)
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference.

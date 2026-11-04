@@ -12,6 +12,66 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-04
+
+### Added
+- **Set any gallery photo as the cover** (#511, product ADR-0080) — the full-screen photo viewer has a **Set as cover**
+  star next to the trash icon (shown selected and disabled on the current cover). Choosing it closes the viewer and
+  shows "Cover photo updated"; the current cover's thumbnail carries a star badge. A photo added afterwards still
+  becomes the cover. No schema change.
+- **How sure the app is about a watering schedule, on the Water tab** (#510) — the watering-interval card now has a
+  row under the slider with a five-bar meter, the level (**Still learning**, **Getting there** or **Dialed in**, the
+  same labels as the "Why this date?" sheet) and "Each watering you log fine-tunes this date". Tapping it (**Why?**)
+  opens "Why this date?". It is hidden for a plant the app has never adapted. Plant cards are unchanged.
+- **Edit or delete a planned sitter visit** (#993, product ADR-0079) — in Settings, a planned visit from today on is
+  tappable to reopen Plan a sitter visit on that day with its saved list, and has a menu with **Edit** and
+  **Delete**. Delete asks first, removes the visit and its plants, and writes no care log; those plants may come up
+  again on the next visit. Past, confirmed and didn't-happen visits are unchanged. Moving a visit isn't offered:
+  delete it and plan the new day.
+- **Choose exactly which plants go on the sitter's list** (#979 parts 2 and 3, #981, #982, product ADR-0077) — Plan a
+  sitter visit now shows the Plants tab's cards (always in selection mode, no long-press, quick-log buttons,
+  fertilizer line, issue badge or due-status colours) in three collapsible sections built from the suggested list:
+  **On this visit** (expanded, ticked), **Not on this visit** and **Resting** (collapsed, unticked, with a one-line
+  hint). Tapping a card ticks or unticks it, the summary and notes follow, and rows never move between sections.
+  Room chips (All, rooms alphabetically, No room) filter all three sections without changing a tick (sticky
+  selection, product ADR-0063); a chip shows the selected-plants dot when a ticked plant is in that room, and the
+  summary counts ticks across all rooms. Each card shows its room, the projected date (or "Dormant" for a resting
+  plant) and **Missed last time** / **Longer than usual** labels in neutral colours. **Share list (PDF)** and
+  **Share as text** moved to a bottom bar so they are always reachable. Only ticked plants are shared and saved; a
+  ticked resting plant goes on the visit pages and off the "don't water" pages. The selected room chip lives in
+  the ViewModel in memory only.
+
+### Fixed
+- **Deleting a cover photo no longer leaves a dangling cover or skips Photo-tab photos** (#323, product ADR-0078) —
+  deleting the cover now moves it to the newest remaining `plant_photos` or `PHOTO`-log photo (other logs' photos are
+  never promoted), or clears it when none remain. Previously a deleted PHOTO-log cover kept pointing at the removed
+  photo, and a Photo-tab-only plant cleared its cover even when other photos remained. Deleting a whole PHOTO care-log
+  entry follows the same rule.
+- **In Plants selection mode, tapping a card's right edge now selects it** (#990) — the hidden quick-log buttons were
+  still composed as disabled `IconButton`s, and a disabled `clickable` still consumes the pointer down/up, so taps and
+  long-presses over that strip (about 48 dp wide, two per card) reached neither the button nor the card's selection
+  toggle. While selecting, `PlantCard` now shows `QuickLogButtonsPlaceholder` (same-size spacers, no pointer input or
+  semantics) instead, so the card keeps its height and the whole card toggles. `QuickLogButtons` loses its unused
+  `enabled` parameter. New instrumented tests tap the strip for real (`PlantCardSelectionModeTest`,
+  `PlantListScreenTest`), since the #450 test only checked semantics.
+
+### Changed
+- **New app icon: "Dew Y"** (#984) — a white water drop holding a small Y of two leaves on a SageGreen background,
+  replacing the old leaf. Themed icons (Android 13+) now get a dedicated monochrome layer (the drop with the Y cut
+  out) instead of the full-colour fallback, and reminder notifications use the same mark (new
+  `drawable/ic_notification.xml`, replacing `ic_plant_placeholder`). The sitter-list PDF header band shows the new
+  mark too (`drawable/ic_yapt_leaf.xml` is now `drawable/ic_yapt_logo.xml`). The adaptive-icon XMLs are consolidated
+  into `mipmap-anydpi-v26/`.
+- **The sitter list is branded and lightly themed, with watering tips** (#978, product ADR-0065) — every PDF page now
+  opens with a SageGreen header band holding the white YAPT mark (new tight-viewport `drawable/ic_yapt_logo.xml`) and
+  "YAPT", room headers are SageGreen with a rule, and plant tiles are rounded WarmCream cards, all on a white page so
+  it still prints cleanly (colours from `Color.kt`). Page 1 shows a fixed "Watering tips" box (four one-line tips);
+  resting pages never do. Every footer gains `Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker`
+  (printed text, no link or QR). **Share as text** starts with the same tips and ends with the branding line.
+  `SitterPdfLayout.paginate` now plans page 1 with a shorter body (`FIRST_PAGE_BODY_HEIGHT`), so it fits one tile row
+  fewer. Nothing is written to the database.
+- Instrumented Compose tests now use the non-deprecated `createComposeRule` from `androidx.compose.ui.test.junit4.v2` (#350).
+
 ## [0.41.0] - 2026-11-01
 
 ### Added

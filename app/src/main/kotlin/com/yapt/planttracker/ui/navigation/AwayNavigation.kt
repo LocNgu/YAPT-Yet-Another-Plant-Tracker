@@ -23,5 +23,6 @@ internal fun confirmVisitViewModel(app: YaptApplication): ConfirmVisitViewModel 
 internal fun NavController.awayModeNavigation() = AwayModeNavigation(
     onSitterRhythm = { navigate(Screen.SitterRhythm.route) },
     onBeforeYouLeave = { navigate(Screen.BeforeYouLeave.route) },
-    onPlanVisit = { navigate(Screen.PlanSitterVisit.route) }
+    onPlanVisit = { navigate(Screen.PlanSitterVisit.createRoute()) },
+    onEditVisit = { day -> navigate(Screen.PlanSitterVisit.createRoute(day)) }
 )

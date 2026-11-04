@@ -18,7 +18,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -3722,9 +3722,87 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("why_this_date_button").performClick()
 
         composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        composeTestRule.onNodeWithText(
-            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
+        // Scoped to the sheet: the Water tab's confidence row also shows the label since #510.
+        composeTestRule.onNode(
+            hasText(
+                InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
+            ).and(hasAnyAncestor(hasTestTag("watering_explanation_sheet")))
         ).assertIsDisplayed()
+    }
+
+    /**
+     * #510: the Water tab's interval card carries a confidence row for any non-null level — the
+     * level label (shared with the sheet), a caption and a "Why?" that opens the sheet. Asserts
+     * text, content description and the click outcome only (#420).
+     */
+    @Test
+    fun waterTab_confidenceRow_showsLevel_andOpensWhyThisDate() {
+        val plant = Plant(
+            id = 83L,
+            name = "Calathea",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringConfidence = 2
+        )
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant), dataStore = mockDataStoreWithSeasonal)
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val level = context.getString(R.string.confidence_getting_there)
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag(WATERING_CONFIDENCE_ROW_TEST_TAG))
+        composeTestRule.onNodeWithText(level).assertIsDisplayed()
+        composeTestRule.onNodeWithText(context.getString(R.string.watering_confidence_row_caption))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(
+            context.getString(R.string.cd_watering_confidence_level, level)
+        ).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag(WATERING_CONFIDENCE_ROW_TEST_TAG).assertHasClickAction().performClick()
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTab_confidenceRow_absent_whenNeverAdapted() {
+        val plant = Plant(
+            id = 84L,
+            name = "Fern",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            wateringConfidence = null
+        )
+        val viewModel = makeViewModel(plant, careLogs = listOf(offScheduleWaterLog(plant.id)))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // The "Why this date?" button closes the same interval card, so the card is composed here.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").assertIsDisplayed()
+        composeTestRule.onNode(hasText(context.getString(R.string.watering_confidence_row_caption)))
+            .assertDoesNotExist()
+        composeTestRule.onNode(hasText(context.getString(R.string.confidence_still_learning)))
+            .assertDoesNotExist()
     }
 
     /**

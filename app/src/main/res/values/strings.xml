@@ -242,6 +242,10 @@
     <string name="cd_plant_photo">Plant photo</string>
     <string name="cd_care_log_photo">Care log photo</string>
     <string name="cd_delete_photo">Delete photo</string>
+    <string name="cd_set_cover_photo">Set as cover photo</string>
+    <string name="cd_cover_photo_current">Current cover photo</string>
+    <string name="cd_cover_photo">Cover photo</string>
+    <string name="cover_photo_updated">Cover photo updated</string>
     <string name="fert_label_never_fertilized">Never fertilized</string>
     <string name="fert_label_fertilizing">Fertilizing %1$s</string>
 <string name="no_care_logs_detail">No care logged yet.\nTap + to log your first care event.</string>
@@ -826,6 +830,10 @@
     <string name="confidence_still_learning">Still learning</string>
     <string name="confidence_getting_there">Getting there</string>
     <string name="confidence_dialed_in">Dialed in</string>
+    <!-- Water tab confidence row (#510): the level label reuses confidence_* above -->
+    <string name="watering_confidence_row_caption">Each watering you log fine-tunes this date</string>
+    <string name="watering_confidence_row_why">Why?</string>
+    <string name="cd_watering_confidence_level">Confidence: %1$s</string>
     <string name="watering_explanation_recent_adjustments">Recent adjustments</string>
     <string name="watering_explanation_no_adjustments">No adjustments yet</string>
     <string name="watering_explanation_adjustment_unchanged">unchanged</string>
@@ -992,6 +1000,11 @@
         <item quantity="one">%1$d plant shares a name and room with another and has no photo to tell them apart: %2$s</item>
         <item quantity="other">%1$d plants share a name and room with another and have no photo to tell them apart: %2$s</item>
     </plurals>
+    <string name="sitter_pick_section_listed">On this visit</string>
+    <string name="sitter_pick_section_not_listed">Not on this visit</string>
+    <string name="sitter_pick_section_resting">Resting</string>
+    <string name="sitter_pick_resting_hint">Normally left dry. Tick one to add it to this visit.</string>
+    <string name="sitter_pick_longer_tag">Longer than usual</string>
     <string name="sitter_plan_share_pdf">Share list (PDF)</string>
     <string name="sitter_plan_share_text">Share as text</string>
 
@@ -1027,6 +1040,11 @@
     </plurals>
     <string name="sitter_visit_confirm_description">Confirm the visit on %1$s</string>
     <string name="sitter_visit_confirm_action">Confirm</string>
+    <string name="sitter_visit_edit_description">Edit visit on %1$s</string>
+    <string name="sitter_visit_more_options">More options for visit on %1$s</string>
+    <string name="sitter_visit_menu_edit">Edit</string>
+    <string name="sitter_visit_delete_title">Delete this visit?</string>
+    <string name="sitter_visit_delete_message">The visit and its plant list are removed. Those plants may come up again on the next visit.</string>
 
     <string name="sitter_share_chooser_title">Share plant list</string>
     <string name="sitter_share_failed">Couldn\'t create the PDF. Try Share as text instead.</string>
@@ -1046,6 +1064,14 @@
     <string name="sitter_missed_tag">Missed last time</string>
     <string name="sitter_footer_only_water">Only water the plants on this page</string>
     <string name="sitter_footer_page">Page %1$d of %2$d</string>
+    <string name="sitter_brand_name">YAPT</string>
+    <string name="sitter_brand_url" translatable="false">github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker</string>
+    <string name="sitter_brand_line">Made with YAPT · %1$s</string>
+    <string name="sitter_tips_heading">Watering tips</string>
+    <string name="sitter_tip_soil">Feel the soil first: if it\'s dry 2–3 cm down, water.</string>
+    <string name="sitter_tip_slowly">Water slowly until a little runs out of the bottom.</string>
+    <string name="sitter_tip_saucer">Empty saucers after about 15 minutes.</string>
+    <string name="sitter_tip_doubt">When in doubt, leave it dry.</string>
     <string name="sitter_text_bullet">- %1$s</string>
     <string name="sitter_text_name_species">%1$s (%2$s)</string>
     <string name="sitter_text_with_missed">%1$s · %2$s</string>

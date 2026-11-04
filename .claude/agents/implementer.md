@@ -16,7 +16,7 @@ The orchestrator passes you:
 
 1. `.claude/CLAUDE.md` loads automatically — rely on it for architecture decisions, conventions, and known pitfalls.
 2. Fetch the issue and the spec agent's clarifications comment:
-   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` (owner `locngu`, repo `yapt-yet-another-plant-tracker`)
+   - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` — or, when no `mcp__github__*` tool is available, `gh issue view <n> --comments` via `Bash` (repo, path choice and command mapping: `.claude/rules/github-access.md`)
    - If no spec-clarifications comment exists and the issue has ambiguities, stop and tell the orchestrator to run the spec agent first.
 3. Read any files you will modify before editing them.
 
@@ -86,7 +86,7 @@ technical ADR-0024 — personal, machine-specific overrides live in the untracke
 - `git checkout claude/*` or `git checkout -b claude/*`
 - `git push origin claude/*` (any push to a feature branch)
 - `./gradlew *`
-- The read-only GitHub MCP tools listed in your frontmatter (`issue_read`, `pull_request_read`)
+- The read-only GitHub MCP tools listed in your frontmatter (`issue_read`, `pull_request_read`), or their `gh` read equivalents when MCP is absent (`.claude/rules/github-access.md`)
 - Shell utilities: `find`, `grep`, `ls`, `cat`, `mkdir`, `echo`, `python3`
 
 A permission prompt will appear for:

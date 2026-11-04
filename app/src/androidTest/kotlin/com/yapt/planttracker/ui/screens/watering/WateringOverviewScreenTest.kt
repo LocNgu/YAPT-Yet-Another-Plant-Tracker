@@ -1,12 +1,16 @@
 package com.yapt.planttracker.ui.screens.watering
 
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
@@ -37,6 +41,11 @@ class WateringOverviewScreenTest {
     private val lastWatered = MutableStateFlow<Map<Long, Long>>(emptyMap())
     private val plantRepository = mockk<PlantRepository>()
     private val careLogRepository = mockk<CareLogRepository>()
+
+    // LazyColumn prefetch composes the next item before placing it, and that node reports the list's
+    // origin as its bounds. performScrollTo() then sees it as already visible and a click lands on
+    // whatever is really there (#350), so scroll only to items that are placed.
+    private val isPlaced = SemanticsMatcher("is placed") { it.layoutInfo.isPlaced }
 
     private fun str(id: Int, vararg args: Any) =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
@@ -146,12 +155,16 @@ class WateringOverviewScreenTest {
         plants.value = (1L..6L).map { plant(it, "Plant $it", interval = 5) }
         setContent()
 
-        composeTestRule.onNodeWithTag(wateringRowTag(5)).performScrollTo().assertIsDisplayed()
+        val list = composeTestRule.onNode(hasScrollAction())
+        list.performScrollToNode(hasTestTag(wateringRowTag(5)) and isPlaced)
+        composeTestRule.onNodeWithTag(wateringRowTag(5)).assertIsDisplayed()
         composeTestRule.onNodeWithTag(wateringRowTag(6)).assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Show all 6").performScrollTo().performClick()
+        list.performScrollToNode(hasText("Show all 6") and isPlaced)
+        composeTestRule.onNodeWithText("Show all 6").performClick()
 
-        composeTestRule.onNodeWithTag(wateringRowTag(6)).performScrollTo().assertIsDisplayed()
+        list.performScrollToNode(hasTestTag(wateringRowTag(6)) and isPlaced)
+        composeTestRule.onNodeWithTag(wateringRowTag(6)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Show all 6").assertDoesNotExist()
     }
 

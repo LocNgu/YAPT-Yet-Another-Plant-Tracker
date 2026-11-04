@@ -1,6 +1,6 @@
 # Technical ADR-0025: Permission baseline wildcard audit
 
-**Status**: accepted
+**Status**: accepted — `gh` write allow/deny entries amended by [ADR-0042](0042-github-access-mcp-default-gh-fallback.md)
 
 **Date**: 2026-09-07
 

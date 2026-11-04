@@ -11,14 +11,30 @@ data class ReleaseNotes(
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5): one short plain-language sentence per change,
     // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
-    val unreleased: ReleaseNotes = ReleaseNotes(
-        versionCode = 0,
-        versionName = "Unreleased"
-    )
+    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 608,
+            versionName = "0.42.0",
+            added = listOf(
+                "Choose exactly which plants go on your sitter's list before you share it",
+                "Edit or delete a planned sitter visit from Settings",
+                "Pick any photo in a plant's gallery as its cover photo",
+                "The Water tab shows how well a watering schedule is tuned, from \"Still learning\" to \"Dialed in\""
+            ),
+            fixed = listOf(
+                "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one",
+                "When selecting plants on the Plants tab, tapping a plant's right edge now selects it too"
+            ),
+            changed = listOf(
+                "The sitter list now has the YAPT look and a short box of watering tips, and Share as text " +
+                    "includes them",
+                "A new app icon: a water drop with a leafy Y, now also used for themed icons and reminders"
+            )
+        ),
         ReleaseNotes(
             versionCode = 590,
             versionName = "0.41.0",
