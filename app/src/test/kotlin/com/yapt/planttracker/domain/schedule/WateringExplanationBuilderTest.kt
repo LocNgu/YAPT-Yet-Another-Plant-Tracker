@@ -153,6 +153,14 @@ class WateringExplanationBuilderTest {
     }
 
     @Test
+    fun `fromScoreOrNull is null for a never-adapted plant and buckets otherwise`() {
+        assertNull(WateringConfidenceLevel.fromScoreOrNull(null))
+        assertEquals(WateringConfidenceLevel.STILL_LEARNING, WateringConfidenceLevel.fromScoreOrNull(0))
+        assertEquals(WateringConfidenceLevel.GETTING_THERE, WateringConfidenceLevel.fromScoreOrNull(3))
+        assertEquals(WateringConfidenceLevel.DIALED_IN, WateringConfidenceLevel.fromScoreOrNull(5))
+    }
+
+    @Test
     fun `rescheduleDeltaDays is passed through verbatim`() {
         val explanation = WateringExplanationBuilder.build(
             plant = plantWith(wateringIntervalDays = 10),

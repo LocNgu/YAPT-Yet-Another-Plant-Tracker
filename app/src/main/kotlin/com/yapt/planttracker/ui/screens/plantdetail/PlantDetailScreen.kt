@@ -904,6 +904,18 @@ fun PlantDetailScreen(
                                             viewModel.setWateringInterval(days, viaButtonTap)
                                         }
                                     ) {
+                                        // Directly under the slider (#510); `extra` also renders with the
+                                        // schedule off, so gate it like the pin row below.
+                                        if (plant?.wateringIntervalDays != null) {
+                                            WateringConfidenceRow(
+                                                score = plant?.wateringConfidence,
+                                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                                    { showWateringExplanationSheet = true }
+                                                } else {
+                                                    null
+                                                }
+                                            )
+                                        }
                                         if (plant?.wateringIntervalDays != null) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),

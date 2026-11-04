@@ -17,7 +17,8 @@ object WhatsNewContent {
         added = listOf(
             "Choose exactly which plants go on your sitter's list before you share it",
             "Edit or delete a planned sitter visit from Settings",
-            "Pick any photo in a plant's gallery as its cover photo"
+            "Pick any photo in a plant's gallery as its cover photo",
+            "The Water tab shows how well a watering schedule is tuned, from \"Still learning\" to \"Dialed in\""
         ),
         fixed = listOf(
             "Deleting a plant's cover photo now picks the newest remaining photo instead of leaving a broken one"

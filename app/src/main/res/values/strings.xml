@@ -830,6 +830,10 @@
     <string name="confidence_still_learning">Still learning</string>
     <string name="confidence_getting_there">Getting there</string>
     <string name="confidence_dialed_in">Dialed in</string>
+    <!-- Water tab confidence row (#510): the level label reuses confidence_* above -->
+    <string name="watering_confidence_row_caption">Each watering you log fine-tunes this date</string>
+    <string name="watering_confidence_row_why">Why?</string>
+    <string name="cd_watering_confidence_level">Confidence: %1$s</string>
     <string name="watering_explanation_recent_adjustments">Recent adjustments</string>
     <string name="watering_explanation_no_adjustments">No adjustments yet</string>
     <string name="watering_explanation_adjustment_unchanged">unchanged</string>
