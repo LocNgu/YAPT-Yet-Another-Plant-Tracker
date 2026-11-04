@@ -3722,7 +3722,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithTag("why_this_date_button").performClick()
 
         composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
-        // Scoped to the sheet: the Water tab's insights card also shows the label since #510.
+        // Scoped to the sheet: the Water tab's confidence row also shows the label since #510.
         composeTestRule.onNode(
             hasText(
                 InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.confidence_dialed_in)
@@ -3731,11 +3731,12 @@ class PlantDetailScreenTest {
     }
 
     /**
-     * #510: the Water tab's insights card carries a "Confidence" row for any non-null level, using
-     * the sheet's strings. Asserts the visible text only (#420).
+     * #510: the Water tab's interval card carries a confidence row for any non-null level — the
+     * level label (shared with the sheet), a caption and a "Why?" that opens the sheet. Asserts
+     * text, content description and the click outcome only (#420).
      */
     @Test
-    fun waterTabInsights_showConfidenceRow_forNonNullLevel() {
+    fun waterTab_confidenceRow_showsLevel_andOpensWhyThisDate() {
         val plant = Plant(
             id = 83L,
             name = "Calathea",
@@ -3757,15 +3758,22 @@ class PlantDetailScreenTest {
         }
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val level = context.getString(R.string.confidence_getting_there)
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(context.getString(R.string.confidence_getting_there)))
-        composeTestRule.onNodeWithText(context.getString(R.string.confidence_getting_there)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(context.getString(R.string.watering_explanation_confidence))
+            .performScrollToNode(hasTestTag(WATERING_CONFIDENCE_ROW_TEST_TAG))
+        composeTestRule.onNodeWithText(level).assertIsDisplayed()
+        composeTestRule.onNodeWithText(context.getString(R.string.watering_confidence_row_caption))
             .assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(
+            context.getString(R.string.cd_watering_confidence_level, level)
+        ).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag(WATERING_CONFIDENCE_ROW_TEST_TAG).assertHasClickAction().performClick()
+        composeTestRule.onNodeWithTag("watering_explanation_sheet").assertIsDisplayed()
     }
 
     @Test
-    fun waterTabInsights_showNoConfidenceRow_whenNeverAdapted() {
+    fun waterTab_confidenceRow_absent_whenNeverAdapted() {
         val plant = Plant(
             id = 84L,
             name = "Fern",
@@ -3774,7 +3782,6 @@ class PlantDetailScreenTest {
             wateringIntervalDays = 7,
             wateringConfidence = null
         )
-        // One watering so the insights card itself renders; only the confidence row must be absent.
         val viewModel = makeViewModel(plant, careLogs = listOf(offScheduleWaterLog(plant.id)))
 
         composeTestRule.setContent {
@@ -3788,10 +3795,11 @@ class PlantDetailScreenTest {
         }
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // The "Why this date?" button closes the same interval card, so the card is composed here.
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasText(context.getString(R.string.insight_waterings)))
-        composeTestRule.onNodeWithText(context.getString(R.string.insight_waterings)).assertIsDisplayed()
-        composeTestRule.onNode(hasText(context.getString(R.string.watering_explanation_confidence)))
+            .performScrollToNode(hasTestTag("why_this_date_button"))
+        composeTestRule.onNodeWithTag("why_this_date_button").assertIsDisplayed()
+        composeTestRule.onNode(hasText(context.getString(R.string.watering_confidence_row_caption)))
             .assertDoesNotExist()
         composeTestRule.onNode(hasText(context.getString(R.string.confidence_still_learning)))
             .assertDoesNotExist()

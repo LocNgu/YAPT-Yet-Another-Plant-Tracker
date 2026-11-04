@@ -97,7 +97,6 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
-import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
@@ -114,7 +113,6 @@ import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.util.labelRes
 import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.ui.util.showSnackbarOnce
 import com.yapt.planttracker.util.DateUtils
@@ -884,14 +882,20 @@ fun PlantDetailScreen(
                                             increaseCdRes = R.string.watering_interval_increase_cd
                                         ),
                                         belowHeader = {
-                                            WateringSeasonalAdjustmentLine(
-                                                status = careStatus,
-                                                live = liveWateringInterval,
-                                                onWhyThisDate = if (careStatus?.computedNextWateringDueAt != null) {
+                                            val onWhyThisDate: (() -> Unit)? =
+                                                if (careStatus?.computedNextWateringDueAt != null) {
                                                     { showWateringExplanationSheet = true }
                                                 } else {
                                                     null
                                                 }
+                                            WateringSeasonalAdjustmentLine(
+                                                status = careStatus,
+                                                live = liveWateringInterval,
+                                                onWhyThisDate = onWhyThisDate
+                                            )
+                                            WateringConfidenceRow(
+                                                score = plant?.wateringConfidence,
+                                                onWhyThisDate = onWhyThisDate
                                             )
                                         },
                                         onIntervalChange = { days, viaButtonTap ->
@@ -950,19 +954,10 @@ fun PlantDetailScreen(
                                 }
                             }
                             item {
-                                val confidenceLevel =
-                                    WateringConfidenceLevel.fromScoreOrNull(plant?.wateringConfidence)
-                                // The confidence row is WATER-only (#510), so it is appended here
-                                // rather than inside the shared careTypeInsightItems() helper.
                                 val insights = careTypeInsightItems(
                                     summary = CareInsights.summarize(careLogs, CareType.WATER),
                                     countLabel = stringResource(R.string.insight_waterings),
                                     lastAtLabel = stringResource(R.string.insight_last_watered)
-                                ) + listOfNotNull(
-                                    confidenceLevel?.let {
-                                        stringResource(R.string.watering_explanation_confidence) to
-                                            stringResource(it.labelRes())
-                                    }
                                 )
                                 if (insights.isNotEmpty()) {
                                     TabInsightsCard(insights)

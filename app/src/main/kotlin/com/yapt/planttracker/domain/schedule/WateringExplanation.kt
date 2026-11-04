@@ -69,13 +69,6 @@ enum class WateringConfidenceLevel {
          */
         fun fromScoreOrNull(score: Int?): WateringConfidenceLevel? = score?.let { fromScore(it) }
 
-        /**
-         * The level `PlantCard` shows (#510): only the extremes — [STILL_LEARNING] and [DIALED_IN].
-         * [GETTING_THERE] and a never-adapted plant (`null`) show nothing on the card.
-         */
-        fun cardLevelOrNull(score: Int?): WateringConfidenceLevel? =
-            fromScoreOrNull(score)?.takeIf { it != GETTING_THERE }
-
         fun fromScore(score: Int?): WateringConfidenceLevel {
             val value = score ?: 0
             return when {

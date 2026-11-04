@@ -337,8 +337,6 @@
         <item quantity="one">1 active issue</item>
         <item quantity="other">%d active issues</item>
     </plurals>
-    <!-- PlantCard watering-confidence indicator (#510): the visible text reuses confidence_* -->
-    <string name="cd_plant_card_watering_confidence">Watering schedule: %1$s</string>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
     <string name="pin_interval_label">Pin interval</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
@@ -828,6 +826,10 @@
     <string name="confidence_still_learning">Still learning</string>
     <string name="confidence_getting_there">Getting there</string>
     <string name="confidence_dialed_in">Dialed in</string>
+    <!-- Water tab confidence row (#510): the level label reuses confidence_* above -->
+    <string name="watering_confidence_row_caption">Each watering you log fine-tunes this date</string>
+    <string name="watering_confidence_row_why">Why?</string>
+    <string name="cd_watering_confidence_level">Confidence: %1$s</string>
     <string name="watering_explanation_recent_adjustments">Recent adjustments</string>
     <string name="watering_explanation_no_adjustments">No adjustments yet</string>
     <string name="watering_explanation_adjustment_unchanged">unchanged</string>

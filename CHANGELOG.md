@@ -13,11 +13,10 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Added
-- **Watering confidence on plant cards and the Water tab** (#510) — a plant card now shows a neutral-tinted
-  **Still learning** or **Dialed in** line below the water/fertilizer countdowns (nothing for Getting there, and
-  nothing for a plant that has never been adapted). The Water tab's insights card gains a **Confidence** row for any
-  level. Both reuse the "Why this date?" sheet's labels; the card line has a "Watering schedule: …" description for
-  TalkBack.
+- **How sure the app is about a watering schedule, on the Water tab** (#510) — the watering-interval card now has a
+  row under the header with a five-bar meter, the level (**Still learning**, **Getting there** or **Dialed in**, the
+  same labels as the "Why this date?" sheet) and "Each watering you log fine-tunes this date". Tapping it (**Why?**)
+  opens "Why this date?". It is hidden for a plant the app has never adapted. Plant cards are unchanged.
 - **Edit or delete a planned sitter visit** (#993, product ADR-0079) — in Settings, a planned visit from today on is
   tappable to reopen Plan a sitter visit on that day with its saved list, and has a menu with **Edit** and
   **Delete**. Delete asks first, removes the visit and its plants, and writes no care log; those plants may come up
