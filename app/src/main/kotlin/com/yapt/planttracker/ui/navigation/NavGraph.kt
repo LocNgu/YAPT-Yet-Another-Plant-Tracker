@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -581,11 +582,18 @@ fun YaptNavGraph(
                         app.plantRepository,
                         app.careLogRepository,
                         app.quickLogUseCase,
-                        app.settingsDataStore,
-                        initialDay = epochDay.takeIf { it != Screen.PlanSitterVisit.NO_DAY }
-                            ?.let { LocalDate.ofEpochDay(it) }
+                        app.settingsDataStore
                     )
                 )
+                // Saveable, so a rotation never re-applies the day over the owner's own pick. An unselectable day
+                // (past, beyond the trip) is ignored by the ViewModel, which falls back to the default day.
+                var dayApplied by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(vm) {
+                    if (!dayApplied) {
+                        dayApplied = true
+                        if (epochDay != Screen.PlanSitterVisit.NO_DAY) vm.pickDay(LocalDate.ofEpochDay(epochDay))
+                    }
+                }
                 PlanVisitScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })
             }
 

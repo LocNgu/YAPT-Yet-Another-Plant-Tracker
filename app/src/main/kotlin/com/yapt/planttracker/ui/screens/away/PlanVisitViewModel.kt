@@ -110,12 +110,10 @@ class PlanVisitViewModel(
     private val deps: PlanVisitDependencies,
     dayChange: Flow<LocalDate> = dayChangeTicker(),
     private val hemisphere: () -> Hemisphere = SeasonalWatering::currentHemisphere,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    initialDay: LocalDate? = null
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
-    // An unselectable day (past, beyond the trip) is ignored by planState, which falls back to the default day.
-    private val pickedDay = MutableStateFlow(initialDay)
+    private val pickedDay = MutableStateFlow<LocalDate?>(null)
     private val gapDays = MutableStateFlow<Int?>(null)
     private val unticked = MutableStateFlow<Set<Long>>(emptySet())
     private val sitterSelection = MutableStateFlow(SitterSelectionState())
@@ -271,8 +269,7 @@ class PlanVisitViewModel(
         private val plantRepository: PlantRepository,
         private val careLogRepository: CareLogRepository,
         private val quickLogUseCase: QuickLogUseCase,
-        private val dataStore: DataStore<Preferences>,
-        private val initialDay: LocalDate? = null
+        private val dataStore: DataStore<Preferences>
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = PlanVisitViewModel(
@@ -283,8 +280,7 @@ class PlanVisitViewModel(
                 quickLogUseCase,
                 dataStore.seasonalAmplitudeFlow(),
                 AndroidSitterListOutput(application)
-            ),
-            initialDay = initialDay
+            )
         ) as T
     }
 

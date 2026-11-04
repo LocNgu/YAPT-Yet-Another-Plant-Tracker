@@ -12,9 +12,9 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -424,5 +424,5 @@ class AwayModeSettingsSectionTest {
         composeTestRule.onAllNodesWithText("Confirm").assertCountEquals(1)
     }
 
-    private fun hasTextContaining(text: String) = androidx.compose.ui.test.hasText(text, substring = true)
+    private fun hasTextContaining(text: String) = hasText(text, substring = true)
 }

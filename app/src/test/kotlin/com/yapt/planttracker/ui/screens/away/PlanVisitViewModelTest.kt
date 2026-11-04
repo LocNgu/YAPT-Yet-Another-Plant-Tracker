@@ -88,9 +88,9 @@ class PlanVisitViewModelTest {
                 output
             ),
             dayChange = flowOf(today),
-            ioDispatcher = mainDispatcherRule.testDispatcher,
-            initialDay = initialDay
+            ioDispatcher = mainDispatcherRule.testDispatcher
         )
+        initialDay?.let(vm::pickDay)
         backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.uiState.collect {} }
         return vm
     }

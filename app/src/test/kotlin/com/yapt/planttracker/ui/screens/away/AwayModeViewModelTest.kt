@@ -258,10 +258,20 @@ class AwayModeViewModelTest {
     fun `deleting a visit that was confirmed meanwhile or no longer exists does nothing`() = runTest {
         val trip = addTrip(today.minusDays(1), today.plusDays(8))
         val confirmedId = repository.addVisit(
-            SitterVisit(awayPeriodId = trip.id, day = today.plusDays(2), state = SitterVisitState.CONFIRMED, createdAt = 1L)
+            SitterVisit(
+                awayPeriodId = trip.id,
+                day = today.plusDays(2),
+                state = SitterVisitState.CONFIRMED,
+                createdAt = 1L
+            )
         )
         val missedId = repository.addVisit(
-            SitterVisit(awayPeriodId = trip.id, day = today.plusDays(3), state = SitterVisitState.DID_NOT_HAPPEN, createdAt = 1L)
+            SitterVisit(
+                awayPeriodId = trip.id,
+                day = today.plusDays(3),
+                state = SitterVisitState.DID_NOT_HAPPEN,
+                createdAt = 1L
+            )
         )
         val vm = viewModel()
 
