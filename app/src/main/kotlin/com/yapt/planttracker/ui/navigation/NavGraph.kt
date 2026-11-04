@@ -192,12 +192,12 @@ private fun ApplyCaredTodayDeepLink(
     }
 }
 
+// navController is a test seam only (#472): instrumented tests inject a TestNavHostController.
 @Composable
 fun YaptNavGraph(
     app: YaptApplication,
     initialPlantId: Long? = null,
     onDeepLinkConsumed: () -> Unit = {},
-    // Test seam only (#472): instrumented tests inject a TestNavHostController; production uses the default.
     navController: NavHostController = rememberNavController()
 ) {
     val scope = rememberCoroutineScope()
