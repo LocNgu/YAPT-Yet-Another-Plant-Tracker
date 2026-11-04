@@ -170,7 +170,7 @@ class PlantCardTest {
         setCard(confidence = 3)
 
         composeTestRule.onNode(hasContentDescription("Watering schedule", substring = true)).assertDoesNotExist()
-        composeTestRule.onNode(hasText("Getting there")).assertDoesNotExist()
+        composeTestRule.onNode(hasContentDescription("Getting there", substring = true)).assertDoesNotExist()
     }
 
     @Test
@@ -178,6 +178,6 @@ class PlantCardTest {
         setCard(confidence = null)
 
         composeTestRule.onNode(hasContentDescription("Watering schedule", substring = true)).assertDoesNotExist()
-        composeTestRule.onNode(hasText("Still learning")).assertDoesNotExist()
+        composeTestRule.onNode(hasContentDescription("Still learning", substring = true)).assertDoesNotExist()
     }
 }
