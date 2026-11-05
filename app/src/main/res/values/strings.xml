@@ -66,6 +66,34 @@
         <item quantity="other">Backup saved (%1$d plants, %2$d logs) · %3$d photos skipped</item>
     </plurals>
     <string name="backup_error">Error: %s</string>
+    <string name="auto_backup_title">Automatic backups</string>
+    <string name="auto_backup_folder_title">Backup folder</string>
+    <string name="auto_backup_folder_none">No folder chosen</string>
+    <string name="auto_backup_frequency_title">How often</string>
+    <string name="auto_backup_frequency_daily">Daily</string>
+    <string name="auto_backup_frequency_weekly">Weekly</string>
+    <string name="auto_backup_retention_title">Keep the last</string>
+    <plurals name="auto_backup_retention_option">
+        <item quantity="one">%d backup</item>
+        <item quantity="other">%d backups</item>
+    </plurals>
+    <string name="auto_backup_status_off">Off</string>
+    <string name="auto_backup_status_waiting">On, waiting for the first backup</string>
+    <string name="auto_backup_status_folder_unavailable">Folder unavailable, choose again</string>
+    <string name="auto_backup_status_failed">Last backup failed, will retry</string>
+    <string name="auto_backup_status_failed_storage">Last backup failed: not enough storage</string>
+    <string name="auto_backup_status_success">Last backup: %s</string>
+    <plurals name="auto_backup_status_success_skipped">
+        <item quantity="one">Last backup: %1$s (%2$d photo skipped)</item>
+        <item quantity="other">Last backup: %1$s (%2$d photos skipped)</item>
+    </plurals>
+    <string name="auto_backup_channel_name">Automatic backups</string>
+    <string name="auto_backup_progress_channel_name">Backup in progress</string>
+    <string name="auto_backup_progress_title">Backing up…</string>
+    <string name="auto_backup_progress_body">Saving your plants to your backup folder</string>
+    <string name="auto_backup_notification_title">Automatic backup problem</string>
+    <string name="auto_backup_notification_folder_body">YAPT can no longer reach your backup folder. Open Settings and choose it again.</string>
+    <string name="auto_backup_notification_failed_body">The last automatic backups failed. Check Settings for details.</string>
     <string name="backup_in_progress_title">Please wait…</string>
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>

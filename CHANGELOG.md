@@ -12,6 +12,16 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **Automatic local backups** (#1001, product ADR-0081, technical ADR-0043) — Settings → Backup & Restore has an
+  **Automatic backups** switch. Pick a folder (Storage Access Framework, permission persisted), choose **Daily** or
+  **Weekly** (default), keep the last **3 / 7 / 14** (default 7) and whether to include (optimized) photos. A unique
+  periodic WorkManager job writes `yapt-backup-YYYY-MM-DD.yapt` through the unchanged export, skips runs when nothing
+  changed, and prunes only YAPT's own older files after a successful write. The status line shows the last backup,
+  "N photos skipped" or "Folder unavailable, choose again"; a notification (own channel, ID `-3`) appears on the second
+  consecutive failure or at once when the folder permission is lost. Settings are device-local and not part of `.yapt`
+  files, so there is no schema bump.
+
 ## [0.42.0] - 2026-11-04
 
 ### Added
