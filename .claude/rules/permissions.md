@@ -28,3 +28,9 @@ server, with deny entries for the flags that fail the flag test; `gh pr review` 
 | `git checkout develop` · `git push origin develop` · `git push --force origin claude/*` | Prompts — approve when appropriate |
 | `git checkout main` · `git push origin main` · force-push (`--force`/`-f`/`--force-with-lease`) main/develop · `git switch main` · `git branch -d`/`-D`/`-m`/`-M`/`--delete`/`--move` · `git stash drop`/`clear` · `find`'s action primaries (`-exec`/`-delete`/etc.) · `git reset --hard` · `gh issue comment`/`gh pr comment --delete-last` · `gh pr create` against `main` (common spellings) · `gh` naming a known secret path (e.g. as `--body-file`) · `cat`/`grep` of known secret paths (`~/.ssh`, `~/.aws`, `gh` token file, `.env`, etc., non-exhaustive) | **Forbidden** — blocked mechanically |
 | Merging PRs by any means | **Forbidden** — human only |
+
+**Deny symmetry rule (#687):** every protected-branch deny entry has both a bare form and a trailing
+` *` form, for the plain command and its `git -C * …` twin (so extra arguments can't slip past the
+deny). A new deny pair is added in all four shapes, each `-C *` entry placed directly after its bare
+twin. The original deny block is no longer frozen: changes are ordinary reviewed diffs, preferably
+additions only.
