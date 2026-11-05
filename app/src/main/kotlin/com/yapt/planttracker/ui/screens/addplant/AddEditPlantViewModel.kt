@@ -21,7 +21,10 @@ import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.LiveWateringInterval
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
+import com.yapt.planttracker.domain.schedule.resolveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import com.yapt.planttracker.util.toLocalDate
@@ -89,8 +92,33 @@ class AddEditPlantViewModel(
      */
     var repottingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
 
-    /** Per-plant opt-out from the seasonal curve (#569) — always surfaced now that seasonal watering ships unconditionally (#656). */
-    var pinIntervalToBase by mutableStateOf(false)
+    private var pinIntervalToBaseState by mutableStateOf(false)
+    private var wateringAmplitudeOverrideState by mutableStateOf<SeasonalAmplitude?>(null)
+
+    /**
+     * Per-plant opt-out from the seasonal curve (#569). One of the three choices of the strength control
+     * (#700, product ADR-0081), so turning it on clears [wateringAmplitudeOverride].
+     */
+    var pinIntervalToBase: Boolean
+        get() = pinIntervalToBaseState
+        set(value) {
+            pinIntervalToBaseState = value
+            if (value) wateringAmplitudeOverrideState = null
+        }
+
+    /** Per-plant custom strength (#700); choosing one clears [pinIntervalToBase], `null` = follow the app default. */
+    var wateringAmplitudeOverride: SeasonalAmplitude?
+        get() = wateringAmplitudeOverrideState
+        set(value) {
+            wateringAmplitudeOverrideState = value
+            if (value != null) pinIntervalToBaseState = false
+        }
+
+    private var loadedAmplitudeOverride: SeasonalAmplitude? = null
+
+    /** The "adjusted for winter" hint describes the stored strength, so it hides once the form picks another one. */
+    val showSeasonalAdjustment: Boolean
+        get() = seasonalAdjustment != null && !pinIntervalToBase && wateringAmplitudeOverride == loadedAmplitudeOverride
     var dormancyStartMonth by mutableStateOf<Int?>(null)
     var dormancyEndMonth by mutableStateOf<Int?>(null)
     var dormantWateringIntervalDays by mutableStateOf<Int?>(null)
@@ -191,6 +219,8 @@ class AddEditPlantViewModel(
                     repottingSeasons = plant.repottingSeasons
                     useLiquidFertilizer = plant.useLiquidFertilizer
                     pinIntervalToBase = plant.pinIntervalToBase
+                    wateringAmplitudeOverride = plant.wateringAmplitudeOverride.takeUnless { plant.pinIntervalToBase }
+                    loadedAmplitudeOverride = wateringAmplitudeOverride
                     dormancyStartMonth = plant.dormancyStartMonth
                     dormancyEndMonth = plant.dormancyEndMonth
                     dormantWateringIntervalDays = DormancyWindow.validWateringInterval(
@@ -218,6 +248,9 @@ class AddEditPlantViewModel(
         prefillFertilizing(parent)
         if (repottingSeasons == ALL_SEASONS) repottingSeasons = parent.repottingSeasons
         if (!pinIntervalToBase) pinIntervalToBase = parent.pinIntervalToBase
+        if (!pinIntervalToBase && wateringAmplitudeOverride == null) {
+            wateringAmplitudeOverride = parent.wateringAmplitudeOverride
+        }
         val dormancyUntouched = dormancyStartMonth == null && dormancyEndMonth == null &&
             dormantWateringIntervalDays == null
         val parentStart = parent.dormancyStartMonth
@@ -310,6 +343,7 @@ class AddEditPlantViewModel(
                 updatedAt = now,
                 useLiquidFertilizer = useLiquidFertilizer,
                 pinIntervalToBase = pinIntervalToBase,
+                wateringAmplitudeOverride = wateringAmplitudeOverride,
                 dormancyStartMonth = dormancyStartMonth,
                 dormancyEndMonth = dormancyEndMonth,
                 fertilizingSeasons = fertilizingSeasons,
@@ -405,6 +439,7 @@ class AddEditPlantViewModel(
     }
 
     /**
+     * When the strength and the interval change in the same save, before and after can span two strengths.
      * #584 review: logs base-space before/after, not the literal typed value — matches
      * `PlantDetailViewModel.setWateringInterval()`'s equivalent `MANUAL_EDIT` fix. Extracted out of
      * [saveEdit] to keep it under Detekt's `LongMethod`/`CyclomaticComplexMethod` thresholds.
@@ -416,9 +451,8 @@ class AddEditPlantViewModel(
         now: Long
     ) {
         val loggedBefore = currentBaseIntervalDaysOrLiteral(
-            pinned = existing?.pinIntervalToBase == true,
-            storedBase = existing?.wateringBaseIntervalDays,
-            literal = existing?.wateringIntervalDays ?: newWateringIntervalDays
+            existing,
+            existing?.wateringIntervalDays ?: newWateringIntervalDays
         )
         val loggedAfter = if (!pinIntervalToBase) {
             (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
@@ -440,11 +474,7 @@ class AddEditPlantViewModel(
 
     /** A room-change reset changes confidence, not the interval — `before == after`, same as [WateringLifecycleReset.applyRepotReset]. */
     private suspend fun logRoomChangeResetAdjustment(existing: Plant?, now: Long) {
-        val beforeAfter = currentBaseIntervalDaysOrLiteral(
-            pinned = existing?.pinIntervalToBase == true,
-            storedBase = existing?.wateringBaseIntervalDays,
-            literal = existing?.wateringIntervalDays ?: 0
-        )
+        val beforeAfter = currentBaseIntervalDaysOrLiteral(existing, existing?.wateringIntervalDays ?: 0)
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(
                 plantId = plantId!!,
@@ -472,11 +502,15 @@ class AddEditPlantViewModel(
     }
 
     /**
-     * `null` when [dataStore] is null (test-convenience seam) or amplitude reads Off.
+     * `null` when [dataStore] is null (test-convenience seam) or the form's effective amplitude reads Off.
      */
     private suspend fun deseasonalizedBaseOrNull(intervalDays: Int, now: Long): Double? {
         val store = dataStore ?: return null
-        val amplitude = store.seasonalAmplitudeOnce()
+        val amplitude = resolveWateringAmplitude(
+            pinIntervalToBase,
+            wateringAmplitudeOverride,
+            store.seasonalAmplitudeOnce()
+        )
         return if (amplitude == 0.0) {
             null
         } else {
@@ -496,12 +530,12 @@ class AddEditPlantViewModel(
      * amplitude is Off, matching every other read of [Plant.wateringBaseIntervalDays].
      */
     @Suppress("ReturnCount")
-    private suspend fun currentBaseIntervalDaysOrLiteral(pinned: Boolean, storedBase: Double?, literal: Int): Int {
-        if (pinned) return literal
+    private suspend fun currentBaseIntervalDaysOrLiteral(existing: Plant?, literal: Int): Int {
         val store = dataStore ?: return literal
-        val amplitude = store.seasonalAmplitudeOnce()
+        val globalAmplitude = store.seasonalAmplitudeOnce()
+        val amplitude = existing?.effectiveWateringAmplitude(globalAmplitude) ?: globalAmplitude
         if (amplitude == 0.0) return literal
-        return (storedBase ?: literal.toDouble()).roundToInt()
+        return (existing?.wateringBaseIntervalDays ?: literal.toDouble()).roundToInt()
     }
 
     fun deletePlant() {

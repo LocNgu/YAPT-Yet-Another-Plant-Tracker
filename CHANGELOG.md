@@ -12,6 +12,16 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Added
+- **A plant can follow its own seasonal watering strength** (#700, product ADR-0081) — Add/Edit Plant and the Water
+  tab have one **Seasonal strength** control: **App default**, **Custom** (Mild, Standard or Strong) or **Pin**,
+  which replaces the old "Pin interval" switch (a pinned plant stays pinned). Pin and Custom exclude each other.
+  A plant on Custom keeps its strength even if the global setting is Off, and the Water tab's curve preview, the
+  due date, the "Why this date?" season row and the learner's de-seasonalised gaps all use the plant's own strength
+  through one resolver. Changing the strength keeps the base interval and logs no adjustment; only today's effective
+  interval moves. Custom has no Off, since that is exactly what Pin does. Room migration 21 to 22 (nullable column);
+  backup schema 25.
+
 ## [0.42.0] - 2026-11-04
 
 ### Added

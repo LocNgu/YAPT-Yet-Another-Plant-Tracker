@@ -9,6 +9,7 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -543,4 +544,35 @@ class SeasonalGraduationFixupTest {
         assertEquals(1, changedCount)
         coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
     }
+
+    @Test
+    fun `global Off with a custom-strength plant processes it once, latches done and then is a no-op (#700)`() =
+        runTest {
+            val dataStore = tempDataStore()
+            val plantRepository: PlantRepository = mockk(relaxed = true)
+            val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
+            val custom = plant(wateringIntervalDays = 14, wateringBaseIntervalDays = 7.0)
+                .copy(wateringAmplitudeOverride = SeasonalAmplitude.STRONG)
+            plantRepository.stubFreshFetch(custom)
+            val request = SeasonalGraduationFixup.FixupRequest(
+                plants = listOf(custom),
+                amplitude = 0.0,
+                hemisphere = hemisphere,
+                today = midYear
+            )
+
+            suspend fun runOnce() = SeasonalGraduationFixup.maybeRun(
+                request,
+                plantRepository,
+                wateringAdjustmentRepository,
+                dataStore
+            )
+            val first = runOnce()
+            val second = runOnce()
+
+            assertEquals(1, first)
+            assertEquals(0, second)
+            assertEquals(true, dataStore.data.first()[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE])
+            coVerify(exactly = 1) { plantRepository.updateWateringBaseInterval(any(), any(), any()) }
+        }
 }
