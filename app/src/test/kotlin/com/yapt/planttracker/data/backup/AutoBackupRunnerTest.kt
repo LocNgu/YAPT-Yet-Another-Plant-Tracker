@@ -244,4 +244,33 @@ class AutoBackupRunnerTest {
         assertEquals(AutoBackupOutcome.Unchanged, runner(folder, manager).run())
         assertEquals(1, calls)
     }
+
+    @Test
+    fun `fingerprint failure fails the run as an export failure instead of skipping`() = runBlocking {
+        val manager = FakeBackupManager(success())
+        val failing = AutoBackupRunner(
+            dataStore = dataStore,
+            backupManager = manager,
+            folderFor = { FakeFolder() },
+            fingerprint = { _, _ -> error("db unreadable") },
+            today = { today }
+        )
+
+        val first = failing.run() as AutoBackupOutcome.Failed
+        assertEquals(AutoBackupFailureKind.EXPORT, first.kind)
+        assertFalse(first.notify)
+        assertTrue((failing.run() as AutoBackupOutcome.Failed).notify)
+        assertEquals(0, manager.exports)
+        assertEquals(2, dataStore.data.first()[SettingsKeys.AUTO_BACKUP_FAILURE_COUNT])
+    }
+
+    @Test
+    fun `pruning never deletes the file just written even when older-named files are newer`() = runBlocking {
+        val folder = FakeFolder(
+            names = listOf("yapt-backup-2027-01-01.yapt", "yapt-backup-2027-01-02.yapt", "yapt-backup-2027-01-03.yapt")
+        )
+        runner(folder, FakeBackupManager(success())).run()
+        assertTrue(todayName in folder.files)
+        assertFalse(todayName in folder.deleted)
+    }
 }

@@ -39,7 +39,7 @@ class AutoBackupRunner(
     private val beforeExport: suspend () -> Unit = {}
 ) {
 
-    @Suppress("ReturnCount", "SwallowedException", "TooGenericExceptionCaught")
+    @Suppress("ReturnCount", "SwallowedException", "TooGenericExceptionCaught", "ThrowsCount")
     suspend fun run(): AutoBackupOutcome {
         val prefs = dataStore.data.first()
         val folderUri = prefs[SettingsKeys.AUTO_BACKUP_FOLDER_URI]
@@ -50,7 +50,13 @@ class AutoBackupRunner(
 
         val includePhotos = prefs[SettingsKeys.AUTO_BACKUP_INCLUDE_PHOTOS] ?: true
         val optimizePhotos = prefs[SettingsKeys.AUTO_BACKUP_OPTIMIZE_PHOTOS] ?: false
-        val currentFingerprint = fingerprint(includePhotos, optimizePhotos)
+        val currentFingerprint = try {
+            fingerprint(includePhotos, optimizePhotos)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return fail(AutoBackupFailureKind.EXPORT)
+        }
         if (currentFingerprint == prefs[SettingsKeys.AUTO_BACKUP_FINGERPRINT]) return AutoBackupOutcome.Unchanged
 
         // Best effort (e.g. setForeground throws from the background on API 31+); never a failure.
@@ -99,7 +105,7 @@ class AutoBackupRunner(
         }
 
         val keep = AutoBackupRetention.fromStored(prefs[SettingsKeys.AUTO_BACKUP_RETENTION])
-        prune(folder, keep)
+        prune(folder, keep, justWritten = name)
 
         dataStore.edit {
             it[SettingsKeys.AUTO_BACKUP_LAST_SUCCESS_AT] = now()
@@ -112,10 +118,11 @@ class AutoBackupRunner(
         return AutoBackupOutcome.Succeeded(result.skippedPhotoCount)
     }
 
-    private fun prune(folder: BackupFolder, keep: Int) {
+    private fun prune(folder: BackupFolder, keep: Int, justWritten: String) {
         runCatching {
             val entries = folder.list()
-            val doomed = AutoBackupFiles.selectPrunable(entries.map { it.name }, keep).toSet()
+            // A set-back clock can date existing files after today; the new file must never be deleted.
+            val doomed = AutoBackupFiles.selectPrunable(entries.map { it.name }, keep).toSet() - justWritten
             entries.filter { it.name in doomed }.forEach { folder.delete(it) }
         }
     }

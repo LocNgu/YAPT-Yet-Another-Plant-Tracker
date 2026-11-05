@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +54,11 @@ fun AutoBackupSettingsSection(viewModel: AutoBackupViewModel) {
 @Composable
 private fun AutoBackupHeaderRow(state: AutoBackupUiState, onToggle: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("auto_backup_switch")
+            .toggleable(value = state.enabled, role = Role.Switch, onValueChange = onToggle)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -68,7 +73,7 @@ private fun AutoBackupHeaderRow(state: AutoBackupUiState, onToggle: (Boolean) ->
                 }
             )
         }
-        Switch(modifier = Modifier.testTag("auto_backup_switch"), checked = state.enabled, onCheckedChange = onToggle)
+        Switch(checked = state.enabled, onCheckedChange = null)
     }
 }
 

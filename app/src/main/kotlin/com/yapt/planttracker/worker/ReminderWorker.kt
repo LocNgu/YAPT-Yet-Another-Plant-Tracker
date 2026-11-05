@@ -286,7 +286,8 @@ class ReminderWorker(
         const val WORK_NAME = "yapt_care_reminder"
         const val COMBINED_NOTIFICATION_ID = -1
 
-        // Independent alerts the daily cleanup must not clear (technical ADR-0026, technical ADR-0043): post-watering, backup failure, backup progress.
+        // Independent alerts the daily cleanup must not clear: post-watering (technical ADR-0026) and the
+        // automatic-backup failure and progress notifications (technical ADR-0043).
         private val PRESERVED_NOTIFICATION_IDS =
             setOf(
                 PostWateringReminderWorker.NOTIFICATION_ID,

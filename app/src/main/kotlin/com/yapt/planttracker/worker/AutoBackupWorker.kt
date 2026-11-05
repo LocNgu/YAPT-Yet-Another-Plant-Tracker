@@ -11,7 +11,9 @@ import com.yapt.planttracker.data.backup.autobackup.SafBackupFolder
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.notification.AutoBackupNotifier
 import com.yapt.planttracker.settingsDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /** Periodic automatic `.yapt` export into the user's folder (#1001); see [AutoBackupRunner]. */
 class AutoBackupWorker(
@@ -30,7 +32,7 @@ class AutoBackupWorker(
             },
             beforeExport = { setForeground(AutoBackupNotifier.progressForegroundInfo(context)) }
         )
-        when (val outcome = runner.run()) {
+        when (val outcome = withContext(Dispatchers.IO) { runner.run() }) {
             is AutoBackupOutcome.Succeeded -> AutoBackupNotifier.clear(context)
             is AutoBackupOutcome.Failed -> if (outcome.notify && notificationsEnabled()) {
                 AutoBackupNotifier.postFailure(context, outcome.kind)
