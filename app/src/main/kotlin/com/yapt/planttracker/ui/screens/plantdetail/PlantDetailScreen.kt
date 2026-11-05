@@ -97,6 +97,8 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.resolveWateringAmplitude
+import com.yapt.planttracker.domain.schedule.wateringStrengthMode
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.CoverPhotoAction
@@ -113,6 +115,8 @@ import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
+import com.yapt.planttracker.ui.components.WateringStrengthCallbacks
+import com.yapt.planttracker.ui.components.WateringStrengthSetting
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.ui.util.showSnackbarOnce
@@ -917,22 +921,18 @@ fun PlantDetailScreen(
                                             )
                                         }
                                         if (plant?.wateringIntervalDays != null) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = stringResource(R.string.pin_interval_label),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    modifier = Modifier.weight(1f)
+                                            WateringStrengthSetting(
+                                                mode = wateringStrengthMode(
+                                                    plant?.pinIntervalToBase == true,
+                                                    plant?.wateringAmplitudeOverride
+                                                ),
+                                                customStrength = plant?.wateringAmplitudeOverride,
+                                                callbacks = WateringStrengthCallbacks(
+                                                    onSelectAppDefault = { viewModel.setWateringStrength(false, null) },
+                                                    onSelectCustom = { viewModel.setWateringStrength(false, it) },
+                                                    onSelectPin = { viewModel.setWateringStrength(true, null) }
                                                 )
-                                                Switch(
-                                                    modifier = Modifier.testTag("pin_interval_switch"),
-                                                    checked = plant?.pinIntervalToBase == true,
-                                                    onCheckedChange = { viewModel.setPinIntervalToBase(it) }
-                                                )
-                                            }
+                                            )
                                         }
                                         DormancyWindowSetting(
                                             startMonth = plant?.dormancyStartMonth,
@@ -943,7 +943,11 @@ fun PlantDetailScreen(
                                         if (plant?.wateringIntervalDays != null) {
                                             val hemisphere = remember { SeasonalWatering.currentHemisphere() }
                                             SeasonalWateringCurveChart(
-                                                amplitude = seasonalAmplitudeValue,
+                                                amplitude = resolveWateringAmplitude(
+                                                    pinned = false,
+                                                    override = plant?.wateringAmplitudeOverride,
+                                                    globalAmplitude = seasonalAmplitudeValue
+                                                ),
                                                 hemisphere = hemisphere,
                                                 modifier = Modifier.padding(top = 12.dp),
                                                 plantContext = SeasonalCurvePlantContext(

@@ -22,8 +22,8 @@ class PlantFamilyBackupTest {
     )
 
     @Test
-    fun `schema version is 24`() {
-        assertEquals(24, CURRENT_SCHEMA_VERSION)
+    fun `schema version is 25`() {
+        assertEquals(25, CURRENT_SCHEMA_VERSION)
     }
 
     @Test
@@ -79,5 +79,42 @@ class PlantFamilyBackupTest {
         )
 
         assertEquals(mapOf(4L to 1L), links)
+    }
+
+    @Test
+    fun `wateringAmplitudeOverride round-trips through the v25 json`() {
+        val json = backupJson.encodeToString(
+            BackupRoot.serializer(),
+            root(null).copy(
+                plants = listOf(
+                    BackupPlant(
+                        id = 1L,
+                        name = "Fern",
+                        createdAt = 1L,
+                        updatedAt = 1L,
+                        wateringAmplitudeOverride = "MILD"
+                    )
+                )
+            )
+        )
+
+        val decoded = backupJson.decodeFromString(BackupRoot.serializer(), json)
+
+        assertEquals("MILD", decoded.plants[0].wateringAmplitudeOverride)
+    }
+
+    @Test
+    fun `a v24 backup imports with the app default strength`() {
+        val json = """
+            {"schemaVersion":24,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1,"updatedAt":1,"pinIntervalToBase":true}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+
+        assertNull(plant.wateringAmplitudeOverride)
+        assertTrue(plant.pinIntervalToBase)
     }
 }

@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -100,7 +101,8 @@ object SeasonalGraduationFixup {
      * reference day — exactly like `MIGRATION_10_11` anchored migration day — so the effective interval
      * immediately after this runs equals the plant's current (correct) literal interval. A no-op
      * (skipped entirely, no [WateringAdjustment] row) for: a pinned plant, a plant with no
-     * `wateringIntervalDays` set, [FixupRequest.amplitude] of `0.0` (nothing to de-seasonalize), or a
+     * `wateringIntervalDays` set, an effective amplitude of `0.0` for the plant (pinned, or its custom/global
+     * strength is Off, #700 — nothing to de-seasonalize), or a
      * plant whose recomputed base is already exactly the stored value (nothing actually changed — this
      * intentionally compares the raw, unrounded `Double`, not the rounded display value, since two
      * bases that round to the same day count can still diverge meaningfully once multiplied by the
@@ -132,8 +134,6 @@ object SeasonalGraduationFixup {
         wateringAdjustmentRepository: WateringAdjustmentRepository,
         now: Long = System.currentTimeMillis()
     ): Int {
-        if (request.amplitude == 0.0) return 0
-
         var changedCount = 0
         for (snapshotPlant in request.plants) {
             val recomputed = computeUpdate(snapshotPlant, request, plantRepository) ?: continue
@@ -173,13 +173,14 @@ object SeasonalGraduationFixup {
     /** `null` when [plant] should be skipped entirely — see [run]'s doc for every no-op case. */
     private fun recomputeIfNeeded(plant: Plant, request: FixupRequest): RecomputedBase? {
         val literalInterval = plant.wateringIntervalDays
-        return if (plant.pinIntervalToBase || literalInterval == null) {
+        val amplitude = plant.effectiveWateringAmplitude(request.amplitude)
+        return if (amplitude == 0.0 || literalInterval == null) {
             null
         } else {
             val newBase = SeasonalWatering.deseasonalize(
                 literalInterval.toDouble(),
                 request.today,
-                request.amplitude,
+                amplitude,
                 request.hemisphere
             )
             val beforeBase = plant.wateringBaseIntervalDays

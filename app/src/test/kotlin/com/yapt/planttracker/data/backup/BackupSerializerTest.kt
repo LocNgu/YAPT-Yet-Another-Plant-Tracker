@@ -51,6 +51,7 @@ class BackupSerializerTest {
         wateringConfidence = 3,
         wateringBaseIntervalDays = 5.18,
         pinIntervalToBase = true,
+        wateringAmplitudeOverride = "MILD",
         wateringResetAt = 1_690_000_000_000L,
         wateringFreezeUntil = 1_692_000_000_000L,
         dormancyStartMonth = 11,

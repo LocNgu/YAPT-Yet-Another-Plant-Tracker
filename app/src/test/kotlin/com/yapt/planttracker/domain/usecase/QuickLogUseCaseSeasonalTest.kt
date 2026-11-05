@@ -214,6 +214,34 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(expectedSuggestion, outcome.suggestion?.suggestedInterval)
     }
 
+    @Test
+    fun `quickWaterWithReason de-seasonalizes the gap with the plant's custom strength (#700)`() = runTest {
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        val useCase = useCaseWithSeasonOn(peakDay)
+        val monstera = plant(wateringIntervalDays = 10).copy(wateringAmplitudeOverride = SeasonalAmplitude.MILD)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = peakDay - TimeUnit.DAYS.toMillis(20),
+                wateringFeedback = WateringFeedback.JUST_RIGHT
+            )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
+
+        // Global is STANDARD (1.35) but the plant is Mild (1.2): round(20 / 1.2) = 17, not round(20 / 1.35) = 15.
+        val expected = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.TOO_LATE,
+            observedIntervalDays = 17,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(expected.intervalDays.takeIf { it != 10 }, outcome.suggestion?.suggestedInterval)
+    }
+
     /**
      * #620's own gate, at the choke point ([QuickLogUseCase.computeSuggestion]) shared by Calendar,
      * Plant List, and Plant Detail: when the base-space suggestion's effective-space conversion equals

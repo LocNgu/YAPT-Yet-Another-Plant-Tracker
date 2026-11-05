@@ -5,6 +5,8 @@ import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -12,19 +14,31 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
 /**
- * "Pin interval" switch on the inline Water tab settings card (#569), always visible (#656). Reads
- * the plant fresh inside [PlantDetailViewModel.plantEditMutex] (#804) rather than the cached
- * `plant` StateFlow, which a season-toggle or liquid-fertilizer write sharing this lock can still
- * have in flight.
+ * The Water tab's strength control (#700, product ADR-0081): App default (`pinned = false`,
+ * `override = null`), Custom (`override` set) or Pin. Pin and Custom are mutually exclusive here, not
+ * just in the UI: pinning clears the override and a custom strength clears the pin. Only these two
+ * columns change — the base interval stays and no `WateringAdjustment` row is logged, so the effective
+ * interval alone moves. Reads the plant fresh inside [PlantDetailViewModel.plantEditMutex] (#804) rather
+ * than the cached `plant` StateFlow, which a season-toggle or liquid-fertilizer write sharing this lock
+ * can still have in flight.
  */
-fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) {
+fun PlantDetailViewModel.setWateringStrength(pinned: Boolean, override: SeasonalAmplitude?) {
     viewModelScope.launch {
         plantEditMutex.withLock {
             val p = plantRepository.getPlantById(plantId).first() ?: return@withLock
-            plantRepository.updatePlant(p.copy(pinIntervalToBase = pinned, updatedAt = System.currentTimeMillis()))
+            plantRepository.updatePlant(
+                p.copy(
+                    pinIntervalToBase = pinned,
+                    wateringAmplitudeOverride = override.takeUnless { pinned },
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
         }
     }
 }
+
+/** "Pin interval" choice of [setWateringStrength] (#569); pinning clears any custom strength (#700). */
+fun PlantDetailViewModel.setPinIntervalToBase(pinned: Boolean) = setWateringStrength(pinned, null)
 
 /**
  * Persist a complete window, or clear both columns together, from the Water tab (#762). Shares
@@ -70,14 +84,12 @@ fun PlantDetailViewModel.setDormancyWindow(
 /**
  * [plant]'s current base-space reference for [WateringAdjustment] row units (#584 review) —
  * mirrors `QuickLogUseCase`'s `currentAdaptiveBaseIntervalDays()` fallback. Collapses to [literal]
- * itself when the plant is pinned or amplitude is Off, matching every other read of
+ * itself when the plant's effective amplitude is 0 (pinned or Off), matching every other read of
  * `Plant.wateringBaseIntervalDays`.
  */
 @Suppress("ReturnCount")
 internal suspend fun PlantDetailViewModel.currentBaseIntervalDaysOrLiteral(plant: Plant, literal: Int): Int {
-    if (plant.pinIntervalToBase) return literal
-    val amplitude = dataStore.seasonalAmplitudeOnce()
-    if (amplitude == 0.0) return literal
+    if (plant.effectiveWateringAmplitude(dataStore.seasonalAmplitudeOnce()) == 0.0) return literal
     return (plant.wateringBaseIntervalDays ?: literal.toDouble()).roundToInt()
 }
 
