@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -25,8 +26,8 @@ class WateringStrengthSettingTest {
 
     private fun setContent(pinned: Boolean = false, override: SeasonalAmplitude? = null) {
         composeTestRule.setContent {
-            var isPinned by mutableStateOf(pinned)
-            var custom by mutableStateOf(override)
+            var isPinned by remember { mutableStateOf(pinned) }
+            var custom by remember { mutableStateOf(override) }
             YaptTheme {
                 WateringStrengthSetting(
                     mode = wateringStrengthMode(isPinned, custom),

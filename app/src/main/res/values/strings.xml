@@ -342,7 +342,6 @@
         <item quantity="other">%d active issues</item>
     </plurals>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
-    <string name="pin_interval_label">Pin interval</string>
     <!-- Per-plant seasonal strength (#700): App default / Custom / Pin -->
     <string name="watering_strength_label">Seasonal strength</string>
     <string name="watering_strength_mode_default">App default</string>

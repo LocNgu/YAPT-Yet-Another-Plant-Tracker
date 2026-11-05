@@ -21,13 +21,6 @@ import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.WateringStrengthMode
 import com.yapt.planttracker.ui.util.labelRes
 
-/** What the strength control reports back; Pin and Custom are mutually exclusive by construction (#700). */
-data class WateringStrengthCallbacks(
-    val onSelectAppDefault: () -> Unit,
-    val onSelectCustom: (SeasonalAmplitude) -> Unit,
-    val onSelectPin: () -> Unit
-)
-
 /**
  * The 3-way per-plant seasonal strength control (#700, product ADR-0081): App default, Custom (Mild /
  * Standard / Strong) or Pin. Shared by Add/Edit Plant and the Plant Detail Water tab so the two
@@ -68,26 +61,7 @@ fun WateringStrengthSetting(
             }
         }
         if (mode == WateringStrengthMode.CUSTOM) {
-            val customOptionsDescription = stringResource(R.string.watering_strength_custom_options_label)
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = customOptionsDescription }
-            ) {
-                CUSTOM_WATERING_STRENGTHS.forEachIndexed { index, strength ->
-                    SegmentedButton(
-                        selected = strength == customStrength,
-                        onClick = { callbacks.onSelectCustom(strength) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = CUSTOM_WATERING_STRENGTHS.size
-                        ),
-                        modifier = Modifier.testTag("watering_strength_option_${strength.name}")
-                    ) {
-                        Text(stringResource(strength.labelRes()))
-                    }
-                }
-            }
+            CustomStrengthOptions(customStrength, callbacks.onSelectCustom)
         }
         Text(
             text = stringResource(
@@ -100,5 +74,26 @@ fun WateringStrengthSetting(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun CustomStrengthOptions(customStrength: SeasonalAmplitude?, onSelectCustom: (SeasonalAmplitude) -> Unit) {
+    val customOptionsDescription = stringResource(R.string.watering_strength_custom_options_label)
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = customOptionsDescription }
+    ) {
+        CUSTOM_WATERING_STRENGTHS.forEachIndexed { index, strength ->
+            SegmentedButton(
+                selected = strength == customStrength,
+                onClick = { onSelectCustom(strength) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = CUSTOM_WATERING_STRENGTHS.size),
+                modifier = Modifier.testTag("watering_strength_option_${strength.name}")
+            ) {
+                Text(stringResource(strength.labelRes()))
+            }
+        }
     }
 }

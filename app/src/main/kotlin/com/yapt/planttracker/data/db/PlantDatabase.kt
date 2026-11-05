@@ -385,6 +385,7 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        @Suppress("MagicNumber")
         val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE plants ADD COLUMN wateringAmplitudeOverride TEXT")

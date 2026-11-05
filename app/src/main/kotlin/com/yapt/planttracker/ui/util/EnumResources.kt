@@ -23,8 +23,8 @@ import com.yapt.planttracker.domain.repotting.RepottingOverviewThreshold
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
-import com.yapt.planttracker.domain.schedule.WateringStrengthMode
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
+import com.yapt.planttracker.domain.schedule.WateringStrengthMode
 import com.yapt.planttracker.domain.watering.WateringOverviewGroup
 import com.yapt.planttracker.ui.theme.ThemeMode
 

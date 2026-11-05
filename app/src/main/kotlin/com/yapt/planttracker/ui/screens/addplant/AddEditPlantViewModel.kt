@@ -439,6 +439,7 @@ class AddEditPlantViewModel(
     }
 
     /**
+     * When the strength and the interval change in the same save, before and after can span two strengths.
      * #584 review: logs base-space before/after, not the literal typed value — matches
      * `PlantDetailViewModel.setWateringInterval()`'s equivalent `MANUAL_EDIT` fix. Extracted out of
      * [saveEdit] to keep it under Detekt's `LongMethod`/`CyclomaticComplexMethod` thresholds.
