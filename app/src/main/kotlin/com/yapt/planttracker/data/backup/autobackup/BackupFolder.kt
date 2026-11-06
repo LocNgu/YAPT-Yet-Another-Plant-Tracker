@@ -18,6 +18,12 @@ interface BackupFolder {
     fun create(name: String): Uri?
 
     fun delete(entry: BackupFolderEntry): Boolean
+
+    /**
+     * Renames [uri] to [newName].
+     * @return the display name the provider actually gave it (it may differ, e.g. "name (1)"), null on failure.
+     */
+    fun rename(uri: Uri, newName: String): String?
 }
 
 class SafBackupFolder(private val context: Context, private val treeUri: Uri) : BackupFolder {
@@ -77,4 +83,34 @@ class SafBackupFolder(private val context: Context, private val treeUri: Uri) : 
     override fun delete(entry: BackupFolderEntry): Boolean = runCatching {
         DocumentsContract.deleteDocument(resolver, entry.uri)
     }.getOrDefault(false)
+
+    @Suppress("SwallowedException")
+    override fun rename(uri: Uri, newName: String): String? = try {
+        val renamed = DocumentsContract.renameDocument(resolver, uri, newName)
+        renamed?.let { displayName(it) }
+    } catch (e: UnsupportedOperationException) {
+        copyRename(uri, newName)
+    } catch (e: SecurityException) {
+        throw BackupFolderUnavailableException(e)
+    } catch (e: java.io.FileNotFoundException) {
+        throw BackupFolderUnavailableException(e)
+    }
+
+    // Providers without rename support: stream the temp into a fresh final document, then drop the temp.
+    private fun copyRename(source: Uri, newName: String): String? {
+        val target = create(newName) ?: return null
+        val copied = runCatching {
+            val input = resolver.openInputStream(source) ?: error("no input")
+            val output = resolver.openOutputStream(target, "w") ?: error("no output")
+            input.use { i -> output.use { o -> i.copyTo(o) } }
+        }.isSuccess
+        if (copied) delete(BackupFolderEntry(newName, source)) else delete(BackupFolderEntry(newName, target))
+        return if (copied) displayName(target) else null
+    }
+
+    private fun displayName(uri: Uri): String? = runCatching {
+        resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        }
+    }.getOrNull()
 }

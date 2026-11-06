@@ -12,6 +12,8 @@ import com.yapt.planttracker.data.backup.autobackup.BackupFolderEntry
 import com.yapt.planttracker.data.backup.autobackup.BackupFolderUnavailableException
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.autobackup.AutoBackupFailureKind
+import com.yapt.planttracker.domain.autobackup.AutoBackupFiles
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,7 +37,9 @@ import java.time.LocalDate
 private class FakeFolder(
     var accessible: Boolean = true,
     names: List<String> = emptyList(),
-    var createFails: Boolean = false
+    var createFails: Boolean = false,
+    var renameFails: Boolean = false,
+    var undeletable: Set<String> = emptySet()
 ) : BackupFolder {
     val files = names.toMutableList()
     val deleted = mutableListOf<String>()
@@ -53,9 +57,17 @@ private class FakeFolder(
         return entry(name).uri
     }
     override fun delete(entry: BackupFolderEntry): Boolean {
+        if (entry.name in undeletable) return false
         files.remove(entry.name)
         deleted += entry.name
         return true
+    }
+    override fun rename(uri: Uri, newName: String): String? {
+        val old = uri.lastPathSegment
+        if (renameFails || old == null || !files.remove(old)) return null
+        val result = if (newName in files) newName.replace(".yapt", " (1).yapt") else newName
+        files += result
+        return result
     }
 }
 
@@ -63,6 +75,7 @@ private class FakeBackupManager(var result: BackupResult) : BackupManagerInterfa
     var exports = 0
     var folder: FakeFolder? = null
     var filesAtExport: List<String> = emptyList()
+    var throwOnExport: Throwable? = null
     override suspend fun exportBackup(
         destinationUri: Uri,
         includePhotos: Boolean,
@@ -70,6 +83,7 @@ private class FakeBackupManager(var result: BackupResult) : BackupManagerInterfa
     ): BackupResult {
         exports++
         filesAtExport = folder?.files?.toList().orEmpty()
+        throwOnExport?.let { throw it }
         return result
     }
     override suspend fun importBackup(sourceUri: Uri): BackupResult = error("unused")
@@ -171,11 +185,81 @@ class AutoBackupRunnerTest {
         assertEquals(2, manager.exports)
     }
 
+    private val tempName get() = AutoBackupFiles.tempFileName(today, 1234L)
+
     @Test
-    fun `same-day file is replaced, never duplicated`() = runBlocking {
+    fun `same-day file is replaced, never duplicated, and survives until the export is done`() = runBlocking {
         val folder = FakeFolder(names = listOf(todayName))
-        runner(folder, FakeBackupManager(success())).run()
+        val manager = FakeBackupManager(success())
+        assertEquals(AutoBackupOutcome.Succeeded(0), runner(folder, manager).run())
         assertEquals(listOf(todayName), folder.files)
+        assertTrue(todayName in manager.filesAtExport)
+        assertTrue(tempName in manager.filesAtExport)
+    }
+
+    @Test
+    fun `old same-day file survives an error result and a thrown exception, temp removed`() = runBlocking {
+        val folder = FakeFolder(names = listOf(todayName))
+        val manager = FakeBackupManager(BackupResult.Error("boom"))
+        runner(folder, manager).run()
+        assertEquals(listOf(todayName), folder.files)
+
+        manager.throwOnExport = IllegalStateException("kaboom")
+        val outcome = runner(folder, manager).run() as AutoBackupOutcome.Failed
+        assertEquals(AutoBackupFailureKind.EXPORT, outcome.kind)
+        assertEquals(listOf(todayName), folder.files)
+    }
+
+    @Test
+    fun `rename failure after the old file was removed counts a failure and keeps the temp`() = runBlocking {
+        val folder = FakeFolder(names = listOf(todayName), renameFails = true)
+        val outcome = runner(folder, FakeBackupManager(success())).run() as AutoBackupOutcome.Failed
+        assertEquals(AutoBackupFailureKind.STORAGE, outcome.kind)
+        assertEquals(listOf(tempName), folder.files)
+        assertEquals(1, dataStore.data.first()[SettingsKeys.AUTO_BACKUP_FAILURE_COUNT])
+    }
+
+    @Test
+    fun `undeletable old file fails the run, deletes the temp and keeps the old file`() = runBlocking {
+        val folder = FakeFolder(names = listOf(todayName), undeletable = setOf(todayName))
+        val outcome = runner(folder, FakeBackupManager(success())).run() as AutoBackupOutcome.Failed
+        assertEquals(AutoBackupFailureKind.STORAGE, outcome.kind)
+        assertEquals(listOf(todayName), folder.files)
+    }
+
+    @Test
+    fun `stale temp files are not retention, untouched by a failed run, swept by a successful one`() = runBlocking {
+        val stale = "yapt-backup-2026-11-01.yapt.99.partial"
+        val folder = FakeFolder(
+            names = listOf(
+                stale,
+                "yapt-backup-2026-10-01.yapt",
+                "yapt-backup-2026-10-02.yapt",
+                "yapt-backup-2026-10-03.yapt"
+            )
+        )
+        val manager = FakeBackupManager(BackupResult.Error("boom"))
+        runner(folder, manager).run()
+        assertTrue(stale in folder.files)
+
+        manager.result = success()
+        runner(folder, manager).run()
+        assertFalse(stale in folder.files)
+        assertEquals(
+            listOf("yapt-backup-2026-10-02.yapt", "yapt-backup-2026-10-03.yapt", todayName).sorted(),
+            folder.files.sorted()
+        )
+        assertFalse("yapt-backup-2026-10-02.yapt" in folder.deleted)
+    }
+
+    @Test
+    fun `cancellation leaves the temp and the old file`() = runBlocking {
+        val folder = FakeFolder(names = listOf(todayName))
+        val manager = FakeBackupManager(success())
+        manager.throwOnExport = CancellationException("stopped")
+        val cancelled = runCatching { runner(folder, manager).run() }.exceptionOrNull() is CancellationException
+        assertTrue(cancelled)
+        assertEquals(listOf(todayName, tempName), folder.files)
     }
 
     @Test

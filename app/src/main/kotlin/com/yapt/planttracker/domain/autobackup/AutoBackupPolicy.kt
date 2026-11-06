@@ -74,7 +74,14 @@ object AutoBackupPolicy {
 object AutoBackupFiles {
     private val PATTERN = Regex("""^yapt-backup-(\d{4})-(\d{2})-(\d{2})\.yapt$""")
 
+    private val TEMP_PATTERN = Regex("""^yapt-backup-\d{4}-\d{2}-\d{2}\.yapt\.\d+\.partial$""")
+
     fun fileName(date: LocalDate): String = "yapt-backup-$date.yapt"
+
+    /** Unique per run so a stale one can never make the provider turn the name into "(1)"; never parses as a backup. */
+    fun tempFileName(date: LocalDate, nowMillis: Long): String = "${fileName(date)}.$nowMillis.partial"
+
+    fun isTempName(name: String): Boolean = TEMP_PATTERN.matches(name)
 
     fun parseDate(name: String): LocalDate? {
         val match = PATTERN.matchEntire(name) ?: return null

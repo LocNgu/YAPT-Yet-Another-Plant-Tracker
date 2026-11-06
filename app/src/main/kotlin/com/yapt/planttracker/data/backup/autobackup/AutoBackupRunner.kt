@@ -88,13 +88,15 @@ class AutoBackupRunner(
         currentFingerprint: String
     ): AutoBackupOutcome {
         val name = AutoBackupFiles.fileName(today())
-        // A provider would turn a same-day collision into "name (1).yapt"; replacing keeps one file per day.
-        folder.list().filter { it.name == name }.forEach { folder.delete(it) }
-        val target = folder.create(name) ?: return fail(AutoBackupFailureKind.STORAGE)
+        val tempName = AutoBackupFiles.tempFileName(today(), now())
+        val temp = folder.create(tempName) ?: return fail(AutoBackupFailureKind.STORAGE)
 
-        val result = backupManager.exportBackup(target, includePhotos, optimizePhotos)
+        // Until the swap the folder keeps the previous same-day file; no partial file ever carries the real name.
+        val result = discardingOnError(folder, temp) {
+            backupManager.exportBackup(temp, includePhotos, optimizePhotos)
+        }
         if (result !is BackupResult.ExportSuccess) {
-            runCatching { folder.list().filter { it.uri == target }.forEach { folder.delete(it) } }
+            discard(folder, temp)
             val message = (result as? BackupResult.Error)?.message.orEmpty()
             val kind = if (message.contains("ENOSPC") || message.contains("No space", ignoreCase = true)) {
                 AutoBackupFailureKind.STORAGE
@@ -104,8 +106,16 @@ class AutoBackupRunner(
             return fail(kind)
         }
 
+        if (!discardingOnError(folder, temp) { removeExisting(folder, name) }) {
+            discard(folder, temp)
+            return fail(AutoBackupFailureKind.STORAGE)
+        }
+        // The old file is gone: from here a failure keeps the temp, the only complete copy for today.
+        if (folder.rename(temp, name) != name) return fail(AutoBackupFailureKind.STORAGE)
+
         val keep = AutoBackupRetention.fromStored(prefs[SettingsKeys.AUTO_BACKUP_RETENTION])
         prune(folder, keep, justWritten = name)
+        sweepTemps(folder)
 
         dataStore.edit {
             it[SettingsKeys.AUTO_BACKUP_LAST_SUCCESS_AT] = now()
@@ -116,6 +126,29 @@ class AutoBackupRunner(
             it.remove(SettingsKeys.AUTO_BACKUP_LAST_FAILURE)
         }
         return AutoBackupOutcome.Succeeded(result.skippedPhotoCount)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private inline fun <T> discardingOnError(folder: BackupFolder, temp: Uri, block: () -> T): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        discard(folder, temp)
+        throw e
+    }
+
+    private fun removeExisting(folder: BackupFolder, name: String): Boolean {
+        folder.list().filter { it.name == name }.forEach { folder.delete(it) }
+        return folder.list().none { it.name == name }
+    }
+
+    private fun discard(folder: BackupFolder, uri: Uri) {
+        runCatching { folder.list().filter { it.uri == uri }.forEach { folder.delete(it) } }
+    }
+
+    private fun sweepTemps(folder: BackupFolder) {
+        runCatching { folder.list().filter { AutoBackupFiles.isTempName(it.name) }.forEach { folder.delete(it) } }
     }
 
     private fun prune(folder: BackupFolder, keep: Int, justWritten: String) {

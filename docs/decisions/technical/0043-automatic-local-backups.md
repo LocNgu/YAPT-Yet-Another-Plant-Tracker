@@ -24,9 +24,14 @@ the daily `ReminderWorker` clears every notification except reserved IDs (techni
 - **Folder access:** `OpenDocumentTree` plus `takePersistableUriPermission` (read and write). Files are
   listed, created and deleted through `DocumentsContract` (`SafBackupFolder`). A missing grant, a deleted
   folder or a `SecurityException` is `FOLDER_UNAVAILABLE`.
-- **File names:** `yapt-backup-YYYY-MM-DD.yapt`. A same-day file is deleted before the new one is created,
-  because a provider would otherwise create `name (1).yapt`. A failed same-day overwrite therefore loses
-  that one day's earlier file; every older backup is untouched.
+- **File names:** `yapt-backup-YYYY-MM-DD.yapt`. The export is written to a unique temp document
+  (`yapt-backup-YYYY-MM-DD.yapt.<epochMillis>.partial`, which never matches the prune pattern), so a frozen
+  or killed process can never leave a partial file under the real name. Only after `ExportSuccess` is an
+  existing same-day file deleted (and the folder re-listed to confirm it is gone, because a provider would
+  otherwise create `name (1).yapt`) and the temp renamed to the exact name (`DocumentsContract.renameDocument`,
+  falling back to copy-then-delete where rename is unsupported). A failure before the old file is deleted
+  deletes the temp and keeps the old file; a rename failure after it keeps the temp, the only complete copy.
+  Stale temps are swept, by exact name, only after a successful run, never at run start.
 - **Retention:** after a successful export only, list the folder and delete files whose names match the
   exact pattern beyond the newest N (3, 7 or 14, by the date in the name). Other files are never touched.
 - **Skip unchanged:** a SHA-256 over the row lists and backed-up settings (plus the photo toggles) is stored
@@ -52,6 +57,8 @@ the daily `ReminderWorker` clears every notification except reserved IDs (techni
 
 ## Consequences
 
-Backups are plain files the user can sync with their own tools. A same-day overwrite is not atomic. The
+Backups are plain files the user can sync with their own tools. A same-day overwrite keeps the old copy until the new one is complete, at the cost that peak folder usage
+roughly doubles during it (old and new coexist until the swap, about 760 MB for a 379 MB archive), so a
+device near its storage threshold can fail a run that used to succeed; the old copy is kept. The
 fingerprint reads every row on each run (cheap next to zipping photos, but not free). Restoring from the
 folder uses the existing manual Import; no restore UI is added.

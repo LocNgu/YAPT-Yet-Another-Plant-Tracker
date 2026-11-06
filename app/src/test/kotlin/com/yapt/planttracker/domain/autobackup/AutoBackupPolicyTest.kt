@@ -41,6 +41,19 @@ class AutoBackupPolicyTest {
     }
 
     @Test
+    fun `temp names are recognised exactly and never parse as a backup`() {
+        val date = LocalDate.of(2026, 1, 5)
+        val temp = AutoBackupFiles.tempFileName(date, 1700000000000L)
+        assertEquals("yapt-backup-2026-01-05.yapt.1700000000000.partial", temp)
+        assertTrue(AutoBackupFiles.isTempName(temp))
+        assertNull(AutoBackupFiles.parseDate(temp))
+        assertFalse(AutoBackupFiles.isTempName(AutoBackupFiles.fileName(date)))
+        assertFalse(AutoBackupFiles.isTempName("yapt-backup-2026-01-05.yapt.partial"))
+        assertFalse(AutoBackupFiles.isTempName("x$temp"))
+        assertFalse(AutoBackupFiles.isTempName("$temp.bak"))
+    }
+
+    @Test
     fun `second consecutive failure notifies once`() {
         val kind = AutoBackupFailureKind.EXPORT
         assertFalse(AutoBackupPolicy.shouldNotify(kind, 1, alreadyNotified = false))
