@@ -167,7 +167,9 @@ class PlantDetailScheduleSettingsActionsCoalescingTest {
                 )
             }
             coVerify(exactly = 0) {
-                wateringAdjustmentRepo.recordManualEdit(match { it.beforeIntervalDays == 5 && it.afterIntervalDays == 7 })
+                wateringAdjustmentRepo.recordManualEdit(
+                    match { it.beforeIntervalDays == 5 && it.afterIntervalDays == 7 }
+                )
             }
         }
 

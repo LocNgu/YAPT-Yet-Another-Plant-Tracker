@@ -14,7 +14,9 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
-        changed = listOf("Changing a watering interval several times in a day now shows as one entry in \"Why this date?\".")
+        changed = listOf(
+            "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
