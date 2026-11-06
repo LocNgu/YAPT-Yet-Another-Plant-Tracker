@@ -52,6 +52,7 @@ class PlantDetailScheduleSettingsActionsCoalescingTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
         coEvery { addAdjustment(any()) } returns 1L
+        coEvery { recordManualEdit(any()) } returns 1L
     }
     private val database: PlantDatabase = mockk()
 
@@ -108,7 +109,7 @@ class PlantDetailScheduleSettingsActionsCoalescingTest {
             coVerify(exactly = 0) { plantRepo.updatePlant(match { it.wateringIntervalDays == intermediate }) }
         }
         coVerify(exactly = 1) {
-            wateringAdjustmentRepo.addAdjustment(
+            wateringAdjustmentRepo.recordManualEdit(
                 match { it.beforeIntervalDays == 7 && it.afterIntervalDays == 12 }
             )
         }
@@ -161,12 +162,12 @@ class PlantDetailScheduleSettingsActionsCoalescingTest {
             // guards against is the *second* row (the tap's eventual flush) using the stale `5` the
             // cached `plant` StateFlow still held instead of the freshly-written `6`.
             coVerify {
-                wateringAdjustmentRepo.addAdjustment(
+                wateringAdjustmentRepo.recordManualEdit(
                     match { it.beforeIntervalDays == 6 && it.afterIntervalDays == 7 }
                 )
             }
             coVerify(exactly = 0) {
-                wateringAdjustmentRepo.addAdjustment(match { it.beforeIntervalDays == 5 && it.afterIntervalDays == 7 })
+                wateringAdjustmentRepo.recordManualEdit(match { it.beforeIntervalDays == 5 && it.afterIntervalDays == 7 })
             }
         }
 

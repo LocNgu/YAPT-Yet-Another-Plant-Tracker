@@ -40,13 +40,13 @@ A quick-water can be backdated (`loggedAt`). Keep the two clocks apart:
 
 ## `watering_adjustments` table (product ADR-0028)
 A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent applies change confidence/base without any `CareLog` row.
-- A row is written **every time** the model evaluates, including no-ops (`before == after`).
+- A row is written **every time** the model evaluates, including no-ops (`before == after`) — except same-day `MANUAL_EDIT` edits, which merge (below).
 - Triggers (`WateringAdjustmentTrigger`):
   - `WATER_TOO_SOON`/`WATER_TOO_LATE`/`WATER_JUST_RIGHT`/`WATER_NEUTRAL` come from the WATER observation path.
   - `WATER_NOT_ATTRIBUTED` is an off-schedule watering the user declined to attribute. It wins via `AdaptiveInterval.excludedFromBaseLearning` and is distinct from on-schedule `WATER_NEUTRAL`.
   - `FROZEN_POST_REPOT` is an observation excluded by the REPOT freeze window. It is not a declined attribution.
   - `DIALOG_DISMISSAL` and `DIALOG_EDIT` come from the suggestion dialog.
-  - `MANUAL_EDIT` comes from `AddEditPlantViewModel.saveEdit()` and `PlantDetailViewModel.setWateringInterval()`.
+  - `MANUAL_EDIT` comes from `AddEditPlantViewModel.saveEdit()` and `PlantDetailViewModel.setWateringInterval()`, both through `WateringAdjustmentRepository.recordManualEdit()` (#799, product ADR-0081): if the plant's newest row is a same-local-day `MANUAL_EDIT` it is updated in place (original `before` kept, new `after`/`triggeredAt`; net-zero stays as "unchanged"), otherwise a row is inserted. One Room `@Transaction` in `WateringAdjustmentDao`. Never call `addAdjustment` for `MANUAL_EDIT`.
   - `REPOT_RESET`/`ROOM_CHANGE_RESET` are lifecycle resets that change confidence only (`before == after`).
   - `PROPAGATE_CONFIDENCE_DROP` is a new PROPAGATE log lowering confidence by 2 (`before == after`; `rules/care-logging.md`). Written only when the confidence changed.
   - `HISTORY_BOOTSTRAP` is the one-time cold start from watering history.

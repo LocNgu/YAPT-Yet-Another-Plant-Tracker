@@ -72,6 +72,10 @@ class PlantDetailPlantEditLockTest {
             adjustments += firstArg<WateringAdjustment>()
             1L
         }
+        coEvery { recordManualEdit(any()) } coAnswers {
+            adjustments += firstArg<WateringAdjustment>()
+            1L
+        }
     }
 
     private lateinit var stored: MutableStateFlow<Plant?>

@@ -109,7 +109,7 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
             val loggedBefore = currentBaseIntervalDaysOrLiteral(p, p.wateringIntervalDays ?: days)
             // #927: gated on a base-space change, not on the typed literal differing from the stored one.
             if (loggedAfter != loggedBefore) {
-                wateringAdjustmentRepository.addAdjustment(
+                wateringAdjustmentRepository.recordManualEdit(
                     WateringAdjustment(
                         plantId = p.id,
                         triggeredAt = now,

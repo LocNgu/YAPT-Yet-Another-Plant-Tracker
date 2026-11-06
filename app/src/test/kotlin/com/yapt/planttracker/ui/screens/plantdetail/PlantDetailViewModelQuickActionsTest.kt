@@ -56,6 +56,7 @@ class PlantDetailViewModelQuickActionsTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
         coEvery { addAdjustment(any()) } returns 1L
+        coEvery { recordManualEdit(any()) } returns 1L
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
