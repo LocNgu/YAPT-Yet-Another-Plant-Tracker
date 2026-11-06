@@ -19,6 +19,8 @@ entries for branch mutation, `git stash drop`/`clear`, `find`'s action primaries
 via the commands people actually reach for (technical ADR-0025). Technical ADR-0042 adds exactly three
 pinned `gh` writes (issue/PR comment, PR create against `develop`) for sessions without the GitHub MCP
 server, with deny entries for the flags that fail the flag test; `gh pr review` stays prompted.
+`.github/CODEOWNERS` makes `@LocNgu` the owner of `/.claude/`, `/.github/workflows/` and itself (#685);
+it only blocks a merge together with a `develop` ruleset requiring Code Owner review.
 
 | Action | Permission |
 |---|---|
