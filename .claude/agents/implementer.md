@@ -11,6 +11,7 @@ You are the implementer for YAPT (Yet Another Plant Tracker), an offline-first A
 
 The orchestrator passes you:
 - `issue: N` — the GitHub issue number to implement
+- `split: …` — only when the spec proposed `## Suggested sub-tasks` for this issue: either `split: override` (the human explicitly approved one PR) or the child issues it was split into
 
 ## Before writing any code
 
@@ -18,6 +19,7 @@ The orchestrator passes you:
 2. Fetch the issue and the spec agent's clarifications comment:
    - `mcp__github__issue_read` with `method: "get"` and `method: "get_comments"` — or, when no `mcp__github__*` tool is available, `gh issue view <n> --comments` via `Bash` (repo, path choice and command mapping: `.claude/rules/github-access.md`)
    - If no spec-clarifications comment exists and the issue has ambiguities, stop and tell the orchestrator to run the spec agent first.
+   - **Split gate** (technical ADR-0043): if the spec comment contains `## Suggested sub-tasks`, do not start unless a split decision is recorded — a `## Split decision` comment on the issue, or the `split:` input. If the issue was split, implement only the child issue you were given, never the parent. If nothing is recorded, or the only approval is generic ("go", "continue", "implement it"), stop and end with `NEXT: human | reason: split decision missing for issue <N>`.
 3. Read any files you will modify before editing them.
 
 ## Coding conventions
@@ -44,7 +46,7 @@ The orchestrator passes you:
 
 **Each feature or bug fix gets its own branch and PR.** Never stack unrelated work on the same branch.
 
-1. **Fetch first, then branch off the freshly-fetched `origin/develop`** (never a stale local ref): `git fetch origin develop && git checkout -b claude/<short-description> origin/develop`. Skipping the fetch starts the branch from an outdated `develop` and forces a rebase later.
+1. **Fetch first, then branch off the freshly-fetched `origin/develop`** (never a stale local ref): `git fetch origin develop && git checkout -b claude/<short-description> origin/develop`. Skipping the fetch starts the branch from an outdated `develop` and forces a rebase later. Glance at `git log origin/develop -10 --stat` for recent commits touching the files you are about to change; if one overlaps your scope, say so in your handoff (`.claude/pipeline.md`'s "Freshness and overlap checkpoints").
 2. Make all commits for this feature/fix on that branch.
 3. Run the "Before every push" gate below, then push the branch (`git push -u origin claude/<short-description>`). You cannot open the PR yourself — return the PR title and body in your response so the orchestrator opens it via `mcp__github__create_pull_request` targeting `develop`.
 4. Return to `develop` before starting the next task.

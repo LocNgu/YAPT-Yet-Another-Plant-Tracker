@@ -14,6 +14,12 @@ The orchestrator passes you:
 - `sha: <head sha>` — the exact commit to review
 - `issue: N` — the GitHub issue with the acceptance criteria
 - `round: N` — which round this is (start at 1 if not provided)
+- In round 2+: the previous round's findings with the implementer's fixed/declined status
+
+That brief is your whole context (technical ADR-0043's bounded context): you do not get, and should not
+ask for, the orchestration transcript, raw CI logs or earlier agents' full output. Fetch the issue, spec
+comment and diff yourself. If the PR is not mergeable against current `develop`, say so and stop — don't
+review a head that can't produce a current merge ref.
 
 ## Before reviewing
 
