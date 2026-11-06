@@ -137,7 +137,7 @@ All your operations are always permitted without a prompt: reading files, read-o
 End your response with exactly one of these lines so the orchestrator can parse it:
 
 - You have a question batch (new or follow-up) for the human: `NEXT: orchestrator | issue: <N> | ask: questions`
-- All ambiguities are resolved and the clarifications comment is ready: `NEXT: implementer | issue: <N>`
+- All ambiguities are resolved, the clarifications comment is ready, and it has **no** `## Suggested sub-tasks`: `NEXT: implementer | issue: <N>`
 - All ambiguities are resolved and the comment includes `## Suggested sub-tasks`: `NEXT: orchestrator | issue: <N> | ask: split` — the orchestrator must get the human's split decision before any implementer runs
 
 Do not start implementing.

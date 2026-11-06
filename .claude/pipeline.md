@@ -17,7 +17,7 @@ Read on demand when orchestrating an issue through spec → implement → review
 When the spec's output contains `## Suggested sub-tasks`, implementation of the parent issue is **blocked** until the human records a split decision:
 - Present the proposed split and ask the human (`AskUserQuestion`) to **approve or adjust the split** or to **explicitly override it with a single PR**. The override option must state the cost: one larger review, more fix rounds, more usage, more exposure to base drift.
 - **Generic approval is not a decision.** "go", "continue", "implement it", "lgtm", or approving the spec comment does not authorize building the parent as one PR — ask the split question anyway.
-- **Default: split.** Create one child issue per sub-task (`mcp__github__issue_write` `create` with `parent_issue_number`), post the decision on the parent issue, and process the children **sequentially** — each child runs the full pipeline and merges before the next starts, branching from the freshly fetched `develop` that contains it.
+- **Default: split.** Create one child issue per sub-task (`mcp__github__issue_write` `create` with `parent_issue_number`), post `## Split decision: split into #a, #b, …` on the parent issue, and process the children **sequentially** — each child runs the full pipeline and merges before the next starts, branching from the freshly fetched `develop` that contains it.
 - **Override:** post the human's explicit single-PR override on the parent issue (`## Split decision: single PR (override)` plus the human's words), then dispatch the implementer for the parent.
 - Pass the recorded decision to the implementer in its dispatch (`split: children #a, #b, …` or `split: override`); the implementer refuses to start a parent issue whose spec proposed sub-tasks without one.
 
@@ -49,7 +49,7 @@ Every subagent dispatch is **bounded by default** — a brief with exact referen
 ## Usage checkpoint (#854)
 Before launching an **additional** broad fix, review or QA phase on unusually large work (more than one fix round, or a PR spanning several layers):
 - Check current usage when the host exposes it.
-- Post a short checkpoint on the PR: completed work, remaining risk, and the cheapest safe continuation.
+- Post a short checkpoint on the PR: completed work, remaining risk, and the cheapest safe continuation. This is the one comment allowed outside "Comment cadence" below, and only when the checkpoint fires.
 - If the usage window is nearly exhausted, **stop at a stable pushed SHA** and hand off to the human instead of starting an agent that will hit the limit.
 - A repeated `usage_limit_exceeded` result is a workflow signal: don't redispatch unchanged work — checkpoint and stop.
 - Elapsed Gradle/CI wall-clock time is not model usage; waiting on CI is not a reason to stop.
@@ -70,4 +70,4 @@ restarted or compacted, a fresh dispatch is unavoidable and that's fine. This is
 unchanged; a resumed implementer does not mean a resumed reviewer.
 
 ## Comment cadence
-one comment per phase, in order: spec→issue (`add_issue_comment`); the combined review+CI result→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR, only when QA actually ran; summary→PR. Without the GitHub MCP tools, post the same comments through the `gh` fallback in `rules/github-access.md` (the review+CI result becomes a `gh pr comment`); if neither path works, tell the human — never skip a comment.
+one comment per phase, in order: spec→issue (`add_issue_comment`); split decision→parent issue, only when the spec proposed sub-tasks; the combined review+CI result→PR inline review (`pull_request_review_write` + `add_comment_to_pending_review`); QA→PR, only when QA actually ran; usage checkpoint→PR, only when it fires; summary→PR. Without the GitHub MCP tools, post the same comments through the `gh` fallback in `rules/github-access.md` (the review+CI result becomes a `gh pr comment`); if neither path works, tell the human — never skip a comment.

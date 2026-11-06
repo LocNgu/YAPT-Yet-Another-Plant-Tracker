@@ -19,7 +19,8 @@ The orchestrator passes you:
 That brief is your whole context (technical ADR-0043's bounded context): you do not get, and should not
 ask for, the orchestration transcript, raw CI logs or earlier agents' full output. Fetch the issue, spec
 comment and diff yourself. If the PR is not mergeable against current `develop`, say so and stop — don't
-review a head that can't produce a current merge ref.
+review a head that can't produce a current merge ref — ending with
+`NEXT: implementer | PR: <N> | sha: <sha> | reason: not mergeable — merge develop and resolve conflicts`.
 
 ## Before reviewing
 
@@ -161,6 +162,7 @@ once the fix lands); "approved, nothing to fix" only when there are no findings 
 - Approved, with "needs a device" items and nothing left to fix: `NEXT: qa | PR: <N> | sha: <sha>`
 - Approved, nothing to fix and nothing needing a device: `NEXT: human | PR: <N> | sha: <sha> | reason: approved`
 - Escalating after round 2: `NEXT: human | PR: <N> | sha: <sha> | reason: round 2 complete — awaiting decision`
+- PR not mergeable against current `develop` (no review done): `NEXT: implementer | PR: <N> | sha: <sha> | reason: not mergeable — merge develop and resolve conflicts`
 
 ## Autonomy
 

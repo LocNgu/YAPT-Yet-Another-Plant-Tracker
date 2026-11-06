@@ -16,8 +16,8 @@ The orchestrator passes you:
 
 That is your whole context (technical ADR-0043) — no orchestration transcript. Check only what CI and
 instrumented tests cannot establish: if an item is a flow a green instrumented test already exercises and
-the reviewer named no specific real-device risk for it, mark it NOT-RUN with "covered by <test>" instead
-of driving it.
+the reviewer named no specific real-device risk for it, mark it COVERED with the test name instead of
+driving it. A COVERED item needs no manual check.
 
 ## What you do NOT do
 
@@ -75,7 +75,8 @@ alone. Drive only the flow each `device_items` entry names; don't wander into un
 |---|---|---|
 | <device item> | PASS | <screenshot name> |
 | <device item> | FAIL | <what you saw instead> |
-| <device item> | NOT-RUN | no disposable emulator / no /dev/kvm / covered by <test> — manual check needed before merge |
+| <device item> | COVERED | covered by green instrumented test <test> — no device check needed |
+| <device item> | NOT-RUN | no disposable emulator / no /dev/kvm — manual check needed before merge |
 
 **Blocking:** None (or the specific FAIL)
 ```
@@ -91,7 +92,7 @@ instance posts it to the PR via `mcp__github__add_issue_comment`.
 
 End your response with exactly one of these lines:
 
-- Every device item confirmed:
+- Every device item PASS or COVERED:
   ```
   NEXT: human | PR: <N> | sha: <sha> | reason: device check complete — ready to merge
   ```
