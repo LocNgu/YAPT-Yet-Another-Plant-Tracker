@@ -87,7 +87,7 @@ class SafBackupFolder(private val context: Context, private val treeUri: Uri) : 
     @Suppress("SwallowedException")
     override fun rename(uri: Uri, newName: String): String? = try {
         val renamed = DocumentsContract.renameDocument(resolver, uri, newName)
-        renamed?.let { displayName(it) }
+        renamed?.let { displayName(it) ?: newName }
     } catch (e: UnsupportedOperationException) {
         copyRename(uri, newName)
     } catch (e: SecurityException) {
@@ -100,9 +100,11 @@ class SafBackupFolder(private val context: Context, private val treeUri: Uri) : 
     private fun copyRename(source: Uri, newName: String): String? {
         val target = create(newName) ?: return null
         val copied = runCatching {
-            val input = resolver.openInputStream(source) ?: error("no input")
             val output = resolver.openOutputStream(target, "w") ?: error("no output")
-            input.use { i -> output.use { o -> i.copyTo(o) } }
+            output.use { o ->
+                val input = resolver.openInputStream(source) ?: error("no input")
+                input.use { i -> i.copyTo(o) }
+            }
         }.isSuccess
         if (copied) delete(BackupFolderEntry(newName, source)) else delete(BackupFolderEntry(newName, target))
         return if (copied) displayName(target) else null

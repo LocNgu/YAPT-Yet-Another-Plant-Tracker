@@ -57,8 +57,9 @@ the daily `ReminderWorker` clears every notification except reserved IDs (techni
 
 ## Consequences
 
-Backups are plain files the user can sync with their own tools. A same-day overwrite keeps the old copy until the new one is complete, at the cost that peak folder usage
-roughly doubles during it (old and new coexist until the swap, about 760 MB for a 379 MB archive), so a
-device near its storage threshold can fail a run that used to succeed; the old copy is kept. The
+Backups are plain files the user can sync with their own tools. A same-day overwrite keeps the old copy until the new one is complete, at the cost
+that peak folder usage roughly doubles during it (old and new coexist until the swap, about 760 MB for a
+379 MB archive), so a device near its storage threshold can fail a run that used to succeed; the old copy
+is kept. The
 fingerprint reads every row on each run (cheap next to zipping photos, but not free). Restoring from the
 folder uses the existing manual Import; no restore UI is added.

@@ -106,7 +106,10 @@ class AutoBackupRunner(
             return fail(kind)
         }
 
-        if (!discardingOnError(folder, temp) { removeExisting(folder, name) }) {
+        discardingOnError(folder, temp) { folder.list().filter { it.name == name }.forEach { folder.delete(it) } }
+        // Unknown outcome (the re-list threw): the delete may have succeeded, so the temp must stay.
+        val stillThere = existsOrNull(folder, name) ?: return fail(AutoBackupFailureKind.STORAGE)
+        if (stillThere) {
             discard(folder, temp)
             return fail(AutoBackupFailureKind.STORAGE)
         }
@@ -138,9 +141,13 @@ class AutoBackupRunner(
         throw e
     }
 
-    private fun removeExisting(folder: BackupFolder, name: String): Boolean {
-        folder.list().filter { it.name == name }.forEach { folder.delete(it) }
-        return folder.list().none { it.name == name }
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
+    private fun existsOrNull(folder: BackupFolder, name: String): Boolean? = try {
+        folder.list().any { it.name == name }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     private fun discard(folder: BackupFolder, uri: Uri) {

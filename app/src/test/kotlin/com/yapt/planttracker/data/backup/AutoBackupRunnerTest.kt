@@ -39,7 +39,8 @@ private class FakeFolder(
     names: List<String> = emptyList(),
     var createFails: Boolean = false,
     var renameFails: Boolean = false,
-    var undeletable: Set<String> = emptySet()
+    var undeletable: Set<String> = emptySet(),
+    var listThrowsAfterDelete: Boolean = false
 ) : BackupFolder {
     val files = names.toMutableList()
     val deleted = mutableListOf<String>()
@@ -48,7 +49,7 @@ private class FakeFolder(
 
     override fun isAccessible() = accessible
     override fun list(): List<BackupFolderEntry> {
-        if (!accessible) throw BackupFolderUnavailableException()
+        if (!accessible || (listThrowsAfterDelete && deleted.isNotEmpty())) throw BackupFolderUnavailableException()
         return files.map(::entry)
     }
     override fun create(name: String): Uri? {
@@ -225,6 +226,14 @@ class AutoBackupRunnerTest {
         val outcome = runner(folder, FakeBackupManager(success())).run() as AutoBackupOutcome.Failed
         assertEquals(AutoBackupFailureKind.STORAGE, outcome.kind)
         assertEquals(listOf(todayName), folder.files)
+    }
+
+    @Test
+    fun `a re-list that throws after the old file was deleted keeps the temp`() = runBlocking {
+        val folder = FakeFolder(names = listOf(todayName), listThrowsAfterDelete = true)
+        val outcome = runner(folder, FakeBackupManager(success())).run() as AutoBackupOutcome.Failed
+        assertEquals(AutoBackupFailureKind.STORAGE, outcome.kind)
+        assertEquals(listOf(tempName), folder.files)
     }
 
     @Test
